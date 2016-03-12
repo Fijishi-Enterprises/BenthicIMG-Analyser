@@ -1,2 +1,2 @@
-from CoralNet.images.tasks import *
+from coralnet.images.tasks import *
 classify_wrapper()

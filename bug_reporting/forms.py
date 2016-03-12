@@ -1,6 +1,6 @@
 from django.forms import ModelForm
 from bug_reporting.models import Feedback
-from CoralNet.forms import FormHelper
+from coralnet.forms import FormHelper
 
 class FeedbackForm(ModelForm):
     class Meta:

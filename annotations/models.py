@@ -4,7 +4,7 @@ from django.db import models
 from images.models import Point, Image, Source, Robot
 from userena.models import User
 from easy_thumbnails.fields import ThumbnailerImageField
-from CoralNet.utils import generate_random_filename
+from coralnet.utils import generate_random_filename
 
 def get_label_thumbnail_upload_path(instance, filename):
     """

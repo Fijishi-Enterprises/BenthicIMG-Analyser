@@ -141,7 +141,7 @@ var ATS = {
     saveSettings: function() {
         ATS.$saveButton.attr('disabled', 'disabled');
         ATS.$saveButton.text("Now saving...");
-        Dajaxice.CoralNet.annotations.ajax_save_settings(
+        Dajaxice.coralnet.annotations.ajax_save_settings(
             // JS callback that handles the ajax.py function's return value.
             ATS.saveSettingsAjaxCallback,
             // Args to the ajax.py function.

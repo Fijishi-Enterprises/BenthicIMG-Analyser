@@ -10,7 +10,7 @@ from django.test.client import Client
 from django.test.simple import DjangoTestSuiteRunner
 from django.utils import simplejson
 from userena.managers import UserenaManager
-from CoralNet.utils import *
+from coralnet.utils import *
 from images.models import Source
 from lib.exceptions import TestfileDirectoryError
 

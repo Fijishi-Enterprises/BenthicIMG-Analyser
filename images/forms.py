@@ -5,7 +5,7 @@ from django.forms import fields
 from django.forms.fields import CharField, ChoiceField, FileField, IntegerField
 from django.forms.widgets import  Select, TextInput
 from images.models import Source, Image, Metadata, Value1, Value2, Value3, Value4, Value5, SourceInvite
-from CoralNet.forms import FormHelper
+from coralnet.forms import FormHelper
 from images.model_utils import PointGen
 from lib import str_consts
 

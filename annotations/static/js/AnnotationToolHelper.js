@@ -1008,7 +1008,7 @@ var AnnotationToolHelper = (function() {
     function saveAnnotations() {
         $(saveButton).attr('disabled', 'disabled');
         $(saveButton).text("Now saving...");
-        Dajaxice.CoralNet.annotations.ajax_save_annotations(
+        Dajaxice.coralnet.annotations.ajax_save_annotations(
             ajaxSaveButtonCallback,    // JS callback that the ajax.py method returns to.
             {'annotationForm': $("#annotationForm").serializeArray()}    // Args to the ajax.py method.
         );
@@ -1683,7 +1683,7 @@ var AnnotationToolHelper = (function() {
             $(saveButton).text('Saved');
 
             // Initialize all_done state
-            Dajaxice.CoralNet.annotations.ajax_is_all_done(
+            Dajaxice.coralnet.annotations.ajax_is_all_done(
                 setAllDoneIndicator,
                 {'image_id': $('#id_image_id')[0].value}
             );

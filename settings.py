@@ -176,7 +176,7 @@ MIDDLEWARE_CLASSES = (
     'reversion.middleware.RevisionMiddleware',
 )
 
-ROOT_URLCONF = 'CoralNet.urls'
+ROOT_URLCONF = 'coralnet.urls'
 
 TEMPLATE_DIRS = (
     # Put strings here, like "/home/html/django_templates" or "C:/www/django/templates".
@@ -226,8 +226,8 @@ INSTALLED_APPS = (
     'GChartWrapper.charts',
 	'djsupervisor',
 )
-# Add MY_INSTALLED_APPS to INSTALLED_APPS, each with a 'CoralNet.' prefix.
-INSTALLED_APPS += tuple(['CoralNet.'+app_name for app_name in MY_INSTALLED_APPS])
+# Add MY_INSTALLED_APPS to INSTALLED_APPS, each with a 'coralnet.' prefix.
+INSTALLED_APPS += tuple(['coralnet.'+app_name for app_name in MY_INSTALLED_APPS])
 
 
 # A sample logging configuration. The only tangible logging

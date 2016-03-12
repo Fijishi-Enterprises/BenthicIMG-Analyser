@@ -16,7 +16,7 @@ from accounts.utils import is_robot_user, get_robot_user
 from annotations.model_utils import AnnotationAreaUtils
 from annotations.models import Label, LabelSet, Annotation, AnnotationToolSettings
 from django.core.mail import mail_admins
-from CoralNet.forms import FormHelper
+from coralnet.forms import FormHelper
 
 # Custom widget to enable multiple checkboxes without outputting a wrongful
 # helptext since I'm modifying the widget used to display labels.

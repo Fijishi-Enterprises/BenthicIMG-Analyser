@@ -25,10 +25,10 @@ def contact(request):
         if contact_form.is_valid():
             # Set up the subject and message.
             if request.user.is_authenticated():
-                username = request.user.username,
-                base_subject=contact_form.cleaned_data['subject']
-                user_email=request.user.email
-                base_message=contact_form.cleaned_data['message']
+                username = request.user.username
+                base_subject = contact_form.cleaned_data['subject']
+                user_email = request.user.email
+                base_message = contact_form.cleaned_data['message']
             else:
                 username = "[A guest]"
                 base_subject = contact_form.cleaned_data['subject']

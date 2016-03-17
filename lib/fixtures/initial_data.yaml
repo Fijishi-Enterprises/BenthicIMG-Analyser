@@ -12,6 +12,10 @@
   pk: -3
   fields:
     username: robot
+- model: auth.user
+  pk: -4
+  fields:
+    username: Alleviate
 
 - model: annotations.labelset
   pk: -1

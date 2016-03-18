@@ -128,7 +128,7 @@ class ImageUploadBaseTest(ClientTest):
         Like upload_image_test(), but with additional checks that the
         various image fields are set correctly.
         """
-        datetime_before_upload = datetime.datetime.now().replace(microsecond=0)
+        datetime_before_upload = datetime.datetime.now()
 
         image_id, response = self.upload_image_test(
             filename,
@@ -147,11 +147,8 @@ class ImageUploadBaseTest(ClientTest):
         self.assertEqual(img.original_height, 400)
         self.assertEqual(img.original_width, 400)
 
-        # This check is of limited use since database datetimes (in
-        # MySQL 5.1 at least) get truncated to whole seconds. But it still
-        # doesn't hurt to check.
         self.assertTrue(datetime_before_upload <= img.upload_date)
-        self.assertTrue(img.upload_date <= datetime.datetime.now().replace(microsecond=0))
+        self.assertTrue(img.upload_date <= datetime.datetime.now())
 
         # Check that the user who uploaded the image is the
         # currently logged in user.
@@ -243,7 +240,7 @@ class UploadDupeImageTest(ImageUploadBaseTest):
         self.upload_image_test('002_2012-06-28_color-grid-002.png', **options)
 
         # Duplicate
-        datetime_before_dupe_upload = datetime.datetime.now().replace(microsecond=0)
+        datetime_before_dupe_upload = datetime.datetime.now()
         self.upload_image_test('001_2012-05-01_color-grid-001.png', expecting_dupe=True, **options)
 
         image_001 = Image.objects.get(source__pk=self.source_id, metadata__value1__name='001')

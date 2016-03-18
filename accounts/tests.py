@@ -7,14 +7,29 @@ from lib.test_utils import ClientTest
 class AddUserTest(ClientTest):
     fixtures = ['test_users.yaml']
 
-    def test_add_user_page(self):
-        """Go to the add user page."""
+    def test_load_page_anonymous(self):
+        """Load page while logged out -> login page."""
+        response = self.client.get(reverse('signup'))
+        self.assertRedirects(
+            response,
+            reverse('signin')+'?next='+reverse('signup'),
+        )
+
+    def test_load_page_normal_user(self):
+        """Load page as normal user -> sorry, don't have permission."""
+        self.client.login(username='user2', password='secret')
+        response = self.client.get(reverse('signup'))
+        self.assertStatusOK(response)
+        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+
+    def test_load_page_superuser(self):
+        """Load page as superuser -> page loads normally."""
         self.client.login(username='superuser_user', password='secret')
         response = self.client.get(reverse('signup'))
         self.assertStatusOK(response)
 
     # TODO: Add tests that submit the Add User form with errors.
-    # TODO: Add a test (or modify an old test?) to check that a new, unactivated user can't login yet.
+    # TODO: Add a test to check that a new, unactivated user can't login yet.
 
     def test_add_user_success(self):
         """
@@ -144,3 +159,48 @@ class SigninTest(ClientTest):
         self.signin_success(identification_method='email', remember_me=True)
         self.signin_success(identification_method='email', remember_me=False)
 
+
+class EmailAllTest(ClientTest):
+    fixtures = ['test_users.yaml']
+
+    def test_load_page_anonymous(self):
+        """Load page while logged out -> login page."""
+        response = self.client.get(reverse('emailall'))
+        self.assertRedirects(
+            response,
+            reverse('signin')+'?next='+reverse('emailall'),
+        )
+
+    def test_load_page_normal_user(self):
+        """Load page as normal user -> sorry, don't have permission."""
+        self.client.login(username='user2', password='secret')
+        response = self.client.get(reverse('emailall'))
+        self.assertStatusOK(response)
+        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+
+    def test_load_page_superuser(self):
+        """Load page as superuser -> page loads normally."""
+        self.client.login(username='superuser_user', password='secret')
+        response = self.client.get(reverse('emailall'))
+        self.assertStatusOK(response)
+        self.assertTemplateUsed(response, 'accounts/email_all_form.html')
+
+    def test_submit(self):
+        """Test submitting the form."""
+        self.client.login(username='superuser_user', password='secret')
+        response = self.client.post(reverse('emailall'), data=dict(
+            subject="Subject goes here",
+            message="Message\ngoes here.",
+        ))
+        self.assertStatusOK(response)
+
+        # Check that an email was sent.
+        self.assertEqual(len(mail.outbox), 1)
+        # Check that the email has the expected number of recipients:
+        # the number of users with an email address.
+        # (Special users like 'robot' don't have emails.)
+        num_of_users = User.objects.all().exclude(email='').count()
+        self.assertEqual(len(mail.outbox[0].bcc), num_of_users)
+
+        # TODO: Check the emails in more detail: subject, message, and
+        # possibly checking at least some of the bcc addresses.

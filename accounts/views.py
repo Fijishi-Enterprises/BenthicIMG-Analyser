@@ -1,14 +1,18 @@
+from django.contrib.auth.models import User
+from django.core.mail import EmailMessage
 from django.core.urlresolvers import reverse
 from django.shortcuts import redirect, render_to_response
 from django.template.context import RequestContext
-from guardian.decorators import permission_required_or_403
+
 from userena.decorators import secure_required
+
 from accounts.forms import UserAddForm
-from django.contrib.auth.models import User
-from django.core.mail import send_mass_mail, EmailMessage
 from settings import SERVER_EMAIL
+from decorators import permission_required
+
+
 @secure_required
-@permission_required_or_403('auth.add_user')
+@permission_required('auth.add_user')
 def user_add(request):
     """
     Add a user using a subclass of Userena's SignupForm,
@@ -41,9 +45,12 @@ def user_add(request):
         context_instance=RequestContext(request)
     )
 
-#sends mass emails to all users in a single email
-def email_all(request):
 
+# TODO: Find if there's a standard Django way to say "superuser required";
+# otherwise make our own decorator for it.
+@permission_required('auth.add_user')
+def email_all(request):
+    """Sends an email to all registered users."""
     status = None
     if request.method == 'POST':
         subject = request.REQUEST.get('subject').encode("ascii")

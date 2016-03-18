@@ -152,19 +152,21 @@ class SourceNewTest(ClientTest):
 
         # Default source arguments; individual tests are free to change it
         self.source_args = dict(
-            name='Test Source',
+            name="Test Source",
             visibility=Source.VisibilityTypes.PRIVATE,
-            key1='Number',
+            affiliation="Testing Society",
+            description="Description\ngoes here.",
+            key1="Site",
+            image_height_in_cm=125,
+            min_x=10,
+            max_x=90,
+            min_y=10,
+            max_y=90,
             point_generation_type=PointGen.Types.SIMPLE,
-            simple_number_of_points=200,
+            simple_number_of_points=16,
             alleviate_threshold=25,
-            image_height_in_cm=50,
-            min_x=0,
-            max_x=100,
-            min_y=0,
-            max_y=100,
-            longitude='45.1982',
-            latitude='-17.0776',
+            latitude='-17.3776',
+            longitude='25.1982',
         )
 
     def test_get_success(self):
@@ -221,11 +223,16 @@ class SourceNewTest(ClientTest):
 
         self.assertEqual(new_source.enable_robot_classifier, True)
 
-        # This check is of limited use since database datetimes (in
-        # MySQL 5.1 at least) get truncated to whole seconds. But it still
-        # doesn't hurt to check.
+        # Check that the source creation date is reasonable:
+        # - a timestamp taken before creation should be before the creation date.
+        # - a timestamp taken after creation should be after the creation date.
+        #
+        # Careful: In MySQL 5.1 (possibly other versions too), the date gets
+        # truncated to whole seconds. We're NOT going to assume that behavior here.
+        # We'll assume the database can preserve at least milliseconds, which is the
+        # default precision of datetime.datetime.now().
         self.assertTrue(datetime_before_creation <= new_source.create_date)
-        self.assertTrue(new_source.create_date <= datetime.datetime.now().replace(microsecond=0))
+        self.assertTrue(new_source.create_date <= datetime.datetime.now())
 
     def test_optional_fields(self):
         """
@@ -233,13 +240,10 @@ class SourceNewTest(ClientTest):
         """
 
         self.source_args.update(
-            description="Here is\na description.",
             key2="Island",
             key3="Habitat",
             key4="Section",
             key5="ID",
-            longitude='45.1982',
-            latitude='-17.0776',
         )
 
         response = self.client.post(reverse('source_new'), self.source_args)
@@ -247,7 +251,6 @@ class SourceNewTest(ClientTest):
         source_id = Source.objects.latest('create_date').pk
         new_source = Source.objects.get(pk=source_id)
 
-        self.assertEqual(new_source.description, self.source_args['description'])
         self.assertEqual(new_source.key2, self.source_args['key2'])
         self.assertEqual(new_source.key3, self.source_args['key3'])
         self.assertEqual(new_source.key4, self.source_args['key4'])
@@ -316,19 +319,21 @@ class SourceEditTest(ClientTest):
         self.source_id = Source.objects.get(name='public1').pk
         # Default source edit arguments
         self.source_args = dict(
-            name='Test Source',
+            name="Test Source",
             visibility=Source.VisibilityTypes.PRIVATE,
-            key1='Letter',
-            point_generation_type=PointGen.Types.SIMPLE,
-            alleviate_threshold=25,
-            simple_number_of_points=16,
+            affiliation="Testing Society",
+            description="Description\ngoes here.",
+            key1="Site",
             image_height_in_cm=125,
             min_x=10,
             max_x=90,
             min_y=10,
             max_y=90,
-            longitude='25.1982',
+            point_generation_type=PointGen.Types.SIMPLE,
+            simple_number_of_points=16,
+            alleviate_threshold=25,
             latitude='-17.3776',
+            longitude='25.1982',
         )
 
     def test_get_permissions(self):
@@ -350,36 +355,42 @@ class SourceEditTest(ClientTest):
         original_create_date = original_source.create_date
         original_enable_robot = original_source.enable_robot_classifier
 
-        response = self.client.post(reverse('source_edit', kwargs={'source_id': self.source_id}),
+        response = self.client.post(
+            reverse('source_edit', kwargs={'source_id': self.source_id}),
             self.source_args,
         )
 
-        self.assertRedirects(response, reverse('source_main',
-            kwargs={'source_id': self.source_id}
-        ))
+        self.assertRedirects(
+            response,
+            reverse('source_main', kwargs={'source_id': self.source_id})
+        )
 
         edited_source = Source.objects.get(pk=self.source_id)
 
         self.assertEqual(edited_source.name, self.source_args['name'])
         self.assertEqual(edited_source.visibility, self.source_args['visibility'])
-        self.assertEqual(edited_source.create_date, original_create_date)
-        self.assertEqual(edited_source.labelset, LabelSet.getEmptyLabelset())
+        self.assertEqual(edited_source.affiliation, self.source_args['affiliation'])
+        self.assertEqual(edited_source.description, self.source_args['description'])
         self.assertEqual(edited_source.key1, self.source_args['key1'])
         self.assertEqual(edited_source.key2, '')
         self.assertEqual(edited_source.key3, '')
         self.assertEqual(edited_source.key4, '')
         self.assertEqual(edited_source.key5, '')
-        self.assertEqual(edited_source.default_point_generation_method, PointGen.args_to_db_format(
-            point_generation_type=self.source_args['point_generation_type'],
-            simple_number_of_points=self.source_args['simple_number_of_points'],
-        ))
         self.assertEqual(edited_source.image_height_in_cm, self.source_args['image_height_in_cm'])
         self.assertEqual(edited_source.image_annotation_area, AnnotationAreaUtils.percentages_to_db_format(
             min_x=self.source_args['min_x'], max_x=self.source_args['max_x'],
             min_y=self.source_args['min_y'], max_y=self.source_args['max_y'],
         ))
-        self.assertEqual(edited_source.longitude, self.source_args['longitude'])
+        self.assertEqual(edited_source.default_point_generation_method, PointGen.args_to_db_format(
+            point_generation_type=self.source_args['point_generation_type'],
+            simple_number_of_points=self.source_args['simple_number_of_points'],
+        ))
+        self.assertEqual(edited_source.alleviate_threshold, self.source_args['alleviate_threshold'])
         self.assertEqual(edited_source.latitude, self.source_args['latitude'])
+        self.assertEqual(edited_source.longitude, self.source_args['longitude'])
+
+        self.assertEqual(edited_source.create_date, original_create_date)
+        self.assertEqual(edited_source.labelset, LabelSet.getEmptyLabelset())
         self.assertEqual(edited_source.enable_robot_classifier, original_enable_robot)
 
     def test_optional_fields(self):
@@ -389,8 +400,6 @@ class SourceEditTest(ClientTest):
         self.source_id = Source.objects.get(name='5 keys').pk
 
         self.source_args.update(
-            description="Here is\na description.",
-            key1="Site",
             key2="Island",
             key3="Habitat",
             key4="Section",
@@ -403,8 +412,6 @@ class SourceEditTest(ClientTest):
 
         edited_source = Source.objects.get(pk=self.source_id)
 
-        self.assertEqual(edited_source.description, self.source_args['description'])
-        self.assertEqual(edited_source.key1, self.source_args['key1'])
         self.assertEqual(edited_source.key2, self.source_args['key2'])
         self.assertEqual(edited_source.key3, self.source_args['key3'])
         self.assertEqual(edited_source.key4, self.source_args['key4'])

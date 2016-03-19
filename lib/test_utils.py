@@ -342,14 +342,20 @@ class FilesTestComponent(object):
     ignorable_filenames = ['tasks.log']
 
     testfile_directory_setup_error_fmtstr = (
-        "The test setup routine found files in the {0} directory ({1}):\n"
-        "{2}\nPlease check that {0} is set correctly, and check that "
-        "all files are cleared from this directory before running the test."
+        "The test setup routine found files in the {0} directory ({1}):"
+        "\n{2}"
+        "\nPlease check that:"
+        "\n1. {0} is set correctly"
+        "\n2. All tests that add files use"
+        " extra_components = [<any FilesTestComponent subclass>, ...]"
+        " to clean up after the test"
+        "\n3. The {0} directory is empty prior to the test"
     )
     testfile_directory_teardown_error_fmtstr = (
-        "The test teardown routine found unexpected files in the {0} directory ({1})!:\n"
-        "{2}\nThese files seem to have been created prior to the test. "
-        "Please delete these files or move them elsewhere."
+        "The test teardown routine found unexpected files in the {0} directory ({1})!:"
+        "\n{2}"
+        "\nThese files seem to have been created prior to the test."
+        " Please delete these files or move them elsewhere."
     )
 
     def raise_testfile_directory_error(self, unexpected_filenames, message_format_str):

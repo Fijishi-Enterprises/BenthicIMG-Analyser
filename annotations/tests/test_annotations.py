@@ -14,33 +14,192 @@ class AnnotationToolTest(ClientTest):
     fixtures = ['test_users.yaml', 'test_labels.yaml',
                 'test_labelsets.yaml', 'test_sources_with_labelsets.yaml']
     source_member_roles = [
-        ('Labelset 1key', 'user2', Source.PermTypes.ADMIN.code),
+        ('Labelset 1key', 'user2', Source.PermTypes.EDIT.code),
     ]
 
     def setUp(self):
         super(AnnotationToolTest, self).setUp()
         self.source_id = Source.objects.get(name='Labelset 1key').pk
 
-    def annotation_tool_with_image(self, image_file):
+    def test_load_page_anonymous(self):
+        """
+        Load the page while logged out ->
+        sorry, don't have permission.
+        """
         self.client.login(username='user2', password='secret')
+        image_id = self.upload_image('001_2012-05-01_color-grid-001.png')[0]
+        self.client.logout()
 
-        image_id = self.upload_image(image_file)[0]
+        url = reverse('annotation_tool', kwargs=dict(image_id=image_id))
 
-        response = self.client.get(reverse('annotation_tool', kwargs={'image_id': image_id}))
+        response = self.client.get(url)
         self.assertStatusOK(response)
+        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+
+    def test_load_page_as_source_outsider(self):
+        """
+        Load the page as a user outside the source ->
+        sorry, don't have permission.
+        """
+        self.client.login(username='user2', password='secret')
+        image_id = self.upload_image('001_2012-05-01_color-grid-001.png')[0]
+        self.client.logout()
+
+        self.client.login(username='user3', password='secret')
+        url = reverse('annotation_tool', kwargs=dict(image_id=image_id))
+
+        response = self.client.get(url)
+        self.assertStatusOK(response)
+        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+
+    def test_annotation_tool_with_small_image(self):
+        self.client.login(username='user2', password='secret')
+        image_id = self.upload_image('001_2012-05-01_color-grid-001.png')[0]
+        url = reverse('annotation_tool', kwargs=dict(image_id=image_id))
+
+        response = self.client.get(url)
+        self.assertStatusOK(response)
+        self.assertTemplateUsed(response, 'annotations/annotation_tool.html')
 
         # Try fetching the page a second time, to make sure thumbnail
         # generation doesn't go nuts.
-        response = self.client.get(reverse('annotation_tool', kwargs={'image_id': image_id}))
+        response = self.client.get(url)
         self.assertStatusOK(response)
 
         # TODO: Add more checks.
 
-    def test_annotation_tool_with_small_image(self):
-        self.annotation_tool_with_image('001_2012-05-01_color-grid-001.png')
-
     def test_annotation_tool_with_large_image(self):
-        self.annotation_tool_with_image('002_2012-05-29_color-grid-001_large.png')
+        self.client.login(username='user2', password='secret')
+        image_id = self.upload_image('002_2012-05-29_color-grid-001_large.png')[0]
+        url = reverse('annotation_tool', kwargs=dict(image_id=image_id))
+
+        response = self.client.get(url)
+        self.assertStatusOK(response)
+
+        # Try fetching the page a second time, to make sure thumbnail
+        # generation doesn't go nuts.
+        response = self.client.get(url)
+        self.assertStatusOK(response)
+
+    # TODO: Test Ajax stuff in the annotation tool, after
+    # removing Dajaxice from our project.
+
+
+class AnnotationAreaEditTest(ClientTest):
+    """
+    Test the annotation area edit page.
+    """
+    extra_components = [MediaTestComponent]
+    fixtures = ['test_users.yaml', 'test_labels.yaml',
+                'test_labelsets.yaml', 'test_sources_with_labelsets.yaml']
+    source_member_roles = [
+        ('Labelset 1key', 'user2', Source.PermTypes.EDIT.code),
+    ]
+
+    def setUp(self):
+        super(AnnotationAreaEditTest, self).setUp()
+        self.source_id = Source.objects.get(name='Labelset 1key').pk
+
+    def test_load_page_anonymous(self):
+        """
+        Load the page while logged out ->
+        sorry, don't have permission.
+        """
+        self.client.login(username='user2', password='secret')
+        image_id = self.upload_image('001_2012-05-01_color-grid-001.png')[0]
+        self.client.logout()
+
+        url = reverse('annotation_area_edit', kwargs=dict(image_id=image_id))
+
+        response = self.client.get(url)
+        self.assertStatusOK(response)
+        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+
+    def test_load_page_as_source_outsider(self):
+        """
+        Load the page as a user outside the source ->
+        sorry, don't have permission.
+        """
+        self.client.login(username='user2', password='secret')
+        image_id = self.upload_image('001_2012-05-01_color-grid-001.png')[0]
+        self.client.logout()
+
+        self.client.login(username='user3', password='secret')
+        url = reverse('annotation_area_edit', kwargs=dict(image_id=image_id))
+
+        response = self.client.get(url)
+        self.assertStatusOK(response)
+        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+
+    def test_load_page(self):
+        self.client.login(username='user2', password='secret')
+        image_id = self.upload_image('001_2012-05-01_color-grid-001.png')[0]
+        url = reverse('annotation_area_edit', kwargs=dict(image_id=image_id))
+
+        response = self.client.get(url)
+        self.assertStatusOK(response)
+        self.assertTemplateUsed(response, 'annotations/annotation_area_edit.html')
+
+    # TODO: Test submitting a new annotation area
+
+
+class AnnotationHistoryTest(ClientTest):
+    """
+    Test the annotation history page.
+    """
+    extra_components = [MediaTestComponent]
+    fixtures = ['test_users.yaml', 'test_labels.yaml',
+                'test_labelsets.yaml', 'test_sources_with_labelsets.yaml']
+    source_member_roles = [
+        ('Labelset 1key', 'user2', Source.PermTypes.EDIT.code),
+        ]
+
+    def setUp(self):
+        super(AnnotationHistoryTest, self).setUp()
+        self.source_id = Source.objects.get(name='Labelset 1key').pk
+
+    def test_load_page_anonymous(self):
+        """
+        Load the page while logged out ->
+        sorry, don't have permission.
+        """
+        self.client.login(username='user2', password='secret')
+        image_id = self.upload_image('001_2012-05-01_color-grid-001.png')[0]
+        self.client.logout()
+
+        url = reverse('annotation_history', kwargs=dict(image_id=image_id))
+
+        response = self.client.get(url)
+        self.assertStatusOK(response)
+        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+
+    def test_load_page_as_source_outsider(self):
+        """
+        Load the page as a user outside the source ->
+        sorry, don't have permission.
+        """
+        self.client.login(username='user2', password='secret')
+        image_id = self.upload_image('001_2012-05-01_color-grid-001.png')[0]
+        self.client.logout()
+
+        self.client.login(username='user3', password='secret')
+        url = reverse('annotation_history', kwargs=dict(image_id=image_id))
+
+        response = self.client.get(url)
+        self.assertStatusOK(response)
+        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+
+    def test_load_page(self):
+        self.client.login(username='user2', password='secret')
+        image_id = self.upload_image('001_2012-05-01_color-grid-001.png')[0]
+        url = reverse('annotation_history', kwargs=dict(image_id=image_id))
+
+        response = self.client.get(url)
+        self.assertStatusOK(response)
+        self.assertTemplateUsed(response, 'annotations/annotation_history.html')
+
+    # TODO: Test doing some annotation and then loading the history page.
+    # See if the contents are as expected.
 
 
 class PointGenTest(ClientTest):

@@ -3,6 +3,9 @@ var AnnotationToolHelper = (function() {
     // Compatibility
     var isMac = util.osIsMac();
 
+    // URLs
+    var saveAnnotationsUrl = null;
+
     // HTML elements
     var annotationArea = null;
     var annotationList = null;
@@ -1008,10 +1011,18 @@ var AnnotationToolHelper = (function() {
     function saveAnnotations() {
         $(saveButton).attr('disabled', 'disabled');
         $(saveButton).text("Now saving...");
-        Dajaxice.coralnet.annotations.ajax_save_annotations(
-            ajaxSaveButtonCallback,    // JS callback that the ajax.py method returns to.
-            {'annotationForm': $("#annotationForm").serializeArray()}    // Args to the ajax.py method.
-        );
+        $.ajax({
+            // Data to send in the request
+            data: $("#annotationForm").serialize(),
+
+            // Callback on successful response
+            success: ajaxSaveButtonCallback,
+
+            type: 'POST',
+
+            // URL to make request to
+            url: saveAnnotationsUrl
+        });
     }
 
     // AJAX callback.
@@ -1385,6 +1396,10 @@ var AnnotationToolHelper = (function() {
          * imagePoints, labels, machineSuggestions */
         init: function(params) {
             var i, j, n;    // Loop variables...
+
+            /* Ajax URLs */
+
+            saveAnnotationsUrl = params.saveAnnotationsUrl;
 
             /*
              * Initialize styling, sizing, and positioning for various elements

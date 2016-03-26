@@ -126,17 +126,13 @@ class AnnotationForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         image = kwargs.pop('image')
-        user = kwargs.pop('user')
         show_machine_annotations = kwargs.pop('show_machine_annotations')
         super(AnnotationForm, self).__init__(*args, **kwargs)
 
+        # TODO: Remove
         self.fields['image_id'] = CharField(
             widget=HiddenInput(),
             initial=str(image.id),
-        )
-        self.fields['user_id'] = CharField(
-            widget=HiddenInput(),
-            initial=str(user.id),
         )
 
         labelFieldMaxLength = Label._meta.get_field('code').max_length

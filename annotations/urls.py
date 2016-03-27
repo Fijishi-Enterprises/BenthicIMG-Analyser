@@ -11,6 +11,7 @@ urlpatterns = patterns('',
     url(r'^source/(?P<source_id>\d+)/labelset/edit/$', 'annotations.views.labelset_edit', name="labelset_edit"),
 
     url(r'^image/(?P<image_id>\d+)/annotation_tool/$', 'annotations.views.annotation_tool', name="annotation_tool"),
+    url(r'^annotation_tool_settings_save/$', 'annotations.views.annotation_tool_settings_save', name="annotation_tool_settings_save"),
     url(r'^image/(?P<image_id>\d+)/save_annotations_ajax/$', 'annotations.views.save_annotations_ajax', name="save_annotations_ajax"),
     url(r'^image/(?P<image_id>\d+)/is_annotation_all_done_ajax/$', 'annotations.views.is_annotation_all_done_ajax', name="is_annotation_all_done_ajax"),
 

@@ -735,6 +735,33 @@ def is_annotation_all_done_ajax(request, image_id):
     return JsonResponse(image_annotation_all_done(image))
 
 
+@login_required
+def annotation_tool_settings_save(request):
+    """
+    Annotation tool Ajax: user clicks the settings Save button.
+    Saves annotation tool settings changes to the database.
+
+    :param the settings form contents, in request.POST
+    :returns dict of:
+      error (optional): Error message if there was an error
+    """
+
+    if request.method != 'POST':
+        return JsonResponse(dict(error="Not a POST request"))
+
+    settings_obj = AnnotationToolSettings.objects.get(user=request.user)
+    settings_form = AnnotationToolSettingsForm(request.POST, instance=settings_obj)
+
+    if settings_form.is_valid():
+        settings_form.save()
+        return JsonResponse(dict())
+    else:
+        # Some form values weren't correct.
+        # This can happen if the form's JavaScript input checking isn't
+        # foolproof, or if the user messed with form values using FireBug.
+        return JsonResponse(dict(error="Part of the form wasn't valid"))
+
+
 @image_permission_required('image_id', perm=Source.PermTypes.EDIT.code)
 def annotation_history(request, image_id):
     """

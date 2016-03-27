@@ -3,6 +3,8 @@ var ATS = {
     $saveButton: undefined,
     $settingsForm: undefined,
 
+    annotationToolSettingsSaveUrl: undefined,
+
     settings: {
         pointMarker: undefined,
         pointMarkerSize: undefined,
@@ -32,9 +34,12 @@ var ATS = {
     },
 
 
-    init: function() {
+    init: function(params) {
         ATS.$saveButton = $('#saveSettingsButton');
         ATS.$settingsForm = $('#annotationToolSettingsForm');
+
+        ATS.annotationToolSettingsSaveUrl =
+            params.annotationToolSettingsSaveUrl;
 
         ATS.$fields.pointMarker = $('#id_point_marker');
         ATS.$fields.pointMarkerSize = $('#id_point_marker_size');
@@ -141,17 +146,27 @@ var ATS = {
     saveSettings: function() {
         ATS.$saveButton.attr('disabled', 'disabled');
         ATS.$saveButton.text("Now saving...");
-        Dajaxice.coralnet.annotations.ajax_save_settings(
-            // JS callback that handles the ajax.py function's return value.
-            ATS.saveSettingsAjaxCallback,
-            // Args to the ajax.py function.
-            {'submitted_settings_form': ATS.$settingsForm.serializeArray()}
-        );
+
+        $.ajax({
+            // Data to send in the request
+            data: ATS.$settingsForm.serialize(),
+
+            // Callback on successful response
+            success: ATS.saveSettingsAjaxCallback,
+
+            type: 'POST',
+
+            // URL to make request to
+            url: ATS.annotationToolSettingsSaveUrl
+        });
     },
     saveSettingsAjaxCallback: function(returnDict) {
-        if (returnDict.success === true)
-            ATS.$saveButton.text("Settings saved");
-        else
+        if (returnDict.error) {
             ATS.$saveButton.text("Error");
+            console.log("Settings save error: "+returnDict.error);
+            return;
+        }
+
+        ATS.$saveButton.text("Settings saved");
     }
 };

@@ -229,7 +229,10 @@
 <!-- Script in the body will run on page load. -->
 <script type="text/javascript">
     // Initialize the Annotation Tool Settings helper object.
-    ATS.init();
+    ATS.init({
+        annotationToolSettingsSaveUrl:
+            "{% url annotation_tool_settings_save %}"
+    });
     // Initialize the Annotation Tool Image helper object.
     ATI.init({{ source_images|jsonify }});
     // Initialize the Annotation Tool Helper object.

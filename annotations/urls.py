@@ -12,6 +12,7 @@ urlpatterns = patterns('',
 
     url(r'^image/(?P<image_id>\d+)/annotation_tool/$', 'annotations.views.annotation_tool', name="annotation_tool"),
     url(r'^image/(?P<image_id>\d+)/save_annotations_ajax/$', 'annotations.views.save_annotations_ajax', name="save_annotations_ajax"),
+    url(r'^image/(?P<image_id>\d+)/is_annotation_all_done_ajax/$', 'annotations.views.is_annotation_all_done_ajax', name="is_annotation_all_done_ajax"),
 
     url(r'^image/(?P<image_id>\d+)/annotation_area_edit/$', 'annotations.views.annotation_area_edit', name="annotation_area_edit"),
     url(r'^image/(?P<image_id>\d+)/annotation_history/$', 'annotations.views.annotation_history', name="annotation_history"),

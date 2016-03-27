@@ -241,7 +241,8 @@
         imagePoints: {{ annotationsJSON|safe }},
         labels: {{ labels|jsonify }},
         machineSuggestions: {{ label_probabilities|jsonify }},
-        saveAnnotationsUrl: "{% url save_annotations_ajax image.id %}"
+        saveAnnotationsUrl: "{% url save_annotations_ajax image.id %}",
+        isAnnotationAllDoneUrl: "{% url is_annotation_all_done_ajax image.id %}"
     });
 </script>
 

@@ -719,6 +719,23 @@ def save_annotations_ajax(request, image_id):
 
 
 @image_permission_required('image_id', perm=Source.PermTypes.EDIT.code)
+def is_annotation_all_done_ajax(request, image_id):
+    """
+    :returns True if the image has all points confirmed, False otherwise
+    """
+
+    if request.method != 'POST':
+        # TODO: Instead of raising an error, return a JsonResponse indicating
+        # an error... and be able to receive that error on the client side.
+        # This probably means changing the format of the valid response too.
+        # e.g. have a dict that can have fields 'error' or 'result'.
+        raise ValueError("Not a POST request")
+
+    image = get_object_or_404(Image, id=image_id)
+    return JsonResponse(image_annotation_all_done(image))
+
+
+@image_permission_required('image_id', perm=Source.PermTypes.EDIT.code)
 def annotation_history(request, image_id):
     """
     View for an image's annotation history.

@@ -1,16 +1,7 @@
 from dajaxice.decorators import dajaxice_register
-from django.shortcuts import get_object_or_404
 from django.utils import simplejson
 from annotations.forms import AnnotationToolSettingsForm
 from annotations.models import AnnotationToolSettings
-from annotations.utils import image_annotation_all_done
-from images.models import Image
-
-    
-@dajaxice_register
-def ajax_is_all_done(request, image_id):
-    image = get_object_or_404(Image, id=image_id)
-    return simplejson.dumps(image_annotation_all_done(image))
 
 
 @dajaxice_register

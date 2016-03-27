@@ -5,6 +5,7 @@ var AnnotationToolHelper = (function() {
 
     // URLs
     var saveAnnotationsUrl = null;
+    var isAnnotationAllDoneUrl = null;
 
     // HTML elements
     var annotationArea = null;
@@ -1400,6 +1401,7 @@ var AnnotationToolHelper = (function() {
             /* Ajax URLs */
 
             saveAnnotationsUrl = params.saveAnnotationsUrl;
+            isAnnotationAllDoneUrl = params.isAnnotationAllDoneUrl;
 
             /*
              * Initialize styling, sizing, and positioning for various elements
@@ -1698,10 +1700,15 @@ var AnnotationToolHelper = (function() {
             $(saveButton).text('Saved');
 
             // Initialize all_done state
-            Dajaxice.coralnet.annotations.ajax_is_all_done(
-                setAllDoneIndicator,
-                {'image_id': $('#id_image_id')[0].value}
-            );
+            $.ajax({
+                // Callback on successful response
+                success: setAllDoneIndicator,
+
+                type: 'POST',
+
+                // URL to make request to
+                url: isAnnotationAllDoneUrl
+            });
 
 
             /*

@@ -13,15 +13,8 @@ included by default.  If you don't want to include the file, set varname
 to any value (except the empty string) to not include it.
 {% endcomment %}
 
-{% load dajaxice_templatetags %}
 {% load common_tags %}
 
-
-{# Dajaxice, for Ajax support #}
-{% if dajaxice %}
-    {# TODO: This needs a version bump every time an ajax function is added, to combat browser caching. This is not gonna work very well. #}
-    {% dajaxice_js_import "js/dajaxice.core.js?version=removeimagesmodule" %}
-{% endif %}
 
 {# jQuery, general purpose JS library #}
 {% if not no_jquery %}
@@ -101,7 +94,7 @@ to any value (except the empty string) to not include it.
 
 {# Our own utility functions and plugin modifications. #}
 {# Not just for JS-heavy pages, but also for some basic styling. #}
-{# Must be included after: Dajaxice, jQuery #}
+{# Must be included after: jQuery #}
 {% if not no_util %}
     {% include "static-local-include.html" with type="js" path="js/util.js" %}
 {% endif %}

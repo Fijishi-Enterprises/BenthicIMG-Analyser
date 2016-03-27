@@ -220,8 +220,6 @@ INSTALLED_APPS = (
     'reversion',
     'sentry',
     'sentry.client',
-    'dajaxice',
-    'dajax',
     'djcelery',
     'GChartWrapper.charts',
 	'djsupervisor',
@@ -302,10 +300,6 @@ SENTRY_TESTING = True
 
 # South settings
 SOUTH_TESTS_MIGRATE = settings_2.SOUTH_TESTS_MIGRATE
-
-# Dajaxice settings
-DAJAXICE_MEDIA_PREFIX = "dajaxice"
-DAJAXICE_DEBUG = settings_2.DAJAXICE_DEBUG
 
 #RabbitMQ hosts
 BROKER_HOST = "localhost"

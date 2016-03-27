@@ -95,14 +95,6 @@ UNIT_TEST_VERBOSITY = 0
 # South data migrations, then tests may fail.
 SOUTH_TESTS_MIGRATE = False
 
-# Dajaxice settings
-#
-# DAJAXICE_DEBUG: True means that dajaxice.core.js will be
-# regenerated every time a page using dajaxice is loaded.
-# False means that dajaxice.core.js can only be generated
-# with manage.py generate_static_dajaxice.
-DAJAXICE_DEBUG = True
-
 #RabbitMQ hidden configs
 BROKER_USER = "usernameGoesHere"
 BROKER_PASSWORD = "passwordGoesHere"

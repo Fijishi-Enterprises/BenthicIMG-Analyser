@@ -1,7 +1,6 @@
 # Much of this decorator code is based on the Guardian decorator code.
 from django.conf import settings
 from django.contrib.auth import REDIRECT_FIELD_NAME
-
 from django.db.models import Model, get_model
 from django.db.models.base import ModelBase
 from django.db.models.query import QuerySet
@@ -10,22 +9,28 @@ from django.shortcuts import get_object_or_404, render_to_response
 from django.template.context import RequestContext
 from django.utils.functional import wraps
 from django.utils.http import urlquote
+
 from guardian.exceptions import GuardianError
+
 from annotations.utils import image_annotation_area_is_editable
-
 from images.models import Source, Image
+from lib.utils import JsonResponse
 
-# TODO: Add comments to this class.
 class ModelViewDecorator():
     """
     Class for instantiating decorators for views.
     Specifically, views that take the id of a model as a parameter.
 
-    :param model_class:
-    :param meets_requirements:
-    :param template:
-    :param get_extra_context:
-    :param default_message:
+    :param model_class: The model that the view takes an id parameter of.
+    :param meets_requirements: Function that determines whether we've
+       met the requirements to show the view normally.
+    :param template: Template to show if the requirements weren't met.
+    :param get_extra_context: Function that gets extra info (as a dict)
+       about the model object. In the case that we must render the
+       requirements-not-met template, this extra info is added to the
+       rendering context.
+    :param default_message: Default message to display on the
+       requirements-not-met template.
     """
 
     def __init__(self, model_class, meets_requirements,
@@ -37,7 +42,7 @@ class ModelViewDecorator():
         self.get_extra_context = get_extra_context
         self.default_message = default_message
 
-    def __call__(self, object_id_view_arg, message=None, **requirements_kwargs):
+    def __call__(self, object_id_view_arg, message=None, ajax=False, **requirements_kwargs):
         def decorator(view_func):
             def _wrapped_view(request, *args, **kwargs):
 
@@ -49,9 +54,14 @@ class ModelViewDecorator():
                 object = get_object_or_404(self.model_class, pk=object_id)
 
                 if not self.meets_requirements(object, request, **requirements_kwargs):
-                    context_dict = dict(
-                        message=message or self.default_message or ""
-                    )
+                    fail_message = message or self.default_message or ""
+
+                    # Ajax: Return a dict with an error field
+                    if ajax:
+                        return JsonResponse(dict(error=fail_message))
+
+                    # Not Ajax: Render a template
+                    context_dict = dict(message=fail_message)
                     if self.get_extra_context:
                         context_dict.update(self.get_extra_context(object))
 
@@ -108,6 +118,7 @@ image_visibility_required = ModelViewDecorator(
     model_class=Image,
     meets_requirements=lambda image, request: image.source.visible_to_user(request.user),
     template='permission_denied.html',
+    default_message="Sorry, you don't have permission to view this page."
 )
 
 # @source_visibility_required('source_id')
@@ -115,6 +126,7 @@ source_visibility_required = ModelViewDecorator(
     model_class=Source,
     meets_requirements=lambda source, request: source.visible_to_user(request.user),
     template='permission_denied.html',
+    default_message="Sorry, you don't have permission to view this page."
 )
 
 # TODO: Make this even more DRY: just pass in 'admin' instead of Source.PermTypes.ADMIN.code.
@@ -123,6 +135,7 @@ image_permission_required = ModelViewDecorator(
     model_class=Image,
     meets_requirements=lambda image, request, perm: request.user.has_perm(perm, image.source),
     template='permission_denied.html',
+    default_message="You don't have permission to access this part of this source."
 )
 
 # @source_permission_required('source_id', perm=Source.PermTypes.<YOUR_PERMISSION_TYPE_HERE>.code)
@@ -130,6 +143,7 @@ source_permission_required = ModelViewDecorator(
     model_class=Source,
     meets_requirements=lambda source, request, perm: request.user.has_perm(perm, source),
     template='permission_denied.html',
+    default_message="You don't have permission to access this part of this source."
 )
 
 
@@ -199,3 +213,17 @@ def permission_required(perm, lookup_variables=None, **kwargs):
             return view_func(request, *args, **kwargs)
         return wraps(view_func)(_wrapped_view)
     return decorator
+
+
+# Version of login_required that can be used on Ajax views.
+# @login_required_ajax
+def login_required_ajax(view_func):
+    def wrapper_func(request, *args, **kwargs):
+        if not request.user.is_authenticated():
+            # If not logged in, return error response
+            return JsonResponse(
+                dict(error="You must be logged in to access this function."))
+        else:
+            # Else, same behavior as calling the view directly
+            return view_func(request, *args, **kwargs)
+    return wrapper_func

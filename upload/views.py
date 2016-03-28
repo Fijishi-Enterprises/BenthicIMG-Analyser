@@ -57,7 +57,8 @@ def image_upload(request, source_id):
     )
 
 
-@source_permission_required('source_id', perm=Source.PermTypes.EDIT.code)
+@source_permission_required(
+    'source_id', perm=Source.PermTypes.EDIT.code, ajax=True)
 def image_upload_preview_ajax(request, source_id):
     """
     Called when a user selects files to upload in the image upload form.
@@ -121,7 +122,8 @@ def image_upload_preview_ajax(request, source_id):
         ))
 
 
-@source_permission_required('source_id', perm=Source.PermTypes.EDIT.code)
+@source_permission_required(
+    'source_id', perm=Source.PermTypes.EDIT.code, ajax=True)
 def annotation_file_process_ajax(request, source_id):
     """
     Takes an annotation .txt file and processes it.  Saves the processing
@@ -178,7 +180,8 @@ def annotation_file_process_ajax(request, source_id):
         ))
 
 
-@source_permission_required('source_id', perm=Source.PermTypes.EDIT.code)
+@source_permission_required(
+    'source_id', perm=Source.PermTypes.EDIT.code, ajax=True)
 def image_upload_ajax(request, source_id):
     """
     After the "Start upload" button is clicked, this view is entered once
@@ -237,7 +240,8 @@ def image_upload_ajax(request, source_id):
             title=None,
         ))
 
-@source_permission_required('source_id', perm=Source.PermTypes.EDIT.code)
+@source_permission_required(
+    'source_id', perm=Source.PermTypes.EDIT.code, ajax=True)
 def csv_file_process_ajax(request,source_id):
 
     source = get_object_or_404(Source, id=source_id)

@@ -18,7 +18,7 @@ from GChartWrapper import *
 from upload.forms import MetadataForm, CheckboxForm
 from django.forms.formsets import formset_factory
 from django.utils.functional import curry
-from numpy import array, zeros, sum, array_str, rank, linalg, logical_and, newaxis, float32, vectorize
+from numpy import array, zeros, sum, array_str, rank, linalg, logical_and, newaxis, vectorize
 from images.tasks import *
 
 # TODO: Move to utils
@@ -412,7 +412,8 @@ def visualize_source(request, source_id):
     )
 
 
-@source_permission_required('source_id', perm=Source.PermTypes.EDIT.code)
+@source_permission_required(
+    'source_id', perm=Source.PermTypes.EDIT.code, ajax=True)
 def metadata_edit_ajax(request, source_id):
     """
     Submitting the metadata-edit form (an Ajax form).

@@ -15,7 +15,7 @@ from annotations.forms import NewLabelForm, NewLabelSetForm, AnnotationForm, Ann
 from annotations.model_utils import AnnotationAreaUtils
 from annotations.models import Label, LabelSet, Annotation, AnnotationToolAccess, AnnotationToolSettings
 from annotations.utils import get_annotation_version_user_display, image_annotation_all_done
-from decorators import source_permission_required, source_visibility_required, image_permission_required, image_annotation_area_must_be_editable, image_labelset_required
+from decorators import source_permission_required, source_visibility_required, image_permission_required, image_annotation_area_must_be_editable, image_labelset_required, login_required_ajax
 from images import task_utils
 from images.models import Source, Image, Point
 from images.views import image_detail
@@ -621,7 +621,8 @@ def annotation_tool(request, image_id):
     )
 
 
-@image_permission_required('image_id', perm=Source.PermTypes.EDIT.code)
+@image_permission_required(
+    'image_id', perm=Source.PermTypes.EDIT.code, ajax=True)
 def save_annotations_ajax(request, image_id):
     """
     Called via Ajax from the annotation tool, if the user clicked
@@ -631,7 +632,7 @@ def save_annotations_ajax(request, image_id):
     :param the annotation form contents, in request.POST
     :returns dict of:
       all_done (optional): True if the image has all points confirmed
-      error (optional): Error message if there was an error
+      error: Error message if there was an error
     """
 
     if request.method != 'POST':
@@ -718,24 +719,23 @@ def save_annotations_ajax(request, image_id):
         return JsonResponse(dict())
 
 
-@image_permission_required('image_id', perm=Source.PermTypes.EDIT.code)
+@image_permission_required(
+    'image_id', perm=Source.PermTypes.EDIT.code, ajax=True)
 def is_annotation_all_done_ajax(request, image_id):
     """
-    :returns True if the image has all points confirmed, False otherwise
+    :returns dict of:
+      all_done: True if the image has all points confirmed, False otherwise
+      error: Error message if there was an error
     """
 
     if request.method != 'POST':
-        # TODO: Instead of raising an error, return a JsonResponse indicating
-        # an error... and be able to receive that error on the client side.
-        # This probably means changing the format of the valid response too.
-        # e.g. have a dict that can have fields 'error' or 'result'.
-        raise ValueError("Not a POST request")
+        return JsonResponse(dict(error="Not a POST request"))
 
     image = get_object_or_404(Image, id=image_id)
-    return JsonResponse(image_annotation_all_done(image))
+    return JsonResponse(dict(all_done=image_annotation_all_done(image)))
 
 
-@login_required
+@login_required_ajax
 def annotation_tool_settings_save(request):
     """
     Annotation tool Ajax: user clicks the settings Save button.
@@ -743,7 +743,7 @@ def annotation_tool_settings_save(request):
 
     :param the settings form contents, in request.POST
     :returns dict of:
-      error (optional): Error message if there was an error
+      error: Error message if there was an error
     """
 
     if request.method != 'POST':

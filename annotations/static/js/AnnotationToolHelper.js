@@ -1029,22 +1029,18 @@ var AnnotationToolHelper = (function() {
     // AJAX callback.
     function ajaxSaveButtonCallback(returnDict) {
 
-        if (returnDict.hasOwnProperty('error')) {
-            var errorMsg = returnDict['error'];
+        if (returnDict.error) {
             setSaveButtonText("Error");
-
-            // TODO: Handle error cases more elegantly?  Alerts are lame.
-            // Though, these errors aren't really supposed to happen unless the annotation tool behavior is flawed.
-            alert("Sorry, an error occurred when trying to save your annotations:\n{0}".format(errorMsg));
+            console.log("Annotation save error: {0}".format(returnDict.error));
+            return;
         }
-        else {
-            setSaveButtonText("Saved");
 
-            // Add or remove ALL DONE indicator
-            setAllDoneIndicator(returnDict.hasOwnProperty('all_done'));
+        setSaveButtonText("Saved");
 
-            util.pageLeaveWarningDisable();
-        }
+        // Add or remove ALL DONE indicator
+        setAllDoneIndicator(returnDict.hasOwnProperty('all_done'));
+
+        util.pageLeaveWarningDisable();
     }
 
     function setSaveButtonText(buttonText) {
@@ -1074,8 +1070,14 @@ var AnnotationToolHelper = (function() {
         util.pageLeaveWarningEnable("You have unsaved changes.");
     }
 
-    function setAllDoneIndicator(allDone) {
-        if (allDone) {
+    function setAllDoneIndicator(responseObj) {
+        if (responseObj.error) {
+            $('#allDone').append('<span>').text("Error");
+            console.log("All-done status check error: {0}".format(responseObj.error));
+            return;
+        }
+
+        if (responseObj.all_done) {
             $('#allDone').append('<span>').text("ALL DONE");
         }
         else {

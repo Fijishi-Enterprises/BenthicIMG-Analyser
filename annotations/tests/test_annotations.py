@@ -1,6 +1,10 @@
+import json
+import random
 from django.conf import settings
+from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
 from annotations.model_utils import AnnotationAreaUtils
+from annotations.models import Label, Annotation, AnnotationToolSettings
 from images.model_utils import PointGen
 from images.models import Source, Image, Point
 from lib.test_utils import ClientTest, MediaTestComponent
@@ -81,8 +85,377 @@ class AnnotationToolTest(ClientTest):
         response = self.client.get(url)
         self.assertStatusOK(response)
 
-    # TODO: Test Ajax stuff in the annotation tool, after
-    # removing Dajaxice from our project.
+
+class SaveAnnotationsTest(ClientTest):
+    """
+    Test saving annotations via the Ajax view.
+    """
+    extra_components = [MediaTestComponent]
+    fixtures = ['test_users.yaml', 'test_labels.yaml',
+                'test_labelsets.yaml', 'test_sources_with_labelsets.yaml']
+    source_member_roles = [
+        ('Labelset 1key', 'user2', Source.PermTypes.EDIT.code),
+    ]
+
+    def setUp(self):
+        super(SaveAnnotationsTest, self).setUp()
+        self.source_id = Source.objects.get(name='Labelset 1key').pk
+
+        # Upload an image
+        self.client.login(username='user2', password='secret')
+        self.image_id = self.upload_image('001_2012-05-01_color-grid-001.png')[0]
+        self.client.logout()
+
+    def test_load_page_anonymous(self):
+        """
+        Load the page while logged out ->
+        sorry, don't have permission.
+        """
+        url = reverse(
+            'save_annotations_ajax', kwargs=dict(image_id=self.image_id))
+
+        data = dict()
+
+        response_obj = self.client.post(url, data)
+        response = json.loads(response_obj.content)
+        # Response should include an error that contains the word "permission"
+        self.assertTrue('error' in response)
+        self.assertTrue("permission" in response['error'])
+
+    def test_load_page_as_source_outsider(self):
+        """
+        Load the page as a user outside the source ->
+        sorry, don't have permission.
+        """
+        self.client.login(username='user3', password='secret')
+        url = reverse(
+            'save_annotations_ajax', kwargs=dict(image_id=self.image_id))
+
+        data = dict()
+
+        response_obj = self.client.post(url, data)
+        response = json.loads(response_obj.content)
+
+        # Response should include an error that contains the word "permission"
+        self.assertTrue('error' in response)
+        self.assertTrue("permission" in response['error'])
+
+    def test_save_annotations_some_points(self):
+        """
+        Save annotations for some points, but not all.
+        """
+        self.client.login(username='user2', password='secret')
+        url = reverse(
+            'save_annotations_ajax', kwargs=dict(image_id=self.image_id))
+
+        data = dict()
+        image = Image.objects.get(pk=self.image_id)
+
+        labels = Label.objects.filter(labelset=image.source.labelset)
+        label_codes = labels.values_list('code', flat=True)
+        num_points = Point.objects.filter(image=image).count()
+
+        # Assign annotations for points
+        for point_num in range(1, num_points+1):
+            if point_num % 5 == 2:
+                # Skip point 2, 7, 12, etc.
+                data['label_'+str(point_num)] = ''
+            else:
+                # Assign a random label
+                data['label_'+str(point_num)] = random.choice(label_codes)
+            data['robot_'+str(point_num)] = json.dumps(False)
+
+        response_obj = self.client.post(url, data)
+        response = json.loads(response_obj.content)
+
+        self.assertTrue('error' not in response)
+        # Since we skipped some points, we shouldn't be 'all done'
+        self.assertTrue('all_done' not in response)
+
+        # Check that point 2 doesn't have an annotation
+        self.assertRaises(
+            Annotation.DoesNotExist,
+            Annotation.objects.get,
+            image__pk=self.image_id, point__point_number=2,
+        )
+        # Check that point 3's annotation is what we expect
+        annotation_3 = Annotation.objects.get(
+            image__pk=self.image_id, point__point_number=3)
+        self.assertEqual(annotation_3.label.code, data['label_3'])
+
+    def test_save_annotations_all_points(self):
+        """
+        Save annotations for all points.
+        """
+        self.client.login(username='user2', password='secret')
+        url = reverse(
+            'save_annotations_ajax', kwargs=dict(image_id=self.image_id))
+
+        data = dict()
+        image = Image.objects.get(pk=self.image_id)
+
+        labels = Label.objects.filter(labelset=image.source.labelset)
+        label_codes = labels.values_list('code', flat=True)
+        num_points = Point.objects.filter(image=image).count()
+
+        # Assign annotations for points
+        for point_num in range(1, num_points+1):
+            # Assign a random label
+            data['label_'+str(point_num)] = random.choice(label_codes)
+            data['robot_'+str(point_num)] = json.dumps(False)
+
+        response_obj = self.client.post(url, data)
+        response = json.loads(response_obj.content)
+
+        self.assertTrue('error' not in response)
+        self.assertTrue('all_done' in response)
+
+        # Check that point 2's annotation is what we expect
+        annotation_2 = Annotation.objects.get(
+            image__pk=self.image_id, point__point_number=2)
+        self.assertEqual(annotation_2.label.code, data['label_2'])
+        # Check that point 3's annotation is what we expect
+        annotation_3 = Annotation.objects.get(
+            image__pk=self.image_id, point__point_number=3)
+        self.assertEqual(annotation_3.label.code, data['label_3'])
+
+    def test_save_annotations_overwrite(self):
+        """
+        Save annotations on points that already have annotations.
+        """
+        self.client.login(username='user2', password='secret')
+        url = reverse(
+            'save_annotations_ajax', kwargs=dict(image_id=self.image_id))
+
+        data = dict()
+        image = Image.objects.get(pk=self.image_id)
+
+        labels = Label.objects.filter(labelset=image.source.labelset)
+        label_codes = labels.values_list('code', flat=True)
+        num_points = Point.objects.filter(image=image).count()
+
+        # Assign annotations for points
+        for point_num in range(1, num_points+1):
+            if point_num == 2:
+                data['label_'+str(point_num)] = label_codes[0]
+            else:
+                # Assign a random label
+                data['label_'+str(point_num)] = random.choice(label_codes)
+            data['robot_'+str(point_num)] = json.dumps(False)
+        self.client.post(url, data)
+
+        # Now save one annotation as superuser_user.
+        self.client.logout()
+        self.client.login(username='superuser_user', password='secret')
+        # Change one label, leave the rest the same
+        data['label_2'] = label_codes[1]
+        # Send again
+        self.client.post(url, data)
+
+        # Point 2's annotation: changed by superuser_user
+        annotation_2 = Annotation.objects.get(
+            image__pk=self.image_id, point__point_number=2)
+        self.assertEqual(annotation_2.label.code, label_codes[1])
+        self.assertEqual(annotation_2.user.username, 'superuser_user')
+        # Point 3's annotation: not changed by superuser_user
+        annotation_3 = Annotation.objects.get(
+            image__pk=self.image_id, point__point_number=3)
+        self.assertEqual(annotation_3.label.code, data['label_3'])
+        self.assertEqual(annotation_3.user.username, 'user2')
+
+
+class IsAnnotationAllDoneTest(ClientTest):
+    """
+    Test the Ajax view that reports if an image's annotations are all done.
+    """
+    extra_components = [MediaTestComponent]
+    fixtures = ['test_users.yaml', 'test_labels.yaml',
+                'test_labelsets.yaml', 'test_sources_with_labelsets.yaml']
+    source_member_roles = [
+        ('Labelset 1key', 'user2', Source.PermTypes.EDIT.code),
+    ]
+
+    def setUp(self):
+        super(IsAnnotationAllDoneTest, self).setUp()
+        self.source_id = Source.objects.get(name='Labelset 1key').pk
+
+        # Upload an image
+        self.client.login(username='user2', password='secret')
+        self.image_id = self.upload_image('001_2012-05-01_color-grid-001.png')[0]
+        self.client.logout()
+
+    def test_load_page_anonymous(self):
+        """
+        Load the page while logged out ->
+        sorry, don't have permission.
+        """
+        url = reverse(
+            'is_annotation_all_done_ajax', kwargs=dict(image_id=self.image_id))
+
+        data = dict()
+
+        response_obj = self.client.post(url, data)
+        response = json.loads(response_obj.content)
+        # Response should include an error that contains the word "permission"
+        self.assertTrue('error' in response)
+        self.assertTrue("permission" in response['error'])
+
+    def test_load_page_as_source_outsider(self):
+        """
+        Load the page as a user outside the source ->
+        sorry, don't have permission.
+        """
+        self.client.login(username='user3', password='secret')
+        url = reverse(
+            'is_annotation_all_done_ajax', kwargs=dict(image_id=self.image_id))
+
+        data = dict()
+
+        response_obj = self.client.post(url, data)
+        response = json.loads(response_obj.content)
+
+        # Response should include an error that contains the word "permission"
+        self.assertTrue('error' in response)
+        self.assertTrue("permission" in response['error'])
+
+    def test_save_annotations_some_points(self):
+        """
+        Save annotations for some points, but not all.
+        Then check all-done status.
+        """
+        self.client.login(username='user2', password='secret')
+        url = reverse(
+            'save_annotations_ajax', kwargs=dict(image_id=self.image_id))
+
+        data = dict()
+        image = Image.objects.get(pk=self.image_id)
+
+        labels = Label.objects.filter(labelset=image.source.labelset)
+        label_codes = labels.values_list('code', flat=True)
+        num_points = Point.objects.filter(image=image).count()
+
+        # Assign annotations for points
+        for point_num in range(1, num_points+1):
+            if point_num % 5 == 2:
+                # Skip point 2, 7, 12, etc.
+                data['label_'+str(point_num)] = ''
+            else:
+                # Assign a random label
+                data['label_'+str(point_num)] = random.choice(label_codes)
+            data['robot_'+str(point_num)] = json.dumps(False)
+
+        self.client.post(url, data)
+
+        # Check all-done status
+        url = reverse(
+            'is_annotation_all_done_ajax', kwargs=dict(image_id=self.image_id))
+        response_obj = self.client.post(url, data)
+        response = json.loads(response_obj.content)
+
+        self.assertTrue('error' not in response)
+        # Since we skipped some points, we shouldn't be 'all done'
+        self.assertFalse(response['all_done'])
+
+    def test_save_annotations_all_points(self):
+        """
+        Save annotations for all points.
+        Then check all-done status.
+        """
+        self.client.login(username='user2', password='secret')
+        url = reverse(
+            'save_annotations_ajax', kwargs=dict(image_id=self.image_id))
+
+        data = dict()
+        image = Image.objects.get(pk=self.image_id)
+
+        labels = Label.objects.filter(labelset=image.source.labelset)
+        label_codes = labels.values_list('code', flat=True)
+        num_points = Point.objects.filter(image=image).count()
+
+        # Assign annotations for points
+        for point_num in range(1, num_points+1):
+            # Assign a random label
+            data['label_'+str(point_num)] = random.choice(label_codes)
+            data['robot_'+str(point_num)] = json.dumps(False)
+
+        self.client.post(url, data)
+
+        # Check all-done status
+        url = reverse(
+            'is_annotation_all_done_ajax', kwargs=dict(image_id=self.image_id))
+        response_obj = self.client.post(url, data)
+        response = json.loads(response_obj.content)
+
+        self.assertTrue('error' not in response)
+        # Since we labeled all points, we should be 'all done'
+        self.assertTrue(response['all_done'])
+
+
+class AnnotationToolSettingsSaveTest(ClientTest):
+    """
+    Test the Ajax view that saves a user's annotation tool settings.
+    """
+    extra_components = [MediaTestComponent]
+    fixtures = ['test_users.yaml', 'test_labels.yaml',
+                'test_labelsets.yaml', 'test_sources_with_labelsets.yaml']
+    source_member_roles = [
+        ('Labelset 1key', 'user2', Source.PermTypes.EDIT.code),
+    ]
+
+    def test_load_view_anonymous(self):
+        """
+        Load view while not logged in -> error response.
+        """
+        url = reverse('annotation_tool_settings_save')
+        response_obj = self.client.post(url)
+
+        # Check response
+        response = json.loads(response_obj.content)
+        self.assertTrue('error' in response)
+        self.assertTrue("logged in" in response['error'])
+
+    def test_save_settings(self):
+        """
+        Save settings.
+        """
+        self.client.login(username='user2', password='secret')
+
+        # First ensure that this user has a settings object in the DB.
+        AnnotationToolSettings.objects.create(
+            user=User.objects.get(username='user2'))
+
+        # Set settings
+        url = reverse('annotation_tool_settings_save')
+        data = dict(
+            point_marker='box',
+            point_marker_size=19,
+            point_marker_is_scaled=True,
+            point_number_size=9,
+            point_number_is_scaled=True,
+            unannotated_point_color='FF0000',
+            robot_annotated_point_color='ABCDEF',
+            human_annotated_point_color='012345',
+            selected_point_color='FFBBBB',
+            show_machine_annotations=False,
+        )
+        response_obj = self.client.post(url, data)
+
+        # Check response
+        response = json.loads(response_obj.content)
+        self.assertTrue('error' not in response)
+
+        # Check settings
+        settings = AnnotationToolSettings.objects.get(user__username='user2')
+        self.assertEqual(settings.point_marker, 'box')
+        self.assertEqual(settings.point_marker_size, 19)
+        self.assertEqual(settings.point_marker_is_scaled, True)
+        self.assertEqual(settings.point_number_size, 9)
+        self.assertEqual(settings.point_number_is_scaled, True)
+        self.assertEqual(settings.unannotated_point_color, 'FF0000')
+        self.assertEqual(settings.robot_annotated_point_color, 'ABCDEF')
+        self.assertEqual(settings.human_annotated_point_color, '012345')
+        self.assertEqual(settings.selected_point_color, 'FFBBBB')
+        self.assertEqual(settings.show_machine_annotations, False)
 
 
 class AnnotationAreaEditTest(ClientTest):

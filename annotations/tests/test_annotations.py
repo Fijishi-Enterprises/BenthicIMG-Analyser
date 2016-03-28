@@ -531,16 +531,18 @@ class AnnotationHistoryTest(ClientTest):
         super(AnnotationHistoryTest, self).setUp()
         self.source_id = Source.objects.get(name='Labelset 1key').pk
 
+        # Upload an image
+        self.client.login(username='user2', password='secret')
+        self.image_id = self.upload_image('001_2012-05-01_color-grid-001.png')[0]
+        self.client.logout()
+
     def test_load_page_anonymous(self):
         """
         Load the page while logged out ->
         sorry, don't have permission.
         """
-        self.client.login(username='user2', password='secret')
-        image_id = self.upload_image('001_2012-05-01_color-grid-001.png')[0]
-        self.client.logout()
 
-        url = reverse('annotation_history', kwargs=dict(image_id=image_id))
+        url = reverse('annotation_history', kwargs=dict(image_id=self.image_id))
 
         response = self.client.get(url)
         self.assertStatusOK(response)
@@ -551,12 +553,8 @@ class AnnotationHistoryTest(ClientTest):
         Load the page as a user outside the source ->
         sorry, don't have permission.
         """
-        self.client.login(username='user2', password='secret')
-        image_id = self.upload_image('001_2012-05-01_color-grid-001.png')[0]
-        self.client.logout()
-
         self.client.login(username='user3', password='secret')
-        url = reverse('annotation_history', kwargs=dict(image_id=image_id))
+        url = reverse('annotation_history', kwargs=dict(image_id=self.image_id))
 
         response = self.client.get(url)
         self.assertStatusOK(response)
@@ -564,15 +562,99 @@ class AnnotationHistoryTest(ClientTest):
 
     def test_load_page(self):
         self.client.login(username='user2', password='secret')
-        image_id = self.upload_image('001_2012-05-01_color-grid-001.png')[0]
-        url = reverse('annotation_history', kwargs=dict(image_id=image_id))
+        url = reverse('annotation_history', kwargs=dict(image_id=self.image_id))
 
         response = self.client.get(url)
         self.assertStatusOK(response)
         self.assertTemplateUsed(response, 'annotations/annotation_history.html')
 
-    # TODO: Test doing some annotation and then loading the history page.
-    # See if the contents are as expected.
+    def test_access_event(self):
+        self.client.login(username='user2', password='secret')
+
+        # Access the annotation tool
+        url = reverse('annotation_tool', kwargs=dict(image_id=self.image_id))
+        self.client.get(url)
+
+        # Check the history - as another user, so we can count the instances
+        # of the annotating user
+        self.client.logout()
+        self.client.login(username='superuser_user', password='secret')
+        url = reverse('annotation_history', kwargs=dict(image_id=self.image_id))
+        response = self.client.get(url)
+        # Should have 1 table entry saying user2 accessed.
+        self.assertContains(response, "Accessed annotation tool", count=1)
+        self.assertContains(response, "user2", count=1)
+
+    def test_annotation_event(self):
+        self.client.login(username='user2', password='secret')
+
+        # Save annotations
+        url = reverse(
+            'save_annotations_ajax', kwargs=dict(image_id=self.image_id))
+
+        data = dict()
+        image = Image.objects.get(pk=self.image_id)
+        labels = Label.objects.filter(labelset=image.source.labelset)
+        label_codes = labels.values_list('code', flat=True)
+        num_points = Point.objects.filter(image=image).count()
+
+        for point_num in range(1, num_points+1):
+            # Assign a random label
+            data['label_'+str(point_num)] = random.choice(label_codes)
+            data['robot_'+str(point_num)] = json.dumps(False)
+        self.client.post(url, data)
+
+        # Check the history - as another user, so we can count the instances
+        # of the annotating user
+        self.client.logout()
+        self.client.login(username='superuser_user', password='secret')
+        url = reverse('annotation_history', kwargs=dict(image_id=self.image_id))
+        response = self.client.get(url)
+        # Should have 1 table entry showing all the points that were changed.
+        self.assertContains(response, "Point", count=num_points)
+        self.assertContains(response, "user2", count=1)
+
+    def test_annotation_overwrite(self):
+        self.client.login(username='user2', password='secret')
+
+        # Save annotations as user2
+        url = reverse(
+            'save_annotations_ajax', kwargs=dict(image_id=self.image_id))
+
+        data = dict()
+        image = Image.objects.get(pk=self.image_id)
+        labels = Label.objects.filter(labelset=image.source.labelset)
+        label_codes = labels.values_list('code', flat=True)
+        num_points = Point.objects.filter(image=image).count()
+
+        for point_num in range(1, num_points+1):
+            if 1 <= point_num and point_num <= 2:
+                # Assign a fixed label for points 1 and 2
+                data['label_'+str(point_num)] = label_codes[1]
+            else:
+                # Assign a random label
+                data['label_'+str(point_num)] = random.choice(label_codes)
+            data['robot_'+str(point_num)] = json.dumps(False)
+        self.client.post(url, data)
+
+        # Save annotations as superuser_user, changing just 2 labels
+        self.client.logout()
+        self.client.login(username='superuser_user', password='secret')
+        data['label_1'] = label_codes[0]
+        data['label_2'] = label_codes[0]
+        self.client.post(url, data)
+
+        # Check the history - as user2, so we can count the instances
+        # of superuser_user
+        self.client.logout()
+        self.client.login(username='user2', password='secret')
+        url = reverse('annotation_history', kwargs=dict(image_id=self.image_id))
+        response = self.client.get(url)
+        # superuser_user should be on the second history entry.
+        # The two history entries should have num_points+2 instances of "Point"
+        # combined: num_points in user2's entry, 2 in superuser_user's entry.
+        self.assertContains(response, "Point", count=num_points+2)
+        self.assertContains(response, "superuser_user", count=1)
 
 
 class PointGenTest(ClientTest):

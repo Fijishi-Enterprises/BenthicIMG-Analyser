@@ -1,4 +1,4 @@
-from django.conf.urls.defaults import *  # 404, 500, patterns, include, url
+from django.conf.urls import patterns, url
 
 urlpatterns = patterns('',
     url(r'^labels/$', 'annotations.views.label_list', name="label_list"),

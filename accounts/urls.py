@@ -3,7 +3,7 @@
 # - our urlpatterns which override userena's urlpatterns
 # - other accounts-related urls
 
-from django.conf.urls.defaults import patterns, url, include
+from django.conf.urls import patterns, url, include
 from accounts import views as accounts_views
 from userena import views as userena_views
 

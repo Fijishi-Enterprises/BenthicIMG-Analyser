@@ -1,4 +1,4 @@
-from django.conf.urls.defaults import *  # 404, 500, patterns, include, url
+from django.conf.urls import patterns, url
 
 urlpatterns = patterns('',
     url(r'^source/$', 'images.views.source_list', name="source_list"),

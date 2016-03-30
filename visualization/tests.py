@@ -2,7 +2,7 @@ import json
 from urllib import urlencode
 from django.core.urlresolvers import reverse
 from lib.test_utils import ClientTest, MediaTestComponent
-from images.models import Source, Image
+from images.models import Source, Image, Value1
 
 
 class BrowseTest(ClientTest):
@@ -308,7 +308,8 @@ class ImageDeleteTest(ClientTest):
         # Delete all images in the source.
         self.client.post(url, dict(
             specify_method='search_keys',
-            specify_str=json.dumps(dict(value1='001')),
+            specify_str=json.dumps(
+                dict(value1=Value1.objects.get(name='001').pk)),
         ))
 
         # Check that we can get image 002 and 003, but not 001,

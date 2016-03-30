@@ -66,10 +66,21 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50 MB
 # This is the directory where the dict files will be kept.
 SHELVED_ANNOTATIONS_DIR = abspath(PROJECT_ROOT, '../tmp/shelved_annotations')
 
-# Absolute path to the directory static files should be collected to.
-# Don't put anything in this directory yourself; store your static files
-# in apps' "static/" subdirectories and in STATICFILES_DIRS.
+# Absolute path to the directory which static files should be collected to.
 # Example: "/home/media/media.lawrence.com/static/"
+#
+# To collect static files here, first ensure that your static files are
+# in apps' "static/" subdirectories and in STATICFILES_DIRS. Then use the
+# collectstatic management command.
+# Don't put anything in this directory manually.
+#
+# Then, use your web server's settings to serve STATIC_ROOT at the STATIC_URL.
+# This is done outside of Django, but the docs have some implementation
+# suggestions.
+# https://docs.djangoproject.com/en/dev/howto/static-files/deployment/
+#
+# This only applies for DEBUG = False. When DEBUG = True, static files
+# are served automagically with django.contrib.staticfiles.views.serve().
 STATIC_ROOT = ''
 
 # This is our own setting (not a standard Django setting) specifying the

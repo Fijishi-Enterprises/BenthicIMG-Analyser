@@ -4,6 +4,8 @@
 # Since this fixture is named initial_data.<ext>, this fixture will be
 # automatically loaded on syncdb.
 
+# These pks must match the ones in settings.py:
+# IMPORTED_USER_ID, ROBOT_USER_ID, ALLEVIATE_USER_ID.
 - model: auth.user
   pk: -2
   fields:
@@ -17,7 +19,12 @@
   fields:
     username: Alleviate
 
+# This pk must:
+# - Match the LabelSet model's EMPTY_LABELSET_ID
+# - Match the labelset id of all empty-labelset sources in all fixtures
+# - NOT match the pk of any other labelset in the fixtures
 - model: annotations.labelset
   pk: -1
   fields:
     description: Empty labelset. A dummy labelset for new sources.
+    edit_date: "2011-10-22 14:56:23"

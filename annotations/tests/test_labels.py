@@ -12,6 +12,7 @@ class LabelListTest(ClientTest):
     """
     Test the label list page.
     """
+    fixtures = ['test_labels.yaml']
 
     def test_load_page(self):
         """Load the page."""
@@ -38,6 +39,7 @@ class NewLabelTest(ClientTest):
     As long as the new label page still exists, at least check that it
     doesn't let in anonymous users.
     """
+    fixtures = ['test_labels.yaml']
 
     def test_load_page_anonymous(self):
         """Load the page while logged out -> sign-in prompt."""

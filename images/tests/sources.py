@@ -15,6 +15,8 @@ class SourceAboutTest(ClientTest):
     """
     Test the About Sources page.
     """
+    fixtures = ['test_users.yaml', 'test_sources.yaml']
+
     def test_source_about(self):
         response = self.client.get(reverse('source_about'))
         self.assertStatusOK(response)

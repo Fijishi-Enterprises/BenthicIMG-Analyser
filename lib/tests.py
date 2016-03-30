@@ -13,6 +13,8 @@ class IndexTest(ClientTest):
     """
     Test the site index page.
     """
+    fixtures = ['test_users.yaml']
+
     def test_index(self):
         response = self.client.get(reverse('index'))
         self.assertStatusOK(response)

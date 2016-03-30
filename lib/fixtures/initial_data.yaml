@@ -23,6 +23,26 @@
 # - Match the LabelSet model's EMPTY_LABELSET_ID
 # - Match the labelset id of all empty-labelset sources in all fixtures
 # - NOT match the pk of any other labelset in the fixtures
+#
+# Unfortunately:
+# - Our existing database(s) have this pk as -1.
+# - If this pk is 0 or negative, running tests with PostgreSQL results in an
+#   'out of bounds for sequence' error when creating the database.
+#
+# The workaround for now is:
+# - Typically run tests with SQLite.
+# - When we want to test in PostgreSQL, we can temporarily change this pk
+#   (and everything it must match) to something else, then change it back.
+#
+# TODO: Two options for a fix:
+# (A) Change this to a positive pk that'll probably never be reached,
+#     like 999999999, and data-migrate the existing database(s) to
+#     use that pk for the empty labelset.
+# (B) (Preferred) Phase out the empty labelset. When a new source is created,
+#     and the user hasn't specified their labelset yet, set the labelset
+#     as NULL instead of setting it as the empty labelset.
+#     Since we use PostgreSQL now, not MySQL, we shouldn't be scared of
+#     stuff like foreign keys being allowed a NULL value.
 - model: annotations.labelset
   pk: -1
   fields:

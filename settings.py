@@ -266,8 +266,12 @@ TEST_RUNNER = 'lib.test_utils.MyTestSuiteRunner'
 # relates to messages printed by the test runner code.
 UNIT_TEST_VERBOSITY = settings_2.UNIT_TEST_VERBOSITY
 
-#Django-guardian settings
+# Django-guardian settings
 ANONYMOUS_USER_ID = -1
+# For whatever reason, running tests in Postgres makes it complain when
+# this ID is 0 or negative.
+if 'test' in sys.argv or 'mytest' in sys.argv:
+    ANONYMOUS_USER_ID = 99999999
 
 # Other special user ids
 IMPORTED_USER_ID = -2

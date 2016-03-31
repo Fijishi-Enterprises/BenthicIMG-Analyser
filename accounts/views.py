@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.mail import EmailMessage
 from django.core.urlresolvers import reverse
@@ -7,7 +8,6 @@ from django.template.context import RequestContext
 from userena.decorators import secure_required
 
 from accounts.forms import UserAddForm
-from settings import SERVER_EMAIL
 from decorators import permission_required
 
 
@@ -66,7 +66,7 @@ def email_all(request):
         for u in all_users:
             if u.email:
                 email_list.append(u.email.encode("ascii") )
-        email = EmailMessage(subject, message,SERVER_EMAIL,
+        email = EmailMessage(subject, message, settings.SERVER_EMAIL,
         [], bcc=email_list )
   
         email.send(fail_silently=True)

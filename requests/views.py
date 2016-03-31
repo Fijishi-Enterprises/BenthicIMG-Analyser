@@ -1,13 +1,12 @@
+from django.conf import settings
 from django.core.mail import mail_admins
 from django.core.mail.message import BadHeaderError
 from django.core.urlresolvers import reverse
-from django.http import HttpResponse, HttpRequest,HttpResponseRedirect
+from django.http import HttpResponseRedirect
 from django.shortcuts import render_to_response
 from django.contrib import messages
 from django.template.context import RequestContext
 from requests.forms import RequestInviteForm
-from settings import DEFAULT_FROM_EMAIL 
-from settings_2 import CAPTCHA_PRIVATE_KEY, CAPTCHA_PUBLIC_KEY
 import urllib2, urllib
 
 def request_invite(request):
@@ -47,7 +46,7 @@ def request_invite(request):
                       'agree_to_data_policy: ' + str(policy_agree) + '\n'
 
             params = urllib.urlencode ({
-              'privatekey': encode_if_necessary(CAPTCHA_PRIVATE_KEY),
+              'privatekey': encode_if_necessary(settings.CAPTCHA_PRIVATE_KEY),
               'remoteip' :  encode_if_necessary(client_ip),
               'challenge':  encode_if_necessary(challenge_field),
               'response' :  encode_if_necessary(response_field),
@@ -86,7 +85,7 @@ def request_invite(request):
      
      return render_to_response('requests/request_invite.html', {
         'form': form,
-        'public_key': CAPTCHA_PUBLIC_KEY,
+        'public_key': settings.CAPTCHA_PUBLIC_KEY,
         },
         context_instance=RequestContext(request)
      )

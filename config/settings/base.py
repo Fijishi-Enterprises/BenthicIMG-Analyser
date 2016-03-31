@@ -136,7 +136,7 @@ INSTALLED_APPS = (
 # Add MY_INSTALLED_APPS to INSTALLED_APPS, each with a 'coralnet.' prefix.
 INSTALLED_APPS += tuple(['coralnet.'+app_name for app_name in MY_INSTALLED_APPS])
 
-ROOT_URLCONF = 'coralnet.urls'
+ROOT_URLCONF = 'config.urls'
 
 # List of locations of the template source files, in search order.
 TEMPLATE_DIRS = (

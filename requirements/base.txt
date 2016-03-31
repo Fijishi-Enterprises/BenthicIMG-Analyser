@@ -39,3 +39,6 @@ pillow==3.0.0
 
 # Handle the YAML format, e.g. for fixtures
 PyYAML==3.10
+
+# More elegant filepath calculations
+unipath==1.1

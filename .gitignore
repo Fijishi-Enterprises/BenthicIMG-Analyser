@@ -1,6 +1,5 @@
 #Ignore files that are meant to differ between dev and production
-settings_2.py
-settings_2.pyc
+secrets.json
 images/task_helpers.py
 images/task_helpers.pyc
 templates/maintenance_notice.html

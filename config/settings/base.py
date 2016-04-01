@@ -61,7 +61,7 @@ USE_I18N = True
 USE_L10N = True
 
 # E-mail address that error messages come from.
-SERVER_EMAIL = 'coralnet-announce@coralnet.ucsd.edu'
+SERVER_EMAIL = 'noreply@coralnet.ucsd.edu'
 
 # Database connection info.
 DATABASES = {

@@ -8,7 +8,7 @@ from django.template.context import RequestContext
 from userena.decorators import secure_required
 
 from accounts.forms import UserAddForm
-from decorators import permission_required
+from lib.decorators import permission_required
 
 
 @secure_required

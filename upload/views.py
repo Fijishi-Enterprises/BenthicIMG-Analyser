@@ -4,16 +4,14 @@ from django.http import HttpResponseRedirect
 from django.template import RequestContext
 from django.contrib import messages
 from annotations.model_utils import AnnotationAreaUtils
-from decorators import source_permission_required
 from images.model_utils import PointGen
 from images.models import Source
+from lib.decorators import source_permission_required
 from lib.exceptions import FileContentError
 from lib.utils import JsonResponse
 from .forms import MultiImageUploadForm, ImageUploadForm, ImageUploadOptionsForm, AnnotationImportForm, AnnotationImportOptionsForm, CSVImportForm, MetadataImportForm, ImportArchivedAnnotationsForm
 from .utils import annotations_file_to_python, image_upload_process, metadata_dict_to_dupe_comparison_key, check_image_filename, store_csv_file, load_archived_csv, check_archived_csv, import_archived_annotations
 from visualization.forms import ImageSpecifyForm
-
-import csv
 
 @source_permission_required('source_id', perm=Source.PermTypes.EDIT.code)
 def image_upload(request, source_id):

@@ -15,11 +15,10 @@ from annotations.forms import NewLabelForm, NewLabelSetForm, AnnotationForm, Ann
 from annotations.model_utils import AnnotationAreaUtils
 from annotations.models import Label, LabelSet, Annotation, AnnotationToolAccess, AnnotationToolSettings
 from annotations.utils import get_annotation_version_user_display, image_annotation_all_done
-from decorators import source_permission_required, source_visibility_required, image_permission_required, image_annotation_area_must_be_editable, image_labelset_required, login_required_ajax
+from lib.decorators import source_permission_required, source_visibility_required, image_permission_required, image_annotation_area_must_be_editable, image_labelset_required, login_required_ajax
 from images import task_utils
 from images.models import Source, Image, Point
-from images.views import image_detail
-from images.utils import generate_points, get_first_image, get_next_image, get_prev_image
+from images.utils import generate_points, get_first_image, get_next_image
 from lib.utils import JsonResponse
 from visualization.utils import generate_patch_if_doesnt_exist
 

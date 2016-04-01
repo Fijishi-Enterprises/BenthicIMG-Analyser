@@ -1,25 +1,27 @@
 import csv
 import json
 import urllib
+
+from numpy import zeros, sum, linalg, logical_and, vectorize
+
 from django.contrib import messages
 from django.core.paginator import Paginator, EmptyPage, InvalidPage
 from django.core.urlresolvers import reverse
+from django.forms.formsets import formset_factory
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render_to_response
 from django.template.context import RequestContext
+from django.utils.functional import curry
+
+from .forms import BrowseSearchForm, StatisticsSearchForm, ImageBatchDeleteForm, ImageSpecifyForm, ImageBatchDownloadForm
+from .utils import generate_patch_if_doesnt_exist
 from accounts.utils import get_robot_user
 from annotations.models import Annotation, Label, LabelSet, LabelGroup
-from decorators import source_visibility_required, source_permission_required
 from images.models import Source, Image
-from lib.utils import JsonResponse
-from visualization.forms import BrowseSearchForm, StatisticsSearchForm, ImageBatchDeleteForm, ImageSpecifyForm, ImageBatchDownloadForm
-from visualization.utils import generate_patch_if_doesnt_exist
-from GChartWrapper import *
-from upload.forms import MetadataForm, CheckboxForm
-from django.forms.formsets import formset_factory
-from django.utils.functional import curry
-from numpy import array, zeros, sum, array_str, rank, linalg, logical_and, newaxis, vectorize
 from images.tasks import *
+from lib.decorators import source_visibility_required, source_permission_required
+from lib.utils import JsonResponse
+from upload.forms import MetadataForm, CheckboxForm
 
 # TODO: Move to utils
 def image_search_args_to_queryset_args(searchDict, source):

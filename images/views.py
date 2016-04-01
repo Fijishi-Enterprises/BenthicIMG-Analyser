@@ -24,7 +24,7 @@ from annotations.forms import AnnotationAreaPercentsForm
 from annotations.model_utils import AnnotationAreaUtils
 from annotations.models import LabelGroup, Label, LabelSet
 from annotations.utils import image_annotation_area_is_editable, image_has_any_human_annotations
-from decorators import source_permission_required, image_visibility_required, image_permission_required, source_visibility_required
+from lib.decorators import source_permission_required, image_visibility_required, image_permission_required, source_visibility_required
 from visualization.forms import BrowseSearchForm
 
 def source_list(request):

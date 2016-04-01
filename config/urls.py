@@ -34,10 +34,6 @@ urlpatterns = patterns('',
     # Internationalization
     (r'^i18n/', include('django.conf.urls.i18n')),
 
-    # Examples:
-    # url(r'^$', 'CoralNet.views.home', name='home'),
-    # url(r'^CoralNet/', include('CoralNet.foo.urls')),
-
     # Uncomment the admin/doc line below to enable admin documentation:
     # url(r'^admin/doc/', include('django.contrib.admindocs.urls')),
 

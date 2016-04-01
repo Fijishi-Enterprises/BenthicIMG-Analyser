@@ -822,6 +822,9 @@ def make_robot_stats(source_id, nbr_robots):
             version = robot.version,
             nsamples = sum(meta['final']['trainData']['labelhist']['org']),
             train_time = str(int(round(meta['totalRuntime']))),
+            # TODO: Get an aware datetime by changing the fromtimestamp call to
+            # datetime.datetime.fromtimestamp(os.path.getctime(...), tz=pytz.utc)
+            # I would do it myself, but I can't test robots right now. -Stephen
             date = '%s' %  datetime.datetime.fromtimestamp(os.path.getctime(robot.path_to_model + '.meta.json')).date()
         ))
     
@@ -834,6 +837,9 @@ def make_robot_stats(source_id, nbr_robots):
         robot_stats = dict(
             robotlist = robotlist,
             has_robot=True,
+            # TODO: Get an aware datetime by changing the time.ctime call to
+            # datetime.datetime.fromtimestamp(os.path.getmtime(...), tz=pytz.utc)
+            # I would do it myself, but I can't test robots right now. -Stephen
             most_recent_run_date = '%s' %  time.ctime(os.path.getmtime(validRobots[-1].path_to_model + '.meta.json')),
         )
 

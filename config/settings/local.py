@@ -2,7 +2,8 @@ from .base import *
 
 
 
-CORALNET_DIR = Path('D:/CVCE')
+# Directory for any site related files, not just the repository.
+SITE_DIR = PROJECT_DIR.ancestor(1)
 
 
 
@@ -37,7 +38,7 @@ MANAGERS = ADMINS
 #
 # This only applies for DEBUG = False. When DEBUG = True, static files
 # are served automagically with django.contrib.staticfiles.views.serve().
-STATIC_ROOT = CORALNET_DIR.child('Coralnet_static_serve')
+STATIC_ROOT = SITE_DIR.child('static_serve')
 
 # The maximum size (in bytes) that an upload will be before it
 # gets streamed to the file system.
@@ -48,27 +49,25 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50 MB
 # [Custom setting]
 # Media Root to be used during unit tests.
 # This directory is best kept out of the repository.
-TEST_MEDIA_ROOT = CORALNET_DIR.child('Coralnet_test_files').child('media')
+TEST_MEDIA_ROOT = SITE_DIR.child('testing').child('media')
 
 # [Custom setting]
 # Absolute filesystem path to the directory that will
 # hold input and output files for backend processing tasks.
 # This directory is best kept out of the repository.
 # Example: "/home/mysite_processing/"
-PROCESSING_ROOT = CORALNET_DIR.child('Coralnet_processing')
+PROCESSING_ROOT = SITE_DIR.child('processing')
 
 # [Custom setting]
 # Processing Root to be used during unit tests.
 # This directory is best kept out of the repository.
-TEST_PROCESSING_ROOT = \
-    CORALNET_DIR.child('Coralnet_test_files').child('processing')
+TEST_PROCESSING_ROOT = SITE_DIR.child('testing').child('processing')
 
 # [Custom setting]
 # When uploading images and annotations together, the annotation dict needs
 # to be kept on disk temporarily until all the Ajax upload requests are done.
 # This is the directory where the dict files will be kept.
-SHELVED_ANNOTATIONS_DIR = \
-    CORALNET_DIR.child('Coralnet_tmp').child('shelved_annotations')
+SHELVED_ANNOTATIONS_DIR = SITE_DIR.child('tmp').child('shelved_annotations')
 
 # [Custom setting]
 # Verbosity of print messages printed by our unit tests' code. Note that

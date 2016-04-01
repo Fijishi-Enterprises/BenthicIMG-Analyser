@@ -1,30 +1,31 @@
 from decimal import Decimal
-from exceptions import ValueError
 from itertools import chain
 from django.core.exceptions import ValidationError, MultipleObjectsReturned
+from django.core.mail import mail_admins
 from django.core.urlresolvers import reverse
+from django import forms
 from django.forms import Form
 from django.forms.fields import BooleanField, CharField, DecimalField, IntegerField
+from django.forms.models import ModelForm
 from django.forms.widgets import TextInput, HiddenInput
 from django.utils import simplejson
 from django.utils.html import conditional_escape
 from django.utils.safestring import mark_safe
 from django.utils.encoding import force_unicode
-from django import forms
-from django.forms.models import ModelForm
 from accounts.utils import is_robot_user, get_robot_user
 from annotations.model_utils import AnnotationAreaUtils
 from annotations.models import Label, LabelSet, Annotation, AnnotationToolSettings
-from django.core.mail import mail_admins
-from coralnet.forms import FormHelper
-
-# Custom widget to enable multiple checkboxes without outputting a wrongful
-# helptext since I'm modifying the widget used to display labels.
-# This is a workaround for a bug in Django which associates helptext
-# with the view instead of with the widget being used.
 from images.models import Point, Source, Metadata
+from lib.forms import strip_spaces_from_fields
+
 
 class CustomCheckboxSelectMultiple(forms.CheckboxSelectMultiple):
+   """
+   Custom widget to enable multiple checkboxes without outputting a wrongful
+   helptext since I'm modifying the widget used to display labels.
+   This is a workaround for a bug in Django which associates helptext
+   with the view instead of with the widget being used.
+   """
 
    items_per_row = 4 # Number of items per row
 
@@ -67,7 +68,7 @@ class NewLabelForm(ModelForm):
         2. Add an error if the specified name or code matches that of an existing label.
         3. Call the parent's clean() to finish up with the default behavior.
         """
-        data = FormHelper.stripSpacesFromFields(
+        data = strip_spaces_from_fields(
             self.cleaned_data, self.fields)
 
         if data.has_key('name'):

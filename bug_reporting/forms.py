@@ -1,6 +1,6 @@
 from django.forms import ModelForm
 from bug_reporting.models import Feedback
-from coralnet.forms import FormHelper
+from lib.forms import strip_spaces_from_fields
 
 class FeedbackForm(ModelForm):
     class Meta:
@@ -16,7 +16,7 @@ class FeedbackForm(ModelForm):
         2. Call the parent's clean() to finish up with the default behavior.
         """
 
-        data = FormHelper.stripSpacesFromFields(
+        data = strip_spaces_from_fields(
             self.cleaned_data, self.fields)
 
         self.cleaned_data = data

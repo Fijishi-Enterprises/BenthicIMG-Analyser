@@ -5,9 +5,9 @@ from django.forms import fields
 from django.forms.fields import CharField, ChoiceField, FileField, IntegerField
 from django.forms.widgets import  Select, TextInput
 from images.models import Source, Image, Metadata, Value1, Value2, Value3, Value4, Value5, SourceInvite
-from coralnet.forms import FormHelper
 from images.model_utils import PointGen
 from lib import str_consts
+from lib.forms import strip_spaces_from_fields
 
 class ImageSourceForm(ModelForm):
 
@@ -74,7 +74,7 @@ class ImageSourceForm(ModelForm):
         2. Call the parent's clean() to run the default behavior.
         3. Default return behavior of clean() is to return self.cleaned_data.
         """
-        data = FormHelper.stripSpacesFromFields(
+        data = strip_spaces_from_fields(
             self.cleaned_data, self.fields)
 
         self.cleaned_data = data
@@ -145,7 +145,7 @@ class LocationKeyForm(Form):
         4. Clean the annotation-area fields.
         5. Default return behavior of clean() is to return self.cleaned_data.
         """
-        data = FormHelper.stripSpacesFromFields(
+        data = strip_spaces_from_fields(
             self.cleaned_data, self.fields)
 
         if 'key1' not in data or data['key1'] == u'':
@@ -202,7 +202,7 @@ class LocationKeyEditForm(Form):
         """
         Strip spaces from the fields.
         """
-        data = FormHelper.stripSpacesFromFields(
+        data = strip_spaces_from_fields(
             self.cleaned_data, self.fields)
 
         self.cleaned_data = data
@@ -385,7 +385,7 @@ class ImageDetailForm(ModelForm):
         2. Handle the location values.
         3. Call the parent's clean() to finish up with the default behavior.
         """
-        data = FormHelper.stripSpacesFromFields(
+        data = strip_spaces_from_fields(
             self.cleaned_data, self.fields)
 
         image = Image.objects.get(metadata=self.instance)

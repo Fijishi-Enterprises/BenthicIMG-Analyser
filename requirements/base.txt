@@ -37,6 +37,9 @@ numpy==1.7.1
 # (A currently active, package friendly fork of it; also endorsed by Django)
 pillow==3.0.0
 
+# World timezone definitions
+pytz==2016.3
+
 # Handle the YAML format, e.g. for fixtures
 PyYAML==3.10
 

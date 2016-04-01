@@ -7,7 +7,7 @@
   fields:
     name: 0 keys
     visibility: b
-    create_date: "2012-04-25 17:30:32"
+    create_date: "2012-04-25T17:30:32+00:00"
     description: A source with 0 location keys.
     labelset: -1    # Empty labelset
     default_point_generation_method: m_50
@@ -22,7 +22,7 @@
   fields:
     name: 1 key
     visibility: b
-    create_date: "2012-04-25 17:30:32"
+    create_date: "2012-04-25T17:30:32+00:00"
     description: A source with 1 location key.
     labelset: -1    # Empty labelset
     key1: Number
@@ -38,7 +38,7 @@
   fields:
     name: 2 keys
     visibility: b
-    create_date: "2012-04-25 17:30:32"
+    create_date: "2012-04-25T17:30:32+00:00"
     description: A source with 2 location keys.
     labelset: -1    # Empty labelset
     key1: Color Range
@@ -55,7 +55,7 @@
   fields:
     name: 5 keys
     visibility: b
-    create_date: "2012-04-25 17:30:32"
+    create_date: "2012-04-25T17:30:32+00:00"
     description: A source with 5 location keys.
     labelset: -1    # Empty labelset
     key1: Shape

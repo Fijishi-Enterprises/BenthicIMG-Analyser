@@ -47,4 +47,4 @@
   pk: -1
   fields:
     description: Empty labelset. A dummy labelset for new sources.
-    edit_date: "2011-10-22 14:56:23"
+    edit_date: "2011-10-22T14:56:23+00:00"

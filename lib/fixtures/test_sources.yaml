@@ -3,7 +3,7 @@
   fields:
     name: public1
     visibility: b
-    create_date: "2012-04-25 17:30:32"
+    create_date: "2012-04-25T17:30:32+00:00"
     affiliation: Affiliation goes here
     description: A public source.
     labelset: -1    # Empty labelset
@@ -21,7 +21,7 @@
   fields:
     name: public2
     visibility: b
-    create_date: "2012-04-25 17:30:32"
+    create_date: "2012-04-25T17:30:32+00:00"
     affiliation: Affiliation goes here
     description: A public source.
     labelset: -1    # Empty labelset
@@ -39,7 +39,7 @@
   fields:
     name: private1
     visibility: v
-    create_date: "2012-04-25 17:30:32"
+    create_date: "2012-04-25T17:30:32+00:00"
     affiliation: Affiliation goes here
     description: A private source.
     labelset: -1    # Empty labelset
@@ -57,7 +57,7 @@
   fields:
     name: private2
     visibility: v
-    create_date: "2012-04-25 17:30:32"
+    create_date: "2012-04-25T17:30:32+00:00"
     affiliation: Affiliation goes here
     description: A private source.
     labelset: -1    # Empty labelset

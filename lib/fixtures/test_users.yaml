@@ -12,12 +12,12 @@
     is_active: true
     is_superuser: true
     is_staff: true
-    last_login: "2012-04-25 17:30:32"
+    last_login: "2012-04-25T17:30:32+00:00"
     groups: []
     user_permissions: []
     password: sha1$12345$99567ee91b2c7cabf607f10cb9f4a3634fa820e0
     email: superuser_user_123@example.com
-    date_joined: "2012-04-25 17:30:32"
+    date_joined: "2012-04-25T17:30:32+00:00"
 - model: accounts.profile
   pk: null
   fields:
@@ -36,12 +36,12 @@
     is_active: true
     is_superuser: false
     is_staff: false
-    last_login: "2012-04-25 17:30:32"
+    last_login: "2012-04-25T17:30:32+00:00"
     groups: []
     user_permissions: []
     password: sha1$12345$99567ee91b2c7cabf607f10cb9f4a3634fa820e0
     email: user2@example.com
-    date_joined: "2012-04-25 17:30:32"
+    date_joined: "2012-04-25T17:30:32+00:00"
 - model: accounts.profile
   pk: null
   fields:
@@ -60,12 +60,12 @@
     is_active: true
     is_superuser: false
     is_staff: false
-    last_login: "2012-04-25 17:30:32"
+    last_login: "2012-04-25T17:30:32+00:00"
     groups: []
     user_permissions: []
     password: sha1$12345$99567ee91b2c7cabf607f10cb9f4a3634fa820e0
     email: user3@example.com
-    date_joined: "2012-04-25 17:30:32"
+    date_joined: "2012-04-25T17:30:32+00:00"
 - model: accounts.profile
   pk: null
   fields:
@@ -84,12 +84,12 @@
     is_active: true
     is_superuser: false
     is_staff: false
-    last_login: "2012-04-25 17:30:32"
+    last_login: "2012-04-25T17:30:32+00:00"
     groups: []
     user_permissions: []
     password: sha1$12345$99567ee91b2c7cabf607f10cb9f4a3634fa820e0
     email: user4@example.com
-    date_joined: "2012-04-25 17:30:32"
+    date_joined: "2012-04-25T17:30:32+00:00"
 - model: accounts.profile
   pk: null
   fields:
@@ -108,12 +108,12 @@
     is_active: true
     is_superuser: false
     is_staff: false
-    last_login: "2012-04-25 17:30:32"
+    last_login: "2012-04-25T17:30:32+00:00"
     groups: []
     user_permissions: []
     password: sha1$12345$99567ee91b2c7cabf607f10cb9f4a3634fa820e0
     email: user5@example.com
-    date_joined: "2012-04-25 17:30:32"
+    date_joined: "2012-04-25T17:30:32+00:00"
 - model: accounts.profile
   pk: null
   fields:

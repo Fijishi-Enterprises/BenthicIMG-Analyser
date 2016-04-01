@@ -44,6 +44,9 @@ with open(SETTINGS_DIR.child('secrets.json')) as f:
 # won't reveal any error details to end users as long as DEBUG = False.
 TEMPLATE_DEBUG = True
 
+# If you set this to True, Django will use timezone-aware datetimes.
+USE_TZ = True
+
 # Language code for this installation. All choices can be found here:
 # http://www.i18nguy.com/unicode/language-identifiers.html
 LANGUAGE_CODE = 'en-us'

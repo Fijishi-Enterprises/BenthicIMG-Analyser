@@ -5,7 +5,7 @@ import tempfile
 from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.forms import forms
-from django.utils import simplejson
+from django.utils import simplejson, timezone
 from annotations.model_utils import AnnotationAreaUtils
 from annotations.models import Annotation
 from images.model_utils import PointGen
@@ -128,7 +128,7 @@ class ImageUploadBaseTest(ClientTest):
         Like upload_image_test(), but with additional checks that the
         various image fields are set correctly.
         """
-        datetime_before_upload = datetime.datetime.now()
+        datetime_before_upload = timezone.now()
 
         image_id, response = self.upload_image_test(
             filename,
@@ -148,7 +148,7 @@ class ImageUploadBaseTest(ClientTest):
         self.assertEqual(img.original_width, 400)
 
         self.assertTrue(datetime_before_upload <= img.upload_date)
-        self.assertTrue(img.upload_date <= datetime.datetime.now())
+        self.assertTrue(img.upload_date <= timezone.now())
 
         # Check that the user who uploaded the image is the
         # currently logged in user.
@@ -240,7 +240,7 @@ class UploadDupeImageTest(ImageUploadBaseTest):
         self.upload_image_test('002_2012-06-28_color-grid-002.png', **options)
 
         # Duplicate
-        datetime_before_dupe_upload = datetime.datetime.now()
+        datetime_before_dupe_upload = timezone.now()
         self.upload_image_test('001_2012-05-01_color-grid-001.png', expecting_dupe=True, **options)
 
         image_001 = Image.objects.get(source__pk=self.source_id, metadata__value1__name='001')
@@ -252,8 +252,6 @@ class UploadDupeImageTest(ImageUploadBaseTest):
             # not the skipped dupe.
             self.assertEqual(image_001_name, 'color-grid-001.png')
             # Sanity check of the datetime of upload.
-            # This check is of limited use since database datetimes (in MySQL 5.1 at least)
-            # get truncated to whole seconds. But it still doesn't hurt to check.
             self.assertTrue(image_001.upload_date <= datetime_before_dupe_upload)
 
         else:  # 'upload_anyway'

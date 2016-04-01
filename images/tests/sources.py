@@ -1,7 +1,7 @@
-import datetime
 from django import forms
 from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
+from django.utils import timezone
 from guardian.shortcuts import get_objects_for_user
 from annotations.model_utils import AnnotationAreaUtils
 from annotations.models import LabelSet
@@ -190,7 +190,7 @@ class SourceNewTest(ClientTest):
         """
         Successful creation of a new source.
         """
-        datetime_before_creation = datetime.datetime.now().replace(microsecond=0)
+        datetime_before_creation = timezone.now()
 
         response = self.client.post(reverse('source_new'), self.source_args)
 
@@ -228,13 +228,8 @@ class SourceNewTest(ClientTest):
         # Check that the source creation date is reasonable:
         # - a timestamp taken before creation should be before the creation date.
         # - a timestamp taken after creation should be after the creation date.
-        #
-        # Careful: In MySQL 5.1 (possibly other versions too), the date gets
-        # truncated to whole seconds. We're NOT going to assume that behavior here.
-        # We'll assume the database can preserve at least milliseconds, which is the
-        # default precision of datetime.datetime.now().
         self.assertTrue(datetime_before_creation <= new_source.create_date)
-        self.assertTrue(new_source.create_date <= datetime.datetime.now())
+        self.assertTrue(new_source.create_date <= timezone.now())
 
     def test_optional_fields(self):
         """

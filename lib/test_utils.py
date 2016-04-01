@@ -1,6 +1,7 @@
 # Utility classes and functions for tests.
-import os
 import datetime
+import os
+import pytz
 import re
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -8,7 +9,7 @@ from django.core.urlresolvers import reverse
 from django.test import TestCase
 from django.test.client import Client
 from django.test.simple import DjangoTestSuiteRunner
-from django.utils import simplejson
+from django.utils import simplejson, timezone
 from images.models import Source
 from lib.exceptions import TestfileDirectoryError
 from lib.utils import is_django_str
@@ -397,7 +398,7 @@ class FilesTestComponent(object):
 
         # Save a timestamp just before the tests start.
         # This will allow an extra sanity check in tearDown().
-        self.timestamp_before_tests = datetime.datetime.now()
+        self.timestamp_before_tests = timezone.now()
 
     def tearDown(self):
 
@@ -417,11 +418,13 @@ class FilesTestComponent(object):
                 # ctime refers to file creation time on Windows, and
                 # inode modification time on *nix.
                 # http://stackoverflow.com/questions/237079/how-to-get-file-creation-modification-date-times-in-python
-                file_ctime = datetime.datetime.fromtimestamp(
-                    os.stat(leftover_test_filename).st_ctime
-                )
+                file_timestamp = os.stat(leftover_test_filename).st_ctime
+                utc_file_ctime = \
+                    timezone.make_aware(
+                        datetime.datetime.utcfromtimestamp(file_timestamp),
+                        pytz.utc)
 
-                if file_ctime + datetime.timedelta(0,60) \
+                if utc_file_ctime + datetime.timedelta(0,60) \
                  < self.timestamp_before_tests:
                     # The file's ctime is >1 minute before the test started.
                     # So it must not have been created by the test...
@@ -464,11 +467,13 @@ class FilesTestComponent(object):
                         # The subdirectory name matches one of the directory
                         # patterns that's OK to delete.
                         leftover_test_subdir = os.path.join(dirname, subdir)
-                        dir_ctime = datetime.datetime.fromtimestamp(
-                            os.stat(leftover_test_subdir).st_ctime
-                        )
+                        dir_timestamp = os.stat(leftover_test_subdir).st_ctime
+                        utc_dir_ctime = \
+                            timezone.make_aware(
+                                datetime.datetime.utcfromtimestamp(dir_timestamp),
+                                pytz.utc)
 
-                        if dir_ctime + datetime.timedelta(0,60) \
+                        if utc_dir_ctime + datetime.timedelta(0,60) \
                          < self.timestamp_before_tests:
                             # Subdir was created or moved to this directory
                             # before the test started.  Not sure if this should

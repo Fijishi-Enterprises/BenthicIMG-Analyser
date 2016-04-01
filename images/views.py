@@ -4,6 +4,7 @@ from numpy import vectorize
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import User
 from django.contrib import messages
 from django.core.urlresolvers import reverse
 from django.db import transaction
@@ -12,8 +13,6 @@ from django.forms.models import model_to_dict
 from django.shortcuts import render_to_response, get_object_or_404
 from django.http import HttpResponseRedirect, HttpResponse
 from django.template import RequestContext
-
-from userena.models import User
 
 from . import utils
 from .forms import *

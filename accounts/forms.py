@@ -21,7 +21,8 @@ class UserAddForm(SignupForm):
                                      self.cleaned_data['email'],
                                      rand_string(10))
 
-        new_user = UserenaSignup.objects.create_inactive_user(username, email, password, send_email=False)
+        new_user = UserenaSignup.objects.create_user(
+            username, email, password, active=False, send_email=False)
 
         # Send the activation email. Include the generated password.
         userena_signup_obj = UserenaSignup.objects.get(user__username=username)

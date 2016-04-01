@@ -98,7 +98,7 @@ if ('test' in sys.argv or 'mytest' in sys.argv):
 # third-party installed apps. This'll make it easier to define a
 # custom test command that only runs our apps' tests.
 # http://stackoverflow.com/a/2329425/
-MY_INSTALLED_APPS = (
+PROJECT_APPS = [
     'accounts',
     'images',
     'upload',
@@ -108,9 +108,8 @@ MY_INSTALLED_APPS = (
     'requests',
     'map',
     'lib',
-)
-
-INSTALLED_APPS = (
+]
+REQUIRED_APPS = [
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -132,9 +131,8 @@ INSTALLED_APPS = (
     'djcelery',
     'GChartWrapper.charts',
 	'djsupervisor',
-)
-# Add MY_INSTALLED_APPS to INSTALLED_APPS, each with a 'coralnet.' prefix.
-INSTALLED_APPS += tuple(['coralnet.'+app_name for app_name in MY_INSTALLED_APPS])
+]
+INSTALLED_APPS = REQUIRED_APPS + PROJECT_APPS
 
 ROOT_URLCONF = 'config.urls'
 

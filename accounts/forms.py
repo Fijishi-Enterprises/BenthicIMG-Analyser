@@ -1,7 +1,7 @@
 from userena.forms import SignupForm
 from userena.models import UserenaSignup
 from accounts.utils import send_activation_email_with_password
-from coralnet.utils import rand_string
+from lib.utils import rand_string
 
 class UserAddForm(SignupForm):
 

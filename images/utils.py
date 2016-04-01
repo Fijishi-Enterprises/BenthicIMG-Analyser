@@ -1,14 +1,14 @@
-# This file contains general utility methods.
-
-import datetime
 import math, random
+
+from django.conf import settings
+from django.core.urlresolvers import reverse
+
 from accounts.utils import get_robot_user, get_alleviate_user
 from annotations.model_utils import AnnotationAreaUtils
 from annotations.models import Annotation
-from lib.exceptions import *
 from images.model_utils import PointGen
-from django.conf import settings
 from images.models import Source, Point, Metadata, Image, Value1, Value2, Value3, Value4, Value5
+from lib.exceptions import *
 
 
 def get_location_value_objs(source, value_names, createNewValues=False):
@@ -335,3 +335,100 @@ def source_robot_status(source_id):
     status['need_attention'] = source.enable_robot_classifier and (status['need_robot'] or status['need_features'] or status['need_classification'])
 
     return status
+
+
+def get_map_sources():
+    # Get all sources that have both latitude and longitude specified.
+    # (In other words, leave out the sources that have either of them blank.)
+    # TODO: When we have hidden sources, don't count the hidden sources.
+    map_sources_queryset = Source.objects.exclude(latitude='').exclude(longitude='')
+
+    map_sources = []
+
+    for source in map_sources_queryset:
+
+        num_of_images = Image.objects.filter(source=source).count()
+
+        # Make some check to remove small sources and test sources
+        is_test_source = False
+        if num_of_images < 100:
+            is_test_source = True
+        possible_test_sources_substrings = ['test', 'sandbox', 'dummy', 'tmp', 'temp', 'check']
+        for str_ in possible_test_sources_substrings:
+            if str_ in source.name.lower():
+                is_test_source = True
+        if is_test_source:
+            continue
+
+        # If the source is public, include a link to the source main page.
+        # Otherwise, don't include a link.
+        if source.visibility == Source.VisibilityTypes.PUBLIC:
+            source_url = reverse('source_main', args=[source.id])
+            color = '00FF00'
+        else:
+            source_url = ''
+            color = 'FF0000'
+
+        try:
+            latitude = str(source.latitude)
+            longitude = str(source.longitude)
+        except:
+            latitude = 'invalid'
+            longitude = 'invalid'
+
+        all_images = source.get_all_images()
+        latest_images = all_images.order_by('-upload_date')[:6]
+
+
+        map_sources.append(dict(
+            description=source.description,
+            affiliation=source.affiliation,
+            latitude=latitude,
+            longitude=longitude,
+            name=source.name,
+            color = color,
+            num_of_images=str( num_of_images ),
+            url=source_url,
+            latest_images=latest_images,
+            id=source.id
+        ))
+
+
+        # TODO: When we have hidden sources, don't count the hidden sources.
+        # TODO: Should we not count sources that don't have latitude/longitude
+        #       specified?
+        # TODO: Don't count images and annotations from sources that don't count.
+        # TODO: Should we count robot annotations?
+    return map_sources
+
+
+def get_random_public_images():
+    """
+    This will return a list of 5 random images that are from public sources only.
+    These will be displayed on the front page to be seen in all their glory
+    """
+    public_sources_list = Source.get_public_sources()
+
+    # return empty list if no public sources
+    if len(public_sources_list) == 0:
+        return public_sources_list
+
+    random_source_list = []
+    random_image_list = []
+
+    # get 5 random public sources
+    for i in range(5):
+        random_source = random.choice(public_sources_list)
+        random_source_list.append(random_source)
+
+    # get a random image from each randomly chosen public source
+    for source in random_source_list:
+        all_images = source.get_all_images()
+
+        if len(all_images) == 0:
+            continue
+
+        random_image = random.choice(all_images)
+        random_image_list.append(random_image)
+
+    return random_image_list

@@ -1,3 +1,8 @@
+import json, csv, os.path, time, datetime
+
+from numpy import vectorize
+
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.urlresolvers import reverse
@@ -7,26 +12,20 @@ from django.forms.models import model_to_dict
 from django.shortcuts import render_to_response, get_object_or_404
 from django.http import HttpResponseRedirect, HttpResponse
 from django.template import RequestContext
-from django.conf import settings
 
 from userena.models import User
+
+from . import utils
+from .forms import *
+from .model_utils import PointGen
+from .models import Source, Image, SourceInvite
+from .tasks import *
 from annotations.forms import AnnotationAreaPercentsForm
 from annotations.model_utils import AnnotationAreaUtils
 from annotations.models import LabelGroup, Label, LabelSet
 from annotations.utils import image_annotation_area_is_editable, image_has_any_human_annotations
 from decorators import source_permission_required, image_visibility_required, image_permission_required, source_visibility_required
-
-from images.models import Source, Image, SourceInvite
-from images.tasks import *
-from images.forms import *
-from images.model_utils import PointGen
-from images.utils import *
-from .utils import source_robot_status
-from lib.utils import get_map_sources
-import json , csv, os.path, time, datetime
-from numpy import array
 from visualization.forms import BrowseSearchForm
-from numpy import vectorize
 
 def source_list(request):
     """
@@ -43,7 +42,7 @@ def source_list(request):
         other_public_sources = Source.get_other_public_sources(request.user)
 
         # Here we get the map sources
-        map_sources = get_map_sources()
+        map_sources = utils.get_map_sources()
 
         list_thumbnails = []
         # Here we get a list of a list of images, these will be displayed
@@ -349,7 +348,6 @@ def alleviate_download(request, source_id, robot_version):
         response = HttpResponse(png.read(), mimetype='application/png')
         response['Content-Disposition'] = 'inline;filename=alleviate' + str(robot_version) + '.png'
         return response
-    pdf.closed
 
 
 @source_permission_required('source_id', perm=Source.PermTypes.ADMIN.code)
@@ -519,8 +517,8 @@ def image_detail_helper(image_id):
         thumbnail_dimensions = False
 
     # Next and previous image links
-    next_image = get_next_image(image)
-    prev_image = get_prev_image(image)
+    next_image = utils.get_next_image(image)
+    prev_image = utils.get_prev_image(image)
 
     # Annotation status
     if image.status.annotatedByHuman:
@@ -563,7 +561,7 @@ def image_detail(request, image_id):
             return HttpResponseRedirect(reverse('image_detail', args=[image_id]))
 
         elif(request.POST.get('regenerate_point_locations', None)):
-            generate_points(image, usesourcemethod=False)
+            utils.generate_points(image, usesourcemethod=False)
             image.after_annotation_area_change()
             messages.success(request, 'Successfully regenerated point locations.')
             return HttpResponseRedirect(reverse('image_detail', args=[image_id]))
@@ -571,7 +569,7 @@ def image_detail(request, image_id):
         elif(request.POST.get('set_point_gen_default', None)):
             image.point_generation_method = image.source.default_point_generation_method
             image.save()
-            generate_points(image, usesourcemethod=False)
+            utils.generate_points(image, usesourcemethod=False)
             image.after_annotation_area_change()
             messages.success(request, 'Reset image point generation method to source default.')
             return HttpResponseRedirect(reverse('image_detail', args=[image_id]))
@@ -579,7 +577,7 @@ def image_detail(request, image_id):
         elif(request.POST.get('set_annotation_area_default', None)):
             image.metadata.annotation_area = image.source.image_annotation_area
             image.metadata.save()
-            generate_points(image, usesourcemethod=False)
+            utils.generate_points(image, usesourcemethod=False)
             image.after_annotation_area_change()
             messages.success(request, 'Reset annotation area to source default.')
             return HttpResponseRedirect(reverse('image_detail', args=[image_id]))

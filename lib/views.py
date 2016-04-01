@@ -1,18 +1,17 @@
-from django.contrib import messages
 from django.conf import settings
-from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from django.core.mail import mail_admins
 from django.core.mail.message import BadHeaderError
+from django.core.urlresolvers import reverse
+from django.http import HttpResponseRedirect
 from django.shortcuts import render_to_response
 from django.template import RequestContext
+
+from annotations.models import Point
+from images.models import Image, Source
+from images.utils import get_map_sources, get_random_public_images
 from lib.forms import ContactForm
 from lib import msg_consts, str_consts
-from lib.utils import get_map_sources, get_random_public_images
-from images.models import Image, Source
-from annotations.models import Annotation
-from django.http import HttpResponseRedirect
-from django.core.urlresolvers import reverse
-from annotations.models import Point
 
 def contact(request):
     """

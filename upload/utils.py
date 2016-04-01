@@ -16,7 +16,7 @@ from images.models import Metadata, ImageStatus, Image, Point, Source
 from images.utils import  get_location_value_objs, generate_points
 from lib import str_consts
 from lib.exceptions import DirectoryAccessError, FileContentError, ValueObjectNotFoundError, FilenameError
-from coralnet.utils import rand_string
+from lib.utils import rand_string
 
 def get_image_identifier(valueList, year):
     """

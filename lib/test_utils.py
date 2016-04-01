@@ -9,10 +9,9 @@ from django.test import TestCase
 from django.test.client import Client
 from django.test.simple import DjangoTestSuiteRunner
 from django.utils import simplejson
-from userena.managers import UserenaManager
-from coralnet.utils import *
 from images.models import Source
 from lib.exceptions import TestfileDirectoryError
+from lib.utils import is_django_str
 
 
 class MyTestSuiteRunner(DjangoTestSuiteRunner):

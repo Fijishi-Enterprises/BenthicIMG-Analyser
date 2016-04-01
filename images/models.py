@@ -1,19 +1,22 @@
-import datetime
+import json, os
+
 from django.conf import settings
+from django.contrib.auth.models import User
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
-from django.contrib.auth.models import User
 from easy_thumbnails.fields import ThumbnailerImageField
 from guardian.shortcuts import get_objects_for_user, get_users_with_perms, get_perms, assign, remove_perm
+
 from annotations.model_utils import AnnotationAreaUtils
 from images.model_utils import PointGen
-from coralnet.utils import generate_random_filename
-import os
-import json
+from lib.utils import generate_random_filename
 
-# Constants that don't really belong to a particular model
+
 class ImageModelConstants():
+    """
+    Constants that don't really belong to a particular model
+    """
     MIN_IMAGE_CM_HEIGHT = 1
     MAX_IMAGE_CM_HEIGHT = 100000
 

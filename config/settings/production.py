@@ -17,6 +17,10 @@ ADMINS = (
     ('CoralNet', 'coralnet@eng.ucsd.edu'),
 )
 
+# Hosts/domain names that are valid for this site.
+# "*" matches anything, ".example.com" matches example.com and all subdomains
+ALLOWED_HOSTS = ['.ucsd.edu']
+
 # Local time zone for this installation. All choices can be found here:
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name (although not all
 # systems may support all possibilities). When USE_TZ is True, this is

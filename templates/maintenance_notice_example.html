@@ -52,7 +52,11 @@ sets the maintenance time:
             a later time.  We’re sorry for the inconvenience.
         {% else %}
             {# The message when the site is going to be under maintenance at a particular time. #}
-            The site will be under maintenance starting <b>{{ maintenance_time }}.</b>
+            The site will be under maintenance in
+            <b>{{ maintenance_time|timeuntil }}.</b>
+            If you're working on something, please wrap it up soon
+            and resume when maintenance is over.
+            Sorry for the inconvenience.
         {% endif %}
     </div>
 {% endif %}

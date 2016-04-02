@@ -1,7 +1,7 @@
-<p>Sorry - an error occurred.</p>
+<p>Sorry - a server error occurred.</p>
 
-{% if user.is_authenticated %}
-    <p>Please use <a href="{% url feedback_form %}">this form</a> to tell us about the error.</p>
+{% if request.user.is_authenticated %}
+  <p>This is probably our mistake. Please use <a href="{% url feedback_form %}" target="_blank">this form</a> to tell us what happened leading up to the error.</p>
 {% endif %}
 
 <p>To continue your work, you can try using your browser's Back button to go back to the previous page, or return to <a href="{% url index %}">CoralNet's main page.</a></p>

@@ -51,11 +51,13 @@ if settings.DEBUG:
 )
 
 
-# Custom server-error handler
+
+# Custom server-error handlers. Should be assigned to handler500,
+# handler404, etc. in the root URLconf.
+
 def handler500(request):
     """
     500 error handler which includes ``request`` in the context.
-    One use of this is to display a Sentry error ID on the 500 page.
 
     Templates: `500.html`
     Context: None
@@ -66,7 +68,4 @@ def handler500(request):
     t = loader.get_template('500.html')
     return HttpResponseServerError(t.render(Context({
         'request': request,
-        # It seems the user needs to be passed in manually for the
-        # handler500 in particular - if this is mistaken, then change it
-        'user': request.user,
     })))

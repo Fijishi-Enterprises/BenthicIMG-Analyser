@@ -1,4 +1,4 @@
-Django==1.4.5
+Django==1.5
 
 # Database migrations
 South==0.7.6
@@ -15,7 +15,7 @@ django-userena==1.3.2
 
 # Versioning of database objects
 # Has a fine-grained Django compatibility table; 1.6.6 is for Django 1.4.4+
-django-reversion==1.6.6
+django-reversion==1.7
 
 # Fancier error log view
 django-sentry==1.12.2

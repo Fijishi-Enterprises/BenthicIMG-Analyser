@@ -40,8 +40,12 @@ with open(SETTINGS_DIR.child('secrets.json')) as f:
 
 
 
-# TEMPLATE_DEBUG = True lets Sentry get template error info.  This
-# won't reveal any error details to end users as long as DEBUG = False.
+# If this is True, the fancy error page will display a
+# detailed report for any exception raised during template rendering.
+# This report contains the relevant snippet of the template,
+# with the appropriate line highlighted.
+# Note that Django only displays fancy error pages if DEBUG is True,
+# so you'll want to set that to take advantage of this setting.
 TEMPLATE_DEBUG = True
 
 # If you set this to True, Django will use timezone-aware datetimes.
@@ -129,8 +133,6 @@ REQUIRED_APPS = [
     'easy_thumbnails',
     'south',
     'reversion',
-    'sentry',
-    'sentry.client',
     'djcelery',
     'GChartWrapper.charts',
 	'djsupervisor',
@@ -210,7 +212,6 @@ MIDDLEWARE_CLASSES = (
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'userena.middleware.UserenaLocaleMiddleware',
-    'sentry.client.middleware.Sentry404CatchMiddleware',
 
     # Put TransactionMiddleware after most non-cache middlewares that
     # use the DB.
@@ -326,13 +327,6 @@ SOUTH_MIGRATION_MODULES = {
 # the South migrations don't contain any special data initializations
 # that can't be put in an initial_data fixture.
 SOUTH_TESTS_MIGRATE = False
-
-
-
-# Sentry setting
-# http://readthedocs.org/docs/sentry/en/latest/config/index.html
-# SENTRY_TESTING enables usage of Sentry even when DEBUG = True
-SENTRY_TESTING = True
 
 
 

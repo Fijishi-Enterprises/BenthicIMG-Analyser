@@ -17,9 +17,6 @@ django-userena==1.3.2
 # Has a fine-grained Django compatibility table; 1.6.6 is for Django 1.4.4+
 django-reversion==1.7
 
-# Fancier error log view
-django-sentry==1.12.2
-
 # Backend asynchronous task management
 django-celery==3.0.17
 django-supervisor==0.3.1

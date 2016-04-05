@@ -20,8 +20,6 @@ urlpatterns = patterns('',
     (r'^accounts/', include('accounts.urls')),
     (r'^messages/', include('userena.contrib.umessages.urls')),
 
-    (r'^sentry/', include('sentry.web.urls')),
-
     url(r'^$', 'lib.views.index', name='index'),
 
     url(r'^about/$',

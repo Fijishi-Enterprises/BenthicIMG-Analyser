@@ -3,13 +3,14 @@
 # but some filters/tags are general and don't really belong in a specific
 # app.  This file is for those general filters/tags.
 
+import json
 import os.path
 import re
 from datetime import datetime, timedelta
 from django import template
 from django.conf import settings
 from django.contrib.staticfiles import finders
-from django.utils import simplejson, timezone
+from django.utils import timezone
 from django.utils.safestring import mark_safe
 
 register = template.Library()
@@ -56,7 +57,7 @@ def get_form_media(parser, token):
 # http://djangosnippets.org/snippets/201/
 @register.filter
 def jsonify(object):
-    return mark_safe(simplejson.dumps(object))
+    return mark_safe(json.dumps(object))
 
 
 # Usage: {% set_maintenance_time "9:00 PM" as maintenance_time %}

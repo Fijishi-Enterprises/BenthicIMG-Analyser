@@ -1,11 +1,12 @@
 from collections import defaultdict
-import os
 import datetime
+import json
+import os
 import tempfile
 from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.forms import forms
-from django.utils import simplejson, timezone
+from django.utils import timezone
 from annotations.model_utils import AnnotationAreaUtils
 from annotations.models import Annotation
 from images.model_utils import PointGen
@@ -75,7 +76,7 @@ class ImageUploadBaseTest(ClientTest):
         old_source_image_count = self.get_source_image_count()
 
         image_id, response = self.upload_image(filename, **options)
-        response_content = simplejson.loads(response.content)
+        response_content = json.loads(response.content)
 
         new_source_image_count = self.get_source_image_count()
 
@@ -571,7 +572,7 @@ class PreviewFilenameTest(ImageUploadBaseTest):
             reverse('image_upload_preview_ajax', kwargs={'source_id': self.source_id}),
             {'metadataOption': 'filenames', 'filenames[]': filenames},
         )
-        response_content = simplejson.loads(response.content)
+        response_content = json.loads(response.content)
         status_list = response_content['statusList']
 
         for index, f in enumerate(files):
@@ -615,7 +616,7 @@ class PreviewFilenameTest(ImageUploadBaseTest):
             reverse('image_upload_preview_ajax', kwargs={'source_id': self.source_id}),
             {'metadataOption': 'filenames', 'filenames[]': filenames},
         )
-        response_content = simplejson.loads(response.content)
+        response_content = json.loads(response.content)
         status_list = response_content['statusList']
 
         for index, expected_status in enumerate([f[1] for f in files]):
@@ -641,7 +642,7 @@ class PreviewFilenameTest(ImageUploadBaseTest):
             reverse('image_upload_preview_ajax', kwargs={'source_id': self.source_id}),
             {'metadataOption': 'filenames', 'filenames[]': filenames},
         )
-        response_content = simplejson.loads(response.content)
+        response_content = json.loads(response.content)
         status_list = response_content['statusList']
 
         for index, expected_error in enumerate([f[1] for f in files]):
@@ -688,7 +689,7 @@ class AnnotationUploadBaseTest(ImageUploadBaseTest):
         annotations_file.close()
 
         self.assertStatusOK(response)
-        response_content = simplejson.loads(response.content)
+        response_content = json.loads(response.content)
 
         return response_content
 
@@ -947,7 +948,7 @@ class AnnotationUploadErrorTest(AnnotationUploadBaseTest):
             **options
         )
 
-        response_content = simplejson.loads(response.content)
+        response_content = json.loads(response.content)
         self.assertEqual(response_content['status'], 'error')
         self.assertEqual(response_content['message'], str_consts.UPLOAD_ANNOTATIONS_ON_AND_NO_ANNOTATION_DICT_ERROR_STR)
 

@@ -1,5 +1,6 @@
 from decimal import Decimal
 from itertools import chain
+import json
 from django.core.exceptions import ValidationError, MultipleObjectsReturned
 from django.core.mail import mail_admins
 from django.core.urlresolvers import reverse
@@ -8,7 +9,6 @@ from django.forms import Form
 from django.forms.fields import BooleanField, CharField, DecimalField, IntegerField
 from django.forms.models import ModelForm
 from django.forms.widgets import TextInput, HiddenInput
-from django.utils import simplejson
 from django.utils.html import conditional_escape
 from django.utils.safestring import mark_safe
 from django.utils.encoding import force_unicode
@@ -177,7 +177,7 @@ class AnnotationForm(forms.Form):
             self.fields[robotFieldName] = BooleanField(
                 widget=HiddenInput(),
                 required=False,
-                initial=simplejson.dumps(isRobotAnnotation),
+                initial=json.dumps(isRobotAnnotation),
             )
 
 

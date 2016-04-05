@@ -5,7 +5,6 @@ from django.core.urlresolvers import reverse
 from django.http import HttpResponseRedirect
 from django.shortcuts import render_to_response, get_object_or_404
 from django.template.context import RequestContext
-from django.utils import simplejson
 from easy_thumbnails.files import get_thumbnailer
 from reversion.models import Version, Revision
 from accounts.utils import get_robot_user, is_robot_user
@@ -111,15 +110,15 @@ def labelset_new(request, source_id):
         isInitiallyChecked[labelId] = labelId in initiallyCheckedLabels
         
     return render_to_response('annotations/labelset_new.html', {
-        'showLabelFormInitially': simplejson.dumps(showLabelForm),    # Convert Python bool to JSON bool
+        'showLabelFormInitially': json.dumps(showLabelForm),    # Convert Python bool to JSON bool
         'labelSetForm': labelSetForm,
         'labelForm': labelForm,
         'source': source,
         'isEditLabelsetForm': False,
 
         'allLabels': allLabels,    # label dictionary, for accessing as a template variable
-        'allLabelsJSON': simplejson.dumps(allLabels),    # label dictionary, for JS
-        'isInitiallyChecked': simplejson.dumps(isInitiallyChecked),
+        'allLabelsJSON': json.dumps(allLabels),    # label dictionary, for JS
+        'isInitiallyChecked': json.dumps(isInitiallyChecked),
         },
         context_instance=RequestContext(request)
     )
@@ -214,17 +213,17 @@ def labelset_edit(request, source_id):
 
 
     return render_to_response('annotations/labelset_edit.html', {
-        'showLabelFormInitially': simplejson.dumps(showLabelForm),    # Python bool to JSON bool
+        'showLabelFormInitially': json.dumps(showLabelForm),    # Python bool to JSON bool
         'labelSetForm': labelSetForm,
         'labelForm': labelForm,
         'source': source,
         'isEditLabelsetForm': True,
 
         'allLabels': allLabels,    # label dictionary, for accessing as a template variable
-        'allLabelsJSON': simplejson.dumps(allLabels),    # label dictionary, for JS
-        'isInLabelset': simplejson.dumps(isInLabelset),
-        'isInitiallyChecked': simplejson.dumps(isInitiallyChecked),
-        'isLabelUnchangeable': simplejson.dumps(isLabelUnchangeable),
+        'allLabelsJSON': json.dumps(allLabels),    # label dictionary, for JS
+        'isInLabelset': json.dumps(isInLabelset),
+        'isInitiallyChecked': json.dumps(isInitiallyChecked),
+        'isLabelUnchangeable': json.dumps(isLabelUnchangeable),
         },
         context_instance=RequestContext(request)
     )
@@ -401,7 +400,7 @@ def annotation_area_edit(request, image_id):
     return render_to_response('annotations/annotation_area_edit.html', {
         'source': source,
         'image': image,
-        'dimensions': simplejson.dumps(dimensions),
+        'dimensions': json.dumps(dimensions),
         'thumbnail_dimensions': thumbnail_dimensions,
         'annotationAreaForm': annotationAreaForm,
         },
@@ -607,7 +606,7 @@ def annotation_tool(request, image_id):
         'settings_form': settings_form,
         'image_options_form': image_options_form,
         'annotations': annotations,
-        'annotationsJSON': simplejson.dumps(annotations),
+        'annotationsJSON': json.dumps(annotations),
         'label_probabilities': label_probabilities,
         'IMAGE_AREA_WIDTH': IMAGE_AREA_WIDTH,
         'IMAGE_AREA_HEIGHT': IMAGE_AREA_HEIGHT,
@@ -655,7 +654,7 @@ def save_annotations_ajax(request, image_id):
         labelCode = request.POST['label_'+str(pointNum)]
 
         # Does the form field have a non-human-confirmed robot annotation?
-        isFormRobotAnnotation = simplejson.loads(
+        isFormRobotAnnotation = json.loads(
             request.POST['robot_'+str(pointNum)])
 
         point = points[pointNum]

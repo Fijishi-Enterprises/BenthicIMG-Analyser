@@ -1,5 +1,6 @@
 # Utility classes and functions for tests.
 import datetime
+import json
 import os
 import pytz
 import re
@@ -9,7 +10,7 @@ from django.core.urlresolvers import reverse
 from django.test import TestCase
 from django.test.client import Client
 from django.test.simple import DjangoTestSuiteRunner
-from django.utils import simplejson, timezone
+from django.utils import timezone
 from images.models import Source
 from lib.exceptions import TestfileDirectoryError
 from lib.utils import is_django_str
@@ -295,7 +296,7 @@ class ClientTest(BaseTest):
 
         # Get the image_id from response.content;
         # if not present, set to None.
-        response_content = simplejson.loads(response.content)
+        response_content = json.loads(response.content)
         image_id = response_content.get('image_id', None)
 
         return image_id, response

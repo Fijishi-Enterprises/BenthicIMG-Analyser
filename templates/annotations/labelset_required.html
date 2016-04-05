@@ -6,6 +6,6 @@
 {% block content %}
 
     <p>{{ message }}</p>
-    <p><a href="{% url labelset_new source.id %}">Create a labelset</a></p>
+    <p><a href="{% url 'labelset_new' source.id %}">Create a labelset</a></p>
 
 {% endblock %}

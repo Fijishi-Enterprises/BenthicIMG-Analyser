@@ -30,7 +30,7 @@
                     <div class="item">
                 {% endif %}
                 <span class="thumb_front_wrapper">
-                <a href="{% url image_detail image.id %}">
+                <a href="{% url 'image_detail' image.id %}">
                     <img class="thumb_small"
                          style="margin: 0 auto; vertical-align: middle"
                          title="From: {{ image.source.name }}"
@@ -48,9 +48,9 @@
 
         <p>Upload coral reef images, organize and annotate images, and view annotation statistics.</p>
 
-        <a class="signin" href="{% url userena_signin %}">Sign In</a>
-        <a class="signup" href="{% url request_account %}">Sign Up</a>
-        <a class="about" href="{% url about %}">What is CoralNet?</a>
+        <a class="signin" href="{% url 'userena_signin' %}">Sign In</a>
+        <a class="signup" href="{% url 'request_account' %}">Sign Up</a>
+        <a class="about" href="{% url 'about' %}">What is CoralNet?</a>
 
 
 </div><!-- /intro-->

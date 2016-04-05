@@ -23,7 +23,7 @@
 {% else %}
 
 
-<form enctype="multipart/form-data" action="{% url annotation_upload source.id %}" method="post">
+<form enctype="multipart/form-data" action="{% url 'annotation_upload' source.id %}" method="post">
     {% csrf_token %}
     <ul>
     {{ form.as_ul }}

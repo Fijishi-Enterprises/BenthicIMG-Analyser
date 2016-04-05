@@ -22,7 +22,7 @@
         {% if latest_images %}
             {% for image in latest_images %}
                 <span class="thumb_large_wrapper">
-                <a href="{% url image_detail image.id %}">
+                <a href="{% url 'image_detail' image.id %}">
                     <img class="thumb_small"
                          src="{% thumbnail image.original_file 300x300 %}"
                          title="{{ image.get_image_element_title }}"/>
@@ -37,7 +37,7 @@
             <ul>
                 <li>Date Created: {{ source.create_date }}</li>
             {% if not source.enable_robot_classifier %}
-                <li>Machine annotator: Disabled (can enable upon <a href="{% url contact %}">request</a>)</li>
+                <li>Machine annotator: Disabled (can enable upon <a href="{% url 'contact' %}">request</a>)</li>
             {% else %}
                 {% if  robot_stats.has_robot %}
                     <li>Last Robot run: {{robot_stats.most_recent_run_date}}</li>
@@ -55,7 +55,7 @@
                 {% endif %}
                 <li>Annotation point generation: {{ source.point_gen_method_display }}</li>
                 <li>
-                        Level of alleviation: {{ source.alleviate_threshold }}% <a href="{% url source_edit source.id%}">(edit)</a>
+                        Level of alleviation: {{ source.alleviate_threshold }}% <a href="{% url 'source_edit' source.id%}">(edit)</a>
                 </li>
             </ul>
             </div>
@@ -81,7 +81,7 @@
                 <table class="detail_box_table">
                     {% for member in members %}
                         <tr>
-                            <td><a href="{% url userena_profile_detail member.username %}">{{ member.username }}</a></td>
+                            <td><a href="{% url 'userena_profile_detail' member.username %}">{{ member.username }}</a></td>
                             <td><b>{{ member.role }}</b></td>
                         </tr>
                     {% endfor %}
@@ -164,7 +164,7 @@
         {% endfor %}
     </table>
     {% if  robot_stats.has_robot %}
-    <p> <a href="{% url robot_stats_all source.id %}">Full Automated Annotation history</a></p>
+    <p> <a href="{% url 'robot_stats_all' source.id %}">Full Automated Annotation history</a></p>
     {% endif %}
     </div>
     </div>
@@ -217,7 +217,7 @@
                     {% endif %}
                 {% endfor %}
            </table>
-            <p><a href="{% url cm_download source.id robot.version cm.namestr%}">Download Confusion Matrix</a></p>
+            <p><a href="{% url 'cm_download' source.id robot.version cm.namestr%}">Download Confusion Matrix</a></p>
             </div>
         {% endfor %}
             <div id=dialog{{robot.version}} title="Alleviation Curves" style="display:none;overflow:auto;font-size: 100%;max-width:500px">

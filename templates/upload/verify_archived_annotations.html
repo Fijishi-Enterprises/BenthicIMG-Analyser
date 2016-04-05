@@ -26,13 +26,13 @@
             <tr><td> {{ image }}</a></td></tr>
           {% endfor %}
         </table><br/>
-          <p> WARNING: The verified annotations pertaining to these images will be <strong> removed and replaced by those in the .csv file </strong> if you proceed with the import. If you want to keep the annotations done in the source, remove the relevant entries from the .csv file and <a href="{% url annotation_upload source.id %}">start over</a>.</p>
+          <p> WARNING: The verified annotations pertaining to these images will be <strong> removed and replaced by those in the .csv file </strong> if you proceed with the import. If you want to keep the annotations done in the source, remove the relevant entries from the .csv file and <a href="{% url 'annotation_upload' source.id %}">start over</a>.</p>
     {% else %}
         <p>Of the matched images, none is verified by a human operator (which is good, because these would be over-written!) </p>
     {% endif %}
 
     <p> NOTE: for large uploads, the import may take a few minutes. Please only press once, and then wait.</p>
-    <form action="{% url annotation_upload_verify source.id %}", method="post">
+    <form action="{% url 'annotation_upload_verify' source.id %}", method="post">
     	{% csrf_token %}
     		<input type="submit" value="Submit">
     </form>
@@ -70,7 +70,7 @@
     </table><br/>
     {% endif %}
 
-    <p>It is not possible to finish the import due to the problems above. Please fix and <a href="{% url annotation_upload source.id %}">re-start</a>.</p>
+    <p>It is not possible to finish the import due to the problems above. Please fix and <a href="{% url 'annotation_upload' source.id %}">re-start</a>.</p>
 {% endif %}
 
 

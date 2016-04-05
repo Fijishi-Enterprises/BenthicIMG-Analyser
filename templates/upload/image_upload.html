@@ -142,7 +142,7 @@
                 </form>
 
                 {# proceed to the page where you manage image metadata #}
-                <form action="{% url visualize_source source.id %}" method="post"
+                <form action="{% url 'visualize_source' source.id %}" method="post"
                       id="id_proceed_to_manage_metadata_form" class="inline">{% csrf_token %}
 
                     {% for field in proceed_to_manage_metadata_form %}
@@ -170,12 +170,12 @@
     <script type="text/javascript">
 
         ImageUploadFormHelper.initForm({
-            uploadPreviewUrl: "{% url image_upload_preview_ajax source.id %}",
-            uploadStartUrl: "{% url image_upload_ajax source.id %}",
-            annotationFileProcessUrl: "{% url annotation_file_process_ajax source.id %}",
-            csvFileProcessUrl: "{% url csv_file_process_ajax source.id %}",
+            uploadPreviewUrl: "{% url 'image_upload_preview_ajax' source.id %}",
+            uploadStartUrl: "{% url 'image_upload_ajax' source.id %}",
+            annotationFileProcessUrl: "{% url 'annotation_file_process_ajax' source.id %}",
+            csvFileProcessUrl: "{% url 'csv_file_process_ajax' source.id %}",
             {# Remnants of an attempt at a progress bar... #}
-            {#            uploadProgressUrl: {% url ajax_upload_progress source.id %}#}
+            {#            uploadProgressUrl: {% url 'ajax_upload_progress' source.id %}#}
             locationKeyList: {{ source.get_key_list|jsonify }}
         });
 

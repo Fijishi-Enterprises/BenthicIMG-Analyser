@@ -6,7 +6,7 @@ Thanks for trying out CoralNet! We've created an account for you with the userna
 
 Please activate your account by clicking on the link below:
 {% endblocktrans %}
-{{ protocol }}://{{ site.domain }}{% url userena_activate activation_key %}
+{{ protocol }}://{{ site.domain }}{% url 'userena_activate' activation_key %}
 
 Once you click the above link, your account will be activated and you will be signed in.
 

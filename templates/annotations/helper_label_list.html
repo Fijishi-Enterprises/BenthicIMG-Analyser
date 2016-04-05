@@ -11,7 +11,7 @@ in the larger template with the "include" template tag.
   </tr>
   {% for label in labels %}
     <tr>
-      <td><a href="{% url label_main label.id %}">{{ label.name }}</a></td>
+      <td><a href="{% url 'label_main' label.id %}">{{ label.name }}</a></td>
       <td>{{ label.code }}</td>
       <td>{{ label.group }}</td>
     </tr>

@@ -4,7 +4,7 @@
     <h2>All LabelSets</h2>
     <ul class="object_list">
         {% for source in publicSourcesWithLabelsets %}
-            <li><a href="{% url labelset_main source.id %}">{{ source.name }}</a></li>
+            <li><a href="{% url 'labelset_main' source.id %}">{{ source.name }}</a></li>
         {% endfor %}
     </ul>
 

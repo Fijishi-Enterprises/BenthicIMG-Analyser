@@ -16,13 +16,13 @@
       </tr>
         {% for source in your_sources %}
           <tr>
-            <td><a href="{% url source_main source.id %}">{{ source.name }}</a></td>
+            <td><a href="{% url 'source_main' source.id %}">{{ source.name }}</a></td>
             <td>{{ source.your_role }}</td>
           </tr>
         {% endfor %}
     </table>
     <br />
-    <p><a href="{% url source_new %}">+ Create a new Source</a></p>
+    <p><a href="{% url 'source_new' %}">+ Create a new Source</a></p>
     
     <hr />
     <h2>Other Public Sources</h2>
@@ -31,7 +31,7 @@
 
     <ul class="object_list">
         {% for source in other_public_sources %}
-            <li><a href="{% url source_main source.id %}">{{ source.name }}</a></li>
+            <li><a href="{% url 'source_main' source.id %}">{{ source.name }}</a></li>
         {% endfor %}
     </ul>
 

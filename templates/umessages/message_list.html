@@ -9,7 +9,7 @@
 
     <div class="nav_container" id="nav_second_container">
       <ul class="nav nav_right" id="nav_messages">
-        <li><a href="{% url userena_umessages_compose %}"><span>+ {% trans 'Compose message' %}</span></a></li>
+        <li><a href="{% url 'userena_umessages_compose' %}"><span>+ {% trans 'Compose message' %}</span></a></li>
       </ul>
     </div>
     
@@ -21,13 +21,13 @@
   {% for message in message_list %}
   <li>
   {% if message.from_user == user %}
-  <a href="{% url userena_umessages_detail message.to_user.username %}">
+  <a href="{% url 'userena_umessages_detail' message.to_user.username %}">
   <img src="{{ message.to_user.profile.get_mugshot_url }}" class="avatar" />
   {{ message.to_user }}
 
   {% get_unread_message_count_between user and message.to_user as unread_between_count %}
   {% else %}
-  <a href="{% url userena_umessages_detail message.from_user.username %}">
+  <a href="{% url 'userena_umessages_detail' message.from_user.username %}">
   <img src="{{ message.from_user.profile.get_mugshot_url }}" class="avatar" />
   {{ message.from_user }}
 

@@ -12,7 +12,7 @@
 
     {% get_obj_perms user for source as "source_perms" %}
     {% if "source_admin" in source_perms %}
-    <br /><a href="{% url labelset_edit source.id %}">{% trans 'Edit LabelSet' %}</a>
+    <br /><a href="{% url 'labelset_edit' source.id %}">{% trans 'Edit LabelSet' %}</a>
     {% endif %}
 
 {% endblock %}

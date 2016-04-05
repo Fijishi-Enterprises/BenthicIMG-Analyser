@@ -13,7 +13,7 @@
     {# This form submits to the same URL as this page. #}
     {# The view function redirects to the success page if the form is valid. #}
 
-    <form action="{% url label_new %}" method="post">{% csrf_token %}
+    <form action="{% url 'label_new' %}" method="post">{% csrf_token %}
       {{ form.as_p }}
       <input type="submit" value="Create Label" />
     </form>

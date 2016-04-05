@@ -167,7 +167,7 @@
       <div id="image-navigation">
 
           {% if next_image_to_annotate %}
-              <form action="{% url annotation_tool next_image_to_annotate.id %}"
+              <form action="{% url 'annotation_tool' next_image_to_annotate.id %}"
                     method="post" id="nav-next-form">{% csrf_token %}
                   {% for field in nav_history.form.hidden_fields %}{{ field }}{% endfor %}
                   <input type="submit" name="nav_next" value="Go to next image" id="nav-next-submit"
@@ -183,7 +183,7 @@
           <div><i>History</i></div>
           <div>
               {% if nav_history.back %}
-                  <form action="{% url annotation_tool nav_history.back.id %}"
+                  <form action="{% url 'annotation_tool' nav_history.back.id %}"
                         method="post" id="nav-back-form">{% csrf_token %}
                       {% for field in nav_history.form.hidden_fields %}{{ field }}{% endfor %}
                       <input type="submit" name="nav_back" value="Back" id="nav-back-submit"
@@ -194,7 +194,7 @@
               {% endif %}
               |
               {% if nav_history.forward %}
-                  <form action="{% url annotation_tool nav_history.forward.id %}"
+                  <form action="{% url 'annotation_tool' nav_history.forward.id %}"
                         method="post" id="nav-forward-form">{% csrf_token %}
                       {% for field in nav_history.form.hidden_fields %}{{ field }}{% endfor %}
                       <input type="submit" name="nav_forward" value="Forward" id="nav-forward-submit"
@@ -231,7 +231,7 @@
     // Initialize the Annotation Tool Settings helper object.
     ATS.init({
         annotationToolSettingsSaveUrl:
-            "{% url annotation_tool_settings_save %}"
+            "{% url 'annotation_tool_settings_save' %}"
     });
     // Initialize the Annotation Tool Image helper object.
     ATI.init({{ source_images|jsonify }});
@@ -244,8 +244,8 @@
         imagePoints: {{ annotationsJSON|safe }},
         labels: {{ labels|jsonify }},
         machineSuggestions: {{ label_probabilities|jsonify }},
-        saveAnnotationsUrl: "{% url save_annotations_ajax image.id %}",
-        isAnnotationAllDoneUrl: "{% url is_annotation_all_done_ajax image.id %}"
+        saveAnnotationsUrl: "{% url 'save_annotations_ajax' image.id %}",
+        isAnnotationAllDoneUrl: "{% url 'is_annotation_all_done_ajax' image.id %}"
     });
 </script>
 

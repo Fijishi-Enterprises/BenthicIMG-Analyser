@@ -14,20 +14,20 @@
        You can also upload both images and annotations if you have already annotated your images.
        Then, you can view annotation statistics on your Source or a subset of images: how much Porites there was in 2009, the trend of coral numbers from 2008 to 2009, and so on.</p>
     {% if user_status == 'has_sources' %}
-    <p><a href="{% url source_list %}">See your Sources</a>.</p>
+    <p><a href="{% url 'source_list' %}">See your Sources</a>.</p>
     {% endif %}
     {% if user_status == 'no_sources' %}
-    <p>You're not part of any Sources. <a href="{% url source_new %}">Create a new Source</a>, or ask to be invited to one.</p>
+    <p>You're not part of any Sources. <a href="{% url 'source_new' %}">Create a new Source</a>, or ask to be invited to one.</p>
     {% endif %}
     {% if user_status == 'anonymous' %}
-    <p>You need an account to work with Sources. <a href="{% url userena_signin %}">Sign in</a> or <a href="{% url request_account %}">request an account</a>.</p>
+    <p>You need an account to work with Sources. <a href="{% url 'userena_signin' %}">Sign in</a> or <a href="{% url 'request_account' %}">request an account</a>.</p>
     {% endif %}
 
     <hr />
     <h2>Public Sources</h2>
     <ul class="object_list">
         {% for source in public_sources %}
-            <li><a href="{% url source_main source.id %}">{{ source.name }}</a></li>
+            <li><a href="{% url 'source_main' source.id %}">{{ source.name }}</a></li>
         {% endfor %}
     </ul>
 {% endblock %}

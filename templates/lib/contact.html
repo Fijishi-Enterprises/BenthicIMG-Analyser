@@ -19,7 +19,7 @@
         <p>For private questions regarding your account or data, please use this form.</p>
 
         <p>For bug reports please use the
-           <a href="{% url feedback_form %}">feedback form</a>.</p>
+           <a href="{% url 'feedback_form' %}">feedback form</a>.</p>
 
         {% if user.is_authenticated %}
             <p>We'll send any replies to your email: {{ user.email }}</p>

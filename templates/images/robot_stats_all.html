@@ -45,11 +45,11 @@
             <td> {{robot.train_time}} </td>
             <td> {{robot.nsamples}} </td>
             {% for cm in robot.cmlist %}
-                <td><a href="{% url cm_download source.id robot.version cm.namestr%}">{{cm.acc}}%</a> </td>
-                <td><a href="{% url cm_download source.id robot.version cm.namestr%}">{{cm.kappa}}%</a> </td>
+                <td><a href="{% url 'cm_download' source.id robot.version cm.namestr%}">{{cm.acc}}%</a> </td>
+                <td><a href="{% url 'cm_download' source.id robot.version cm.namestr%}">{{cm.kappa}}%</a> </td>
             {% endfor %}
             {% if robot.alleviate_meta.ok %}
-                <td><a href="{% url alleviate_download source.id robot.version%}">{{robot.alleviate_meta.suggestion}}%</a> </td>
+                <td><a href="{% url 'alleviate_download' source.id robot.version%}">{{robot.alleviate_meta.suggestion}}%</a> </td>
             {% else %}
                 <td> N.A. </td>
             {% endif %}

@@ -42,7 +42,7 @@
 
         <p>
           {% for type, source in visible_sources_with_label %}
-            <a href="{% url source_main source.id %}"
+            <a href="{% url 'source_main' source.id %}"
                {% if type == 'mine' %}style="color: green"{% endif %}>
                 {{ source }}</a>
 
@@ -62,7 +62,7 @@
             {% if patches %}
                 {% for patch in patches %}
                   <span class="thumb_wrapper">
-                    <a href="{% url image_detail patch.fullImage.id %}">
+                    <a href="{% url 'image_detail' patch.fullImage.id %}">
                     <img class="thumb"
                          src="{{ MEDIA_URL }}{{ patch.patchPath }}"
                          title="{{ patch.fullImage.get_image_element_title }} from: {{ patch.source }}"/>

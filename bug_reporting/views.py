@@ -2,7 +2,6 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.shortcuts import render_to_response
 from django.template import RequestContext
-from django.views.generic.simple import direct_to_template
 
 from bug_reporting.forms import FeedbackForm
 from bug_reporting.models import Feedback
@@ -23,7 +22,10 @@ def feedback_form(request):
 
         if form.is_valid():
             form.save()
-            return direct_to_template(request, template='bug_reporting/thanks.html')
+            return render_to_response(
+                'bug_reporting/thanks.html', {},
+                context_instance=RequestContext(request)
+            )
         else:
             messages.error(request, 'Please correct the errors below.')
     else:

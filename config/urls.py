@@ -1,8 +1,8 @@
-from django.conf.urls import include, patterns, url
 from django.conf import settings
-from django.views.generic.simple import direct_to_template
-
+from django.conf.urls import include, patterns, url
 from django.contrib import admin
+from django.views.generic import TemplateView
+
 admin.autodiscover()
 
 urlpatterns = patterns('',
@@ -23,8 +23,7 @@ urlpatterns = patterns('',
     url(r'^$', 'lib.views.index', name='index'),
 
     url(r'^about/$',
-        direct_to_template,
-        {'template': 'static/about.html'},
+        TemplateView.as_view(template_name='static/about.html'),
         name='about',
     ),
     url(r'^contact/$', 'lib.views.contact', name='contact'),

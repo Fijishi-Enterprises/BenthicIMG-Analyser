@@ -7,6 +7,7 @@ from numpy import zeros, sum, linalg, logical_and, vectorize
 from django.contrib import messages
 from django.core.paginator import Paginator, EmptyPage, InvalidPage
 from django.core.urlresolvers import reverse
+from django.db import transaction
 from django.forms.formsets import formset_factory
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render_to_response
@@ -618,6 +619,9 @@ def browse_download(request, source_id):
 
 
 @source_visibility_required('source_id')
+# This is a potentially slow view that doesn't modify the database,
+# so don't open a transaction for the view.
+@transaction.non_atomic_requests
 def generate_statistics(request, source_id):
     errors = []
     years = []
@@ -892,6 +896,9 @@ def export_abundance(placeholder, source_id):
     return response
 
 @source_visibility_required('source_id')
+# This is a potentially slow view that doesn't modify the database,
+# so don't open a transaction for the view.
+@transaction.non_atomic_requests
 def export_statistics(request, source_id):
     # get the response object, this can be used as a stream.
     response = HttpResponse(mimetype='text/csv')
@@ -960,6 +967,9 @@ def export_statistics(request, source_id):
     return response
 
 @source_visibility_required('source_id')
+# This is a potentially slow view that doesn't modify the database,
+# so don't open a transaction for the view.
+@transaction.non_atomic_requests
 def export_annotations(request, source_id):
     # get the response object, this can be used as a stream.
     response = HttpResponse(mimetype='text/csv')

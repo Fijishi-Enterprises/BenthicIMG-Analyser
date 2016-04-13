@@ -81,6 +81,10 @@ DATABASES = {
         'HOST': get_secret("DATABASES_HOST"),
         # Set to empty string for default. Not used with sqlite3.
         'PORT': get_secret("DATABASES_PORT"),
+        # If True, wraps each request (view function) in a transaction by
+        # default. Individual view functions can override this behavior with
+        # the non_atomic_requests decorator.
+        'ATOMIC_REQUESTS': True,
     }
 }
 # If running tests, use SQLite. Two reasons:
@@ -206,17 +210,10 @@ MIDDLEWARE_CLASSES = (
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+
+    # django-userena
     'userena.middleware.UserenaLocaleMiddleware',
-
-    # Put TransactionMiddleware after most non-cache middlewares that
-    # use the DB.
-    # Any middleware specified after TransactionMiddleware will be
-    # included in the same DB transaction that wraps the view function.
-    # https://docs.djangoproject.com/en/dev/topics/db/transactions/#tying-transactions-to-http-requests
-    'django.middleware.transaction.TransactionMiddleware',
-
-    # Put after TransactionMiddleware.
-    # Model revisions needs to be part of transactions.
+    # django-reversion
     'reversion.middleware.RevisionMiddleware',
 )
 

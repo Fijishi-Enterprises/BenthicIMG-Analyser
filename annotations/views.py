@@ -2,6 +2,7 @@ import json
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.urlresolvers import reverse
+from django.db import transaction
 from django.http import HttpResponseRedirect
 from django.shortcuts import render_to_response, get_object_or_404
 from django.template.context import RequestContext
@@ -761,6 +762,9 @@ def annotation_tool_settings_save(request):
 
 
 @image_permission_required('image_id', perm=Source.PermTypes.EDIT.code)
+# This is a potentially slow view that doesn't modify the database,
+# so don't open a transaction for the view.
+@transaction.non_atomic_requests
 def annotation_history(request, image_id):
     """
     View for an image's annotation history.

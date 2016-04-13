@@ -14,7 +14,6 @@ from images import task_helpers, task_utils
 from images.models import Point, Image, Source, Robot
 from images.utils import source_robot_status
 from numpy import array, zeros, sum, float32, newaxis
-from django.db import transaction
 # Revision objects will not be saved during Celery tasks unless
 # the Celery worker hooks up Reversion's signal handlers.
 # To do this, import admin modules so that
@@ -159,7 +158,6 @@ def nrs_classify_wrapper(source_id):
 
 
 @task()
-@transaction.commit_on_success()
 def preprocess_image(image_id):
     image = Image.objects.get(pk=image_id)
 
@@ -258,7 +256,6 @@ def make_features(image_id):
     return 1
     
 @task()
-@transaction.commit_on_success()
 @reversion.create_revision()
 def classify_image(image_id):
     image = Image.objects.get(pk=image_id)

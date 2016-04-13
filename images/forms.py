@@ -3,7 +3,7 @@ from django.core.exceptions import ValidationError
 from django.forms import Form, ModelForm
 from django.forms import fields
 from django.forms.fields import CharField, ChoiceField, FileField, IntegerField
-from django.forms.widgets import  Select, TextInput
+from django.forms.widgets import  Select, TextInput, NumberInput
 from images.models import Source, Image, Metadata, Value1, Value2, Value3, Value4, Value5, SourceInvite
 from images.model_utils import PointGen
 from lib import str_consts
@@ -21,8 +21,8 @@ class ImageSourceForm(ModelForm):
             'longitude', 'latitude',
         ]
         widgets = {
-            'image_height_in_cm': TextInput(attrs={'size': 3}),
-            'alleviate_threshold': TextInput(attrs={'size': 2}),
+            'image_height_in_cm': NumberInput(attrs={'size': 3}),
+            'alleviate_threshold': NumberInput(attrs={'size': 2}),
             'longitude': TextInput(attrs={'size': 10}),
             'latitude': TextInput(attrs={'size': 10}),
         }
@@ -319,7 +319,7 @@ class ImageDetailForm(ModelForm):
             'value1', 'value2', 'value3', 'value4', 'value5',
         ]
         widgets = {
-            'height_in_cm': TextInput(attrs={'size': 3}),
+            'height_in_cm': NumberInput(attrs={'size': 3}),
             'longitude': TextInput(attrs={'size': 10}),
             'latitude': TextInput(attrs={'size': 10}),
             'depth': TextInput(attrs={'size': 10}),
@@ -464,26 +464,26 @@ class PointGenForm(Form):
     simple_number_of_points = IntegerField(
         label='Number of annotation points', required=True,
         min_value=1, max_value=MAX_NUM_POINTS,
-        widget=TextInput(attrs={'size': 3}),
+        widget=NumberInput(attrs={'size': 3}),
     )
 
     # For stratified random and uniform grid
     number_of_cell_rows = IntegerField(
         label='Number of cell rows', required=True,
         min_value=1, max_value=MAX_NUM_POINTS,
-        widget=TextInput(attrs={'size': 3}),
+        widget=NumberInput(attrs={'size': 3}),
     )
     number_of_cell_columns = IntegerField(
         label='Number of cell columns', required=True,
         min_value=1, max_value=MAX_NUM_POINTS,
-        widget=TextInput(attrs={'size': 3}),
+        widget=NumberInput(attrs={'size': 3}),
     )
 
     # For stratified random
     stratified_points_per_cell = IntegerField(
         label='Points per cell', required=True,
         min_value=1, max_value=MAX_NUM_POINTS,
-        widget=TextInput(attrs={'size': 3}),
+        widget=NumberInput(attrs={'size': 3}),
     )
 
     def __init__(self, *args, **kwargs):

@@ -1,7 +1,8 @@
 from django import forms
 from django.core import validators
 from django.core.exceptions import ValidationError
-from django.forms import FileInput, ImageField, Form, ChoiceField, FileField, CharField, BooleanField, TextInput, DateField, HiddenInput
+from django.forms import ImageField, Form, ChoiceField, FileField, CharField, BooleanField, DateField
+from django.forms.widgets import FileInput, TextInput
 from django.utils.translation import ugettext_lazy as _
 from upload.utils import metadata_to_filename
 from images.models import Source, Value1, Value2, Value3, Value4, Value5, Metadata, ImageModelConstants, LocationValue
@@ -259,6 +260,12 @@ class MetadataForm(Form):
     height_in_cm = forms.IntegerField(
         min_value=ImageModelConstants.MIN_IMAGE_CM_HEIGHT,
         max_value=ImageModelConstants.MAX_IMAGE_CM_HEIGHT,
+        # This field is wonky with a NumberInput widget.
+        # Browser-side checking makes the value not submit if it thinks
+        # the input is erroneous, leading to our Ajax returning "This field is
+        # required" when the field actually is filled with an erroneous value.
+        # Only change this to NumberInput if we have a good solution for this
+        # issue.
         widget=TextInput(attrs={'size': 10,}),
     )
     latitude = CharField(required=False, widget= TextInput(attrs={'size': 10,}))

@@ -8,7 +8,7 @@ from django import forms
 from django.forms import Form
 from django.forms.fields import BooleanField, CharField, DecimalField, IntegerField
 from django.forms.models import ModelForm
-from django.forms.widgets import TextInput, HiddenInput
+from django.forms.widgets import TextInput, HiddenInput, NumberInput
 from django.utils.html import conditional_escape
 from django.utils.safestring import mark_safe
 from django.utils.encoding import force_unicode
@@ -231,24 +231,24 @@ class AnnotationImageOptionsForm(Form):
     class Media:
         js = ('js/AnnotationToolImageHelper.js',)
 
-    brightness = IntegerField(initial='0', widget=TextInput(attrs={'size': 3}))
-    contrast = DecimalField(initial='0', widget=TextInput(attrs={'size': 3}))
+    brightness = IntegerField(initial='0', widget=NumberInput(attrs={'size': 3}))
+    contrast = DecimalField(initial='0', widget=NumberInput(attrs={'size': 3}))
 
 
 class AnnotationAreaPercentsForm(Form):
 
     min_x = DecimalField(label="Left boundary X",
                          required=True, min_value=Decimal(0), max_value=Decimal(100),
-                         decimal_places=3, widget=TextInput(attrs={'size': 3}))
+                         decimal_places=3, widget=NumberInput(attrs={'size': 3}))
     max_x = DecimalField(label="Right boundary X",
                          required=True, min_value=Decimal(0), max_value=Decimal(100),
-                         decimal_places=3, widget=TextInput(attrs={'size': 3}))
+                         decimal_places=3, widget=NumberInput(attrs={'size': 3}))
     min_y = DecimalField(label="Top boundary Y",
                          required=True, min_value=Decimal(0), max_value=Decimal(100),
-                         decimal_places=3, widget=TextInput(attrs={'size': 3}))
+                         decimal_places=3, widget=NumberInput(attrs={'size': 3}))
     max_y = DecimalField(label="Bottom boundary Y",
                          required=True, min_value=Decimal(0), max_value=Decimal(100),
-                         decimal_places=3, widget=TextInput(attrs={'size': 3}))
+                         decimal_places=3, widget=NumberInput(attrs={'size': 3}))
 
     def __init__(self, *args, **kwargs):
         """
@@ -325,22 +325,22 @@ class AnnotationAreaPixelsForm(Form):
         self.fields['min_x'] = IntegerField(
             label="Left boundary X", required=False,
             min_value=1, max_value=image.original_width,
-            widget=TextInput(attrs={'size': 3})
+            widget=NumberInput(attrs={'size': 3})
         )
         self.fields['max_x'] = IntegerField(
             label="Right boundary X", required=False,
             min_value=1, max_value=image.original_width,
-            widget=TextInput(attrs={'size': 3})
+            widget=NumberInput(attrs={'size': 3})
         )
         self.fields['min_y'] = IntegerField(
             label="Top boundary Y", required=False,
             min_value=1, max_value=image.original_height,
-            widget=TextInput(attrs={'size': 3})
+            widget=NumberInput(attrs={'size': 3})
         )
         self.fields['max_y'] = IntegerField(
             label="Bottom boundary Y", required=False,
             min_value=1, max_value=image.original_height,
-            widget=TextInput(attrs={'size': 3})
+            widget=NumberInput(attrs={'size': 3})
         )
 
         self.form_help_text = Metadata._meta.get_field('annotation_area').help_text

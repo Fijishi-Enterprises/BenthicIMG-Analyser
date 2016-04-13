@@ -113,8 +113,8 @@ var ATS = {
                 ATS.settings[fieldName] = $field.prop('checked');
             else if ($field.hasClass('color'))
                 ATS.settings[fieldName] = '#' + $field.val();
-            else if ($field.attr('type') === 'text')
-                // Other text fields: only integer fields right now
+            else if ($field.attr('type') === 'number')
+                // Only integer fields right now, no floats
                 ATS.settings[fieldName] = parseInt($field.val(), 10);
             else
                 ATS.settings[fieldName] = $field.val();

@@ -9,16 +9,17 @@ from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
 from django.test import TestCase
 from django.test.client import Client
-from django.test.simple import DjangoTestSuiteRunner
+from django.test.runner import DiscoverRunner
 from django.utils import timezone
 from images.models import Source
 from lib.exceptions import TestfileDirectoryError
 from lib.utils import is_django_str
 
 
-class MyTestSuiteRunner(DjangoTestSuiteRunner):
+class MyTestSuiteRunner(DiscoverRunner):
     def setup_test_environment(self, **kwargs):
-        DjangoTestSuiteRunner.setup_test_environment(self, **kwargs)
+        # Run Django's standard test setup.
+        DiscoverRunner.setup_test_environment(self, **kwargs)
 
         # Directories for media and processing files that are
         # used or generated during unit tests.

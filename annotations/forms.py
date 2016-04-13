@@ -58,6 +58,7 @@ class CustomCheckboxSelectMultiple(forms.CheckboxSelectMultiple):
 class NewLabelForm(ModelForm):
     class Meta:
         model = Label
+        fields = ['name', 'code', 'group', 'description', 'thumbnail']
         widgets = {
             'code': TextInput(attrs={'size': 10}),
         }
@@ -111,10 +112,7 @@ class NewLabelSetForm(ModelForm):
 
     class Meta:
         model = LabelSet
-
-        # description and location are obsolete now that there's a 1-to-1
-        # correspondence between labelsets and sources.
-        exclude = ('description', 'location')
+        fields = ['labels']
 
     class Media:
         js = (
@@ -185,6 +183,13 @@ class AnnotationToolSettingsForm(ModelForm):
 
     class Meta:
         model = AnnotationToolSettings
+        fields = [
+            'point_marker', 'point_marker_size', 'point_marker_is_scaled',
+            'point_number_size', 'point_number_is_scaled',
+            'unannotated_point_color', 'robot_annotated_point_color',
+            'human_annotated_point_color', 'selected_point_color',
+            'show_machine_annotations',
+        ]
 
     class Media:
         js = ('jscolor/jscolor.js',

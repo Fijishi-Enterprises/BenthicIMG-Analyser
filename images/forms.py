@@ -13,13 +13,13 @@ class ImageSourceForm(ModelForm):
 
     class Meta:
         model = Source
-        exclude = (
-            'key1', 'key2', 'key3', 'key4', 'key5',    # Handled by a separate form
-            'default_point_generation_method',    # Handled by a separate form
-            'labelset',    # Handled by the new/edit labelset page
-            'image_annotation_area',    # Handled by a separate form
-            'enable_robot_classifier',    # Changeable only upon request
-        )
+        # Some of the fields are handled by separate forms, so this form
+        # doesn't have all of the Source model's fields.
+        fields = [
+            'name', 'visibility', 'description', 'affiliation',
+            'image_height_in_cm', 'alleviate_threshold',
+            'longitude', 'latitude',
+        ]
         widgets = {
             'image_height_in_cm': TextInput(attrs={'size': 3}),
             'alleviate_threshold': TextInput(attrs={'size': 2}),
@@ -312,7 +312,12 @@ class SourceInviteForm(Form):
 class ImageDetailForm(ModelForm):
     class Meta:
         model = Metadata
-        exclude = ('annotation_area',)
+        fields = [
+            'name', 'photo_date', 'latitude', 'longitude', 'depth',
+            'height_in_cm', 'camera', 'photographer', 'water_quality',
+            'strobes', 'framing', 'balance', 'comments',
+            'value1', 'value2', 'value3', 'value4', 'value5',
+        ]
         widgets = {
             'height_in_cm': TextInput(attrs={'size': 3}),
             'longitude': TextInput(attrs={'size': 10}),

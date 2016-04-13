@@ -5,10 +5,7 @@ from lib.forms import strip_spaces_from_fields
 class FeedbackForm(ModelForm):
     class Meta:
         model = Feedback
-        fields = ('type', 'comment')    # Other fields are auto-set
-
-    #error_css_class = ...
-    #required_css_class = ...
+        fields = ['type', 'comment']
 
     def clean(self):
         """

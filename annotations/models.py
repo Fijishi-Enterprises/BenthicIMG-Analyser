@@ -70,6 +70,8 @@ class Label(models.Model):
         return self.name
 
 class LabelSet(models.Model):
+    # description and location are obsolete if we're staying with a 1-to-1
+    # correspondence between labelsets and sources.
     description = models.TextField(blank=True)
     location = models.CharField(max_length=45, blank=True)
     labels = models.ManyToManyField(Label)

@@ -46,8 +46,7 @@ def get_form_media(parser, token):
 
 # jsonify
 #
-# Pass a Django template variable through simplejson.dumps()
-# and return the result.
+# Turn a Django template variable into a JSON string and return the result.
 # mark_safe() is used to prevent escaping of quote characters
 # in the JSON (so they stay as quotes, and don't become &quot;).
 #

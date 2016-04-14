@@ -324,7 +324,7 @@ def cm_download(request, source_id, robot_version, namestr):
         labelObjects = LabelGroup.objects.filter()
 
     #creating csv file
-    response = HttpResponse(mimetype='text/csv')
+    response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment;filename=confusion_matrix.csv'
     writer = csv.writer(response)
     
@@ -345,7 +345,7 @@ This file exports the alleviate curve file
 def alleviate_download(request, source_id, robot_version):
     alleviate_meta = get_alleviate_meta(Robot.objects.get(version = robot_version))
     with open(alleviate_meta['plot_path'], 'r') as png:
-        response = HttpResponse(png.read(), mimetype='application/png')
+        response = HttpResponse(png.read(), content_type='application/png')
         response['Content-Disposition'] = 'inline;filename=alleviate' + str(robot_version) + '.png'
         return response
 

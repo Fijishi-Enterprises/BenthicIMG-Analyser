@@ -16,7 +16,7 @@ def JsonResponse(response):
     Example:
     return JsonResponse({'message': "Hello"})
     """
-    return HttpResponse(json.dumps(response), mimetype="application/json")
+    return HttpResponse(json.dumps(response), content_type="application/json")
 
 
 def rand_string(numOfChars):

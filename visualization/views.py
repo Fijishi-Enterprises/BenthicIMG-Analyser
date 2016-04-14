@@ -592,7 +592,7 @@ def browse_download(request, source_id):
             # original filenames) and put that up for download.
 
             # get the response object, this can be used as a stream.
-            response = HttpResponse(mimetype='text/csv')
+            response = HttpResponse(content_type='text/csv')
             # force download.
             response['Content-Disposition'] = 'attachment;filename="images.csv"'
             # the csv writer
@@ -806,7 +806,7 @@ def export_abundance(placeholder, source_id):
 
     ### SETUP    
     # get the response object, this can be used as a stream.
-    response = HttpResponse(mimetype='text/csv')
+    response = HttpResponse(content_type='text/csv')
     # force download.
     response['Content-Disposition'] = 'attachment;filename="abundances.csv"'
     # the csv writer
@@ -901,7 +901,7 @@ def export_abundance(placeholder, source_id):
 @transaction.non_atomic_requests
 def export_statistics(request, source_id):
     # get the response object, this can be used as a stream.
-    response = HttpResponse(mimetype='text/csv')
+    response = HttpResponse(content_type='text/csv')
     # force download.
     response['Content-Disposition'] = 'attachment;filename="statistics.csv"'
     # the csv writer
@@ -972,7 +972,7 @@ def export_statistics(request, source_id):
 @transaction.non_atomic_requests
 def export_annotations(request, source_id):
     # get the response object, this can be used as a stream.
-    response = HttpResponse(mimetype='text/csv')
+    response = HttpResponse(content_type='text/csv')
     # force download.
     response['Content-Disposition'] = 'attachment;filename="annotations.csv"'
     # the csv writer

@@ -133,7 +133,6 @@ REQUIRED_APPS = [
     'easy_thumbnails',
     'south',
     'reversion',
-    'GChartWrapper.charts',
 	'djsupervisor',
 ]
 INSTALLED_APPS = REQUIRED_APPS + PROJECT_APPS

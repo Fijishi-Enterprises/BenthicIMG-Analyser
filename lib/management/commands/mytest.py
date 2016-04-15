@@ -4,7 +4,7 @@ from django.core.management import call_command
 
 class Command(NoArgsCommand):
     option_list = TestCommand.option_list
-    help = 'Runs the test suite for all applications in settings.MY_INSTALLED_APPS.'
+    help = "Runs unit tests for only our project's apps, not 3rd party apps."
 
     requires_model_validation = False
 

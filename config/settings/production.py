@@ -92,11 +92,6 @@ UNIT_TEST_VERBOSITY = 0
 
 
 
-# django-celery settings
-CELERYD_CONCURRENCY = 2
-
-
-
 # VISION BACKEND SETTINGS
 # TODO: move to separate settings file.
 SLEEP_TIME_BETWEEN_IMAGE_PROCESSING = 60 * 60

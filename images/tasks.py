@@ -1,21 +1,20 @@
-import time, os, copy, csv, pickle, shutil, operator, json, reversion, math, logging
-import numpy as np
+import time, os, copy, pickle, shutil, operator, json, logging
 from shutil import copyfile
 from datetime import datetime
-from random import random
-from celery.task import task
 from django.conf import settings
 from django.core.mail import mail_admins
-from django.shortcuts import render_to_response, get_object_or_404
 from accounts.utils import get_robot_user
 from accounts.utils import is_robot_user
 from annotations.models import Label, Annotation, LabelGroup
 from images import task_helpers, task_utils
 from images.models import Point, Image, Source, Robot
 from images.utils import source_robot_status
-from numpy import array, zeros, sum, float32, newaxis
-# Revision objects will not be saved during Celery tasks unless
-# the Celery worker hooks up Reversion's signal handlers.
+
+import numpy as np
+from numpy import zeros, sum, float32, newaxis
+import reversion
+# Revision objects may not be saved during outside-run tasks unless
+# we hook up Reversion's signal handlers in that case.
 # To do this, import admin modules so that
 # the admin registration statements are run.
 from django.contrib import admin
@@ -45,17 +44,10 @@ TARGET_PIXEL_CM_RATIO = 17.2
 
 
 
-#Tasks that get processed by Celery
-#Possible future problems include that each task relies on it being the same day to continue processing an image,
-#a solution would be to store the date that you preprocess the iamge and then update it if you run a newer version of
-#the algorithm against it
-
-@task()
 def dummy_task():
     print("This is a dummy task console output")
     return 1
 
-@task()
 def dummy_task_sleep(s):
     print("This is a dummy task that can sleep")
     time.sleep(s)
@@ -157,7 +149,6 @@ def nrs_classify_wrapper(source_id):
 
 
 
-@task()
 def preprocess_image(image_id):
     image = Image.objects.get(pk=image_id)
 
@@ -210,7 +201,6 @@ def preprocess_image(image_id):
     
     return 1
 
-@task()
 def make_features(image_id):
     image = Image.objects.get(pk=image_id)
 
@@ -254,8 +244,7 @@ def make_features(image_id):
         return 0
 
     return 1
-    
-@task()
+
 @reversion.create_revision()
 def classify_image(image_id):
     image = Image.objects.get(pk=image_id)
@@ -352,7 +341,6 @@ def classify_image(image_id):
 
 
 # This task modifies the feature file so that is contains the correct labels, as provided by the human operator.
-@task()
 def add_labels_to_features(image_id):
 
     image = Image.objects.get(pk=image_id)
@@ -382,7 +370,6 @@ def add_labels_to_features(image_id):
     os.remove(featureFileOut)
     return 1
 
-@task()
 def train_robot(source_id, force_train = False):
 
     source = Source.objects.get(id = source_id)

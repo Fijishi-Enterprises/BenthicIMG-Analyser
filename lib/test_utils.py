@@ -26,15 +26,6 @@ class MyTestSuiteRunner(DiscoverRunner):
         settings.MEDIA_ROOT = settings.TEST_MEDIA_ROOT
         settings.PROCESSING_ROOT = settings.TEST_PROCESSING_ROOT
 
-        # The Celery daemon uses the regular Django database, while
-        # the testing framework uses a separate database.  Therefore,
-        # we can't get task results from the daemon during a test.
-        #
-        # The best solution for now is to not use the daemon, and
-        # simply block and wait for the result as the task runs.
-        # More info: http://docs.celeryproject.org/en/latest/django/unit-testing.html
-        settings.CELERY_ALWAYS_EAGER = True
-
         # To test functionality of sending emails to the admins,
         # settings.ADMINS must be set. It might not be set for
         # development machines.

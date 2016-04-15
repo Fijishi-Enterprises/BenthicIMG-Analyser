@@ -6,9 +6,6 @@ from unipath import Path
 # into your settings, but ImproperlyConfigured is an exception.
 from django.core.exceptions import ImproperlyConfigured
 
-import djcelery
-djcelery.setup_loader()
-
 
 
 # Directory with settings files.
@@ -136,7 +133,6 @@ REQUIRED_APPS = [
     'easy_thumbnails',
     'south',
     'reversion',
-    'djcelery',
     'GChartWrapper.charts',
 	'djsupervisor',
 ]

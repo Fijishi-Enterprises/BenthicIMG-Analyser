@@ -12,7 +12,7 @@ from images.utils import source_robot_status
 
 import numpy as np
 from numpy import zeros, sum, float32, newaxis
-import reversion
+from reversion import revisions as reversion
 # Revision objects may not be saved during outside-run tasks unless
 # we hook up Reversion's signal handlers in that case.
 # To do this, import admin modules so that

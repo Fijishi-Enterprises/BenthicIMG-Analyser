@@ -1,6 +1,6 @@
 from annotations.models import Label, LabelSet, LabelGroup, Annotation
 from django.contrib import admin
-import reversion
+from reversion.admin import VersionAdmin
 
 class LabelAdmin(admin.ModelAdmin):
     list_display = ('name', 'code', 'group', 'create_date')
@@ -12,7 +12,7 @@ class LabelGroupAdmin(admin.ModelAdmin):
     list_display = ('name', 'code')
 
 # Inherit from reversion.VersionAdmin to enable versioning for a particular model.
-class AnnotationAdmin(reversion.VersionAdmin):
+class AnnotationAdmin(VersionAdmin):
     list_display = ('source', 'image', 'point')
 
 admin.site.register(Label, LabelAdmin)

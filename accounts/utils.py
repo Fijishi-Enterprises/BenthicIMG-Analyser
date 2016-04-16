@@ -7,18 +7,18 @@ from userena import settings as userena_settings
 from userena.utils import get_protocol
 
 def get_imported_user():
-    return User.objects.get(pk=settings.IMPORTED_USER_ID)
+    return User.objects.get(username=settings.IMPORTED_USERNAME)
 def get_robot_user():
-    return User.objects.get(pk=settings.ROBOT_USER_ID)
+    return User.objects.get(username=settings.ROBOT_USERNAME)
 def get_alleviate_user():
-    return User.objects.get(pk=settings.ALLEVIATE_USER_ID)
+    return User.objects.get(username=settings.ALLEVIATE_USERNAME)
 
 def is_imported_user(user):
-    return user.pk == settings.IMPORTED_USER_ID
+    return user.username == settings.IMPORTED_USERNAME
 def is_robot_user(user):
-    return user.pk == settings.ROBOT_USER_ID
+    return user.username == settings.ROBOT_USERNAME
 def is_alleviate_user(user):
-    return user.pk == settings.ALLEVIATE_USER_ID
+    return user.username == settings.ALLEVIATE_USERNAME
 
 def send_activation_email_with_password(userena_signup_obj, password):
     """

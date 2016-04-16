@@ -3,21 +3,9 @@
 #
 # Since this fixture is named initial_data.<ext>, this fixture will be
 # automatically loaded on syncdb.
+#
+# TODO: Phase this out. initial_data fixtures are deprecated as of Django 1.7.
 
-# These pks must match the ones in settings.py:
-# IMPORTED_USER_ID, ROBOT_USER_ID, ALLEVIATE_USER_ID.
-- model: auth.user
-  pk: -2
-  fields:
-    username: Imported
-- model: auth.user
-  pk: -3
-  fields:
-    username: robot
-- model: auth.user
-  pk: -4
-  fields:
-    username: Alleviate
 
 # This pk must:
 # - Match the LabelSet model's EMPTY_LABELSET_ID

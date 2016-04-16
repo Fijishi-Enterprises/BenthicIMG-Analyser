@@ -287,11 +287,10 @@ SAMPLE_UPLOADABLES_ROOT = PROJECT_DIR.child('sample_uploadables')
 ORIGINAL_IMAGE_DIR = 'data/original/'
 LABEL_THUMBNAIL_DIR = 'label_thumbnails/'
 
-# [Custom settings] Special user ids
-# (Be sure not to collide with django-guardian's special user id)
-IMPORTED_USER_ID = -2
-ROBOT_USER_ID = -3
-ALLEVIATE_USER_ID = -4
+# [Custom settings] Special users
+IMPORTED_USERNAME = "Imported"
+ROBOT_USERNAME = "robot"
+ALLEVIATE_USERNAME = "Alleviate"
 
 # [Custom setting]
 # Go to https://code.google.com/apis/console/ and get an API key

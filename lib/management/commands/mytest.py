@@ -6,7 +6,7 @@ class Command(NoArgsCommand):
     option_list = TestCommand.option_list
     help = "Runs unit tests for only our project's apps, not 3rd party apps."
 
-    requires_model_validation = False
+    requires_system_checks = False
 
     def handle_noargs(self, **options):
         from django.conf import settings

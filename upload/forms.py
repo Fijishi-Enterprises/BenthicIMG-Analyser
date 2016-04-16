@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from django import forms
 from django.core import validators
 from django.core.exceptions import ValidationError
@@ -284,23 +285,15 @@ class MetadataForm(Form):
         self.source = Source.objects.get(pk=self.source_id)
 
         # Need to create fields for keys based on the number of keys in this source.
-        #
-        # Using insert so that the fields appear in the right order on the
-        # page. This field order should match the order of the table headers
-        # in the page template.
         key_list = self.source.get_key_list()
+        key_fields = ['key{}'.format(n) for n in range(1, len(key_list)+1)]
         location_value_max_length = LocationValue._meta.get_field('name').max_length
-        date_field_index = 1
-        for key_num in range(1, len(key_list)+1):
-            self.fields.insert(
-                date_field_index + key_num,
-                'key%s' % key_num,
-                CharField(
-                    required=False,
-                    widget=TextInput(attrs={'size': 10, 'maxlength': location_value_max_length}),
-                    label=key_list[key_num-1],
-                    max_length=location_value_max_length,
-                )
+        for key_num, key_field in enumerate(key_fields, 1):
+            self.fields[key_field] = CharField(
+                required=False,
+                widget=TextInput(attrs={'size': 10, 'maxlength': location_value_max_length}),
+                label=key_list[key_num-1],
+                max_length=location_value_max_length,
             )
 
         # Apply labels and max-length attributes from the Metadata model to the
@@ -345,6 +338,15 @@ class MetadataForm(Form):
             # the HTML input element. (Impossible without something like
             # Inspect Element HTML editing, that is)
             form_field.widget.attrs.update({'maxlength': max_length})
+
+        # Change the order that the fields appear on the page.
+        # This field order should match the order of the table headers
+        # in the page template.
+        field_order = ['image_id', 'photo_date'] + key_fields \
+            + ['height_in_cm'] + char_fields
+        self.fields = OrderedDict(
+            [(k, self.fields[k]) for k in field_order]
+        )
 
 
     def clean(self):

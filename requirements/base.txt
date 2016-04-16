@@ -1,8 +1,5 @@
 Django==1.7
 
-# Database migrations
-South==0.7.6
-
 # Per-object permissions
 # e.g. "can edit this source" not just "can edit sources"
 # Requires django, six

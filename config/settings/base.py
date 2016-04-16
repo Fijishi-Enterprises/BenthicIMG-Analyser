@@ -131,7 +131,6 @@ REQUIRED_APPS = [
     'userena.contrib.umessages',
     'guardian',
     'easy_thumbnails',
-    'south',
     'reversion',
 ]
 INSTALLED_APPS = REQUIRED_APPS + PROJECT_APPS
@@ -267,29 +266,6 @@ USERENA_LANGUAGE_FIELD = 'en'
 # TODO: Honestly no idea if this is still needed (or what it does)
 USERENA_MODULE_PATH = PROJECT_DIR.ancestor(1)
 sys.path.insert(0, USERENA_MODULE_PATH)
-
-
-
-# South settings
-# http://south.aeracode.org/docs/settings.html
-
-# Specify a nonexistent path like 'ignore' if an app has a migrations
-# folder in the default location and you want South to ignore it.
-SOUTH_MIGRATION_MODULES = {
-    # easy_thumbnails has South migrations, but they're not that well
-    # maintained; the project's GitHub page has several open issues
-    # related to South migrations (as of easy_thumbnails 1.0.3).
-    'easy_thumbnails': 'ignore',
-}
-
-# True to run all South migrations before running any unit tests.
-# False to not run South migrations, and instead run normal syncdb
-# to build the database tables before tests.
-#
-# False is much, much faster, and should be equivalent as long as
-# the South migrations don't contain any special data initializations
-# that can't be put in an initial_data fixture.
-SOUTH_TESTS_MIGRATE = False
 
 
 

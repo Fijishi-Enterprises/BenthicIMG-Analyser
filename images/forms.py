@@ -53,18 +53,18 @@ class ImageSourceForm(ModelForm):
            data['annotation_min_x'] >= data['annotation_max_x']:
 
             msg = "The maximum x must be greater than the minimum x."
-            self._errors['annotation_max_x'] = self.error_class([msg])
+            self.add_error('annotation_max_x', msg)
+            # Also mark min_x as being errored
             del data['annotation_min_x']
-            del data['annotation_max_x']
 
         if 'annotation_min_y' in data and \
            'annotation_max_y' in data and \
            data['annotation_min_y'] >= data['annotation_max_y']:
 
             msg = "The maximum y must be greater than the minimum y."
-            self._errors['annotation_max_y'] = self.error_class([msg])
+            self.add_error('annotation_max_y', msg)
+            # Also mark min_y as being errored
             del data['annotation_min_y']
-            del data['annotation_max_y']
 
         self.cleaned_data = data
 
@@ -295,7 +295,7 @@ class SourceInviteForm(Form):
 
         if source.has_member(recipientUser):
             msg = u"%s is already in this Source." % recipientUser.username
-            self._errors['recipient'] = self.error_class([msg])
+            self.add_error('recipient', msg)
             return super(SourceInviteForm, self).clean()
 
         try:
@@ -304,7 +304,7 @@ class SourceInviteForm(Form):
             pass
         else:
             msg = u"%s has already been invited to this Source." % recipientUser.username
-            self._errors['recipient'] = self.error_class([msg])
+            self.add_error('recipient', msg)
 
         return super(SourceInviteForm, self).clean()
 
@@ -414,7 +414,7 @@ class ImageDetailForm(ModelForm):
                     if not otherValue:
                         # Error
                         msg = u"Since you selected Other, you must use this text box to specify the %s." % key
-                        self._errors[valueField + '_other'] = self.error_class([msg])
+                        self.add_error(valueField + '_other', msg)
 
                         # TODO: Make this not a hack.  This sets the valueField to be some arbitrary non-blank
                         # valueN object, so (1) we won't get an error on clean() about 'Other'

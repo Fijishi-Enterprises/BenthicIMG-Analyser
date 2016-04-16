@@ -81,7 +81,7 @@ class NewLabelForm(ModelForm):
                     reverse('label_main', args=[labelsOfSameName[0].id]),
                     labelsOfSameName[0].name,
                 ))
-                self._errors['name'] = self.error_class([msg])
+                self.add_error('name', msg)
 
         if data.has_key('code'):
             labelsOfSameCode = Label.objects.filter(code__iexact=data['code'])
@@ -91,7 +91,7 @@ class NewLabelForm(ModelForm):
                     reverse('label_main', args=[labelsOfSameCode[0].id]),
                     labelsOfSameCode[0].name,
                 ))
-                self._errors['code'] = self.error_class([msg])
+                self.add_error('code', msg)
 
         self.cleaned_data = data
         return super(NewLabelForm, self).clean()
@@ -273,16 +273,16 @@ class AnnotationAreaPercentsForm(Form):
         if 'min_x' in data and 'max_x' in data:
 
             if data['min_x'] >= data['max_x']:
-                self._errors['max_x'] = self.error_class(["The right boundary x must be greater than the left boundary x."])
+                self.add_error('max_x', "The right boundary x must be greater than the left boundary x.")
+                # Also mark min_x as being errored
                 del data['min_x']
-                del data['max_x']
 
         if 'min_y' in data and 'max_y' in data:
 
             if data['min_y'] >= data['max_y']:
-                self._errors['max_y'] = self.error_class(["The bottom boundary y must be greater than the top boundary y."])
+                self.add_error('max_y', "The bottom boundary y must be greater than the top boundary y.")
+                # Also mark min_y as being errored
                 del data['min_y']
-                del data['max_y']
 
         self.cleaned_data = data
         return super(AnnotationAreaPercentsForm, self).clean()
@@ -361,14 +361,14 @@ class AnnotationAreaPixelsForm(Form):
         if 'min_x' in data and 'max_x' in data:
 
             if data['min_x'] > data['max_x']:
-                self._errors['max_x'] = self.error_class(["The right boundary x must be greater than or equal to the left boundary x."])
+                self.add_error('max_x', "The right boundary x must be greater than or equal to the left boundary x.")
                 del data['min_x']
                 del data['max_x']
 
         if 'min_y' in data and 'max_y' in data:
 
             if data['min_y'] > data['max_y']:
-                self._errors['max_y'] = self.error_class(["The bottom boundary y must be greater than or equal to the top boundary y."])
+                self.add_error('max_y', "The bottom boundary y must be greater than or equal to the top boundary y.")
                 del data['min_y']
                 del data['max_y']
 

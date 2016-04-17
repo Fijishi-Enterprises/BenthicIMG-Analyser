@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.conf.urls import include, patterns, url
+from django.conf.urls.static import static
 from django.contrib import admin
 from django.views.generic import TemplateView
 
@@ -28,22 +29,15 @@ urlpatterns = patterns('',
 
     # Internationalization
     (r'^i18n/', include('django.conf.urls.i18n')),
-
-    # Uncomment the admin/doc line below to enable admin documentation:
-    # url(r'^admin/doc/', include('django.contrib.admindocs.urls')),
-
-    # Uncomment the next line to enable the admin:
-    # url(r'^admin/', include(admin.site.urls)),
-
-
 )
 
-if settings.DEBUG:
-    urlpatterns += patterns('',
-        (r'^media/(?P<path>.*)$',
-         'django.views.static.serve',
-         {'document_root': settings.MEDIA_ROOT, 'show_indexes': True, }),
-)
+# Serving media files in development.
+# https://docs.djangoproject.com/en/dev/ref/views/#serving-files-in-development
+#
+# When in production, this doesn't do anything; you're expected to serve
+# media via your web server software.
+# https://docs.djangoproject.com/en/dev/howto/deployment/wsgi/modwsgi/#serving-files
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 
 

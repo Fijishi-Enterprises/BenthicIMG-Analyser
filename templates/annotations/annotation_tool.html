@@ -1,5 +1,6 @@
 {% extends "images/base_image.html" %}
 {% load i18n %}
+{% load static from staticfiles %}
 {% load thumbnail %}
 {% load guardian_tags %}
 {% load common_tags %}
@@ -95,29 +96,29 @@
 
       <div id="toolButtonArea">
          <input type="image"
-                id="zoomInButton" src="/static/img/Icon_zoom-in.png" title="Zoom in"/>
+                id="zoomInButton" src="{% static "img/Icon_zoom-in.png" %}" title="Zoom in"/>
          <input type="image"
-                id="zoomOutButton" src="/static/img/Icon_zoom-out.png" title="Zoom out"/>
+                id="zoomOutButton" src="{% static "img/Icon_zoom-out.png" %}" title="Zoom out"/>
          <input type="image"
-                id="zoomFitButton" src="/static/img/Icon_zoom-fit.png" title="Zoom all the way out"/>
+                id="zoomFitButton" src="{% static "img/Icon_zoom-fit.png" %}" title="Zoom all the way out"/>
          <br/>
          
          <input class="pointModeButton" type="image"
-                id="pointModeButtonAll" src="/static/img/Icon_point-mode-all.png" title="Show all points"/>
+                id="pointModeButtonAll" src="{% static "img/Icon_point-mode-all.png" %}" title="Show all points"/>
          <input class="pointModeButton" type="image"
-                id="pointModeButtonSelected" src="/static/img/Icon_point-mode-selected.png" title="Show selected points only"/>
+                id="pointModeButtonSelected" src="{% static "img/Icon_point-mode-selected.png" %}" title="Show selected points only"/>
          <input class="pointModeButton" type="image"
-                id="pointModeButtonNone" src="/static/img/Icon_point-mode-none.png" title="Hide all points"/>
+                id="pointModeButtonNone" src="{% static "img/Icon_point-mode-none.png" %}" title="Hide all points"/>
          <br/>
 
          <input type="image"
-                id="quickSelectButtonNone" src="/static/img/Icon_select-none.png" title="Un-select all points"/>
+                id="quickSelectButtonNone" src="{% static "img/Icon_select-none.png" %}" title="Un-select all points"/>
          <input type="image"
-                id="quickSelectButtonUnannotated" src="/static/img/Icon_select-unannotated.png" title="Select all unannotated points"/>
+                id="quickSelectButtonUnannotated" src="{% static "img/Icon_select-unannotated.png" %}" title="Select all unannotated points"/>
          <input type="image"
-                id="quickSelectButtonInvert" src="/static/img/Icon_select-inversion.png" title="Invert current selections"/>
+                id="quickSelectButtonInvert" src="{% static "img/Icon_select-inversion.png" %}" title="Invert current selections"/>
          <input type="image"
-                id="rectangleSelectButton" src="/static/img/Icon_rectangle-select.png" title="Rectangle select"/>
+                id="rectangleSelectButton" src="{% static "img/Icon_rectangle-select.png" %}" title="Rectangle select"/>
       </div>
 
       <hr class="narrow"/>

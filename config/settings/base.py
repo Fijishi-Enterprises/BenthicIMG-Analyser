@@ -192,6 +192,7 @@ MEDIA_ROOT = PROJECT_DIR.child('media')
 MEDIA_URL = '/media/'
 
 # URL that handles the static files served from STATIC_ROOT.
+# (Or, if DEBUG is True, served automagically with the static-serve view.)
 # Example: "http://media.lawrence.com/static/"
 STATIC_URL = '/static/'
 

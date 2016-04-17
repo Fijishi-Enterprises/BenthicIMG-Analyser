@@ -1,3 +1,5 @@
+{% load static from staticfiles %}
+
 <div class="help_section">
     <span class="help_header">Compatibility</span>
     <table class="detail_table">
@@ -91,11 +93,11 @@
             the points on the image.</li>
         <li>You may also click the numbers next to the text field list.</li>
         <li>For some quick select options, use these buttons on the upper right:
-            <img src="/static/img/Icon_select-none.png"/>,
-            <img src="/static/img/Icon_select-unannotated.png"/>,
-            and <img src="/static/img/Icon_select-inversion.png"/>.
+            <img src="{% static "img/Icon_select-none.png" %}"/>,
+            <img src="{% static "img/Icon_select-unannotated.png" %}"/>,
+            and <img src="{% static "img/Icon_select-inversion.png" %}"/>.
             Hover your mouse over them to see what they do.</li>
-        <li>To use the rectangle select <img src="/static/img/Icon_rectangle-select.png"/> tool,
+        <li>To use the rectangle select <img src="{% static "img/Icon_rectangle-select.png" %}"/> tool,
             click the rectangle select icon, then click and drag on the image to
             draw a rectangle. The points contained in that rectangle will be added
             to your current selection.</li>
@@ -115,13 +117,13 @@
             <span class='key_non_mac'>right-click</span><span class='key_mac'><kbd>Ctrl</kbd>-click</span>
             on the image or press <kbd>Shift</kbd>+<kbd>&darr;</kbd>.</li>
         <li>You can also zoom with these buttons on the upper right:
-            <img src="/static/img/Icon_zoom-in.png"/>,
-            <img src="/static/img/Icon_zoom-out.png"/>,
-            and <img src="/static/img/Icon_zoom-fit.png"/>.</li>
+            <img src="{% static "img/Icon_zoom-in.png" %}"/>,
+            <img src="{% static "img/Icon_zoom-out.png" %}"/>,
+            and <img src="{% static "img/Icon_zoom-fit.png" %}"/>.</li>
         <li>To toggle between different point display modes, use these buttons on the upper right:
-            <img src="/static/img/Icon_point-mode-all.png"/>,
-            <img src="/static/img/Icon_point-mode-selected.png"/>,
-            and <img src="/static/img/Icon_point-mode-none.png"/>.
+            <img src="{% static "img/Icon_point-mode-all.png" %}"/>,
+            <img src="{% static "img/Icon_point-mode-selected.png" %}"/>,
+            and <img src="{% static "img/Icon_point-mode-none.png" %}"/>.
             Hover your mouse over them to see what they do.</li>
         <li>If the text field on the image is getting in the way, you can move it to
             a different location by pressing <kbd>Shift</kbd>+<kbd>&rarr;</kbd>.

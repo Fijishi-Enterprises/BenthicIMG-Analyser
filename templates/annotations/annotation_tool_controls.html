@@ -1,3 +1,5 @@
+{% load static from staticfiles %}
+
 <div class="help_section">
     <span class="help_header">Choosing a point to label</span>
     <ul>
@@ -26,10 +28,10 @@
             <span class='key_mac'><kbd>Cmd</kbd>-click</span>
             on image</li>
         <li>Click the numbers next to the field list</li>
-        <li><img src="/static/img/Icon_select-none.png"/>,
-            <img src="/static/img/Icon_select-unannotated.png"/>,
-            <img src="/static/img/Icon_select-inversion.png"/>,
-            and <img src="/static/img/Icon_rectangle-select.png"/></li>
+        <li><img src="{% static "img/Icon_select-none.png" %}"/>,
+            <img src="{% static "img/Icon_select-unannotated.png" %}"/>,
+            <img src="{% static "img/Icon_select-inversion.png" %}"/>,
+            and <img src="{% static "img/Icon_rectangle-select.png" %}"/></li>
     </ul>
 </div>
 
@@ -40,12 +42,12 @@
         <li><span class='key_non_mac'>Right-click</span>
             <span class='key_mac'><kbd>Ctrl</kbd>-click</span> on image,
             <kbd>Shift</kbd>+<kbd>&darr;</kbd> : zoom out</li>
-        <li><img src="/static/img/Icon_zoom-in.png"/>,
-            <img src="/static/img/Icon_zoom-out.png"/>,
-            and <img src="/static/img/Icon_zoom-fit.png"/> : zoom buttons</li>
-        <li><img src="/static/img/Icon_point-mode-all.png"/>,
-            <img src="/static/img/Icon_point-mode-selected.png"/>,
-            and <img src="/static/img/Icon_point-mode-none.png"/> : point display buttons</li>
+        <li><img src="{% static "img/Icon_zoom-in.png" %}"/>,
+            <img src="{% static "img/Icon_zoom-out.png" %}"/>,
+            and <img src="{% static "img/Icon_zoom-fit.png" %}"/> : zoom buttons</li>
+        <li><img src="{% static "img/Icon_point-mode-all.png" %}"/>,
+            <img src="{% static "img/Icon_point-mode-selected.png" %}"/>,
+            and <img src="{% static "img/Icon_point-mode-none.png" %}"/> : point display buttons</li>
         <li><kbd>Shift</kbd>+<kbd>&rarr;</kbd> : Move text field off/on the image</li>
     </ul>
 </div>

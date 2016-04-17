@@ -14,6 +14,7 @@ to any value (except the empty string) to not include it.
 {% endcomment %}
 
 {% load common_tags %}
+{% load static from staticfiles %}
 
 
 {# jQuery, general purpose JS library #}
@@ -96,6 +97,12 @@ to any value (except the empty string) to not include it.
 {# Not just for JS-heavy pages, but also for some basic styling. #}
 {# Must be included after: jQuery #}
 {% if not no_util %}
+    {# First allow util to locate the question-mark image for help buttons. #}
+    {# It's not pretty, but we'll use a JS global variable for this. #}
+    <script>
+    var utilQuestionMarkImage = "{% static "img/question-mark-icon.png" %}";
+    </script>
+    {# Then load the util script. #}
     {% include "static-local-include.html" with type="js" path="js/util.js" %}
 {% endif %}
 

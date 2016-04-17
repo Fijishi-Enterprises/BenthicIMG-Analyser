@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static from staticfiles %}
 
 {% block content %}
 
@@ -115,7 +116,7 @@ table.people td {
 <h3>Development team:</h3>
     <table class="people">
         <tr>
-            <td><img width="150" src="../static/img/mugshots/oscar-beijbom.jpg"></td>
+            <td><img width="150" src="{% static "img/mugshots/oscar-beijbom.jpg" %}"></td>
             <td>
                 <b>Oscar Beijbom - Project Manager</b>
                 <p>
@@ -133,7 +134,7 @@ table.people td {
             </td>
         </tr>
 		 <tr> 
-            <td><img width="150" src="../static/img/mugshots/devang-sampat.jpg"></td>    
+            <td><img width="150" src="{% static "img/mugshots/devang-sampat.jpg" %}"></td>
             <td>            
                 <b>Devang Sampat</b>
                 <p>Devang received his B.S. in Computer Science from the University of California, San Diego in 2013. He worked on CoralNet in the early days while at UCSD. He is currently a Software Developer at Hulu.</p>
@@ -142,7 +143,7 @@ table.people td {
 	    </tr>
 
         <tr> 
-            <td><img width="150" src="../static/img/mugshots/andrew-hu.jpg"></td>    
+            <td><img width="150" src="{% static "img/mugshots/andrew-hu.jpg" %}"></td>
             <td>            
                 <b>Andrew Hu</b>
                 <p>Andrew is a third-year Computer Science undergratuate at the University of California, San Diego.</p>
@@ -150,7 +151,7 @@ table.people td {
             
 	    </tr>
         <tr>
-            <td><img width="150" src="../static/img/mugshots/jeff-sandvik.png"></td>
+            <td><img width="150" src="{% static "img/mugshots/jeff-sandvik.png" %}"></td>
             <td>
                 <b>Jeff Sandvik</b>
                 <p>
@@ -162,7 +163,7 @@ table.people td {
 <h3>Advisory team</h3>
     <table class="people">
         <tr>
-            <td><img width="150" src="../static/img/mugshots/david-kriegman.png"></td>
+            <td><img width="150" src="{% static "img/mugshots/david-kriegman.png" %}"></td>
             <td>
                 <b>David Kriegman</b>
                 <p>
@@ -175,7 +176,7 @@ table.people td {
             </td>
         </tr>
         <tr>
-            <td><img width="150" src="../static/img/mugshots/serge-belongie.jpg"></td>
+            <td><img width="150" src="{% static "img/mugshots/serge-belongie.jpg" %}"></td>
             <td>
                 <b>Serge Belongie</b>
                 <p>
@@ -191,7 +192,7 @@ table.people td {
             </td>
         </tr>
         <tr>
-            <td ><img width="150" src="../static/img/mugshots/david-kline.jpg"></td>
+            <td ><img width="150" src="{% static "img/mugshots/david-kline.jpg" %}"></td>
             <td>
                 <b>David Kline</b>
 						<p>
@@ -201,7 +202,7 @@ table.people td {
             </td>
         </tr>
         <tr>
-            <td><img width="150" src="../static/img/mugshots/tali-treibitz.jpg"></td>
+            <td><img width="150" src="{% static "img/mugshots/tali-treibitz.jpg" %}"></td>
             <td>
                 <b>Tali Treibitz</b>
 			       <p>
@@ -215,7 +216,7 @@ table.people td {
             </td>
         </tr>
         <tr>
-            <td><img width="150" src="../static/img/mugshots/ben-neal.jpg"></td>
+            <td><img width="150" src="{% static "img/mugshots/ben-neal.jpg" %}"></td>
             <td>
                 <b>Ben Neal</b>
 			       <p>
@@ -224,7 +225,7 @@ table.people td {
             </td>
         </tr>
         <tr>
-            <td><img width="150" src="../static/img/mugshots/greg-mitchell.jpg"></td>
+            <td><img width="150" src="{% static "img/mugshots/greg-mitchell.jpg" %}"></td>
             <td>
                 <b>Gregory Mitchell</b>
                 <p>

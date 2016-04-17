@@ -87,19 +87,6 @@ DATABASES = {
         'ATOMIC_REQUESTS': True,
     }
 }
-# If running tests, use SQLite. Two reasons:
-# (1) Our empty labelset ID is -1. When this isn't a positive number,
-#     test startup with PostgreSQL dies with a DatabaseError: "value -1 is
-#     out of bounds for sequence ...". This doesn't happen with SQLite.
-# (2) The SQLite test database is entirely in memory, speeding up the test
-#     runs greatly. http://stackoverflow.com/a/3098182
-#
-# The obvious drawback is that different databases have different behavior,
-# and could have different test results. It's happened before.
-# Once the empty labelset ID thing is fixed, this should be just PostgreSQL
-# in base.py, and one could specify SQLite for tests in a dev_<name>.py file.
-if ('test' in sys.argv or 'mytest' in sys.argv):
-    DATABASES['default']['ENGINE'] = 'django.db.backends.sqlite3'
 
 # Define our project's installed apps separately from built-in and
 # third-party installed apps. This'll make it easier to define a

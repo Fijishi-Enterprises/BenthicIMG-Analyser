@@ -179,14 +179,6 @@ EMAIL_SUBJECT_PREFIX = '[CoralNet] '
 # generates a random secret key and puts it in settings, so use that.
 SECRET_KEY = get_secret("SECRET_KEY")
 
-# Absolute filesystem path to the directory that will hold user-uploaded files.
-# Example: "/home/media/media.lawrence.com/media/"
-#
-# TODO: Get this directory out of version control. In general it should
-# be not only out of the project directory, but also a location that'd be
-# defined differently between local and production.
-MEDIA_ROOT = PROJECT_DIR.child('media')
-
 # URL that handles the media served from MEDIA_ROOT.
 # Example: "http://media.lawrence.com/media/"
 MEDIA_URL = '/media/'

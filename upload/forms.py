@@ -370,7 +370,7 @@ class MetadataForm(Form):
                     )
                     data[key_field] = newValueObj
 
-        return super(MetadataForm, self).clean()
+        super(MetadataForm, self).clean()
 
 
 class MetadataImportForm(forms.ModelForm):
@@ -445,7 +445,7 @@ class MetadataImportForm(forms.ModelForm):
                             value_obj.save()
                     data[value_field] = value_obj
 
-        return super(MetadataImportForm, self).clean()
+        super(MetadataImportForm, self).clean()
 
 
 class CSVImportForm(Form):

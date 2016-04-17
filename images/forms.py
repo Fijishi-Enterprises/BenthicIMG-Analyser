@@ -72,14 +72,13 @@ class ImageSourceForm(ModelForm):
         """
         1. Strip spaces from character fields.
         2. Call the parent's clean() to run the default behavior.
-        3. Default return behavior of clean() is to return self.cleaned_data.
         """
         data = strip_spaces_from_fields(
             self.cleaned_data, self.fields)
 
         self.cleaned_data = data
 
-        return super(ImageSourceForm, self).clean()
+        super(ImageSourceForm, self).clean()
 
     def clean_latitude(self):
         data = self.cleaned_data['latitude']
@@ -142,8 +141,6 @@ class LocationKeyForm(Form):
         2. Location key processing: keep key n only if 1 through n-1
         are also specified.
         3. Call the parent's clean() to run the default behavior.
-        4. Clean the annotation-area fields.
-        5. Default return behavior of clean() is to return self.cleaned_data.
         """
         data = strip_spaces_from_fields(
             self.cleaned_data, self.fields)
@@ -164,7 +161,7 @@ class LocationKeyForm(Form):
 
         self.cleaned_data = data
 
-        return super(LocationKeyForm, self).clean()
+        super(LocationKeyForm, self).clean()
 
 
 class LocationKeyEditForm(Form):
@@ -207,7 +204,7 @@ class LocationKeyEditForm(Form):
 
         self.cleaned_data = data
 
-        return super(LocationKeyEditForm, self).clean()
+        super(LocationKeyEditForm, self).clean()
 
 class SourceChangePermissionForm(Form):
 
@@ -306,7 +303,7 @@ class SourceInviteForm(Form):
             msg = u"%s has already been invited to this Source." % recipientUser.username
             self.add_error('recipient', msg)
 
-        return super(SourceInviteForm, self).clean()
+        super(SourceInviteForm, self).clean()
 
 
 class ImageDetailForm(ModelForm):
@@ -436,7 +433,7 @@ class ImageDetailForm(ModelForm):
 
             
         self.cleaned_data = data
-        return super(ImageDetailForm, self).clean()
+        super(ImageDetailForm, self).clean()
 
 
 class PointGenForm(Form):
@@ -538,7 +535,7 @@ class PointGenForm(Form):
                 raise ValidationError("You specified %s points total. Please make it no more than %s." % (num_points, PointGenForm.MAX_NUM_POINTS))
 
         self.cleaned_data = data
-        return super(PointGenForm, self).clean()
+        super(PointGenForm, self).clean()
 
 
 class LabelImportForm(Form):

@@ -94,7 +94,7 @@ class NewLabelForm(ModelForm):
                 self.add_error('code', msg)
 
         self.cleaned_data = data
-        return super(NewLabelForm, self).clean()
+        super(NewLabelForm, self).clean()
 
 class NewLabelSetForm(ModelForm):
     def __init__(self, *args, **kwargs):
@@ -285,7 +285,7 @@ class AnnotationAreaPercentsForm(Form):
                 del data['min_y']
 
         self.cleaned_data = data
-        return super(AnnotationAreaPercentsForm, self).clean()
+        super(AnnotationAreaPercentsForm, self).clean()
 
 
 class AnnotationAreaPixelsForm(Form):
@@ -373,4 +373,4 @@ class AnnotationAreaPixelsForm(Form):
                 del data['max_y']
 
         self.cleaned_data = data
-        return super(AnnotationAreaPixelsForm, self).clean()
+        super(AnnotationAreaPixelsForm, self).clean()

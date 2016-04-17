@@ -18,4 +18,4 @@ class FeedbackForm(ModelForm):
 
         self.cleaned_data = data
 
-        return super(FeedbackForm, self).clean()
+        super(FeedbackForm, self).clean()

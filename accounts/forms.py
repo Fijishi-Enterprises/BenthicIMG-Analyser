@@ -13,7 +13,7 @@ class UserAddForm(SignupForm):
 
     def clean(self):
         # Password field checking doesn't apply.
-        return self.cleaned_data
+        pass
 
     def save(self):
         # Randomly generate a password.

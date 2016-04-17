@@ -13,18 +13,12 @@ from images.utils import source_robot_status
 import numpy as np
 from numpy import zeros, sum, float32, newaxis
 from reversion import revisions as reversion
-# Revision objects may not be saved during outside-run tasks unless
-# we hook up Reversion's signal handlers in that case.
-# To do this, import admin modules so that
-# the admin registration statements are run.
-from django.contrib import admin
 try:
     from PIL import Image as PILImage
 except ImportError:
     import Image as PILImage
 
 logging.basicConfig(filename=os.path.join(settings.PROCESSING_ROOT, 'logs/tasks.log'), level=logging.INFO, format='[%(asctime)s] %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
-admin.autodiscover()
 
 PREPROCESS_ERROR_LOG = os.path.join(settings.PROCESSING_ROOT, "logs/preprocess_error.txt")
 FEATURE_ERROR_LOG = os.path.join(settings.PROCESSING_ROOT, "logs/features_error.txt")

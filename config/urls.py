@@ -3,8 +3,6 @@ from django.conf.urls import include, patterns, url
 from django.contrib import admin
 from django.views.generic import TemplateView
 
-admin.autodiscover()
-
 urlpatterns = patterns('',
     (r'^feedback/', include('bug_reporting.urls')),
     (r'^images/', include('images.urls')),

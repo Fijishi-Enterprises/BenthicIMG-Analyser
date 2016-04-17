@@ -3,7 +3,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.urlresolvers import reverse
 from django.db import transaction
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import render_to_response, get_object_or_404
 from django.template.context import RequestContext
 from easy_thumbnails.files import get_thumbnailer
@@ -19,7 +19,6 @@ from lib.decorators import source_permission_required, source_visibility_require
 from images import task_utils
 from images.models import Source, Image, Point
 from images.utils import generate_points, get_first_image, get_next_image
-from lib.utils import JsonResponse
 from visualization.utils import generate_patch_if_doesnt_exist
 
 @login_required

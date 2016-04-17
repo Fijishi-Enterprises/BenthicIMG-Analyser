@@ -4,7 +4,7 @@ from django.contrib.auth import REDIRECT_FIELD_NAME
 from django.db.models import Model, get_model
 from django.db.models.base import ModelBase
 from django.db.models.query import QuerySet
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, render_to_response
 from django.template.context import RequestContext
 from django.utils.functional import wraps
@@ -14,7 +14,6 @@ from guardian.exceptions import GuardianError
 
 from annotations.utils import image_annotation_area_is_editable
 from images.models import Source, Image
-from lib.utils import JsonResponse
 
 class ModelViewDecorator():
     """

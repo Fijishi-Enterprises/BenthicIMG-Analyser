@@ -1,22 +1,8 @@
 # General utility functions and classes can go here.
 
-import json, os, random, string
+import os, random, string
 
-from django.http import HttpResponse
 from django.utils import functional
-
-
-def JsonResponse(response):
-    """
-    Construct a JSON response to return from an Ajax views.
-    Based on djcelery.views.JsonResponse.
-
-    response - some data to convert to JSON and turn into an AJAX response.
-
-    Example:
-    return JsonResponse({'message': "Hello"})
-    """
-    return HttpResponse(json.dumps(response), content_type="application/json")
 
 
 def rand_string(numOfChars):

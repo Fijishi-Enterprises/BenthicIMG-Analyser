@@ -9,7 +9,7 @@ from django.core.paginator import Paginator, EmptyPage, InvalidPage
 from django.core.urlresolvers import reverse
 from django.db import transaction
 from django.forms.formsets import formset_factory
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, render_to_response
 from django.template.context import RequestContext
 from django.utils.functional import curry
@@ -21,7 +21,6 @@ from annotations.models import Annotation, Label, LabelSet, LabelGroup
 from images.models import Source, Image
 from images.tasks import *
 from lib.decorators import source_visibility_required, source_permission_required
-from lib.utils import JsonResponse
 from upload.forms import MetadataForm, CheckboxForm
 
 # TODO: Move to utils

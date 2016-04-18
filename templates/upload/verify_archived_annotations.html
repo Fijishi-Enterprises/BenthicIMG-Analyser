@@ -7,7 +7,7 @@
 {% if status.can_upload %}
 
     <p>We found {{status.nbr_uploaded_annotations}} annotations across {{status.nbr_uploaded_images}} images. 
-    {% if status.matched_images|length = 0%}
+    {% if status.matched_images|length == 0 %}
         However, none of the provided images names matched image names in the source.
     {% else %}
         Of the {{status.nbr_uploaded_images}} provided image names, the following {{status.matched_images|length}} could be matched to images in the source:</p>

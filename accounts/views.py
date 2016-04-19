@@ -44,9 +44,7 @@ def user_add(request):
     })
 
 
-# TODO: Find if there's a standard Django way to say "superuser required";
-# otherwise make our own decorator for it.
-@permission_required('auth.add_user')
+@permission_required('is_superuser')
 def email_all(request):
     """Sends an email to all registered users."""
     status = None

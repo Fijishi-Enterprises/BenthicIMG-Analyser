@@ -1,6 +1,8 @@
+from django.forms import Form, CharField, Textarea, TextInput
 from userena.forms import SignupForm
 from userena.models import UserenaSignup
-from accounts.utils import send_activation_email_with_password
+
+from .utils import send_activation_email_with_password
 from lib.utils import rand_string
 
 class UserAddForm(SignupForm):
@@ -34,3 +36,14 @@ class UserAddForm(SignupForm):
             self.request_host, userena_signup_obj, password)
 
         return new_user
+
+
+class EmailAllForm(Form):
+    subject = CharField(
+        label="Subject",
+        widget=TextInput(attrs=dict(size=50)),
+    )
+    body = CharField(
+        label="Body",
+        widget=Textarea(attrs=dict(rows=20, cols=50)),
+    )

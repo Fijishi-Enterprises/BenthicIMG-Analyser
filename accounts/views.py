@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth.models import User
 from django.core.mail import EmailMessage
 from django.core.urlresolvers import reverse
@@ -6,7 +7,7 @@ from django.shortcuts import redirect, render
 
 from userena.decorators import secure_required
 
-from accounts.forms import UserAddForm
+from .forms import UserAddForm, EmailAllForm
 from lib.decorators import permission_required
 
 
@@ -46,25 +47,32 @@ def user_add(request):
 
 @permission_required('is_superuser')
 def email_all(request):
-    """Sends an email to all registered users."""
-    status = None
+    """View for sending an email to all registered users."""
     if request.method == 'POST':
-        subject = request.REQUEST.get('subject').encode("ascii")
-        message = request.REQUEST.get('message').encode("ascii")
-        if not subject or not message:
-            return render(request, 'accounts/email_all_form.html')
-        
-        all_users = User.objects.all()
-        email_list = []
-        for u in all_users:
-            if u.email:
-                email_list.append(u.email.encode("ascii") )
-        email = EmailMessage(subject, message, settings.SERVER_EMAIL,
-        [], bcc=email_list )
-  
-        email.send(fail_silently=True)
-        status = "Successfully Sent Emails"
+        form = EmailAllForm(request.POST)
+
+        if form.is_valid():
+            all_users = User.objects.all()
+            email_list = []
+            for u in all_users:
+                if u.email:
+                    email_list.append(u.email)
+
+            email = EmailMessage(
+                subject=form.cleaned_data['subject'],
+                body=form.cleaned_data['body'],
+                # BLIND-cc the users to not reveal
+                # everyone's emails to everyone else.
+                bcc=email_list,
+            )
+            email.send()
+
+            messages.success(request, "Successfully sent emails.")
+        else:
+            messages.error(request, "Please correct the errors below.")
+    else:
+        form = EmailAllForm()
 
     return render(request, 'accounts/email_all_form.html', {
-        'status': status,
+        'form': form,
     })

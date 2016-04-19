@@ -196,7 +196,7 @@ class EmailAllTest(ClientTest):
         self.client.login(username='superuser_user', password='secret')
         response = self.client.post(reverse('emailall'), data=dict(
             subject="Subject goes here",
-            message="Message\ngoes here.",
+            body="Body\ngoes here.",
         ))
         self.assertStatusOK(response)
 

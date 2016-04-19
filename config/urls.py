@@ -41,22 +41,5 @@ urlpatterns = [
 # https://docs.djangoproject.com/en/dev/howto/deployment/wsgi/modwsgi/#serving-files
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
-
-
-# Custom server-error handlers. Should be assigned to handler500,
-# handler404, etc. in the root URLconf.
-
-def handler500(request):
-    """
-    500 error handler which includes ``request`` in the context.
-
-    Templates: `500.html`
-    Context: None
-    """
-    from django.template import Context, loader
-    from django.http import HttpResponseServerError
-
-    t = loader.get_template('500.html')
-    return HttpResponseServerError(t.render(Context({
-        'request': request,
-    })))
+# Custom server-error handlers. Must be assigned in the root URLconf.
+handler500 = lib_views.handler500

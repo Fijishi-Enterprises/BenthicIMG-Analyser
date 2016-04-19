@@ -3,8 +3,9 @@ from django.contrib import messages
 from django.core.mail import mail_admins
 from django.core.mail.message import BadHeaderError
 from django.core.urlresolvers import reverse
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, HttpResponseServerError
 from django.shortcuts import render
+from django.template import loader, TemplateDoesNotExist, Context
 
 from annotations.models import Point
 from images.models import Image, Source
@@ -107,3 +108,12 @@ def index(request):
         'images': images,
         'list_thumbnails': list_thumbnails,
     })
+
+def handler500(request, template_name='500.html'):
+    try:
+        template = loader.get_template(template_name)
+    except TemplateDoesNotExist:
+        return HttpResponseServerError('<h1>Server Error (500)</h1>', content_type='text/html')
+    return HttpResponseServerError(template.render({
+        'request': request,
+    }))

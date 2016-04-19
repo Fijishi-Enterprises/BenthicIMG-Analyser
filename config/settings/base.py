@@ -37,14 +37,6 @@ with open(SETTINGS_DIR.child('secrets.json')) as f:
 
 
 
-# If this is True, the fancy error page will display a
-# detailed report for any exception raised during template rendering.
-# This report contains the relevant snippet of the template,
-# with the appropriate line highlighted.
-# Note that Django only displays fancy error pages if DEBUG is True,
-# so you'll want to set that to take advantage of this setting.
-TEMPLATE_DEBUG = True
-
 # If you set this to True, Django will use timezone-aware datetimes.
 USE_TZ = True
 
@@ -124,32 +116,34 @@ INSTALLED_APPS = REQUIRED_APPS + PROJECT_APPS
 
 ROOT_URLCONF = 'config.urls'
 
-# List of locations of the template source files, in search order.
-TEMPLATE_DIRS = (
-    PROJECT_DIR.child('templates'),
-)
-
-# List of callables that know how to import templates from various sources.
-# See the comments in django/core/template/loader.py for interface
-# documentation.
-TEMPLATE_LOADERS = (
-    'django.template.loaders.filesystem.Loader',
-    'django.template.loaders.app_directories.Loader',
-    'django.template.loaders.eggs.Loader',
-)
-
-# List of processors used by RequestContext to populate the context.
-# Each one should be a callable that takes the request object as its
-# only parameter and returns a dictionary to add to the context.
-TEMPLATE_CONTEXT_PROCESSORS = (
-    "django.contrib.auth.context_processors.auth",
-    "django.core.context_processors.debug",
-    "django.core.context_processors.i18n",
-    "django.core.context_processors.media",
-    "django.core.context_processors.static",
-    "django.contrib.messages.context_processors.messages",
-    "django.core.context_processors.request",
-)
+# A list containing the settings for all template engines to be used
+# with Django. Each item of the list is a dictionary containing the
+# options for an individual engine.
+# https://docs.djangoproject.com/en/dev/ref/settings/#templates
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [
+            PROJECT_DIR.child('templates'),
+        ],
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.contrib.auth.context_processors.auth',
+                'django.template.context_processors.debug',
+                'django.template.context_processors.i18n',
+                'django.template.context_processors.media',
+                # request: Not included by default as of Django 1.8.
+                # If this processor is enabled, every RequestContext will
+                # contain a variable request, which is the current HttpRequest.
+                'django.template.context_processors.request',
+                'django.template.context_processors.static',
+                'django.template.context_processors.tz',
+                'django.contrib.messages.context_processors.messages',
+            ],
+        },
+    },
+]
 
 # Default email address to use for various automated correspondence
 # from the site manager(s).

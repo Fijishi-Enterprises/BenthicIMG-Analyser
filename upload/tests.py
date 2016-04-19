@@ -153,7 +153,8 @@ class ImageUploadBaseTest(ClientTest):
 
         # Check that the user who uploaded the image is the
         # currently logged in user.
-        self.assertEqual(img.uploaded_by.id, self.client.session['_auth_user_id'])
+        self.assertEqual(
+            img.uploaded_by.id, int(self.client.session['_auth_user_id']))
 
         # Status fields.
         self.assertFalse(img.status.preprocessed)

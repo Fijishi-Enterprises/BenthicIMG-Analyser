@@ -146,8 +146,9 @@ class SigninTest(ClientTest):
         self.assertRedirects(response, reverse('source_about'))
 
         # Check that we're signed in as the correct user.
-        self.assertTrue(self.client.session.has_key('_auth_user_id'))
-        self.assertEqual(self.client.session['_auth_user_id'], user.pk)
+        # From http://stackoverflow.com/a/6013115
+        self.assertIn('_auth_user_id', self.client.session)
+        self.assertEqual(int(self.client.session['_auth_user_id']), user.pk)
 
         # Log out to prepare for a possible next test run of this function
         # with different parameters.

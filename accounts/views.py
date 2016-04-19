@@ -25,10 +25,11 @@ def user_add(request):
     creating an account for yourself, but not for creating
     someone else's account.)
     """
-    form = UserAddForm()
+    form = UserAddForm(request_host=request.get_host())
     
     if request.method == 'POST':
-        form = UserAddForm(request.POST, request.FILES)
+        form = UserAddForm(
+            request.POST, request.FILES, request_host=request.get_host())
         if form.is_valid():
             user = form.save()
 

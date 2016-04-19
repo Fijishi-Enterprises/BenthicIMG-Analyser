@@ -1,6 +1,5 @@
 from django.conf import settings
 from django.contrib.auth.models import User
-from django.contrib.sites.models import Site
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from userena import settings as userena_settings
@@ -20,7 +19,7 @@ def is_robot_user(user):
 def is_alleviate_user(user):
     return user.username == settings.ALLEVIATE_USERNAME
 
-def send_activation_email_with_password(userena_signup_obj, password):
+def send_activation_email_with_password(request_host, userena_signup_obj, password):
     """
     Sends a activation email to the user, along with an
     automatically generated password that they need to log in.
@@ -33,7 +32,7 @@ def send_activation_email_with_password(userena_signup_obj, password):
               'protocol': get_protocol(),
               'activation_days': userena_settings.USERENA_ACTIVATION_DAYS,
               'activation_key': userena_signup_obj.activation_key,
-              'site': Site.objects.get_current(),
+              'request_host': request_host,
               'password': password}
 
     subject = render_to_string('userena/emails/activation_email_subject.txt',

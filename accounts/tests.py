@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.core import mail
 from django.core.urlresolvers import reverse
@@ -81,6 +82,10 @@ class AddUserTest(ClientTest):
             prev_word = word
         self.assertIsNotNone(new_user_password)
         self.assertIsNotNone(activation_link)
+
+        if settings.UNIT_TEST_VERBOSITY >= 1:
+            print(activation_email.subject)
+            print(activation_email.body)
 
         # Activation link should redirect to the profile detail page...
         response = self.client.get(activation_link)

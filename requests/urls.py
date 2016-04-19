@@ -1,6 +1,7 @@
-from django.conf.urls import patterns, url
+from django.conf.urls import url
+from . import views
 
-urlpatterns = patterns('',
-    url(r'^accounts/$', 'requests.views.request_invite', name="request_account"),
-    url(r'^accounts/confirm/$', 'requests.views.request_invite_confirm', name="request_account_confirm"),
-)
+urlpatterns = [
+    url(r'^accounts/$', views.request_invite, name="request_account"),
+    url(r'^accounts/confirm/$', views.request_invite_confirm, name="request_account_confirm"),
+]

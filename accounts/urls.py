@@ -3,21 +3,21 @@
 # - our urlpatterns which override userena's urlpatterns
 # - other accounts-related urls
 
-from django.conf.urls import patterns, url, include
-from accounts import views as accounts_views
+from django.conf.urls import url, include
 from userena import views as userena_views
+from . import views
 
-urlpatterns = patterns('',
-
+urlpatterns = [
     # Overriding userena urlpatterns
     url(r'^signin/$', userena_views.signin,
         {'template_name': 'userena/signin_form.html'},
         name='signin'),
-    url(r'^signup/$', accounts_views.user_add,
+    url(r'^signup/$', views.user_add,
         name='signup'),
     
-    url(r'^emailall/$', accounts_views.email_all,
+    url(r'^emailall/$', views.email_all,
         name='emailall'),
+
     # Include userena urls after our urls, so ours take precedence
-    (r'', include('userena.urls')),
-)
+    url(r'', include('userena.urls')),
+]

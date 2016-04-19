@@ -1,35 +1,37 @@
 from django.conf import settings
-from django.conf.urls import include, patterns, url
+from django.conf.urls import include, url
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.views.generic import TemplateView
 
-urlpatterns = patterns('',
-    (r'^feedback/', include('bug_reporting.urls')),
-    (r'^images/', include('images.urls')),
-    (r'^visualization/', include('visualization.urls')),
-    (r'^annotations/', include('annotations.urls')),
-    (r'^requests/', include('requests.urls')),
-    (r'^upload/', include('upload.urls')),
-    (r'^map/', include('map.urls')),
+import lib.views as lib_views
 
-    (r'^admin/doc/', include('django.contrib.admindocs.urls')),
-    (r'^admin/', include(admin.site.urls)),
+urlpatterns = [
+    url(r'^feedback/', include('bug_reporting.urls')),
+    url(r'^images/', include('images.urls')),
+    url(r'^visualization/', include('visualization.urls')),
+    url(r'^annotations/', include('annotations.urls')),
+    url(r'^requests/', include('requests.urls')),
+    url(r'^upload/', include('upload.urls')),
+    url(r'^map/', include('map.urls')),
 
-    (r'^accounts/', include('accounts.urls')),
-    (r'^messages/', include('userena.contrib.umessages.urls')),
+    url(r'^admin/doc/', include('django.contrib.admindocs.urls')),
+    url(r'^admin/', include(admin.site.urls)),
 
-    url(r'^$', 'lib.views.index', name='index'),
+    url(r'^accounts/', include('accounts.urls')),
+    url(r'^messages/', include('userena.contrib.umessages.urls')),
+
+    url(r'^$', lib_views.index, name='index'),
 
     url(r'^about/$',
         TemplateView.as_view(template_name='static/about.html'),
         name='about',
     ),
-    url(r'^contact/$', 'lib.views.contact', name='contact'),
+    url(r'^contact/$', lib_views.contact, name='contact'),
 
     # Internationalization
-    (r'^i18n/', include('django.conf.urls.i18n')),
-)
+    url(r'^i18n/', include('django.conf.urls.i18n')),
+]
 
 # Serving media files in development.
 # https://docs.djangoproject.com/en/dev/ref/views/#serving-files-in-development

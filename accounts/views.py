@@ -2,8 +2,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.mail import EmailMessage
 from django.core.urlresolvers import reverse
-from django.shortcuts import redirect, render_to_response
-from django.template.context import RequestContext
+from django.shortcuts import redirect, render
 
 from userena.decorators import secure_required
 
@@ -39,11 +38,9 @@ def user_add(request):
             )
             return redirect(redirect_to)
 
-    return render_to_response('accounts/user_add_form.html', {
+    return render(request, 'accounts/user_add_form.html', {
         'form': form,
-        },
-        context_instance=RequestContext(request)
-    )
+    })
 
 
 # TODO: Find if there's a standard Django way to say "superuser required";
@@ -56,10 +53,7 @@ def email_all(request):
         subject = request.REQUEST.get('subject').encode("ascii")
         message = request.REQUEST.get('message').encode("ascii")
         if not subject or not message:
-            return render_to_response('accounts/email_all_form.html', 
-            context_instance=RequestContext(request)
-            )
-
+            return render(request, 'accounts/email_all_form.html')
         
         all_users = User.objects.all()
         email_list = []
@@ -72,7 +66,6 @@ def email_all(request):
         email.send(fail_silently=True)
         status = "Successfully Sent Emails"
 
-    return render_to_response('accounts/email_all_form.html',
-         {'status':status},
-         context_instance=RequestContext(request)
-     )
+    return render(request, 'accounts/email_all_form.html', {
+        'status': status,
+    })

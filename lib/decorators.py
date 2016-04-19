@@ -5,8 +5,7 @@ from django.db.models import Model, get_model
 from django.db.models.base import ModelBase
 from django.db.models.query import QuerySet
 from django.http import HttpResponseRedirect, JsonResponse
-from django.shortcuts import get_object_or_404, render_to_response
-from django.template.context import RequestContext
+from django.shortcuts import get_object_or_404, render
 from django.utils.functional import wraps
 from django.utils.http import urlquote
 
@@ -64,10 +63,7 @@ class ModelViewDecorator():
                     if self.get_extra_context:
                         context_dict.update(self.get_extra_context(object))
 
-                    return render_to_response(self.template,
-                        context_dict,
-                        context_instance=RequestContext(request)
-                    )
+                    return render(request, self.template, context_dict)
 
                 return view_func(request, *args, **kwargs)
             return wraps(view_func)(_wrapped_view)
@@ -204,10 +200,7 @@ def permission_required(perm, lookup_variables=None, **kwargs):
             # Handles both permission checks--original and with object provided--
             # because ``obj`` defaults to None
             elif not request.user.has_perm(perm, obj):
-                return render_to_response('permission_denied.html', {
-                    },
-                    context_instance=RequestContext(request)
-                    )
+                return render(request, 'permission_denied.html')
             # User has permission, so show the requested page.
             return view_func(request, *args, **kwargs)
         return wraps(view_func)(_wrapped_view)

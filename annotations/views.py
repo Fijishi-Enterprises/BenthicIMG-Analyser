@@ -4,8 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.urlresolvers import reverse
 from django.db import transaction
 from django.http import HttpResponseRedirect, JsonResponse
-from django.shortcuts import render_to_response, get_object_or_404
-from django.template.context import RequestContext
+from django.shortcuts import render, get_object_or_404
 from easy_thumbnails.files import get_thumbnailer
 from reversion.models import Version, Revision
 from accounts.utils import get_robot_user, is_robot_user
@@ -40,11 +39,9 @@ def label_new(request):
     else:
         form = NewLabelForm()
 
-    return render_to_response('annotations/label_new.html', {
+    return render(request, 'annotations/label_new.html', {
         'form': form,
-        },
-        context_instance=RequestContext(request)
-    )
+    })
 
 @source_permission_required('source_id', perm=Source.PermTypes.ADMIN.code)
 def labelset_new(request, source_id):
@@ -109,7 +106,7 @@ def labelset_new(request, source_id):
     for labelId, label in labelSetForm['labels'].field.choices:
         isInitiallyChecked[labelId] = labelId in initiallyCheckedLabels
         
-    return render_to_response('annotations/labelset_new.html', {
+    return render(request, 'annotations/labelset_new.html', {
         'showLabelFormInitially': json.dumps(showLabelForm),    # Convert Python bool to JSON bool
         'labelSetForm': labelSetForm,
         'labelForm': labelForm,
@@ -119,9 +116,7 @@ def labelset_new(request, source_id):
         'allLabels': allLabels,    # label dictionary, for accessing as a template variable
         'allLabelsJSON': json.dumps(allLabels),    # label dictionary, for JS
         'isInitiallyChecked': json.dumps(isInitiallyChecked),
-        },
-        context_instance=RequestContext(request)
-    )
+    })
 
 @source_permission_required('source_id', perm=Source.PermTypes.ADMIN.code)
 def labelset_edit(request, source_id):
@@ -212,7 +207,7 @@ def labelset_edit(request, source_id):
             isLabelUnchangeable[labelId] = False
 
 
-    return render_to_response('annotations/labelset_edit.html', {
+    return render(request, 'annotations/labelset_edit.html', {
         'showLabelFormInitially': json.dumps(showLabelForm),    # Python bool to JSON bool
         'labelSetForm': labelSetForm,
         'labelForm': labelForm,
@@ -224,9 +219,7 @@ def labelset_edit(request, source_id):
         'isInLabelset': json.dumps(isInLabelset),
         'isInitiallyChecked': json.dumps(isInitiallyChecked),
         'isLabelUnchangeable': json.dumps(isLabelUnchangeable),
-        },
-        context_instance=RequestContext(request)
-    )
+    })
 
 def label_main(request, label_id):
     """
@@ -270,13 +263,11 @@ def label_main(request, label_id):
         generate_patch_if_doesnt_exist(p['patchPath'], p['annotation'])
 
 
-    return render_to_response('annotations/label_main.html', {
+    return render(request, 'annotations/label_main.html', {
         'label': label,
         'visible_sources_with_label': visible_sources_with_label,
         'patches': patches,
-        },
-        context_instance=RequestContext(request)
-    )
+    })
 
 
 @source_visibility_required('source_id')
@@ -294,13 +285,11 @@ def labelset_main(request, source_id):
     labels = labelset.labels.all().order_by('group__id', 'name')
 
 
-    return render_to_response('annotations/labelset_main.html', {
-            'source': source,
-            'labelset': labelset,
-            'labels': labels,
-            },
-            context_instance=RequestContext(request)
-    )
+    return render(request, 'annotations/labelset_main.html', {
+        'source': source,
+        'labelset': labelset,
+        'labels': labels,
+    })
 
 def labelset_list(request):
     """
@@ -315,11 +304,9 @@ def labelset_list(request):
     publicSources = Source.objects.filter(visibility=Source.VisibilityTypes.PUBLIC)
     publicSourcesWithLabelsets = publicSources.exclude(labelset=LabelSet.getEmptyLabelset())
 
-    return render_to_response('annotations/labelset_list.html', {
-                'publicSourcesWithLabelsets': publicSourcesWithLabelsets,
-                },
-                context_instance=RequestContext(request)
-    )
+    return render(request, 'annotations/labelset_list.html', {
+        'publicSourcesWithLabelsets': publicSourcesWithLabelsets,
+    })
 
 def label_list(request):
     """
@@ -328,11 +315,9 @@ def label_list(request):
 
     labels = Label.objects.all().order_by('group__id', 'name')
 
-    return render_to_response('annotations/label_list.html', {
-                'labels': labels,
-                },
-                context_instance=RequestContext(request)
-    )
+    return render(request, 'annotations/label_list.html', {
+        'labels': labels,
+    })
 
 
 
@@ -397,15 +382,13 @@ def annotation_area_edit(request, image_id):
     )
     thumbnail_dimensions = (display_width, display_height)
 
-    return render_to_response('annotations/annotation_area_edit.html', {
+    return render(request, 'annotations/annotation_area_edit.html', {
         'source': source,
         'image': image,
         'dimensions': json.dumps(dimensions),
         'thumbnail_dimensions': thumbnail_dimensions,
         'annotationAreaForm': annotationAreaForm,
-        },
-        context_instance=RequestContext(request)
-    )
+    })
 
 
 @image_permission_required('image_id', perm=Source.PermTypes.EDIT.code)
@@ -595,7 +578,7 @@ def annotation_tool(request, image_id):
     access = AnnotationToolAccess(image=image, source=source, user=request.user)
     access.save()
 
-    return render_to_response('annotations/annotation_tool.html', {
+    return render(request, 'annotations/annotation_tool.html', {
         'source': source,
         'image': image,
         'next_image_to_annotate': next_image_to_annotate,
@@ -614,9 +597,7 @@ def annotation_tool(request, image_id):
         'num_of_points': len(annotations),
         'num_of_annotations': len(annotationValues),
         'messages': error_message,
-        },
-        context_instance=RequestContext(request)
-    )
+    })
 
 
 @image_permission_required(
@@ -837,11 +818,9 @@ def annotation_history(request, image_id):
 
     event_log.sort(key=lambda x: x['date'], reverse=True)
 
-    return render_to_response('annotations/annotation_history.html', {
+    return render(request, 'annotations/annotation_history.html', {
         'source': source,
         'image': image,
         'metadata': image.metadata,
         'event_log': event_log,
-        },
-        context_instance=RequestContext(request)
-    )
+    })

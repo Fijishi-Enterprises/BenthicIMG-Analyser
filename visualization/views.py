@@ -10,8 +10,7 @@ from django.core.urlresolvers import reverse
 from django.db import transaction
 from django.forms.formsets import formset_factory
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
-from django.shortcuts import get_object_or_404, render_to_response
-from django.template.context import RequestContext
+from django.shortcuts import get_object_or_404, render
 from django.utils.functional import curry
 
 from .forms import BrowseSearchForm, StatisticsSearchForm, ImageBatchDeleteForm, ImageSpecifyForm, ImageBatchDownloadForm
@@ -384,7 +383,7 @@ def visualize_source(request, source_id):
         thumbnail_dest_page = 'image_detail'
 
 
-    return render_to_response('visualization/visualize_source.html', {
+    return render(request, 'visualization/visualize_source.html', {
         'source': source,
 
         'searchForm': search_form,
@@ -409,9 +408,7 @@ def visualize_source(request, source_id):
         'metadataFormWithExtra': metadataFormWithExtra,
 
         'page_view': page_view,
-        },
-        context_instance=RequestContext(request)
-    )
+    })
 
 
 @source_permission_required(
@@ -783,16 +780,14 @@ def generate_statistics(request, source_id):
     else:
         form = StatisticsSearchForm(source_id)
     
-    return render_to_response('visualization/statistics.html', {
+    return render(request, 'visualization/statistics.html', {
         'errors': errors,
         'form': form,
         'source': source,
         'years': years,
         'label_table': label_table,
-        'group_table': group_table
-        },
-        context_instance=RequestContext(request)
-    )
+        'group_table': group_table,
+    })
 
 
 # helper function to format abundance corrected outputs with 4 decimal points
@@ -1028,8 +1023,6 @@ def export_annotations(request, source_id):
 def export_menu(request, source_id):
     source = get_object_or_404(Source, id=source_id)
 
-    return render_to_response('visualization/export_menu.html', {
+    return render(request, 'visualization/export_menu.html', {
         'source': source,
-        },
-        context_instance=RequestContext(request)
-    )
+    })

@@ -3,9 +3,8 @@ from django.core.mail import mail_admins
 from django.core.mail.message import BadHeaderError
 from django.core.urlresolvers import reverse
 from django.http import HttpResponseRedirect
-from django.shortcuts import render_to_response
+from django.shortcuts import render
 from django.contrib import messages
-from django.template.context import RequestContext
 from requests.forms import RequestInviteForm
 import urllib2, urllib
 
@@ -83,12 +82,10 @@ def request_invite(request):
         form = RequestInviteForm()
 
      
-     return render_to_response('requests/request_invite.html', {
+     return render(request, 'requests/request_invite.html', {
         'form': form,
         'public_key': settings.CAPTCHA_PUBLIC_KEY,
-        },
-        context_instance=RequestContext(request)
-     )
+    })
 
 
 def encode_if_necessary(s):
@@ -99,4 +96,4 @@ def encode_if_necessary(s):
 
 
 def request_invite_confirm(request):
-    return render_to_response('requests/request_invite_received.html', {}, context_instance=RequestContext(request))
+    return render(request, 'requests/request_invite_received.html')

@@ -4,8 +4,7 @@ from django.core.mail import mail_admins
 from django.core.mail.message import BadHeaderError
 from django.core.urlresolvers import reverse
 from django.http import HttpResponseRedirect
-from django.shortcuts import render_to_response
-from django.template import RequestContext
+from django.shortcuts import render
 
 from annotations.models import Point
 from images.models import Image, Source
@@ -64,11 +63,9 @@ def contact(request):
     else: # GET
         contact_form = ContactForm(request.user)
 
-    return render_to_response('lib/contact.html', {
+    return render(request, 'lib/contact.html', {
         'contact_form': contact_form,
-        },
-        context_instance=RequestContext(request)
-    )
+    })
 
 def index(request):
     """
@@ -99,16 +96,14 @@ def index(request):
     robot_annotations = Point.objects.filter(image__status__annotatedByRobot=True).count()
     total_annotations = human_annotations + robot_annotations
 
-    return render_to_response('lib/index.html', {
-            'google_maps_api_key': settings.GOOGLE_MAPS_API_KEY,
-            'map_sources': map_sources,
-            'total_sources': total_sources,
-            'total_images': total_images,
-            'total_annotations': total_annotations,
-            'human_annotations': human_annotations,
-            'robot_annotations' : robot_annotations,
-            'images': images,
-            'list_thumbnails': list_thumbnails,
-        },
-        context_instance=RequestContext(request)
-    )
+    return render(request, 'lib/index.html', {
+        'google_maps_api_key': settings.GOOGLE_MAPS_API_KEY,
+        'map_sources': map_sources,
+        'total_sources': total_sources,
+        'total_images': total_images,
+        'total_annotations': total_annotations,
+        'human_annotations': human_annotations,
+        'robot_annotations' : robot_annotations,
+        'images': images,
+        'list_thumbnails': list_thumbnails,
+    })

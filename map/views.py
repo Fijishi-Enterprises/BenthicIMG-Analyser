@@ -1,7 +1,6 @@
 from django.conf import settings
 from django.core.urlresolvers import reverse
-from django.shortcuts import render_to_response
-from django.template import RequestContext
+from django.shortcuts import render
 
 from annotations.models import *
 from images.models import *
@@ -65,7 +64,7 @@ def map(request):
 
 
 
-    return render_to_response('map/map.html', {
+    return render(request, 'map/map.html', {
         'google_maps_api_key': settings.GOOGLE_MAPS_API_KEY,
         'map_sources': map_sources,
         'total_sources': total_sources,
@@ -73,6 +72,4 @@ def map(request):
         'total_annotations': total_annotations,
         'human_annotations': human_annotations,
         'robot_annotations' : robot_annotations,
-        },
-        context_instance=RequestContext(request)
-    )
+    })

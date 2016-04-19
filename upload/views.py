@@ -1,7 +1,6 @@
 from django.core.urlresolvers import reverse
-from django.shortcuts import get_object_or_404, render_to_response
+from django.shortcuts import get_object_or_404, render
 from django.http import HttpResponseRedirect, JsonResponse
-from django.template import RequestContext
 from django.contrib import messages
 from annotations.model_utils import AnnotationAreaUtils
 from images.model_utils import PointGen
@@ -40,7 +39,7 @@ def image_upload(request, source_id):
         ),
     )
 
-    return render_to_response('upload/image_upload.html', {
+    return render(request, 'upload/image_upload.html', {
         'source': source,
         'images_form': images_form,
         'options_form': options_form,
@@ -49,9 +48,7 @@ def image_upload(request, source_id):
         'annotation_import_options_form': annotation_import_options_form,
         'proceed_to_manage_metadata_form': proceed_to_manage_metadata_form,
         'auto_generate_points_message': auto_generate_points_message,
-        },
-        context_instance=RequestContext(request)
-    )
+    })
 
 
 @source_permission_required(
@@ -342,7 +339,11 @@ def upload_archived_annotations(request, source_id):
     else:
         form = ImportArchivedAnnotationsForm()
     
-    return render_to_response('upload/upload_archived_annotations.html', {'form': form, 'source': source, 'non_unique': non_unique}, context_instance=RequestContext(request))
+    return render(request, 'upload/upload_archived_annotations.html', {
+        'form': form,
+        'source': source,
+        'non_unique': non_unique,
+    })
 
 
 @source_permission_required('source_id', perm=Source.PermTypes.EDIT.code)
@@ -359,6 +360,9 @@ def verify_archived_annotations(request, source_id):
             messages.error(request, 'Session timeout. Try again or contact system admin.') # This is a very odd situation, since we just added the data to the session.
             return HttpResponseRedirect(reverse('source_main', args=[source.id]))
 
-        return render_to_response('upload/verify_archived_annotations.html', {'status': status, 'source': source}, context_instance=RequestContext(request))
+        return render(request, 'upload/verify_archived_annotations.html', {
+            'status': status,
+            'source': source,
+        })
 
 

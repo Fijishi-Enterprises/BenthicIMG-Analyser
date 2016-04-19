@@ -10,9 +10,8 @@ from django.core.urlresolvers import reverse
 from django.db import transaction
 from django.forms import ValidationError
 from django.forms.models import model_to_dict
-from django.shortcuts import render_to_response, get_object_or_404
+from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponseRedirect, HttpResponse
-from django.template import RequestContext
 from django.utils import timezone
 
 from . import utils
@@ -53,17 +52,15 @@ def source_list(request):
             del source["latest_images"]
         
         if your_sources:
-            return render_to_response('images/source_list.html', {
+            return render(request, 'images/source_list.html', {
                 'your_sources': your_sources_dicts,
                 'map_sources': map_sources,
                 'google_maps_api_key': settings.GOOGLE_MAPS_API_KEY,
                 'other_public_sources': other_public_sources,
                 'list_thumbnails': list_thumbnails,
-                },
-                context_instance=RequestContext(request)
-            )
+            })
 
-    # not used
+    # Not-authenticated case
     return HttpResponseRedirect(reverse('source_about'))
 
 
@@ -81,10 +78,10 @@ def source_laundry_list(request):
 
     laundry_list = sorted(laundry_list, key=lambda k: k['need_attention'])[::-1]
     
-    return render_to_response('images/robot_overview.html', {
+    return render(request, 'images/robot_overview.html', {
         'laundry_list': laundry_list,
-        'timestr': timestr}, 
-        context_instance = RequestContext(request))
+        'timestr': timestr,
+    })
 
 
 
@@ -103,12 +100,10 @@ def source_about(request):
     else:
         user_status = 'anonymous'
 
-    return render_to_response('images/source_about.html', {
+    return render(request, 'images/source_about.html', {
         'user_status': user_status,
         'public_sources': Source.get_public_sources(),
-        },
-        context_instance=RequestContext(request)
-    )
+    })
 
 
 @login_required
@@ -172,14 +167,12 @@ def source_new(request):
 
     # RequestContext is needed for CSRF verification of the POST form,
     # and to correctly get the path of the CSS file being used.
-    return render_to_response('images/source_new.html', {
+    return render(request, 'images/source_new.html', {
         'sourceForm': sourceForm,
         'location_key_form': location_key_form,
         'pointGenForm': pointGenForm,
         'annotationAreaForm': annotationAreaForm,
-        },
-        context_instance=RequestContext(request)
-    )
+    })
 
 
 
@@ -227,17 +220,15 @@ def source_main(request, source_id):
     source.longitude = source.longitude[:8]
     backend_status = source_robot_status(source_id)
 
-    return render_to_response('images/source_main.html', {
+    return render(request, 'images/source_main.html', {
         'source': source,
         'loc_keys': ', '.join(source.get_key_list()),
         'members': memberDicts,
         'latest_images': latest_images,
         'image_stats': image_stats,
-        'robot_stats':robot_stats,
-        'backend_status':backend_status,
-        },
-        context_instance=RequestContext(request)
-)
+        'robot_stats': robot_stats,
+        'backend_status': backend_status,
+    })
 
 @source_permission_required('source_id', perm=Source.PermTypes.ADMIN.code)
 def source_edit(request, source_id):
@@ -294,15 +285,13 @@ def source_edit(request, source_id):
         pointGenForm = PointGenForm(source=source)
         annotationAreaForm = AnnotationAreaPercentsForm(source=source)
 
-    return render_to_response('images/source_edit.html', {
+    return render(request, 'images/source_edit.html', {
         'source': source,
         'editSourceForm': sourceForm,
         'location_key_edit_form': location_key_edit_form,
         'pointGenForm': pointGenForm,
         'annotationAreaForm': annotationAreaForm,
-        },
-        context_instance=RequestContext(request)
-    )
+    })
 
 
 # helper function to format numpy outputs
@@ -418,14 +407,12 @@ def source_admin(request, source_id):
         changePermissionForm = SourceChangePermissionForm(source_id=source_id, user=request.user)
         removeUserForm = SourceRemoveUserForm(source_id=source_id, user=request.user)
 
-    return render_to_response('images/source_invite.html', {
+    return render(request, 'images/source_invite.html', {
         'source': source,
         'inviteForm': inviteForm,
         'changePermissionForm': changePermissionForm,
-        'removeUserForm': removeUserForm
-        },
-        context_instance=RequestContext(request)
-        )
+        'removeUserForm': removeUserForm,
+    })
 
 
 @login_required
@@ -470,12 +457,10 @@ def invites_manage(request):
                 invite.delete()
                 messages.success(request, 'Invite deleted.')
 
-    return render_to_response('images/invites_manage.html', {
+    return render(request, 'images/invites_manage.html', {
         'invitesSent': request.user.invites_sent.all(),
         'invitesReceived': request.user.invites_received.all(),
-        },
-        context_instance=RequestContext(request)
-        )
+    })
 
 
 
@@ -589,9 +574,9 @@ def image_detail(request, image_id):
             messages.success(request, 'Successfully deleted image ' + image_name + '.')
             return HttpResponseRedirect(reverse('source_main', args=[source_id]))
         
-    return render_to_response('images/image_detail.html', image_detail_helper(image_id),
-        context_instance=RequestContext(request)
-        )
+    return render(request, 'images/image_detail.html',
+        image_detail_helper(image_id)
+    )
 
 @image_permission_required('image_id', perm=Source.PermTypes.EDIT.code)
 def image_detail_edit(request, image_id):
@@ -632,13 +617,11 @@ def image_detail_edit(request, image_id):
         # Just reached this form page
         imageDetailForm = ImageDetailForm(instance=metadata, source=source)
 
-    return render_to_response('images/image_detail_edit.html', {
+    return render(request, 'images/image_detail_edit.html', {
         'source': source,
         'image': image,
         'imageDetailForm': imageDetailForm,
-        },
-        context_instance=RequestContext(request)
-        )
+    })
 
 
 def import_groups(request, fileLocation):
@@ -748,12 +731,10 @@ def import_labels(request, source_id):
     else:
         labelImportForm = LabelImportForm()
 
-    return render_to_response('images/label_import.html', {
-            'labelImportForm': labelImportForm,
-            'source': source,
-            },
-            context_instance=RequestContext(request)
-    )
+    return render(request, 'images/label_import.html', {
+        'labelImportForm': labelImportForm,
+        'source': source,
+    })
 
 @source_visibility_required('source_id')
 def robot_stats_all(request, source_id):
@@ -761,12 +742,10 @@ def robot_stats_all(request, source_id):
     robot_stats = make_robot_stats(source_id, 0)
     source = Source.objects.get(id = source_id)
 
-    return render_to_response('images/robot_stats_all.html', {
-        'robot_stats':robot_stats,
-        'source':source,
-        },
-        context_instance=RequestContext(request)
-)
+    return render(request, 'images/robot_stats_all.html', {
+        'robot_stats': robot_stats,
+        'source': source,
+    })
 
 
 def make_robot_stats(source_id, nbr_robots):

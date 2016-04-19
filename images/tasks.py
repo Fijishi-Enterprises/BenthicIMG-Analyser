@@ -13,10 +13,6 @@ from images.utils import source_robot_status
 import numpy as np
 from numpy import zeros, sum, float32, newaxis
 from reversion import revisions as reversion
-try:
-    from PIL import Image as PILImage
-except ImportError:
-    import Image as PILImage
 
 logging.basicConfig(filename=os.path.join(settings.PROCESSING_ROOT, 'logs/tasks.log'), level=logging.INFO, format='[%(asctime)s] %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 

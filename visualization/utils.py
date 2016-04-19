@@ -1,10 +1,7 @@
 import os
 from django.conf import settings
 
-try:
-    from PIL import Image as PILImage
-except ImportError:
-    import Image as PILImage
+from PIL import Image as PILImage
 
 def generate_patch_if_doesnt_exist(patchPath, annotation):
     patchFullPath = os.path.join(settings.MEDIA_ROOT, patchPath)

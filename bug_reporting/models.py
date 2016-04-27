@@ -11,7 +11,7 @@ class Feedback(models.Model):
     type = models.CharField(max_length=1, choices=FEEDBACK_TYPE_CHOICES)
 
     comment = models.TextField('Description / Comment')
-    user = models.ForeignKey(User)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     date = models.DateTimeField('Date', auto_now_add=True, editable=False)
     url = models.TextField('Url')
     # Will be auto-filled in when the feedback form is reached from a 500 error.

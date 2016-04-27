@@ -46,22 +46,27 @@ class Label(models.Model):
 
     name = models.CharField(max_length=45)
     code = models.CharField('Short Code', max_length=10)
-    group = models.ForeignKey(LabelGroup, verbose_name='Functional Group')
+    group = models.ForeignKey(LabelGroup, on_delete=models.PROTECT,
+        verbose_name='Functional Group')
     description = models.TextField(null=True)
     
-    # easy_thumbnails reference: http://packages.python.org/easy-thumbnails/ref/processors.html
+    # easy_thumbnails reference:
+    # http://packages.python.org/easy-thumbnails/ref/processors.html
     THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT = 150, 150
     thumbnail = ThumbnailerImageField(
         'Example image (thumbnail)',
         upload_to=get_label_thumbnail_upload_path,
-        resize_source=dict(size=(THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT), crop='smart'),
+        resize_source=dict(
+            size=(THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT), crop='smart'),
         help_text="For best results, please use an image that's close to %d x %d pixels.\n" % (THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT) + \
                   "Otherwise, we'll resize and crop your image to make sure it's that size.",
-        null=True
+        null=True,
     )
     
-    create_date = models.DateTimeField('Date created', auto_now_add=True, editable=False, null=True)
-    created_by = models.ForeignKey(User, verbose_name='Created by', editable=False, null=True)
+    create_date = models.DateTimeField('Date created',
+        auto_now_add=True, editable=False, null=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL,
+        verbose_name='Created by', editable=False, null=True)
     
     def __unicode__(self):
         """
@@ -105,32 +110,43 @@ class LabelSet(models.Model):
 
     
 class Annotation(models.Model):
-    annotation_date = models.DateTimeField(blank=True, auto_now=True, editable=False)
-    point = models.ForeignKey(Point, editable=False)
-    image = models.ForeignKey(Image, editable=False)
+    annotation_date = models.DateTimeField(
+        blank=True, auto_now=True, editable=False)
+    point = models.ForeignKey(Point, on_delete=models.CASCADE,
+        editable=False)
+    image = models.ForeignKey(Image, on_delete=models.CASCADE,
+        editable=False)
 
     # The user who made this annotation
-    user = models.ForeignKey(User, editable=False)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL,
+        editable=False, null=True)
     # Only fill this in if the user is the robot user
-    robot_version = models.ForeignKey(Robot, editable=False, null=True)
+    robot_version = models.ForeignKey(Robot, on_delete=models.SET_NULL,
+        editable=False, null=True)
 
-    label = models.ForeignKey(Label) #TODO: verify
-    source = models.ForeignKey(Source, editable=False)
+    label = models.ForeignKey(Label, on_delete=models.PROTECT)
+    source = models.ForeignKey(Source, on_delete=models.CASCADE,
+        editable=False)
 
     def __unicode__(self):
         return "%s - %s - %s" % (self.image, self.point.point_number, self.label.code)
 
 
 class AnnotationToolAccess(models.Model):
-    access_date = models.DateTimeField(blank=True, auto_now=True, editable=False)
-    image = models.ForeignKey(Image, editable=False)
-    source = models.ForeignKey(Source, editable=False)
-    user = models.ForeignKey(User, editable=False)
+    access_date = models.DateTimeField(
+        blank=True, auto_now=True, editable=False)
+    image = models.ForeignKey(Image, on_delete=models.CASCADE,
+        editable=False)
+    source = models.ForeignKey(Source, on_delete=models.CASCADE,
+        editable=False)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL,
+        editable=False, null=True)
 
 
 class AnnotationToolSettings(models.Model):
 
-    user = models.ForeignKey(User, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE,
+        editable=False)
 
     POINT_MARKER_CHOICES = (
         ('crosshair', 'Crosshair'),

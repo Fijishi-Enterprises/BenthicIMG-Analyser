@@ -44,16 +44,23 @@ class Source(models.Model):
         (VisibilityTypes.PUBLIC, VisibilityTypes.PUBLIC_VERBOSE),
         (VisibilityTypes.PRIVATE, VisibilityTypes.PRIVATE_VERBOSE),
     )
-    visibility = models.CharField(max_length=1, choices=VISIBILITY_CHOICES, default=VisibilityTypes.PRIVATE)
+    visibility = models.CharField(
+        max_length=1, choices=VISIBILITY_CHOICES,
+        default=VisibilityTypes.PRIVATE)
 
     # Automatically set to the date and time of creation.
-    create_date = models.DateTimeField('Date created', auto_now_add=True, editable=False)
+    create_date = models.DateTimeField('Date created',
+        auto_now_add=True, editable=False)
 
     description = models.TextField()
 
     affiliation = models.CharField(max_length=200)
 
-    labelset = models.ForeignKey('annotations.LabelSet')
+    # If we are sure about 1-to-1 mapping labelsets to sources,
+    # then this ForeignKey should probably be in the LabelSet
+    # model, not here.
+    labelset = models.ForeignKey(
+        'annotations.LabelSet', on_delete=models.PROTECT)
     
     # Each of these fields is allowed to be blank (an empty string).
     # We're assuming that we'll only have key 2 if we have
@@ -114,9 +121,6 @@ class Source(models.Model):
 
     longitude = models.CharField(max_length=20, blank=True)
     latitude = models.CharField(max_length=20, blank=True)
-
-    #start_date = models.DateField(null=True, blank=True)
-    #end_date = models.DateField(null=True, blank=True)
 
     class Meta:
         # Permissions for users to perform actions on Sources.
@@ -414,10 +418,14 @@ class SourceInvite(models.Model):
     """
     Invites will be deleted once they're accepted.
     """
-    sender = models.ForeignKey(User, related_name='invites_sent', editable=False)
-    recipient = models.ForeignKey(User, related_name='invites_received')
-    source = models.ForeignKey(Source, editable=False)
-    source_perm = models.CharField(max_length=50, choices=Source._meta.permissions)
+    sender = models.ForeignKey(User, on_delete=models.CASCADE,
+        related_name='invites_sent', editable=False)
+    recipient = models.ForeignKey(User, on_delete=models.CASCADE,
+        related_name='invites_received')
+    source = models.ForeignKey(Source, on_delete=models.CASCADE,
+        editable=False)
+    source_perm = models.CharField(
+        max_length=50, choices=Source._meta.permissions)
 
     class Meta:
         # A user can only be invited once to a source.
@@ -433,7 +441,7 @@ class SourceInvite(models.Model):
 
 class Robot(models.Model):
     # Later, may tie robots to labelsets instead of sources
-    source = models.ForeignKey(Source)
+    source = models.ForeignKey(Source, on_delete=models.CASCADE)
     
     version = models.IntegerField(unique=True)
     path_to_model = models.CharField(max_length=500)
@@ -469,7 +477,7 @@ class LocationValue(models.Model):
         ordering = ['name']
 
     name = models.CharField(max_length=50)
-    source = models.ForeignKey(Source)
+    source = models.ForeignKey(Source, on_delete=models.CASCADE)
 
     def __unicode__(self):
         return self.name
@@ -524,11 +532,16 @@ class Metadata(models.Model):
     
     comments = models.TextField(max_length=1000, blank=True)
     
-    value1 = models.ForeignKey(Value1, null=True, blank=True)
-    value2 = models.ForeignKey(Value2, null=True, blank=True)
-    value3 = models.ForeignKey(Value3, null=True, blank=True)
-    value4 = models.ForeignKey(Value4, null=True, blank=True)
-    value5 = models.ForeignKey(Value5, null=True, blank=True)
+    value1 = models.ForeignKey(Value1, on_delete=models.PROTECT,
+        null=True, blank=True)
+    value2 = models.ForeignKey(Value2, on_delete=models.PROTECT,
+        null=True, blank=True)
+    value3 = models.ForeignKey(Value3, on_delete=models.PROTECT,
+        null=True, blank=True)
+    value4 = models.ForeignKey(Value4, on_delete=models.PROTECT,
+        null=True, blank=True)
+    value5 = models.ForeignKey(Value5, on_delete=models.PROTECT,
+        null=True, blank=True)
 
     def __unicode__(self):
         return "Metadata of " + self.name
@@ -560,8 +573,9 @@ def get_original_image_upload_path(instance, filename):
     return generate_random_filename(settings.ORIGINAL_IMAGE_DIR, filename, numOfChars=10)
     
 class Image(models.Model):
-    # width_field and height_field allow Django to cache the width and height values
-    # so that the image file doesn't have to be read every time we want the width and height.
+    # width_field and height_field allow Django to cache the
+    # width and height values, so that the image file doesn't have
+    # to be read every time we want the width and height.
     # The cache is only updated when the image is saved.
     original_file = ThumbnailerImageField(
         upload_to=get_original_image_upload_path,
@@ -571,13 +585,15 @@ class Image(models.Model):
     original_width = models.IntegerField()
     original_height = models.IntegerField()
 
-    #TODO: Add another field for the processed image file.
-    # Also add the corresponding width/height fields if we allow image cropping or resizing.
+    upload_date = models.DateTimeField('Upload date',
+        auto_now_add=True, editable=False)
+    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL,
+        editable=False, null=True)
 
-    upload_date = models.DateTimeField('Upload date', auto_now_add=True, editable=False)
-    uploaded_by = models.ForeignKey(User, editable=False)
-
-    status = models.ForeignKey(ImageStatus, editable=False)
+    # This relation seems backwards from what it should be. The ForeignKey
+    # should be in the ImageStatus model instead.
+    status = models.ForeignKey(ImageStatus, on_delete=models.PROTECT,
+        editable=False)
 
     POINT_GENERATION_CHOICES = (
         (PointGen.Types.SIMPLE, PointGen.Types.SIMPLE_VERBOSE),
@@ -590,14 +606,20 @@ class Image(models.Model):
         max_length=50,
         blank=True,
     )
-    
-    metadata = models.ForeignKey(Metadata)
-    source = models.ForeignKey(Source)
+
+    # This relation seems backwards from what it should be. The ForeignKey
+    # should be in the Metadata model instead.
+    metadata = models.ForeignKey(Metadata, on_delete=models.PROTECT)
+
+    source = models.ForeignKey(Source, on_delete=models.CASCADE)
 
     # To be set by the preprocessing task
-    process_date = models.DateTimeField("Date processed", editable=False, null=True)
+    process_date = models.DateTimeField("Date processed",
+        editable=False, null=True)
     # To be set by the classification task
-    latest_robot_annotator = models.ForeignKey(Robot, editable=False, null=True)
+    latest_robot_annotator = models.ForeignKey(
+        Robot, on_delete=models.SET_NULL,
+        editable=False, null=True)
 
 
     def __unicode__(self):
@@ -811,7 +833,7 @@ class Point(models.Model):
     column = models.IntegerField()
     point_number = models.IntegerField()
     annotation_status = models.CharField(max_length=1, blank=True)
-    image = models.ForeignKey(Image)
+    image = models.ForeignKey(Image, on_delete=models.CASCADE)
 
     def __unicode__(self):
         """

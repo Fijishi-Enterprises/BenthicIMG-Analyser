@@ -173,7 +173,7 @@ STATIC_URL = '/static/'
 
 # The order of middleware classes is important!
 # https://docs.djangoproject.com/en/dev/topics/http/middleware/
-MIDDLEWARE_CLASSES = (
+MIDDLEWARE_CLASSES = [
     'django.middleware.common.CommonMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.locale.LocaleMiddleware',
@@ -188,14 +188,14 @@ MIDDLEWARE_CLASSES = (
     'userena.middleware.UserenaLocaleMiddleware',
     # django-reversion
     'reversion.middleware.RevisionMiddleware',
-)
+]
 
-AUTHENTICATION_BACKENDS = (
+AUTHENTICATION_BACKENDS = [
     'userena.backends.UserenaAuthenticationBackend',
     'guardian.backends.ObjectPermissionBackend',
     # This one is in Django's default setting
     'django.contrib.auth.backends.ModelBackend',
-)
+]
 
 LOGIN_URL = '/accounts/signin/'
 LOGOUT_URL = '/accounts/signout/'
@@ -206,21 +206,18 @@ TEST_RUNNER = 'lib.test_utils.MyTestSuiteRunner'
 
 # A list of locations of additional static files
 # (besides apps' "static/" subdirectories, which are automatically included)
-#
-# Remember that a 1-element tuple like ('item',) needs a comma before
-# the right parenthesis.
-STATICFILES_DIRS = (
+STATICFILES_DIRS = [
     # Project-wide static files
     PROJECT_DIR.child('static'),
-)
+]
 
 # List of finder classes that know how to find static files in
 # various locations.
-STATICFILES_FINDERS = (
+STATICFILES_FINDERS = [
     'django.contrib.staticfiles.finders.FileSystemFinder',
     'django.contrib.staticfiles.finders.AppDirectoriesFinder',
 #    'django.contrib.staticfiles.finders.DefaultStorageFinder',
-)
+]
 
 
 

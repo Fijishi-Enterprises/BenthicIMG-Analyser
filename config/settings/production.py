@@ -10,12 +10,13 @@ SITE_DIR = PROJECT_DIR.ancestor(1)
 DEBUG = False
 
 # People who get code error notifications.
-# In the format (('Full Name', 'email@example.com'), ('Full Name', 'anotheremail@example.com'))
-ADMINS = (
+# In the format [('Full Name', 'email@example.com'),
+# ('Full Name', 'anotheremail@example.com')]
+ADMINS = [
     ('Stephen', 'stephenjchan@gmail.com'),
     ('Oscar', 'oscar.beijbom@gmail.com'),
     ('CoralNet', 'coralnet@eng.ucsd.edu'),
-)
+]
 
 # Hosts/domain names that are valid for this site.
 # "*" matches anything, ".example.com" matches example.com and all subdomains

@@ -43,7 +43,7 @@ sets the maintenance time:
 
 {% if maintenance_time %}
     <div class="maintenance_message">
-        {% if maintenance_time|timeuntil == "0 minutes" %}
+        {% if maintenance_time|time_is_past %}
             {# The message when the site is currently under maintenance. #}
             <b>The site is under maintenance.</b>
             During maintenance, the site may abruptly become unavailable,

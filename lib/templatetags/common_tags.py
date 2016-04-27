@@ -99,6 +99,11 @@ def set_maintenance_time(datetime_str):
     return datetime_obj
 
 
+@register.filter
+def time_is_past(datetime_obj):
+    return datetime_obj < timezone.now()
+
+
 # versioned_static
 #
 # Prevent undesired browser caching of static files (CSS, JS, etc.)

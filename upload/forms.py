@@ -342,11 +342,9 @@ class MetadataForm(Form):
         # Change the order that the fields appear on the page.
         # This field order should match the order of the table headers
         # in the page template.
-        field_order = ['image_id', 'photo_date'] + key_fields \
-            + ['height_in_cm'] + char_fields
-        self.fields = OrderedDict(
-            [(k, self.fields[k]) for k in field_order]
-        )
+        self.order_fields(
+            ['image_id', 'photo_date'] + key_fields
+            + ['height_in_cm'] + char_fields)
 
 
     def clean(self):

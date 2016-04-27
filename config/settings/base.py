@@ -225,7 +225,7 @@ STATICFILES_FINDERS = [
 ANONYMOUS_USER_ID = -1
 # For whatever reason, when running tests in Postgres, it errors when
 # this ID is 0 or negative.
-if 'test' in sys.argv or 'mytest' in sys.argv:
+if 'test' in sys.argv:
     ANONYMOUS_USER_ID = 99999999
 
 

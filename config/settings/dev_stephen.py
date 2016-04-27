@@ -6,5 +6,5 @@ from .local import *
 # The obvious drawback is that different databases have different behavior,
 # and could have different test results. It's happened before.
 # So, comment this out to run in PostgreSQL every so often.
-if ('test' in sys.argv or 'mytest' in sys.argv):
+if 'test' in sys.argv:
     DATABASES['default']['ENGINE'] = 'django.db.backends.sqlite3'

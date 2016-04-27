@@ -7,7 +7,6 @@ from django.forms.widgets import  Select, TextInput, NumberInput
 from images.models import Source, Image, Metadata, Value1, Value2, Value3, Value4, Value5, SourceInvite
 from images.model_utils import PointGen
 from lib import str_consts
-from lib.forms import strip_spaces_from_fields
 
 class ImageSourceForm(ModelForm):
 
@@ -68,18 +67,6 @@ class ImageSourceForm(ModelForm):
 
         self.cleaned_data = data
 
-    def clean(self):
-        """
-        1. Strip spaces from character fields.
-        2. Call the parent's clean() to run the default behavior.
-        """
-        data = strip_spaces_from_fields(
-            self.cleaned_data, self.fields)
-
-        self.cleaned_data = data
-
-        super(ImageSourceForm, self).clean()
-
     def clean_latitude(self):
         data = self.cleaned_data['latitude']
         try:
@@ -137,13 +124,11 @@ class LocationKeyForm(Form):
 
     def clean(self):
         """
-        1. Strip spaces from character fields.
-        2. Location key processing: keep key n only if 1 through n-1
+        1. Location key processing: keep key n only if 1 through n-1
         are also specified.
-        3. Call the parent's clean() to run the default behavior.
+        2. Call the parent's clean() to run the default behavior.
         """
-        data = strip_spaces_from_fields(
-            self.cleaned_data, self.fields)
+        data = self.cleaned_data
 
         if 'key1' not in data or data['key1'] == u'':
             data['key2'] = u''
@@ -194,17 +179,6 @@ class LocationKeyEditForm(Form):
                 required=True,
                 initial=getattr(source, key_field)
             )
-
-    def clean(self):
-        """
-        Strip spaces from the fields.
-        """
-        data = strip_spaces_from_fields(
-            self.cleaned_data, self.fields)
-
-        self.cleaned_data = data
-
-        super(LocationKeyEditForm, self).clean()
 
 class SourceChangePermissionForm(Form):
 
@@ -383,12 +357,10 @@ class ImageDetailForm(ModelForm):
 
     def clean(self):
         """
-        1. Strip spaces from character fields.
-        2. Handle the location values.
-        3. Call the parent's clean() to finish up with the default behavior.
+        1. Handle the location values.
+        2. Call the parent's clean() to finish up with the default behavior.
         """
-        data = strip_spaces_from_fields(
-            self.cleaned_data, self.fields)
+        data = self.cleaned_data
 
         image = Image.objects.get(metadata=self.instance)
         source = image.source

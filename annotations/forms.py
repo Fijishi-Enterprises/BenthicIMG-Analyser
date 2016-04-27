@@ -16,7 +16,6 @@ from accounts.utils import is_robot_user, get_robot_user
 from annotations.model_utils import AnnotationAreaUtils
 from annotations.models import Label, LabelSet, Annotation, AnnotationToolSettings
 from images.models import Point, Source, Metadata
-from lib.forms import strip_spaces_from_fields
 
 
 class CustomCheckboxSelectMultiple(forms.CheckboxSelectMultiple):
@@ -65,12 +64,10 @@ class NewLabelForm(ModelForm):
         
     def clean(self):
         """
-        1. Strip spaces from character fields.
-        2. Add an error if the specified name or code matches that of an existing label.
-        3. Call the parent's clean() to finish up with the default behavior.
+        1. Add an error if the specified name or code matches that of an existing label.
+        2. Call the parent's clean() to finish up with the default behavior.
         """
-        data = strip_spaces_from_fields(
-            self.cleaned_data, self.fields)
+        data = self.cleaned_data
 
         if data.has_key('name'):
             labelsOfSameName = Label.objects.filter(name__iexact=data['name'])

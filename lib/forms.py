@@ -68,19 +68,3 @@ def clean_comma_separated_image_ids_field(value, source):
         id_list.append(id_num)
 
     return id_list
-
-
-def strip_spaces_from_fields(data, fields):
-    """
-    Use this in the clean() method of a Form subclass.  Pass in
-    two form attributes as the arguments: cleaned_data and fields.
-
-    This will go through each form field and strip spaces if it's a
-    CharField or a descendant of CharField (EmailField, etc.).
-    (To see what these descendants are, see django/forms/fields.py.)
-    """
-    for fieldName, value in data.items():
-        if isinstance(fields[fieldName], forms.CharField):
-            data[fieldName] = value.strip()
-    return data
-    

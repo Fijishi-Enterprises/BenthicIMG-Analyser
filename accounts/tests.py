@@ -17,11 +17,13 @@ class AddUserTest(ClientTest):
         )
 
     def test_load_page_normal_user(self):
-        """Load page as normal user -> sorry, don't have permission."""
+        """Load page as normal user -> login page."""
         self.client.login(username='user2', password='secret')
         response = self.client.get(reverse('signup'))
-        self.assertStatusOK(response)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+        self.assertRedirects(
+            response,
+            reverse('signin')+'?next='+reverse('signup'),
+        )
 
     def test_load_page_superuser(self):
         """Load page as superuser -> page loads normally."""
@@ -178,11 +180,13 @@ class EmailAllTest(ClientTest):
         )
 
     def test_load_page_normal_user(self):
-        """Load page as normal user -> sorry, don't have permission."""
+        """Load page as normal user -> login page."""
         self.client.login(username='user2', password='secret')
         response = self.client.get(reverse('emailall'))
-        self.assertStatusOK(response)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+        self.assertRedirects(
+            response,
+            reverse('signin')+'?next='+reverse('emailall'),
+        )
 
     def test_load_page_superuser(self):
         """Load page as superuser -> page loads normally."""

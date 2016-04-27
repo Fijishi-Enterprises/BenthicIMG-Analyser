@@ -61,8 +61,8 @@ SERVER_EMAIL = 'noreply@coralnet.ucsd.edu'
 # Database connection info.
 DATABASES = {
     'default': {
-        # 'postgresql_psycopg2', 'mysql', 'sqlite3' or 'oracle'.
-        'ENGINE': 'django.db.backends.postgresql_psycopg2',
+        # 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
+        'ENGINE': 'django.db.backends.postgresql',
         # Or path to database file if using sqlite3.
         'NAME': 'coralnet',
         # Not used with sqlite3.

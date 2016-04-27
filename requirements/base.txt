@@ -1,9 +1,12 @@
-Django==1.7
+# To see requirements for an installed package, use: pip show <package-name>
+
+
+Django==1.9.5
 
 # Per-object permissions
 # e.g. "can edit this source" not just "can edit sources"
 # Requires django, six
-django-guardian==1.3.1
+django-guardian==1.4.1
 
 # Python Imaging Library
 # (A currently active, package friendly fork of it; also endorsed by Django)
@@ -15,7 +18,7 @@ easy-thumbnails==2.3
 
 # User management system (going beyond Django's built-in facilities)
 # Requires easy-thumbnails, django-guardian, html2text
-django-userena==1.3.2
+django-userena==2.0.1
 
 # Versioning of database objects
 # Has a fine-grained Django compatibility table; 1.10.1 is for Django 1.7+

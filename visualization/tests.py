@@ -207,8 +207,8 @@ class MetadataEditTest(ClientTest):
 
         # Response should be as expected.
         self.assertStatusOK(response)
-        response_dict = json.loads(response.content)
-        self.assertEqual(response_dict['status'], 'success')
+        response_json = response.json()
+        self.assertEqual(response_json['status'], 'success')
 
         # The database should have the updated metadata for the image,
         # without affecting the non-updated metadata.

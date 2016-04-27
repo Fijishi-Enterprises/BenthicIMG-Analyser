@@ -1,6 +1,5 @@
 from collections import defaultdict
 import datetime
-import json
 import os
 import tempfile
 from django.conf import settings
@@ -76,17 +75,17 @@ class ImageUploadBaseTest(ClientTest):
         old_source_image_count = self.get_source_image_count()
 
         image_id, response = self.upload_image(filename, **options)
-        response_content = json.loads(response.content)
+        response_json = response.json()
 
         new_source_image_count = self.get_source_image_count()
 
         if expected_error:
 
-            self.assertEqual(response_content['status'], 'error')
-            self.assertEqual(response_content['message'], expected_error)
+            self.assertEqual(response_json['status'], 'error')
+            self.assertEqual(response_json['message'], expected_error)
 
             if settings.UNIT_TEST_VERBOSITY >= 1:
-                print "Error message:\n{error}".format(error=response_content['message'])
+                print "Error message:\n{error}".format(error=response_json['message'])
 
             # Error, so nothing was uploaded.
             # The number of images in the source should have stayed the same.
@@ -99,15 +98,15 @@ class ImageUploadBaseTest(ClientTest):
                 full_options = self.get_full_upload_options(options)
 
                 if full_options['skip_or_upload_duplicates'] == 'skip':
-                    self.assertEqual(response_content['status'], 'error')
+                    self.assertEqual(response_json['status'], 'error')
                 else:  # replace
-                    self.assertEqual(response_content['status'], 'ok')
+                    self.assertEqual(response_json['status'], 'ok')
 
                 # The number of images in the source should have stayed the same.
                 self.assertEqual(new_source_image_count, old_source_image_count)
             else:
                 # We uploaded a new, non-duplicate image.
-                self.assertEqual(response_content['status'], 'ok')
+                self.assertEqual(response_json['status'], 'ok')
 
                 # The number of images in the source should have gone up by 1.
                 self.assertEqual(new_source_image_count, 1+old_source_image_count)
@@ -573,8 +572,8 @@ class PreviewFilenameTest(ImageUploadBaseTest):
             reverse('image_upload_preview_ajax', kwargs={'source_id': self.source_id}),
             {'metadataOption': 'filenames', 'filenames[]': filenames},
         )
-        response_content = json.loads(response.content)
-        status_list = response_content['statusList']
+        response_json = response.json()
+        status_list = response_json['statusList']
 
         for index, f in enumerate(files):
             expected_status = f[1]
@@ -617,8 +616,8 @@ class PreviewFilenameTest(ImageUploadBaseTest):
             reverse('image_upload_preview_ajax', kwargs={'source_id': self.source_id}),
             {'metadataOption': 'filenames', 'filenames[]': filenames},
         )
-        response_content = json.loads(response.content)
-        status_list = response_content['statusList']
+        response_json = response.json()
+        status_list = response_json['statusList']
 
         for index, expected_status in enumerate([f[1] for f in files]):
             self.assertEqual(status_list[index]['status'], expected_status)
@@ -643,8 +642,8 @@ class PreviewFilenameTest(ImageUploadBaseTest):
             reverse('image_upload_preview_ajax', kwargs={'source_id': self.source_id}),
             {'metadataOption': 'filenames', 'filenames[]': filenames},
         )
-        response_content = json.loads(response.content)
-        status_list = response_content['statusList']
+        response_json = response.json()
+        status_list = response_json['statusList']
 
         for index, expected_error in enumerate([f[1] for f in files]):
             self.assertEqual(status_list[index]['status'], 'error')
@@ -690,9 +689,9 @@ class AnnotationUploadBaseTest(ImageUploadBaseTest):
         annotations_file.close()
 
         self.assertStatusOK(response)
-        response_content = json.loads(response.content)
+        response_json = response.json()
 
-        return response_content
+        return response_json
 
     def process_annotations_and_upload(self, annotations_text, image_filenames,
                                        expected_annotations_per_image,
@@ -949,9 +948,9 @@ class AnnotationUploadErrorTest(AnnotationUploadBaseTest):
             **options
         )
 
-        response_content = json.loads(response.content)
-        self.assertEqual(response_content['status'], 'error')
-        self.assertEqual(response_content['message'], str_consts.UPLOAD_ANNOTATIONS_ON_AND_NO_ANNOTATION_DICT_ERROR_STR)
+        response_json = response.json()
+        self.assertEqual(response_json['status'], 'error')
+        self.assertEqual(response_json['message'], str_consts.UPLOAD_ANNOTATIONS_ON_AND_NO_ANNOTATION_DICT_ERROR_STR)
 
     def test_shelved_annotation_file_is_missing(self):
         """

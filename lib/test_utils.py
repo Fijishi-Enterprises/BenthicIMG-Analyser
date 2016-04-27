@@ -1,6 +1,5 @@
 # Utility classes and functions for tests.
 import datetime
-import json
 import os
 import pytz
 import re
@@ -288,8 +287,8 @@ class ClientTest(BaseTest):
 
         # Get the image_id from response.content;
         # if not present, set to None.
-        response_content = json.loads(response.content)
-        image_id = response_content.get('image_id', None)
+        response_json = response.json()
+        image_id = response_json.get('image_id', None)
 
         return image_id, response
 

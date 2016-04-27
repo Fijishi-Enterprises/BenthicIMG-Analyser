@@ -116,11 +116,11 @@ class SaveAnnotationsTest(ClientTest):
 
         data = dict()
 
-        response_obj = self.client.post(url, data)
-        response = json.loads(response_obj.content)
+        response = self.client.post(url, data)
+        response_json = response.json()
         # Response should include an error that contains the word "permission"
-        self.assertTrue('error' in response)
-        self.assertTrue("permission" in response['error'])
+        self.assertTrue('error' in response_json)
+        self.assertTrue("permission" in response_json['error'])
 
     def test_load_page_as_source_outsider(self):
         """
@@ -133,12 +133,12 @@ class SaveAnnotationsTest(ClientTest):
 
         data = dict()
 
-        response_obj = self.client.post(url, data)
-        response = json.loads(response_obj.content)
+        response = self.client.post(url, data)
+        response_json = response.json()
 
         # Response should include an error that contains the word "permission"
-        self.assertTrue('error' in response)
-        self.assertTrue("permission" in response['error'])
+        self.assertTrue('error' in response_json)
+        self.assertTrue("permission" in response_json['error'])
 
     def test_save_annotations_some_points(self):
         """
@@ -165,12 +165,12 @@ class SaveAnnotationsTest(ClientTest):
                 data['label_'+str(point_num)] = random.choice(label_codes)
             data['robot_'+str(point_num)] = json.dumps(False)
 
-        response_obj = self.client.post(url, data)
-        response = json.loads(response_obj.content)
+        response = self.client.post(url, data)
+        response_json = response.json()
 
-        self.assertTrue('error' not in response)
+        self.assertTrue('error' not in response_json)
         # Since we skipped some points, we shouldn't be 'all done'
-        self.assertTrue('all_done' not in response)
+        self.assertTrue('all_done' not in response_json)
 
         # Check that point 2 doesn't have an annotation
         self.assertRaises(
@@ -204,11 +204,11 @@ class SaveAnnotationsTest(ClientTest):
             data['label_'+str(point_num)] = random.choice(label_codes)
             data['robot_'+str(point_num)] = json.dumps(False)
 
-        response_obj = self.client.post(url, data)
-        response = json.loads(response_obj.content)
+        response = self.client.post(url, data)
+        response_json = response.json()
 
-        self.assertTrue('error' not in response)
-        self.assertTrue('all_done' in response)
+        self.assertTrue('error' not in response_json)
+        self.assertTrue('all_done' in response_json)
 
         # Check that point 2's annotation is what we expect
         annotation_2 = Annotation.objects.get(
@@ -294,11 +294,11 @@ class IsAnnotationAllDoneTest(ClientTest):
 
         data = dict()
 
-        response_obj = self.client.post(url, data)
-        response = json.loads(response_obj.content)
+        response = self.client.post(url, data)
+        response_json = response.json()
         # Response should include an error that contains the word "permission"
-        self.assertTrue('error' in response)
-        self.assertTrue("permission" in response['error'])
+        self.assertTrue('error' in response_json)
+        self.assertTrue("permission" in response_json['error'])
 
     def test_load_page_as_source_outsider(self):
         """
@@ -311,12 +311,12 @@ class IsAnnotationAllDoneTest(ClientTest):
 
         data = dict()
 
-        response_obj = self.client.post(url, data)
-        response = json.loads(response_obj.content)
+        response = self.client.post(url, data)
+        response_json = response.json()
 
         # Response should include an error that contains the word "permission"
-        self.assertTrue('error' in response)
-        self.assertTrue("permission" in response['error'])
+        self.assertTrue('error' in response_json)
+        self.assertTrue("permission" in response_json['error'])
 
     def test_save_annotations_some_points(self):
         """
@@ -349,12 +349,12 @@ class IsAnnotationAllDoneTest(ClientTest):
         # Check all-done status
         url = reverse(
             'is_annotation_all_done_ajax', kwargs=dict(image_id=self.image_id))
-        response_obj = self.client.post(url, data)
-        response = json.loads(response_obj.content)
+        response = self.client.post(url, data)
+        response_json = response.json()
 
-        self.assertTrue('error' not in response)
+        self.assertTrue('error' not in response_json)
         # Since we skipped some points, we shouldn't be 'all done'
-        self.assertFalse(response['all_done'])
+        self.assertFalse(response_json['all_done'])
 
     def test_save_annotations_all_points(self):
         """
@@ -383,12 +383,12 @@ class IsAnnotationAllDoneTest(ClientTest):
         # Check all-done status
         url = reverse(
             'is_annotation_all_done_ajax', kwargs=dict(image_id=self.image_id))
-        response_obj = self.client.post(url, data)
-        response = json.loads(response_obj.content)
+        response = self.client.post(url, data)
+        response_json = response.json()
 
-        self.assertTrue('error' not in response)
+        self.assertTrue('error' not in response_json)
         # Since we labeled all points, we should be 'all done'
-        self.assertTrue(response['all_done'])
+        self.assertTrue(response_json['all_done'])
 
 
 class AnnotationToolSettingsSaveTest(ClientTest):
@@ -407,12 +407,12 @@ class AnnotationToolSettingsSaveTest(ClientTest):
         Load view while not logged in -> error response.
         """
         url = reverse('annotation_tool_settings_save')
-        response_obj = self.client.post(url)
+        response = self.client.post(url)
 
         # Check response
-        response = json.loads(response_obj.content)
-        self.assertTrue('error' in response)
-        self.assertTrue("logged in" in response['error'])
+        response_json = response.json()
+        self.assertTrue('error' in response_json)
+        self.assertTrue("logged in" in response_json['error'])
 
     def test_save_settings(self):
         """
@@ -438,11 +438,11 @@ class AnnotationToolSettingsSaveTest(ClientTest):
             selected_point_color='FFBBBB',
             show_machine_annotations=False,
         )
-        response_obj = self.client.post(url, data)
+        response = self.client.post(url, data)
 
         # Check response
-        response = json.loads(response_obj.content)
-        self.assertTrue('error' not in response)
+        response_json = response.json()
+        self.assertTrue('error' not in response_json)
 
         # Check settings
         settings = AnnotationToolSettings.objects.get(user__username='user2')

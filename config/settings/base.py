@@ -238,10 +238,6 @@ USERENA_SIGNIN_REDIRECT_URL = LOGIN_REDIRECT_URL
 USERENA_USE_MESSAGES = False
 USERENA_LANGUAGE_FIELD = 'en'
 
-# TODO: Honestly no idea if this is still needed (or what it does)
-USERENA_MODULE_PATH = PROJECT_DIR.ancestor(1)
-sys.path.insert(0, USERENA_MODULE_PATH)
-
 
 
 # RabbitMQ settings

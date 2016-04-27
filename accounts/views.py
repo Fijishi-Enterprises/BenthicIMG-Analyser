@@ -1,5 +1,5 @@
-from django.conf import settings
 from django.contrib import messages
+from django.contrib.auth.decorators import permission_required
 from django.contrib.auth.models import User
 from django.core.mail import EmailMessage
 from django.core.urlresolvers import reverse
@@ -8,11 +8,10 @@ from django.shortcuts import redirect, render
 from userena.decorators import secure_required
 
 from .forms import UserAddForm, EmailAllForm
-from lib.decorators import permission_required
 
 
 @secure_required
-@permission_required('auth.add_user')
+@permission_required('is_superuser')
 def user_add(request):
     """
     Add a user using a subclass of Userena's SignupForm,

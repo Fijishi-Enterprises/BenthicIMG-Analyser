@@ -80,40 +80,41 @@ DATABASES = {
     }
 }
 
-# Define our project's installed apps separately from built-in and
-# third-party installed apps. This'll make it easier to define a
-# custom test command that only runs our apps' tests.
-# http://stackoverflow.com/a/2329425/
-PROJECT_APPS = [
-    'accounts',
-    'images',
-    'upload',
-    'annotations',
-    'visualization',
-    'bug_reporting',
-    'requests',
-    'map',
-    'lib',
-]
-REQUIRED_APPS = [
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    # Required by userena as of 2.0.1, otherwise an import fails...
-    'django.contrib.sites',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
+# A list of strings designating all applications that are enabled in this
+# Django installation.
+#
+# When several applications provide different versions of the same resource
+# (template, static file, management command, translation), the application
+# listed first in INSTALLED_APPS has precedence.
+INSTALLED_APPS = [
     # Uncomment the next line to enable the admin:
     'django.contrib.admin',
     # Uncomment the next line to enable admin documentation:
     'django.contrib.admindocs',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.messages',
+    'django.contrib.sessions',
+    # Required by userena as of 2.0.1, otherwise an import fails...
+    'django.contrib.sites',
+    'django.contrib.staticfiles',
+
+    'easy_thumbnails',
+    'guardian',
+    'reversion',
     'userena',
     'userena.contrib.umessages',
-    'guardian',
-    'easy_thumbnails',
-    'reversion',
+
+    'accounts',
+    'annotations',
+    'bug_reporting',
+    'images',
+    'lib',
+    'map',
+    'requests',
+    'upload',
+    'visualization',
 ]
-INSTALLED_APPS = REQUIRED_APPS + PROJECT_APPS
 
 ROOT_URLCONF = 'config.urls'
 

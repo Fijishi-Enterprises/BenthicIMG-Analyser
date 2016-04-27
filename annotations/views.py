@@ -479,8 +479,9 @@ def annotation_tool(request, image_id):
 
     # Get all labels, ordered first by functional group, then by short code.
     labels = source.labelset.labels.all().order_by('group', 'code')
-    # Get labels in the form {'code': <short code>, 'group': <functional group>, 'name': <full name>}.
-    # Convert from a ValuesQuerySet to a list to make the structure JSON-serializable.
+    # Get labels in the form
+    # {'code': <short code>, 'group': <functional group>, 'name': <full name>}.
+    # Convert from a QuerySet to a list to ensure it's JSON-serializable.
     labelValues = list(labels.values('code', 'group', 'name'))
 
     error_message = []

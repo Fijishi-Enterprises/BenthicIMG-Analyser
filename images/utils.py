@@ -137,6 +137,42 @@ def get_prev_image(current_image, conditions=None):
     return get_prev_or_next_image(current_image, 'prev', conditions=conditions)
 
 
+def delete_image(img):
+    """
+    Delete an Image object without leaving behind leftover related objects.
+
+    We DON'T delete the original image file just yet, because if we did,
+    then a subsequent exception in this request/response cycle would leave
+    us in an inconsistent state. Leave original image deletion to a
+    management command or cronjob.
+
+    We do delete easy-thumbnails' image thumbnails though.
+    Unlike the original image, these thumbnails can be re-generated at
+    any time, so it's no big deal if we get an exception later.
+
+    :param img: The Image object to delete.
+    :param delete_files: True to delete the associated image files from
+    the filesystem.
+    :return: None.
+    """
+    # Delete easy-thumbnails-generated thumbnail files.
+    # This is easier to do while the image still exists, so we can
+    # just call delete_thumbnails().
+    img.original_file.delete_thumbnails()
+
+    # These are ForeignKey fields of the Image, and thus deleting the Image
+    # can't trigger a cascade delete on these objects. So we have to get
+    # these objects and delete them separately. Also, we delete them after
+    # deleting the image to not trigger PROTECT-related errors on those
+    # ForeignKeys.
+    metadata = img.metadata
+    status = img.status
+
+    img.delete()
+    metadata.delete()
+    status.delete()
+
+
 def calculate_points(img,
                      annotation_area=None,
                      point_generation_type=None,

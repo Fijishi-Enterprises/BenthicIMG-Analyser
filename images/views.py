@@ -383,20 +383,25 @@ def source_admin(request, source_id):
             messages.success(request, 'User has been removed from the source.')
             return HttpResponseRedirect(reverse('source_main', args=[source_id]))
         elif deleteSource:
+            # Delete all images with our utility function to ensure no
+            # problems like leftover related objects.
             images = source.get_all_images()
-            annotations = Annotation.objects.filter(source = source_id).all()
-            annotations.delete()
-            
             for img in images:
-              original = img.original_file
-              original.delete_thumbnails()
-              original.delete()
-            images.delete()
+                utils.delete_image(img)
+
+            # This is a ForeignKey field of the Source, and thus deleting
+            # the Source can't trigger a cascade delete on this labelset.
+            # So we have to get the labelset and delete it separately.
+            # Also, we delete it after deleting the source to not trigger
+            # PROTECT-related errors on this ForeignKey.
+            labelset = source.labelset
 
             source.delete()
-            messages.success(request, 'Source has been Deleted.')
+            labelset.delete()
+
+            messages.success(request, 'Source has been deleted.')
             
-            return HttpResponseRedirect('/')
+            return HttpResponseRedirect(reverse('index'))
           
         else:
             messages.error(request, 'Please correct the errors below.')

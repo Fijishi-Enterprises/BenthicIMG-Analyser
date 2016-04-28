@@ -19,6 +19,7 @@ from accounts.utils import get_robot_user
 from annotations.models import Annotation, Label, LabelSet, LabelGroup
 from images.models import Source, Image
 from images.tasks import *
+from images.utils import delete_image
 from lib.decorators import source_visibility_required, source_permission_required
 from upload.forms import MetadataForm, CheckboxForm
 
@@ -539,14 +540,7 @@ def browse_delete(request, source_id):
             num_of_images = images_to_delete.count()
 
             for img in images_to_delete:
-                metadata = img.metadata
-                status = img.status
-                # Delete the image
-                img.delete()
-                # Delete the metadata object for this image
-                metadata.delete()
-                # Delete the status object for this image
-                status.delete()
+                delete_image(img)
 
             # try to remove unused key values, after the images are deleted
             source.remove_unused_key_values()

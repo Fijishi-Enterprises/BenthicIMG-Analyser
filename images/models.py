@@ -56,9 +56,6 @@ class Source(models.Model):
 
     affiliation = models.CharField(max_length=200)
 
-    # If we are sure about 1-to-1 mapping labelsets to sources,
-    # then this ForeignKey should probably be in the LabelSet
-    # model, not here.
     labelset = models.ForeignKey(
         'annotations.LabelSet', on_delete=models.PROTECT,
         null=True)
@@ -591,8 +588,6 @@ class Image(models.Model):
     uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL,
         editable=False, null=True)
 
-    # This relation seems backwards from what it should be. The ForeignKey
-    # should be in the ImageStatus model instead.
     status = models.ForeignKey(ImageStatus, on_delete=models.PROTECT,
         editable=False)
 
@@ -608,8 +603,6 @@ class Image(models.Model):
         blank=True,
     )
 
-    # This relation seems backwards from what it should be. The ForeignKey
-    # should be in the Metadata model instead.
     metadata = models.ForeignKey(Metadata, on_delete=models.PROTECT)
 
     source = models.ForeignKey(Source, on_delete=models.CASCADE)

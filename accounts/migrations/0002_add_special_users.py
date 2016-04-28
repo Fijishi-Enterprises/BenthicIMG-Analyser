@@ -21,6 +21,8 @@ def add_special_users(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
+    initial = True
+
     dependencies = [
         ('accounts', '0001_initial'),
     ]

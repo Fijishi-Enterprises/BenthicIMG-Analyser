@@ -19,6 +19,8 @@ def add_empty_labelset(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
+    initial = True
+
     dependencies = [
         ('annotations', '0002_auto_20160415_1727'),
     ]

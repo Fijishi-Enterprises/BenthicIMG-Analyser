@@ -9,8 +9,9 @@ def add_empty_labelset(apps, schema_editor):
     # version than this migration expects. We use the historical version.
     LabelSet = apps.get_model('annotations', 'LabelSet')
     labelset = LabelSet(
-        # Must match LabelSet.EMPTY_LABELSET_ID (we can't access that
-        # attribute directly here)
+        # Must match the former LabelSet.EMPTY_LABELSET_ID.
+        # (Even if we hadn't removed that attribute, we couldn't have
+        # accessed it directly from here anyway.)
         pk=-1,
         description="Empty labelset. A dummy labelset for new sources.",
     )

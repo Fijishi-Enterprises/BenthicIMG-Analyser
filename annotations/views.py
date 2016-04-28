@@ -125,11 +125,11 @@ def labelset_edit(request, source_id):
     """
 
     source = get_object_or_404(Source, id=source_id)
-    labelset = source.labelset
 
-    if labelset.isEmptyLabelset():
+    if source.labelset is None:
         return HttpResponseRedirect(reverse('labelset_new', args=[source.id]))
 
+    labelset = source.labelset
     showLabelForm = False
     labelsInLabelset = [label.id for label in labelset.labels.all()]
     initiallyCheckedLabels = labelsInLabelset
@@ -278,10 +278,10 @@ def labelset_main(request, source_id):
 
     source = get_object_or_404(Source, id=source_id)
 
-    labelset = source.labelset
-    if labelset.isEmptyLabelset():
+    if source.labelset is None:
         return HttpResponseRedirect(reverse('labelset_new', args=[source.id]))
 
+    labelset = source.labelset
     labels = labelset.labels.all().order_by('group__id', 'name')
 
 
@@ -302,7 +302,7 @@ def labelset_list(request):
     """
 
     publicSources = Source.objects.filter(visibility=Source.VisibilityTypes.PUBLIC)
-    publicSourcesWithLabelsets = publicSources.exclude(labelset=LabelSet.getEmptyLabelset())
+    publicSourcesWithLabelsets = publicSources.exclude(labelset=None)
 
     return render(request, 'annotations/labelset_list.html', {
         'publicSourcesWithLabelsets': publicSourcesWithLabelsets,

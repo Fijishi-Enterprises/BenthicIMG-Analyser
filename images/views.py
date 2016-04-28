@@ -144,7 +144,6 @@ def source_new(request):
 
             newSource.default_point_generation_method = PointGen.args_to_db_format(**pointGenForm.cleaned_data)
             newSource.image_annotation_area = AnnotationAreaUtils.percentages_to_db_format(**annotationAreaForm.cleaned_data)
-            newSource.labelset = LabelSet.getEmptyLabelset()
             newSource.save()
 
             # Make the current user an admin of the new source

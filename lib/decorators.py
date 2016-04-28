@@ -84,7 +84,7 @@ image_annotation_area_must_be_editable = ModelViewDecorator(
 # @image_labelset_required('image_id')
 image_labelset_required = ModelViewDecorator(
     model_class=Image,
-    meets_requirements=lambda image, request: not image.source.labelset.isEmptyLabelset(),
+    meets_requirements=lambda image, request: image.source.labelset is not None,
     template='annotations/labelset_required.html',
     get_extra_context=image_get_extra_context,
     default_message="You need to create a labelset before you can use this page."
@@ -93,7 +93,7 @@ image_labelset_required = ModelViewDecorator(
 # @source_labelset_required('source_id')
 source_labelset_required = ModelViewDecorator(
     model_class=Source,
-    meets_requirements=lambda source, request: not source.labelset.isEmptyLabelset(),
+    meets_requirements=lambda source, request: source.labelset is not None,
     template='annotations/labelset_required.html',
     get_extra_context=source_get_extra_context,
     default_message="You need to create a labelset before you can use this page."

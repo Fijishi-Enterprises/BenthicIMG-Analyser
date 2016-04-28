@@ -205,7 +205,7 @@ class SourceNewTest(ClientTest):
 
         self.assertEqual(new_source.name, self.source_args['name'])
         self.assertEqual(new_source.visibility, self.source_args['visibility'])
-        self.assertEqual(new_source.labelset, LabelSet.getEmptyLabelset())
+        self.assertEqual(new_source.labelset, None)
         self.assertEqual(new_source.key1, self.source_args['key1'])
         self.assertEqual(new_source.key2, '')
         self.assertEqual(new_source.key3, '')
@@ -387,7 +387,7 @@ class SourceEditTest(ClientTest):
         self.assertEqual(edited_source.longitude, self.source_args['longitude'])
 
         self.assertEqual(edited_source.create_date, original_create_date)
-        self.assertEqual(edited_source.labelset, LabelSet.getEmptyLabelset())
+        self.assertEqual(edited_source.labelset, None)
         self.assertEqual(edited_source.enable_robot_classifier, original_enable_robot)
 
     def test_optional_fields(self):

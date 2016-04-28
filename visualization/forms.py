@@ -2,7 +2,7 @@ import json
 from django import forms
 from django.forms.fields import ChoiceField, BooleanField
 from django.forms.widgets import HiddenInput
-from annotations.models import LabelSet, LabelGroup
+from annotations.models import LabelGroup, Label
 from images.models import Source, Value1, Value2, Value3, Value4, Value5, Metadata, Image
 from lib.forms import clean_comma_separated_image_ids_field
 
@@ -93,9 +93,12 @@ class BrowseSearchForm(ImageLocationValueForm):
 
         # labels
 
-        labelset = LabelSet.objects.filter(source=source)[0]
+        if source.labelset is None:
+            label_choices = Label.objects.none()
+        else:
+            label_choices = source.labelset.labels.all()
         self.fields['label'] = forms.ModelChoiceField(
-            labelset.labels.all(),
+            label_choices,
             required=False,
         )
 
@@ -271,9 +274,12 @@ class StatisticsSearchForm(forms.Form):
     def __init__(self,source_id,*args,**kwargs):
         super(StatisticsSearchForm,self).__init__(*args,**kwargs)
 
-        # Grab the source and it's labelset
+        # Grab the source and its labels
         source = Source.objects.filter(id=source_id)[0]
-        labelset = LabelSet.objects.filter(source=source)[0]
+        if source.labelset is None:
+            labels = []
+        else:
+            labels = source.labelset.labels.all().order_by('group__id', 'name')
         groups = LabelGroup.objects.all().distinct()
 
         # Get the location keys
@@ -291,9 +297,6 @@ class StatisticsSearchForm(forms.Form):
                     choices.append((valueObj.id, valueObj.name))
 
                 self.fields[valueField] = ChoiceField(choices, label=key, required=False)
-
-        #gets all the labels
-        labels = labelset.labels.all().order_by('group__id', 'name')
 
         # Put the label choices in order
         label_choices = \

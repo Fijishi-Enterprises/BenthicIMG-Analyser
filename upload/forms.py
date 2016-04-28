@@ -220,7 +220,7 @@ class AnnotationImportOptionsForm(Form):
         source = kwargs.pop('source')
         super(AnnotationImportOptionsForm, self).__init__(*args, **kwargs)
 
-        if source.labelset.isEmptyLabelset():
+        if source.labelset is None:
             self.fields['is_uploading_annotations_not_just_points'].choices = (
                 ('no', "Points only"),
             )

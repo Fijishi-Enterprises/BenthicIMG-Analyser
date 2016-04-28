@@ -60,7 +60,8 @@ class Source(models.Model):
     # then this ForeignKey should probably be in the LabelSet
     # model, not here.
     labelset = models.ForeignKey(
-        'annotations.LabelSet', on_delete=models.PROTECT)
+        'annotations.LabelSet', on_delete=models.PROTECT,
+        null=True)
     
     # Each of these fields is allowed to be blank (an empty string).
     # We're assuming that we'll only have key 2 if we have

@@ -82,30 +82,15 @@ class LabelSet(models.Model):
     labels = models.ManyToManyField(Label)
     edit_date = models.DateTimeField('Date edited', auto_now=True, editable=False)
 
-    # Since null-or-non-null foreign keys can be a pain,
-    # here's a dummy labelset object...
-    EMPTY_LABELSET_ID = -1
-
-    @staticmethod
-    def getEmptyLabelset():
-        return LabelSet.objects.get(pk=LabelSet.EMPTY_LABELSET_ID)
-
-    def isEmptyLabelset(self):
-        return self.pk == LabelSet.EMPTY_LABELSET_ID
-
     def __unicode__(self):
-
-        if self.isEmptyLabelset():
-            # Empty labelset
-            return "Empty labelset"
-
         try:
             source = Source.objects.get(labelset=self)
             # Labelset of a source
             return "%s labelset" % source
         except Source.DoesNotExist:
-            # Labelset that's not in any source (perhaps a really old
-            # labelset from early site development)
+            # Labelset that's not in any source (either a really old
+            # labelset from early site development, or a labelset of a
+            # deleted source)
             return "(Labelset not used in any source) " + self.description
 
     

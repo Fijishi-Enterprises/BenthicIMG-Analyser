@@ -351,7 +351,8 @@ class Source(models.Model):
 
     def remove_unused_key_values(self):
         """
-        Finds all of the key values used by this source and removes unused ones.
+        Finds all of the key values of this source
+        and removes unused ones.
         """
         images = self.get_all_images()
 

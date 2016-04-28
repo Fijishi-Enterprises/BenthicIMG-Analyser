@@ -539,9 +539,16 @@ def browse_delete(request, source_id):
             num_of_images = images_to_delete.count()
 
             for img in images_to_delete:
+                metadata = img.metadata
+                status = img.status
+                # Delete the image
                 img.delete()
+                # Delete the metadata object for this image
+                metadata.delete()
+                # Delete the status object for this image
+                status.delete()
 
-            # try to remove unused key values, after the files are deleted
+            # try to remove unused key values, after the images are deleted
             source.remove_unused_key_values()
 
             messages.success(request, 'The {num} selected images have been deleted.'.format(num=num_of_images))

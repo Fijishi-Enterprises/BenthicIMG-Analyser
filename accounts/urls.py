@@ -29,7 +29,7 @@ urlpatterns = [
     # unless we mask those URLs with separate views that redirect to these
     # views.
     url(r'^password_change/$', auth_views.password_change,
-        {'template_name': 'userena/password_form.html'},
+        {'template_name': 'accounts/password_change.html'},
         name='password_change'),
     url(r'^password_change/done/$', auth_views.password_change_done,
         {'template_name': 'accounts/password_change_done.html'},

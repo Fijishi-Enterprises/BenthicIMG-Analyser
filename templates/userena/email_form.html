@@ -9,6 +9,7 @@
         {% csrf_token %}
         <fieldset>
             <legend>{% trans "Change email address" %}</legend>
+            <p>Your current email address is: {{ user.email }}</p>
             {% include "form_generic.html" with form=form %}
         </fieldset>
         <div class="submit_button_wrapper_column_form">

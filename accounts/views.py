@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import permission_required
 from django.contrib.auth.models import User
 from django.core.mail import EmailMessage
 from django.core.urlresolvers import reverse
+from django.http import HttpResponseRedirect
 from django.shortcuts import redirect, render
 
 from userena.decorators import secure_required
@@ -75,3 +76,11 @@ def email_all(request):
     return render(request, 'accounts/email_all_form.html', {
         'form': form,
     })
+
+
+def userena_password_change(request, username):
+    return HttpResponseRedirect(reverse('password_change'))
+
+
+def userena_password_change_done(request, username):
+    return HttpResponseRedirect(reverse('password_change_done'))

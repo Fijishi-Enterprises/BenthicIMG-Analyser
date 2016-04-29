@@ -26,8 +26,8 @@
         <li class="{% block selected_userena_profile_edit %}{% endblock %}">
             <a href="{% url 'userena_profile_edit' user.username %}"><span>{% trans "Edit details" %}</span></a>
         </li>
-        <li class="{% block selected_userena_password_change %}{% endblock %}">
-            <a href="{% url 'userena_password_change' user.username %}"><span>{% trans "Change password" %}</span></a>
+        <li class="{% block selected_password_change %}{% endblock %}">
+            <a href="{% url 'password_change' %}"><span>{% trans "Change password" %}</span></a>
         </li>
         <li class="{% block selected_userena_email_change %}{% endblock %}">
             <a href="{% url 'userena_email_change' user.username %}"><span>{% trans "Change email" %}</span></a>

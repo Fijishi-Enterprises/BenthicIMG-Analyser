@@ -101,7 +101,7 @@ class AddUserTest(ClientTest):
         # Should be able to access own account or profile functions, but not
         # others' account or profile functions.
         for url_name in ['userena_email_change',
-                         'userena_password_change',
+                         'password_change',
                          'userena_profile_edit',
                          ]:
             response = self.client.get(reverse(url_name, kwargs={'username': new_user_username}))

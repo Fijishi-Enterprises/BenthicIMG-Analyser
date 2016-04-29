@@ -24,7 +24,7 @@ urlpatterns = [
     url(r'^$', lib_views.index, name='index'),
 
     url(r'^about/$',
-        TemplateView.as_view(template_name='static/about.html'),
+        TemplateView.as_view(template_name='lib/about.html'),
         name='about',
     ),
     url(r'^contact/$', lib_views.contact, name='contact'),

@@ -305,8 +305,8 @@ class ImageDetailForm(ModelForm):
     def __init__(self, *args, **kwargs):
         """
         Dynamically generate the labels for the location value
-        fields (the labels should be the Source's location keys),
-        and delete unused value fields.
+        fields (the labels should be the Source's location keys).
+        Remove value fields that aren't used by this source.
         """
         source = kwargs.pop('source')
         super(ImageDetailForm, self).__init__(*args, **kwargs)
@@ -323,16 +323,16 @@ class ImageDetailForm(ModelForm):
             if key:
                 # Create a choices iterable of all of this Source's values as
                 # well as an 'Other' value
-                
+
                 # Not sure why I need to specify the '' choice here;
                 # I thought required=False for the ChoiceField would automatically create this... -Stephen
-                choices = [('', '---------')]
+                choices = [('', '(None)')]
                 valueObjs = valueClass.objects.filter(source=source).order_by('name')
                 for valueObj in valueObjs:
                     choices.append((valueObj.id, valueObj.name))
                 choices.append(('Other', 'Other (Specify)'))
 
-                self.fields[valueField] = ChoiceField(choices, label=key, required=True)
+                self.fields[valueField] = ChoiceField(choices, label=key, required=False)
 
                 # Add a text input field for specifying the Other choice
                 self.fields[valueField + '_other'] = CharField(
@@ -348,12 +348,16 @@ class ImageDetailForm(ModelForm):
                 # corresponding value field from the form
                 del self.fields[valueField]
 
-        # For use in templates.  Can iterate over fieldsets instead of the entire form.
-        self.fieldsets = {'keys': [self[name] for name in (['photo_date'] + valueFields)],
-                          'other_info': [self[name] for name in ['name', 'latitude', 'longitude', 'depth',
-                                                                 'camera', 'photographer',
-                                                                 'water_quality', 'strobes', 'framing',
-                                                                 'balance', 'comments']] }
+        # For use in templates.
+        # Can iterate over fieldsets instead of the entire form.
+        self.fieldsets = {
+            'keys': [self[name] for name in (['photo_date'] + valueFields)],
+            'other_info': [self[name] for name in [
+                'name', 'latitude', 'longitude', 'depth',
+                'camera', 'photographer', 'water_quality', 'strobes',
+                'framing', 'balance', 'comments']
+            ],
+        }
 
     def clean(self):
         """
@@ -375,34 +379,36 @@ class ImageDetailForm(ModelForm):
             (source.key5, 'value5', Value5) ]:
 
             # Make sure the form actually has this valueN.
-            if data.has_key(valueField):
+            if not data.has_key(valueField):
+                continue
 
-                # "Other" was chosen.
-                if data[valueField] == 'Other':
-                    otherValue = data[valueField + '_other']
-                    if not otherValue:
-                        # Error
-                        msg = u"Since you selected Other, you must use this text box to specify the %s." % key
-                        self.add_error(valueField + '_other', msg)
-
-                        # TODO: Make this not a hack.  This sets the valueField to be some arbitrary non-blank
-                        # valueN object, so (1) we won't get an error on clean() about 'Other'
-                        # not being a valueClass object, and (2) we won't get a
-                        # "field cannot be blank" error on the dropdown.
-                        # One possible consequence of this hack is that it'll crash if there are no valueClass objects of that value number on the site yet. (e.g. no value5s)
-                        data[valueField] = valueClass.objects.all()[0]
-                    else:
-                        # Add new value to database, or get it if it already exists
-                        # (the latter case would be the user not noticing it was already in the choices).
-                        # **NOTE: Make sure the view function using this form rolls back
-                        # any object creation if the form has errors.
-                        newValueObj, created = valueClass.objects.get_or_create(name=otherValue, source=source)
-                        data[valueField] = newValueObj
-
+            if not data[valueField] == 'Other':
                 # Set to ValueN object of the given id.
-                else:
-                    data[valueField] = valueClass.objects.get(pk=data[valueField])
+                data[valueField] = valueClass.objects.get(pk=data[valueField])
+                continue
 
+            # "Other" was chosen.
+            otherValue = data[valueField + '_other']
+            if not otherValue:
+                # Error
+                msg = u"Since you selected Other, you must use this text box to specify the %s." % key
+                self.add_error(valueField + '_other', msg)
+
+                # TODO: Make this not a hack.  This sets the valueField to be some arbitrary non-blank
+                # valueN object, so (1) we won't get an error on clean() about 'Other'
+                # not being a valueClass object, and (2) we won't get a
+                # "field cannot be blank" error on the dropdown.
+                # One possible consequence of this hack is that it'll crash if there are no valueClass objects of that value number on the site yet. (e.g. no value5s)
+                data[valueField] = valueClass.objects.all()[0]
+            else:
+                # Add new value to database, or get it if it already exists
+                # (the latter case would be the user not noticing it was already in the choices).
+                # TODO: This'll leave unused Values if the form has errors.
+                # In that case, there seems to be no good way of deleting
+                # these Values in this request/response cycle. The form needs
+                # restructuring, or possibly splitting up into 2 forms, etc.
+                newValueObj, created = valueClass.objects.get_or_create(name=otherValue, source=source)
+                data[valueField] = newValueObj
             
         self.cleaned_data = data
         super(ImageDetailForm, self).clean()

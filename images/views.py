@@ -7,7 +7,6 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.contrib import messages
 from django.core.urlresolvers import reverse
-from django.db import transaction
 from django.forms import ValidationError
 from django.forms.models import model_to_dict
 from django.shortcuts import render, get_object_or_404
@@ -615,7 +614,6 @@ def image_detail_edit(request, image_id):
             messages.success(request, 'Image successfully edited.')
             return HttpResponseRedirect(reverse('image_detail', args=[image.id]))
         else:
-            transaction.rollback()  # Don't save "Other" location values to database
             messages.error(request, 'Please correct the errors below.')
     else:
         # Just reached this form page

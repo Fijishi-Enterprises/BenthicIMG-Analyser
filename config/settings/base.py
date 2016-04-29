@@ -86,6 +86,9 @@ DATABASES = {
 # When several applications provide different versions of the same resource
 # (template, static file, management command, translation), the application
 # listed first in INSTALLED_APPS has precedence.
+#
+# If an app has an application configuration class, specify the dotted path
+# to that class here, rather than just specifying the app package.
 INSTALLED_APPS = [
     # Uncomment the next line to enable the admin:
     'django.contrib.admin',
@@ -108,6 +111,7 @@ INSTALLED_APPS = [
     'accounts',
     'annotations',
     'bug_reporting',
+    'errorlogs.apps.ErrorlogsConfig',
     'images',
     'lib',
     'map',

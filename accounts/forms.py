@@ -1,9 +1,10 @@
+from django.conf import settings
+from django.contrib.auth.models import User
 from django.forms import Form, CharField, Textarea, TextInput
 from userena.forms import SignupForm
 from userena.models import UserenaSignup
 
 from .utils import send_activation_email_with_password
-from lib.utils import rand_string
 
 class UserAddForm(SignupForm):
 
@@ -22,10 +23,10 @@ class UserAddForm(SignupForm):
         pass
 
     def save(self):
-        # Randomly generate a password.
-        username, email, password = (self.cleaned_data['username'],
-                                     self.cleaned_data['email'],
-                                     rand_string(10))
+        username = self.cleaned_data['username']
+        email = self.cleaned_data['email']
+        password = User.objects.make_random_password(
+            length=settings.MINIMUM_PASSWORD_LENGTH)
 
         new_user = UserenaSignup.objects.create_user(
             username, email, password, active=False, send_email=False)

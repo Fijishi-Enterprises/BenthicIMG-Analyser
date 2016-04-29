@@ -201,6 +201,28 @@ LOGIN_URL = '/accounts/signin/'
 LOGOUT_URL = '/accounts/signout/'
 LOGIN_REDIRECT_URL = '/images/source/'
 
+# Custom setting.
+MINIMUM_PASSWORD_LENGTH = 10
+# Built-in setting.
+# The list of validators that are used to check the strength of user passwords.
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'OPTIONS': {
+            'min_length': MINIMUM_PASSWORD_LENGTH,
+        }
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+    },
+]
+
 # The name of the class to use to run the test suite
 TEST_RUNNER = 'lib.test_utils.MyTestSuiteRunner'
 

@@ -98,17 +98,19 @@ class AddUserTest(ClientTest):
 
         # Check various permissions.
         self.assertFalse(response.context['user'].is_superuser)
-        # Should be able to access own account or profile functions, but not
-        # others' account or profile functions.
-        for url_name in ['userena_email_change',
-                         'password_change',
-                         'userena_profile_edit',
-                         ]:
+        # URLs with usernames: Should be able to access own account or
+        # profile functions, but not others' account or profile functions.
+        for url_name in ['userena_email_change', 'userena_profile_edit']:
             response = self.client.get(reverse(url_name, kwargs={'username': new_user_username}))
             self.assertStatusOK(response)
             self.assertTemplateNotUsed(response, self.PERMISSION_DENIED_TEMPLATE)
             response = self.client.get(reverse(url_name, kwargs={'username': 'superuser_user'}))
             self.assertEqual(response.status_code, 403)
+        # URLs without usernames: Should be able to access the page.
+        for url_name in ['password_change']:
+            response = self.client.get(reverse(url_name))
+            self.assertStatusOK(response)
+            self.assertTemplateNotUsed(response, self.PERMISSION_DENIED_TEMPLATE)
 
         # Can we log out and then log back in as the new user?
         self.client.logout()

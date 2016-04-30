@@ -1,25 +1,28 @@
-#Ignore files that are meant to differ between dev and production
+# Files that are meant to differ between dev and production
 secrets.json
 images/task_helpers.py
-images/task_helpers.pyc
 templates/maintenance_notice.html
+
+# Compiled Python
 *.pyc
-*.py~
+
+# Temporary files made by text/code editors
 *~
-#Ignore apache configs
+
+# Apache configs
 apache/django.wsgi
 
-#Ignore IDE stuff
+# IDE stuff
 .idea
 
-#Ignore folders with the backend outputs
+# Folders with the backend outputs
 /images/models/*
 /images/classify/*
 /images/features/*
 /images/preprocess/*
 /logs/*
 
-#ignore other misc things
+# Misc
 /images/robot_running_flag
 /misc_not_versioncontrolled/*
 /tmp/*

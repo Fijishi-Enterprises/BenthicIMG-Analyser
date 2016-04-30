@@ -1,7 +1,7 @@
 # Files that are meant to differ between dev and production
 secrets.json
-images/task_helpers.py
-templates/maintenance_notice.html
+project/images/task_helpers.py
+project/templates/maintenance_notice.html
 
 # Compiled Python
 *.pyc
@@ -21,14 +21,14 @@ apache/django.wsgi
 .idea
 
 # Folders with the backend outputs
-/images/models/*
-/images/classify/*
-/images/features/*
-/images/preprocess/*
+project/images/models/*
+project/images/classify/*
+project/images/features/*
+project/images/preprocess/*
 /logs/*
 
 # Misc
-/images/robot_running_flag
+project/images/robot_running_flag
 /misc_not_versioncontrolled/*
 /tmp/*
 supervisor*

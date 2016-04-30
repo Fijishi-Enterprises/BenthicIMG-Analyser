@@ -3,24 +3,20 @@ from .base import *
 
 
 # Directory for any site related files, not just the repository.
-SITE_DIR = PROJECT_DIR.ancestor(1)
+SITE_DIR = PROJECT_DIR.ancestor(2)
 
 
 
-DEBUG = False
+DEBUG = True
 
 # People who get code error notifications.
 # In the format [('Full Name', 'email@example.com'),
 # ('Full Name', 'anotheremail@example.com')]
-ADMINS = [
-    ('Stephen', 'stephenjchan@gmail.com'),
-    ('Oscar', 'oscar.beijbom@gmail.com'),
-    ('CoralNet', 'coralnet@eng.ucsd.edu'),
-]
+ADMINS = []
 
 # Hosts/domain names that are valid for this site.
 # "*" matches anything, ".example.com" matches example.com and all subdomains
-ALLOWED_HOSTS = ['.ucsd.edu']
+ALLOWED_HOSTS = ['*']
 
 # Local time zone for this installation. All choices can be found here:
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name (although not all
@@ -99,4 +95,4 @@ UNIT_TEST_VERBOSITY = 0
 
 # VISION BACKEND SETTINGS
 # TODO: move to separate settings file.
-SLEEP_TIME_BETWEEN_IMAGE_PROCESSING = 60 * 60
+SLEEP_TIME_BETWEEN_IMAGE_PROCESSING = 5 * 60

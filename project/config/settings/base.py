@@ -13,7 +13,7 @@ from django.core.exceptions import ImproperlyConfigured
 # so we calculate from there.
 SETTINGS_DIR = Path(__file__).ancestor(1)
 
-# Base directory of the version control project.
+# Base directory of the Django project.
 PROJECT_DIR = SETTINGS_DIR.ancestor(2)
 
 # JSON-based secrets module, expected to be in the SETTINGS_DIR

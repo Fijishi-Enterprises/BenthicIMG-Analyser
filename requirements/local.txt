@@ -1,1 +1,7 @@
 -r base.txt # includes the base.txt requirements file
+
+
+# Documentation
+# The version shouldn't really matter here, as it's not part of the running
+# Django project
+Sphinx

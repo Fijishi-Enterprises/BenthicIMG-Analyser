@@ -114,7 +114,6 @@ INSTALLED_APPS = [
     'errorlogs.apps.ErrorlogsConfig',
     'images',
     'lib',
-    'map',
     'requests',
     'upload',
     'visualization',

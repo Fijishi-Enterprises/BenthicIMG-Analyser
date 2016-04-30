@@ -376,7 +376,6 @@ def source_robot_status(source_id):
 def get_map_sources():
     # Get all sources that have both latitude and longitude specified.
     # (In other words, leave out the sources that have either of them blank.)
-    # TODO: When we have hidden sources, don't count the hidden sources.
     map_sources_queryset = Source.objects.exclude(latitude='').exclude(longitude='')
 
     map_sources = []
@@ -429,12 +428,6 @@ def get_map_sources():
             id=source.id
         ))
 
-
-        # TODO: When we have hidden sources, don't count the hidden sources.
-        # TODO: Should we not count sources that don't have latitude/longitude
-        #       specified?
-        # TODO: Don't count images and annotations from sources that don't count.
-        # TODO: Should we count robot annotations?
     return map_sources
 
 

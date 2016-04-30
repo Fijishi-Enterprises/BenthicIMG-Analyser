@@ -9,6 +9,11 @@ templates/maintenance_notice.html
 # Temporary files made by text/code editors
 *~
 
+# Sphinx output files
+docs/_build
+docs/_static
+docs/_templates
+
 # Apache configs
 apache/django.wsgi
 

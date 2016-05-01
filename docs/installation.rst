@@ -110,6 +110,18 @@ maintenance_notice.html
 Look in ``project/templates``. Copy ``maintenance_notice_example.html`` to ``maintenance_notice.html``. This is all you need to do for now. See the docs on putting the site under maintenance (TODO) for more details on what this file is for.
 
 
+Make some directories
+---------------------
+Certain file-creation parts of the project code will trigger an ``IOError`` saying ``No such file or directory`` when the destination directory doesn't already exist. This behavior should probably be fixed at some point, but in the meantime, you'll need to create at least the following directories:
+
+  - ``<PROCESSING_ROOT>/images/features``
+  - ``<PROCESSING_ROOT>/images/preprocess``
+  - ``<PROCESSING_ROOT>/logs``
+  - ``<TEST_PROCESSING_ROOT>/images/features``
+  - ``<TEST_PROCESSING_ROOT>/images/preprocess``
+  - ``<TEST_PROCESSING_ROOT>/logs``
+
+
 Try running the unit tests
 --------------------------
 At this point, you should be ready to run the unit test suite to check if everything is working so far.

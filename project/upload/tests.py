@@ -370,7 +370,7 @@ class UploadFilenameCheckTest(ImageUploadBaseTest):
         image_id, response = self.upload_image_test(os.path.join('0keys', '2011-05-28.png'))
 
         img = Image.objects.get(pk=image_id)
-        self.assertEqual(img.get_location_value_str_list(), [])
+        self.assertEqual(img.get_location_value_names(), [])
         self.assertEqual(img.metadata.name, '2011-05-28.png')
         self.assertEqual(img.metadata.photo_date, datetime.date(2011,5,28))
 
@@ -378,7 +378,7 @@ class UploadFilenameCheckTest(ImageUploadBaseTest):
         image_id, response = self.upload_image_test(os.path.join('0keys', '2012-05-28_grid1.png'))
 
         img = Image.objects.get(pk=image_id)
-        self.assertEqual(img.get_location_value_str_list(), [])
+        self.assertEqual(img.get_location_value_names(), [])
         self.assertEqual(img.metadata.name, 'grid1.png')
         self.assertEqual(img.metadata.photo_date, datetime.date(2012,5,28))
 
@@ -392,14 +392,14 @@ class UploadFilenameCheckTest(ImageUploadBaseTest):
         image_id, response = self.upload_image_test(os.path.join('1key', '001_2011-05-28.png'))
 
         img = Image.objects.get(pk=image_id)
-        self.assertEqual(img.get_location_value_str_list(), ['001'])
+        self.assertEqual(img.get_location_value_names(), ['001'])
         self.assertEqual(img.metadata.name, '001_2011-05-28.png')
         self.assertEqual(img.metadata.photo_date, datetime.date(2011,5,28))
 
         image_id, response = self.upload_image_test(os.path.join('1key', '001_2012-05-28_rainbow-grid-one.png'))
 
         img = Image.objects.get(pk=image_id)
-        self.assertEqual(img.get_location_value_str_list(), ['001'])
+        self.assertEqual(img.get_location_value_names(), ['001'])
         self.assertEqual(img.metadata.name, 'rainbow-grid-one.png')
         self.assertEqual(img.metadata.photo_date, datetime.date(2012,5,28))
 
@@ -409,14 +409,14 @@ class UploadFilenameCheckTest(ImageUploadBaseTest):
         image_id, response = self.upload_image_test(os.path.join('2keys', 'rainbow_002_2011-05-28.png'))
 
         img = Image.objects.get(pk=image_id)
-        self.assertEqual(img.get_location_value_str_list(), ['rainbow', '002'])
+        self.assertEqual(img.get_location_value_names(), ['rainbow', '002'])
         self.assertEqual(img.metadata.name, 'rainbow_002_2011-05-28.png')
         self.assertEqual(img.metadata.photo_date, datetime.date(2011,5,28))
 
         image_id, response = self.upload_image_test(os.path.join('2keys', 'cool_001_2012-05-28_cool_image_one.png'))
 
         img = Image.objects.get(pk=image_id)
-        self.assertEqual(img.get_location_value_str_list(), ['cool', '001'])
+        self.assertEqual(img.get_location_value_names(), ['cool', '001'])
         self.assertEqual(img.metadata.name, 'cool_image_one.png')
         self.assertEqual(img.metadata.photo_date, datetime.date(2012,5,28))
 
@@ -426,14 +426,14 @@ class UploadFilenameCheckTest(ImageUploadBaseTest):
         image_id, response = self.upload_image_test(os.path.join('5keys', 'square_img-s_elmt-m_rainbow_002_2012-05-28.png'))
 
         img = Image.objects.get(pk=image_id)
-        self.assertEqual(img.get_location_value_str_list(), ['square', 'img-s', 'elmt-m', 'rainbow', '002'])
+        self.assertEqual(img.get_location_value_names(), ['square', 'img-s', 'elmt-m', 'rainbow', '002'])
         self.assertEqual(img.metadata.name, 'square_img-s_elmt-m_rainbow_002_2012-05-28.png')
         self.assertEqual(img.metadata.photo_date, datetime.date(2012,5,28))
 
         image_id, response = self.upload_image_test(os.path.join('5keys', 'rect_img-m_elmt-l_cool_001_2012-05-28__cool_image_one_.png'))
 
         img = Image.objects.get(pk=image_id)
-        self.assertEqual(img.get_location_value_str_list(), ['rect', 'img-m', 'elmt-l', 'cool', '001'])
+        self.assertEqual(img.get_location_value_names(), ['rect', 'img-m', 'elmt-l', 'cool', '001'])
         self.assertEqual(img.metadata.name, '_cool_image_one_.png')
         self.assertEqual(img.metadata.photo_date, datetime.date(2012,5,28))
 

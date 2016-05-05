@@ -2,7 +2,7 @@ import json
 from urllib import urlencode
 from django.core.urlresolvers import reverse
 from lib.test_utils import ClientTest, MediaTestComponent
-from images.models import Source, Image, Value1
+from images.models import Source, Image, Value1, Value3, Value4
 
 
 class BrowseTest(ClientTest):
@@ -224,6 +224,67 @@ class MetadataEditTest(ClientTest):
         self.assertEqual(old_strobes, image.metadata.strobes)
         self.assertEqual(old_framing, image.metadata.framing)
         self.assertEqual(old_balance, image.metadata.balance)
+
+
+class MetadataEditTest2(ClientTest):
+    """
+    Test metadata edit, more specific functionality.
+    """
+    extra_components = [MediaTestComponent]
+    fixtures = ['test_users.yaml', 'test_labels.yaml',
+        'test_sources_with_different_keys.yaml']
+    source_member_roles = [
+        ('5 keys', 'user2', Source.PermTypes.EDIT.code),
+        ('5 keys', 'user3', Source.PermTypes.VIEW.code),
+    ]
+
+    def setUp(self):
+        super(MetadataEditTest2, self).setUp()
+        self.source_id = Source.objects.get(name='5 keys').pk
+
+        self.default_upload_params['specify_metadata'] = 'after'
+
+        # Upload an image
+        self.client.login(username='user2', password='secret')
+        self.image_id = self.upload_image('001_2012-05-01_color-grid-001.png')[0]
+        self.client.logout()
+
+    def test_load_image_with_incomplete_location_values(self):
+        """
+        Load the metadata form with an image that has value k but not
+        value k-1. Value k should still display on the form.
+        (Don't assume that k isn't there just because k-1 isn't.)
+        """
+        url = (
+            reverse('visualize_source', kwargs=dict(source_id=self.source_id))
+            + '?' + urlencode(dict(page_view='metadata'))
+        )
+        self.client.login(username='user2', password='secret')
+
+        source = Source.objects.get(pk=self.source_id)
+        image = Image.objects.get(pk=self.image_id)
+        v1 = Value1(name="AAA", source=source)
+        v1.save()
+        v3 = Value3(name="CCC", source=source)
+        v3.save()
+        v4 = Value4(name="DDD", source=source)
+        v4.save()
+        image.metadata.value1 = v1
+        image.metadata.value2 = None
+        image.metadata.value3 = v3
+        image.metadata.value4 = v4
+        image.metadata.value5 = None
+        image.metadata.save()
+
+        # Load the page with the metadata form.
+        # Ensure that the location values filled are: 1, 3, 4
+        response = self.client.get(url)
+        form = response.context['metadataForm']
+        self.assertEqual(form.forms[0]['key1'].value(), "AAA")
+        self.assertEqual(form.forms[0]['key2'].value(), "")
+        self.assertEqual(form.forms[0]['key3'].value(), "CCC")
+        self.assertEqual(form.forms[0]['key4'].value(), "DDD")
+        self.assertEqual(form.forms[0]['key5'].value(), "")
 
 
 class ImageDeleteTest(ClientTest):

@@ -347,7 +347,7 @@ def visualize_source(request, source_id):
         for i, image in enumerate(all_items):
 
             # Location keys
-            keys = image.get_location_value_str_list()
+            keys = image.get_location_value_names()
             for j, key in enumerate(keys):
                 initValuesMetadata['form-%s-key%s' % (i,j+1)] = key
 

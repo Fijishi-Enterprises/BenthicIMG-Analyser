@@ -263,15 +263,6 @@ USERENA_LANGUAGE_FIELD = 'en'
 
 
 
-# RabbitMQ settings
-BROKER_HOST = get_secret("RABBITMQ_HOST")
-BROKER_PORT = get_secret("RABBITMQ_PORT")
-BROKER_USER = "coralnet"
-BROKER_PASSWORD = get_secret("RABBITMQ_PASSWORD")
-BROKER_VHOST = get_secret("RABBITMQ_VHOST")
-
-
-
 # [Custom setting]
 # Directory containing uploadable files for use during unit tests.
 SAMPLE_UPLOADABLES_ROOT = PROJECT_DIR.child('sample_uploadables')

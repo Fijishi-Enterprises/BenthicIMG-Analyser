@@ -147,6 +147,7 @@ At this point, it's a good idea to make a snapshot of the RDS instance, in case 
 
 
 
+.. _y2016-database-migration-django-migrations:
 
 Django migrations
 -----------------
@@ -177,10 +178,9 @@ To apply the ``reversion`` migrations:
 
 - pip-install ``Django==1.6``, ``django-reversion==1.8.4``, and ``South``.
 - Add ``South`` to your ``INSTALLED_APPS`` setting.
+- Add a `SOUTH_MIGRATION_MODULES setting <http://django-south.readthedocs.io/en/latest/settings.html#south-migration-modules>`__ to let South know where the previously-run South migrations reside. This will avoid South errors about `"ghost migrations" <http://stackoverflow.com/questions/8875459/what-is-a-django-south-ghostmigrations-exception-and-how-do-you-debug-it>`__. For our apps, use ``<appname>/south_migrations``. This directory should also be available for all third-party apps except reversion.
 - Use ``manage.py migrate --list`` to confirm that ``reversion`` has run migrations 0001 to 0005.
 - Use ``manage.py migrate reversion`` to run migrations 0006 to 0008.
-- Remove ``South`` from your ``INSTALLED_APPS`` setting.
+- Remove ``South`` from your ``INSTALLED_APPS`` setting, and remove the ``SOUTH_MIGRATION_MODULES`` setting.
 - pip-install the latest ``Django`` and ``django-reversion`` again, and uninstall ``South``.
 - Now you can see with ``manage.py showmigrations`` that the ``reversion`` migration numbers have changed. Fake-run 0001, then run 0002.
-
-One we are certain that the production server has moved on from South for good, we can remove our ``<appname>/south_migrations`` directories. The reason we need to keep those directories for now is that, if we run any South command and it thinks there's any migrations files that it ran in the past which it can't find now, it'll raise an error about "ghost migrations". (It determines this based on the south-migrations table in the database.)

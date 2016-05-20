@@ -174,9 +174,15 @@ Django migrations
 -----------------
 Run ``python manage.py migrate``. If Django's auth system asks you to create a superuser, then do that.
 
+For the 2016 production-server Django migration process, see the :ref:`y2016-database-migration-django-migrations` section on the relevant docs page.
+
 For information on how to manage migrations from now on, read `Django's docs <https://docs.djangoproject.com/en/dev/topics/migrations/>`__.
 
-For the 2016 production-server Django migration process, see: TODO
+If you now run ``manage.py makemigrations`` for all apps, it may create a new migration under the third-party app userena (as of userena 2.0.1 and Django 1.9.5). Making our own migrations for 3rd party apps will almost certainly be problematic when those apps update. So we should delete (and definitely shouldn't run) any userena migrations we make from our runs of makemigrations.
+
+- The main cause of the issue is that Django's EmailField's default max_length changed from 75 to 254 in Django 1.8. userena officially supports Django 1.5 to 1.9, so the reason they haven't added such a migration is probably to be consistent with the earlier versions in that range.
+
+- Here's a `related thread <https://groups.google.com/forum/#!topic/django-developers/rzK7JU-lE8Y>`__ on Google Groups, where a Django core developer says the following: "The recommended way [for third party app maintainers] is to run makemigrations with the lowest version of Django you wish to support. As this recommendation hasn't been tested, let us know if you encounter any problems with it. A potential problem that comes to mind is if you have an EmailField which had its default max_length increased to 254 characters in 1.8."
 
 
 Try running the server (dev only)

@@ -150,4 +150,37 @@ At this point, it's a good idea to make a snapshot of the RDS instance, in case 
 
 Django migrations
 -----------------
-TODO
+These are the migrations that the UCSD CSE production DB must run to get completely up to date with the latest Django and repo code.
+
+These migration numbers are in Django's new migration framework unless specifically denoted as South migrations. (Last update: Django 1.9.5)
+
+- accounts: fake 0001-0002, run the rest
+- admin: fake 0001, run 0002
+- annotations: fake 0001-0003, run the rest
+- auth: fake 0001, run 0002-0007
+- bug_reporting: fake 0001, run the rest
+- contenttypes: fake 0001, run 0002
+- easy_thumbnails: fake 0001, run 0002 (OR run South's 0016, then fake new 0001-0002)
+- guardian: fake 0001
+- images: fake 0001, run the rest
+- reversion: run South's 0006-0008, then fake new 0001, then run new 0002
+- sessions: fake 0001
+- sites: fake 0001, run 0002
+- umessages: fake 0001
+- userena: fake 0001
+
+For our apps, ``manage.py migrate --fake-initial`` should work, so no need to specify migration numbers. That should work for Django first-party apps as well. Might want to explicitly specify which numbers to fake and which to run for the third-party apps, though.
+
+``reversion`` should be the only tricky one here. Before our 2016 upgrading process, we had reversion 1.5.1, and that had South migrations numbered up to 0005. But just before reversion switched to the new migrations, they had made South migrations up to 0008. Then they merged the South migrations 0001-0008 into a new 0001 to make things cleaner.
+
+To apply the ``reversion`` migrations:
+
+- pip-install ``Django==1.6``, ``django-reversion==1.8.4``, and ``South``.
+- Add ``South`` to your ``INSTALLED_APPS`` setting.
+- Use ``manage.py migrate --list`` to confirm that ``reversion`` has run migrations 0001 to 0005.
+- Use ``manage.py migrate reversion`` to run migrations 0006 to 0008.
+- Remove ``South`` from your ``INSTALLED_APPS`` setting.
+- pip-install the latest ``Django`` and ``django-reversion`` again, and uninstall ``South``.
+- Now you can see with ``manage.py showmigrations`` that the ``reversion`` migration numbers have changed. Fake-run 0001, then run 0002.
+
+One we are certain that the production server has moved on from South for good, we can remove our ``<appname>/south_migrations`` directories. The reason we need to keep those directories for now is that, if we run any South command and it thinks there's any migrations files that it ran in the past which it can't find now, it'll raise an error about "ghost migrations". (It determines this based on the south-migrations table in the database.)

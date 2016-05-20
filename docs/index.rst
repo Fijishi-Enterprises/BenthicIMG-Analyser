@@ -12,6 +12,7 @@ Contents:
    :maxdepth: 2
 
    installation
+   2016_database_migration
 
 
 

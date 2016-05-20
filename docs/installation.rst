@@ -6,7 +6,13 @@ Git
 -----
 Download and install Git, if you don't have it already.
 
-Register an account on `Github <https://github.com/>`_ and ensure you have access to the coralnet repository.
+Register an account on `Github <https://github.com/>`__ and ensure you have access to the coralnet repository.
+
+Create an SSH key on your machine for your user profile, and add the public part of the key on your GitHub settings. See `instructions <https://help.github.com/articles/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent/>`__ on GitHub.
+
+- This process could be optional for a local development machine, but it'll probably be required on the production server. If ``git`` commands result in a ``Permission Denied (publickey)`` error, then you know you have to complete this process. (`Source <https://gist.github.com/adamjohnson/5682757>`__)
+
+- The ``-C`` option on the SSH key creation step doesn't have to be an email address. It's just a comment for you to remember what and who the SSH key is for. (`Source <http://serverfault.com/questions/309171/possible-to-change-email-address-in-keypair>`__)
 
 Git-clone the coralnet repository to your machine.
 
@@ -15,7 +21,7 @@ PostgreSQL
 ----------
 Download and install the PostgreSQL server/core, 9.5.1. 32 or 64 bit shouldn't matter. Make sure you keep track of the root password.
 
-In PostgreSQL, create a database called ``coralnet``. Owner = ``postgres``, Encoding = UTF8 (`Django says so <https://docs.djangoproject.com/en/dev/ref/databases/#optimizing-postgresql-s-configuration>`_). Defaults for other options should be fine.
+In PostgreSQL, create a database called ``coralnet``. Owner = ``postgres`` (or whatever the master user is), Encoding = UTF8 (`Django says so <https://docs.djangoproject.com/en/dev/ref/databases/#optimizing-postgresql-s-configuration>`__). Defaults for other options should be fine.
 
 - On Windows: Open pgAdmin III, connect to the server, then right-click the Databases item and select "New Database...".
 
@@ -23,9 +29,9 @@ Create a user called ``django``. Give ``django`` permission to do anything with 
 
 - On Windows:
 
-  - New Group Role..., Role name = ``coralnet_admin``, click OK.
-  - Right click coralnet database, go to Privileges tab, select 'group coralnet_admin' in the Role dropdown, check ALL, click Add/Change, click OK.
-  - New Login Role..., Role name = ``django``, go to Definition tab and add password, go to Role membership tab and add ``coralnet_admin``, click OK.
+  - Right-click Group Roles, New Group Role..., Role name = ``coralnet_admin``, click OK.
+  - Right-click coralnet database, Properties, go to Privileges tab, select 'group coralnet_admin' in the Role dropdown, check ALL, click Add/Change, click OK.
+  - Right-click Login Roles, New Login Role..., Role name = ``django``, go to Definition tab and add password, go to Role membership tab and add ``coralnet_admin``, click OK.
 
 Also make sure ``django`` has permission to create databases. This is for running unit tests.
 
@@ -33,31 +39,39 @@ Also make sure ``django`` has permission to create databases. This is for runnin
 
 .. [#dbcreateperm] I initially tried doing this with the ``coralnet_admin`` group role, but ``django`` still wasn't able to create databases. I had to edit the Login Role instead, for some reason. -Stephen
 
-Optimization recommended by Django: set some default parameters for database connections. `See the docs page <https://docs.djangoproject.com/en/dev/ref/databases/#optimizing-postgresql-s-configuration>`_. Can either set these for the ``django`` user with ``ALTER_ROLE``, or for all database users in ``postgresql.conf``.
+Optimization recommended by Django: set some default parameters for database connections. `See the docs page <https://docs.djangoproject.com/en/dev/ref/databases/#optimizing-postgresql-s-configuration>`__. Can either set these for the ``django`` user with ``ALTER_ROLE``, or for all database users in ``postgresql.conf``.
 
 - ``ALTER_ROLE`` method on Windows: Right click the ``django`` Login Role, Properties, Variables tab. Database = ``coralnet``, Variable Name and Variable Value = whatever is specified in that Django docs link. Click Add/Change to add each of the 3 variables. Click OK.
 
 Two more notes:
 
-- When you create the ``coralnet`` database, it'll have ``public`` privileges by default. This means that every user created in that PostgreSQL installation has certain privileges by default, such as connecting to that database. `Related SO thread <http://stackoverflow.com/questions/6884020/why-new-user-in-postgresql-can-connect-to-all-databases>`_. This shouldn't be an issue as long as we don't have any PostgreSQL users with insecure passwords.
+- When you create the ``coralnet`` database, it'll have ``public`` privileges by default. This means that every user created in that PostgreSQL installation has certain privileges by default, such as connecting to that database. `Related SO thread <http://stackoverflow.com/questions/6884020/why-new-user-in-postgresql-can-connect-to-all-databases>`__. This shouldn't be an issue as long as we don't have any PostgreSQL users with insecure passwords.
 
 - A Django 1.7 release note says: "When running tests on PostgreSQL, the USER will need read access to the built-in postgres database." This doesn't seem to be a problem by default, probably due to the default ``public`` privileges described above.
 
-For the 2016 production-server database migration process, see: TODO
+For the 2016 production-server database migration process, see: :doc:`2016_database_migration`
 
 
 Python
 ------
 Download and install Python 2.7.11. 32 bit or 64 bit doesn't matter. It's perfectly fine to keep other Python versions on the same system. Just make sure that your ``python`` and ``pip`` commands point to the correct Python version.
 
-Upgrade pip: ``python -m pip install -U pip``
+- On Linux, you'll probably have to install this Python version from source.
+
+  - See `Python's docs <https://docs.python.org/2/using/unix.html>`__ for help; download the ``.tgz`` for the desired version, then ``tar xzf Python-<version>.tgz``, then follow the build instructions from there.
+
+  - You probably don't want to change the default Python on your Linux system. To be on the safe side, heed the docs' warning and use ``make altinstall`` instead of ``make install`` to ensure that this Python version gets installed alongside the existing one, without masking/overwriting it.
+
+    - On Ubuntu 14.04, 2015/05/17, the result of ``make altinstall`` is that the original Python 2.7.6 is still at ``/usr/bin/python2.7``, while the newly installed Python 2.7.11 is at ``/usr/local/bin/python2.7``.
+
+Check your pip's version with ``pip -V``. (The pip executable is in the same place as the python one). If pip says it's out of date, it'll suggest that you run a command to update it. Do that.
 
 
 Virtualenv
 ----------
 Install virtualenv: ``pip install virtualenv``
 
-Create a virtual environment as described in the `Virtualenv docs <https://virtualenv.pypa.io/en/latest/userguide.html>`_. Create the virtual environment outside of your cloned Git repo; for example, you could create it one directory up from the repo.
+Create a virtual environment as described in the `Virtualenv docs <https://virtualenv.pypa.io/en/latest/userguide.html>`__. Create the virtual environment outside of your cloned Git repo; for example, you could create it one directory up from the repo.
 
 You should ensure that your virtual environment is activated when installing Python packages or running Django management commands for the CoralNet project. From here on out, these instructions will assume you have your virtual environment (also referred to as virtualenv) activated.
 
@@ -71,6 +85,20 @@ Look under ``requirements`` in the coralnet repository.
 - If you are setting up the production machine, you want to use ``requirements/production.txt``.
 
 With your virtualenv activated, run ``pip install -r requirements/<name>.txt``.
+
+- When installing ``psycopg2``, if you're on Linux and you get ``Error: pg_config executable not found``, you may have to install a Linux package first: ``postgresql95-devel`` on Red Hat/CentOS, ``libpq-dev`` on Debian/Ubuntu, ``libpq-devel`` on Cygwin/Babun. (`Source <http://stackoverflow.com/questions/11618898/pg-config-executable-not-found>`__)
+
+  - The package may not be in your package directory by default. See PostgreSQL's `Downloads <http://www.postgresql.org/download/>`__ page and follow instructions to get binary packages for your Linux distro.
+  
+- When installing ``Pillow``, if you're on Linux, you'll get errors if you don't have certain packages:
+
+  - ``ValueError: jpeg is required unless explicitly disabled using --disable-jpeg, aborting``: You need to install libjpeg (jpeg development support). For supported versions of libjpeg, see the `Pillow docs <https://pillow.readthedocs.io/en/latest/installation.html>`__. For example, to use libjpeg version 8 in Ubuntu, install ``libjpeg8-dev``.
+
+  - ``fatal error: Python.h: No such file or directory``: You need to install Python compile headers. In Ubuntu, this is ``python-dev``.
+
+  - PNG related errors are also possible. In Ubuntu, this is ``zlib1g-dev``.
+
+  - There are also other packages that support optional functionality in Pillow. See the `Pillow docs <https://pillow.readthedocs.io/en/latest/installation.html>`__.
 
 
 Django settings module
@@ -88,8 +116,16 @@ One way to put all of our Python setup together nicely is with a shell/batch scr
 ::
 
   cd D:\<path up to Git repo>\coralnet\project
-  set "DJANGO_SETTINGS_MODULE=config.settings.dev_<name>"
+  set "DJANGO_SETTINGS_MODULE=config.settings.<module name>"
   cmd /k D:\<path to virtualenv>\Scripts\activate.bat
+  
+And a shell script for Linux:
+
+::
+
+  cd /srv/www/coralnet/project
+  export DJANGO_SETTINGS_MODULE="config.settings.<module name>"
+  /srv/www/<path to virtualenv>/bin/activate
 
 
 secrets.json
@@ -104,6 +140,8 @@ Some settings like passwords shouldn't be committed to the repo. We keep these s
 
 If you're missing any secret settings in ``secrets.json``, you'll get an ``ImproperlyConfigured`` error when running any ``manage.py`` commands.
 
+Check your settings module (and anything it imports from, such as ``base.py``) for details on how to specify the required secret settings.
+
 
 maintenance_notice.html
 -----------------------
@@ -114,12 +152,13 @@ Make some directories
 ---------------------
 Certain file-creation parts of the project code will trigger an ``IOError`` saying ``No such file or directory`` when the destination directory doesn't already exist. This behavior should probably be fixed at some point, but in the meantime, you'll need to create at least the following directories:
 
-  - ``<PROCESSING_ROOT>/images/features``
-  - ``<PROCESSING_ROOT>/images/preprocess``
-  - ``<PROCESSING_ROOT>/logs``
-  - ``<TEST_PROCESSING_ROOT>/images/features``
-  - ``<TEST_PROCESSING_ROOT>/images/preprocess``
-  - ``<TEST_PROCESSING_ROOT>/logs``
+- ``<PROCESSING_ROOT>/images/features``
+- ``<PROCESSING_ROOT>/images/preprocess``
+- ``<PROCESSING_ROOT>/logs``
+- ``<TEST_PROCESSING_ROOT>/images/features``
+- ``<TEST_PROCESSING_ROOT>/images/preprocess``
+- ``<TEST_PROCESSING_ROOT>/logs``
+- ``<SHELVED_ANNOTATIONS_DIR>``
 
 
 Try running the unit tests
@@ -135,7 +174,7 @@ Django migrations
 -----------------
 Run ``python manage.py migrate``. If Django's auth system asks you to create a superuser, then do that.
 
-For information on how to manage migrations from now on, read `Django's docs <https://docs.djangoproject.com/en/dev/topics/migrations/>_`.
+For information on how to manage migrations from now on, read `Django's docs <https://docs.djangoproject.com/en/dev/topics/migrations/>`__.
 
 For the 2016 production-server Django migration process, see: TODO
 
@@ -170,7 +209,7 @@ How to make PyCharm find everything:
 
 - Go to the Project Interpreter settings and select the Python within your virtualenv (should be under ``Scripts``). This should make PyCharm detect our third-party Python apps.
 
-- Go to the Project Structure settings and mark ``project`` as a Sources directory (`Help <https://www.jetbrains.com/help/pycharm/2016.1/configuring-folders-within-a-content-root.html>`_). This is one way to make PyCharm recognize imports of our apps, such as ``annotations.models``. (There may be other ways.)
+- Go to the Project Structure settings and mark ``project`` as a Sources directory (`Help <https://www.jetbrains.com/help/pycharm/2016.1/configuring-folders-within-a-content-root.html>`__). This is one way to make PyCharm recognize imports of our apps, such as ``annotations.models``. (There may be other ways.)
 
 How to make a Run Configuration that runs ``manage.py runserver`` from PyCharm:
 

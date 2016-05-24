@@ -1,4 +1,5 @@
 {% load i18n %}
+{% load googleanalytics_tag %}
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -40,9 +41,9 @@
     Page-header JavaScript functions can go here.
     (Though it's often better to include an external .js instead).
     {% endcomment %}
-    {% block javascript-functions %}{% endblock %}
-
-    {% include "ga.html" %}
+    {% block javascript-functions %}
+    {% googleanalyticsjs %}
+    {% endblock %}
   </head>
   <body>
     <div id="top">

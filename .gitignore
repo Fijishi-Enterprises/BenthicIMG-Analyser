@@ -32,3 +32,4 @@ project/images/robot_running_flag
 /misc_not_versioncontrolled/*
 /tmp/*
 supervisor*
+.DS_STORE

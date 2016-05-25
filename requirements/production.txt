@@ -1,1 +1,5 @@
 -r base.txt # includes the base.txt requirements file
+
+# WSGI HTTP server - The layer above Django, and below the overall web
+# server (e.g. nginx)
+gunicorn==19.6.0

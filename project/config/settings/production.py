@@ -12,15 +12,17 @@ DEBUG = False
 # People who get code error notifications.
 # In the format [('Full Name', 'email@example.com'),
 # ('Full Name', 'anotheremail@example.com')]
+# TODO: Get email working in production, then uncomment this.
 ADMINS = [
-    ('Stephen', 'stephenjchan@gmail.com'),
-    ('Oscar', 'oscar.beijbom@gmail.com'),
-    ('CoralNet', 'coralnet@eng.ucsd.edu'),
+#    ('Stephen', 'stephenjchan@gmail.com'),
+#    ('Oscar', 'oscar.beijbom@gmail.com'),
+#    ('CoralNet', 'coralnet@eng.ucsd.edu'),
 ]
 
 # Hosts/domain names that are valid for this site.
 # "*" matches anything, ".example.com" matches example.com and all subdomains
-ALLOWED_HOSTS = ['.ucsd.edu']
+# TODO: When server setup is more settled in, only allow one host/domain.
+ALLOWED_HOSTS = ['.ucsd.edu', '.amazonaws.com', '127.0.0.1']
 
 # Local time zone for this installation. All choices can be found here:
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name (although not all
@@ -56,6 +58,8 @@ STATIC_ROOT = SITE_DIR.child('static_serve')
 # The maximum size (in bytes) that an upload will be before it
 # gets streamed to the file system.
 FILE_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50 MB
+
+WSGI_APPLICATION = 'config.wsgi.application'
 
 
 

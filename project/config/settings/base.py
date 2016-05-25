@@ -157,7 +157,7 @@ DEFAULT_FROM_EMAIL = SERVER_EMAIL
 # Subject-line prefix for email messages sent with
 # django.core.mail.mail_admins or django.core.mail.mail_managers.
 # You'll probably want to include the trailing space.
-EMAIL_SUBJECT_PREFIX = '[CoralNet] '
+EMAIL_SUBJECT_PREFIX = '[Beta CoralNet] '
 
 # A secret key for this particular Django installation. Used in secret-key
 # hashing algorithms.

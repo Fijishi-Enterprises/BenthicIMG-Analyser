@@ -28,6 +28,18 @@ django-reversion==1.10.1
 # Allows Django to connect to a PostgreSQL database
 psycopg2==2.6.1
 
+# Amazon Web Services SDK for Python
+# There's a newer package called boto3, but the interface is completely
+# different, and django-storages doesn't support that yet
+boto==2.40.0
+
+# Nicer interface for AWS S3 compared to using boto alone; also supports
+# many other storage systems
+# Even if a dev machine doesn't use S3, we still want this installed to make
+# module imports work
+# Requires boto
+django-storages==1.4.1
+
 # Fancy math
 numpy==1.11.0
 

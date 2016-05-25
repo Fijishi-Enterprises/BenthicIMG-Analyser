@@ -34,6 +34,34 @@ If doing the 2016 migration process:
 - Follow the instructions at this section: :ref:`y2016-migration-pgloader`
 
 
+S3 bucket
+---------
+Go to the Amazon S3 console. Create a bucket.
+
+Click your bucket's name, then click Permissions. Click "Add bucket policy" and add the following policy:
+
+::
+
+  {
+    "Version":"2012-10-17",
+    "Statement":[
+      {
+        "Sid":"AddPerm",
+        "Effect":"Allow",
+        "Principal": "*",
+        "Action":["s3:GetObject"],
+        "Resource":["arn:aws:s3:::bucket-name-goes-here/*"]
+      }
+    ]
+  }
+  
+- Replace ``bucket-name-goes-here`` with your bucket's name.
+
+Click "Add CORS Configuration" and accept the default configuration.
+
+When you have CoralNet up and running with S3, you may notice that the URLs of S3 bucket objects will contain an AWS access key ID, even when anonymous users view the objects. This is normal and does not seem to be a security issue, since an attacker cannot do anything unless they have the secret key as well. (`Link <http://stackoverflow.com/questions/7678835/how-secure-are-amazon-aws-access-keys>`__)
+
+
 EC2 Linux instance
 ------------------
 Go to the Amazon EC2 dashboard. Create a Security Group which allows:

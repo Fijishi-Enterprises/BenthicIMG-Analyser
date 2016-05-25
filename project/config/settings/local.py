@@ -30,7 +30,13 @@ MANAGERS = ADMINS
 
 # Absolute filesystem path to the directory that will hold user-uploaded files.
 # Example: "/home/media/media.lawrence.com/media/"
+# If user-uploaded files live in a separate server such as AWS, then
+# this setting doesn't apply.
 MEDIA_ROOT = SITE_DIR.child('media')
+
+# URL that handles the media served from MEDIA_ROOT.
+# Example: "http://media.lawrence.com/media/"
+MEDIA_URL = '/media/'
 
 # Absolute path to the directory which static files should be collected to.
 # Example: "/home/media/media.lawrence.com/static/"

@@ -34,9 +34,23 @@ TIME_ZONE = 'America/Los_Angeles'
 # notifications and other various emails.
 MANAGERS = ADMINS
 
-# Absolute filesystem path to the directory that will hold user-uploaded files.
-# Example: "/home/media/media.lawrence.com/media/"
-MEDIA_ROOT = SITE_DIR.child('media')
+# django-storages settings
+# http://django-storages.readthedocs.io/en/latest/backends/amazon-S3.html
+AWS_ACCESS_KEY_ID = get_secret('AWS_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY = get_secret('AWS_SECRET_ACCESS_KEY')
+AWS_STORAGE_BUCKET_NAME = get_secret('AWS_STORAGE_BUCKET_NAME')
+# Auxiliary custom settings
+AWS_S3_DOMAIN = 's3-us-west-2.amazonaws.com/{bucket_name}'.format(
+    bucket_name=AWS_STORAGE_BUCKET_NAME)
+AWS_S3_MEDIA_SUBDIR = 'media'
+
+# Default file storage mechanism that holds media.
+DEFAULT_FILE_STORAGE = 'lib.storage_backends.MediaStorage'
+
+# Base URL for user-uploaded media.
+# Example: "http://media.lawrence.com/media/"
+MEDIA_URL = 'https://{domain}/{subdir}/'.format(
+    domain=AWS_S3_DOMAIN, subdir=AWS_S3_MEDIA_SUBDIR)
 
 # Absolute path to the directory which static files should be collected to.
 # Example: "/home/media/media.lawrence.com/static/"

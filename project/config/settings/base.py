@@ -109,6 +109,7 @@ INSTALLED_APPS = [
     'easy_thumbnails',
     'guardian',
     'reversion',
+    'storages',
     'userena',
     'userena.contrib.umessages',
 
@@ -168,10 +169,6 @@ EMAIL_SUBJECT_PREFIX = '[Beta CoralNet] '
 # Make this unique. Django's manage.py startproject command automatically
 # generates a random secret key and puts it in settings, so use that.
 SECRET_KEY = get_secret("SECRET_KEY")
-
-# URL that handles the media served from MEDIA_ROOT.
-# Example: "http://media.lawrence.com/media/"
-MEDIA_URL = '/media/'
 
 # URL that handles the static files served from STATIC_ROOT.
 # (Or, if DEBUG is True, served automagically with the static-serve view.)

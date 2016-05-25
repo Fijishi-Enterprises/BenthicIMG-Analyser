@@ -17,39 +17,33 @@ Create an SSH key on your machine for your user profile, and add the public part
 Git-clone the coralnet repository to your machine.
 
 
+.. _installation-postgresql:
+
 PostgreSQL
 ----------
 Download and install the PostgreSQL server/core, 9.5.1. 32 or 64 bit shouldn't matter. Make sure you keep track of the root password.
 
-In PostgreSQL, create a database called ``coralnet``. Owner = ``postgres`` (or whatever the master user is), Encoding = UTF8 (`Django says so <https://docs.djangoproject.com/en/dev/ref/databases/#optimizing-postgresql-s-configuration>`__). Defaults for other options should be fine.
+Open pgAdmin. Connect to the server.
 
-- On Windows: Open pgAdmin III, connect to the server, then right-click the Databases item and select "New Database...".
+Create a user called ``django``.
 
-Create a user called ``django``. Give ``django`` permission to do anything with ``coralnet``.
+- In pgAdmin: Right-click Login Roles, New Login Role..., Role name = ``django``, go to Definition tab and add password.
 
-- On Windows:
+Create a database called ``coralnet``. Owner = ``django``, Encoding = UTF8 (`Django says so <https://docs.djangoproject.com/en/dev/ref/databases/#optimizing-postgresql-s-configuration>`__). Defaults for other options should be fine.
 
-  - Right-click Group Roles, New Group Role..., Role name = ``coralnet_admin``, click OK.
-  - Right-click coralnet database, Properties, go to Privileges tab, select 'group coralnet_admin' in the Role dropdown, check ALL, click Add/Change, click OK.
-  - Right-click Login Roles, New Login Role..., Role name = ``django``, go to Definition tab and add password, go to Role membership tab and add ``coralnet_admin``, click OK.
+Make sure ``django`` has permission to create databases. This is for running unit tests.
 
-Also make sure ``django`` has permission to create databases. This is for running unit tests.
-
-- On Windows: Right click ``django`` login role, Properties..., Role privileges tab, check "Can create databases". [#dbcreateperm]_
-
-.. [#dbcreateperm] I initially tried doing this with the ``coralnet_admin`` group role, but ``django`` still wasn't able to create databases. I had to edit the Login Role instead, for some reason. -Stephen
+- In pgAdmin: Right click ``django`` login role, Properties..., Role privileges tab, check "Can create databases".
 
 Optimization recommended by Django: set some default parameters for database connections. `See the docs page <https://docs.djangoproject.com/en/dev/ref/databases/#optimizing-postgresql-s-configuration>`__. Can either set these for the ``django`` user with ``ALTER_ROLE``, or for all database users in ``postgresql.conf``.
 
-- ``ALTER_ROLE`` method on Windows: Right click the ``django`` Login Role, Properties, Variables tab. Database = ``coralnet``, Variable Name and Variable Value = whatever is specified in that Django docs link. Click Add/Change to add each of the 3 variables. Click OK.
+- ``ALTER_ROLE`` method in pgAdmin: Right click the ``django`` Login Role, Properties, Variables tab. Database = ``coralnet``, Variable Name and Variable Value = whatever is specified in that Django docs link. Click Add/Change to add each of the 3 variables. Click OK.
 
 Two more notes:
 
 - When you create the ``coralnet`` database, it'll have ``public`` privileges by default. This means that every user created in that PostgreSQL installation has certain privileges by default, such as connecting to that database. `Related SO thread <http://stackoverflow.com/questions/6884020/why-new-user-in-postgresql-can-connect-to-all-databases>`__. This shouldn't be an issue as long as we don't have any PostgreSQL users with insecure passwords.
 
 - A Django 1.7 release note says: "When running tests on PostgreSQL, the USER will need read access to the built-in postgres database." This doesn't seem to be a problem by default, probably due to the default ``public`` privileges described above.
-
-For the 2016 production-server database migration process, see: :doc:`2016_database_migration`
 
 
 Python
@@ -64,14 +58,18 @@ Download and install Python 2.7.11. 32 bit or 64 bit doesn't matter. It's perfec
 
     - On Ubuntu 14.04, 2015/05/17, the result of ``make altinstall`` is that the original Python 2.7.6 is still at ``/usr/bin/python2.7``, while the newly installed Python 2.7.11 is at ``/usr/local/bin/python2.7``.
 
-Check your pip's version with ``pip -V``. (The pip executable is in the same place as the python one). If pip says it's out of date, it'll suggest that you run a command to update it. Do that.
+Check your pip's version with ``pip -V``. (The pip executable is in the same directory as the python one; make sure you refer to the python/pip you just installed). If pip says it's out of date, it'll suggest that you run a command to update it. Do that.
 
 
 Virtualenv
 ----------
-Install virtualenv: ``pip install virtualenv``
+Install virtualenv: ``pip install virtualenv`` (Again, be careful about which pip you're using.)
 
-Create a virtual environment as described in the `Virtualenv docs <https://virtualenv.pypa.io/en/latest/userguide.html>`__. Create the virtual environment outside of your cloned Git repo; for example, you could create it one directory up from the repo.
+``cd`` to somewhere outside of the ``coralnet`` Git repo. For example, you could go one directory up from the repo.
+
+Create a virtual environment, making sure it uses your preferred Python version: ``virtualenv -p <path to python> <name of new virtualenv directory>`` (Again, find the ``virtualenv`` executable in the same directory as your python/pip executables.)
+
+Activate your virtualenv: ``source <path to virtualenv you created>/bin/activate`` on Linux, ``<path to virtualenv you created>/Scripts/activate`` on Windows.
 
 You should ensure that your virtual environment is activated when installing Python packages or running Django management commands for the CoralNet project. From here on out, these instructions will assume you have your virtual environment (also referred to as virtualenv) activated.
 
@@ -125,7 +123,7 @@ And a shell script for Linux:
 
   cd /srv/www/coralnet/project
   export DJANGO_SETTINGS_MODULE="config.settings.<module name>"
-  /srv/www/<path to virtualenv>/bin/activate
+  source /srv/www/<path to virtualenv>/bin/activate
 
 
 secrets.json
@@ -170,11 +168,11 @@ Run ``python manage.py test``. There may be a few test failures ("F"), but there
 If you want to run a subset of the tests, you can use ``python manage.py test <app_name>``, or ``python manage.py test <app_name>.<module>.<TestClass>``.
 
 
+.. _installation-django-migrations:
+
 Django migrations
 -----------------
 Run ``python manage.py migrate``. If Django's auth system asks you to create a superuser, then do that.
-
-For the 2016 production-server Django migration process, see the :ref:`y2016-database-migration-django-migrations` section on the relevant docs page.
 
 For information on how to manage migrations from now on, read `Django's docs <https://docs.djangoproject.com/en/dev/topics/migrations/>`__.
 

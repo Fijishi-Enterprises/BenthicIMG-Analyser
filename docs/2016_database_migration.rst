@@ -1,10 +1,16 @@
-2016 database migration
-=======================
+Specific instructions for 2016 migration process
+================================================
 
 
-Notes about pgloader
---------------------
-`pgloader <http://pgloader.io/index.html>`__ seems to be one of the best tools out there for porting a MySQL database to PostgreSQL. It takes a live database or CSV file as input, and outputs to a live PostgreSQL database. If we have live databases on both sides, then we don't even need to have a separate database dumping step, which should reduce the possible points of failure / data corruption.
+.. _y2016-migration-pgloader:
+
+pgloader
+--------
+
+
+Notes about pgloader and our process
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+`pgloader <http://pgloader.io/index.html>`__ seems to be one of the best tools out there for porting a MySQL database to PostgreSQL. It takes a live database or file (e.g. CSV) as input, and outputs to a live PostgreSQL database. If we have live databases on both sides, then we don't even need to have a separate database dumping step, which should reduce the possible points of failure / data corruption.
 
 At first the plan was to install pgloader on an AWS instance and connect to the UCSD CSE machine's MySQL database through the network. However, all attempts to the UCSD CSE machine's MySQL failed, even after disabling the ufw (firewall) configuration. Perhaps the UCSD CSE machine's router had a firewall which we didn't have control over. We briefly considered contacting CSE Help about it, but then decided not to give them another reminder about our very outdated server machine.
 
@@ -12,7 +18,7 @@ We ended up installing pgloader on the UCSD CSE machine, so that the MySQL conne
 
 
 Install pgloader on the UCSD CSE machine 
-----------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 The machine's OS version, Ubuntu 11.04, stopped being supported in October 2012. Even if a pgloader build was possible to find for Ubuntu 11.04, it was likely to be very out of date, which would be a concern for porting correctness and being able to follow the online docs. So the preferred option was to build pgloader from source, using their `instructions <https://github.com/dimitri/pgloader/blob/master/INSTALL.md>`__ for doing so.
 
 Here's what we get, in order:
@@ -93,11 +99,20 @@ Then, as instructed in the SBCL getting started page:
 Then in the pgloader directory, just run ``make``.
 
 
+(Old) pgloader from binary on Windows
+.....................................
+This was initially used to test if pgloader seemed viable given our database structure.
+
+Get an early 2015 pgloader binary `here <https://github.com/dimitri/pgloader/issues/159>`__, linked in the 4th comment. You'll also need sqlite3.dll from `here <https://www.sqlite.org/download.html>`__, plus libssl32.dll and libeay32.dll from `here <http://gnuwin32.sourceforge.net/packages/openssl.htm>`__; put those 3 .dll files in the same directory as the pgloader binary.
+
+In the pgloader command run from command line, replace ``pgloader`` with whatever the pgloader executable name is.
+
+
 
 
 Port the database using pgloader
---------------------------------
-Create a load file, say ``coralnet.load``, with the following contents:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Create a load command file, say ``coralnet.load``, with the following contents:
 
 ::
     
@@ -105,17 +120,21 @@ Create a load file, say ``coralnet.load``, with the following contents:
    from mysql://<usernamehere>:<passwordhere>@localhost/coralnet
    into postgresql://<usernamehere>:<passwordhere>@<RDS-instance-public-address-goes-here>:5432/coralnet
     
-   WITH quote identifiers, include drop, create no indexes
+   WITH quote identifiers, include drop
     
-   SET maintenance_work_mem to '256MB', work_mem to '32MB'
+   SET maintenance_work_mem to '64MB', work_mem to '4MB'
     
    CAST type date to date using zero-dates-to-null
     
    EXCLUDING TABLE NAMES MATCHING ~/celery/;
    
-Substitute the database users' usernames and passwords for ``<usernamehere>`` and ``<passwordhere>``. Also fill in ``<RDS-instance-public-address-goes-here>``. After the hostname is the database name; change that if it's something other than ``coralnet``.
+Substitute the database users' usernames and passwords for ``<usernamehere>`` and ``<passwordhere>``. If you've been following the instructions here so far, the PostgreSQL username should be ``django``. Don't use the root/master user, because we need ``django`` to be the owner of the tables; this prevents permission errors later on when Django works with the database.
 
-Explanations:
+Also fill in ``<RDS-instance-public-address-goes-here>`` with the Public DNS of the RDS instance.
+
+After the hostname is the database name; change that if it's something other than ``coralnet``.
+
+Explanations on the rest of the command file:
    
 - ``quote identifiers`` is needed so that upper/lower case of identifiers are maintained. This is important for some of our column names like ``annotatedByHuman``.
    
@@ -123,9 +142,7 @@ Explanations:
 
   - Note that this drop will cascade to all objects referencing the target tables, possibly including tables that are not being ported over. However, if we're porting over the whole database at once, then it's not a problem.
    
-- ``create no indexes`` tells pgloader to not create indexes as it ports the data over. This is just to speed up the porting process.
-   
-- ``SET maintenance_work_mem to '256MB', work_mem to '32MB'`` sets PostgreSQL parameters (these aren't pgloader parameters) on the amount of memory to use during certain operations. See the PostgreSQL docs for `work_mem <http://www.postgresql.org/docs/current/static/runtime-config-resource.html#GUC-WORK-MEM>`__ and `maintenance_work_mem <http://www.postgresql.org/docs/current/static/runtime-config-resource.html#GUC-MAINTENANCE-WORK-MEM>`__. Check the RDS instance's memory capacity to get an idea of what values to use.
+- ``SET maintenance_work_mem to '64MB', work_mem to '4MB'`` sets PostgreSQL parameters on the amount of memory to use during certain operations. See the PostgreSQL docs for `work_mem <http://www.postgresql.org/docs/current/static/runtime-config-resource.html#GUC-WORK-MEM>`__ and `maintenance_work_mem <http://www.postgresql.org/docs/current/static/runtime-config-resource.html#GUC-MAINTENANCE-WORK-MEM>`__. These can affect whether 
    
 - ``CAST type date to date using zero-dates-to-null`` is a casting rule which says to cast MySQL ``date`` types to PostgreSQL ``date`` types, using pgloader's transformation function which converts any ``0000-00-00`` dates to ``NULL``.
 
@@ -133,7 +150,7 @@ Explanations:
   
   - Defaulting to ``0000-00-00`` is standard MySQL behavior: `Link <http://dev.mysql.com/doc/refman/5.5/en/datetime.html>`__, `Another link (possibly on old MySQL versions) <http://sql-info.de/mysql/gotchas.html#1_14>`__
    
-- ``EXCLUDING TABLE NAMES MATCHING ~/celery/`` excludes tables whose names match the regular expression ``celery``. This should exclude all the ``celery_<name>`` and ``djcelery_<name>`` tables; we don't need these tables any longer, and at least one of them is quite large.
+- ``EXCLUDING TABLE NAMES MATCHING ~/celery/`` excludes tables whose names match the regular expression ``celery``. This should exclude all the ``celery_<name>`` and ``djcelery_<name>`` tables; we don't need these tables any longer, and at least one of them is quite large. Note that the `pgloader docs <http://pgloader.io/howto/pgloader.1.html>`__ have a section on regular expression syntax.
 
 - The newlines and amount of whitespace shouldn't matter. There must be a semicolon after the last command.
 
@@ -141,46 +158,67 @@ Explanations:
 
 Run pgloader: ``<pgloader directory>/build/bin/pgloader coralnet.load``
 
-For us, this process might take about 1 hour. Confirm that there are no errors.
+For us, this process takes about 45 minutes. Confirm that there are no errors.
+
+Two possible warnings that should be acceptable are:
+
+- ``Postgres warning: table "..." does not exist, skipping``. See `this link <http://pgloader.io/howto/sqlite.html>`__: "the WARNING messages we see here are expected as the PostgreSQL database is empty when running the command, and pgloader is using the SQL commands DROP TABLE IF EXISTS when the given command uses the include drop option."
+
+- ``identifier "idx_20322_guardian_groupobjectpermission_object_pk_122874e9_uniq" will be truncated to "idx_20322_guardian_groupobjectpermission_object_pk_122874e9_uni"``. To our knowledge at least, there's nothing that would break if an index were renamed.
 
 At this point, it's a good idea to make a snapshot of the RDS instance, in case we make a mistake on the Django migration steps. You can create a snapshot from Amazon's RDS Dashboard.
 
 
-
-.. _y2016-database-migration-django-migrations:
+.. _y2016-migration-django-migrations:
 
 Django migrations
 -----------------
 These are the migrations that the UCSD CSE production DB must run to get completely up to date with the latest Django and repo code.
 
-These migration numbers are in Django's new migration framework unless specifically denoted as South migrations. (Last update: Django 1.9.5)
+The migration numbers are in Django's new migration framework unless specifically denoted as South migrations. (Last update: Django 1.9.5)
 
-- accounts: fake 0001-0002, run the rest
-- admin: fake 0001, run 0002
-- annotations: fake 0001-0003, run the rest
-- auth: fake 0001, run 0002-0007
-- bug_reporting: fake 0001, run the rest
+Run these in order:
+
 - contenttypes: fake 0001, run 0002
-- easy_thumbnails: fake 0001, run 0002 (OR run South's 0016, then fake new 0001-0002)
-- guardian: fake 0001
-- images: fake 0001, run the rest
-- reversion: run South's 0006-0008, then fake new 0001, then run new 0002
+- auth: fake 0001, run 0002-0007
+- admin: fake 0001, run 0002
 - sessions: fake 0001
 - sites: fake 0001, run 0002
-- umessages: fake 0001
 - userena: fake 0001
+- umessages: fake 0001
+- guardian: fake 0001
+- easy_thumbnails: fake 0001, run 0002 (OR run South's 0016, then fake new 0001-0002)
+- accounts: fake 0001-0002, run the rest
+- images: fake 0001, run the rest
+- annotations: fake 0001-0003, run the rest
+- bug_reporting: fake 0001, run the rest
+- errorlogs: run 0001 (since this is a new app)
+- reversion: run South's 0006-0008, then fake new 0001, then run new 0002 (see notes below)
 
-For our apps, ``manage.py migrate --fake-initial`` should work, so no need to specify migration numbers. That should work for Django first-party apps as well. Might want to explicitly specify which numbers to fake and which to run for the third-party apps, though.
 
-``reversion`` should be the only tricky one here. Before our 2016 upgrading process, we had reversion 1.5.1, and that had South migrations numbered up to 0005. But just before reversion switched to the new migrations, they had made South migrations up to 0008. Then they merged the South migrations 0001-0008 into a new 0001 to make things cleaner.
+contenttypes
+~~~~~~~~~~~~
+Do these migrations first. If you don't run the ``contenttypes`` migrations early enough, you may get ``RuntimeError: Error creating new content types. Please make sure contenttypes is migrated before trying to migrate apps individually.`` `Link 1 <http://stackoverflow.com/questions/29917442/error-creating-new-content-types-please-make-sure-contenttypes-is-migrated-befo>`__, `Link 2 <https://code.djangoproject.com/ticket/25100>`__
+
+You might get message(s) like ``The following content types are stale and need to be deleted``. You should be safe to answer yes to the "Are you sure?" prompt(s). See `this link <http://stackoverflow.com/questions/16705249/stale-content-types-while-syncdb-in-django>`__. We don't define any foreign keys to ``ContentType``.
+
+In our case, we have the stale contenttypes ``auth | message`` and ``annotations | annotation_attempt``. Each takes about 2 minutes to delete.
+
+
+reversion
+~~~~~~~~~
+``reversion`` is tricky. Before our 2016 upgrading process, we had reversion 1.5.1, and that had South migrations numbered up to 0005. But just before reversion switched to the new migrations, they had made South migrations up to 0008. Then they merged the South migrations 0001-0008 into a new 0001 to make things cleaner.
 
 To apply the ``reversion`` migrations:
 
 - pip-install ``Django==1.6``, ``django-reversion==1.8.4``, and ``South``.
-- Add ``South`` to your ``INSTALLED_APPS`` setting.
-- Add a `SOUTH_MIGRATION_MODULES setting <http://django-south.readthedocs.io/en/latest/settings.html#south-migration-modules>`__ to let South know where the previously-run South migrations reside. This will avoid South errors about `"ghost migrations" <http://stackoverflow.com/questions/8875459/what-is-a-django-south-ghostmigrations-exception-and-how-do-you-debug-it>`__. For our apps, use ``<appname>/south_migrations``. This directory should also be available for all third-party apps except reversion.
+- Add ``'south'`` to your ``INSTALLED_APPS`` setting.
+- Comment out all other apps in ``INSTALLED_APPS`` except for Django core apps, south, and reversion. This is probably the simplest way to avoid South errors about other apps having `ghost migrations <http://stackoverflow.com/questions/8875459/what-is-a-django-south-ghostmigrations-exception-and-how-do-you-debug-it>`__.
+- Change the ``DATABASES`` setting's engine to ``'postgresql_psycopg2'`` to make Django 1.6 happy. (This is the same engine, just under a different name.)
 - Use ``manage.py migrate --list`` to confirm that ``reversion`` has run migrations 0001 to 0005.
 - Use ``manage.py migrate reversion`` to run migrations 0006 to 0008.
-- Remove ``South`` from your ``INSTALLED_APPS`` setting, and remove the ``SOUTH_MIGRATION_MODULES`` setting.
+- Revert the ``INSTALLED_APPS`` and ``DATABASES`` settings. Assuming you made these changes in ``base.py``, just do ``git checkout config/settings/base.py``.
 - pip-install the latest ``Django`` and ``django-reversion`` again, and uninstall ``South``.
 - Now you can see with ``manage.py showmigrations`` that the ``reversion`` migration numbers have changed. Fake-run 0001, then run 0002.
+
+At this point, it's a good idea to make another snapshot of the RDS instance.

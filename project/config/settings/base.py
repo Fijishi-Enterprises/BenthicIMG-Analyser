@@ -19,13 +19,17 @@ PROJECT_DIR = SETTINGS_DIR.ancestor(2)
 # JSON-based secrets module, expected to be in the SETTINGS_DIR
 with open(SETTINGS_DIR.child('secrets.json')) as f:
     secrets = json.loads(f.read())
-    def get_secret(setting, secrets=secrets):
-        """Get the secret variable or return explicit exception."""
+    def get_secret(setting, secrets=secrets, required=True):
+        """
+        Get the secret variable. If the variable is required,
+        raise an error if it's not present.
+        """
         try:
             return secrets[setting]
         except KeyError:
-            error_msg = "Set the {0} setting in secrets.json".format(setting)
-            raise ImproperlyConfigured(error_msg)
+            if required:
+                error_msg = "Set the {0} setting in secrets.json".format(setting)
+                raise ImproperlyConfigured(error_msg)
 
 
 
@@ -286,7 +290,7 @@ CAPTCHA_PRIVATE_KEY = get_secret("CAPTCHA_PRIVATE_KEY")
 CAPTCHA_PUBLIC_KEY = get_secret("CAPTCHA_PUBLIC_KEY")
 
 # [Custom settings]
-GOOGLE_ANALYTICS_CODE = get_secret("GOOGLE_ANALYTICS_CODE")
+GOOGLE_ANALYTICS_CODE = get_secret("GOOGLE_ANALYTICS_CODE", required=False)
 
 
 # VISION BACKEND SETTINGS

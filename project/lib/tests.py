@@ -7,7 +7,8 @@ from django.core.urlresolvers import reverse
 from lib import msg_consts, str_consts
 from lib.forms import ContactForm
 from lib.test_utils import ClientTest
-
+from images.models import Source
+from django.test.utils import override_settings
 
 class IndexTest(ClientTest):
     """
@@ -240,6 +241,60 @@ class ContactTest(ClientTest):
                 'show_value': message_max_length+1,
             }],
         })
+
+class GoogleAnalyticsTest(ClientTest):
+    """
+    Testing the google analytics java script plugin.
+    """
+    fixtures = ['test_users.yaml', 'test_sources.yaml']
+    
+    @override_settings(GOOGLE_ANALYTICS_CODE = 'dummy-gacode')
+    def test_simple(self):
+        """
+        Test that ga code is being generated. And that it contains the GOOGLE_ANALYTICS_CODE.
+        """
+        response = self.client.get(reverse('about'))
+        self.assertEqual(response.status_code, 200)
+
+        self.assertContains(response, 'google-analytics.com/ga.js')
+        self.assertContains(response, settings.GOOGLE_ANALYTICS_CODE)
+
+    @override_settings(GOOGLE_ANALYTICS_CODE = '')
+    def test_missing(self):
+        """
+        Test what happens if the GOOGLE_ANALYTICS_CODE is not set
+        """
+        del settings.GOOGLE_ANALYTICS_CODE
+        response = self.client.get(reverse('about'))
+        self.assertContains(response, "Goggle Analytics not included because you haven't set the settings.GOOGLE_ANALYTICS_CODE variable!")
+
+    
+    @override_settings(DEBUG=True)
+    def test_debug(self):
+        """
+        Do not include google analytics if in DEBUG mode.
+        """
+        response = self.client.get(reverse('about'))
+        self.assertContains(response, 'Goggle Analytics not included because you are in Debug mode!')
+
+    def test_staffuser(self):
+        """
+        Do not inlude google analytics if in superuser mode.
+        """
+        self.client.login(username='superuser_user', password='secret')
+        response = self.client.get(reverse('about'))
+        self.assertContains(response, 'Goggle Analytics not included because you are a staff user!')
+
+    @override_settings(GOOGLE_ANALYTICS_CODE = 'dummy-gacode')
+    def test_in_source(self):
+        """
+        Make sure the ga plugin renders on a source page
+        """
+        source_id = Source.objects.get(name='private1').pk
+        self.client.login(username='user2', password='secret')
+        response = self.client.get(reverse('visualize_source', kwargs=dict(source_id = source_id)))
+        self.assertContains(response, 'google-analytics.com/ga.js')
+
 
     # TODO: How to test for a BadHeaderError?
     # Putting a newline in the subject isn't getting such an error.

@@ -387,13 +387,11 @@ def get_map_sources():
         # Make some check to remove small sources and test sources
         is_test_source = False
         if num_of_images < 100:
-            is_test_source = True
+            continue
         possible_test_sources_substrings = ['test', 'sandbox', 'dummy', 'tmp', 'temp', 'check']
         for str_ in possible_test_sources_substrings:
             if str_ in source.name.lower():
-                is_test_source = True
-        if is_test_source:
-            continue
+                continue
 
         # If the source is public, include a link to the source main page.
         # Otherwise, don't include a link.
@@ -413,7 +411,6 @@ def get_map_sources():
 
         all_images = source.get_all_images()
         latest_images = all_images.order_by('-upload_date')[:6]
-
 
         map_sources.append(dict(
             description=source.description,

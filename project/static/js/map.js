@@ -101,15 +101,15 @@ var CNMap = (function() {
             var icons = {
                 public: {
                     name: "Public sources",
-                    icon: "http://www.google.com/intl/en_us/mapfiles/ms/icons/green.png"
+                    icon: staticmapimgs + "green.png"
                 },
                 private: {
                     name: "Private sources",
-                    icon: "http://www.google.com/intl/en_us/mapfiles/ms/icons/red.png"
+                    icon: staticmapimgs + "red.png"
                 },
                 multipleSources: {
                     name: "Multiple sources",
-                    icon: "http://google-maps-utility-library-v3.googlecode.com/svn/trunk/markerclusterer/images/m1.png"
+                    icon: staticmapimgs + "m0.png"
                 }
             };
 

@@ -5,6 +5,7 @@ from django.core.urlresolvers import reverse
 from django.db.models import Count
 
 from annotations.models import Label, LabelGroup, LabelSet
+from images.model_utils import PointGen
 from images.models import Source
 from lib.test_utils import ClientTest, MediaTestComponent
 
@@ -33,6 +34,111 @@ class LabelDetailTest(ClientTest):
             ))
         )
         self.assertStatusOK(response)
+
+class LabelDetailPatchesTest(ClientTest):
+    """
+    Test the annotation patches of the label detail page.
+    """
+    extra_components = [MediaTestComponent]
+
+    @classmethod
+    def setUpTestData(cls):
+        # Call the parent's setup (while still using this class as cls)
+        super(LabelDetailPatchesTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+
+        # Create 1 public and 1 private source
+        cls.public_source = cls.create_source(
+            cls.user,
+            visibility=Source.VisibilityTypes.PUBLIC,
+            point_generation_type=PointGen.Types.SIMPLE,
+            simple_number_of_points=10,
+        )
+        cls.private_source = cls.create_source(
+            cls.user,
+            visibility=Source.VisibilityTypes.PRIVATE,
+            point_generation_type=PointGen.Types.SIMPLE,
+            simple_number_of_points=10,
+        )
+
+        # Create labels
+        cls.labels = cls.create_labels(
+            cls.user, cls.public_source, ['A', 'B'], "Group1")
+
+        # Add all labels to each source's labelset
+        cls.create_labelset(cls.user, cls.public_source, cls.labels)
+        cls.public_source.refresh_from_db()
+        cls.create_labelset(cls.user, cls.private_source, cls.labels)
+        cls.private_source.refresh_from_db()
+
+        # Upload an image to each source
+        cls.client.force_login(cls.user)
+        cls.source_id = cls.public_source.id
+        cls.public_image = cls.upload_image_new(cls.user, cls.public_source)
+        cls.source_id = cls.private_source.id
+        cls.private_image = cls.upload_image_new(cls.user, cls.private_source)
+
+    def test_five_patches(self):
+        """
+        Over 5 annotations in public sources. Display only 5 patches.
+        """
+        annotations = {1:'A', 2:'A', 3:'A', 4:'A', 5:'A', 6:'A'}
+        self.add_annotations(self.user, self.public_image, annotations)
+
+        response = self.client.get(
+            reverse('label_main', kwargs=dict(
+                label_id=Label.objects.get(code='A').id
+            ))
+        )
+        self.assertStatusOK(response)
+        self.assertEqual(len(response.context['patches']), 5)
+
+    def test_less_than_five_patches(self):
+        """
+        Under 5 annotations in public sources. Display that many patches.
+        """
+        annotations = { 1:'A', 2:'A', 3:'A', 4:'B', 5:'B'}
+        self.add_annotations(self.user, self.public_image, annotations)
+
+        response = self.client.get(
+            reverse('label_main', kwargs=dict(
+                label_id=Label.objects.get(code='A').id
+            ))
+        )
+        self.assertStatusOK(response)
+        self.assertEqual(len(response.context['patches']), 3)
+
+    def test_zero_patches(self):
+        """
+        0 annotations in public sources. Display 0 patches.
+        """
+        annotations = {}
+        self.add_annotations(self.user, self.public_image, annotations)
+
+        response = self.client.get(
+            reverse('label_main', kwargs=dict(
+                label_id=Label.objects.get(code='A').id
+            ))
+        )
+        self.assertStatusOK(response)
+        self.assertEqual(len(response.context['patches']), 0)
+
+    def test_dont_include_private_sources(self):
+        """
+        3 public, 2 private. Display 3 patches.
+        """
+        annotations = {1:'A', 2:'A', 3:'A'}
+        self.add_annotations(self.user, self.public_image, annotations)
+        annotations = {1:'A', 2:'A'}
+        self.add_annotations(self.user, self.private_image, annotations)
+
+        response = self.client.get(
+            reverse('label_main', kwargs=dict(
+                label_id=Label.objects.get(code='A').id
+            ))
+        )
+        self.assertEqual(len(response.context['patches']), 3)
 
 class NewLabelTest(ClientTest):
     """

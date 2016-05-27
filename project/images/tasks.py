@@ -22,6 +22,10 @@ CLASSIFY_ERROR_LOG = os.path.join(settings.PROCESSING_ROOT, "logs/classify_error
 TRAIN_ERROR_LOG = os.path.join(settings.PROCESSING_ROOT, "logs/train_error.txt")
 CV_LOG = os.path.join(settings.PROCESSING_ROOT, "logs/cvlog.txt")
 
+# TODO: Don't use MEDIA_ROOT, since it won't work with remote
+# files like Amazon S3. Use open() of the storage backend class.
+# Direct use of MEDIA_URL might be suspect as well. Better to use the url()
+# method of the storage backend class.
 ALLEVIATE_IMAGE_DIR = os.path.join(settings.MEDIA_ROOT, "vision_backend/alleviate_plots")
 ALLEVIATE_IMAGE_URL = os.path.join(settings.MEDIA_URL, "vision_backend/alleviate_plots")
 PREPROCESS_DIR = os.path.join(settings.PROCESSING_ROOT, "images/preprocess/")
@@ -172,6 +176,8 @@ def preprocess_image(image_id):
     #matlab will output image.id_YearMonthDay.mat file
     preprocessedImageFile = os.path.join(PREPROCESS_DIR, str(image_id) + "_" + image.get_process_date_short_str() + ".mat")
 
+    # TODO: Don't use MEDIA_ROOT, since it won't work with remote
+    # files like Amazon S3. Use open() of the storage backend class.
     task_helpers.coralnet_preprocessImage(
         imageFile=os.path.join(settings.MEDIA_ROOT, str(image.original_file)),
         preprocessedImageFile=preprocessedImageFile,

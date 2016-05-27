@@ -20,12 +20,11 @@ def generate_random_filename(directory, originalFilename, numOfChars):
     """
     Generate a random filename for a file upload.  The filename will
     have numOfChars random characters.  Also prepends the directory
-    argument to get a filepath which is only missing the MEDIA_ROOT
-    part at the beginning.
+    argument, which should result in a complete relative path from
+    the media directory (e.g. from MEDIA_ROOT if media is stored locally).
 
     The return value can be used as an upload_to argument for a FileField
-    ImageField, ThumbnailerImageField, etc.  An upload_to argument is
-    automatically prepended with MEDIA_ROOT to get the upload filepath.
+    ImageField, ThumbnailerImageField, etc.
     """
     # TODO: Use the directory argument to check for filename collisions with existing files.
     # To unit test this, use a Mocker or similar on the filename randomizer

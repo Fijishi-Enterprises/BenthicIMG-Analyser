@@ -38,7 +38,7 @@ S3 bucket
 ---------
 Go to the Amazon S3 console. Create a bucket.
 
-Click your bucket's name, then click Permissions. Click "Add bucket policy" and add the following policy:
+Click your bucket's name, then click Properties, then Permissions. Click "Add bucket policy" and add the following policy:
 
 ::
 

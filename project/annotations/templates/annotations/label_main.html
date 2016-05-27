@@ -65,7 +65,7 @@
                   <span class="thumb_wrapper">
                     <a href="{% url 'image_detail' patch.fullImage.id %}">
                     <img class="thumb"
-                         src="{{ MEDIA_URL }}{{ patch.patchPath }}"
+                         src="{{ patch.url }}"
                          title="{{ patch.fullImage.get_image_element_title }} from: {{ patch.source }}"/>
                     </a>
                   </span>

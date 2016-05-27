@@ -14,7 +14,7 @@ from django.shortcuts import get_object_or_404, render
 from django.utils.functional import curry
 
 from .forms import BrowseSearchForm, StatisticsSearchForm, ImageBatchDeleteForm, ImageSpecifyForm, ImageBatchDownloadForm
-from .utils import generate_patch_if_doesnt_exist
+from .utils import generate_patch_if_doesnt_exist, get_patch_url
 from accounts.utils import get_robot_user
 from annotations.models import Annotation, Label, LabelSet, LabelGroup
 from images.models import Source, Image
@@ -303,19 +303,15 @@ def visualize_source(request, source_id):
             # so we're iterating over those annotations now.
             for index, annotation in enumerate(page_results.object_list):
 
-                # TODO: don't hardcode the patch path
-                # (this might also apply to the label_main view)
-                patchPath = "data/annotations/" + str(annotation.id) + ".jpg"
+                generate_patch_if_doesnt_exist(annotation)
 
                 page_results.object_list[index] = dict(
                     fullImage=annotation.image,
-                    patchPath=patchPath,
+                    url=get_patch_url(annotation.id),
                     row=annotation.point.row,
                     col=annotation.point.column,
                     pointNum=annotation.point.point_number,
                 )
-
-                generate_patch_if_doesnt_exist(patchPath, annotation)
 
         else:  # 'images'
 

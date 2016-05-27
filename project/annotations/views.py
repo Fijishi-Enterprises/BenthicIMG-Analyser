@@ -18,7 +18,8 @@ from lib.decorators import source_permission_required, source_visibility_require
 from images import task_utils
 from images.models import Source, Image, Point
 from images.utils import generate_points, get_first_image, get_next_image
-from visualization.utils import generate_patch_if_doesnt_exist
+from visualization.utils import generate_patch_if_doesnt_exist, get_patch_url
+
 
 @login_required
 def label_new(request):
@@ -246,22 +247,26 @@ def label_main(request, label_id):
     visible_sources_with_label.sort(key=lambda x: x[0])  # Mine first, then public
 
     # Example patches.
-    # TODO: don't hardcode the patch path
-    example_annotations = Annotation.objects.filter(label=label, image__source__visibility=Source.VisibilityTypes.PUBLIC).exclude(user=get_robot_user()).order_by('?')[:5]
-    patches = [dict(
-                  annotation=a,
-                  fullImage=a.image,
-                  source=a.image.source,
-                  patchPath="data/annotations/" + str(a.id) + ".jpg",
-                  row=a.point.row,
-                  col=a.point.column,
-                  pointNum=a.point.point_number,
-              )
-              for a in example_annotations]
+    example_annotations = Annotation.objects \
+        .filter(label=label, image__source__visibility=Source.VisibilityTypes.PUBLIC) \
+        .exclude(user=get_robot_user()) \
+        .order_by('?')[:5]
 
-    for p in patches:
-        generate_patch_if_doesnt_exist(p['patchPath'], p['annotation'])
+    for anno in example_annotations:
+        generate_patch_if_doesnt_exist(anno)
 
+    patches = [
+        dict(
+            annotation=a,
+            fullImage=a.image,
+            source=a.image.source,
+            url=get_patch_url(a.id),
+            row=a.point.row,
+            col=a.point.column,
+            pointNum=a.point.point_number,
+        )
+        for a in example_annotations
+    ]
 
     return render(request, 'annotations/label_main.html', {
         'label': label,

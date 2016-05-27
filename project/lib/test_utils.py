@@ -1,6 +1,9 @@
 # Utility classes and functions for tests.
 import datetime
+import json
 import os
+from django.contrib.auth import get_user_model
+from django.core import mail, management
 import pytz
 import re
 from django.conf import settings
@@ -10,7 +13,9 @@ from django.test import TestCase
 from django.test.client import Client
 from django.test.runner import DiscoverRunner
 from django.utils import timezone
-from images.models import Source
+from annotations.models import LabelGroup, Label
+from images.model_utils import PointGen
+from images.models import Source, Point, Image
 from lib.exceptions import TestfileDirectoryError
 from lib.utils import is_django_str
 
@@ -46,15 +51,21 @@ class BaseTest(TestCase):
         TestCase.__init__(self, *args, **kwargs)
         self.extra_components = [cls() for cls in self.extra_components]
 
+    @classmethod
+    def setUpTestData(cls):
+        super(BaseTest, cls).setUpTestData()
+        for component in cls.extra_components:
+            component.setUpTestData()
+
     def setUp(self):
         self.setAccountPerms()
         self.setTestSpecificPerms()
-        for component in self.extra_components:
-            component.setUp()
 
-    def tearDown(self):
-        for component in self.extra_components:
-            component.tearDown()
+    @classmethod
+    def tearDownClass(cls):
+        for component in cls.extra_components:
+            component.tearDownClass()
+        super(BaseTest, cls).tearDownClass()
 
     def setAccountPerms(self):
         # TODO: is the below necessary, or is adding these permissions done by magic anyway?
@@ -83,6 +94,19 @@ class ClientTest(BaseTest):
     Base class for tests that use a test client.
     """
     PERMISSION_DENIED_TEMPLATE = 'permission_denied.html'
+    client = None
+
+    @classmethod
+    def setUpTestData(cls):
+        super(ClientTest, cls).setUpTestData()
+        cls.client = Client()
+
+        # Create a superuser. By using --noinput, the superuser won't be
+        # able to log in normally because no password was set.
+        # Use force_login() to log in.
+        management.call_command('createsuperuser',
+            '--noinput', username='superuser',
+            email='superuser@example.com', verbosity=0)
 
     def setUp(self):
         BaseTest.setUp(self)
@@ -253,6 +277,8 @@ class ClientTest(BaseTest):
             self.assertStatusOK(response)
             self.assertTemplateNotUsed(response, self.PERMISSION_DENIED_TEMPLATE)
 
+    # TODO: Phase this out in favor of upload_image_new().
+    # This interface is a bit clunky for most purposes.
     def upload_image(self, filename, **options):
         """
         Upload a single image via the Ajax view.
@@ -291,6 +317,211 @@ class ClientTest(BaseTest):
         image_id = response_json.get('image_id', None)
 
         return image_id, response
+
+    user_count = 0
+    @classmethod
+    def create_user(cls, username=None):
+        """
+        Create a user.
+        :param username: New user's username. "user<number>" if not given.
+        :return: The new user.
+        """
+        cls.user_count += 1
+        if not username:
+            username = 'user{n}'.format(n=cls.user_count)
+
+        User = get_user_model()
+        post_dict = dict(
+            username=username,
+            email='{username}@example.com'.format(username=username),
+        )
+        cls.client.force_login(User.objects.get(username='superuser'))
+        cls.client.post(reverse('signup'), post_dict)
+        cls.client.logout()
+
+        activation_email = mail.outbox[0]
+        activation_link = None
+        for word in activation_email.body.split():
+            if '://' in word:
+                activation_link = word
+                break
+        cls.client.get(activation_link)
+
+        return User.objects.get(username=username)
+
+    source_count = 0
+    source_defaults = dict(
+        name=None,
+        visibility=Source.VisibilityTypes.PUBLIC,
+        description="Description",
+        affiliation="Affiliation",
+        key1="Key1",
+        image_height_in_cm=50,
+        min_x=0,
+        max_x=100,
+        min_y=0,
+        max_y=100,
+        point_generation_type=PointGen.Types.SIMPLE,
+        simple_number_of_points=50,
+        alleviate_threshold=0,
+        latitude='0.0',
+        longitude='0.0',
+    )
+    @classmethod
+    def create_source(cls, user, name=None, **options):
+        """
+        Create a source.
+        :param user: User who is creating this source.
+        :param name: Source name. "Source <number>" if not given.
+        :param options: Other params to POST into the new source form.
+        :return: The new source.
+        """
+        cls.source_count += 1
+        if not name:
+            name = 'Source {n}'.format(n=cls.source_count)
+
+        post_dict = dict()
+        post_dict.update(cls.source_defaults)
+        post_dict.update(options)
+        post_dict['name'] = name
+
+        cls.client.force_login(user)
+        cls.client.post(reverse('source_new'), post_dict)
+        cls.client.logout()
+
+        return Source.objects.get(name=name)
+
+    @classmethod
+    def create_labels(cls, user, source, label_names, group_name):
+        """
+        Create labels.
+        :param user: User who is creating these labels.
+        :param source: Source whose labelset page to use
+            while creating these labels.
+        :param label_names: Names for the new labels.
+        :param group_name: Name for the label group to put the labels in;
+            this label group is assumed to not exist yet.
+        :return: The new labels, as a queryset.
+        """
+        group = LabelGroup(name=group_name, code=group_name[:10])
+        group.save()
+
+        # TODO: Use auto-generated simple images rather than relying on
+        # a sample uploadables folder.
+        filepath = os.path.join(settings.SAMPLE_UPLOADABLES_ROOT,
+            'data', '001_2012-05-01_color-grid-001.png')
+        cls.client.force_login(user)
+        for name in label_names:
+            # Re-opening the file for every label may seem wasteful,
+            # but the upload process seems to close the file, so it's
+            # necessary.
+            with open(filepath, 'rb') as thumbnail:
+                cls.client.post(
+                    reverse('labelset_new', kwargs=dict(source_id=source.id)),
+                    dict(
+                        # create_label triggers the new-label form.
+                        # The key just needs to be there in the POST;
+                        # the value doesn't matter.
+                        create_label='.',
+                        name=name,
+                        code=name[:10],
+                        group=group.id,
+                        description="Description",
+                        thumbnail=thumbnail,
+                    )
+                )
+        cls.client.logout()
+
+        return Label.objects.filter(name__in=label_names)
+
+    @classmethod
+    def create_labelset(cls, user, source, labels):
+        """
+        Create a labelset.
+        :param user: User to create the labelset as.
+        :param source: The source which this labelset will belong to
+        :param labels: The labels this labelset will have, as a queryset
+        :return: The new labelset
+        """
+        cls.client.force_login(user)
+        cls.client.post(
+            reverse('labelset_new', kwargs=dict(source_id=source.id)),
+            dict(
+                # create_labelset indicates that the new-labelset form should
+                # be used, not the new-label form which is also on the page.
+                # The key just needs to be there in the POST;
+                # the value doesn't matter.
+                create_labelset='.',
+                labels=labels.values_list('pk', flat=True),
+            ),
+        )
+        cls.client.logout()
+        source.refresh_from_db()
+        return source.labelset
+
+    image_count = 0
+    image_upload_defaults = dict(
+        specify_metadata='after',
+        skip_or_upload_duplicates='skip',
+        is_uploading_points_or_annotations=False,
+        is_uploading_annotations_not_just_points='no',
+    )
+    @classmethod
+    def upload_image_new(cls, user, source, **options):
+        """
+        Upload a data image.
+        :param user: User to upload as.
+        :param source: Source to upload to.
+        :param options: Other params to POST into the image upload form.
+        :return: The new image.
+        """
+        cls.image_count += 1
+
+        post_dict = dict()
+        post_dict.update(cls.image_upload_defaults)
+        post_dict.update(options)
+
+        # TODO: Use auto-generated simple images rather than relying on
+        # a sample uploadables folder.
+        filepath = os.path.join(settings.SAMPLE_UPLOADABLES_ROOT,
+            'data', '001_2012-05-01_color-grid-001.png')
+        with open(filepath, 'rb') as f:
+            post_dict['file'] = f
+            cls.client.force_login(user)
+            response = cls.client.post(
+                reverse('image_upload_ajax', kwargs={'source_id': source.id}),
+                post_dict,
+            )
+            cls.client.logout()
+
+        response_json = response.json()
+        image_id = response_json.get('image_id', None)
+        image = Image.objects.get(pk=image_id)
+        return image
+
+    @classmethod
+    def add_annotations(cls, user, image, annotations):
+        """
+        Add human annotations to an image.
+        :param user: Which user to annotate as.
+        :param image: Image to add annotations for.
+        :param annotations: Annotations to add, as a dict of point
+            numbers to label codes, e.g.: {1: 'labelA', 2: 'labelB'}
+        :return: None.
+        """
+        num_points = Point.objects.filter(image=image).count()
+
+        post_dict = dict()
+        for point_num in range(1, num_points+1):
+            post_dict['label_'+str(point_num)] = annotations.get(point_num, '')
+            post_dict['robot_'+str(point_num)] = json.dumps(False)
+
+        cls.client.force_login(user)
+        cls.client.post(
+            reverse('save_annotations_ajax', kwargs=dict(image_id=image.id)),
+            post_dict,
+        )
+        cls.client.logout()
 
     @staticmethod
     def print_response_messages(response):
@@ -344,19 +575,25 @@ class FilesTestComponent(object):
         "\n3. The {0} directory is empty prior to the test"
     )
     testfile_directory_teardown_error_fmtstr = (
-        "The test teardown routine found unexpected files in the {0} directory ({1})!:"
+        "The test teardown routine found unexpected files"
+        " in the {0} directory ({1})!:"
         "\n{2}"
         "\nThese files seem to have been created prior to the test."
         " Please delete these files or move them elsewhere."
     )
+    timestamp_before_tests = None
 
-    def raise_testfile_directory_error(self, unexpected_filenames, message_format_str):
+    @classmethod
+    def raise_testfile_directory_error(cls, unexpected_filenames,
+        message_format_str):
         if len(unexpected_filenames) > 10:
-            unexpected_filenames_str = '\n'.join(unexpected_filenames[:10]) + "\n(And others)"
+            unexpected_filenames_str = \
+                '\n'.join(unexpected_filenames[:10]) + "\n(And others)"
         else:
             unexpected_filenames_str = '\n'.join(unexpected_filenames)
         error_message = message_format_str.format(
-            self.test_directory_name, self.test_directory, unexpected_filenames_str)
+            cls.test_directory_name, cls.test_directory,
+            unexpected_filenames_str)
         raise TestfileDirectoryError(error_message)
 
 
@@ -364,14 +601,20 @@ class FilesTestComponent(object):
     # needed, or expect that the subdirectories are there to begin with.
     # On-the-fly generation requires changes to the actual application code.
 
-    def setUp(self):
-
+    @classmethod
+    def setUpTestData(cls):
+        """
+        Pre-test file cleanup of the test directory.
+        This must be done in setUpTestData() rather than setUp(),
+        so that we can run it before individual test classes' setUpTestData(),
+        which may add files.
+        """
         unexpected_filenames = []
 
-        # The test-file directory must have no files prior to the test.
-        for dirname, dirnames, filenames in os.walk(self.test_directory):
+        # The test-file directory must have no files prior to the tests.
+        for dirname, dirnames, filenames in os.walk(cls.test_directory):
             for filename in filenames:
-                if filename in self.ignorable_filenames:
+                if filename in cls.ignorable_filenames:
                     continue
 
                 unexpected_filenames.append(os.path.join(dirname, filename))
@@ -379,30 +622,45 @@ class FilesTestComponent(object):
                 # If we find enough unexpected files, just abort.
                 # No need to burn resources listing all the unexpected files.
                 if len(unexpected_filenames) > 10:
-                    self.raise_testfile_directory_error(unexpected_filenames, self.testfile_directory_setup_error_fmtstr)
+                    cls.raise_testfile_directory_error(
+                        unexpected_filenames,
+                        cls.testfile_directory_setup_error_fmtstr)
 
         if unexpected_filenames:
-            self.raise_testfile_directory_error(unexpected_filenames, self.testfile_directory_setup_error_fmtstr)
-
-        # If you want to test the ability to detect unexpected files
-        # on tearDown, stick some code right here to add files to the
-        # test-file directory.
+            cls.raise_testfile_directory_error(
+                unexpected_filenames,
+                cls.testfile_directory_setup_error_fmtstr)
 
         # Save a timestamp just before the tests start.
         # This will allow an extra sanity check in tearDown().
-        self.timestamp_before_tests = timezone.now()
+        cls.timestamp_before_tests = timezone.now()
 
-    def tearDown(self):
+    @classmethod
+    def tearDownClass(cls):
+        """
+        Post-test file cleanup of the testfile directory.
+        This must be done in tearDownClass() rather than tearDown(),
+        otherwise it'll clean up class-wide setup files after the
+        class's first test.
+        Also, there is no tearDownTestData(), but this just needs to run after
+        all the tests have run. The timing isn't as picky as setUp.
 
+        TODO: It's possible that files created by one test will interfere
+        with the next test (in the same class), and this method doesn't
+        account for that because it doesn't run between tests. We may need
+        a more clever solution.
+        Read here for example:
+        http://stackoverflow.com/questions/4283933/what-is-the-clean-way-to-unittest-filefield-in-django
+        """
         unexpected_filenames = []
 
         # Walk recursively through the test-file directory.
         # Delete files that were generated by the test.  Raise an error
         # if unidentified files are found.
-        for dirname, dirnames, filenames in os.walk(self.test_directory):
+        for dirname, dirnames, filenames in os.walk(cls.test_directory):
 
             for filename in filenames:
-                if filename in self.ignorable_filenames:
+                if filename in cls.ignorable_filenames:
                     continue
 
                 leftover_test_filename = os.path.join(dirname, filename)
@@ -417,7 +675,7 @@ class FilesTestComponent(object):
                         pytz.utc)
 
                 if utc_file_ctime + datetime.timedelta(0,60) \
-                 < self.timestamp_before_tests:
+                 < cls.timestamp_before_tests:
                     # The file's ctime is >1 minute before the test started.
                     # So it must not have been created by the test...
                     # something's wrong.
@@ -449,24 +707,23 @@ class FilesTestComponent(object):
         # Do this in a separate for-loop, so that we first delete files, and
         # then delete empty directories (non-empty directories need to be
         # deleted with a different function).
-        for dirname, dirnames, filenames in os.walk(self.test_directory):
+        for dirname, dirnames, filenames in os.walk(cls.test_directory):
 
             for subdir in dirnames:
 
-                for pattern in self.deletable_directory_patterns:
+                for pattern in cls.deletable_directory_patterns:
 
                     if pattern.match(subdir):
                         # The subdirectory name matches one of the directory
                         # patterns that's OK to delete.
                         leftover_test_subdir = os.path.join(dirname, subdir)
                         dir_timestamp = os.stat(leftover_test_subdir).st_ctime
-                        utc_dir_ctime = \
-                            timezone.make_aware(
-                                datetime.datetime.utcfromtimestamp(dir_timestamp),
-                                pytz.utc)
+                        utc_dir_ctime = timezone.make_aware(
+                            datetime.datetime.utcfromtimestamp(dir_timestamp),
+                            pytz.utc)
 
                         if utc_dir_ctime + datetime.timedelta(0,60) \
-                         < self.timestamp_before_tests:
+                         < cls.timestamp_before_tests:
                             # Subdir was created or moved to this directory
                             # before the test started.  Not sure if this should
                             # result in the same error as an 'unexpected' file.
@@ -477,10 +734,13 @@ class FilesTestComponent(object):
                             os.rmdir(leftover_test_subdir)
 
                             if settings.UNIT_TEST_VERBOSITY >= 1:
-                                print "*Directory removed* {dir}".format(dir=leftover_test_subdir)
+                                print "*Directory removed* {dir}".format(
+                                    dir=leftover_test_subdir)
 
         if unexpected_filenames:
-            self.raise_testfile_directory_error(unexpected_filenames, self.testfile_directory_teardown_error_fmtstr)
+            cls.raise_testfile_directory_error(
+                unexpected_filenames,
+                cls.testfile_directory_teardown_error_fmtstr)
 
 class MediaTestComponent(FilesTestComponent):
     """

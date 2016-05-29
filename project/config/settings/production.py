@@ -45,7 +45,7 @@ AWS_S3_DOMAIN = 's3-us-west-2.amazonaws.com/{bucket_name}'.format(
 AWS_S3_MEDIA_SUBDIR = 'media'
 
 # Default file storage mechanism that holds media.
-DEFAULT_FILE_STORAGE = 'lib.storage_backends.MediaStorage'
+DEFAULT_FILE_STORAGE = 'lib.storage_backends.MediaStorageS3'
 
 # Base URL for user-uploaded media.
 # Example: "http://media.lawrence.com/media/"
@@ -76,11 +76,6 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50 MB
 WSGI_APPLICATION = 'config.wsgi.application'
 
 
-
-# [Custom setting]
-# Media Root to be used during unit tests.
-# This directory is best kept out of the repository.
-TEST_MEDIA_ROOT = SITE_DIR.child('testing').child('media')
 
 # [Custom setting]
 # Absolute filesystem path to the directory that will

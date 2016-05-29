@@ -28,6 +28,9 @@ TIME_ZONE = 'America/Los_Angeles'
 # notifications and other various emails.
 MANAGERS = ADMINS
 
+# Default file storage mechanism that holds media.
+DEFAULT_FILE_STORAGE = 'lib.storage_backends.MediaStorageLocal'
+
 # Absolute filesystem path to the directory that will hold user-uploaded files.
 # Example: "/home/media/media.lawrence.com/media/"
 # If user-uploaded files live in a separate server such as AWS, then
@@ -60,11 +63,6 @@ STATIC_ROOT = SITE_DIR.child('static_serve')
 FILE_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50 MB
 
 
-
-# [Custom setting]
-# Media Root to be used during unit tests.
-# This directory is best kept out of the repository.
-TEST_MEDIA_ROOT = SITE_DIR.child('testing').child('media')
 
 # [Custom setting]
 # Absolute filesystem path to the directory that will

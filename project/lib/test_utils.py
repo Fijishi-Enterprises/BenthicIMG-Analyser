@@ -2,14 +2,16 @@
 import datetime
 import json
 import os
+import posixpath
+import urlparse
 from django.contrib.auth import get_user_model
 from django.core import mail, management
+from django.core.files.storage import get_storage_class
 import pytz
-import re
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.test.client import Client
 from django.test.runner import DiscoverRunner
 from django.utils import timezone
@@ -27,18 +29,28 @@ class MyTestSuiteRunner(DiscoverRunner):
 
         # Directories for media and processing files that are
         # used or generated during unit tests.
-        settings.MEDIA_ROOT = settings.TEST_MEDIA_ROOT
         settings.PROCESSING_ROOT = settings.TEST_PROCESSING_ROOT
 
-        # To test functionality of sending emails to the admins,
-        # settings.ADMINS must be set. It might not be set for
-        # development machines.
-        settings.ADMINS = (
-            ('Admin One', 'admin1@example.com'),
-            ('Admin Two', 'admin2@example.com'),
-        )
 
+test_settings = dict(
+    # Store media in a 'unittests' subdir of the usual location.
+    # MEDIA_ROOT is only defined for local, and AWS for production,
+    # so use getattr() to catch the undefined cases (to avoid exceptions).
+    MEDIA_ROOT = os.path.join(
+        getattr(settings, 'MEDIA_ROOT', ''), 'unittests'),
+    AWS_S3_MEDIA_SUBDIR = posixpath.join(
+        getattr(settings, 'AWS_S3_MEDIA_SUBDIR', ''), 'unittests'),
+    MEDIA_URL = urlparse.urljoin(settings.MEDIA_URL, 'unittests/'),
+    # To test functionality of sending emails to the admins,
+    # settings.ADMINS must be set. It might not be set for
+    # development machines.
+    ADMINS = [
+        ('Admin One', 'admin1@example.com'),
+        ('Admin Two', 'admin2@example.com'),
+    ],
+)
 
+@override_settings(**test_settings)
 class BaseTest(TestCase):
     """
     Base class for our test classes.
@@ -550,56 +562,113 @@ class FilesTestComponent(object):
     FilesTestComponent as a test component, use one of its
     subclasses instead.
     """
-    test_directory = None
-    test_directory_name = None
-
-    # If there are certain test-generated subdirectories that are okay
-    # to delete, specify regular expressions that match the names of these
-    # subdirectories.
-    # Any subdirectories not matching these regular expressions will not
-    # be deleted.  (This is for safety, because we really want to be careful
-    # about auto-deleting directories.)
-    deletable_directory_patterns = []
 
     # Filenames we can safely ignore during setup and teardown.
     ignorable_filenames = ['tasks.log']
 
-    testfile_directory_setup_error_fmtstr = (
-        "The test setup routine found files in the {0} directory ({1}):"
-        "\n{2}"
-        "\nPlease check that:"
-        "\n1. {0} is set correctly"
-        "\n2. All tests that add files use"
-        " extra_components = [<any FilesTestComponent subclass>, ...]"
-        " to clean up after the test"
-        "\n3. The {0} directory is empty prior to the test"
-    )
-    testfile_directory_teardown_error_fmtstr = (
-        "The test teardown routine found unexpected files"
-        " in the {0} directory ({1})!:"
-        "\n{2}"
-        "\nThese files seem to have been created prior to the test."
-        " Please delete these files or move them elsewhere."
-    )
     timestamp_before_tests = None
+    unexpected_filenames = None
 
     @classmethod
-    def raise_testfile_directory_error(cls, unexpected_filenames,
-        message_format_str):
-        if len(unexpected_filenames) > 10:
-            unexpected_filenames_str = \
-                '\n'.join(unexpected_filenames[:10]) + "\n(And others)"
-        else:
-            unexpected_filenames_str = '\n'.join(unexpected_filenames)
-        error_message = message_format_str.format(
-            cls.test_directory_name, cls.test_directory,
-            unexpected_filenames_str)
-        raise TestfileDirectoryError(error_message)
+    def check_directory_pre_test(cls, directory):
+        # If we found enough unexpected files, just abort.
+        # No need to burn resources listing all the unexpected files.
+        if len(cls.unexpected_filenames) > 10:
+            return
 
+        storage = get_storage_class()()
+        dirnames, filenames = storage.listdir(directory)
 
-    # TODO: Decide whether to on-the-fly generate subdirectories that are
-    # needed, or expect that the subdirectories are there to begin with.
-    # On-the-fly generation requires changes to the actual application code.
+        for dirname in dirnames:
+            cls.check_directory_pre_test(storage.path_join(directory, dirname))
+
+        for filename in filenames:
+            # If we found enough unexpected files, just abort.
+            # No need to burn resources listing all the unexpected files.
+            if len(cls.unexpected_filenames) > 10:
+                return
+            # Ignore certain filenames.
+            if filename in cls.ignorable_filenames:
+                continue
+
+            cls.unexpected_filenames.append(
+                storage.path_join(directory, filename))
+
+    @classmethod
+    def clean_directory_post_test(cls, directory):
+        # If we found enough unexpected files, just abort.
+        # No need to burn resources listing all the unexpected files.
+        if len(cls.unexpected_filenames) > 10:
+            return
+
+        storage = get_storage_class()()
+        dirnames, filenames = storage.listdir(directory)
+
+        for dirname in dirnames:
+            cls.clean_directory_post_test(
+                storage.path_join(directory, dirname))
+
+        for filename in filenames:
+            # If we found enough unexpected files, just abort.
+            # No need to burn resources listing all the unexpected files.
+            if len(cls.unexpected_filenames) > 10:
+                return
+            # Ignore certain filenames.
+            if filename in cls.ignorable_filenames:
+                continue
+
+            leftover_file_path = storage.path_join(directory, filename)
+
+            file_naive_datetime = storage.modified_time(leftover_file_path)
+            file_aware_datetime = timezone.make_aware(
+                file_naive_datetime, pytz.timezone(storage.timezone))
+
+            if file_aware_datetime + datetime.timedelta(0,60*10) \
+             < cls.timestamp_before_tests:
+                # The file was created before the test started.
+                # So it must not have been created by the test...
+                # something's wrong.
+                # Prepare to throw an error instead of deleting the file.
+                #
+                # (This is a real corner case because the file needs to
+                # materialize in the directory AFTER the pre-test check...
+                # but we want to be really careful about file deletions.)
+                #
+                # The 10-minute cushion in the time comparison is to allow
+                # for discrepancies between the timekeeping used by Django
+                # and the timekeeping used by the file storage system.
+                # Even on Stephen's local Windows setup, where both Django
+                # and the file storage are on the same machine, discrepancies
+                # of ~6 seconds have been observed. Not sure why.
+                # In any case, our compensation for the discrepancy doesn't
+                # significantly decrease the safety of our mystery-files check.
+                cls.unexpected_filenames.append(leftover_file_path)
+            else:
+                # Timestamps indicate that it's almost certainly a file
+                # generated by the test; remove it.
+                storage.delete(leftover_file_path)
+
+                if settings.UNIT_TEST_VERBOSITY >= 1:
+                    print "*File removed* {fn}".format(
+                        fn=leftover_file_path
+                    )
+
+        # We don't try to delete directories anymore because:
+        #
+        # (1) Amazon S3 doesn't actually have directories/folders.
+        # A directory should get auto-deleted after deleting all
+        # of its contents.
+        # http://stackoverflow.com/a/22669537
+        # (In practice, I didn't observe this auto-deletion when using
+        # the S3 file browser or Django's manage.py shell, yet it
+        # worked during actual test runs. Well, if it works, it works.
+        # -Stephen)
+        #
+        # (2) With local storage, deleting a folder on Windows seems to
+        # get 'Access is denied' even if the directories were created
+        # during that same test run. Not sure how it is on Linux, but
+        # overall it seems like directory cleanup is more trouble than
+        # it's worth.
 
     @classmethod
     def setUpTestData(cls):
@@ -609,27 +678,30 @@ class FilesTestComponent(object):
         so that we can run it before individual test classes' setUpTestData(),
         which may add files.
         """
-        unexpected_filenames = []
+        cls.unexpected_filenames = []
 
         # The test-file directory must have no files prior to the tests.
-        for dirname, dirnames, filenames in os.walk(cls.test_directory):
-            for filename in filenames:
-                if filename in cls.ignorable_filenames:
-                    continue
+        storage = get_storage_class()()
+        # Clean up files, starting at the storage's base directory.
+        cls.check_directory_pre_test('')
 
-                unexpected_filenames.append(os.path.join(dirname, filename))
+        if cls.unexpected_filenames:
+            format_str = (
+                "The test setup routine found files in {dir}:"
+                "\n{filenames}"
+                "\nPlease ensure that:"
+                "\n1. The directory is empty prior to testing"
+                "\n2. All tests that add files use"
+                " extra_components = [<any FilesTestComponent subclass>, ...]"
+                " to clean up after the test"
+                "\n3. Previous tests cleaned up their files properly"
+            )
+            filenames_str = '\n'.join(cls.unexpected_filenames[:10])
+            if len(cls.unexpected_filenames) > 10:
+                filenames_str += "\n(And others)"
 
-                # If we find enough unexpected files, just abort.
-                # No need to burn resources listing all the unexpected files.
-                if len(unexpected_filenames) > 10:
-                    cls.raise_testfile_directory_error(
-                        unexpected_filenames,
-                        cls.testfile_directory_setup_error_fmtstr)
-
-        if unexpected_filenames:
-            cls.raise_testfile_directory_error(
-                unexpected_filenames,
-                cls.testfile_directory_setup_error_fmtstr)
+            raise TestfileDirectoryError(format_str.format(
+                dir=storage.location, filenames=filenames_str))
 
         # Save a timestamp just before the tests start.
         # This will allow an extra sanity check in tearDown().
@@ -652,116 +724,40 @@ class FilesTestComponent(object):
         Read here for example:
         http://stackoverflow.com/questions/4283933/what-is-the-clean-way-to-unittest-filefield-in-django
         """
-        unexpected_filenames = []
+        cls.unexpected_filenames = []
 
         # Walk recursively through the test-file directory.
         # Delete files that were generated by the test.  Raise an error
         # if unidentified files are found.
-        for dirname, dirnames, filenames in os.walk(cls.test_directory):
+        storage = get_storage_class()()
+        cls.clean_directory_post_test('')
 
-            for filename in filenames:
-                if filename in cls.ignorable_filenames:
-                    continue
+        if cls.unexpected_filenames:
+            format_str = (
+                "The test teardown routine found unexpected files"
+                " in {dir}:"
+                "\n{filenames}"
+                "\nThese files seem to have been created prior to the test."
+                " Please make sure this directory isn't being used for"
+                " anything else during testing."
+            )
+            filenames_str = '\n'.join(cls.unexpected_filenames[:10])
+            if len(cls.unexpected_filenames) > 10:
+                filenames_str += "\n(And others)"
 
-                leftover_test_filename = os.path.join(dirname, filename)
-
-                # ctime refers to file creation time on Windows, and
-                # inode modification time on *nix.
-                # http://stackoverflow.com/questions/237079/how-to-get-file-creation-modification-date-times-in-python
-                file_timestamp = os.stat(leftover_test_filename).st_ctime
-                utc_file_ctime = \
-                    timezone.make_aware(
-                        datetime.datetime.utcfromtimestamp(file_timestamp),
-                        pytz.utc)
-
-                if utc_file_ctime + datetime.timedelta(0,60) \
-                 < cls.timestamp_before_tests:
-                    # The file's ctime is >1 minute before the test started.
-                    # So it must not have been created by the test...
-                    # something's wrong.
-                    # Prepare to throw an error instead of deleting the file.
-                    #
-                    # (This is a real corner case because the file needs to
-                    # materialize in the directory AFTER the setUp check...
-                    # but we want to be really careful about file deletions.)
-                    #
-                    # The 1-minute cushion is to allow for discrepancies
-                    # between ctime and datetime's now().
-                    # On Stephen's Windows setup, discrepancies of ~6 seconds
-                    # have been observed. Not sure where the discrepancy
-                    # comes from.
-                    # In any case, our compensation for the discrepancy doesn't
-                    # really decrease the safety of our mystery-files check.
-                    unexpected_filenames.append(leftover_test_filename)
-                else:
-                    # Timestamps indicate that it's almost certainly a file
-                    # generated by the test; remove it.
-                    os.remove(leftover_test_filename)
-
-                    if settings.UNIT_TEST_VERBOSITY >= 1:
-                        print "*File removed* {fn}".format(
-                            fn=leftover_test_filename
-                        )
-
-        # Delete subdirectories that were generated by the test.
-        # Do this in a separate for-loop, so that we first delete files, and
-        # then delete empty directories (non-empty directories need to be
-        # deleted with a different function).
-        for dirname, dirnames, filenames in os.walk(cls.test_directory):
-
-            for subdir in dirnames:
-
-                for pattern in cls.deletable_directory_patterns:
-
-                    if pattern.match(subdir):
-                        # The subdirectory name matches one of the directory
-                        # patterns that's OK to delete.
-                        leftover_test_subdir = os.path.join(dirname, subdir)
-                        dir_timestamp = os.stat(leftover_test_subdir).st_ctime
-                        utc_dir_ctime = timezone.make_aware(
-                            datetime.datetime.utcfromtimestamp(dir_timestamp),
-                            pytz.utc)
-
-                        if utc_dir_ctime + datetime.timedelta(0,60) \
-                         < cls.timestamp_before_tests:
-                            # Subdir was created or moved to this directory
-                            # before the test started.  Not sure if this should
-                            # result in the same error as an 'unexpected' file.
-                            #unexpected_filenames.append(leftover_test_subdir)
-                            pass
-                        else:
-                            # Subdir was generated by the test; remove it.
-                            os.rmdir(leftover_test_subdir)
-
-                            if settings.UNIT_TEST_VERBOSITY >= 1:
-                                print "*Directory removed* {dir}".format(
-                                    dir=leftover_test_subdir)
-
-        if unexpected_filenames:
-            cls.raise_testfile_directory_error(
-                unexpected_filenames,
-                cls.testfile_directory_teardown_error_fmtstr)
+            raise TestfileDirectoryError(format_str.format(
+                dir=storage.location, filenames=filenames_str))
 
 class MediaTestComponent(FilesTestComponent):
     """
     Include this class in a test class's extra_components list
     if the test uses media (for file uploads, etc.).
     """
-    test_directory = settings.TEST_MEDIA_ROOT
-    test_directory_name = "TEST_MEDIA_ROOT"
+    pass
 
 class ProcessingTestComponent(FilesTestComponent):
     """
     Include this class in a test class's extra_components list
     if the test uses image processing tasks.
     """
-    test_directory = settings.TEST_PROCESSING_ROOT
-    test_directory_name = "TEST_PROCESSING_ROOT"
-
-    deletable_directory_patterns = [
-        re.compile(r'robot\d+\.workdir')    # e.g. robot56.workdir
-    ]
-
-    # TODO: Auto-create the following processing directories:
-    # images/classify, features, models, and preprocess.
-    # (might consider doing this on the non-testing side too, though.)
+    pass

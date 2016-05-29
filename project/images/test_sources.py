@@ -8,7 +8,7 @@ from annotations.models import LabelSet
 from images.model_utils import PointGen
 from images.models import Source
 from lib import str_consts
-from lib.test_utils import ClientTest, MediaTestComponent
+from lib.test_utils import ClientTest
 
 
 class SourceAboutTest(ClientTest):
@@ -445,7 +445,6 @@ class ImageViewTest(ClientTest):
     Test the image view page.
     This is an abstract class that doesn't actually have any tests.
     """
-    extra_components = [MediaTestComponent]
     fixtures = ['test_users.yaml', 'test_sources.yaml']
     source_member_roles = [
         ('public1', 'user2', Source.PermTypes.ADMIN.code),

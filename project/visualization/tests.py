@@ -1,7 +1,7 @@
 import json
 from urllib import urlencode
 from django.core.urlresolvers import reverse
-from lib.test_utils import ClientTest, MediaTestComponent
+from lib.test_utils import ClientTest
 from images.models import Source, Image, Value1, Value3, Value4
 
 
@@ -9,7 +9,6 @@ class BrowseTest(ClientTest):
     """
     Test the browse page.
     """
-    extra_components = [MediaTestComponent]
     fixtures = ['test_users.yaml', 'test_labels.yaml', 'test_sources.yaml']
     source_member_roles = [
         ('private1', 'user2', Source.PermTypes.EDIT.code),
@@ -73,7 +72,6 @@ class MetadataEditTest(ClientTest):
     """
     Test the metadata edit functionality.
     """
-    extra_components = [MediaTestComponent]
     fixtures = ['test_users.yaml', 'test_labels.yaml', 'test_sources.yaml']
     source_member_roles = [
         ('private1', 'user2', Source.PermTypes.EDIT.code),
@@ -230,7 +228,6 @@ class MetadataEditTest2(ClientTest):
     """
     Test metadata edit, more specific functionality.
     """
-    extra_components = [MediaTestComponent]
     fixtures = ['test_users.yaml', 'test_labels.yaml',
         'test_sources_with_different_keys.yaml']
     source_member_roles = [
@@ -291,7 +288,6 @@ class ImageDeleteTest(ClientTest):
     """
     Test the image delete functionality.
     """
-    extra_components = [MediaTestComponent]
     fixtures = ['test_users.yaml', 'test_labels.yaml', 'test_sources.yaml']
     source_member_roles = [
         ('private1', 'user2', Source.PermTypes.EDIT.code),

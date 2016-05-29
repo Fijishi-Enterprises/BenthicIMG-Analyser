@@ -7,7 +7,7 @@ from django.db.models import Count
 from annotations.models import Label, LabelGroup, LabelSet
 from images.model_utils import PointGen
 from images.models import Source
-from lib.test_utils import ClientTest, MediaTestComponent
+from lib.test_utils import ClientTest
 
 class LabelListTest(ClientTest):
     """
@@ -39,8 +39,6 @@ class LabelDetailPatchesTest(ClientTest):
     """
     Test the annotation patches of the label detail page.
     """
-    extra_components = [MediaTestComponent]
-
     @classmethod
     def setUpTestData(cls):
         # Call the parent's setup (while still using this class as cls)
@@ -159,7 +157,6 @@ class NewLabelsetTest(ClientTest):
     """
     Test the new labelset page.
     """
-    extra_components = [MediaTestComponent]
     fixtures = ['test_users.yaml', 'test_sources.yaml', 'test_labels.yaml']
     source_member_roles = [
         ('public1', 'user3', Source.PermTypes.EDIT.code),

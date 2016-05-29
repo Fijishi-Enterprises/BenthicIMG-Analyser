@@ -11,7 +11,7 @@ from annotations.models import Annotation
 from images.model_utils import PointGen
 from images.models import Source, Image, Point
 from lib import str_consts
-from lib.test_utils import ClientTest, MediaTestComponent
+from lib.test_utils import ClientTest
 from upload.forms import ImageUploadForm
 
 
@@ -22,7 +22,6 @@ class ImageUploadBaseTest(ClientTest):
     This is an abstract class of sorts, as it doesn't actually contain
     any test methods.  However, its subclasses have test methods.
     """
-    extra_components = [MediaTestComponent]
     fixtures = ['test_users.yaml', 'test_sources_with_different_keys.yaml']
     source_member_roles = [
         ('0 keys', 'user2', Source.PermTypes.ADMIN.code),

@@ -61,17 +61,19 @@ class BaseTest(TestCase):
     """
     fixtures = []
     source_member_roles = []
-    extra_components = []
 
     def __init__(self, *args, **kwargs):
         TestCase.__init__(self, *args, **kwargs)
-        self.extra_components = [cls() for cls in self.extra_components]
 
     @classmethod
     def setUpTestData(cls):
         super(BaseTest, cls).setUpTestData()
-        for component in cls.extra_components:
-            component.setUpTestData()
+
+        # File checking must be done in setUpTestData() rather than setUp(),
+        # so that we can run it before individual test classes'
+        # setUpTestData(), which may add files.
+        cls.storage_checker = StorageChecker()
+        cls.storage_checker.check_storage_pre_test()
 
     def setUp(self):
         self.setAccountPerms()
@@ -79,8 +81,18 @@ class BaseTest(TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        for component in cls.extra_components:
-            component.tearDownClass()
+        # File cleanup must be done in tearDownClass() rather than tearDown(),
+        # otherwise it'll clean up class-wide setup files after the
+        # class's first test.
+        #
+        # TODO: It's possible that files created by one test will interfere
+        # with the next test (in the same class), and this timing doesn't
+        # account for that because it doesn't run between tests. We may need
+        # a more clever solution.
+        # Read here for example:
+        # http://stackoverflow.com/questions/4283933/
+        cls.storage_checker.clean_storage_post_test()
+
         super(BaseTest, cls).tearDownClass()
 
     def setAccountPerms(self):
@@ -556,68 +568,132 @@ class ClientTest(BaseTest):
         print ['{0} error: {1}: {2}'.format(form_name, field_name, str(error_list))
                for field_name, error_list in response.context[form_name].errors.iteritems()]
 
-
-class FilesTestComponent(object):
+class StorageChecker(object):
     """
-    Base class for test components that require a
-    directory for test files.
-
-    This should be considered an abstract class.  Don't use
-    FilesTestComponent as a test component, use one of its
-    subclasses instead.
+    Provide functions that (1) check that file storage for tests is empty
+    before tests, and (2) clean up test file storage after tests.
     """
-
     # Filenames we can safely ignore during setup and teardown.
     ignorable_filenames = ['tasks.log']
 
-    timestamp_before_tests = None
-    unexpected_filenames = None
+    def __init__(self):
+        self.timestamp_before_tests = None
+        self.unexpected_filenames = None
 
-    @classmethod
-    def check_directory_pre_test(cls, storage, directory):
+    def check_storage_pre_test(self):
+        """
+        Pre-test check for files in the test file directories.
+        """
+        self.unexpected_filenames = []
+
+        storages = [
+            # Media
+            get_storage_class()(),
+            # Processing
+            get_processing_storage_class()(),
+        ]
+
+        for storage in storages:
+            # Check for files, starting at the storage's base directory.
+            self._check_directory_pre_test(storage, '')
+
+            if self.unexpected_filenames:
+                format_str = (
+                    "The test setup routine found files in {dir}:"
+                    "\n{filenames}"
+                    "\nPlease ensure that:"
+                    "\n1. The directory is empty prior to testing"
+                    "\n2. Files were cleaned properly after previous tests"
+                )
+                filenames_str = '\n'.join(self.unexpected_filenames[:10])
+                if len(self.unexpected_filenames) > 10:
+                    filenames_str += "\n(And others)"
+
+                raise TestfileDirectoryError(format_str.format(
+                    dir=storage.location, filenames=filenames_str))
+
+        # Save a timestamp just before the tests start.
+        # This will allow an extra sanity check when tearing down tests.
+        self.timestamp_before_tests = timezone.now()
+
+    def _check_directory_pre_test(self, storage, directory):
         # If we found enough unexpected files, just abort.
         # No need to burn resources listing all the unexpected files.
-        if len(cls.unexpected_filenames) > 10:
+        if len(self.unexpected_filenames) > 10:
             return
 
         dirnames, filenames = storage.listdir(directory)
 
         for dirname in dirnames:
-            cls.check_directory_pre_test(
+            self._check_directory_pre_test(
                 storage, storage.path_join(directory, dirname))
 
         for filename in filenames:
             # If we found enough unexpected files, just abort.
             # No need to burn resources listing all the unexpected files.
-            if len(cls.unexpected_filenames) > 10:
+            if len(self.unexpected_filenames) > 10:
                 return
             # Ignore certain filenames.
-            if filename in cls.ignorable_filenames:
+            if filename in self.ignorable_filenames:
                 continue
 
-            cls.unexpected_filenames.append(
+            self.unexpected_filenames.append(
                 storage.path_join(directory, filename))
 
-    @classmethod
-    def clean_directory_post_test(cls, storage, directory):
+    def clean_storage_post_test(self):
+        """
+        Post-test file cleanup of the test file directories.
+        """
+        self.unexpected_filenames = []
+
+        storages = [
+            # Media
+            get_storage_class()(),
+            # Processing
+            get_processing_storage_class()(),
+        ]
+
+        for storage in storages:
+            # Look for files, starting at the storage's base directory.
+            # Delete files that were generated by the test. Raise an error
+            # if unidentified files are found.
+            self._clean_directory_post_test(storage, '')
+
+            if self.unexpected_filenames:
+                format_str = (
+                    "The test teardown routine found unexpected files"
+                    " in {dir}:"
+                    "\n{filenames}"
+                    "\nThese files seem to have been created prior to the test."
+                    " Please make sure this directory isn't being used for"
+                    " anything else during testing."
+                )
+                filenames_str = '\n'.join(self.unexpected_filenames[:10])
+                if len(self.unexpected_filenames) > 10:
+                    filenames_str += "\n(And others)"
+
+                raise TestfileDirectoryError(format_str.format(
+                    dir=storage.location, filenames=filenames_str))
+
+    def _clean_directory_post_test(self, storage, directory):
         # If we found enough unexpected files, just abort.
         # No need to burn resources listing all the unexpected files.
-        if len(cls.unexpected_filenames) > 10:
+        if len(self.unexpected_filenames) > 10:
             return
 
         dirnames, filenames = storage.listdir(directory)
 
         for dirname in dirnames:
-            cls.clean_directory_post_test(
+            self._clean_directory_post_test(
                 storage, storage.path_join(directory, dirname))
 
         for filename in filenames:
             # If we found enough unexpected files, just abort.
             # No need to burn resources listing all the unexpected files.
-            if len(cls.unexpected_filenames) > 10:
+            if len(self.unexpected_filenames) > 10:
                 return
             # Ignore certain filenames.
-            if filename in cls.ignorable_filenames:
+            if filename in self.ignorable_filenames:
                 continue
 
             leftover_file_path = storage.path_join(directory, filename)
@@ -627,7 +703,7 @@ class FilesTestComponent(object):
                 file_naive_datetime, pytz.timezone(storage.timezone))
 
             if file_aware_datetime + datetime.timedelta(0,60*10) \
-             < cls.timestamp_before_tests:
+             < self.timestamp_before_tests:
                 # The file was created before the test started.
                 # So it must not have been created by the test...
                 # something's wrong.
@@ -645,7 +721,7 @@ class FilesTestComponent(object):
                 # of ~6 seconds have been observed. Not sure why.
                 # In any case, our compensation for the discrepancy doesn't
                 # significantly decrease the safety of our mystery-files check.
-                cls.unexpected_filenames.append(leftover_file_path)
+                self.unexpected_filenames.append(leftover_file_path)
             else:
                 # Timestamps indicate that it's almost certainly a file
                 # generated by the test; remove it.
@@ -672,109 +748,3 @@ class FilesTestComponent(object):
         # during that same test run. Not sure how it is on Linux, but
         # overall it seems like directory cleanup is more trouble than
         # it's worth.
-
-    @classmethod
-    def setUpTestData(cls):
-        """
-        Pre-test check for files in the test file directories.
-        This must be done in setUpTestData() rather than setUp(),
-        so that we can run it before individual test classes' setUpTestData(),
-        which may add files.
-        """
-        cls.unexpected_filenames = []
-
-        storages = [
-            # Media
-            get_storage_class()(),
-            # Processing
-            get_processing_storage_class()(),
-        ]
-
-        for storage in storages:
-            # Check for files, starting at the storage's base directory.
-            cls.check_directory_pre_test(storage, '')
-
-            if cls.unexpected_filenames:
-                format_str = (
-                    "The test setup routine found files in {dir}:"
-                    "\n{filenames}"
-                    "\nPlease ensure that:"
-                    "\n1. The directory is empty prior to testing"
-                    "\n2. All tests that add files use"
-                    " extra_components ="
-                    " [<any FilesTestComponent subclass>, ...]"
-                    " to clean up after the test"
-                    "\n3. Previous tests cleaned up their files properly"
-                )
-                filenames_str = '\n'.join(cls.unexpected_filenames[:10])
-                if len(cls.unexpected_filenames) > 10:
-                    filenames_str += "\n(And others)"
-
-                raise TestfileDirectoryError(format_str.format(
-                    dir=storage.location, filenames=filenames_str))
-
-        # Save a timestamp just before the tests start.
-        # This will allow an extra sanity check when tearing down tests.
-        cls.timestamp_before_tests = timezone.now()
-
-    @classmethod
-    def tearDownClass(cls):
-        """
-        Post-test file cleanup of the test file directories.
-        This must be done in tearDownClass() rather than tearDown(),
-        otherwise it'll clean up class-wide setup files after the
-        class's first test.
-        Also, there is no tearDownTestData(), but this just needs to run after
-        all the tests have run. The timing isn't as picky as setUp.
-
-        TODO: It's possible that files created by one test will interfere
-        with the next test (in the same class), and this method doesn't
-        account for that because it doesn't run between tests. We may need
-        a more clever solution.
-        Read here for example:
-        http://stackoverflow.com/questions/4283933/what-is-the-clean-way-to-unittest-filefield-in-django
-        """
-        cls.unexpected_filenames = []
-
-        storages = [
-            # Media
-            get_storage_class()(),
-            # Processing
-            get_processing_storage_class()(),
-        ]
-
-        for storage in storages:
-            # Look for files, starting at the storage's base directory.
-            # Delete files that were generated by the test.  Raise an error
-            # if unidentified files are found.
-            cls.clean_directory_post_test(storage, '')
-
-            if cls.unexpected_filenames:
-                format_str = (
-                    "The test teardown routine found unexpected files"
-                    " in {dir}:"
-                    "\n{filenames}"
-                    "\nThese files seem to have been created prior to the test."
-                    " Please make sure this directory isn't being used for"
-                    " anything else during testing."
-                )
-                filenames_str = '\n'.join(cls.unexpected_filenames[:10])
-                if len(cls.unexpected_filenames) > 10:
-                    filenames_str += "\n(And others)"
-
-                raise TestfileDirectoryError(format_str.format(
-                    dir=storage.location, filenames=filenames_str))
-
-class MediaTestComponent(FilesTestComponent):
-    """
-    Include this class in a test class's extra_components list
-    if the test uses media (for file uploads, etc.).
-    """
-    pass
-
-class ProcessingTestComponent(FilesTestComponent):
-    """
-    Include this class in a test class's extra_components list
-    if the test uses image processing tasks.
-    """
-    pass

@@ -7,14 +7,13 @@ from annotations.model_utils import AnnotationAreaUtils
 from annotations.models import Label, Annotation, AnnotationToolSettings
 from images.model_utils import PointGen
 from images.models import Source, Image, Point
-from lib.test_utils import ClientTest, MediaTestComponent
+from lib.test_utils import ClientTest
 
 
 class AnnotationToolTest(ClientTest):
     """
     Test the annotation tool page.
     """
-    extra_components = [MediaTestComponent]
     fixtures = ['test_users.yaml', 'test_labels.yaml',
                 'test_labelsets.yaml', 'test_sources_with_labelsets.yaml']
     source_member_roles = [
@@ -90,7 +89,6 @@ class SaveAnnotationsTest(ClientTest):
     """
     Test saving annotations via the Ajax view.
     """
-    extra_components = [MediaTestComponent]
     fixtures = ['test_users.yaml', 'test_labels.yaml',
                 'test_labelsets.yaml', 'test_sources_with_labelsets.yaml']
     source_member_roles = [
@@ -268,7 +266,6 @@ class IsAnnotationAllDoneTest(ClientTest):
     """
     Test the Ajax view that reports if an image's annotations are all done.
     """
-    extra_components = [MediaTestComponent]
     fixtures = ['test_users.yaml', 'test_labels.yaml',
                 'test_labelsets.yaml', 'test_sources_with_labelsets.yaml']
     source_member_roles = [
@@ -395,7 +392,6 @@ class AnnotationToolSettingsSaveTest(ClientTest):
     """
     Test the Ajax view that saves a user's annotation tool settings.
     """
-    extra_components = [MediaTestComponent]
     fixtures = ['test_users.yaml', 'test_labels.yaml',
                 'test_labelsets.yaml', 'test_sources_with_labelsets.yaml']
     source_member_roles = [
@@ -462,7 +458,6 @@ class AnnotationAreaEditTest(ClientTest):
     """
     Test the annotation area edit page.
     """
-    extra_components = [MediaTestComponent]
     fixtures = ['test_users.yaml', 'test_labels.yaml',
                 'test_labelsets.yaml', 'test_sources_with_labelsets.yaml']
     source_member_roles = [
@@ -520,7 +515,6 @@ class AnnotationHistoryTest(ClientTest):
     """
     Test the annotation history page.
     """
-    extra_components = [MediaTestComponent]
     fixtures = ['test_users.yaml', 'test_labels.yaml',
                 'test_labelsets.yaml', 'test_sources_with_labelsets.yaml']
     source_member_roles = [
@@ -661,7 +655,6 @@ class PointGenTest(ClientTest):
     """
     Test generation of annotation points.
     """
-    extra_components = [MediaTestComponent]
     fixtures = [
         'test_users.yaml',
         'test_sources_with_different_pointgen_params.yaml'

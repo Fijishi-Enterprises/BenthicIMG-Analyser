@@ -88,9 +88,15 @@ class ImageProcessingTaskBaseTest(ClientTest):
 
         self.upload_images()
         
-        # Copy parameter file to desired location (It's totally hacky, but didn't know how else to do it.)
-        if(os.path.isfile('/cnhome/images/preprocess/preProcessParameters.mat')):
-            shutil.copy('/cnhome/images/preprocess/preProcessParameters.mat', os.path.join(settings.TEST_PROCESSING_ROOT, 'images/preprocess/preProcessParameters.mat'))
+        # Copy parameter file to desired location
+        # (It's totally hacky, but didn't know how else to do it.)
+        test_location = settings.PROCESSING_ROOT
+        non_test_location = test_location[:test_location.find('unittests')]
+        filepath = 'preprocess/preProcessParameters.mat'
+        if os.path.isfile(os.path.join(non_test_location, filepath)):
+            shutil.copy(
+                os.path.join(non_test_location, filepath),
+                os.path.join(test_location, filepath))
 
 
 class SingleImageProcessingTaskTest(ImageProcessingTaskBaseTest):

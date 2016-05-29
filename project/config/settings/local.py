@@ -49,6 +49,17 @@ MEDIA_ROOT = SITE_DIR.child('media')
 # Example: "http://media.lawrence.com/media/"
 MEDIA_URL = '/media/'
 
+# [Custom setting]
+# Default file storage mechanism for processing files.
+PROCESSING_DEFAULT_STORAGE = 'lib.storage_backends.ProcessingStorageLocal'
+
+# [Custom setting]
+# Absolute filesystem path to the directory that will
+# hold input and output files for backend processing tasks.
+# This directory is best kept out of the repository.
+# Example: "/home/mysite_processing/"
+PROCESSING_ROOT = SITE_DIR.child('processing')
+
 # Absolute path to the directory which static files should be collected to.
 # Example: "/home/media/media.lawrence.com/static/"
 #
@@ -71,18 +82,6 @@ STATIC_ROOT = SITE_DIR.child('static_serve')
 FILE_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50 MB
 
 
-
-# [Custom setting]
-# Absolute filesystem path to the directory that will
-# hold input and output files for backend processing tasks.
-# This directory is best kept out of the repository.
-# Example: "/home/mysite_processing/"
-PROCESSING_ROOT = SITE_DIR.child('processing')
-
-# [Custom setting]
-# Processing Root to be used during unit tests.
-# This directory is best kept out of the repository.
-TEST_PROCESSING_ROOT = SITE_DIR.child('testing').child('processing')
 
 # [Custom setting]
 # When uploading images and annotations together, the annotation dict needs

@@ -4,51 +4,55 @@ import json
 import os
 import posixpath
 import urlparse
+import pytz
 from django.contrib.auth import get_user_model
 from django.core import mail, management
 from django.core.files.storage import get_storage_class
-import pytz
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
 from django.test import TestCase, override_settings
 from django.test.client import Client
-from django.test.runner import DiscoverRunner
 from django.utils import timezone
 from annotations.models import LabelGroup, Label
 from images.model_utils import PointGen
 from images.models import Source, Point, Image
 from lib.exceptions import TestfileDirectoryError
+from lib.storage_backends import get_processing_storage_class
 from lib.utils import is_django_str
 
 
-class MyTestSuiteRunner(DiscoverRunner):
-    def setup_test_environment(self, **kwargs):
-        # Run Django's standard test setup.
-        DiscoverRunner.setup_test_environment(self, **kwargs)
+# Settings to override in all of our unit tests.
+test_settings = dict()
 
-        # Directories for media and processing files that are
-        # used or generated during unit tests.
-        settings.PROCESSING_ROOT = settings.TEST_PROCESSING_ROOT
+# Store media in a 'unittests' subdir of the usual location.
+# MEDIA_ROOT is only defined for local, and AWS for production,
+# so use getattr() to catch the undefined cases (to avoid exceptions).
+if hasattr(settings, 'MEDIA_ROOT'):
+    test_settings['MEDIA_ROOT'] = os.path.join(
+        settings.MEDIA_ROOT, 'unittests')
+if hasattr(settings, 'AWS_S3_MEDIA_SUBDIR'):
+    test_settings['AWS_S3_MEDIA_SUBDIR'] = posixpath.join(
+        settings.AWS_S3_MEDIA_SUBDIR, 'unittests')
+test_settings['MEDIA_URL'] = urlparse.urljoin(
+    settings.MEDIA_URL, 'unittests/')
 
+# Store processing files in a 'unittests' subdir of the usual location.
+if hasattr(settings, 'PROCESSING_ROOT'):
+    test_settings['PROCESSING_ROOT'] = os.path.join(
+        settings.PROCESSING_ROOT, 'unittests')
+if hasattr(settings, 'AWS_S3_PROCESSING_SUBDIR'):
+    test_settings['AWS_S3_PROCESSING_SUBDIR'] = posixpath.join(
+        settings.AWS_S3_PROCESSING_SUBDIR, 'unittests')
 
-test_settings = dict(
-    # Store media in a 'unittests' subdir of the usual location.
-    # MEDIA_ROOT is only defined for local, and AWS for production,
-    # so use getattr() to catch the undefined cases (to avoid exceptions).
-    MEDIA_ROOT = os.path.join(
-        getattr(settings, 'MEDIA_ROOT', ''), 'unittests'),
-    AWS_S3_MEDIA_SUBDIR = posixpath.join(
-        getattr(settings, 'AWS_S3_MEDIA_SUBDIR', ''), 'unittests'),
-    MEDIA_URL = urlparse.urljoin(settings.MEDIA_URL, 'unittests/'),
-    # To test functionality of sending emails to the admins,
-    # settings.ADMINS must be set. It might not be set for
-    # development machines.
-    ADMINS = [
-        ('Admin One', 'admin1@example.com'),
-        ('Admin Two', 'admin2@example.com'),
-    ],
-)
+# To test functionality of sending emails to the admins,
+# the setting ADMINS must be set. It might not be set for
+# development machines.
+test_settings['ADMINS'] = [
+    ('Admin One', 'admin1@example.com'),
+    ('Admin Two', 'admin2@example.com'),
+]
+
 
 @override_settings(**test_settings)
 class BaseTest(TestCase):
@@ -570,17 +574,17 @@ class FilesTestComponent(object):
     unexpected_filenames = None
 
     @classmethod
-    def check_directory_pre_test(cls, directory):
+    def check_directory_pre_test(cls, storage, directory):
         # If we found enough unexpected files, just abort.
         # No need to burn resources listing all the unexpected files.
         if len(cls.unexpected_filenames) > 10:
             return
 
-        storage = get_storage_class()()
         dirnames, filenames = storage.listdir(directory)
 
         for dirname in dirnames:
-            cls.check_directory_pre_test(storage.path_join(directory, dirname))
+            cls.check_directory_pre_test(
+                storage, storage.path_join(directory, dirname))
 
         for filename in filenames:
             # If we found enough unexpected files, just abort.
@@ -595,18 +599,17 @@ class FilesTestComponent(object):
                 storage.path_join(directory, filename))
 
     @classmethod
-    def clean_directory_post_test(cls, directory):
+    def clean_directory_post_test(cls, storage, directory):
         # If we found enough unexpected files, just abort.
         # No need to burn resources listing all the unexpected files.
         if len(cls.unexpected_filenames) > 10:
             return
 
-        storage = get_storage_class()()
         dirnames, filenames = storage.listdir(directory)
 
         for dirname in dirnames:
             cls.clean_directory_post_test(
-                storage.path_join(directory, dirname))
+                storage, storage.path_join(directory, dirname))
 
         for filename in filenames:
             # If we found enough unexpected files, just abort.
@@ -673,44 +676,51 @@ class FilesTestComponent(object):
     @classmethod
     def setUpTestData(cls):
         """
-        Pre-test file cleanup of the test directory.
+        Pre-test check for files in the test file directories.
         This must be done in setUpTestData() rather than setUp(),
         so that we can run it before individual test classes' setUpTestData(),
         which may add files.
         """
         cls.unexpected_filenames = []
 
-        # The test-file directory must have no files prior to the tests.
-        storage = get_storage_class()()
-        # Clean up files, starting at the storage's base directory.
-        cls.check_directory_pre_test('')
+        storages = [
+            # Media
+            get_storage_class()(),
+            # Processing
+            get_processing_storage_class()(),
+        ]
 
-        if cls.unexpected_filenames:
-            format_str = (
-                "The test setup routine found files in {dir}:"
-                "\n{filenames}"
-                "\nPlease ensure that:"
-                "\n1. The directory is empty prior to testing"
-                "\n2. All tests that add files use"
-                " extra_components = [<any FilesTestComponent subclass>, ...]"
-                " to clean up after the test"
-                "\n3. Previous tests cleaned up their files properly"
-            )
-            filenames_str = '\n'.join(cls.unexpected_filenames[:10])
-            if len(cls.unexpected_filenames) > 10:
-                filenames_str += "\n(And others)"
+        for storage in storages:
+            # Check for files, starting at the storage's base directory.
+            cls.check_directory_pre_test(storage, '')
 
-            raise TestfileDirectoryError(format_str.format(
-                dir=storage.location, filenames=filenames_str))
+            if cls.unexpected_filenames:
+                format_str = (
+                    "The test setup routine found files in {dir}:"
+                    "\n{filenames}"
+                    "\nPlease ensure that:"
+                    "\n1. The directory is empty prior to testing"
+                    "\n2. All tests that add files use"
+                    " extra_components ="
+                    " [<any FilesTestComponent subclass>, ...]"
+                    " to clean up after the test"
+                    "\n3. Previous tests cleaned up their files properly"
+                )
+                filenames_str = '\n'.join(cls.unexpected_filenames[:10])
+                if len(cls.unexpected_filenames) > 10:
+                    filenames_str += "\n(And others)"
+
+                raise TestfileDirectoryError(format_str.format(
+                    dir=storage.location, filenames=filenames_str))
 
         # Save a timestamp just before the tests start.
-        # This will allow an extra sanity check in tearDown().
+        # This will allow an extra sanity check when tearing down tests.
         cls.timestamp_before_tests = timezone.now()
 
     @classmethod
     def tearDownClass(cls):
         """
-        Post-test file cleanup of the testfile directory.
+        Post-test file cleanup of the test file directories.
         This must be done in tearDownClass() rather than tearDown(),
         otherwise it'll clean up class-wide setup files after the
         class's first test.
@@ -726,27 +736,34 @@ class FilesTestComponent(object):
         """
         cls.unexpected_filenames = []
 
-        # Walk recursively through the test-file directory.
-        # Delete files that were generated by the test.  Raise an error
-        # if unidentified files are found.
-        storage = get_storage_class()()
-        cls.clean_directory_post_test('')
+        storages = [
+            # Media
+            get_storage_class()(),
+            # Processing
+            get_processing_storage_class()(),
+        ]
 
-        if cls.unexpected_filenames:
-            format_str = (
-                "The test teardown routine found unexpected files"
-                " in {dir}:"
-                "\n{filenames}"
-                "\nThese files seem to have been created prior to the test."
-                " Please make sure this directory isn't being used for"
-                " anything else during testing."
-            )
-            filenames_str = '\n'.join(cls.unexpected_filenames[:10])
-            if len(cls.unexpected_filenames) > 10:
-                filenames_str += "\n(And others)"
+        for storage in storages:
+            # Look for files, starting at the storage's base directory.
+            # Delete files that were generated by the test.  Raise an error
+            # if unidentified files are found.
+            cls.clean_directory_post_test(storage, '')
 
-            raise TestfileDirectoryError(format_str.format(
-                dir=storage.location, filenames=filenames_str))
+            if cls.unexpected_filenames:
+                format_str = (
+                    "The test teardown routine found unexpected files"
+                    " in {dir}:"
+                    "\n{filenames}"
+                    "\nThese files seem to have been created prior to the test."
+                    " Please make sure this directory isn't being used for"
+                    " anything else during testing."
+                )
+                filenames_str = '\n'.join(cls.unexpected_filenames[:10])
+                if len(cls.unexpected_filenames) > 10:
+                    filenames_str += "\n(And others)"
+
+                raise TestfileDirectoryError(format_str.format(
+                    dir=storage.location, filenames=filenames_str))
 
 class MediaTestComponent(FilesTestComponent):
     """

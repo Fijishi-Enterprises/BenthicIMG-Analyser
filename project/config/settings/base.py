@@ -227,9 +227,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-# The name of the class to use to run the test suite
-TEST_RUNNER = 'lib.test_utils.MyTestSuiteRunner'
-
 # A list of locations of additional static files
 # (besides apps' "static/" subdirectories, which are automatically included)
 STATICFILES_DIRS = [

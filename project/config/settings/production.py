@@ -39,10 +39,6 @@ MANAGERS = ADMINS
 AWS_ACCESS_KEY_ID = get_secret('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = get_secret('AWS_SECRET_ACCESS_KEY')
 AWS_STORAGE_BUCKET_NAME = get_secret('AWS_STORAGE_BUCKET_NAME')
-# Auxiliary custom settings
-AWS_S3_DOMAIN = 's3-us-west-2.amazonaws.com/{bucket_name}'.format(
-    bucket_name=AWS_STORAGE_BUCKET_NAME)
-AWS_S3_MEDIA_SUBDIR = 'media'
 
 # Default file storage mechanism that holds media.
 DEFAULT_FILE_STORAGE = 'lib.storage_backends.MediaStorageS3'
@@ -55,10 +51,27 @@ DEFAULT_FILE_STORAGE = 'lib.storage_backends.MediaStorageS3'
 # (we'd have to apply them manually). We aren't using these settings, though.
 THUMBNAIL_DEFAULT_STORAGE = DEFAULT_FILE_STORAGE
 
+# [Custom settings]
+# S3 details on storing media.
+AWS_S3_DOMAIN = 's3-us-west-2.amazonaws.com/{bucket_name}'.format(
+    bucket_name=AWS_STORAGE_BUCKET_NAME)
+AWS_S3_MEDIA_SUBDIR = 'media'
+
 # Base URL for user-uploaded media.
 # Example: "http://media.lawrence.com/media/"
 MEDIA_URL = 'https://{domain}/{subdir}/'.format(
     domain=AWS_S3_DOMAIN, subdir=AWS_S3_MEDIA_SUBDIR)
+
+# [Custom setting]
+# Default file storage mechanism for processing files.
+PROCESSING_DEFAULT_STORAGE = 'lib.storage_backends.ProcessingStorageS3'
+
+# Temporary setting to make the old processing code exception-free for now...
+PROCESSING_ROOT = SITE_DIR.child('processing')
+
+# [Custom setting]
+# S3 details on storing processing files.
+AWS_S3_PROCESSING_SUBDIR = 'processing'
 
 # Absolute path to the directory which static files should be collected to.
 # Example: "/home/media/media.lawrence.com/static/"
@@ -84,18 +97,6 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50 MB
 WSGI_APPLICATION = 'config.wsgi.application'
 
 
-
-# [Custom setting]
-# Absolute filesystem path to the directory that will
-# hold input and output files for backend processing tasks.
-# This directory is best kept out of the repository.
-# Example: "/home/mysite_processing/"
-PROCESSING_ROOT = SITE_DIR.child('processing')
-
-# [Custom setting]
-# Processing Root to be used during unit tests.
-# This directory is best kept out of the repository.
-TEST_PROCESSING_ROOT = SITE_DIR.child('testing').child('processing')
 
 # [Custom setting]
 # When uploading images and annotations together, the annotation dict needs

@@ -47,6 +47,14 @@ AWS_S3_MEDIA_SUBDIR = 'media'
 # Default file storage mechanism that holds media.
 DEFAULT_FILE_STORAGE = 'lib.storage_backends.MediaStorageS3'
 
+# easy_thumbnails 3rd party app:
+# Default file storage for saving generated thumbnails.
+#
+# The only downside of not using the app's provided storage class is that
+# the THUMBNAIL_MEDIA_ROOT and THUMBNAIL_MEDIA_URL settings won't work
+# (we'd have to apply them manually). We aren't using these settings, though.
+THUMBNAIL_DEFAULT_STORAGE = DEFAULT_FILE_STORAGE
+
 # Base URL for user-uploaded media.
 # Example: "http://media.lawrence.com/media/"
 MEDIA_URL = 'https://{domain}/{subdir}/'.format(

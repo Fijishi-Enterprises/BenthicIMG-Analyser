@@ -31,6 +31,14 @@ MANAGERS = ADMINS
 # Default file storage mechanism that holds media.
 DEFAULT_FILE_STORAGE = 'lib.storage_backends.MediaStorageLocal'
 
+# easy_thumbnails 3rd party app:
+# Default file storage for saving generated thumbnails.
+#
+# The only downside of not using the app's provided storage class is that
+# the THUMBNAIL_MEDIA_ROOT and THUMBNAIL_MEDIA_URL settings won't work
+# (we'd have to apply them manually). We aren't using these settings, though.
+THUMBNAIL_DEFAULT_STORAGE = DEFAULT_FILE_STORAGE
+
 # Absolute filesystem path to the directory that will hold user-uploaded files.
 # Example: "/home/media/media.lawrence.com/media/"
 # If user-uploaded files live in a separate server such as AWS, then

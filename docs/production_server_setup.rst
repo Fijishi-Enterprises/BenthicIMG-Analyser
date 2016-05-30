@@ -130,7 +130,7 @@ Allow nginx to find our configuration file, enable it, and disabled the default 
 
 Restart nginx: ``sudo /etc/init.d/nginx restart``.
 
-Run gunicorn, this time binding it to localhost on port 8001: ``gunicorn config.wsgi:application --bind=127.0.0.1:8001``
+Run gunicorn, this time binding it to localhost on port 8001, and setting a longer timeout than the default 30s: ``gunicorn config.wsgi:application --bind=127.0.0.1:8001 --timeout 200``
 
 Again, on your local machine, enter the EC2 instance's public DNS in your browser's address bar. You should see the CoralNet website.
 

@@ -148,7 +148,7 @@ Look in ``project/templates``. Copy ``maintenance_notice_example.html`` to ``mai
 
 Make some directories
 ---------------------
-Certain file-creation parts of the project code may trigger an ``IOError`` saying ``No such file or directory`` when the destination directory doesn't already exist. This behavior should probably be fixed at some point, but in the meantime, you'll need to create at least the following directories:
+Certain file-creation parts of the project code may trigger an error such as ``No such file or directory`` when the destination directory doesn't already exist. This behavior should probably be fixed at some point, but in the meantime, you'll need to create at least the following directories:
 
 - ``<PROCESSING_ROOT>/images/features``
 - ``<PROCESSING_ROOT>/images/preprocess``
@@ -157,6 +157,7 @@ Certain file-creation parts of the project code may trigger an ``IOError`` sayin
 - ``<PROCESSING_ROOT>/unittests/images/preprocess``
 - ``<PROCESSING_ROOT>/unittests/logs``
 - ``<SHELVED_ANNOTATIONS_DIR>``
+- ``<MEDIA_ROOT>/unittests`` (Windows only)
 
 
 Try running the unit tests

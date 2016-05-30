@@ -21,6 +21,10 @@ class IndexTest(ClientTest):
         self.assertStatusOK(response)
 
 
+@override_settings(ADMINS=[
+    ('Admin One', 'admin1@example.com'),
+    ('Admin Two', 'admin2@example.com'),
+])
 class ContactTest(ClientTest):
     """
     Test the Contact Us page.

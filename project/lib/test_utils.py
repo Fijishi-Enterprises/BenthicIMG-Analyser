@@ -45,14 +45,6 @@ if hasattr(settings, 'AWS_S3_PROCESSING_SUBDIR'):
     test_settings['AWS_S3_PROCESSING_SUBDIR'] = posixpath.join(
         settings.AWS_S3_PROCESSING_SUBDIR, 'unittests')
 
-# To test functionality of sending emails to the admins,
-# the setting ADMINS must be set. It might not be set for
-# development machines.
-test_settings['ADMINS'] = [
-    ('Admin One', 'admin1@example.com'),
-    ('Admin Two', 'admin2@example.com'),
-]
-
 
 @override_settings(**test_settings)
 class BaseTest(TestCase):

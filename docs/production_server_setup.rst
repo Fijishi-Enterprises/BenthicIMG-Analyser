@@ -128,9 +128,12 @@ Allow nginx to find our configuration file, enable it, and disabled the default 
   
 - Try browsing `the nginx docs <http://nginx.org/en/docs/beginners_guide.html>`__ if you're wondering how nginx config works.
 
-Restart nginx: ``sudo /etc/init.d/nginx restart``.
 
-Run gunicorn, this time binding it to localhost on port 8001, and setting a longer timeout than the default 30s: ``gunicorn config.wsgi:application --bind=127.0.0.1:8001 --timeout 200``
+Running
+.......
+Restart nginx: ``sudo /etc/init.d/nginx restart``. (Other commands are ``start``, ``stop``, and ``status``.)
+
+Run gunicorn, this time binding it to localhost on port 8001, and setting a longer timeout than the default 30s: ``gunicorn config.wsgi:application --bind=127.0.0.1:8001 --timeout 200 &``
 
 Again, on your local machine, enter the EC2 instance's public DNS in your browser's address bar. You should see the CoralNet website.
 
@@ -138,8 +141,11 @@ From here on out:
 
 - Remember that you need both nginx and gunicorn up and running for the website to work.
 - To update the Django code, kill the gunicorn master process, then update the code, then start gunicorn again.
-- Remember that gunicorn must be run in the virtualenv, and also run from the correct directory so that ``config.wsgi`` can be found.
-- If the server's timeout duration needs to be adjusted, you should adjust both the gunicorn ``--timeout`` option as well as nginx's ``proxy_read_timeout`` option in ``nginx.conf``.
+- Remember that gunicorn must be run in the virtualenv, and also run from the correct directory (``coralnet/project``) so that ``config.wsgi`` can be found.
+- If the server's timeout duration needs to be adjusted, you should adjust both the gunicorn ``--timeout`` option as well as nginx's ``proxy_read_timeout`` option in ``coralnet/project/nginx.conf``.
+
+  - If ``gunicorn`` times out, the browser gets a "502 Bad Gateway" page. If ``nginx`` times out, the browser gets a "504 Gateway Time-out" page.
+  - Note that ``nginx.conf`` is under our project's version control.
 
 
 Previous attempts at web server setup

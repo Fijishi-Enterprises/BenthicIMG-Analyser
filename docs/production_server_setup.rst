@@ -137,12 +137,17 @@ Again, on your local machine, enter the EC2 instance's public DNS in your browse
 From here on out:
 
 - Remember that you need both nginx and gunicorn up and running for the website to work.
-- To update the website code, kill the gunicorn process, then update the code, then start gunicorn again.
-- Remember that gunicorn must be run in the virtualenv.
+- To update the Django code, kill the gunicorn master process, then update the code, then start gunicorn again.
+- Remember that gunicorn must be run in the virtualenv, and also run from the correct directory so that ``config.wsgi`` can be found.
+- If the server's timeout duration needs to be adjusted, you should adjust both the gunicorn ``--timeout`` option as well as nginx's ``proxy_read_timeout`` option in ``nginx.conf``.
 
 
-Apache (old)
-............
+Previous attempts at web server setup
+-------------------------------------
+
+
+Apache
+......
 The following is based on `Apache's installation guide <https://httpd.apache.org/docs/2.4/install.html>`__.
 
 Download PCRE from `here <http://www.pcre.org/>`__. Extract it.
@@ -179,8 +184,8 @@ Also get:
 You may want to add the directory containing ``apachectl`` to the ``PATH`` environment variable. To modify the ``PATH`` that a sudoer sees on Ubuntu, run ``sudo visudo`` and modify the ``secure_path`` line. (`Source <http://stackoverflow.com/a/4572018>`__)
 
 
-mod_wsgi (old)
-..............
+mod_wsgi
+........
 Get mod_wsgi from the source code link `here <https://modwsgi.readthedocs.io/en/develop/user-guides/quick-installation-guide.html>`__. Extract it.
 
 ``cd`` into the extracted mod_wsgi directory, and run:
@@ -194,8 +199,8 @@ Get mod_wsgi from the source code link `here <https://modwsgi.readthedocs.io/en/
 Locate the Apache config file, such as ``/usr/local/apache2/conf/httpd.conf``. Add this line to the file, at the same point that other Apache modules are being loaded: ``LoadModule wsgi_module /usr/lib/apache2/modules/mod_wsgi.so`` (Edit the last option according to where ``mod_wsgi.so`` is located.)
 
 
-Django configuration of Apache + mod_wsgi (old)
-...............................................
+Django configuration of Apache + mod_wsgi
+.........................................
 Edit ``httpd.conf`` to include:
 
 ::
@@ -255,8 +260,8 @@ Some possible troubleshooting steps from here include:
 - Try apache + mod_wsgi with a Django project that's bare other than using PostgreSQL.
 
 
-Elastic Beanstalk (old)
-.......................
+Elastic Beanstalk
+.................
 These instructions are mainly from the `tutorial on deploying Django with Elastic Beanstalk <https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/create-deploy-python-django.html>`__.
 
 In your EC2 instance, install the Elastic Beanstalk command-line interface: ``sudo pip install awsebcli``

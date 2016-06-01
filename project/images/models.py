@@ -360,6 +360,8 @@ class Source(models.Model):
         else:
             return True
 
+    # TODO: Remove this method and all its uses
+    # when aux metadata are simple string fields
     def remove_unused_key_values(self):
         """
         Finds all of the key values of this source

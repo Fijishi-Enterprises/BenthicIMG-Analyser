@@ -480,8 +480,7 @@ def get_aux_metadata_form_choices(source, aux_field_number):
     .distinct('aux'+str(aux_field_number)) \
     .values_list('aux'+str(aux_field_number), flat=True)
 
-    Or maybe a call to a function structured similarly
-    to get_aux_metadata_class().
+    ...Or better, keep this function and replace the implementation with that.
     """
     aux_metadata_class = get_aux_metadata_class(aux_field_number)
 
@@ -495,9 +494,9 @@ def get_aux_metadata_db_value_from_form_choice(aux_field_number, choice):
     replace calls with:
     choice
     """
-    aux_metadata_class = get_aux_metadata_class(aux_field_number)
     if choice == '':
         return None
+    aux_metadata_class = get_aux_metadata_class(aux_field_number)
     return aux_metadata_class.objects.get(pk=choice)
 
 def get_aux_metadata_db_value_from_str(source, aux_field_number, s):
@@ -506,6 +505,8 @@ def get_aux_metadata_db_value_from_str(source, aux_field_number, s):
     replace calls with:
     s
     """
+    if s == '':
+        return None
     aux_metadata_class = get_aux_metadata_class(aux_field_number)
     obj, created = aux_metadata_class.objects.get_or_create(
         name=s, source=source)

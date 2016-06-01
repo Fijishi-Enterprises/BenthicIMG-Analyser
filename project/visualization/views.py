@@ -437,6 +437,7 @@ def metadata_edit_ajax(request, source_id):
                 # form instance. Move on to the next one.
                 continue
 
+            # TODO: Simplify if assuming all 5 aux fields are always used
             # Everything except location keys
             metadata_field_names = ['photo_date', 'height_in_cm', 'latitude',
                                     'longitude', 'depth', 'camera',

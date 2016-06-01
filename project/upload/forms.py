@@ -1,12 +1,12 @@
-from collections import OrderedDict
 from django import forms
 from django.core import validators
 from django.core.exceptions import ValidationError
 from django.forms import ImageField, Form, ChoiceField, FileField, CharField, BooleanField, DateField
 from django.forms.widgets import FileInput, TextInput
 from django.utils.translation import ugettext_lazy as _
+from images.utils import get_aux_metadata_db_value_from_str, get_aux_metadata_max_length
 from upload.utils import metadata_to_filename
-from images.models import Source, Value1, Value2, Value3, Value4, Value5, Metadata, ImageModelConstants, LocationValue
+from images.models import Source, Metadata, ImageModelConstants
 
 class MultipleFileInput(FileInput):
     """
@@ -285,9 +285,10 @@ class MetadataForm(Form):
         self.source = Source.objects.get(pk=self.source_id)
 
         # Need to create fields for keys based on the number of keys in this source.
+        # TODO: Simplify if assuming all 5 aux fields are always used
         key_list = self.source.get_key_list()
         key_fields = ['key{}'.format(n) for n in range(1, len(key_list)+1)]
-        location_value_max_length = LocationValue._meta.get_field('name').max_length
+        location_value_max_length = get_aux_metadata_max_length(1)
         for key_num, key_field in enumerate(key_fields, 1):
             self.fields[key_field] = CharField(
                 required=False,
@@ -347,26 +348,20 @@ class MetadataForm(Form):
             + ['height_in_cm'] + char_fields)
 
 
+    # TODO: Remove when aux metadata are simple string fields
     def clean(self):
         data = self.cleaned_data
 
-        # Parse key entries as Value objects.
-        key_fields = ['key1', 'key2', 'key3', 'key4', 'key5']
-        value_models = [Value1, Value2, Value3, Value4, Value5]
-        for key_field, value_model in zip(key_fields, value_models):
-            if key_field in data:
-                # This key field is in the form. (key5 won't be there
-                # if the source has only 4 keys)
-                if data[key_field] == '':
-                    # If the field value is empty, don't try to make an
-                    # empty-string Value object. Set it to None instead.
-                    data[key_field] = None
-                else:
-                    newValueObj, created = value_model.objects.get_or_create(
-                        name=data[key_field],
-                        source=self.source
-                    )
-                    data[key_field] = newValueObj
+        NUM_AUX_FIELDS = 5
+        for n in range(1, NUM_AUX_FIELDS+1):
+            aux_field_name = 'key'+str(n)
+
+            # TODO: Remove if assuming all 5 aux fields are always used
+            if not aux_field_name in data:
+                continue
+
+            data[aux_field_name] = get_aux_metadata_db_value_from_str(
+                self.source, n, data[aux_field_name])
 
         super(MetadataForm, self).clean()
 
@@ -387,6 +382,8 @@ class MetadataImportForm(forms.ModelForm):
                   'depth', 'camera', 'photographer', 'water_quality',
                   'strobes', 'framing', 'balance']
 
+    # TODO: (Possibly) Remove when aux metadata are simple string fields
+    # AND assuming all 5 aux fields are always used
     def __init__(self, source_id, save_new_values, *args, **kwargs):
 
         super(MetadataImportForm, self).__init__(*args, **kwargs)
@@ -400,48 +397,42 @@ class MetadataImportForm(forms.ModelForm):
         # The main reason we still specify the value fields in Meta.fields is
         # to make it easy to specify the fields' ordering.
         key_list = self.source.get_key_list()
-        location_value_max_length = LocationValue._meta.get_field('name').max_length
+        location_value_max_length = get_aux_metadata_max_length(1)
 
-        for value_num in [1,2,3,4,5]:
+        NUM_AUX_FIELDS = 5
+        for n in range(1, NUM_AUX_FIELDS+1):
+            aux_field_name = 'value'+str(n)
 
-            value_field = 'value'+str(value_num)
+            # TODO: Remove if assuming all 5 aux fields are always used
+            if len(key_list) < n:
+                del self.fields[aux_field_name]
+                continue
 
-            if len(key_list) >= value_num:
-                self.fields[value_field] = CharField(
-                    required=False,
-                    label=key_list[value_num-1],
-                    max_length=location_value_max_length,
-                )
-            else:
-                del self.fields[value_field]
+            self.fields[aux_field_name] = CharField(
+                required=False,
+                label=key_list[n-1],
+                max_length=location_value_max_length,
+            )
 
+    # TODO: Remove when aux metadata are simple string fields
     def clean(self):
         data = self.cleaned_data
 
         # Parse key entries as Value objects.
-        value_fields = ['value1', 'value2', 'value3', 'value4', 'value5']
-        value_models = [Value1, Value2, Value3, Value4, Value5]
-        for value_field, value_model in zip(value_fields, value_models):
-            if value_field in data:
-                # This value field is in the form. (value5 won't be there
-                # if the source has only 4 keys)
-                if data[value_field] == '':
-                    # If the field value is empty, don't try to make an
-                    # empty-string Value object. Set it to None instead.
-                    data[value_field] = None
-                else:
-                    try:
-                        value_obj = value_model.objects.get(
-                            name=data[value_field],
-                            source=self.source
-                        )
-                    except value_model.DoesNotExist:
-                        # If the desired location value doesn't exist, then
-                        # make our own Value object.
-                        value_obj = value_model(name=data[value_field], source=self.source)
-                        if self.save_new_values:
-                            value_obj.save()
-                    data[value_field] = value_obj
+        # TODO: Remove
+        # value_fields = ['value1', 'value2', 'value3', 'value4', 'value5']
+        # value_models = [Value1, Value2, Value3, Value4, Value5]
+        # for value_field, value_model in zip(value_fields, value_models):
+        NUM_AUX_FIELDS = 5
+        for n in range(1, NUM_AUX_FIELDS+1):
+            aux_field_name = 'value'+str(n)
+
+            # TODO: Remove if assuming all 5 aux fields are always used
+            if not aux_field_name in data:
+                continue
+
+            data[aux_field_name] = get_aux_metadata_db_value_from_str(
+                self.source, n, data[aux_field_name])
 
         super(MetadataImportForm, self).clean()
 

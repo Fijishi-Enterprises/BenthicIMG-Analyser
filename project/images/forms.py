@@ -6,7 +6,7 @@ from django.forms.fields import CharField, ChoiceField, FileField, IntegerField
 from django.forms.widgets import  Select, TextInput, NumberInput
 from .models import Source, Image, Metadata, SourceInvite
 from .model_utils import PointGen
-from .utils import get_aux_metadata_form_choices, get_aux_metadata_max_length, get_aux_metadata_db_value_from_form_choice, get_aux_metadata_valid_db_value, get_aux_metadata_db_value_from_str
+from .utils import get_aux_metadata_form_choices, get_aux_metadata_max_length, get_aux_metadata_db_value_from_form_choice, get_aux_metadata_valid_db_value, get_aux_metadata_db_value_from_str, get_num_aux_fields, get_aux_field_label
 from lib import str_consts
 
 class ImageSourceForm(ModelForm):
@@ -162,23 +162,14 @@ class LocationKeyEditForm(Form):
 
         source = Source.objects.get(pk=source_id)
 
-        num_of_keys = len(source.get_key_list())
-        key_field_list = ['key1', 'key2', 'key3', 'key4', 'key5'][:num_of_keys]
-        field_labels = dict(
-            key1="Key 1",
-            key2="Key 2",
-            key3="Key 3",
-            key4="Key 4",
-            key5="Key 5",
-        )
+        for n in range(1, get_num_aux_fields(source)+1):
+            aux_label_field_name = 'key'+str(n)
 
-        for key_field in key_field_list:
-
-            self.fields[key_field] = fields.CharField(
-                label=field_labels[key_field],
-                max_length=Source._meta.get_field(key_field).max_length,
+            self.fields[aux_label_field_name] = fields.CharField(
+                label="Key "+str(n),
+                max_length=Source._meta.get_field(aux_label_field_name).max_length,
                 required=True,
-                initial=getattr(source, key_field)
+                initial=getattr(source, aux_label_field_name)
             )
 
 class SourceChangePermissionForm(Form):
@@ -316,7 +307,7 @@ class ImageDetailForm(ModelForm):
 
         NUM_AUX_FIELDS = 5
         for n in range(1, NUM_AUX_FIELDS+1):
-            aux_field_label = getattr(source, 'key'+str(n))
+            aux_field_label = get_aux_field_label(source, n)
             aux_field_name = 'value'+str(n)
 
             # TODO: Remove if assuming all 5 aux fields are always used
@@ -374,15 +365,9 @@ class ImageDetailForm(ModelForm):
 
         # Right now, the valueN field's value is the integer id
         # of a ValueN object. We want the ValueN object.
-
-        NUM_AUX_FIELDS = 5
-        for n in range(1, NUM_AUX_FIELDS+1):
-            aux_field_label = getattr(source, 'key'+str(n))
+        for n in range(1, get_num_aux_fields(source)+1):
+            aux_field_label = get_aux_field_label(source, n)
             aux_field_name = 'value'+str(n)
-
-            # TODO: Remove if assuming all 5 aux fields are always used
-            if not data.has_key(aux_field_name):
-                continue
 
             if not data[aux_field_name] == 'Other':
                 data[aux_field_name] = \

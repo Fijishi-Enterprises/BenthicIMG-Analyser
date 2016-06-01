@@ -284,15 +284,6 @@ class Source(models.Model):
         """
         return len(self.get_key_list())
 
-    def location_value_field_names(self):
-        """
-        Return the names of the location value fields that this source
-        uses, as a list:
-        ['value1', 'value2', 'value3']
-        """
-        all_fields = ['value1', 'value2', 'value3', 'value4', 'value5']
-        return all_fields[:self.num_of_keys()]
-
     def image_annotation_area_display(self):
         """
         Display the annotation-area parameters in templates.

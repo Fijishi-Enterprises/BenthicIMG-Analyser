@@ -4,7 +4,7 @@ from django.forms.fields import ChoiceField, BooleanField
 from django.forms.widgets import HiddenInput
 from annotations.models import LabelGroup, Label
 from images.models import Source, Metadata, Image
-from images.utils import get_aux_metadata_form_choices, update_filter_args_specifying_choice_aux_metadata, update_filter_args_specifying_blank_aux_metadata
+from images.utils import get_aux_metadata_form_choices, update_filter_args_specifying_choice_aux_metadata, update_filter_args_specifying_blank_aux_metadata, get_num_aux_fields, get_aux_field_label
 from lib.forms import clean_comma_separated_image_ids_field
 
 
@@ -36,14 +36,9 @@ class ImageLocationValueForm(forms.Form):
 
         # value1, value2, etc.
 
-        NUM_AUX_FIELDS = 5
-        for n in range(1, NUM_AUX_FIELDS+1):
-            aux_field_label = getattr(source, 'key'+str(n))
+        for n in range(1, get_num_aux_fields(source)+1):
+            aux_field_label = get_aux_field_label(source, n)
             aux_field_name = 'value'+str(n)
-
-            # TODO: Remove if assuming all 5 aux fields are always used
-            if not aux_field_label:
-                continue
 
             choices = [('all', 'All')]
             choices += get_aux_metadata_form_choices(source, n)
@@ -286,14 +281,9 @@ class StatisticsSearchForm(forms.Form):
         groups = LabelGroup.objects.all().distinct()
 
         # Get the location keys
-        NUM_AUX_FIELDS = 5
-        for n in range(1, NUM_AUX_FIELDS+1):
-            aux_field_label = getattr(source, 'key'+str(n))
+        for n in range(1, get_num_aux_fields(source)+1):
+            aux_field_label = get_aux_field_label(source, n)
             aux_field_name = 'value'+str(n)
-
-            # TODO: Remove if assuming all 5 aux fields are always used
-            if not aux_field_label:
-                continue
 
             choices = [('', 'All')]
             choices += get_aux_metadata_form_choices(source, n)

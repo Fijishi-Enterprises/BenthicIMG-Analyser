@@ -221,7 +221,6 @@ def source_main(request, source_id):
 
     return render(request, 'images/source_main.html', {
         'source': source,
-        'loc_keys': ', '.join(source.get_key_list()),
         'members': memberDicts,
         'latest_images': latest_images,
         'image_stats': image_stats,

@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 from django.forms import ImageField, Form, ChoiceField, FileField, CharField, BooleanField, DateField
 from django.forms.widgets import FileInput, TextInput
 from django.utils.translation import ugettext_lazy as _
-from images.utils import get_aux_metadata_db_value_from_str, get_aux_metadata_max_length
+from images.utils import get_aux_metadata_db_value_from_str, get_aux_metadata_max_length, get_num_aux_fields, get_aux_label_field_names, get_aux_field_label, get_aux_field_labels
 from upload.utils import metadata_to_filename
 from images.models import Source, Metadata, ImageModelConstants
 
@@ -147,7 +147,7 @@ class ImageUploadOptionsForm(Form):
         # Dynamically generate a source-specific string for the metadata
         # field's help text.
         filename_format_args = dict(year='YYYY', month='MM', day='DD')
-        source_keys = source.get_key_list()
+        source_keys = get_aux_field_labels(source)
         filename_format_args['values'] = source_keys
 
         self.fields['specify_metadata'].source_specific_filename_format =\
@@ -279,22 +279,25 @@ class MetadataForm(Form):
     framing = CharField(required=False, widget= TextInput(attrs={'size': 16,}))
     balance = CharField(required=False, widget= TextInput(attrs={'size': 16,}))
 
+    # TODO: May be able to remove most of this function
+    # if assuming all 5 aux fields are always used
+    # AND if aux metadata are just simple string fields
     def __init__(self, *args, **kwargs):
         self.source_id = kwargs.pop('source_id')
         super(MetadataForm,self).__init__(*args, **kwargs)
         self.source = Source.objects.get(pk=self.source_id)
 
         # Need to create fields for keys based on the number of keys in this source.
-        # TODO: Simplify if assuming all 5 aux fields are always used
-        key_list = self.source.get_key_list()
-        key_fields = ['key{}'.format(n) for n in range(1, len(key_list)+1)]
-        location_value_max_length = get_aux_metadata_max_length(1)
-        for key_num, key_field in enumerate(key_fields, 1):
-            self.fields[key_field] = CharField(
+        for n in range(1, get_num_aux_fields(self.source)+1):
+            # TODO: Naming these as keyn is confusing, should be auxn/valuen.
+            aux_field_name = 'key'+str(n)
+            aux_field_label = get_aux_field_label(self.source, n)
+
+            self.fields[aux_field_name] = CharField(
                 required=False,
-                widget=TextInput(attrs={'size': 10, 'maxlength': location_value_max_length}),
-                label=key_list[key_num-1],
-                max_length=location_value_max_length,
+                widget=TextInput(attrs={'size': 10, 'maxlength': get_aux_metadata_max_length(n)}),
+                label=aux_field_label,
+                max_length=get_aux_metadata_max_length(n),
             )
 
         # Apply labels and max-length attributes from the Metadata model to the
@@ -340,11 +343,14 @@ class MetadataForm(Form):
             # Inspect Element HTML editing, that is)
             form_field.widget.attrs.update({'maxlength': max_length})
 
+
+        # TODO: Naming these as keyn is confusing, should be auxn/valuen.
+        aux_fields = ['key'+str(n) for n in range(1, get_num_aux_fields(self.source)+1)]
         # Change the order that the fields appear on the page.
         # This field order should match the order of the table headers
         # in the page template.
         self.order_fields(
-            ['image_id', 'photo_date'] + key_fields
+            ['image_id', 'photo_date'] + aux_fields
             + ['height_in_cm'] + char_fields)
 
 
@@ -352,14 +358,9 @@ class MetadataForm(Form):
     def clean(self):
         data = self.cleaned_data
 
-        NUM_AUX_FIELDS = 5
-        for n in range(1, NUM_AUX_FIELDS+1):
+        for n in range(1, get_num_aux_fields(self.source)+1):
+            # TODO: Naming these as keyn is confusing, should be auxn/valuen.
             aux_field_name = 'key'+str(n)
-
-            # TODO: Remove if assuming all 5 aux fields are always used
-            if not aux_field_name in data:
-                continue
-
             data[aux_field_name] = get_aux_metadata_db_value_from_str(
                 self.source, n, data[aux_field_name])
 
@@ -396,22 +397,20 @@ class MetadataImportForm(forms.ModelForm):
         #
         # The main reason we still specify the value fields in Meta.fields is
         # to make it easy to specify the fields' ordering.
-        key_list = self.source.get_key_list()
-        location_value_max_length = get_aux_metadata_max_length(1)
-
         NUM_AUX_FIELDS = 5
         for n in range(1, NUM_AUX_FIELDS+1):
+            aux_field_label = get_aux_field_label(self.source, n)
             aux_field_name = 'value'+str(n)
 
             # TODO: Remove if assuming all 5 aux fields are always used
-            if len(key_list) < n:
+            if not aux_field_label:
                 del self.fields[aux_field_name]
                 continue
 
             self.fields[aux_field_name] = CharField(
                 required=False,
-                label=key_list[n-1],
-                max_length=location_value_max_length,
+                label=aux_field_label,
+                max_length=get_aux_metadata_max_length(n),
             )
 
     # TODO: Remove when aux metadata are simple string fields
@@ -419,14 +418,8 @@ class MetadataImportForm(forms.ModelForm):
         data = self.cleaned_data
 
         # Parse key entries as Value objects.
-        NUM_AUX_FIELDS = 5
-        for n in range(1, NUM_AUX_FIELDS+1):
+        for n in range(1, get_num_aux_fields(self.source)+1):
             aux_field_name = 'value'+str(n)
-
-            # TODO: Remove if assuming all 5 aux fields are always used
-            if not aux_field_name in data:
-                continue
-
             data[aux_field_name] = get_aux_metadata_db_value_from_str(
                 self.source, n, data[aux_field_name])
 

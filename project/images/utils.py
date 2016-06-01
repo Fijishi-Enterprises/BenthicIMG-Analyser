@@ -418,6 +418,36 @@ def get_aux_metadata_class(aux_field_number):
         1: Value1, 2: Value2, 3: Value3, 4: Value4, 5: Value5}
     return numbers_to_classes[aux_field_number]
 
+def get_aux_field_label(source, aux_field_number):
+    return getattr(source, 'key'+str(aux_field_number))
+
+def get_num_aux_fields(source):
+    """
+    If assuming all 5 aux fields are always used,
+    replace calls with:
+    5
+    (Or a constant equal to 5)
+    """
+    NUM_AUX_FIELDS = 5
+    for n in range(1, NUM_AUX_FIELDS+1):
+        aux_field_label = get_aux_field_label(source, n)
+        if not aux_field_label:
+            return n-1
+    return NUM_AUX_FIELDS
+
+def get_aux_label_field_names(source):
+    """
+    If assuming all 5 aux fields are always used,
+    replace calls with:
+    ['key'+str(n) for n in range(1, 5+1)]
+    """
+    return ['key'+str(n) for n in range(1, get_num_aux_fields(source)+1)]
+
+def get_aux_field_labels(source):
+    return [
+        get_aux_field_label(source, aux_field_number)
+        for aux_field_number in range(1, get_num_aux_fields(source)+1)]
+
 def get_aux_metadata_form_choices(source, aux_field_number):
     """
     When aux metadata are just simple string fields,
@@ -538,13 +568,8 @@ def update_filter_args_specifying_choice_aux_metadata(
 # TODO: These could go in model Manager classes.
 
 def get_aux_metadata_str_list_for_image(image, for_export=False):
-    NUM_AUX_FIELDS = 5
     lst = []
-    for n in range(1, NUM_AUX_FIELDS+1):
-        # TODO: Remove if assuming all 5 aux fields are always used
-        if not getattr(image.source, 'key'+str(n)):
-            continue
-
+    for n in range(1, get_num_aux_fields(image.source)+1):
         s = get_aux_metadata_str_for_image(image, n)
         if for_export and s == '':
             s = "not specified"
@@ -563,14 +588,8 @@ def get_year_and_aux_metadata_table(image):
     else:
         cols.append( ("Year", "") )
 
-    NUM_AUX_FIELDS = 5
-    for n in range(1, NUM_AUX_FIELDS+1):
-        aux_field_label = getattr(image.source, 'key'+str(n))
-
-        # TODO: Remove if assuming all 5 aux fields are always used
-        if not aux_field_label:
-            continue
-
+    for n in range(1, get_num_aux_fields(image.source)+1):
+        aux_field_label = get_aux_field_label(image.source, n)
         cols.append(
             (aux_field_label, get_aux_metadata_str_for_image(image, n)))
 

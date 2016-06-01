@@ -551,3 +551,32 @@ def get_aux_metadata_str_list_for_image(image, for_export=False):
         lst.append(s)
 
     return lst
+
+def get_year_and_aux_metadata_table(image):
+    """
+    Get the year and aux metadata for display as a 2 x n table.
+    """
+    cols = []
+
+    if image.metadata.photo_date:
+        cols.append( ("Year", str(image.metadata.photo_date.year)) )
+    else:
+        cols.append( ("Year", "") )
+
+    NUM_AUX_FIELDS = 5
+    for n in range(1, NUM_AUX_FIELDS+1):
+        aux_field_label = getattr(image.source, 'key'+str(n))
+
+        # TODO: Remove if assuming all 5 aux fields are always used
+        if not aux_field_label:
+            continue
+
+        cols.append(
+            (aux_field_label, get_aux_metadata_str_for_image(image, n)))
+
+    # Transpose
+    rows = dict(
+        keys=[c[0] for c in cols],
+        values=[c[1] for c in cols],
+    )
+    return rows

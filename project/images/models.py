@@ -695,38 +695,6 @@ class Image(models.Model):
         'Original File Name', 'Photographer', 'Strobes', 'Water quality'];
         return exportfields
 
-    def get_year_and_location_values(self):
-        """
-        Get the year and location values for display as a 2 x n table.
-        """
-        metadata = self.metadata
-        source = self.source
-        dataTupleList = []
-
-        if metadata.photo_date:
-            dataTupleList.append( ("Year", str(metadata.photo_date.year)) )
-        else:
-            dataTupleList.append( ("Year", "") )
-
-        for keyName, valueObj in [
-            (source.key1, metadata.value1),
-            (source.key2, metadata.value2),
-            (source.key3, metadata.value3),
-            (source.key4, metadata.value4),
-            (source.key5, metadata.value5)
-        ]:
-            if keyName:
-                if valueObj:
-                    dataTupleList.append( (keyName, valueObj.name) )
-                else:
-                    dataTupleList.append( (keyName, "") )
-
-        dataTwoLists = dict(
-            keys=[t[0] for t in dataTupleList],
-            values=[t[1] for t in dataTupleList],
-        )
-        return dataTwoLists
-
     def point_gen_method_display(self):
         """
         Display the point generation method in templates.

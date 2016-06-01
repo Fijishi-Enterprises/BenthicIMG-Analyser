@@ -1,4 +1,6 @@
-import json, os
+import json
+import os
+import posixpath
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -10,7 +12,7 @@ from guardian.shortcuts import get_objects_for_user, get_users_with_perms, get_p
 
 from annotations.model_utils import AnnotationAreaUtils
 from images.model_utils import PointGen
-from lib.utils import generate_random_filename
+from lib.utils import rand_string
 
 
 class ImageModelConstants():
@@ -577,8 +579,15 @@ def get_original_image_upload_path(instance, filename):
     """
     Generate a destination path (on the server filesystem) for
     a data-image upload.
+
+    # TODO: Check for filename collisions with existing files.
+    # To unit test this, use a Mocker or similar on the filename randomizer,
+    # and reduce the set of possible filenames to make collisions a
+    # near certainty.
     """
-    return generate_random_filename(settings.ORIGINAL_IMAGE_DIR, filename, numOfChars=10)
+    return settings.IMAGE_FILE_PATTERN.format(
+        name=rand_string(10),
+        extension=posixpath.splitext(filename)[-1])
     
 class Image(models.Model):
     # width_field and height_field allow Django to cache the

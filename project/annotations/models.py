@@ -1,17 +1,21 @@
+import posixpath
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
-from images.models import Point, Image, Source, Robot
 from easy_thumbnails.fields import ThumbnailerImageField
-from lib.utils import generate_random_filename
+from images.models import Point, Image, Source, Robot
+from lib.utils import rand_string
+
 
 def get_label_thumbnail_upload_path(instance, filename):
     """
     Generate a destination path (on the server filesystem) for
     an upload of a label's representative thumbnail image.
     """
-    return generate_random_filename(settings.LABEL_THUMBNAIL_DIR, filename, numOfChars=10)
+    return settings.LABEL_THUMBNAIL_FILE_PATTERN.format(
+        name=rand_string(10),
+        extension=posixpath.splitext(filename)[-1])
 
 
 class LabelGroupManager(models.Manager):

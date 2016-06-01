@@ -1,13 +1,17 @@
 from io import BytesIO
-
+from django.conf import settings
 from django.core.files.storage import get_storage_class
-
 from PIL import Image as PILImage
-
+from annotations.models import Annotation
 
 
 def get_patch_path(annotation_id):
-    return "data/annotations/{id}.jpg".format(id=str(annotation_id))
+    annotation = Annotation.objects.get(pk=annotation_id)
+
+    return settings.POINT_PATCH_FILE_PATTERN.format(
+        full_image_path=annotation.image.original_file.name,
+        point_pk=annotation.point.pk,
+    )
 
 def get_patch_url(annotation_id):
     return get_storage_class()().url(get_patch_path(annotation_id))

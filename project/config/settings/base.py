@@ -266,9 +266,13 @@ USERENA_LANGUAGE_FIELD = 'en'
 SAMPLE_UPLOADABLES_ROOT = PROJECT_DIR.child('sample_uploadables')
 
 # [Custom settings]
-# File uploading
-ORIGINAL_IMAGE_DIR = 'data/original/'
-LABEL_THUMBNAIL_DIR = 'label_thumbnails/'
+# Media filepath patterns
+IMAGE_FILE_PATTERN = 'images/{name}{extension}'
+LABEL_THUMBNAIL_FILE_PATTERN = 'labels/{name}{extension}'
+POINT_PATCH_FILE_PATTERN = \
+    '{full_image_path}.pointpk{point_pk}.thumbnail.jpg'
+FEATURE_VECTOR_FILE_PATTERN = \
+    '{full_image_path}.pointpk{point_pk}.featurevector'
 
 # [Custom settings] Special users
 IMPORTED_USERNAME = "Imported"

@@ -1,5 +1,12 @@
 from .local import *
 
+# Use this import instead when testing stuff like S3, but make sure to
+# specify different secrets (e.g. S3 bucket) from actual production.
+#from .production import *
+
+# Nice to have static files working when testing other production settings.
+DEBUG = True
+
 # If running tests, use SQLite to speed up the test runs greatly.
 # http://stackoverflow.com/a/3098182
 #

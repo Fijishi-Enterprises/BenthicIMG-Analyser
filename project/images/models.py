@@ -695,26 +695,6 @@ class Image(models.Model):
         'Original File Name', 'Photographer', 'Strobes', 'Water quality'];
         return exportfields
 
-    def get_location_value_names(self):
-        """
-        Returns the image's location values as a list of strings:
-        ['Shore3', 'Reef 5', 'Loc10']
-        Add one list item per value field used by the source. If this
-        image isn't using one of the value fields, the corresponding
-        list item will be an empty string:
-        ['Shore2', '', 'Loc7']
-        """
-        field_names = self.source.location_value_field_names()
-
-        value_name_list = []
-        for field_name in field_names:
-            value_object = getattr(self.metadata, field_name)
-            if value_object:
-                value_name_list.append(value_object.name)
-            else:
-                value_name_list.append('')
-        return value_name_list
-
     def get_location_value_str_list_robust(self):
         """
         Returns the image's location values as a list of strings:

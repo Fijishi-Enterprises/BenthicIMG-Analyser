@@ -481,6 +481,17 @@ def get_aux_metadata_db_value_dict_from_str_list(source, str_list):
                 name=s, source=source)
     return aux_dict
 
+def get_aux_metadata_str_for_image(image, aux_field_number):
+    """
+    When aux metadata are just simple string fields,
+    replace calls with:
+    getattr(image.metadata, 'value'+str(aux_field_number))
+    """
+    obj = getattr(image.metadata, 'value'+str(aux_field_number))
+    if obj:
+        return obj.name
+    return ''
+
 def get_aux_metadata_max_length(aux_field_number):
     """
     When aux metadata are just simple string fields,
@@ -521,3 +532,15 @@ def update_filter_args_specifying_choice_aux_metadata(
     values have model classes, and should be a string otherwise.
     """
     filter_args['metadata__value'+aux_field_number+'__id'] = value
+
+
+# Other auxiliary metadata related functions.
+
+def get_aux_metadata_strs_for_image(image):
+    NUM_AUX_FIELDS = 5
+    return [
+        get_aux_metadata_str_for_image(image, n)
+        for n in range(1, NUM_AUX_FIELDS+1)
+        # TODO: Remove if assuming all 5 aux fields are always used
+        if getattr(image.source, 'key'+str(n))
+    ]

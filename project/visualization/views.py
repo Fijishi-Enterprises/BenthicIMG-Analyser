@@ -19,7 +19,7 @@ from accounts.utils import get_robot_user
 from annotations.models import Annotation, Label, LabelSet, LabelGroup
 from images.models import Source, Image
 from images.tasks import *
-from images.utils import delete_image
+from images.utils import delete_image, get_aux_metadata_strs_for_image
 from lib.decorators import source_visibility_required, source_permission_required
 from upload.forms import MetadataForm, CheckboxForm
 
@@ -343,7 +343,7 @@ def visualize_source(request, source_id):
         for i, image in enumerate(all_items):
 
             # Location keys
-            keys = image.get_location_value_names()
+            keys = get_aux_metadata_strs_for_image(image)
             for j, key in enumerate(keys):
                 initValuesMetadata['form-%s-key%s' % (i,j+1)] = key
 

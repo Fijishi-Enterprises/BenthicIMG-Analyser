@@ -695,31 +695,6 @@ class Image(models.Model):
         'Original File Name', 'Photographer', 'Strobes', 'Water quality'];
         return exportfields
 
-    def get_location_value_str_list_robust(self):
-        """
-        Returns the image's location values as a list of strings:
-        ['Shore3', 'Reef 5', 'Loc10']
-        This file will return the value 'not_specified' for each key 
-        where there is no location value specified.
-        """
-
-        valueList = []
-        metadata = self.metadata
-
-        nkeys = len(self.source.get_key_list())
-
-
-        L = ['value1', 'value2', 'value3', 'value4', 'value5']
-        
-        for i in range(nkeys):
-            valueObj = getattr(metadata, L[i])
-            if valueObj:
-                valueList.append(valueObj.name)
-            else:
-                valueList.append("not_specified")
-
-        return valueList
-
     def get_year_and_location_values(self):
         """
         Get the year and location values for display as a 2 x n table.

@@ -19,7 +19,7 @@ from accounts.utils import get_robot_user
 from annotations.models import Annotation, Label, LabelSet, LabelGroup
 from images.models import Source, Image
 from images.tasks import *
-from images.utils import delete_image, get_aux_metadata_strs_for_image
+from images.utils import delete_image, get_aux_metadata_str_list_for_image
 from lib.decorators import source_visibility_required, source_permission_required
 from upload.forms import MetadataForm, CheckboxForm
 
@@ -343,7 +343,7 @@ def visualize_source(request, source_id):
         for i, image in enumerate(all_items):
 
             # Location keys
-            keys = get_aux_metadata_strs_for_image(image)
+            keys = get_aux_metadata_str_list_for_image(image)
             for j, key in enumerate(keys):
                 initValuesMetadata['form-%s-key%s' % (i,j+1)] = key
 
@@ -856,7 +856,7 @@ def export_abundance(placeholder, source_id):
     ### BEGIN EXPORT
     vecfmt = vectorize(myfmt) # this is a tool that exports the vector to a nice string with three decimal points
     for image in images:
-        locKeys = image.get_location_value_str_list_robust()
+        locKeys = get_aux_metadata_str_list_for_image(image, for_export=True)
 
         image_annotations = all_annotations.filter(image=image)
         image_annotation_count = image_annotations.count()
@@ -928,7 +928,7 @@ def export_statistics(request, source_id):
     #Adds data row which looks something as follows:
     #lter1 out10m line1-2 qu1 20100427  10.2 12.1 0 0 13.2
     for image in images:
-        locKeys = image.get_location_value_str_list_robust()
+        locKeys = get_aux_metadata_str_list_for_image(image, for_export=True)
 
         photo_date = str(image.metadata.photo_date)
         image_labels_data = []
@@ -988,7 +988,7 @@ def export_annotations(request, source_id):
     #Adds the relevant annotation data in a row
     #Example row: lter1 out10m line1-2 qu1 20100427 20110101 130 230 Porit
     for image in images:
-        locKeys = image.get_location_value_str_list_robust()
+        locKeys = get_aux_metadata_str_list_for_image(image, for_export=True)
         original_file_name = str(image.metadata.name)        
         photo_date = str(image.metadata.photo_date)
         annotations = all_annotations.filter(image=image).order_by('point').select_related()

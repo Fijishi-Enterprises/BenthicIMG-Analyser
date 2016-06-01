@@ -535,12 +535,19 @@ def update_filter_args_specifying_choice_aux_metadata(
 
 
 # Other auxiliary metadata related functions.
+# TODO: These could go in model Manager classes.
 
-def get_aux_metadata_strs_for_image(image):
+def get_aux_metadata_str_list_for_image(image, for_export=False):
     NUM_AUX_FIELDS = 5
-    return [
-        get_aux_metadata_str_for_image(image, n)
-        for n in range(1, NUM_AUX_FIELDS+1)
+    lst = []
+    for n in range(1, NUM_AUX_FIELDS+1):
         # TODO: Remove if assuming all 5 aux fields are always used
-        if getattr(image.source, 'key'+str(n))
-    ]
+        if not getattr(image.source, 'key'+str(n)):
+            continue
+
+        s = get_aux_metadata_str_for_image(image, n)
+        if for_export and s == '':
+            s = "not specified"
+        lst.append(s)
+
+    return lst

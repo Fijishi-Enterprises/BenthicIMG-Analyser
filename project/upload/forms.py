@@ -419,10 +419,6 @@ class MetadataImportForm(forms.ModelForm):
         data = self.cleaned_data
 
         # Parse key entries as Value objects.
-        # TODO: Remove
-        # value_fields = ['value1', 'value2', 'value3', 'value4', 'value5']
-        # value_models = [Value1, Value2, Value3, Value4, Value5]
-        # for value_field, value_model in zip(value_fields, value_models):
         NUM_AUX_FIELDS = 5
         for n in range(1, NUM_AUX_FIELDS+1):
             aux_field_name = 'value'+str(n)

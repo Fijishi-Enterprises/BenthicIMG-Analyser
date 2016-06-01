@@ -531,3 +531,24 @@ def get_aux_metadata_valid_db_value(aux_field_number):
     """
     aux_metadata_class = get_aux_metadata_class(aux_field_number)
     return aux_metadata_class.objects.all()[0]
+
+def update_filter_args_specifying_blank_aux_metadata(
+        filter_args, aux_field_number):
+    """
+    When aux metadata are just simple string fields,
+    replace calls with:
+    filter_args['metadata__value'+aux_field_number] = ''
+    """
+    filter_args['metadata__value'+aux_field_number] = None
+
+def update_filter_args_specifying_choice_aux_metadata(
+        filter_args, aux_field_number, value):
+    """
+    When aux metadata are just simple string fields,
+    replace calls with:
+    filter_args['metadata__value'+aux_field_number] = value
+
+    A dropdown choice of aux metadata should be an id if
+    values have model classes, and should be a string otherwise.
+    """
+    filter_args['metadata__value'+aux_field_number+'__id'] = value

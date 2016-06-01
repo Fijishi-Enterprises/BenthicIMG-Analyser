@@ -4,6 +4,7 @@ from django.forms.fields import ChoiceField, BooleanField
 from django.forms.widgets import HiddenInput
 from annotations.models import LabelGroup, Label
 from images.models import Source, Value1, Value2, Value3, Value4, Value5, Metadata, Image
+from images.utils import get_aux_metadata_form_choices, update_filter_args_specifying_choice_aux_metadata, update_filter_args_specifying_blank_aux_metadata
 from lib.forms import clean_comma_separated_image_ids_field
 
 
@@ -35,25 +36,24 @@ class ImageLocationValueForm(forms.Form):
 
         # value1, value2, etc.
 
-        for key, valueField, valueClass in [
-            (source.key1, 'value1', Value1),
-            (source.key2, 'value2', Value2),
-            (source.key3, 'value3', Value3),
-            (source.key4, 'value4', Value4),
-            (source.key5, 'value5', Value5)
-        ]:
-            if key:
-                choices = [('all', 'All')]
-                valueObjs = valueClass.objects.filter(source=source).order_by('name')
-                for valueObj in valueObjs:
-                    choices.append((valueObj.id, valueObj.name))
-                choices.append(('none', '(None)'))
+        NUM_AUX_FIELDS = 5
+        for n in range(1, NUM_AUX_FIELDS+1):
+            aux_field_label = getattr(source, 'key'+str(n))
+            aux_field_name = 'value'+str(n)
 
-                self.fields[valueField] = forms.ChoiceField(
-                    choices,
-                    label=key,
-                    required=False
-                )
+            # TODO: Remove if assuming all 5 aux fields are always used
+            if not aux_field_label:
+                continue
+
+            choices = [('all', 'All')]
+            choices += get_aux_metadata_form_choices(source, n)
+            choices.append(('none', '(None)'))
+
+            self.fields[aux_field_name] = forms.ChoiceField(
+                choices,
+                label=aux_field_label,
+                required=False,
+            )
 
 
 class BrowseSearchForm(ImageLocationValueForm):
@@ -180,13 +180,16 @@ class ImageSpecifyForm(forms.Form):
                 if k.startswith('value'):
 
                     # value1, value2, ..., value5
+                    aux_field_number = k[-1]
                     if v == 'none':
                         # Search for images with no ValueN object.
-                        filter_args['metadata__'+k] = None
+                        update_filter_args_specifying_blank_aux_metadata(
+                            filter_args, aux_field_number)
                     else:
                         # Search for images with the ValueN object of
                         # the given database id.
-                        filter_args['metadata__'+k+'__id'] = v
+                        update_filter_args_specifying_choice_aux_metadata(
+                            filter_args, aux_field_number, v)
 
                 elif k == 'year':
 

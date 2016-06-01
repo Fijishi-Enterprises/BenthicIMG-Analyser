@@ -458,3 +458,75 @@ def get_random_public_images():
         random_image_list.append(random_image)
 
     return random_image_list
+
+
+# Functions to encapsulate the auxiliary metadata / location value
+# field details.
+
+def get_aux_metadata_class(aux_field_number):
+    """
+    This function shouldn't be used outside of this utils module. It's
+    tied to the detail of having classes for aux metadata.
+    """
+    numbers_to_classes = {
+        1: Value1, 2: Value2, 3: Value3, 4: Value4, 5: Value5}
+    return numbers_to_classes[aux_field_number]
+
+def get_aux_metadata_form_choices(source, aux_field_number):
+    """
+    When aux metadata are just simple string fields,
+    replace calls with:
+    Metadata.objects.filter(image__source__pk=10) \
+    .distinct('aux'+str(aux_field_number)) \
+    .values_list('aux'+str(aux_field_number), flat=True)
+
+    Or maybe a call to a function structured similarly
+    to get_aux_metadata_class().
+    """
+    aux_metadata_class = get_aux_metadata_class(aux_field_number)
+
+    aux_metadata_objs = aux_metadata_class.objects.filter(source=source) \
+        .order_by('name')
+    return [(obj.id, obj.name) for obj in aux_metadata_objs]
+
+def get_aux_metadata_db_value_from_form_choice(aux_field_number, choice):
+    """
+    When aux metadata are just simple string fields,
+    replace calls with:
+    choice
+    """
+    aux_metadata_class = get_aux_metadata_class(aux_field_number)
+    if choice == '':
+        return None
+    return aux_metadata_class.objects.get(pk=choice)
+
+def get_aux_metadata_db_value_from_str(source, aux_field_number, s):
+    """
+    When aux metadata are just simple string fields,
+    replace calls with:
+    s
+    """
+    aux_metadata_class = get_aux_metadata_class(aux_field_number)
+    obj, created = aux_metadata_class.objects.get_or_create(
+        name=s, source=source)
+    return obj
+
+def get_aux_metadata_max_length(aux_field_number):
+    """
+    When aux metadata are just simple string fields,
+    replace calls with:
+    Source._meta.get_field('aux'+str(aux_field_number))
+    """
+    aux_metadata_class = get_aux_metadata_class(aux_field_number)
+    return aux_metadata_class._meta.get_field('name').max_length
+
+def get_aux_metadata_valid_db_value(aux_field_number):
+    """
+    When aux metadata are just simple string fields,
+    this probably won't ever be needed.
+
+    Warning: This may get an exception if there are no objects of
+    aux_metadata_class on the site yet. (e.g. no Value5s)
+    """
+    aux_metadata_class = get_aux_metadata_class(aux_field_number)
+    return aux_metadata_class.objects.all()[0]

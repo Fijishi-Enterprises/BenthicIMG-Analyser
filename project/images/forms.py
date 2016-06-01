@@ -4,8 +4,9 @@ from django.forms import Form, ModelForm
 from django.forms import fields
 from django.forms.fields import CharField, ChoiceField, FileField, IntegerField
 from django.forms.widgets import  Select, TextInput, NumberInput
-from images.models import Source, Image, Metadata, Value1, Value2, Value3, Value4, Value5, SourceInvite
-from images.model_utils import PointGen
+from .models import Source, Image, Metadata, SourceInvite
+from .model_utils import PointGen
+from .utils import get_aux_metadata_form_choices, get_aux_metadata_max_length, get_aux_metadata_db_value_from_form_choice, get_aux_metadata_valid_db_value, get_aux_metadata_db_value_from_str
 from lib import str_consts
 
 class ImageSourceForm(ModelForm):
@@ -313,40 +314,42 @@ class ImageDetailForm(ModelForm):
 
         valueFields = []
 
-        for key, valueField, valueClass in [
-                (source.key1, 'value1', Value1),
-                (source.key2, 'value2', Value2),
-                (source.key3, 'value3', Value3),
-                (source.key4, 'value4', Value4),
-                (source.key5, 'value5', Value5)
-                ]:
-            if key:
-                # Create a choices iterable of all of this Source's values as
-                # well as an 'Other' value
+        NUM_AUX_FIELDS = 5
+        for n in range(1, NUM_AUX_FIELDS+1):
+            aux_field_label = getattr(source, 'key'+str(n))
+            aux_field_name = 'value'+str(n)
 
-                # Not sure why I need to specify the '' choice here;
-                # I thought required=False for the ChoiceField would automatically create this... -Stephen
-                choices = [('', '(None)')]
-                valueObjs = valueClass.objects.filter(source=source).order_by('name')
-                for valueObj in valueObjs:
-                    choices.append((valueObj.id, valueObj.name))
-                choices.append(('Other', 'Other (Specify)'))
-
-                self.fields[valueField] = ChoiceField(choices, label=key, required=False)
-
-                # Add a text input field for specifying the Other choice
-                self.fields[valueField + '_other'] = CharField(
-                    label='Other',
-                    max_length=valueClass._meta.get_field('name').max_length,
-                    required=False
-                )
-
-                valueFields += [valueField, valueField + '_other']
-
-            else:
+            # TODO: Remove if assuming all 5 aux fields are always used
+            if not aux_field_label:
                 # If the key isn't in the source, just remove the
                 # corresponding value field from the form
-                del self.fields[valueField]
+                del self.fields[aux_field_name]
+                continue
+
+            # Create a choices iterable of all of this Source's values as
+            # well as an 'Other' value
+            #
+            # Not sure why I need to specify the '' choice here;
+            # I thought required=False for the ChoiceField would
+            # automatically create this... -Stephen
+            choices = [('', '(None)')]
+            choices += get_aux_metadata_form_choices(source, n)
+            choices.append(('Other', 'Other (Specify)'))
+
+            self.fields[aux_field_name] = ChoiceField(
+                choices,
+                label=aux_field_label,
+                required=False,
+            )
+
+            # Add a text input field for specifying the Other choice
+            self.fields[aux_field_name+'_other'] = CharField(
+                label='Other',
+                max_length=get_aux_metadata_max_length(n),
+                required=False,
+            )
+
+            valueFields += [aux_field_name, aux_field_name+'_other']
 
         # For use in templates.
         # Can iterate over fieldsets instead of the entire form.
@@ -371,44 +374,56 @@ class ImageDetailForm(ModelForm):
 
         # Right now, the valueN field's value is the integer id
         # of a ValueN object. We want the ValueN object.
-        for key, valueField, valueClass in [
-            (source.key1, 'value1', Value1),
-            (source.key2, 'value2', Value2),
-            (source.key3, 'value3', Value3),
-            (source.key4, 'value4', Value4),
-            (source.key5, 'value5', Value5) ]:
 
-            # Make sure the form actually has this valueN.
-            if not data.has_key(valueField):
+        NUM_AUX_FIELDS = 5
+        for n in range(1, NUM_AUX_FIELDS+1):
+            aux_field_label = getattr(source, 'key'+str(n))
+            aux_field_name = 'value'+str(n)
+
+            # TODO: Remove if assuming all 5 aux fields are always used
+            if not data.has_key(aux_field_name):
                 continue
 
-            if not data[valueField] == 'Other':
-                # Set to ValueN object of the given id.
-                data[valueField] = valueClass.objects.get(pk=data[valueField])
+            if not data[aux_field_name] == 'Other':
+                data[aux_field_name] = \
+                    get_aux_metadata_db_value_from_form_choice(
+                        n, data[aux_field_name])
                 continue
 
             # "Other" was chosen.
-            otherValue = data[valueField + '_other']
+            otherValue = data[aux_field_name+'_other']
             if not otherValue:
                 # Error
-                msg = u"Since you selected Other, you must use this text box to specify the %s." % key
-                self.add_error(valueField + '_other', msg)
+                error_message = (
+                    "Since you selected Other, you must use this text box"
+                    " to specify the {field_label}.".format(
+                        field_label=aux_field_label))
+                self.add_error(aux_field_name+'_other', error_message)
 
-                # TODO: Make this not a hack.  This sets the valueField to be some arbitrary non-blank
-                # valueN object, so (1) we won't get an error on clean() about 'Other'
-                # not being a valueClass object, and (2) we won't get a
+                # TODO: Remove when aux metadata are simple
+                # string fields, since Other happens to be a valid input
+                # for a string field.
+                # (Still, the fact that we'd rely on this means we don't
+                # have a great implementation of Other fields yet...)
+                #
+                # Set the field to be some arbitrary non-blank
+                # valueN object, so that
+                # (1) we won't get an error on clean() about 'Other'
+                # not being a valueClass object, and
+                # (2) we won't get a
                 # "field cannot be blank" error on the dropdown.
-                # One possible consequence of this hack is that it'll crash if there are no valueClass objects of that value number on the site yet. (e.g. no value5s)
-                data[valueField] = valueClass.objects.all()[0]
+                # Yes, this is kind of a hack.
+                data[aux_field_name] = get_aux_metadata_valid_db_value(n)
             else:
                 # Add new value to database, or get it if it already exists
-                # (the latter case would be the user not noticing it was already in the choices).
-                # TODO: This'll leave unused Values if the form has errors.
+                # (the latter case would be the user not noticing it was
+                # already in the choices).
+                #
+                # This'll leave unused Values if the form has errors elsewhere.
                 # In that case, there seems to be no good way of deleting
-                # these Values in this request/response cycle. The form needs
-                # restructuring, or possibly splitting up into 2 forms, etc.
-                newValueObj, created = valueClass.objects.get_or_create(name=otherValue, source=source)
-                data[valueField] = newValueObj
+                # these Values in this request/response cycle.
+                data[aux_field_name] = get_aux_metadata_db_value_from_str(
+                    source, n, otherValue)
             
         self.cleaned_data = data
         super(ImageDetailForm, self).clean()

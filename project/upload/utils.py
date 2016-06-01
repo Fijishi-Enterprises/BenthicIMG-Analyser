@@ -13,9 +13,9 @@ from annotations.model_utils import AnnotationAreaUtils
 from annotations.models import Label, Annotation
 from images.model_utils import PointGen
 from images.models import Metadata, ImageStatus, Image, Point, Source
-from images.utils import  get_location_value_objs, generate_points
+from images.utils import generate_points, get_aux_metadata_db_value_dict_from_str_list
 from lib import str_consts
-from lib.exceptions import DirectoryAccessError, FileContentError, ValueObjectNotFoundError, FilenameError
+from lib.exceptions import DirectoryAccessError, FileContentError, FilenameError
 from lib.utils import rand_string
 
 def get_image_identifier(valueList, year):
@@ -334,7 +334,8 @@ def image_upload_process(imageFile, imageOptionsForm,
         # Set the metadata
         metadata_dict = filename_check_result['metadata_dict']
 
-        value_dict = get_location_value_objs(source, metadata_dict['values'], createNewValues=True)
+        value_dict = get_aux_metadata_db_value_dict_from_str_list(
+            source, metadata_dict['values'])
         photo_date = datetime.date(
             year = int(metadata_dict['year']),
             month = int(metadata_dict['month']),

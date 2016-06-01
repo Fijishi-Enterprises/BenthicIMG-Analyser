@@ -7,61 +7,7 @@ from accounts.utils import get_robot_user, get_alleviate_user
 from annotations.model_utils import AnnotationAreaUtils
 from annotations.models import Annotation
 from images.model_utils import PointGen
-from images.models import Source, Point, Metadata, Image, Value1, Value2, Value3, Value4, Value5
-from lib.exceptions import *
-
-
-def get_location_value_objs(source, value_names, createNewValues=False):
-    """
-    Takes a list of values as strings:
-    ['Shore3', 'Reef 5', 'Loc10']
-    Returns a dict of Value objects:
-    {'value1': <Value1 object: 'Shore3'>, 'value2': <Value2 object: 'Reef 5'>, ...}
-
-    If the database doesn't have a Value object of the desired name:
-    - If createNewValues is True, then the required Value object is
-     created and inserted into the DB.
-    - If createNewValues is False, then this method returns None.
-    """
-
-    # Get the value field names and model classes corresponding to
-    # the given value_names.
-    num_of_location_values = len(value_names)
-    value_fields = ['value1', 'value2', 'value3', 'value4', 'value5'][:num_of_location_values]
-    value_classes = [Value1, Value2, Value3, Value4, Value5][:num_of_location_values]
-
-    value_dict = dict()
-
-    for value_field, value_class, value_name in zip(value_fields, value_classes, value_names):
-
-        if value_name == '':
-
-            # Don't allow empty-string values. The empty or null value is
-            # represented by having no Value object at all.
-            value_dict[value_field] = None
-
-        else:
-
-            # Non-empty value.
-
-            if createNewValues:
-                # Get the Value object if there is one, or create it otherwise.
-                value_dict[value_field], created = value_class.objects.get_or_create(
-                    source=source, name=value_name
-                )
-            else:
-                try:
-                    # Get the Value object if there is one.
-                    value_dict[value_field] = value_class.objects.get(
-                        source=source, name=value_name
-                    )
-                except value_class.DoesNotExist:
-                    # Value object not found, and can't create it.
-                    # Can't return a valueDict.
-                    raise ValueObjectNotFoundError
-
-    # All the desired Value objects were found/created.
-    return value_dict
+from images.models import Source, Point, Image, Value1, Value2, Value3, Value4, Value5
 
 
 def get_first_image(source, conditions=None):
@@ -511,6 +457,29 @@ def get_aux_metadata_db_value_from_str(source, aux_field_number, s):
     obj, created = aux_metadata_class.objects.get_or_create(
         name=s, source=source)
     return obj
+
+def get_aux_metadata_db_value_dict_from_str_list(source, str_list):
+    """
+    When aux metadata are just simple string fields,
+    can replace with:
+    aux_dict = dict()
+    for aux_field_number, s in enumerate(str_list, 1):
+        aux_field_name = 'value'+str(aux_field_number)
+        aux_dict[aux_field_name] = s
+    return aux_dict
+
+    But this functionality might just not be needed at that point.
+    """
+    aux_dict = dict()
+    for aux_field_number, s in enumerate(str_list, 1):
+        aux_field_name = 'value'+str(aux_field_number)
+        aux_metadata_class = get_aux_metadata_class(aux_field_number)
+        if s == '':
+            aux_dict[aux_field_name] = None
+        else:
+            aux_dict[aux_field_name], created = aux_metadata_class.objects.get_or_create(
+                name=s, source=source)
+    return aux_dict
 
 def get_aux_metadata_max_length(aux_field_number):
     """

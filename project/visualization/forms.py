@@ -3,7 +3,7 @@ from django import forms
 from django.forms.fields import ChoiceField, BooleanField
 from django.forms.widgets import HiddenInput
 from annotations.models import LabelGroup, Label
-from images.models import Source, Value1, Value2, Value3, Value4, Value5, Metadata, Image
+from images.models import Source, Metadata, Image
 from images.utils import get_aux_metadata_form_choices, update_filter_args_specifying_choice_aux_metadata, update_filter_args_specifying_blank_aux_metadata
 from lib.forms import clean_comma_separated_image_ids_field
 
@@ -286,20 +286,23 @@ class StatisticsSearchForm(forms.Form):
         groups = LabelGroup.objects.all().distinct()
 
         # Get the location keys
-        for key, valueField, valueClass in [
-                (source.key1, 'value1', Value1),
-                (source.key2, 'value2', Value2),
-                (source.key3, 'value3', Value3),
-                (source.key4, 'value4', Value4),
-                (source.key5, 'value5', Value5)
-                ]:
-            if key:
-                choices = [('', 'All')]
-                valueObjs = valueClass.objects.filter(source=source).order_by('name')
-                for valueObj in valueObjs:
-                    choices.append((valueObj.id, valueObj.name))
+        NUM_AUX_FIELDS = 5
+        for n in range(1, NUM_AUX_FIELDS+1):
+            aux_field_label = getattr(source, 'key'+str(n))
+            aux_field_name = 'value'+str(n)
 
-                self.fields[valueField] = ChoiceField(choices, label=key, required=False)
+            # TODO: Remove if assuming all 5 aux fields are always used
+            if not aux_field_label:
+                continue
+
+            choices = [('', 'All')]
+            choices += get_aux_metadata_form_choices(source, n)
+
+            self.fields[aux_field_name] = forms.ChoiceField(
+                choices,
+                label=aux_field_label,
+                required=False,
+            )
 
         # Put the label choices in order
         label_choices = \

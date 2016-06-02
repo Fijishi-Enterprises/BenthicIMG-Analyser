@@ -1,8 +1,9 @@
 import json
 from urllib import urlencode
 from django.core.urlresolvers import reverse
+from images.utils import get_aux_metadata_post_form_value_from_str, get_aux_metadata_db_value_from_str
 from lib.test_utils import ClientTest
-from images.models import Source, Image, Value1, Value3, Value4
+from images.models import Source, Image
 
 
 class BrowseTest(ClientTest):
@@ -260,17 +261,16 @@ class MetadataEditTest2(ClientTest):
 
         source = Source.objects.get(pk=self.source_id)
         image = Image.objects.get(pk=self.image_id)
-        v1 = Value1(name="AAA", source=source)
-        v1.save()
-        v3 = Value3(name="CCC", source=source)
-        v3.save()
-        v4 = Value4(name="DDD", source=source)
-        v4.save()
-        image.metadata.value1 = v1
-        image.metadata.value2 = None
-        image.metadata.value3 = v3
-        image.metadata.value4 = v4
-        image.metadata.value5 = None
+        image.metadata.value1 = get_aux_metadata_db_value_from_str(
+            source, 1, 'AAA')
+        image.metadata.value2 = get_aux_metadata_db_value_from_str(
+            source, 2, '')
+        image.metadata.value3 = get_aux_metadata_db_value_from_str(
+            source, 3, 'CCC')
+        image.metadata.value4 = get_aux_metadata_db_value_from_str(
+            source, 4, 'DDD')
+        image.metadata.value5 = get_aux_metadata_db_value_from_str(
+            source, 5, '')
         image.metadata.save()
 
         # Load the page with the metadata form.
@@ -363,10 +363,12 @@ class ImageDeleteTest(ClientTest):
         url = reverse('browse_delete', kwargs=dict(source_id=self.source_id))
 
         # Delete all images in the source.
+        source = Source.objects.get(pk=self.source_id)
         self.client.post(url, dict(
             specify_method='search_keys',
             specify_str=json.dumps(
-                dict(value1=Value1.objects.get(name='001').pk)),
+                dict(value1=get_aux_metadata_post_form_value_from_str(
+                    source, 1, '001'))),
         ))
 
         # Check that we can get image 002 and 003, but not 001,

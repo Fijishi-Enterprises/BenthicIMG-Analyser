@@ -519,6 +519,19 @@ def get_aux_metadata_db_value_dict_from_str_list(source, str_list):
                 name=s, source=source)
     return aux_dict
 
+def get_aux_metadata_post_form_value_from_str(source, aux_field_number, s):
+    """
+    When aux metadata are just simple string fields,
+    replace calls with:
+    s
+    """
+    if s == '':
+        return None
+    aux_metadata_class = get_aux_metadata_class(aux_field_number)
+    obj, created = aux_metadata_class.objects.get_or_create(
+        name=s, source=source)
+    return obj.pk
+
 def get_aux_metadata_str_for_image(image, aux_field_number):
     """
     When aux metadata are just simple string fields,

@@ -13,7 +13,7 @@ from annotations.model_utils import AnnotationAreaUtils
 from annotations.models import Label, Annotation
 from images.model_utils import PointGen
 from images.models import Metadata, ImageStatus, Image, Point, Source
-from images.utils import generate_points, get_aux_metadata_db_value_dict_from_str_list
+from images.utils import generate_points, get_aux_metadata_db_value_dict_from_str_list, get_aux_field_names
 from lib import str_consts
 from lib.exceptions import DirectoryAccessError, FileContentError, FilenameError
 from lib.utils import rand_string
@@ -48,11 +48,10 @@ def store_csv_file(csv_file, source):
     # splitlines() is to do system-agnostic handling of newline characters.
     # The csv module can't do that by default (fails on CR only).
     reader = csv.reader(csv_file.read().splitlines(), dialect='excel')
-    num_keys = source.num_of_keys()
     filenames_processed = []
 
     fields = (['photo_date'] +
-              ['value1', 'value2', 'value3', 'value4', 'value5'][:num_keys] +
+              get_aux_field_names(source) +
               ['height_in_cm', 'latitude', 'longitude',
                'depth', 'camera', 'photographer', 'water_quality',
                'strobes', 'framing', 'balance'])
@@ -119,12 +118,11 @@ def annotations_file_to_python(annoFile, source, expecting_labels):
     # Format args: line number, line contents, error message
     file_error_format_str = str_consts.ANNOTATION_FILE_FULL_ERROR_MESSAGE_FMTSTR
 
-    numOfKeys = source.num_of_keys()
     uniqueLabelCodes = []
 
     # The order of the words/tokens is encoded here.  If the order ever
     # changes, we should only have to change this part.
-    words_format_without_label = ['value'+str(i) for i in range(1, numOfKeys+1)]
+    words_format_without_label = get_aux_field_names(source)
     words_format_without_label += ['date', 'row', 'col']
     words_format_with_label = words_format_without_label + ['label']
 
@@ -272,7 +270,7 @@ def annotations_file_to_python(annoFile, source, expecting_labels):
 
         # Use the location values and the year to build a string identifier for the image, such as:
         # Shore1;Reef5;...;2008
-        valueList = [lineData['value'+str(i)] for i in range(1,numOfKeys+1)]
+        valueList = [lineData[name] for name in get_aux_field_names(source)]
         imageIdentifier = get_image_identifier(valueList, year)
 
         # Add/update a dictionary entry for the image with this identifier.
@@ -591,10 +589,8 @@ def filename_to_metadata(filename, source):
 
     metadataDict = dict()
 
-    numOfKeys = source.num_of_keys()
-
     # value1_value2_..._YYYY-MM-DD
-    tokensFormat = ['value'+str(i) for i in range(1, numOfKeys+1)]
+    tokensFormat = get_aux_field_names(source)
     tokensFormat += ['date']
     numTokensExpected = len(tokensFormat)
 
@@ -608,16 +604,18 @@ def filename_to_metadata(filename, source):
 
     extraTokens = tokens[numTokensExpected:]
     if len(extraTokens) > 0:
-        name = '_'.join(extraTokens) + extension
+        metadataDict['name'] = '_'.join(extraTokens) + extension
     else:
-        name = filename
+        metadataDict['name'] = filename
 
     # Encode the filename data into a dictionary: {'value1':'Shore2', 'date':'2008-12-18', ...}
     filenameData = dict(zip(tokensFormat, dataTokens))
 
-    valueList = [filenameData['value'+str(i)] for i in range(1, numOfKeys+1)]
-    dateToken = filenameData['date']
+    metadataDict['values'] = [
+        filenameData[name]
+        for name in get_aux_field_names(source)]
 
+    dateToken = filenameData['date']
     try:
         year, month, day = dateToken.split("-")
     except ValueError:
@@ -637,15 +635,9 @@ def filename_to_metadata(filename, source):
         # out of valid range (e.g. month 13).
         raise FilenameError(str_consts.DATE_VALUE_ERROR_FMTSTR.format(date_token=dateToken))
 
-    # Make the values into a tuple, so the metadata can potentially be
-    # hashed and used in lookups.
-    metadataDict['values'] = valueList
-
     metadataDict['year'] = year
     metadataDict['month'] = month
     metadataDict['day'] = day
-
-    metadataDict['name'] = name
 
     return metadataDict
 

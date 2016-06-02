@@ -443,6 +443,14 @@ def get_aux_label_field_names(source):
     """
     return ['key'+str(n) for n in range(1, get_num_aux_fields(source)+1)]
 
+def get_aux_field_names(source):
+    """
+    If assuming all 5 aux fields are always used,
+    replace calls with:
+    ['value'+str(n) for n in range(1, 5+1)]
+    """
+    return ['value'+str(n) for n in range(1, get_num_aux_fields(source)+1)]
+
 def get_aux_field_labels(source):
     return [
         get_aux_field_label(source, aux_field_number)

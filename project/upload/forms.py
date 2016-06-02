@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 from django.forms import ImageField, Form, ChoiceField, FileField, CharField, BooleanField, DateField
 from django.forms.widgets import FileInput, TextInput
 from django.utils.translation import ugettext_lazy as _
-from images.utils import get_aux_metadata_db_value_from_str, get_aux_metadata_max_length, get_num_aux_fields, get_aux_label_field_names, get_aux_field_label, get_aux_field_labels
+from images.utils import get_aux_metadata_db_value_from_str, get_aux_metadata_max_length, get_num_aux_fields, get_aux_label, get_aux_labels
 from upload.utils import metadata_to_filename
 from images.models import Source, Metadata, ImageModelConstants
 
@@ -147,7 +147,7 @@ class ImageUploadOptionsForm(Form):
         # Dynamically generate a source-specific string for the metadata
         # field's help text.
         filename_format_args = dict(year='YYYY', month='MM', day='DD')
-        source_keys = get_aux_field_labels(source)
+        source_keys = get_aux_labels(source)
         filename_format_args['values'] = source_keys
 
         self.fields['specify_metadata'].source_specific_filename_format =\
@@ -291,12 +291,12 @@ class MetadataForm(Form):
         for n in range(1, get_num_aux_fields(self.source)+1):
             # TODO: Naming these as keyn is confusing, should be auxn/valuen.
             aux_field_name = 'key'+str(n)
-            aux_field_label = get_aux_field_label(self.source, n)
+            aux_label = get_aux_label(self.source, n)
 
             self.fields[aux_field_name] = CharField(
                 required=False,
                 widget=TextInput(attrs={'size': 10, 'maxlength': get_aux_metadata_max_length(n)}),
-                label=aux_field_label,
+                label=aux_label,
                 max_length=get_aux_metadata_max_length(n),
             )
 
@@ -399,17 +399,17 @@ class MetadataImportForm(forms.ModelForm):
         # to make it easy to specify the fields' ordering.
         NUM_AUX_FIELDS = 5
         for n in range(1, NUM_AUX_FIELDS+1):
-            aux_field_label = get_aux_field_label(self.source, n)
+            aux_label = get_aux_label(self.source, n)
             aux_field_name = 'value'+str(n)
 
             # TODO: Remove if assuming all 5 aux fields are always used
-            if not aux_field_label:
+            if not aux_label:
                 del self.fields[aux_field_name]
                 continue
 
             self.fields[aux_field_name] = CharField(
                 required=False,
-                label=aux_field_label,
+                label=aux_label,
                 max_length=get_aux_metadata_max_length(n),
             )
 

@@ -19,7 +19,7 @@ from accounts.utils import get_robot_user
 from annotations.models import Annotation, Label, LabelSet, LabelGroup
 from images.models import Source, Image
 from images.tasks import *
-from images.utils import delete_image, get_aux_metadata_str_list_for_image, get_aux_label_field_names, get_aux_field_labels
+from images.utils import delete_image, get_aux_metadata_str_list_for_image, get_aux_label_field_names, get_aux_labels
 from lib.decorators import source_visibility_required, source_permission_required
 from upload.forms import MetadataForm, CheckboxForm
 
@@ -400,7 +400,7 @@ def visualize_source(request, source_id):
         # TODO: Uncomment this once downloading is implemented
         #'has_download_form': bool(download_form),
 
-        'key_list': get_aux_field_labels(source),
+        'key_list': get_aux_labels(source),
         'metadataForm': metadataForm,
         'selectAllForm': selectAllCheckbox,
         'metadataFormWithExtra': metadataFormWithExtra,
@@ -846,7 +846,7 @@ def export_abundance(placeholder, source_id):
     #Note: labe1, label2, etc corresponds to the percent coverage of that label on
     #a per IMAGE basis, not per source
     header = []
-    header.extend(get_aux_field_labels(source))
+    header.extend(get_aux_labels(source))
     header.append('date_taken')
     header.append('annotation_status')
     header.extend(images[0].get_metadata_fields_for_export()) #these are the same for all images. Use first one..
@@ -917,7 +917,7 @@ def export_statistics(request, source_id):
     #Note: labe1, label2, etc corresponds to the percent coverage of that label on
     #a per IMAGE basis, not per source
     header = []
-    header.extend(get_aux_field_labels(source))
+    header.extend(get_aux_labels(source))
     header.append('date_taken')
     header.append('annotation_status')
     header.extend(images[0].get_metadata_fields_for_export()) #these are the same for all images. Use first one..
@@ -982,7 +982,7 @@ def export_annotations(request, source_id):
 
     #Add table headings: locKey1 locKey2 locKey3 locKey4 photo_date anno_date row col label shortcode fun_group annotator
     header = []
-    header.extend(get_aux_field_labels(source))
+    header.extend(get_aux_labels(source))
     header.extend(['original_file_name', 'date_taken','date_annotated','annotator', 'row', 'col', 'label','shortcode', 'func_group'])
     writer.writerow(header)
 

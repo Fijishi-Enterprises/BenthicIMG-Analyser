@@ -5,7 +5,7 @@ from django.contrib import messages
 from annotations.model_utils import AnnotationAreaUtils
 from images.model_utils import PointGen
 from images.models import Source
-from images.utils import get_aux_field_labels
+from images.utils import get_aux_labels
 from lib.decorators import source_permission_required
 from lib.exceptions import FileContentError
 from .forms import MultiImageUploadForm, ImageUploadForm, ImageUploadOptionsForm, AnnotationImportForm, AnnotationImportOptionsForm, CSVImportForm, MetadataImportForm, ImportArchivedAnnotationsForm
@@ -49,7 +49,7 @@ def image_upload(request, source_id):
         'annotation_import_options_form': annotation_import_options_form,
         'proceed_to_manage_metadata_form': proceed_to_manage_metadata_form,
         'auto_generate_points_message': auto_generate_points_message,
-        'aux_field_labels': get_aux_field_labels(source),
+        'aux_labels': get_aux_labels(source),
     })
 
 

@@ -6,7 +6,7 @@ from django.forms.fields import CharField, ChoiceField, FileField, IntegerField
 from django.forms.widgets import  Select, TextInput, NumberInput
 from .models import Source, Image, Metadata, SourceInvite
 from .model_utils import PointGen
-from .utils import get_aux_metadata_form_choices, get_aux_metadata_max_length, get_aux_metadata_db_value_from_form_choice, get_aux_metadata_valid_db_value, get_aux_metadata_db_value_from_str, get_num_aux_fields, get_aux_field_label
+from .utils import get_aux_metadata_form_choices, get_aux_metadata_max_length, get_aux_metadata_db_value_from_form_choice, get_aux_metadata_valid_db_value, get_aux_metadata_db_value_from_str, get_num_aux_fields, get_aux_label
 from lib import str_consts
 
 class ImageSourceForm(ModelForm):
@@ -307,11 +307,11 @@ class ImageDetailForm(ModelForm):
 
         NUM_AUX_FIELDS = 5
         for n in range(1, NUM_AUX_FIELDS+1):
-            aux_field_label = get_aux_field_label(source, n)
+            aux_label = get_aux_label(source, n)
             aux_field_name = 'value'+str(n)
 
             # TODO: Remove if assuming all 5 aux fields are always used
-            if not aux_field_label:
+            if not aux_label:
                 # If the key isn't in the source, just remove the
                 # corresponding value field from the form
                 del self.fields[aux_field_name]
@@ -329,7 +329,7 @@ class ImageDetailForm(ModelForm):
 
             self.fields[aux_field_name] = ChoiceField(
                 choices,
-                label=aux_field_label,
+                label=aux_label,
                 required=False,
             )
 
@@ -366,7 +366,7 @@ class ImageDetailForm(ModelForm):
         # Right now, the valueN field's value is the integer id
         # of a ValueN object. We want the ValueN object.
         for n in range(1, get_num_aux_fields(source)+1):
-            aux_field_label = get_aux_field_label(source, n)
+            aux_label = get_aux_label(source, n)
             aux_field_name = 'value'+str(n)
 
             if not data[aux_field_name] == 'Other':
@@ -381,8 +381,8 @@ class ImageDetailForm(ModelForm):
                 # Error
                 error_message = (
                     "Since you selected Other, you must use this text box"
-                    " to specify the {field_label}.".format(
-                        field_label=aux_field_label))
+                    " to specify the {aux_label}.".format(
+                        aux_label=aux_label))
                 self.add_error(aux_field_name+'_other', error_message)
 
                 # TODO: Remove when aux metadata are simple

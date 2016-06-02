@@ -418,7 +418,7 @@ def get_aux_metadata_class(aux_field_number):
         1: Value1, 2: Value2, 3: Value3, 4: Value4, 5: Value5}
     return numbers_to_classes[aux_field_number]
 
-def get_aux_field_label(source, aux_field_number):
+def get_aux_label(source, aux_field_number):
     return getattr(source, 'key'+str(aux_field_number))
 
 def get_num_aux_fields(source):
@@ -430,8 +430,8 @@ def get_num_aux_fields(source):
     """
     NUM_AUX_FIELDS = 5
     for n in range(1, NUM_AUX_FIELDS+1):
-        aux_field_label = get_aux_field_label(source, n)
-        if not aux_field_label:
+        aux_label = get_aux_label(source, n)
+        if not aux_label:
             return n-1
     return NUM_AUX_FIELDS
 
@@ -451,9 +451,9 @@ def get_aux_field_names(source):
     """
     return ['value'+str(n) for n in range(1, get_num_aux_fields(source)+1)]
 
-def get_aux_field_labels(source):
+def get_aux_labels(source):
     return [
-        get_aux_field_label(source, aux_field_number)
+        get_aux_label(source, aux_field_number)
         for aux_field_number in range(1, get_num_aux_fields(source)+1)]
 
 def get_aux_metadata_form_choices(source, aux_field_number):
@@ -610,9 +610,9 @@ def get_year_and_aux_metadata_table(image):
         cols.append( ("Year", "") )
 
     for n in range(1, get_num_aux_fields(image.source)+1):
-        aux_field_label = get_aux_field_label(image.source, n)
+        aux_label = get_aux_label(image.source, n)
         cols.append(
-            (aux_field_label, get_aux_metadata_str_for_image(image, n)))
+            (aux_label, get_aux_metadata_str_for_image(image, n)))
 
     # Transpose
     rows = dict(

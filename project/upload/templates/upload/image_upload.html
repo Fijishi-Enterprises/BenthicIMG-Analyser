@@ -176,7 +176,7 @@
             csvFileProcessUrl: "{% url 'csv_file_process_ajax' source.id %}",
             {# Remnants of an attempt at a progress bar... #}
             {#            uploadProgressUrl: {% url 'ajax_upload_progress' source.id %}#}
-            locationKeyList: {{ aux_field_labels|jsonify }}
+            locationKeyList: {{ aux_labels|jsonify }}
         });
 
     </script>

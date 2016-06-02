@@ -19,7 +19,7 @@ from accounts.utils import get_robot_user
 from annotations.models import Annotation, Label, LabelSet, LabelGroup
 from images.models import Source, Image
 from images.tasks import *
-from images.utils import delete_image, get_aux_metadata_str_list_for_image, get_aux_label_field_names, get_aux_labels
+from images.utils import delete_image, get_aux_metadata_str_list_for_image, get_aux_label_field_names, get_aux_labels, get_all_aux_field_names
 from lib.decorators import source_visibility_required, source_permission_required
 from upload.forms import MetadataForm, CheckboxForm
 
@@ -38,7 +38,7 @@ def image_search_args_to_queryset_args(searchDict, source):
     querysetArgs = dict()
 
     for k in searchArgs:
-        if k.startswith('value'):
+        if k in get_all_aux_field_names():
             querysetArgs['metadata__'+k+'__id'] = searchArgs[k]
         elif k == 'year':
             querysetArgs['metadata__photo_date__'+k] = int(searchArgs[k])

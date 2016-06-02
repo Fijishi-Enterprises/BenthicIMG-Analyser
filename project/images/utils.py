@@ -418,8 +418,16 @@ def get_aux_metadata_class(aux_field_number):
         1: Value1, 2: Value2, 3: Value3, 4: Value4, 5: Value5}
     return numbers_to_classes[aux_field_number]
 
+def get_aux_label_field_name(aux_field_number):
+    return 'key'+str(aux_field_number)
+def get_aux_field_name(aux_field_number):
+    return 'value'+str(aux_field_number)
+
+def get_all_aux_field_names():
+    return [get_aux_field_name(n) for n in range(1, 5+1)]
+
 def get_aux_label(source, aux_field_number):
-    return getattr(source, 'key'+str(aux_field_number))
+    return getattr(source, get_aux_label_field_name(aux_field_number))
 
 def get_num_aux_fields(source):
     """
@@ -439,17 +447,21 @@ def get_aux_label_field_names(source):
     """
     If assuming all 5 aux fields are always used,
     replace calls with:
-    ['key'+str(n) for n in range(1, 5+1)]
+    [get_aux_label_field_name(n) for n in range(1, 5+1)]
     """
-    return ['key'+str(n) for n in range(1, get_num_aux_fields(source)+1)]
+    return [
+        get_aux_label_field_name(n)
+        for n in range(1, get_num_aux_fields(source)+1)]
 
 def get_aux_field_names(source):
     """
     If assuming all 5 aux fields are always used,
     replace calls with:
-    ['value'+str(n) for n in range(1, 5+1)]
+    [get_aux_field_name(n) for n in range(1, 5+1)]
     """
-    return ['value'+str(n) for n in range(1, get_num_aux_fields(source)+1)]
+    return [
+        get_aux_field_name(n)
+        for n in range(1, get_num_aux_fields(source)+1)]
 
 def get_aux_labels(source):
     return [
@@ -461,8 +473,8 @@ def get_aux_metadata_form_choices(source, aux_field_number):
     When aux metadata are just simple string fields,
     replace calls with:
     Metadata.objects.filter(image__source__pk=10) \
-    .distinct('aux'+str(aux_field_number)) \
-    .values_list('aux'+str(aux_field_number), flat=True)
+    .distinct(get_aux_field_name(aux_field_number)) \
+    .values_list(get_aux_field_name(aux_field_number), flat=True)
 
     ...Or better, keep this function and replace the implementation with that.
     """
@@ -502,7 +514,7 @@ def get_aux_metadata_db_value_dict_from_str_list(source, str_list):
     can replace with:
     aux_dict = dict()
     for aux_field_number, s in enumerate(str_list, 1):
-        aux_field_name = 'value'+str(aux_field_number)
+        aux_field_name = get_aux_field_name(aux_field_number)
         aux_dict[aux_field_name] = s
     return aux_dict
 
@@ -510,7 +522,7 @@ def get_aux_metadata_db_value_dict_from_str_list(source, str_list):
     """
     aux_dict = dict()
     for aux_field_number, s in enumerate(str_list, 1):
-        aux_field_name = 'value'+str(aux_field_number)
+        aux_field_name = get_aux_field_name(aux_field_number)
         aux_metadata_class = get_aux_metadata_class(aux_field_number)
         if s == '':
             aux_dict[aux_field_name] = None
@@ -536,9 +548,9 @@ def get_aux_metadata_str_for_image(image, aux_field_number):
     """
     When aux metadata are just simple string fields,
     replace calls with:
-    getattr(image.metadata, 'value'+str(aux_field_number))
+    getattr(image.metadata, get_aux_field_name(aux_field_number))
     """
-    obj = getattr(image.metadata, 'value'+str(aux_field_number))
+    obj = getattr(image.metadata, get_aux_field_name(aux_field_number))
     if obj:
         return obj.name
     return ''
@@ -547,7 +559,7 @@ def get_aux_metadata_max_length(aux_field_number):
     """
     When aux metadata are just simple string fields,
     replace calls with:
-    Source._meta.get_field('aux'+str(aux_field_number))
+    Source._meta.get_field(get_aux_field_name(aux_field_number)).max_length
     """
     aux_metadata_class = get_aux_metadata_class(aux_field_number)
     return aux_metadata_class._meta.get_field('name').max_length
@@ -568,21 +580,22 @@ def update_filter_args_specifying_blank_aux_metadata(
     """
     When aux metadata are just simple string fields,
     replace calls with:
-    filter_args['metadata__value'+aux_field_number] = ''
+    filter_args['metadata__'+get_aux_field_name(aux_field_number)] = ''
     """
-    filter_args['metadata__value'+aux_field_number] = None
+    filter_args['metadata__'+get_aux_field_name(aux_field_number)] = None
 
 def update_filter_args_specifying_choice_aux_metadata(
         filter_args, aux_field_number, value):
     """
     When aux metadata are just simple string fields,
     replace calls with:
-    filter_args['metadata__value'+aux_field_number] = value
+    filter_args['metadata__'+get_aux_field_name(aux_field_number)] = value
 
     A dropdown choice of aux metadata should be an id if
     values have model classes, and should be a string otherwise.
     """
-    filter_args['metadata__value'+aux_field_number+'__id'] = value
+    filter_args['metadata__'+get_aux_field_name(aux_field_number)+'__id'] \
+        = value
 
 
 # Other auxiliary metadata related functions.

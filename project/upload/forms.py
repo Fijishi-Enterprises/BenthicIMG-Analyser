@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 from django.forms import ImageField, Form, ChoiceField, FileField, CharField, BooleanField, DateField
 from django.forms.widgets import FileInput, TextInput
 from django.utils.translation import ugettext_lazy as _
-from images.utils import get_aux_metadata_db_value_from_str, get_aux_metadata_max_length, get_num_aux_fields, get_aux_label, get_aux_labels
+from images.utils import get_aux_metadata_db_value_from_str, get_aux_metadata_max_length, get_num_aux_fields, get_aux_label, get_aux_labels, get_aux_field_name
 from upload.utils import metadata_to_filename
 from images.models import Source, Metadata, ImageModelConstants
 
@@ -400,7 +400,7 @@ class MetadataImportForm(forms.ModelForm):
         NUM_AUX_FIELDS = 5
         for n in range(1, NUM_AUX_FIELDS+1):
             aux_label = get_aux_label(self.source, n)
-            aux_field_name = 'value'+str(n)
+            aux_field_name = get_aux_field_name(n)
 
             # TODO: Remove if assuming all 5 aux fields are always used
             if not aux_label:
@@ -419,7 +419,7 @@ class MetadataImportForm(forms.ModelForm):
 
         # Parse key entries as Value objects.
         for n in range(1, get_num_aux_fields(self.source)+1):
-            aux_field_name = 'value'+str(n)
+            aux_field_name = get_aux_field_name(n)
             data[aux_field_name] = get_aux_metadata_db_value_from_str(
                 self.source, n, data[aux_field_name])
 

@@ -6,7 +6,7 @@ from django.forms.fields import CharField, ChoiceField, FileField, IntegerField
 from django.forms.widgets import  Select, TextInput, NumberInput
 from .models import Source, Image, Metadata, SourceInvite
 from .model_utils import PointGen
-from .utils import get_aux_metadata_form_choices, get_aux_metadata_max_length, get_aux_metadata_db_value_from_form_choice, get_aux_metadata_valid_db_value, get_aux_metadata_db_value_from_str, get_num_aux_fields, get_aux_label
+from .utils import get_aux_metadata_form_choices, get_aux_metadata_max_length, get_aux_metadata_db_value_from_form_choice, get_aux_metadata_valid_db_value, get_aux_metadata_db_value_from_str, get_num_aux_fields, get_aux_label, get_aux_field_name
 from lib import str_consts
 
 class ImageSourceForm(ModelForm):
@@ -308,7 +308,7 @@ class ImageDetailForm(ModelForm):
         NUM_AUX_FIELDS = 5
         for n in range(1, NUM_AUX_FIELDS+1):
             aux_label = get_aux_label(source, n)
-            aux_field_name = 'value'+str(n)
+            aux_field_name = get_aux_field_name(n)
 
             # TODO: Remove if assuming all 5 aux fields are always used
             if not aux_label:
@@ -367,7 +367,7 @@ class ImageDetailForm(ModelForm):
         # of a ValueN object. We want the ValueN object.
         for n in range(1, get_num_aux_fields(source)+1):
             aux_label = get_aux_label(source, n)
-            aux_field_name = 'value'+str(n)
+            aux_field_name = get_aux_field_name(n)
 
             if not data[aux_field_name] == 'Other':
                 data[aux_field_name] = \

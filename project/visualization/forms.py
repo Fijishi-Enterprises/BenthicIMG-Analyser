@@ -4,7 +4,7 @@ from django.forms.fields import ChoiceField, BooleanField
 from django.forms.widgets import HiddenInput
 from annotations.models import LabelGroup, Label
 from images.models import Source, Metadata, Image
-from images.utils import get_aux_metadata_form_choices, update_filter_args_specifying_choice_aux_metadata, update_filter_args_specifying_blank_aux_metadata, get_num_aux_fields, get_aux_label
+from images.utils import get_aux_metadata_form_choices, update_filter_args_specifying_choice_aux_metadata, update_filter_args_specifying_blank_aux_metadata, get_num_aux_fields, get_aux_label, get_aux_field_name, get_all_aux_field_names
 from lib.forms import clean_comma_separated_image_ids_field
 
 
@@ -38,7 +38,7 @@ class ImageLocationValueForm(forms.Form):
 
         for n in range(1, get_num_aux_fields(source)+1):
             aux_label = get_aux_label(source, n)
-            aux_field_name = 'value'+str(n)
+            aux_field_name = get_aux_field_name(n)
 
             choices = [('all', 'All')]
             choices += get_aux_metadata_form_choices(source, n)
@@ -172,7 +172,7 @@ class ImageSpecifyForm(forms.Form):
 
             for k,v in search_keys_dict.iteritems():
 
-                if k.startswith('value'):
+                if k in get_all_aux_field_names():
 
                     # value1, value2, ..., value5
                     aux_field_number = k[-1]
@@ -283,7 +283,7 @@ class StatisticsSearchForm(forms.Form):
         # Get the location keys
         for n in range(1, get_num_aux_fields(source)+1):
             aux_label = get_aux_label(source, n)
-            aux_field_name = 'value'+str(n)
+            aux_field_name = get_aux_field_name(n)
 
             choices = [('', 'All')]
             choices += get_aux_metadata_form_choices(source, n)

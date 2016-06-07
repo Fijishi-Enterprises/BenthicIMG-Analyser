@@ -404,32 +404,6 @@ class Robot(models.Model):
         return "Version %s for %s" % (self.version, self.source.name)
 
 
-class LocationValue(models.Model):
-    class Meta:
-        # An abstract base class; no table will be created for
-        # this class, but tables will be created for its sub-classes
-        abstract = True
-
-        # Default ordering criteria.
-        ordering = ['name']
-
-    name = models.CharField(max_length=50)
-    source = models.ForeignKey(Source, on_delete=models.CASCADE)
-
-    def __unicode__(self):
-        return self.name
-
-class Value1(LocationValue):
-    pass
-class Value2(LocationValue):
-    pass
-class Value3(LocationValue):
-    pass
-class Value4(LocationValue):
-    pass
-class Value5(LocationValue):
-    pass
-
 class Metadata(models.Model):
     name = models.CharField(max_length=200, blank=True)
     photo_date = models.DateField(
@@ -474,18 +448,6 @@ class Metadata(models.Model):
     aux3 = models.CharField(max_length=50, blank=True)
     aux4 = models.CharField(max_length=50, blank=True)
     aux5 = models.CharField(max_length=50, blank=True)
-
-    # TODO: Obsolete these in favor of aux1, aux2, etc.
-    value1 = models.ForeignKey(Value1, on_delete=models.PROTECT,
-        null=True, blank=True)
-    value2 = models.ForeignKey(Value2, on_delete=models.PROTECT,
-        null=True, blank=True)
-    value3 = models.ForeignKey(Value3, on_delete=models.PROTECT,
-        null=True, blank=True)
-    value4 = models.ForeignKey(Value4, on_delete=models.PROTECT,
-        null=True, blank=True)
-    value5 = models.ForeignKey(Value5, on_delete=models.PROTECT,
-        null=True, blank=True)
 
     def __unicode__(self):
         return "Metadata of " + self.name

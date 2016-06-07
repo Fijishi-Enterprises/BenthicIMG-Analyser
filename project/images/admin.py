@@ -12,4 +12,4 @@ class ImageAdmin(admin.ModelAdmin):
 
 @admin.register(Metadata)
 class MetadataAdmin(admin.ModelAdmin):
-    list_display = ('name', 'value1', 'value2', 'value3', 'value4', 'value5')
+    list_display = ('name', 'aux1', 'aux2', 'aux3', 'aux4', 'aux5')

@@ -512,7 +512,14 @@ class Metadata(models.Model):
     balance = models.CharField("White balance card", max_length=200, blank=True)
     
     comments = models.TextField(max_length=1000, blank=True)
-    
+
+    aux1 = models.CharField(max_length=50, blank=True)
+    aux2 = models.CharField(max_length=50, blank=True)
+    aux3 = models.CharField(max_length=50, blank=True)
+    aux4 = models.CharField(max_length=50, blank=True)
+    aux5 = models.CharField(max_length=50, blank=True)
+
+    # TODO: Obsolete these in favor of aux1, aux2, etc.
     value1 = models.ForeignKey(Value1, on_delete=models.PROTECT,
         null=True, blank=True)
     value2 = models.ForeignKey(Value2, on_delete=models.PROTECT,

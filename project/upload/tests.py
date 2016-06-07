@@ -10,7 +10,7 @@ from annotations.model_utils import AnnotationAreaUtils
 from annotations.models import Annotation
 from images.model_utils import PointGen
 from images.models import Source, Image, Point
-from images.utils import get_aux_metadata_str_list_for_image
+from images.utils import get_aux_metadata_str_list_for_image, update_filter_args_specifying_str_aux_metadata
 from lib import str_consts
 from lib.test_utils import ClientTest
 from upload.forms import ImageUploadForm
@@ -244,7 +244,11 @@ class UploadDupeImageTest(ImageUploadBaseTest):
         datetime_before_dupe_upload = timezone.now()
         self.upload_image_test('001_2012-05-01_color-grid-001.png', expecting_dupe=True, **options)
 
-        image_001 = Image.objects.get(source__pk=self.source_id, metadata__value1__name='001')
+        filter_args = dict(source__pk=self.source_id)
+        update_filter_args_specifying_str_aux_metadata(
+            filter_args, 1, '001')
+        image_001 = Image.objects.get(**filter_args)
+
         image_001_name = image_001.metadata.name
 
         if dupe_option == 'skip':

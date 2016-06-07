@@ -555,6 +555,14 @@ def get_aux_metadata_str_for_image(image, aux_field_number):
         return obj.name
     return ''
 
+def set_aux_metadata_db_value_on_metadata_obj(metadata_obj, aux_field_number, db_value):
+    """
+    When we no longer need abstracting functions,
+    replace calls with:
+    metadata_obj.auxn = db_value
+    """
+    setattr(metadata_obj, get_aux_field_name(aux_field_number), db_value)
+
 def get_aux_metadata_max_length(aux_field_number):
     """
     When aux metadata are just simple string fields,
@@ -596,6 +604,15 @@ def update_filter_args_specifying_choice_aux_metadata(
     """
     filter_args['metadata__'+get_aux_field_name(aux_field_number)+'__id'] \
         = value
+
+def update_filter_args_specifying_str_aux_metadata(
+        filter_args, aux_field_number, s):
+    """
+    When aux metadata are just simple string fields,
+    replace calls with:
+    filter_args['metadata__'+get_aux_field_name(aux_field_number)] = s
+    """
+    filter_args['metadata__'+get_aux_field_name(aux_field_number)+'__name'] = s
 
 
 # Other auxiliary metadata related functions.

@@ -19,7 +19,7 @@ from accounts.utils import get_robot_user
 from annotations.models import Annotation, Label, LabelSet, LabelGroup
 from images.models import Source, Image
 from images.tasks import *
-from images.utils import delete_image, get_aux_metadata_str_list_for_image, get_aux_label_field_names, get_aux_labels, get_all_aux_field_names
+from images.utils import delete_image, get_aux_metadata_str_list_for_image, get_aux_label_field_names, get_aux_labels, get_all_aux_field_names, get_num_aux_fields, set_aux_metadata_db_value_on_metadata_obj
 from lib.decorators import source_visibility_required, source_permission_required
 from upload.forms import MetadataForm, CheckboxForm
 
@@ -448,17 +448,12 @@ def metadata_edit_ajax(request, source_id):
             for metadata_field in metadata_field_names:
                 setattr(image.metadata, metadata_field, formData[metadata_field])
 
-            # Location keys
-            if 'key1' in formData:
-                image.metadata.value1 = formData['key1']
-            if 'key2' in formData:
-                image.metadata.value2 = formData['key2']
-            if 'key3' in formData:
-                image.metadata.value3 = formData['key3']
-            if 'key4' in formData:
-                image.metadata.value4 = formData['key4']
-            if 'key5' in formData:
-                image.metadata.value5 = formData['key5']
+            # Location values
+            for n in range(1, get_num_aux_fields(source)+1):
+                # TODO: Naming these as keyn is confusing, should be auxn/valuen.
+                form_field_name = 'key'+str(n)
+                set_aux_metadata_db_value_on_metadata_obj(
+                    image.metadata, n, formData[form_field_name])
 
             image.metadata.save()
 

@@ -1,7 +1,7 @@
 import json
 from urllib import urlencode
 from django.core.urlresolvers import reverse
-from images.utils import get_aux_metadata_post_form_value_from_str, get_aux_metadata_db_value_from_str
+from images.utils import get_aux_metadata_post_form_value_from_str, get_aux_metadata_db_value_from_str, set_aux_metadata_db_value_on_metadata_obj, get_aux_field_name
 from lib.test_utils import ClientTest
 from images.models import Source, Image
 
@@ -261,27 +261,27 @@ class MetadataEditTest2(ClientTest):
 
         source = Source.objects.get(pk=self.source_id)
         image = Image.objects.get(pk=self.image_id)
-        image.metadata.value1 = get_aux_metadata_db_value_from_str(
-            source, 1, 'AAA')
-        image.metadata.value2 = get_aux_metadata_db_value_from_str(
-            source, 2, '')
-        image.metadata.value3 = get_aux_metadata_db_value_from_str(
-            source, 3, 'CCC')
-        image.metadata.value4 = get_aux_metadata_db_value_from_str(
-            source, 4, 'DDD')
-        image.metadata.value5 = get_aux_metadata_db_value_from_str(
-            source, 5, '')
+        set_aux_metadata_db_value_on_metadata_obj(image.metadata, 1,
+            get_aux_metadata_db_value_from_str(source, 1, 'AAA'))
+        set_aux_metadata_db_value_on_metadata_obj(image.metadata, 2,
+            get_aux_metadata_db_value_from_str(source, 2, ''))
+        set_aux_metadata_db_value_on_metadata_obj(image.metadata, 3,
+            get_aux_metadata_db_value_from_str(source, 3, 'CCC'))
+        set_aux_metadata_db_value_on_metadata_obj(image.metadata, 4,
+            get_aux_metadata_db_value_from_str(source, 4, 'DDD'))
+        set_aux_metadata_db_value_on_metadata_obj(image.metadata, 5,
+            get_aux_metadata_db_value_from_str(source, 5, ''))
         image.metadata.save()
 
         # Load the page with the metadata form.
         # Ensure that the location values filled are: 1, 3, 4
         response = self.client.get(url)
         form = response.context['metadataForm']
-        self.assertEqual(form.forms[0]['key1'].value(), "AAA")
-        self.assertEqual(form.forms[0]['key2'].value(), "")
-        self.assertEqual(form.forms[0]['key3'].value(), "CCC")
-        self.assertEqual(form.forms[0]['key4'].value(), "DDD")
-        self.assertEqual(form.forms[0]['key5'].value(), "")
+        self.assertEqual(form.forms[0]['key1'].value(), 'AAA')
+        self.assertEqual(form.forms[0]['key2'].value(), '')
+        self.assertEqual(form.forms[0]['key3'].value(), 'CCC')
+        self.assertEqual(form.forms[0]['key4'].value(), 'DDD')
+        self.assertEqual(form.forms[0]['key5'].value(), '')
 
 
 class ImageDeleteTest(ClientTest):
@@ -362,13 +362,13 @@ class ImageDeleteTest(ClientTest):
         self.client.login(username='user2', password='secret')
         url = reverse('browse_delete', kwargs=dict(source_id=self.source_id))
 
-        # Delete all images in the source.
         source = Source.objects.get(pk=self.source_id)
+        specify_str_dict = dict()
+        specify_str_dict[get_aux_field_name(1)] = \
+            get_aux_metadata_post_form_value_from_str(source, 1, '001')
         self.client.post(url, dict(
             specify_method='search_keys',
-            specify_str=json.dumps(
-                dict(value1=get_aux_metadata_post_form_value_from_str(
-                    source, 1, '001'))),
+            specify_str=json.dumps(specify_str_dict),
         ))
 
         # Check that we can get image 002 and 003, but not 001,
@@ -386,7 +386,6 @@ class ImageDeleteTest(ClientTest):
         self.client.login(username='user2', password='secret')
         url = reverse('browse_delete', kwargs=dict(source_id=self.source_id))
 
-        # Delete all images in the source.
         image_ids = \
             ','.join(str(id) for id in [self.image_id, self.image_id_3])
         self.client.post(url, dict(

@@ -377,7 +377,7 @@ class ImageDeleteTest(ClientTest):
             Image.DoesNotExist, Image.objects.get, pk=self.image_id)
         Image.objects.get(pk=self.image_id_2)
         Image.objects.get(pk=self.image_id_3)
-        # TODO: Test other filters besides value1.
+        # TODO: Test other filters besides aux1.
 
     def test_delete_by_image_ids(self):
         """

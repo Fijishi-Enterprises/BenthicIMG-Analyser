@@ -6,7 +6,7 @@ from django.forms.fields import CharField, ChoiceField, FileField, IntegerField
 from django.forms.widgets import  Select, TextInput, NumberInput
 from .models import Source, Image, Metadata, SourceInvite
 from .model_utils import PointGen
-from .utils import get_aux_metadata_form_choices, get_aux_metadata_max_length, get_aux_metadata_db_value_from_form_choice, get_aux_metadata_valid_db_value, get_aux_metadata_db_value_from_str, get_num_aux_fields, get_aux_label, get_aux_field_name
+from .utils import get_aux_metadata_form_choices, get_aux_metadata_max_length, get_aux_metadata_db_value_from_form_choice, get_aux_metadata_db_value_from_str, get_num_aux_fields, get_aux_label, get_aux_field_name
 from lib import str_consts
 
 class ImageSourceForm(ModelForm):
@@ -279,7 +279,7 @@ class ImageDetailForm(ModelForm):
             'name', 'photo_date', 'latitude', 'longitude', 'depth',
             'height_in_cm', 'camera', 'photographer', 'water_quality',
             'strobes', 'framing', 'balance', 'comments',
-            'value1', 'value2', 'value3', 'value4', 'value5',
+            'aux1', 'aux2', 'aux3', 'aux4', 'aux5',
         ]
         widgets = {
             'height_in_cm': NumberInput(attrs={'size': 3}),
@@ -384,29 +384,7 @@ class ImageDetailForm(ModelForm):
                     " to specify the {aux_label}.".format(
                         aux_label=aux_label))
                 self.add_error(aux_field_name+'_other', error_message)
-
-                # TODO: Remove when aux metadata are simple
-                # string fields, since Other happens to be a valid input
-                # for a string field.
-                # (Still, the fact that we'd rely on this means we don't
-                # have a great implementation of Other fields yet...)
-                #
-                # Set the field to be some arbitrary non-blank
-                # valueN object, so that
-                # (1) we won't get an error on clean() about 'Other'
-                # not being a valueClass object, and
-                # (2) we won't get a
-                # "field cannot be blank" error on the dropdown.
-                # Yes, this is kind of a hack.
-                data[aux_field_name] = get_aux_metadata_valid_db_value(n)
             else:
-                # Add new value to database, or get it if it already exists
-                # (the latter case would be the user not noticing it was
-                # already in the choices).
-                #
-                # This'll leave unused Values if the form has errors elsewhere.
-                # In that case, there seems to be no good way of deleting
-                # these Values in this request/response cycle.
                 data[aux_field_name] = get_aux_metadata_db_value_from_str(
                     source, n, otherValue)
             

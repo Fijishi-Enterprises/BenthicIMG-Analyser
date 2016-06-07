@@ -34,7 +34,7 @@ class ImageLocationValueForm(forms.Form):
             required=False
         )
 
-        # value1, value2, etc.
+        # aux1, aux2, etc.
 
         for n in range(1, get_num_aux_fields(source)+1):
             aux_label = get_aux_label(source, n)
@@ -121,7 +121,7 @@ class BrowseSearchForm(ImageLocationValueForm):
 
         self.field_groups = dict(
             location_values=[self[name] for name in [
-                'year', 'value1', 'value2', 'value3', 'value4', 'value5']
+                'year', 'aux1', 'aux2', 'aux3', 'aux4', 'aux5']
                 if name in self.fields
             ],
             image_patch_view=[self[name] for name in ['label', 'annotated_by']],
@@ -174,7 +174,7 @@ class ImageSpecifyForm(forms.Form):
 
                 if k in get_all_aux_field_names():
 
-                    # value1, value2, ..., value5
+                    # aux1, aux2, ..., aux5
                     aux_field_number = k[-1]
                     if v == 'none':
                         # Search for images with no ValueN object.
@@ -266,8 +266,8 @@ class ImageBatchDownloadForm(ImageSpecifyForm):
 
 class StatisticsSearchForm(forms.Form):
     class Meta:
-        fields = ('value1', 'value2', 'value3',
-              'value4', 'value5', 'labels', 'groups', 'include_robot')
+        fields = ('aux1', 'aux2', 'aux3',
+              'aux4', 'aux5', 'labels', 'groups', 'include_robot')
 
     def __init__(self,source_id,*args,**kwargs):
         super(StatisticsSearchForm,self).__init__(*args,**kwargs)

@@ -329,50 +329,6 @@ class Source(models.Model):
         else:
             return True
 
-    # TODO: Remove this method and all its uses
-    # when aux metadata are simple string fields
-    def remove_unused_key_values(self):
-        """
-        Finds all of the key values of this source
-        and removes unused ones.
-        """
-        images = self.get_all_images()
-
-        for key, valueClass in [
-                (self.key1, Value1),
-                (self.key2, Value2),
-                (self.key3, Value3),
-                (self.key4, Value4),
-                (self.key5, Value5)
-                ]:
-            if key:
-                values = valueClass.objects.filter(source=self)
-                for value in values:
-                    used = False
-                    for image in images:
-                        if valueClass == Value1:
-                            if image.metadata.value1 == value:
-                                used = True
-                                break
-                        if valueClass == Value2:
-                            if image.metadata.value2 == value:
-                                used = True
-                                break
-                        if valueClass == Value3:
-                            if image.metadata.value3 == value:
-                                used = True
-                                break
-                        if valueClass == Value4:
-                            if image.metadata.value4 == value:
-                                used = True
-                                break
-                        if valueClass == Value5:
-                            if image.metadata.value5 == value:
-                                used = True
-                                break
-                    if not used:
-                        value.delete()
-
     def all_image_names_are_unique(self):
         """
         Return true if all images in the source have unique names. NOTE: this will be enforced during import moving forward, but it wasn't originally.

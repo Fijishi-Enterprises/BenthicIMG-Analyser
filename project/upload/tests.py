@@ -198,7 +198,7 @@ class ImageUploadBaseTest(ClientTest):
             self.check_fields_for_non_annotation_upload(img)
 
         # Other metadata fields aren't covered here because:
-        # - name, photo_date, value1/2/3/4/5: covered by filename tests
+        # - name, photo_date, aux1/2/3/4/5: covered by filename tests
         # - latitude, longitude, depth, camera, photographer, water_quality,
         #   strobes, framing, balance, comments: not specifiable from the
         #   upload page

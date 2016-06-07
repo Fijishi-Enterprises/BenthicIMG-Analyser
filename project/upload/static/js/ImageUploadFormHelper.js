@@ -458,7 +458,7 @@ var ImageUploadFormHelper = (function() {
 
             for (j = 1; j <= locationKeyList.length; j++)
             {
-                $csvFileTableRow.append($("<td>").text(metadata['value'+ j.toString()]));
+                $csvFileTableRow.append($("<td>").text(metadata['aux'+ j.toString()]));
             }
             $csvFileTableRow.append($("<td>").text(metadata.height_in_cm));
             $csvFileTableRow.append($("<td>").text(metadata.latitude));

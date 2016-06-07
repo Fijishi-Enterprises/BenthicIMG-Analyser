@@ -186,7 +186,7 @@ def annotations_file_to_python(annoFile, source, expecting_labels):
                 )
             ))
 
-        # Encode the line data into a dictionary: {'value1':'Shore2', 'row':'575', ...}
+        # Encode the line data into a dictionary: {'aux1':'Shore2', 'row':'575', ...}
         if is_valid_format_with_label:
             lineData = dict(zip(words_format_with_label, words))
         else:  # valid format without label
@@ -404,8 +404,8 @@ def image_upload_process(imageFile, imageOptionsForm,
                     title=None,
                 )
 
-            fields = ['photo_date', 'value1', 'value2', 'value3', 'value4',
-                      'value5', 'height_in_cm', 'latitude', 'longitude',
+            fields = ['photo_date', 'aux1', 'aux2', 'aux3', 'aux4',
+                      'aux5', 'height_in_cm', 'latitude', 'longitude',
                       'depth', 'camera', 'photographer', 'water_quality',
                       'strobes', 'framing', 'balance']
 
@@ -589,7 +589,7 @@ def filename_to_metadata(filename, source):
 
     metadataDict = dict()
 
-    # value1_value2_..._YYYY-MM-DD
+    # aux1_aux2_..._YYYY-MM-DD
     tokensFormat = get_aux_field_names(source)
     tokensFormat += ['date']
     numTokensExpected = len(tokensFormat)
@@ -608,7 +608,7 @@ def filename_to_metadata(filename, source):
     else:
         metadataDict['name'] = filename
 
-    # Encode the filename data into a dictionary: {'value1':'Shore2', 'date':'2008-12-18', ...}
+    # Encode the filename data into a dictionary: {'aux1':'Shore2', 'date':'2008-12-18', ...}
     filenameData = dict(zip(tokensFormat, dataTokens))
 
     metadataDict['values'] = [

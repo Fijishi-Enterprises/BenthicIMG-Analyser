@@ -19,7 +19,7 @@ from accounts.utils import get_robot_user
 from annotations.models import Annotation, Label, LabelSet, LabelGroup
 from images.models import Source, Image
 from images.tasks import *
-from images.utils import delete_image, get_aux_metadata_str_list_for_image, get_aux_label_field_names, get_aux_labels, get_all_aux_field_names, get_num_aux_fields, set_aux_metadata_db_value_on_metadata_obj
+from images.utils import delete_image, get_aux_metadata_str_list_for_image, get_aux_labels, get_all_aux_field_names, get_num_aux_fields, set_aux_metadata_db_value_on_metadata_obj, update_filter_args_specifying_choice_aux_metadata
 from lib.decorators import source_visibility_required, source_permission_required
 from upload.forms import MetadataForm, CheckboxForm
 
@@ -30,18 +30,20 @@ def image_search_args_to_queryset_args(searchDict, source):
     form.cleaned_data, and return the search arguments in a format that can go into
     Image.objects.filter().
 
-    Only the value1, ... valuen and the year in cleaned_data are processed.  label and
+    Only the aux1, ... auxn and the year in cleaned_data are processed.  label and
     page, if present, are ignored and not included in the returned dict.
     """
 
     searchArgs = dict([(k, searchDict[k]) for k in searchDict if searchDict[k] != ''])
     querysetArgs = dict()
 
-    for k in searchArgs:
+    for k, v in searchArgs.items():
         if k in get_all_aux_field_names():
-            querysetArgs['metadata__'+k+'__id'] = searchArgs[k]
+            aux_field_number = k[-1]
+            update_filter_args_specifying_choice_aux_metadata(
+                querysetArgs, aux_field_number, v)
         elif k == 'year':
-            querysetArgs['metadata__photo_date__'+k] = int(searchArgs[k])
+            querysetArgs['metadata__photo_date__'+k] = int(v)
 
 
     return querysetArgs
@@ -284,7 +286,7 @@ def visualize_source(request, source_id):
 
         # If there are previous or next pages, construct links to them.
         # These links include GET parameters in the form of
-        # ?param1=value1&param2=value2 etc.
+        # ?param1=aux1&param2=aux2 etc.
 
         if page_results.has_previous():
             prev_page_query_args = request.GET.copy()
@@ -457,9 +459,6 @@ def metadata_edit_ajax(request, source_id):
 
             image.metadata.save()
 
-        # After entering data, try to remove unused key values
-        source.remove_unused_key_values()
-
         return JsonResponse(dict(
             status='success',
         ))
@@ -534,9 +533,6 @@ def browse_delete(request, source_id):
 
             for img in images_to_delete:
                 delete_image(img)
-
-            # try to remove unused key values, after the images are deleted
-            source.remove_unused_key_values()
 
             messages.success(request, 'The {num} selected images have been deleted.'.format(num=num_of_images))
 

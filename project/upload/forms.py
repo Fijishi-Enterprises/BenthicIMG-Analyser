@@ -378,8 +378,8 @@ class MetadataImportForm(forms.ModelForm):
     """
     class Meta:
         model = Metadata
-        fields = ['photo_date', 'value1', 'value2', 'value3', 'value4',
-                  'value5', 'height_in_cm', 'latitude', 'longitude',
+        fields = ['photo_date', 'aux1', 'aux2', 'aux3', 'aux4',
+                  'aux5', 'height_in_cm', 'latitude', 'longitude',
                   'depth', 'camera', 'photographer', 'water_quality',
                   'strobes', 'framing', 'balance']
 

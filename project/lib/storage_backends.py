@@ -37,26 +37,3 @@ class MediaStorageLocal(FileSystemStorage):
     def path_join(self, *args):
         # For local storage, we join paths depending on the OS rules.
         return os.path.join(*args)
-
-class ProcessingStorageS3(S3BotoStorage):
-    """
-    Location defaults to the S3 bucket's AWS_S3_PROCESSING_SUBDIR directory.
-    """
-    def __init__(self, location=None, **kwargs):
-        if location is None:
-            location = getattr(settings, 'AWS_S3_PROCESSING_SUBDIR', None)
-        kwargs['location'] = location
-        super(ProcessingStorageS3, self).__init__(**kwargs)
-
-class ProcessingStorageLocal(MediaStorageLocal):
-    """
-    Location defaults to PROCESSING_ROOT.
-    """
-    def __init__(self, location=None, **kwargs):
-        if location is None:
-            location = getattr(settings, 'PROCESSING_ROOT', None)
-        kwargs['location'] = location
-        super(ProcessingStorageLocal, self).__init__(**kwargs)
-
-def get_processing_storage_class():
-    return get_storage_class(settings.PROCESSING_DEFAULT_STORAGE)

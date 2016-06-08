@@ -50,10 +50,6 @@ MEDIA_ROOT = SITE_DIR.child('media')
 MEDIA_URL = '/media/'
 
 # [Custom setting]
-# Default file storage mechanism for processing files.
-PROCESSING_DEFAULT_STORAGE = 'lib.storage_backends.ProcessingStorageLocal'
-
-# [Custom setting]
 # Absolute filesystem path to the directory that will
 # hold input and output files for backend processing tasks.
 # This directory is best kept out of the repository.

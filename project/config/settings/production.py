@@ -62,16 +62,8 @@ AWS_S3_MEDIA_SUBDIR = 'media'
 MEDIA_URL = 'https://{domain}/{subdir}/'.format(
     domain=AWS_S3_DOMAIN, subdir=AWS_S3_MEDIA_SUBDIR)
 
-# [Custom setting]
-# Default file storage mechanism for processing files.
-PROCESSING_DEFAULT_STORAGE = 'lib.storage_backends.ProcessingStorageS3'
-
 # Temporary setting to make the old processing code exception-free for now...
 PROCESSING_ROOT = SITE_DIR.child('processing')
-
-# [Custom setting]
-# S3 details on storing processing files.
-AWS_S3_PROCESSING_SUBDIR = 'processing'
 
 # Absolute path to the directory which static files should be collected to.
 # Example: "/home/media/media.lawrence.com/static/"

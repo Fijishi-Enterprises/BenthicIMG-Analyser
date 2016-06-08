@@ -18,7 +18,6 @@ from annotations.models import LabelGroup, Label
 from images.model_utils import PointGen
 from images.models import Source, Point, Image
 from lib.exceptions import TestfileDirectoryError
-from lib.storage_backends import get_processing_storage_class
 from lib.utils import is_django_str
 
 
@@ -41,9 +40,6 @@ test_settings['MEDIA_URL'] = urlparse.urljoin(
 if hasattr(settings, 'PROCESSING_ROOT'):
     test_settings['PROCESSING_ROOT'] = os.path.join(
         settings.PROCESSING_ROOT, 'unittests')
-if hasattr(settings, 'AWS_S3_PROCESSING_SUBDIR'):
-    test_settings['AWS_S3_PROCESSING_SUBDIR'] = posixpath.join(
-        settings.AWS_S3_PROCESSING_SUBDIR, 'unittests')
 
 
 @override_settings(**test_settings)
@@ -581,8 +577,6 @@ class StorageChecker(object):
         storages = [
             # Media
             get_storage_class()(),
-            # Processing
-            get_processing_storage_class()(),
         ]
 
         for storage in storages:
@@ -641,8 +635,6 @@ class StorageChecker(object):
         storages = [
             # Media
             get_storage_class()(),
-            # Processing
-            get_processing_storage_class()(),
         ]
 
         for storage in storages:

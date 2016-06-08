@@ -1,24 +1,15 @@
 import os
 import posixpath
 from django.conf import settings
-from django.core.files.storage import FileSystemStorage, get_storage_class
+from django.core.files.storage import FileSystemStorage
 from storages.backends.s3boto import S3BotoStorage
 
 class MediaStorageS3(S3BotoStorage):
     """
-    Location defaults to the S3 bucket's AWS_S3_MEDIA_SUBDIR directory.
+    Location defaults to the S3 bucket's AWS_LOCATION directory.
     """
-    def __init__(self, location=None, **kwargs):
+    def __init__(self, **kwargs):
         self.timezone = 'UTC'
-
-        # It's tempting to put "location = getattr(settings, ...)" as
-        # a class variable. But that risks obtaining the setting before a
-        # unit test setup routine is able to change it. If we get the
-        # setting in an __init__() method like this, then there's no
-        # risk of getting the setting too early.
-        if location is None:
-            location = getattr(settings, 'AWS_S3_MEDIA_SUBDIR', None)
-        kwargs['location'] = location
         super(MediaStorageS3, self).__init__(**kwargs)
 
     def path_join(self, *args):

@@ -30,9 +30,9 @@ test_settings = dict()
 if hasattr(settings, 'MEDIA_ROOT'):
     test_settings['MEDIA_ROOT'] = os.path.join(
         settings.MEDIA_ROOT, 'unittests')
-if hasattr(settings, 'AWS_S3_MEDIA_SUBDIR'):
-    test_settings['AWS_S3_MEDIA_SUBDIR'] = posixpath.join(
-        settings.AWS_S3_MEDIA_SUBDIR, 'unittests')
+if hasattr(settings, 'AWS_LOCATION'):
+    test_settings['AWS_LOCATION'] = posixpath.join(
+        settings.AWS_LOCATION, 'unittests')
 test_settings['MEDIA_URL'] = urlparse.urljoin(
     settings.MEDIA_URL, 'unittests/')
 

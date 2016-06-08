@@ -1,7 +1,7 @@
 import json
 from urllib import urlencode
 from django.core.urlresolvers import reverse
-from images.utils import get_aux_metadata_post_form_value_from_str, get_aux_metadata_db_value_from_str, set_aux_metadata_db_value_on_metadata_obj, get_aux_field_name
+from images.utils import set_aux_metadata_db_value_on_metadata_obj, get_aux_field_name
 from lib.test_utils import ClientTest
 from images.models import Source, Image
 
@@ -261,16 +261,11 @@ class MetadataEditTest2(ClientTest):
 
         source = Source.objects.get(pk=self.source_id)
         image = Image.objects.get(pk=self.image_id)
-        set_aux_metadata_db_value_on_metadata_obj(image.metadata, 1,
-            get_aux_metadata_db_value_from_str(source, 1, 'AAA'))
-        set_aux_metadata_db_value_on_metadata_obj(image.metadata, 2,
-            get_aux_metadata_db_value_from_str(source, 2, ''))
-        set_aux_metadata_db_value_on_metadata_obj(image.metadata, 3,
-            get_aux_metadata_db_value_from_str(source, 3, 'CCC'))
-        set_aux_metadata_db_value_on_metadata_obj(image.metadata, 4,
-            get_aux_metadata_db_value_from_str(source, 4, 'DDD'))
-        set_aux_metadata_db_value_on_metadata_obj(image.metadata, 5,
-            get_aux_metadata_db_value_from_str(source, 5, ''))
+        set_aux_metadata_db_value_on_metadata_obj(image.metadata, 1, 'AAA')
+        set_aux_metadata_db_value_on_metadata_obj(image.metadata, 2, '')
+        set_aux_metadata_db_value_on_metadata_obj(image.metadata, 3, 'CCC')
+        set_aux_metadata_db_value_on_metadata_obj(image.metadata, 4, 'DDD')
+        set_aux_metadata_db_value_on_metadata_obj(image.metadata, 5, '')
         image.metadata.save()
 
         # Load the page with the metadata form.
@@ -364,8 +359,7 @@ class ImageDeleteTest(ClientTest):
 
         source = Source.objects.get(pk=self.source_id)
         specify_str_dict = dict()
-        specify_str_dict[get_aux_field_name(1)] = \
-            get_aux_metadata_post_form_value_from_str(source, 1, '001')
+        specify_str_dict[get_aux_field_name(1)] = '001'
         self.client.post(url, dict(
             specify_method='search_keys',
             specify_str=json.dumps(specify_str_dict),

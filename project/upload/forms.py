@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 from django.forms import ImageField, Form, ChoiceField, FileField, CharField, BooleanField, DateField
 from django.forms.widgets import FileInput, TextInput
 from django.utils.translation import ugettext_lazy as _
-from images.utils import get_aux_metadata_db_value_from_str, get_aux_metadata_max_length, get_num_aux_fields, get_aux_label, get_aux_labels, get_aux_field_name
+from images.utils import get_aux_metadata_max_length, get_num_aux_fields, get_aux_label, get_aux_labels, get_aux_field_name
 from upload.utils import metadata_to_filename
 from images.models import Source, Metadata, ImageModelConstants
 
@@ -354,19 +354,6 @@ class MetadataForm(Form):
             + ['height_in_cm'] + char_fields)
 
 
-    # TODO: Remove when aux metadata are simple string fields
-    def clean(self):
-        data = self.cleaned_data
-
-        for n in range(1, get_num_aux_fields(self.source)+1):
-            # TODO: Naming these as keyn is confusing, should be auxn/valuen.
-            aux_field_name = 'key'+str(n)
-            data[aux_field_name] = get_aux_metadata_db_value_from_str(
-                self.source, n, data[aux_field_name])
-
-        super(MetadataForm, self).clean()
-
-
 class MetadataImportForm(forms.ModelForm):
     """
     Form used to import metadata from CSV.
@@ -412,18 +399,6 @@ class MetadataImportForm(forms.ModelForm):
                 label=aux_label,
                 max_length=get_aux_metadata_max_length(n),
             )
-
-    # TODO: Remove when aux metadata are simple string fields
-    def clean(self):
-        data = self.cleaned_data
-
-        # Parse key entries as Value objects.
-        for n in range(1, get_num_aux_fields(self.source)+1):
-            aux_field_name = get_aux_field_name(n)
-            data[aux_field_name] = get_aux_metadata_db_value_from_str(
-                self.source, n, data[aux_field_name])
-
-        super(MetadataImportForm, self).clean()
 
 
 class CSVImportForm(Form):

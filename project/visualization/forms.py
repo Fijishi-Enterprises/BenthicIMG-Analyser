@@ -4,7 +4,7 @@ from django.forms.fields import ChoiceField, BooleanField
 from django.forms.widgets import HiddenInput
 from annotations.models import LabelGroup, Label
 from images.models import Source, Metadata, Image
-from images.utils import get_aux_metadata_form_choices, update_filter_args_specifying_choice_aux_metadata, update_filter_args_specifying_blank_aux_metadata, get_num_aux_fields, get_aux_label, get_aux_field_name, get_all_aux_field_names
+from images.utils import get_aux_metadata_form_choices, update_filter_args_specifying_aux_metadata, get_num_aux_fields, get_aux_label, get_aux_field_name, get_all_aux_field_names
 from lib.forms import clean_comma_separated_image_ids_field
 
 
@@ -178,12 +178,12 @@ class ImageSpecifyForm(forms.Form):
                     aux_field_number = k[-1]
                     if v == 'none':
                         # Search for images with no ValueN object.
-                        update_filter_args_specifying_blank_aux_metadata(
-                            filter_args, aux_field_number)
+                        update_filter_args_specifying_aux_metadata(
+                            filter_args, aux_field_number, '')
                     else:
                         # Search for images with the ValueN object of
                         # the given database id.
-                        update_filter_args_specifying_choice_aux_metadata(
+                        update_filter_args_specifying_aux_metadata(
                             filter_args, aux_field_number, v)
 
                 elif k == 'year':

@@ -6,7 +6,7 @@ from django.forms.fields import CharField, ChoiceField, FileField, IntegerField
 from django.forms.widgets import  Select, TextInput, NumberInput
 from .models import Source, Image, Metadata, SourceInvite
 from .model_utils import PointGen
-from .utils import get_aux_metadata_form_choices, get_aux_metadata_max_length, get_aux_metadata_db_value_from_form_choice, get_aux_metadata_db_value_from_str, get_num_aux_fields, get_aux_label, get_aux_field_name
+from .utils import get_aux_metadata_form_choices, get_aux_metadata_max_length, get_num_aux_fields, get_aux_label, get_aux_field_name
 from lib import str_consts
 
 class ImageSourceForm(ModelForm):
@@ -370,9 +370,6 @@ class ImageDetailForm(ModelForm):
             aux_field_name = get_aux_field_name(n)
 
             if not data[aux_field_name] == 'Other':
-                data[aux_field_name] = \
-                    get_aux_metadata_db_value_from_form_choice(
-                        n, data[aux_field_name])
                 continue
 
             # "Other" was chosen.
@@ -385,8 +382,7 @@ class ImageDetailForm(ModelForm):
                         aux_label=aux_label))
                 self.add_error(aux_field_name+'_other', error_message)
             else:
-                data[aux_field_name] = get_aux_metadata_db_value_from_str(
-                    source, n, otherValue)
+                data[aux_field_name] = otherValue
             
         self.cleaned_data = data
         super(ImageDetailForm, self).clean()

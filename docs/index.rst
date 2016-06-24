@@ -14,6 +14,7 @@ Contents:
    installation
    production_server_setup
    2016_database_migration
+   alpha_production_server
 
 
 

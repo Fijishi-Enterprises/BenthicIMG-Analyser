@@ -57,6 +57,10 @@ Download and install Python 2.7.11. 32 bit or 64 bit doesn't matter. It's perfec
   - You probably don't want to change the default Python on your Linux system. To be on the safe side, heed the docs' warning and use ``make altinstall`` instead of ``make install`` to ensure that this Python version gets installed alongside the existing one, without masking/overwriting it.
 
     - On Ubuntu 14.04, 2015/05/17, the result of ``make altinstall`` is that the original Python 2.7.6 is still at ``/usr/bin/python2.7``, while the newly installed Python 2.7.11 is at ``/usr/local/bin/python2.7``.
+    
+  - If you get ``configure: error: no acceptable C compiler found in $PATH``, check to see if you have gcc installed: ``sudo apt-cache policy gcc``. If not, then run ``sudo apt-get install gcc``. Then try again.
+  
+  - If you get ``The program 'make' is currently not installed.``, then do ``sudo apt-get install make``.
 
 Check your pip's version with ``pip -V``. (The pip executable is in the same directory as the python one; make sure you refer to the python/pip you just installed). If pip says it's out of date, it'll suggest that you run a command to update it. Do that.
 

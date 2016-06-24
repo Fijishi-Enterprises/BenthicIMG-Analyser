@@ -71,15 +71,30 @@ Go to the Amazon EC2 dashboard. Create a Security Group which allows:
 
 Use the dashboard to create a new EC2 instance.
 
+- On the "Configure Instance Details" step, check "Protect against accidental termination".
+- On the "Add Storage" step, uncheck "Delete on Termination".
+
 Edit the RDS instance's Security Group to allow inbound connections from the EC2 instance's Security Group. (This allows Django to connect to the database.) In the Source box, type ``sg`` and the security group choices should appear.
 
 Create a key pair for your IAM user if you haven't already, and SSH into the EC2 instance using the key pair.
 
 - See `this Amazon docs page <http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/get-set-up-for-amazon-ec2.html#create-a-key-pair>`__ for details on creating and configuring the key pair.
 - Check the instance on the EC2 dashboard, and find its Public DNS. Use that as the host name to SSH into.
-- The default username on the EC2 instance varies depending on which Linux you're using: `Link <http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/TroubleshootingInstancesConnecting.html#TroubleshootingInstancesConnectingPuTTY>`__
+- Log in with the EC2 instance's default username. The username varies depending on which Linux you're using: `Link <http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/TroubleshootingInstancesConnecting.html#TroubleshootingInstancesConnectingPuTTY>`__
 
 Once you're in the SSH session, upgrade system packages: ``sudo apt-get update`` then ``sudo apt-get upgrade`` on Ubuntu. Log out. Go to the EC2 dashboard and reboot the EC2 instance. Log in again.
+
+Create a user for each person, using ``sudo adduser <username> --disabled-password`` and then following the rest of the instructions in `this Amazon guide <http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/managing-users.html>`__.
+
+- The guide explains that it's insecure to share the default user (``ubuntu`` in this case) between multiple people, because "that account can cause a lot of damage to a system when used improperly."
+
+For each of those users, allow them to use ``sudo`` without specifying a password (since requiring a private key login makes a password redundant):
+
+- Add the user to the sudoers group: ``sudo usermod -a -G sudo <username>``
+- Run ``sudo visudo -f /etc/sudoers.d/mysudoers`` to edit a new sudoers file called ``mysudoers``. Add the line: ``<username> ALL=NOPASSWD: ALL`` (`Source <http://superuser.com/a/869145/>`__)
+
+  - If you are adding multiple users, just use the same sudoers file for both users.
+  - FYI, the default ``ubuntu`` user doesn't require a sudo password by default. That's configured in ``/etc/sudoers.d/90-cloud-init-users``. (`Source <http://askubuntu.com/questions/309418/make-an-amazon-ec2-instance-ask-for-sudoing-password>`__) This is because the ``ubuntu`` user doesn't have a login password by default, since as previously mentioned, a private key requirement makes a password redundant.
 
 Create a ``/srv/www`` directory for putting website files. (This seems to be a recommended, standard location: `Link 1 <http://serverfault.com/questions/102569/should-websites-live-in-var-or-usr-according-to-recommended-usage>`__, `Link 2 <http://superuser.com/questions/635289/what-is-the-recommended-directory-to-store-website-content>`__)
 
@@ -133,7 +148,7 @@ Running
 .......
 Restart nginx: ``sudo /etc/init.d/nginx restart``. (Other commands are ``start``, ``stop``, and ``status``.)
 
-Run gunicorn, this time binding it to localhost on port 8001, and setting a longer timeout than the default 30s: ``gunicorn config.wsgi:application --bind=127.0.0.1:8001 --timeout 200 &``
+Run gunicorn, this time binding it to localhost on port 8001, and setting a longer timeout than the default 30s: ``gunicorn config.wsgi:application --bind=127.0.0.1:8001 --timeout 604810 &``
 
 Again, on your local machine, enter the EC2 instance's public DNS in your browser's address bar. You should see the CoralNet website.
 
@@ -145,6 +160,7 @@ From here on out:
 - If the server's timeout duration needs to be adjusted, you should adjust both the gunicorn ``--timeout`` option as well as nginx's ``proxy_read_timeout`` option in ``coralnet/project/nginx.conf``.
 
   - If ``gunicorn`` times out, the browser gets a "502 Bad Gateway" page. If ``nginx`` times out, the browser gets a "504 Gateway Time-out" page.
+  - The gunicorn and nginx timeouts should be similar but slightly different, so that the timeout error is consistent (either always nginx or always gunicorn, not one or the other).
   - Note that ``nginx.conf`` is under our project's version control.
 
 

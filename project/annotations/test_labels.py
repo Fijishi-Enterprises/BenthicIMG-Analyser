@@ -71,10 +71,7 @@ class LabelDetailPatchesTest(ClientTest):
         cls.private_source.refresh_from_db()
 
         # Upload an image to each source
-        cls.client.force_login(cls.user)
-        cls.source_id = cls.public_source.id
         cls.public_image = cls.upload_image_new(cls.user, cls.public_source)
-        cls.source_id = cls.private_source.id
         cls.private_image = cls.upload_image_new(cls.user, cls.private_source)
 
     def test_five_patches(self):

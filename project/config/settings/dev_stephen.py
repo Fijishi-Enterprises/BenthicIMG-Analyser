@@ -13,5 +13,5 @@ DEBUG = True
 # The obvious drawback is that different databases have different behavior,
 # and could have different test results. It's happened before.
 # So, comment this out to run in PostgreSQL every so often.
-if 'test' in sys.argv:
-    DATABASES['default']['ENGINE'] = 'django.db.backends.sqlite3'
+# if 'test' in sys.argv:
+#     DATABASES['default']['ENGINE'] = 'django.db.backends.sqlite3'

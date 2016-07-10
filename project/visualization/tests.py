@@ -2,7 +2,6 @@ import json
 from urllib import urlencode
 import datetime
 from django.core.urlresolvers import reverse
-from images.utils import set_aux_metadata_db_value_on_metadata_obj, get_aux_field_name
 from lib.test_utils import ClientTest
 from images.models import Source, Image
 
@@ -259,13 +258,12 @@ class MetadataEditTest2(ClientTest):
         )
         self.client.login(username='user2', password='secret')
 
-        source = Source.objects.get(pk=self.source_id)
         image = Image.objects.get(pk=self.image_id)
-        set_aux_metadata_db_value_on_metadata_obj(image.metadata, 1, 'AAA')
-        set_aux_metadata_db_value_on_metadata_obj(image.metadata, 2, '')
-        set_aux_metadata_db_value_on_metadata_obj(image.metadata, 3, 'CCC')
-        set_aux_metadata_db_value_on_metadata_obj(image.metadata, 4, 'DDD')
-        set_aux_metadata_db_value_on_metadata_obj(image.metadata, 5, '')
+        image.metadata.aux1 = 'AAA'
+        image.metadata.aux2 = ''
+        image.metadata.aux3 = 'CCC'
+        image.metadata.aux4 = 'DDD'
+        image.metadata.aux5 = ''
         image.metadata.save()
 
         # Load the page with the metadata form.
@@ -369,9 +367,8 @@ class ImageDeleteTest(ClientTest):
         self.client.login(username='user2', password='secret')
         url = reverse('browse_delete', kwargs=dict(source_id=self.source_id))
 
-        source = Source.objects.get(pk=self.source_id)
         specify_str_dict = dict()
-        specify_str_dict[get_aux_field_name(1)] = '001'
+        specify_str_dict['aux1'] = '001'
         self.client.post(url, dict(
             specify_method='search_keys',
             specify_str=json.dumps(specify_str_dict),

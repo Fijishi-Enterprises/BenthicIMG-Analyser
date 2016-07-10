@@ -19,7 +19,7 @@ from accounts.utils import get_robot_user
 from annotations.models import Annotation, Label, LabelSet, LabelGroup
 from images.models import Source, Image
 from images.tasks import *
-from images.utils import delete_image, get_aux_metadata_str_list_for_image, get_aux_labels, get_all_aux_field_names, get_num_aux_fields, set_aux_metadata_db_value_on_metadata_obj, update_filter_args_specifying_aux_metadata
+from images.utils import delete_image, get_aux_metadata_str_list_for_image, get_aux_labels, get_all_aux_field_names, update_filter_args_specifying_aux_metadata
 from lib.decorators import source_visibility_required, source_permission_required
 from upload.forms import MetadataForm, CheckboxForm
 
@@ -440,22 +440,22 @@ def metadata_edit_ajax(request, source_id):
                 # form instance. Move on to the next one.
                 continue
 
-            # TODO: Simplify if assuming all 5 aux fields are always used
-            # Everything except location keys
-            metadata_field_names = ['photo_date', 'height_in_cm', 'latitude',
-                                    'longitude', 'depth', 'camera',
-                                    'photographer', 'water_quality',
-                                    'strobes', 'framing', 'balance']
+            form_field_names = [
+                'photo_date', 'height_in_cm', 'latitude', 'longitude',
+                'depth', 'camera', 'photographer', 'water_quality',
+                'strobes', 'framing', 'balance',
+                # TODO: Naming these as keyn is confusing, should be auxn.
+                'key1', 'key2', 'key3', 'key4', 'key5']
 
-            for metadata_field in metadata_field_names:
-                setattr(image.metadata, metadata_field, formData[metadata_field])
+            for form_field_name in form_field_names:
+                if form_field_name.startswith('key'):
+                    metadata_field_name = 'aux' + form_field_name[3:]
+                else:
+                    metadata_field_name = form_field_name
 
-            # Location values
-            for n in range(1, get_num_aux_fields(source)+1):
-                # TODO: Naming these as keyn is confusing, should be auxn/valuen.
-                form_field_name = 'key'+str(n)
-                set_aux_metadata_db_value_on_metadata_obj(
-                    image.metadata, n, formData[form_field_name])
+                setattr(
+                    image.metadata, metadata_field_name,
+                    formData[form_field_name])
 
             image.metadata.save()
 

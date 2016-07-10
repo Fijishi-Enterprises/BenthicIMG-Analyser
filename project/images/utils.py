@@ -422,34 +422,23 @@ def get_all_aux_field_names():
 def get_aux_label(source, aux_field_number):
     return getattr(source, get_aux_label_field_name(aux_field_number))
 
-def get_num_aux_fields(source):
-    """
-    If assuming all 5 aux fields are always used,
-    replace calls with:
-    5
-    (Or a constant equal to 5)
-    """
-    NUM_AUX_FIELDS = 5
-    for n in range(1, NUM_AUX_FIELDS+1):
-        aux_label = get_aux_label(source, n)
-        if not aux_label:
-            return n-1
-    return NUM_AUX_FIELDS
+def get_num_aux_fields():
+    return 5
 
-def get_aux_label_field_names(source):
+def get_aux_label_field_names():
     return [
         get_aux_label_field_name(n)
-        for n in range(1, get_num_aux_fields(source)+1)]
+        for n in range(1, get_num_aux_fields()+1)]
 
-def get_aux_field_names(source):
+def get_aux_field_names():
     return [
         get_aux_field_name(n)
-        for n in range(1, get_num_aux_fields(source)+1)]
+        for n in range(1, get_num_aux_fields()+1)]
 
 def get_aux_labels(source):
     return [
         get_aux_label(source, aux_field_number)
-        for aux_field_number in range(1, get_num_aux_fields(source)+1)]
+        for aux_field_number in range(1, get_num_aux_fields()+1)]
 
 def get_aux_metadata_form_choices(source, aux_field_number):
     # On using distinct(): http://stackoverflow.com/a/2468620/
@@ -468,12 +457,11 @@ def get_aux_metadata_db_value_dict_from_str_list(source, str_list):
 def get_aux_metadata_str_for_image(image, aux_field_number):
     return getattr(image.metadata, get_aux_field_name(aux_field_number))
 
-def set_aux_metadata_db_value_on_metadata_obj(metadata_obj, aux_field_number, db_value):
-    setattr(metadata_obj, get_aux_field_name(aux_field_number), db_value)
-
-def get_aux_metadata_max_length(aux_field_number):
+def get_aux_metadata_max_length():
+    # This assumes all aux metadata fields have the same max length.
+    # Assuming the user can't customize it, they should be the same.
     return Metadata._meta.get_field(
-        get_aux_field_name(aux_field_number)).max_length
+        get_aux_field_name(1)).max_length
 
 def update_filter_args_specifying_aux_metadata(
         filter_args, aux_field_number, value):
@@ -485,7 +473,7 @@ def update_filter_args_specifying_aux_metadata(
 
 def get_aux_metadata_str_list_for_image(image, for_export=False):
     lst = []
-    for n in range(1, get_num_aux_fields(image.source)+1):
+    for n in range(1, get_num_aux_fields()+1):
         s = get_aux_metadata_str_for_image(image, n)
         if for_export and s == '':
             s = "not specified"
@@ -506,8 +494,7 @@ def get_date_and_aux_metadata_table(image):
         date_str = "-"
     cols.append(("Date", date_str))
 
-    NUM_AUX_FIELDS = 5
-    for n in range(1, NUM_AUX_FIELDS+1):
+    for n in range(1, get_num_aux_fields()+1):
         aux_label = get_aux_label(image.source, n)
         aux_value = get_aux_metadata_str_for_image(image, n)
         if aux_value == "":

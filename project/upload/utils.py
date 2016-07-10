@@ -51,7 +51,7 @@ def store_csv_file(csv_file, source):
     filenames_processed = []
 
     fields = (['photo_date'] +
-              get_aux_field_names(source) +
+              get_aux_field_names() +
               ['height_in_cm', 'latitude', 'longitude',
                'depth', 'camera', 'photographer', 'water_quality',
                'strobes', 'framing', 'balance'])
@@ -122,7 +122,7 @@ def annotations_file_to_python(annoFile, source, expecting_labels):
 
     # The order of the words/tokens is encoded here.  If the order ever
     # changes, we should only have to change this part.
-    words_format_without_label = get_aux_field_names(source)
+    words_format_without_label = get_aux_field_names()
     words_format_without_label += ['date', 'row', 'col']
     words_format_with_label = words_format_without_label + ['label']
 
@@ -270,7 +270,7 @@ def annotations_file_to_python(annoFile, source, expecting_labels):
 
         # Use the location values and the year to build a string identifier for the image, such as:
         # Shore1;Reef5;...;2008
-        valueList = [lineData[name] for name in get_aux_field_names(source)]
+        valueList = [lineData[name] for name in get_aux_field_names()]
         imageIdentifier = get_image_identifier(valueList, year)
 
         # Add/update a dictionary entry for the image with this identifier.
@@ -590,7 +590,7 @@ def filename_to_metadata(filename, source):
     metadataDict = dict()
 
     # aux1_aux2_..._YYYY-MM-DD
-    tokensFormat = get_aux_field_names(source)
+    tokensFormat = get_aux_field_names()
     tokensFormat += ['date']
     numTokensExpected = len(tokensFormat)
 
@@ -613,7 +613,7 @@ def filename_to_metadata(filename, source):
 
     metadataDict['values'] = [
         filenameData[name]
-        for name in get_aux_field_names(source)]
+        for name in get_aux_field_names()]
 
     dateToken = filenameData['date']
     try:

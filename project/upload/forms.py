@@ -288,16 +288,16 @@ class MetadataForm(Form):
         self.source = Source.objects.get(pk=self.source_id)
 
         # Need to create fields for keys based on the number of keys in this source.
-        for n in range(1, get_num_aux_fields(self.source)+1):
+        for n in range(1, get_num_aux_fields()+1):
             # TODO: Naming these as keyn is confusing, should be auxn/valuen.
             aux_field_name = 'key'+str(n)
             aux_label = get_aux_label(self.source, n)
 
             self.fields[aux_field_name] = CharField(
                 required=False,
-                widget=TextInput(attrs={'size': 10, 'maxlength': get_aux_metadata_max_length(n)}),
+                widget=TextInput(attrs={'size': 10, 'maxlength': get_aux_metadata_max_length()}),
                 label=aux_label,
-                max_length=get_aux_metadata_max_length(n),
+                max_length=get_aux_metadata_max_length(),
             )
 
         # Apply labels and max-length attributes from the Metadata model to the
@@ -345,7 +345,7 @@ class MetadataForm(Form):
 
 
         # TODO: Naming these as keyn is confusing, should be auxn/valuen.
-        aux_fields = ['key'+str(n) for n in range(1, get_num_aux_fields(self.source)+1)]
+        aux_fields = ['key'+str(n) for n in range(1, get_num_aux_fields()+1)]
         # Change the order that the fields appear on the page.
         # This field order should match the order of the table headers
         # in the page template.
@@ -384,20 +384,14 @@ class MetadataImportForm(forms.ModelForm):
         #
         # The main reason we still specify the value fields in Meta.fields is
         # to make it easy to specify the fields' ordering.
-        NUM_AUX_FIELDS = 5
-        for n in range(1, NUM_AUX_FIELDS+1):
+        for n in range(1, get_num_aux_fields()+1):
             aux_label = get_aux_label(self.source, n)
             aux_field_name = get_aux_field_name(n)
-
-            # TODO: Remove if assuming all 5 aux fields are always used
-            if not aux_label:
-                del self.fields[aux_field_name]
-                continue
 
             self.fields[aux_field_name] = CharField(
                 required=False,
                 label=aux_label,
-                max_length=get_aux_metadata_max_length(n),
+                max_length=get_aux_metadata_max_length(),
             )
 
 

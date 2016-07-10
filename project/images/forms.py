@@ -222,17 +222,9 @@ class ImageDetailForm(ModelForm):
 
         valueFields = []
 
-        NUM_AUX_FIELDS = 5
-        for n in range(1, NUM_AUX_FIELDS+1):
+        for n in range(1, get_num_aux_fields()+1):
             aux_label = get_aux_label(source, n)
             aux_field_name = get_aux_field_name(n)
-
-            # TODO: Remove if assuming all 5 aux fields are always used
-            if not aux_label:
-                # If the key isn't in the source, just remove the
-                # corresponding value field from the form
-                del self.fields[aux_field_name]
-                continue
 
             # Create a choices iterable of all of this Source's values as
             # well as an 'Other' value
@@ -253,7 +245,7 @@ class ImageDetailForm(ModelForm):
             # Add a text input field for specifying the Other choice
             self.fields[aux_field_name+'_other'] = CharField(
                 label='Other',
-                max_length=get_aux_metadata_max_length(n),
+                max_length=get_aux_metadata_max_length(),
                 required=False,
             )
 
@@ -282,7 +274,7 @@ class ImageDetailForm(ModelForm):
 
         # Right now, the valueN field's value is the integer id
         # of a ValueN object. We want the ValueN object.
-        for n in range(1, get_num_aux_fields(source)+1):
+        for n in range(1, get_num_aux_fields()+1):
             aux_label = get_aux_label(source, n)
             aux_field_name = get_aux_field_name(n)
 

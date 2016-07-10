@@ -36,7 +36,7 @@ class ImageLocationValueForm(forms.Form):
 
         # aux1, aux2, etc.
 
-        for n in range(1, get_num_aux_fields(source)+1):
+        for n in range(1, get_num_aux_fields()+1):
             aux_label = get_aux_label(source, n)
             aux_field_name = get_aux_field_name(n)
 
@@ -281,7 +281,7 @@ class StatisticsSearchForm(forms.Form):
         groups = LabelGroup.objects.all().distinct()
 
         # Get the location keys
-        for n in range(1, get_num_aux_fields(source)+1):
+        for n in range(1, get_num_aux_fields()+1):
             aux_label = get_aux_label(source, n)
             aux_field_name = get_aux_field_name(n)
 

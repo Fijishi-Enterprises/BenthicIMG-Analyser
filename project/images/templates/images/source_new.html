@@ -3,7 +3,6 @@
 {% block title %}New Source | CoralNet{% endblock %}
 
 {% block page-specific-includes %}
-    {% include "form_media_versioned.html" with form=location_key_form %}
     {% include "form_media_versioned.html" with form=pointGenForm %}
 {% endblock %}
 
@@ -14,14 +13,12 @@
 {% block content %}
 
     <legend>Create a New Source</legend>
-    <p><b>Creating and managing your own sources is still in "alpha" stages.</b>
-       We are still working on making sources more intuitive, flexible, and easier to navigate.
-       However, feel free to create a source and try it out. Please send us your feedback to help us improve. Please also consider viewing our <a href="http://vimeo.com/104152471">Source setup tutorial</a> on Vimeo.</p>
+    <p>If you're not sure how to get started here, consider viewing our <a href="http://vimeo.com/104152471">Source setup tutorial</a> on Vimeo.</p>
 
     {% with source_form_type="new" %}
 
     <form action="" method="post">{% csrf_token %}
-      {% include "images/form_source.html" with sourceForm=sourceForm location_key_form=location_key_form pointGenForm=pointGenForm annotationAreaForm=annotationAreaForm %}
+      {% include "images/form_source.html" with sourceForm=sourceForm pointGenForm=pointGenForm annotationAreaForm=annotationAreaForm %}
 
       <div class="submit_button_wrapper_column_form">
         <input type="submit" value="Create Source" />

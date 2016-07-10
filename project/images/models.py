@@ -62,14 +62,13 @@ class Source(models.Model):
         'annotations.LabelSet', on_delete=models.PROTECT,
         null=True)
     
-    # Each of these fields is allowed to be blank (an empty string).
-    # We're assuming that we'll only have key 2 if we have
-    # key 1, we'll only have key 3 if we have key 2, etc.
-    key1 = models.CharField('Key 1', max_length=50)
-    key2 = models.CharField('Key 2', max_length=50, blank=True)
-    key3 = models.CharField('Key 3', max_length=50, blank=True)
-    key4 = models.CharField('Key 4', max_length=50, blank=True)
-    key5 = models.CharField('Key 5', max_length=50, blank=True)
+    # Names for auxiliary metadata fields.
+    # key1, key2, etc. are historical names from the "location key" days.
+    key1 = models.CharField('Aux. metadata 1', max_length=50, default="Aux1")
+    key2 = models.CharField('Aux. metadata 2', max_length=50, default="Aux2")
+    key3 = models.CharField('Aux. metadata 3', max_length=50, default="Aux3")
+    key4 = models.CharField('Aux. metadata 4', max_length=50, default="Aux4")
+    key5 = models.CharField('Aux. metadata 5', max_length=50, default="Aux5")
 
     POINT_GENERATION_CHOICES = (
         (PointGen.Types.SIMPLE, PointGen.Types.SIMPLE_VERBOSE),

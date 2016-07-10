@@ -1,13 +1,28 @@
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.forms import Form, ModelForm
-from django.forms import fields
 from django.forms.fields import CharField, ChoiceField, FileField, IntegerField
 from django.forms.widgets import  Select, TextInput, NumberInput
 from .models import Source, Image, Metadata, SourceInvite
 from .model_utils import PointGen
 from .utils import get_aux_metadata_form_choices, get_aux_metadata_max_length, get_num_aux_fields, get_aux_label, get_aux_field_name
-from lib import str_consts
+
+
+def validate_aux_meta_field_name(field_name):
+    """
+    Check if an aux. field is used to denote date, year or similar.
+    :return: The passed field name.
+    :raise: ValidationError if the name isn't valid.
+    """
+    date_strings = {'date', 'year', 'time', 'month', 'day'}
+    if field_name.lower() in date_strings:
+        raise ValidationError(
+            "Date of image acquisition is already a default metadata field."
+            " Do not use auxiliary metadata fields"
+            " to encode temporal information."
+        )
+    return field_name
+
 
 class ImageSourceForm(ModelForm):
 
@@ -17,6 +32,7 @@ class ImageSourceForm(ModelForm):
         # doesn't have all of the Source model's fields.
         fields = [
             'name', 'visibility', 'description', 'affiliation',
+            'key1', 'key2', 'key3', 'key4', 'key5',
             'image_height_in_cm', 'alleviate_threshold',
             'longitude', 'latitude',
         ]
@@ -26,9 +42,6 @@ class ImageSourceForm(ModelForm):
             'longitude': TextInput(attrs={'size': 10}),
             'latitude': TextInput(attrs={'size': 10}),
         }
-
-    #error_css_class = ...
-    #required_css_class = ...
 
     def __init__(self, *args, **kwargs):
 
@@ -44,29 +57,16 @@ class ImageSourceForm(ModelForm):
                           'alleviate_threshold': [self[name] for name in ['alleviate_threshold']],
                           'world_location': [self[name] for name in ['latitude', 'longitude']]}
 
-
-    def clean_annotation_area_percentages(self):
-        data = self.cleaned_data
-
-        if 'annotation_min_x' in data and \
-           'annotation_max_x' in data and \
-           data['annotation_min_x'] >= data['annotation_max_x']:
-
-            msg = "The maximum x must be greater than the minimum x."
-            self.add_error('annotation_max_x', msg)
-            # Also mark min_x as being errored
-            del data['annotation_min_x']
-
-        if 'annotation_min_y' in data and \
-           'annotation_max_y' in data and \
-           data['annotation_min_y'] >= data['annotation_max_y']:
-
-            msg = "The maximum y must be greater than the minimum y."
-            self.add_error('annotation_max_y', msg)
-            # Also mark min_y as being errored
-            del data['annotation_min_y']
-
-        self.cleaned_data = data
+    def clean_key1(self):
+        return validate_aux_meta_field_name(self.cleaned_data['key1'])
+    def clean_key2(self):
+        return validate_aux_meta_field_name(self.cleaned_data['key2'])
+    def clean_key3(self):
+        return validate_aux_meta_field_name(self.cleaned_data['key3'])
+    def clean_key4(self):
+        return validate_aux_meta_field_name(self.cleaned_data['key4'])
+    def clean_key5(self):
+        return validate_aux_meta_field_name(self.cleaned_data['key5'])
 
     def clean_latitude(self):
         data = self.cleaned_data['latitude']
@@ -88,89 +88,6 @@ class ImageSourceForm(ModelForm):
             raise ValidationError("Longitude is out of range.")
         return data
 
-
-
-class LocationKeyForm(Form):
-    """
-    Location key form for the New Source page.
-    """
-
-    class Media:
-        js = (
-            "js/LocationKeyFormHelper.js",
-        )
-
-    def __init__(self, *args, **kwargs):
-
-        super(LocationKeyForm, self).__init__(*args, **kwargs)
-
-        key_field_list = ['key1', 'key2', 'key3', 'key4', 'key5']
-        field_labels = dict(
-            key1="Key 1",
-            key2="Key 2",
-            key3="Key 3",
-            key4="Key 4",
-            key5="Key 5",
-        )
-
-        # Create fields: key1, key2, key3, key4, and key5.
-        for key_field in key_field_list:
-
-            self.fields[key_field] = fields.CharField(
-                label=field_labels[key_field],
-                max_length=Source._meta.get_field(key_field).max_length,
-                required=not Source._meta.get_field(key_field).blank,
-                error_messages=dict(required=str_consts.SOURCE_ONE_KEY_REQUIRED_ERROR_STR),
-            )
-
-    def clean(self):
-        """
-        1. Location key processing: keep key n only if 1 through n-1
-        are also specified.
-        2. Call the parent's clean() to run the default behavior.
-        """
-        data = self.cleaned_data
-
-        if 'key1' not in data or data['key1'] == u'':
-            data['key2'] = u''
-        if data['key2'] == u'':
-            data['key3'] = u''
-        if data['key3'] == u'':
-            data['key4'] = u''
-        if data['key4'] == u'':
-            data['key5'] = u''
-
-        # Check if a location key is used to denote date, year or similar.
-        date_strings = {'date', 'year', 'time', 'month', 'day'}
-        if ('key1' in data and data['key1'].lower() in date_strings) or ('key2' in data and data['key2'].lower() in date_strings) or ('key3' in data and data['key3'].lower() in date_strings) or ('key4' in data and data['key4'].lower() in date_strings) or ('key5' in data and data['key5'].lower() in date_strings):
-            raise ValidationError("The image acquisition date is a default metadata field. Do not use locationkeys to encode temporal information.")
-
-        self.cleaned_data = data
-
-        super(LocationKeyForm, self).clean()
-
-
-class LocationKeyEditForm(Form):
-    """
-    Location key form for the Edit Source page.
-    """
-
-    def __init__(self, *args, **kwargs):
-
-        source_id = kwargs.pop('source_id')
-        super(LocationKeyEditForm, self).__init__(*args, **kwargs)
-
-        source = Source.objects.get(pk=source_id)
-
-        for n in range(1, get_num_aux_fields(source)+1):
-            aux_label_field_name = 'key'+str(n)
-
-            self.fields[aux_label_field_name] = fields.CharField(
-                label="Key "+str(n),
-                max_length=Source._meta.get_field(aux_label_field_name).max_length,
-                required=True,
-                initial=getattr(source, aux_label_field_name)
-            )
 
 class SourceChangePermissionForm(Form):
 

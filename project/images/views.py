@@ -18,7 +18,7 @@ from .forms import *
 from .model_utils import PointGen
 from .models import Source, Image, SourceInvite
 from .tasks import *
-from .utils import get_year_and_aux_metadata_table
+from .utils import get_date_and_aux_metadata_table
 from annotations.forms import AnnotationAreaPercentsForm
 from annotations.model_utils import AnnotationAreaUtils
 from annotations.models import LabelGroup, Label, LabelSet
@@ -502,7 +502,7 @@ def image_detail_helper(image_id):
             'next_image': next_image,
             'prev_image': prev_image,
             'metadata': metadata,
-            'image_meta_table': get_year_and_aux_metadata_table(image),
+            'image_meta_table': get_date_and_aux_metadata_table(image),
             'detailsets': detailsets,
             'has_thumbnail': bool(thumbnail_dimensions),
             'thumbnail_dimensions': thumbnail_dimensions,

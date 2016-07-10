@@ -17,7 +17,7 @@ from annotations.utils import get_annotation_version_user_display, image_annotat
 from lib.decorators import source_permission_required, source_visibility_required, image_permission_required, image_annotation_area_must_be_editable, image_labelset_required, login_required_ajax
 from images import task_utils
 from images.models import Source, Image, Point
-from images.utils import generate_points, get_first_image, get_next_image, get_year_and_aux_metadata_table
+from images.utils import generate_points, get_first_image, get_next_image, get_date_and_aux_metadata_table
 from visualization.utils import generate_patch_if_doesnt_exist, get_patch_url
 
 
@@ -590,7 +590,7 @@ def annotation_tool(request, image_id):
         'next_image_to_annotate': next_image_to_annotate,
         'nav_history': nav_history,
         'metadata': metadata,
-        'image_meta_table': get_year_and_aux_metadata_table(image),
+        'image_meta_table': get_date_and_aux_metadata_table(image),
         'labels': labelValues,
         'form': form,
         'settings_form': settings_form,
@@ -829,6 +829,6 @@ def annotation_history(request, image_id):
         'source': source,
         'image': image,
         'metadata': image.metadata,
-        'image_meta_table': get_year_and_aux_metadata_table(image),
+        'image_meta_table': get_date_and_aux_metadata_table(image),
         'event_log': event_log,
     })

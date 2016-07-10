@@ -1,4 +1,6 @@
-import math, random
+import datetime
+import math
+import random
 
 from django.conf import settings
 from django.core.urlresolvers import reverse
@@ -491,21 +493,26 @@ def get_aux_metadata_str_list_for_image(image, for_export=False):
 
     return lst
 
-def get_year_and_aux_metadata_table(image):
+def get_date_and_aux_metadata_table(image):
     """
     Get the year and aux metadata for display as a 2 x n table.
     """
     cols = []
 
     if image.metadata.photo_date:
-        cols.append( ("Year", str(image.metadata.photo_date.year)) )
+        date_str = datetime.datetime.strftime(
+            image.metadata.photo_date, "%Y-%m-%d")
     else:
-        cols.append( ("Year", "") )
+        date_str = "-"
+    cols.append(("Date", date_str))
 
-    for n in range(1, get_num_aux_fields(image.source)+1):
+    NUM_AUX_FIELDS = 5
+    for n in range(1, NUM_AUX_FIELDS+1):
         aux_label = get_aux_label(image.source, n)
-        cols.append(
-            (aux_label, get_aux_metadata_str_for_image(image, n)))
+        aux_value = get_aux_metadata_str_for_image(image, n)
+        if aux_value == "":
+            aux_value = "-"
+        cols.append((aux_label, aux_value))
 
     # Transpose
     rows = dict(

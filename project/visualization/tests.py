@@ -1,5 +1,6 @@
 import json
 from urllib import urlencode
+import datetime
 from django.core.urlresolvers import reverse
 from images.utils import set_aux_metadata_db_value_on_metadata_obj, get_aux_field_name
 from lib.test_utils import ClientTest
@@ -179,7 +180,6 @@ class MetadataEditTest(ClientTest):
         self.client.login(username='user2', password='secret')
 
         image = Image.objects.get(pk=self.image_id)
-        old_photo_date = image.metadata.photo_date
         old_photographer = image.metadata.photographer
         old_water_quality = image.metadata.water_quality
         old_strobes = image.metadata.strobes
@@ -190,7 +190,7 @@ class MetadataEditTest(ClientTest):
             'form-INITIAL_FORMS': 1,
             'form-MAX_NUM_FORMS': '',
             'form-0-image_id': self.image_id,
-            'form-0-photo_date': old_photo_date,
+            'form-0-photo_date': '2004-07-19',
             'form-0-height_in_cm': 325,
             'form-0-latitude': '68',
             'form-0-longitude': '-25.908',
@@ -212,7 +212,7 @@ class MetadataEditTest(ClientTest):
         # The database should have the updated metadata for the image,
         # without affecting the non-updated metadata.
         image = Image.objects.get(pk=self.image_id)
-        self.assertEqual(old_photo_date, image.metadata.photo_date)
+        self.assertEqual(datetime.date(2004,7,19), image.metadata.photo_date)
         self.assertEqual(325, image.metadata.height_in_cm)
         self.assertEqual('68', image.metadata.latitude)
         self.assertEqual('-25.908', image.metadata.longitude)
@@ -301,6 +301,18 @@ class ImageDeleteTest(ClientTest):
             self.upload_image('002_2012-06-28_color-grid-002.png')[0]
         self.image_id_3 = \
             self.upload_image('003_2012-06-28_color-grid-003.png')[0]
+
+        # Change metadata
+        img1 = Image.objects.get(pk=self.image_id)
+        img1.metadata.aux1 = '001'
+        img1.metadata.save()
+        img2 = Image.objects.get(pk=self.image_id_2)
+        img2.metadata.aux1 = '002'
+        img2.metadata.save()
+        img3 = Image.objects.get(pk=self.image_id_3)
+        img3.metadata.aux1 = '003'
+        img3.metadata.save()
+
         self.client.logout()
 
     def test_submit_private_as_source_viewer(self):
@@ -381,7 +393,7 @@ class ImageDeleteTest(ClientTest):
         url = reverse('browse_delete', kwargs=dict(source_id=self.source_id))
 
         image_ids = \
-            ','.join(str(id) for id in [self.image_id, self.image_id_3])
+            ','.join(str(pk) for pk in [self.image_id, self.image_id_3])
         self.client.post(url, dict(
             specify_method='image_ids',
             specify_str=image_ids,

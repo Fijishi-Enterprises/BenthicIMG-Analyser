@@ -136,7 +136,7 @@ class ClientTest(BaseTest):
         self.source_id = None
 
         self.default_upload_params = dict(
-            specify_metadata='filenames',
+            specify_metadata='after',
             skip_or_upload_duplicates='skip',
             is_uploading_points_or_annotations=False,
             is_uploading_annotations_not_just_points='no',
@@ -355,7 +355,7 @@ class ClientTest(BaseTest):
         cls.client.post(reverse('signup'), post_dict)
         cls.client.logout()
 
-        activation_email = mail.outbox[0]
+        activation_email = mail.outbox[-1]
         activation_link = None
         for word in activation_email.body.split():
             if '://' in word:
@@ -371,7 +371,11 @@ class ClientTest(BaseTest):
         visibility=Source.VisibilityTypes.PUBLIC,
         description="Description",
         affiliation="Affiliation",
-        key1="Key1",
+        key1="Aux1",
+        key2="Aux2",
+        key3="Aux3",
+        key4="Aux4",
+        key5="Aux5",
         image_height_in_cm=50,
         min_x=0,
         max_x=100,
@@ -406,6 +410,35 @@ class ClientTest(BaseTest):
         cls.client.logout()
 
         return Source.objects.get(name=name)
+
+    @classmethod
+    def add_source_member(cls, admin, source, member, perm):
+        """
+        Add member to source, with permission level perm.
+        Use admin to send the invite.
+        """
+        # Send invite as source admin
+        cls.client.force_login(admin)
+        cls.client.post(
+            reverse('source_admin', kwargs={'source_id': source.pk}),
+            dict(
+                sendInvite='sendInvite',
+                recipient=member.username,
+                source_perm=perm,
+            )
+        )
+        # Accept invite as prospective source member
+        cls.client.force_login(member)
+        cls.client.post(
+            reverse('invites_manage'),
+            dict(
+                accept='accept',
+                sender=admin.pk,
+                source=source.pk,
+            )
+        )
+
+        cls.client.logout()
 
     @classmethod
     def create_labels(cls, user, source, label_names, group_name):

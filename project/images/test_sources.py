@@ -144,21 +144,22 @@ class SourceNewTest(ClientTest):
     """
     Test the New Source page.
     """
-    fixtures = ['test_users.yaml']
+    @classmethod
+    def setUpTestData(cls):
+        super(SourceNewTest, cls).setUpTestData()
 
-    def setUp(self):
-        super(SourceNewTest, self).setUp()
+        cls.user = cls.create_user()
 
-        # Default user; individual tests are free to change it
-        self.client.login(username='user2', password='secret')
-
-        # Default source arguments; individual tests are free to change it
-        self.source_args = dict(
+        cls.source_defaults = dict(
             name="Test Source",
             visibility=Source.VisibilityTypes.PRIVATE,
             affiliation="Testing Society",
             description="Description\ngoes here.",
-            key1="Site",
+            key1="Aux1",
+            key2="Aux2",
+            key3="Aux3",
+            key4="Aux4",
+            key5="Aux5",
             image_height_in_cm=125,
             min_x=10,
             max_x=90,
@@ -171,57 +172,83 @@ class SourceNewTest(ClientTest):
             longitude='25.1982',
         )
 
-    def test_get_success(self):
-        """
-        Test that a logged in user is able to access the page.
-        """
-        # Start logged out, then log in when prompted.
-        self.login_required_page_test(
-            protected_url=reverse('source_new'),
-            username='user2',
-            password='secret',
+    def test_login_required(self):
+        response = self.client.get(reverse('source_new'))
+        self.assertRedirects(
+            response,
+            reverse('signin')+'?next='+reverse('source_new'),
         )
 
-        # Access while logged in.
+    def test_access_page(self):
+        """
+        Access the page without errors.
+        """
+        self.client.force_login(self.user)
         response = self.client.get(reverse('source_new'))
         self.assertStatusOK(response)
+        self.assertTemplateUsed(response, 'images/source_new.html')
 
-    def test_post_success(self):
+    def test_source_defaults(self):
+        """
+        Check for default values in the source form.
+        """
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('source_new'))
+
+        form = response.context['sourceForm']
+        self.assertEqual(
+            form['visibility'].value(), Source.VisibilityTypes.PRIVATE)
+        self.assertEqual(form['key1'].value(), 'Aux1')
+        self.assertEqual(form['key2'].value(), 'Aux2')
+        self.assertEqual(form['key3'].value(), 'Aux3')
+        self.assertEqual(form['key4'].value(), 'Aux4')
+        self.assertEqual(form['key5'].value(), 'Aux5')
+        self.assertEqual(form['alleviate_threshold'].value(), 0)
+
+    def test_source_create(self):
         """
         Successful creation of a new source.
         """
         datetime_before_creation = timezone.now()
 
-        response = self.client.post(reverse('source_new'), self.source_args)
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse('source_new'), self.source_defaults)
 
-        source_id = Source.objects.latest('create_date').pk
-        self.assertRedirects(response, reverse('source_main',
-            kwargs={
-                'source_id': source_id,
-                }
-        ))
+        new_source = Source.objects.latest('create_date')
+        self.assertRedirects(response,
+            reverse('source_main', kwargs={'source_id': new_source.pk}))
 
-        new_source = Source.objects.get(pk=source_id)
-
-        self.assertEqual(new_source.name, self.source_args['name'])
-        self.assertEqual(new_source.visibility, self.source_args['visibility'])
+        self.assertEqual(new_source.name, "Test Source")
+        self.assertEqual(new_source.visibility, Source.VisibilityTypes.PRIVATE)
+        self.assertEqual(new_source.affiliation, "Testing Society")
+        self.assertEqual(new_source.description, "Description\ngoes here.")
         self.assertEqual(new_source.labelset, None)
-        self.assertEqual(new_source.key1, self.source_args['key1'])
-        self.assertEqual(new_source.key2, '')
-        self.assertEqual(new_source.key3, '')
-        self.assertEqual(new_source.key4, '')
-        self.assertEqual(new_source.key5, '')
-        self.assertEqual(new_source.default_point_generation_method, PointGen.args_to_db_format(
-            point_generation_type=self.source_args['point_generation_type'],
-            simple_number_of_points=self.source_args['simple_number_of_points'],
-        ))
-        self.assertEqual(new_source.image_height_in_cm, self.source_args['image_height_in_cm'])
-        self.assertEqual(new_source.image_annotation_area, AnnotationAreaUtils.percentages_to_db_format(
-            min_x=self.source_args['min_x'], max_x=self.source_args['max_x'],
-            min_y=self.source_args['min_y'], max_y=self.source_args['max_y'],
-        ))
-        self.assertEqual(new_source.longitude, self.source_args['longitude'])
-        self.assertEqual(new_source.latitude, self.source_args['latitude'])
+        self.assertEqual(new_source.key1, "Aux1")
+        self.assertEqual(new_source.key2, "Aux2")
+        self.assertEqual(new_source.key3, "Aux3")
+        self.assertEqual(new_source.key4, "Aux4")
+        self.assertEqual(new_source.key5, "Aux5")
+        self.assertEqual(
+            new_source.image_height_in_cm,
+            125,
+        )
+        self.assertEqual(
+            new_source.default_point_generation_method,
+            PointGen.args_to_db_format(
+                point_generation_type=PointGen.Types.SIMPLE,
+                simple_number_of_points=16,
+            ),
+        )
+        self.assertEqual(
+            new_source.image_annotation_area,
+            AnnotationAreaUtils.percentages_to_db_format(
+                min_x=10, max_x=90,
+                min_y=10, max_y=90,
+            ),
+        )
+        self.assertEqual(new_source.latitude, '-17.3776')
+        self.assertEqual(new_source.longitude, '25.1982')
 
         self.assertEqual(new_source.enable_robot_classifier, True)
 
@@ -231,246 +258,275 @@ class SourceNewTest(ClientTest):
         self.assertTrue(datetime_before_creation <= new_source.create_date)
         self.assertTrue(new_source.create_date <= timezone.now())
 
-    def test_optional_fields(self):
+    def test_aux_name_required(self):
         """
-        Successful creation with optional fields filled in.
+        Not filling in an aux. meta field name should get an error saying it's
+        required.
         """
-
-        self.source_args.update(
-            key2="Island",
-            key3="Habitat",
-            key4="Section",
-            key5="ID",
-        )
-
-        response = self.client.post(reverse('source_new'), self.source_args)
-
-        source_id = Source.objects.latest('create_date').pk
-        new_source = Source.objects.get(pk=source_id)
-
-        self.assertEqual(new_source.key2, self.source_args['key2'])
-        self.assertEqual(new_source.key3, self.source_args['key3'])
-        self.assertEqual(new_source.key4, self.source_args['key4'])
-        self.assertEqual(new_source.key5, self.source_args['key5'])
-
-    def test_zero_keys(self):
-        """
-        This should get an error because key 1 is required.
-        """
-        self.source_args.update(
+        source_args = dict()
+        source_args.update(self.source_defaults)
+        source_args.update(dict(
             key1="",
-        )
-
-        response = self.client.post(reverse('source_new'), self.source_args)
-
-        self.assertStatusOK(response)
-        self.assertFormErrors(response, 'location_key_form', dict(
-            key1=[str_consts.SOURCE_ONE_KEY_REQUIRED_ERROR_STR],
+            key2="",
+            key3="",
+            key4="",
+            key5="",
         ))
 
-    def test_gap_in_key_fields(self):
-        """
-        Filling in keys 1, 2, and 4 should make 4 get ignored, because
-        key 3 must be filled in to consider 4.
-        """
-        self.source_args.update(
-            key1="Site",
-            key2="Island",
-            key4="Section",
+        self.client.force_login(self.user)
+        response = self.client.post(reverse('source_new'), source_args)
+
+        # Should be back on the new source form with errors.
+        self.assertTemplateUsed(response, 'images/source_new.html')
+        self.assertDictEqual(
+            response.context['sourceForm'].errors,
+            dict(
+                key1=[forms.Field.default_error_messages['required']],
+                key2=[forms.Field.default_error_messages['required']],
+                key3=[forms.Field.default_error_messages['required']],
+                key4=[forms.Field.default_error_messages['required']],
+                key5=[forms.Field.default_error_messages['required']],
+            )
         )
+        # Should have no source created.
+        self.assertEqual(Source.objects.all().count(), 0)
 
-        response = self.client.post(reverse('source_new'), self.source_args)
+    def test_temporal_aux_name_not_accepted(self):
+        """
+        If an aux. meta field name looks like it's tracking date or time,
+        don't accept it.
+        """
+        source_args = dict()
+        source_args.update(self.source_defaults)
+        source_args.update(dict(
+            key1="date",
+            key2="Year",
+            key3="TIME",
+            key4="month",
+            key5="day",
+        ))
 
-        source_id = Source.objects.latest('create_date').pk
-        new_source = Source.objects.get(pk=source_id)
+        self.client.force_login(self.user)
+        response = self.client.post(reverse('source_new'), source_args)
 
-        self.assertEqual(new_source.key1, self.source_args['key1'])
-        self.assertEqual(new_source.key2, self.source_args['key2'])
-        self.assertEqual(new_source.key4, "")
-
-        # TODO: Test other successful and unsuccessful inputs for the
-        # new source form.
+        # Should be back on the new source form with errors.
+        self.assertTemplateUsed(response, 'images/source_new.html')
+        error_dont_use_temporal = (
+            "Date of image acquisition is already a default metadata field."
+            " Do not use auxiliary metadata fields"
+            " to encode temporal information."
+        )
+        self.assertDictEqual(
+            response.context['sourceForm'].errors,
+            dict(
+                key1=[error_dont_use_temporal],
+                key2=[error_dont_use_temporal],
+                key3=[error_dont_use_temporal],
+                key4=[error_dont_use_temporal],
+                key5=[error_dont_use_temporal],
+            )
+        )
+        # Should have no source created.
+        self.assertEqual(Source.objects.all().count(), 0)
 
 
 class SourceEditTest(ClientTest):
     """
     Test the Edit Source page.
     """
-    fixtures = ['test_users.yaml', 'test_sources.yaml',
-                'test_sources_with_different_keys.yaml']
-    source_member_roles = [
-        ('public1', 'user2', Source.PermTypes.ADMIN.code),
-        ('public1', 'user4', Source.PermTypes.EDIT.code),
-        ('private1', 'user3', Source.PermTypes.ADMIN.code),
-        ('private1', 'user4', Source.PermTypes.VIEW.code),
-        ('2 keys', 'user2', Source.PermTypes.ADMIN.code),
-        ('5 keys', 'user2', Source.PermTypes.ADMIN.code),
-        ]
+    @classmethod
+    def setUpTestData(cls):
+        super(SourceEditTest, cls).setUpTestData()
 
-    def setUp(self):
-        super(SourceEditTest, self).setUp()
+        cls.user_creator = cls.create_user()
 
-        # Default user
-        self.client.login(username='user2', password='secret')
-        # Default source
-        self.source_id = Source.objects.get(name='public1').pk
-        # Default source edit arguments
-        self.source_args = dict(
-            name="Test Source",
-            visibility=Source.VisibilityTypes.PRIVATE,
-            affiliation="Testing Society",
-            description="Description\ngoes here.",
-            key1="Site",
-            image_height_in_cm=125,
-            min_x=10,
-            max_x=90,
-            min_y=10,
-            max_y=90,
-            point_generation_type=PointGen.Types.SIMPLE,
-            simple_number_of_points=16,
-            alleviate_threshold=25,
-            latitude='-17.3776',
-            longitude='25.1982',
-        )
+        # Create a source
+        cls.source = cls.create_source(cls.user_creator)
+        cls.url = reverse('source_edit', kwargs={'source_id': cls.source.pk})
 
-    def test_get_permissions(self):
-        """
-        Test that certain users are able to access the
-        page, and that certain other users are denied.
-        """
-        self.permission_required_page_test(
-            protected_url=reverse('source_edit', kwargs={'source_id': self.source_id}),
-            denied_users=[dict(username='user3', password='secret')],
-            accepted_users=[dict(username='user2', password='secret')],
-        )
+        # Source members
+        cls.user_admin = cls.create_user()
+        cls.add_source_member(cls.user_creator, cls.source,
+            cls.user_admin, Source.PermTypes.ADMIN.code)
+        cls.user_editor = cls.create_user()
+        cls.add_source_member(cls.user_creator, cls.source,
+            cls.user_editor, Source.PermTypes.EDIT.code)
+        cls.user_viewer = cls.create_user()
+        cls.add_source_member(cls.user_creator, cls.source,
+            cls.user_viewer, Source.PermTypes.VIEW.code)
+        # Non-member
+        cls.user_outsider = cls.create_user()
 
-    def test_post_success(self):
-        """
-        Successful edit of an existing source.
-        """
-        original_source = Source.objects.get(pk=self.source_id)
-        original_create_date = original_source.create_date
-        original_enable_robot = original_source.enable_robot_classifier
+    def test_login_required(self):
+        response = self.client.get(self.url)
+        self.assertStatusOK(response)
+        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
 
+    def test_access_as_admin(self):
+        self.client.force_login(self.user_admin)
+        response = self.client.get(self.url)
+        self.assertStatusOK(response)
+        self.assertTemplateUsed(response, 'images/source_edit.html')
+
+    def test_access_denied_as_editor(self):
+        self.client.force_login(self.user_editor)
+        response = self.client.get(self.url)
+        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+
+    def test_access_denied_as_viewer(self):
+        self.client.force_login(self.user_viewer)
+        response = self.client.get(self.url)
+        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+
+    def test_access_denied_as_outsider(self):
+        self.client.force_login(self.user_outsider)
+        response = self.client.get(self.url)
+        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+
+    def test_source_edit(self):
+        self.client.force_login(self.user_creator)
         response = self.client.post(
-            reverse('source_edit', kwargs={'source_id': self.source_id}),
-            self.source_args,
+            self.url,
+            dict(
+                name="Test Source 2",
+                visibility=Source.VisibilityTypes.PUBLIC,
+                affiliation="Testing Association",
+                description="This is\na description.",
+                key1="Island",
+                key2="Site",
+                key3="Habitat",
+                key4="Section",
+                key5="Transect",
+                image_height_in_cm=77,
+                min_x=5,
+                max_x=95,
+                min_y=5,
+                max_y=95,
+                point_generation_type=PointGen.Types.STRATIFIED,
+                number_of_cell_rows=4,
+                number_of_cell_columns=6,
+                stratified_points_per_cell=3,
+                alleviate_threshold=80,
+                latitude='5.789',
+                longitude='-50',
+            ),
         )
 
         self.assertRedirects(
             response,
-            reverse('source_main', kwargs={'source_id': self.source_id})
+            reverse('source_main', kwargs={'source_id': self.source.pk})
         )
 
-        edited_source = Source.objects.get(pk=self.source_id)
-
-        self.assertEqual(edited_source.name, self.source_args['name'])
-        self.assertEqual(edited_source.visibility, self.source_args['visibility'])
-        self.assertEqual(edited_source.affiliation, self.source_args['affiliation'])
-        self.assertEqual(edited_source.description, self.source_args['description'])
-        self.assertEqual(edited_source.key1, self.source_args['key1'])
-        self.assertEqual(edited_source.key2, '')
-        self.assertEqual(edited_source.key3, '')
-        self.assertEqual(edited_source.key4, '')
-        self.assertEqual(edited_source.key5, '')
-        self.assertEqual(edited_source.image_height_in_cm, self.source_args['image_height_in_cm'])
-        self.assertEqual(edited_source.image_annotation_area, AnnotationAreaUtils.percentages_to_db_format(
-            min_x=self.source_args['min_x'], max_x=self.source_args['max_x'],
-            min_y=self.source_args['min_y'], max_y=self.source_args['max_y'],
-        ))
-        self.assertEqual(edited_source.default_point_generation_method, PointGen.args_to_db_format(
-            point_generation_type=self.source_args['point_generation_type'],
-            simple_number_of_points=self.source_args['simple_number_of_points'],
-        ))
-        self.assertEqual(edited_source.alleviate_threshold, self.source_args['alleviate_threshold'])
-        self.assertEqual(edited_source.latitude, self.source_args['latitude'])
-        self.assertEqual(edited_source.longitude, self.source_args['longitude'])
-
-        self.assertEqual(edited_source.create_date, original_create_date)
-        self.assertEqual(edited_source.labelset, None)
-        self.assertEqual(edited_source.enable_robot_classifier, original_enable_robot)
-
-    def test_optional_fields(self):
-        """
-        Successful edit with optional fields filled in.
-        """
-        self.source_id = Source.objects.get(name='5 keys').pk
-
-        self.source_args.update(
-            key2="Island",
-            key3="Habitat",
-            key4="Section",
-            key5="ID",
+        self.source.refresh_from_db()
+        self.assertEqual(self.source.name, "Test Source 2")
+        self.assertEqual(self.source.visibility, Source.VisibilityTypes.PUBLIC)
+        self.assertEqual(self.source.affiliation, "Testing Association")
+        self.assertEqual(self.source.description, "This is\na description.")
+        self.assertEqual(self.source.key1, "Island")
+        self.assertEqual(self.source.key2, "Site")
+        self.assertEqual(self.source.key3, "Habitat")
+        self.assertEqual(self.source.key4, "Section")
+        self.assertEqual(self.source.key5, "Transect")
+        self.assertEqual(self.source.image_height_in_cm, 77)
+        self.assertEqual(
+            self.source.image_annotation_area,
+            AnnotationAreaUtils.percentages_to_db_format(
+                min_x=5, max_x=95, min_y=5, max_y=95,
+            )
         )
-        
-        response = self.client.post(reverse('source_edit', kwargs={'source_id': self.source_id}),
-            self.source_args,
+        self.assertEqual(
+            self.source.default_point_generation_method,
+            PointGen.args_to_db_format(
+                point_generation_type=PointGen.Types.STRATIFIED,
+                number_of_cell_rows=4,
+                number_of_cell_columns=6,
+                stratified_points_per_cell=3,
+            )
         )
-
-        edited_source = Source.objects.get(pk=self.source_id)
-
-        self.assertEqual(edited_source.key2, self.source_args['key2'])
-        self.assertEqual(edited_source.key3, self.source_args['key3'])
-        self.assertEqual(edited_source.key4, self.source_args['key4'])
-        self.assertEqual(edited_source.key5, self.source_args['key5'])
+        self.assertEqual(self.source.alleviate_threshold, 80)
+        self.assertEqual(self.source.latitude, '5.789')
+        self.assertEqual(self.source.longitude, '-50')
 
 
-    def test_missing_keys(self):
-        """
-        Should result in an error, because changing the number
-        of keys isn't allowed.  All key fields are considered
-        required here.
-        """
-        self.source_id = Source.objects.get(name='2 keys').pk
-        self.source_args.update(
-            key1="Site",
-            key2="",
+class SourceInviteTest(ClientTest):
+    """
+    Test sending and accepting invites to sources.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super(SourceInviteTest, cls).setUpTestData()
+
+        cls.user_creator = cls.create_user()
+        cls.source = cls.create_source(cls.user_creator)
+
+        cls.user_editor = cls.create_user()
+
+    def test_source_invite(self):
+        # Send invite as source admin
+        self.client.force_login(self.user_creator)
+        self.client.post(
+            reverse('source_admin', kwargs={'source_id': self.source.pk}),
+            dict(
+                sendInvite='sendInvite',
+                recipient=self.user_editor.username,
+                source_perm=Source.PermTypes.EDIT.code,
+            ),
         )
 
-        response = self.client.post(reverse('source_edit', kwargs={'source_id': self.source_id}),
-            self.source_args,
+        # Accept invite as prospective source member
+        self.client.force_login(self.user_editor)
+        self.client.post(
+            reverse('invites_manage'),
+            dict(
+                accept='',
+                sender=self.user_creator.pk,
+                source=self.source.pk,
+            ),
         )
 
-        self.assertStatusOK(response)
-        self.assertFormErrors(response, 'location_key_edit_form', dict(
-            key2=[forms.Field.default_error_messages['required']],
-        ))
-
-        # TODO: Test other successful and unsuccessful inputs for the
-        # edit source form.
+        # Test that the given permission level works
+        self.client.force_login(self.user_editor)
+        response = self.client.get(
+            reverse('image_upload', kwargs={'source_id': self.source.pk}))
+        self.assertTemplateUsed(response, 'upload/image_upload.html')
 
 
 class ImageViewTest(ClientTest):
     """
-    Test the image view page.
-    This is an abstract class that doesn't actually have any tests.
+    Test the image view/detail page.
     """
-    fixtures = ['test_users.yaml', 'test_sources.yaml']
-    source_member_roles = [
-        ('public1', 'user2', Source.PermTypes.ADMIN.code),
-        ]
+    @classmethod
+    def setUpTestData(cls):
+        super(ImageViewTest, cls).setUpTestData()
 
-    def setUp(self):
-        super(ImageViewTest, self).setUp()
-        self.source_id = Source.objects.get(name='public1').pk
+        cls.user = cls.create_user()
 
-    def view_page_with_image(self, image_file):
-        self.client.login(username='user2', password='secret')
+        # Create a source
+        cls.source = cls.create_source(cls.user)
 
-        self.image_id = self.upload_image(image_file)[0]
+        # Upload a small image and a large image
+        # TODO: Ensure the images are actually small and large respectively.
+        # This image upload utility function needs a way to customize the
+        # image contents.
+        cls.small_image = cls.upload_image_new(cls.user, cls.source)
+        cls.large_image = cls.upload_image_new(cls.user, cls.source)
 
-        response = self.client.get(reverse('image_detail', kwargs={'image_id': self.image_id}))
+    def test_view_page_with_small_image(self):
+        url = reverse('image_detail', kwargs={'image_id': self.small_image.id})
+        response = self.client.get(url)
         self.assertStatusOK(response)
 
         # Try fetching the page a second time, to make sure thumbnail
         # generation doesn't go nuts.
-        response = self.client.get(reverse('image_detail', kwargs={'image_id': self.image_id}))
+        response = self.client.get(url)
         self.assertStatusOK(response)
 
-        # TODO: Add more checks.
-
-    def test_view_page_with_small_image(self):
-        self.view_page_with_image('001_2012-05-01_color-grid-001.png')
-
     def test_view_page_with_large_image(self):
-        self.view_page_with_image('002_2012-05-29_color-grid-001_large.png')
+        url = reverse('image_detail', kwargs={'image_id': self.large_image.id})
+        response = self.client.get(url)
+        self.assertStatusOK(response)
+
+        # Try fetching the page a second time, to make sure thumbnail
+        # generation doesn't go nuts.
+        response = self.client.get(url)
+        self.assertStatusOK(response)

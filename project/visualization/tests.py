@@ -73,23 +73,23 @@ class MetadataEditTest(ClientTest):
     """
     Test the metadata edit functionality.
     """
-    fixtures = ['test_users.yaml', 'test_labels.yaml', 'test_sources.yaml']
-    source_member_roles = [
-        ('private1', 'user2', Source.PermTypes.EDIT.code),
-        ('private1', 'user3', Source.PermTypes.VIEW.code),
-    ]
+    @classmethod
+    def setUpTestData(cls):
+        super(MetadataEditTest, cls).setUpTestData()
 
-    def setUp(self):
-        super(MetadataEditTest, self).setUp()
-        self.source_id = Source.objects.get(name='private1').pk
+        cls.user = cls.create_user()
 
-        # Upload an image
-        self.client.login(username='user2', password='secret')
-        self.image_id = \
-            self.upload_image('001_2012-05-01_color-grid-001.png')[0]
-        self.image_id_2 = \
-            self.upload_image('001_2012-05-01_color-grid-001.png')[0]
-        self.client.logout()
+        cls.source = cls.create_source(cls.user)
+
+        cls.user_editor = cls.create_user()
+        cls.add_source_member(cls.user, cls.source,
+            cls.user_editor, Source.PermTypes.EDIT.code)
+        cls.user_viewer = cls.create_user()
+        cls.add_source_member(cls.user, cls.source,
+            cls.user_viewer, Source.PermTypes.VIEW.code)
+
+        cls.img1 = cls.upload_image_new(cls.user, cls.source)
+        cls.img2 = cls.upload_image_new(cls.user, cls.source)
 
     def test_load_page_private_as_source_viewer(self):
         """
@@ -102,17 +102,17 @@ class MetadataEditTest(ClientTest):
         redirect to the right URL. This'll also easier permission controls.
         """
         url = (
-            reverse('visualize_source', kwargs=dict(source_id=self.source_id))
+            reverse('visualize_source', kwargs=dict(source_id=self.source.pk))
             + '?' + urlencode(dict(page_view='metadata'))
         )
 
-        self.client.login(username='user3', password='secret')
+        self.client.force_login(self.user_viewer)
         response = self.client.get(url)
 
         self.assertStatusOK(response)
         self.assertTemplateUsed(response, 'visualization/visualize_source.html')
         self.assertMessages(response, ["Error: invalid search parameters."])
-        self.assertEqual(response.context['metadataForm'], None)
+        self.assertEqual(response.context['metadata_formset'], None)
 
     def test_load_page(self):
         """
@@ -120,16 +120,16 @@ class MetadataEditTest(ClientTest):
         Also ensure the metadata form is there.
         """
         url = (
-            reverse('visualize_source', kwargs=dict(source_id=self.source_id))
+            reverse('visualize_source', kwargs=dict(source_id=self.source.pk))
             + '?' + urlencode(dict(page_view='metadata'))
         )
 
-        self.client.login(username='user2', password='secret')
+        self.client.force_login(self.user_editor)
         response = self.client.get(url)
 
         self.assertStatusOK(response)
         self.assertTemplateUsed(response, 'visualization/visualize_source.html')
-        self.assertNotEqual(response.context['metadataForm'], None)
+        self.assertNotEqual(response.context['metadata_formset'], None)
 
     def test_load_page_no_images(self):
         """
@@ -137,22 +137,21 @@ class MetadataEditTest(ClientTest):
         """
         # First, assign enough metadata so it's possible to do a valid search
         # which gets no results.
-        img1 = Image.objects.get(pk=self.image_id)
-        img1.metadata.aux1 = "1"
-        img1.metadata.aux2 = "A"
-        img1.metadata.save()
-        img2 = Image.objects.get(pk=self.image_id_2)
-        img2.metadata.aux1 = "2"
-        img2.metadata.aux2 = "B"
-        img2.metadata.save()
+        self.img1.metadata.aux1 = "1"
+        self.img1.metadata.aux2 = "A"
+        self.img1.metadata.save()
+        self.img2.metadata.aux1 = "2"
+        self.img2.metadata.aux2 = "B"
+        self.img2.metadata.save()
 
+        # We have one image with "1" "A", and another with "2" "B", so
+        # searching for "1" "B" should get no results.
         url = (
-            reverse('visualize_source', kwargs=dict(source_id=self.source_id))
-            + '?' + urlencode(dict(
-                page_view='metadata', aux1="1", aux2="B"))
+            reverse('visualize_source', kwargs=dict(source_id=self.source.pk))
+            + '?' + urlencode(dict(page_view='metadata', aux1="1", aux2="B"))
         )
 
-        self.client.login(username='user2', password='secret')
+        self.client.force_login(self.user)
         response = self.client.get(url)
 
         self.assertStatusOK(response)
@@ -162,78 +161,78 @@ class MetadataEditTest(ClientTest):
         """
         See if the form is loaded with the correct metadata in the fields.
         """
-        # Just get one image so we can assume forms[0] is what we need.
-        img1 = Image.objects.get(pk=self.image_id)
-        img1.metadata.aux1 = "1"
-        img1.metadata.save()
+        # We'll test various fields, and ensure that there is at least one
+        # field where the two images have different non-empty values.
+        self.img1.metadata.photo_date = datetime.date(2015,11,15)
+        self.img1.metadata.aux1 = "1"
+        self.img1.metadata.aux2 = "A"
+        self.img1.metadata.framing = "Framing device FD-09"
+        self.img1.metadata.save()
+        self.img2.metadata.aux1 = "2"
+        self.img2.metadata.aux2 = "B"
+        self.img2.metadata.height_in_cm = 45
+        self.img2.metadata.latitude = '-20.98'
+        self.img2.metadata.camera = "Nikon"
+        self.img2.metadata.save()
+
         url = (
-            reverse('visualize_source', kwargs=dict(source_id=self.source_id))
-            + '?' + urlencode(dict(page_view='metadata', aux1="1"))
+            reverse('visualize_source', kwargs=dict(source_id=self.source.pk))
+            + '?' + urlencode(dict(page_view='metadata'))
         )
 
-        self.client.login(username='user2', password='secret')
+        self.client.force_login(self.user)
         response = self.client.get(url)
 
-        # The form should have the correct metadata for the one image that
-        # has been uploaded.
-        form = response.context['metadataForm']
-        image = Image.objects.get(pk=self.image_id)
-        self.assertEqual(form.forms[0]['image_id'].value(), self.image_id)
-        self.assertEqual(form.forms[0]['photo_date'].value(),
-            image.metadata.photo_date)
-        self.assertEqual(form.forms[0]['height_in_cm'].value(),
-            image.metadata.height_in_cm)
-        self.assertEqual(form.forms[0]['latitude'].value(),
-            image.metadata.latitude)
-        self.assertEqual(form.forms[0]['longitude'].value(),
-            image.metadata.longitude)
-        self.assertEqual(form.forms[0]['depth'].value(),
-            image.metadata.depth)
-        self.assertEqual(form.forms[0]['camera'].value(),
-            image.metadata.camera)
-        self.assertEqual(form.forms[0]['photographer'].value(),
-            image.metadata.photographer)
-        self.assertEqual(form.forms[0]['water_quality'].value(),
-            image.metadata.water_quality)
-        self.assertEqual(form.forms[0]['strobes'].value(),
-            image.metadata.strobes)
-        self.assertEqual(form.forms[0]['framing'].value(),
-            image.metadata.framing)
-        self.assertEqual(form.forms[0]['balance'].value(),
-            image.metadata.balance)
+        # The form should have the correct metadata for both images.
+        formset = response.context['metadata_formset']
+
+        metadata_pks_to_forms = dict()
+        for form in formset.forms:
+            metadata_pks_to_forms[form['id'].value()] = form
+
+        img1_form = metadata_pks_to_forms[self.img1.pk]
+        img2_form = metadata_pks_to_forms[self.img2.pk]
+
+        self.assertEqual(img1_form['photo_date'].value(),
+            datetime.date(2015,11,15))
+        self.assertEqual(img1_form['aux1'].value(), "1")
+        self.assertEqual(img1_form['aux2'].value(), "A")
+        self.assertEqual(img1_form['framing'].value(), "Framing device FD-09")
+        self.assertEqual(img2_form['aux1'].value(), "2")
+        self.assertEqual(img2_form['aux2'].value(), "B")
+        self.assertEqual(img2_form['height_in_cm'].value(), 45)
+        self.assertEqual(img2_form['latitude'].value(), "-20.98")
+        self.assertEqual(img2_form['camera'].value(), "Nikon")
 
     def test_submit_edits(self):
         """
         Submit metadata edits and see if they go through.
         """
         url = (reverse('metadata_edit_ajax', kwargs=dict(
-            source_id=self.source_id
+            source_id=self.source.pk
         )))
 
-        self.client.login(username='user2', password='secret')
+        self.client.force_login(self.user)
 
-        image = Image.objects.get(pk=self.image_id)
-        old_photographer = image.metadata.photographer
-        old_water_quality = image.metadata.water_quality
-        old_strobes = image.metadata.strobes
-        old_framing = image.metadata.framing
-        old_balance = image.metadata.balance
+        # The ajax view doesn't care about setting up a valid search.
+        # As long as the number-of-forms fields match the actual form data,
+        # it's fine.
         post_data = {
             'form-TOTAL_FORMS': 1,
             'form-INITIAL_FORMS': 1,
             'form-MAX_NUM_FORMS': '',
-            'form-0-image_id': self.image_id,
+            'form-0-id': self.img1.metadata.pk,
             'form-0-photo_date': '2004-07-19',
             'form-0-height_in_cm': 325,
             'form-0-latitude': '68',
             'form-0-longitude': '-25.908',
             'form-0-depth': "57.1m",
             'form-0-camera': "Canon ABC94",
-            'form-0-photographer': old_photographer,
-            'form-0-water_quality': old_water_quality,
-            'form-0-strobes': old_strobes,
-            'form-0-framing': old_framing,
-            'form-0-balance': old_balance,
+            'form-0-photographer': "",
+            'form-0-water_quality': "",
+            'form-0-strobes': "",
+            'form-0-framing': "",
+            'form-0-balance': "Balance card A",
         }
         response = self.client.post(url, post_data)
 
@@ -242,73 +241,91 @@ class MetadataEditTest(ClientTest):
         response_json = response.json()
         self.assertEqual(response_json['status'], 'success')
 
-        # The database should have the updated metadata for the image,
-        # without affecting the non-updated metadata.
-        image = Image.objects.get(pk=self.image_id)
-        self.assertEqual(datetime.date(2004,7,19), image.metadata.photo_date)
-        self.assertEqual(325, image.metadata.height_in_cm)
-        self.assertEqual('68', image.metadata.latitude)
-        self.assertEqual('-25.908', image.metadata.longitude)
-        self.assertEqual("57.1m", image.metadata.depth)
-        self.assertEqual("Canon ABC94", image.metadata.camera)
-        self.assertEqual(old_photographer, image.metadata.photographer)
-        self.assertEqual(old_water_quality, image.metadata.water_quality)
-        self.assertEqual(old_strobes, image.metadata.strobes)
-        self.assertEqual(old_framing, image.metadata.framing)
-        self.assertEqual(old_balance, image.metadata.balance)
+        self.img1.metadata.refresh_from_db()
+        self.assertEqual(datetime.date(2004,7,19), self.img1.metadata.photo_date)
+        self.assertEqual(325, self.img1.metadata.height_in_cm)
+        self.assertEqual('68', self.img1.metadata.latitude)
+        self.assertEqual('-25.908', self.img1.metadata.longitude)
+        self.assertEqual("57.1m", self.img1.metadata.depth)
+        self.assertEqual("Canon ABC94", self.img1.metadata.camera)
+        self.assertEqual("", self.img1.metadata.photographer)
+        self.assertEqual("", self.img1.metadata.water_quality)
+        self.assertEqual("", self.img1.metadata.strobes)
+        self.assertEqual("", self.img1.metadata.framing)
+        self.assertEqual("Balance card A", self.img1.metadata.balance)
 
-
-class MetadataEditTest2(ClientTest):
-    """
-    Test metadata edit, more specific functionality.
-    """
-    fixtures = ['test_users.yaml', 'test_labels.yaml',
-        'test_sources_with_different_keys.yaml']
-    source_member_roles = [
-        ('5 keys', 'user2', Source.PermTypes.EDIT.code),
-        ('5 keys', 'user3', Source.PermTypes.VIEW.code),
-    ]
-
-    def setUp(self):
-        super(MetadataEditTest2, self).setUp()
-        self.source_id = Source.objects.get(name='5 keys').pk
-
-        self.default_upload_params['specify_metadata'] = 'after'
-
-        # Upload an image
-        self.client.login(username='user2', password='secret')
-        self.image_id = self.upload_image('001_2012-05-01_color-grid-001.png')[0]
-        self.client.logout()
-
-    def test_load_image_with_incomplete_location_values(self):
+    def test_submit_errors(self):
         """
-        Load the metadata form with an image that has value k but not
-        value k-1. Value k should still display on the form.
-        (Don't assume that k isn't there just because k-1 isn't.)
+        Submit metadata edits with errors.
+
+        Ensure that valid edits in the same submission don't get saved,
+        and ensure the error messages are as expected.
         """
-        url = (
-            reverse('visualize_source', kwargs=dict(source_id=self.source_id))
-            + '?' + urlencode(dict(page_view='metadata'))
+        url = (reverse('metadata_edit_ajax', kwargs=dict(
+            source_id=self.source.pk
+        )))
+
+        self.client.force_login(self.user)
+
+        post_data = {
+            'form-TOTAL_FORMS': 2,
+            'form-INITIAL_FORMS': 2,
+            'form-MAX_NUM_FORMS': '',
+            'form-0-id': self.img1.metadata.pk,
+            'form-0-photo_date': '2007-04-08',    # Valid edit
+            'form-0-height_in_cm': '',
+            'form-0-latitude': '',
+            'form-0-longitude': '',
+            'form-0-depth': "",
+            'form-0-camera': "",
+            'form-0-photographer': "",
+            'form-0-water_quality': "",
+            'form-0-strobes': "",
+            'form-0-framing': "",
+            'form-0-balance': "",
+            'form-1-id': self.img2.metadata.pk,
+            'form-1-photo_date': '205938',    # Not valid
+            'form-1-height_in_cm': '-20',    # Not valid
+            'form-1-latitude': '',
+            'form-1-longitude': '',
+            'form-1-depth': "",
+            'form-1-camera': "",
+            'form-1-photographer': "",
+            'form-1-water_quality': "",
+            'form-1-strobes': "",
+            'form-1-framing': "",
+            'form-1-balance': "Balance card A",    # Valid edit
+        }
+        response = self.client.post(url, post_data)
+
+        # Response should be as expected.
+        self.assertStatusOK(response)
+        response_json = response.json()
+        self.assertEqual(response_json['status'], 'error')
+
+        # Response errors should be as expected.
+        # The error order is undefined, so we won't check for order.
+        response_error_dict = dict([
+            (e['fieldId'], e['errorMessage'])
+            for e in response_json['errors']
+        ])
+        expected_error_dict = dict()
+        expected_error_dict['id_form-1-photo_date'] = self.img2.metadata.name \
+             + " | Date" \
+             + " | Enter a valid date."
+        expected_error_dict['id_form-1-height_in_cm'] = self.img2.metadata.name \
+             + " | Height (cm)" \
+             + " | Ensure this value is greater than or equal to 1."
+        self.assertDictEqual(
+            response_error_dict,
+            expected_error_dict,
         )
-        self.client.login(username='user2', password='secret')
 
-        image = Image.objects.get(pk=self.image_id)
-        image.metadata.aux1 = 'AAA'
-        image.metadata.aux2 = ''
-        image.metadata.aux3 = 'CCC'
-        image.metadata.aux4 = 'DDD'
-        image.metadata.aux5 = ''
-        image.metadata.save()
-
-        # Load the page with the metadata form.
-        # Ensure that the location values filled are: 1, 3, 4
-        response = self.client.get(url)
-        form = response.context['metadataForm']
-        self.assertEqual(form.forms[0]['aux1'].value(), 'AAA')
-        self.assertEqual(form.forms[0]['aux2'].value(), '')
-        self.assertEqual(form.forms[0]['aux3'].value(), 'CCC')
-        self.assertEqual(form.forms[0]['aux4'].value(), 'DDD')
-        self.assertEqual(form.forms[0]['aux5'].value(), '')
+        # No edits should have gone through.
+        self.img1.metadata.refresh_from_db()
+        self.img2.metadata.refresh_from_db()
+        self.assertEqual(self.img1.metadata.photo_date, None)
+        self.assertEqual(self.img2.metadata.balance, "")
 
 
 class ImageDeleteTest(ClientTest):

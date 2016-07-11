@@ -433,6 +433,8 @@ def metadata_edit_ajax(request, source_id):
 
         for form in formset:
 
+            # TODO: Would be nice to list the errors in the order they
+            # appear in the form
             for field_name, error_messages in form.errors.iteritems():
 
                 # The form prefix looks something like form-2. The id of the

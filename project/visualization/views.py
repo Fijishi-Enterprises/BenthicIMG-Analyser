@@ -19,7 +19,7 @@ from accounts.utils import get_robot_user
 from annotations.models import Annotation, Label, LabelSet, LabelGroup
 from images.models import Source, Image
 from images.tasks import *
-from images.utils import delete_image, get_aux_metadata_str_list_for_image, get_aux_labels, get_all_aux_field_names, update_filter_args_specifying_aux_metadata
+from images.utils import delete_image, get_aux_metadata_str_list_for_image, get_aux_labels, get_aux_field_names, update_filter_args_specifying_aux_metadata
 from lib.decorators import source_visibility_required, source_permission_required
 from upload.forms import MetadataForm, CheckboxForm
 
@@ -38,7 +38,7 @@ def image_search_args_to_queryset_args(searchDict, source):
     querysetArgs = dict()
 
     for k, v in searchArgs.items():
-        if k in get_all_aux_field_names():
+        if k in get_aux_field_names():
             aux_field_number = k[-1]
             update_filter_args_specifying_aux_metadata(
                 querysetArgs, aux_field_number, v)
@@ -343,26 +343,35 @@ def visualize_source(request, source_id):
         }
         initValuesMetadata = initValues
 
-        for i, image in enumerate(all_items):
+        metadata_field_names = [
+            'photo_date', 'aux1', 'aux2', 'aux3', 'aux4', 'aux5',
+            'height_in_cm', 'latitude', 'longitude', 'depth',
+            'camera', 'photographer', 'water_quality',
+            'strobes', 'framing', 'balance']
 
-            # Location keys
-            keys = get_aux_metadata_str_list_for_image(image)
-            for j, key in enumerate(keys):
-                initValuesMetadata['form-%s-key%s' % (i,j+1)] = key
+        for i, image in enumerate(all_items):
 
             # Image id
             initValuesMetadata['form-%s-image_id' % i] = image.id
 
             # Other fields
-            metadata_field_names = ['photo_date', 'height_in_cm', 'latitude',
-                                    'longitude', 'depth', 'camera',
-                                    'photographer', 'water_quality',
-                                    'strobes', 'framing', 'balance']
-            for metadata_field in metadata_field_names:
-                formset_field_name = 'form-{num}-{field}'.format(num=i, field=metadata_field)
-                initValuesMetadata[formset_field_name] = getattr(image.metadata, metadata_field)
+            for metadata_field_name in metadata_field_names:
+                formset_field_name = 'form-{num}-{field}'.format(
+                    num=i, field=metadata_field_name)
+                initValuesMetadata[formset_field_name] = \
+                    getattr(image.metadata, metadata_field_name)
 
         metadataForm = metadataFormSet(initValuesMetadata)
+        if metadataForm.forms:
+            metadata_form_headers = [
+                metadataForm.forms[0].fields[field_name].label
+                for field_name in metadata_field_names
+            ]
+        else:
+            # No images, thus no forms to get headers from.
+            # But in this case there should be no form displayed anyway.
+            metadata_form_headers = None
+
         checkboxForm = checkboxFormSet(initValues)
         metadataFormWithExtra = zip(metadataForm.forms, checkboxForm.forms, all_items, statuses)
         selectAllCheckbox = CheckboxForm()
@@ -372,6 +381,7 @@ def visualize_source(request, source_id):
         # Not showing the metadata view.
 
         metadataForm = None
+        metadata_form_headers = None
         metadataFormWithExtra = None
         selectAllCheckbox = None
 
@@ -402,8 +412,8 @@ def visualize_source(request, source_id):
         # TODO: Uncomment this once downloading is implemented
         #'has_download_form': bool(download_form),
 
-        'key_list': get_aux_labels(source),
         'metadataForm': metadataForm,
+        'metadata_form_headers': metadata_form_headers,
         'selectAllForm': selectAllCheckbox,
         'metadataFormWithExtra': metadataFormWithExtra,
 
@@ -440,22 +450,14 @@ def metadata_edit_ajax(request, source_id):
                 # form instance. Move on to the next one.
                 continue
 
-            form_field_names = [
+            field_names = [
                 'photo_date', 'height_in_cm', 'latitude', 'longitude',
                 'depth', 'camera', 'photographer', 'water_quality',
                 'strobes', 'framing', 'balance',
-                # TODO: Naming these as keyn is confusing, should be auxn.
-                'key1', 'key2', 'key3', 'key4', 'key5']
+                'aux1', 'aux2', 'aux3', 'aux4', 'aux5']
 
-            for form_field_name in form_field_names:
-                if form_field_name.startswith('key'):
-                    metadata_field_name = 'aux' + form_field_name[3:]
-                else:
-                    metadata_field_name = form_field_name
-
-                setattr(
-                    image.metadata, metadata_field_name,
-                    formData[form_field_name])
+            for field_name in field_names:
+                setattr(image.metadata, field_name, formData[field_name])
 
             image.metadata.save()
 

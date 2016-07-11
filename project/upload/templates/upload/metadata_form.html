@@ -22,23 +22,9 @@ This is a template that is used to render a form for editing metadata
                 <th>Filename</th>
                 <th>Status</th>
 
-                {# The below fields should be in the same order as the #}
-                {# fields in the MetadataForm class. #}
-
-                <th>Date</th>
-                {% for key in key_list %}
-                    <th>{{ key }}</th>
+                {% for header in metadata_form_headers %}
+                    <th>{{ header }}</th>
                 {% endfor %}
-                <th>Height (cm)</th>
-                <th>Latitude</th>
-                <th>Longitude</th>
-                <th>Depth</th>
-                <th>Camera</th>
-                <th>Photographer</th>
-                <th>Water Quality</th>
-                <th>Strobes</th>
-                <th>Framing Gear Used</th>
-                <th>White Balance Card</th>
 
             </tr>
             {% for form, checkbox_form, image, status in metadataFormWithExtra %}

@@ -85,7 +85,10 @@ class MetadataEditTest(ClientTest):
 
         # Upload an image
         self.client.login(username='user2', password='secret')
-        self.image_id = self.upload_image('001_2012-05-01_color-grid-001.png')[0]
+        self.image_id = \
+            self.upload_image('001_2012-05-01_color-grid-001.png')[0]
+        self.image_id_2 = \
+            self.upload_image('001_2012-05-01_color-grid-001.png')[0]
         self.client.logout()
 
     def test_load_page_private_as_source_viewer(self):
@@ -128,13 +131,44 @@ class MetadataEditTest(ClientTest):
         self.assertTemplateUsed(response, 'visualization/visualize_source.html')
         self.assertNotEqual(response.context['metadataForm'], None)
 
+    def test_load_page_no_images(self):
+        """
+        Load the page with no image results.
+        """
+        # First, assign enough metadata so it's possible to do a valid search
+        # which gets no results.
+        img1 = Image.objects.get(pk=self.image_id)
+        img1.metadata.aux1 = "1"
+        img1.metadata.aux2 = "A"
+        img1.metadata.save()
+        img2 = Image.objects.get(pk=self.image_id_2)
+        img2.metadata.aux1 = "2"
+        img2.metadata.aux2 = "B"
+        img2.metadata.save()
+
+        url = (
+            reverse('visualize_source', kwargs=dict(source_id=self.source_id))
+            + '?' + urlencode(dict(
+                page_view='metadata', aux1="1", aux2="B"))
+        )
+
+        self.client.login(username='user2', password='secret')
+        response = self.client.get(url)
+
+        self.assertStatusOK(response)
+        self.assertContains(response, "No image results.")
+
     def test_load_form(self):
         """
         See if the form is loaded with the correct metadata in the fields.
         """
+        # Just get one image so we can assume forms[0] is what we need.
+        img1 = Image.objects.get(pk=self.image_id)
+        img1.metadata.aux1 = "1"
+        img1.metadata.save()
         url = (
             reverse('visualize_source', kwargs=dict(source_id=self.source_id))
-            + '?' + urlencode(dict(page_view='metadata'))
+            + '?' + urlencode(dict(page_view='metadata', aux1="1"))
         )
 
         self.client.login(username='user2', password='secret')
@@ -270,11 +304,11 @@ class MetadataEditTest2(ClientTest):
         # Ensure that the location values filled are: 1, 3, 4
         response = self.client.get(url)
         form = response.context['metadataForm']
-        self.assertEqual(form.forms[0]['key1'].value(), 'AAA')
-        self.assertEqual(form.forms[0]['key2'].value(), '')
-        self.assertEqual(form.forms[0]['key3'].value(), 'CCC')
-        self.assertEqual(form.forms[0]['key4'].value(), 'DDD')
-        self.assertEqual(form.forms[0]['key5'].value(), '')
+        self.assertEqual(form.forms[0]['aux1'].value(), 'AAA')
+        self.assertEqual(form.forms[0]['aux2'].value(), '')
+        self.assertEqual(form.forms[0]['aux3'].value(), 'CCC')
+        self.assertEqual(form.forms[0]['aux4'].value(), 'DDD')
+        self.assertEqual(form.forms[0]['aux5'].value(), '')
 
 
 class ImageDeleteTest(ClientTest):

@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 from django.forms import ImageField, Form, ChoiceField, FileField, CharField, BooleanField, DateField
 from django.forms.widgets import FileInput, TextInput
 from django.utils.translation import ugettext_lazy as _
-from images.utils import get_aux_metadata_max_length, get_num_aux_fields, get_aux_label, get_aux_labels, get_aux_field_name
+from images.utils import get_aux_metadata_max_length, get_num_aux_fields, get_aux_label, get_aux_labels, get_aux_field_name, get_aux_field_names
 from upload.utils import metadata_to_filename
 from images.models import Source, Metadata, ImageModelConstants
 
@@ -258,6 +258,41 @@ class MetadataForm(Form):
     """
     image_id = forms.IntegerField(widget=forms.HiddenInput())
     photo_date = DateField(required=False, widget= TextInput(attrs={'size': 8,}))
+    aux1 = CharField(
+        required=False,
+        widget=TextInput(
+            attrs={'size': 10, 'maxlength': get_aux_metadata_max_length()}),
+        label="(TBD)",
+        max_length=get_aux_metadata_max_length(),
+    )
+    aux2 = CharField(
+        required=False,
+        widget=TextInput(
+            attrs={'size': 10, 'maxlength': get_aux_metadata_max_length()}),
+        label="(TBD)",
+        max_length=get_aux_metadata_max_length(),
+    )
+    aux3 = CharField(
+        required=False,
+        widget=TextInput(
+            attrs={'size': 10, 'maxlength': get_aux_metadata_max_length()}),
+        label="(TBD)",
+        max_length=get_aux_metadata_max_length(),
+    )
+    aux4 = CharField(
+        required=False,
+        widget=TextInput(
+            attrs={'size': 10, 'maxlength': get_aux_metadata_max_length()}),
+        label="(TBD)",
+        max_length=get_aux_metadata_max_length(),
+    )
+    aux5 = CharField(
+        required=False,
+        widget=TextInput(
+            attrs={'size': 10, 'maxlength': get_aux_metadata_max_length()}),
+        label="(TBD)",
+        max_length=get_aux_metadata_max_length(),
+    )
     height_in_cm = forms.IntegerField(
         min_value=ImageModelConstants.MIN_IMAGE_CM_HEIGHT,
         max_value=ImageModelConstants.MAX_IMAGE_CM_HEIGHT,
@@ -279,26 +314,16 @@ class MetadataForm(Form):
     framing = CharField(required=False, widget= TextInput(attrs={'size': 16,}))
     balance = CharField(required=False, widget= TextInput(attrs={'size': 16,}))
 
-    # TODO: May be able to remove most of this function
-    # if assuming all 5 aux fields are always used
-    # AND if aux metadata are just simple string fields
     def __init__(self, *args, **kwargs):
         self.source_id = kwargs.pop('source_id')
         super(MetadataForm,self).__init__(*args, **kwargs)
         self.source = Source.objects.get(pk=self.source_id)
 
-        # Need to create fields for keys based on the number of keys in this source.
-        for n in range(1, get_num_aux_fields()+1):
-            # TODO: Naming these as keyn is confusing, should be auxn/valuen.
-            aux_field_name = 'key'+str(n)
-            aux_label = get_aux_label(self.source, n)
-
-            self.fields[aux_field_name] = CharField(
-                required=False,
-                widget=TextInput(attrs={'size': 10, 'maxlength': get_aux_metadata_max_length()}),
-                label=aux_label,
-                max_length=get_aux_metadata_max_length(),
-            )
+        self.fields['aux1'].label = self.source.key1
+        self.fields['aux2'].label = self.source.key2
+        self.fields['aux3'].label = self.source.key3
+        self.fields['aux4'].label = self.source.key4
+        self.fields['aux5'].label = self.source.key5
 
         # Apply labels and max-length attributes from the Metadata model to the
         # form fields (besides the key fields, which we already did).
@@ -343,14 +368,11 @@ class MetadataForm(Form):
             # Inspect Element HTML editing, that is)
             form_field.widget.attrs.update({'maxlength': max_length})
 
-
-        # TODO: Naming these as keyn is confusing, should be auxn/valuen.
-        aux_fields = ['key'+str(n) for n in range(1, get_num_aux_fields()+1)]
         # Change the order that the fields appear on the page.
         # This field order should match the order of the table headers
         # in the page template.
         self.order_fields(
-            ['image_id', 'photo_date'] + aux_fields
+            ['image_id', 'photo_date'] + get_aux_field_names()
             + ['height_in_cm'] + char_fields)
 
 

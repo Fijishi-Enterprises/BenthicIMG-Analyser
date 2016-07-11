@@ -416,9 +416,6 @@ def get_aux_label_field_name(aux_field_number):
 def get_aux_field_name(aux_field_number):
     return 'aux'+str(aux_field_number)
 
-def get_all_aux_field_names():
-    return [get_aux_field_name(n) for n in range(1, 5+1)]
-
 def get_aux_label(source, aux_field_number):
     return getattr(source, get_aux_label_field_name(aux_field_number))
 

@@ -249,131 +249,68 @@ class CheckboxForm(Form):
     """
     selected = BooleanField(required=False)
 
-class MetadataForm(Form):
+class MetadataForm(forms.ModelForm):
     """
     This form is used to edit the metadata of an image within a source.
 
     This is commonly used within a form set, so that multiple images can
     be edited at once.
     """
-    image_id = forms.IntegerField(widget=forms.HiddenInput())
-    photo_date = DateField(required=False, widget= TextInput(attrs={'size': 8,}))
-    aux1 = CharField(
-        required=False,
-        widget=TextInput(
-            attrs={'size': 10, 'maxlength': get_aux_metadata_max_length()}),
-        label="(TBD)",
-        max_length=get_aux_metadata_max_length(),
-    )
-    aux2 = CharField(
-        required=False,
-        widget=TextInput(
-            attrs={'size': 10, 'maxlength': get_aux_metadata_max_length()}),
-        label="(TBD)",
-        max_length=get_aux_metadata_max_length(),
-    )
-    aux3 = CharField(
-        required=False,
-        widget=TextInput(
-            attrs={'size': 10, 'maxlength': get_aux_metadata_max_length()}),
-        label="(TBD)",
-        max_length=get_aux_metadata_max_length(),
-    )
-    aux4 = CharField(
-        required=False,
-        widget=TextInput(
-            attrs={'size': 10, 'maxlength': get_aux_metadata_max_length()}),
-        label="(TBD)",
-        max_length=get_aux_metadata_max_length(),
-    )
-    aux5 = CharField(
-        required=False,
-        widget=TextInput(
-            attrs={'size': 10, 'maxlength': get_aux_metadata_max_length()}),
-        label="(TBD)",
-        max_length=get_aux_metadata_max_length(),
-    )
-    height_in_cm = forms.IntegerField(
-        min_value=ImageModelConstants.MIN_IMAGE_CM_HEIGHT,
-        max_value=ImageModelConstants.MAX_IMAGE_CM_HEIGHT,
-        # This field is wonky with a NumberInput widget.
-        # Browser-side checking makes the value not submit if it thinks
-        # the input is erroneous, leading to our Ajax returning "This field is
-        # required" when the field actually is filled with an erroneous value.
-        # Only change this to NumberInput if we have a good solution for this
-        # issue.
-        widget=TextInput(attrs={'size': 10,}),
-    )
-    latitude = CharField(required=False, widget= TextInput(attrs={'size': 10,}))
-    longitude = CharField(required=False, widget= TextInput(attrs={'size': 10,}))
-    depth = CharField(required=False, widget= TextInput(attrs={'size': 10,}))
-    camera = CharField(required=False, widget= TextInput(attrs={'size': 10,}))
-    photographer = CharField(required=False, widget= TextInput(attrs={'size': 10,}))
-    water_quality = CharField(required=False, widget= TextInput(attrs={'size': 10,}))
-    strobes = CharField(required=False, widget= TextInput(attrs={'size': 10,}))
-    framing = CharField(required=False, widget= TextInput(attrs={'size': 16,}))
-    balance = CharField(required=False, widget= TextInput(attrs={'size': 16,}))
+    class Meta:
+        model = Metadata
+        fields = [
+            'photo_date', 'aux1', 'aux2', 'aux3', 'aux4', 'aux5',
+            'height_in_cm', 'latitude', 'longitude', 'depth',
+            'camera', 'photographer', 'water_quality',
+            'strobes', 'framing', 'balance',
+        ]
+        widgets = {
+            # This field is wonky with a NumberInput widget.
+            # Browser-side checking makes the value not submit
+            # if it thinks the input is erroneous, leading to
+            # our Ajax returning "This field is required" when the field
+            # actually is filled with an erroneous value.
+            # Only change this to NumberInput if we have a good solution
+            # for this issue.
+            'height_in_cm': TextInput(attrs={'size': 10,}),
+        }
 
     def __init__(self, *args, **kwargs):
         self.source_id = kwargs.pop('source_id')
-        super(MetadataForm,self).__init__(*args, **kwargs)
+        super(MetadataForm, self).__init__(*args, **kwargs)
         self.source = Source.objects.get(pk=self.source_id)
 
+        # Specify aux. fields' labels. These depend on the source,
+        # so this must be done during init.
         self.fields['aux1'].label = self.source.key1
         self.fields['aux2'].label = self.source.key2
         self.fields['aux3'].label = self.source.key3
         self.fields['aux4'].label = self.source.key4
         self.fields['aux5'].label = self.source.key5
 
-        # Apply labels and max-length attributes from the Metadata model to the
-        # form fields (besides the key fields, which we already did).
-        #
-        # This could be done automatically if this were a ModelForm instead of a
-        # regular Form. Whether a ModelForm makes things cleaner overall remains
-        # to be seen.
-        char_fields = ['latitude', 'longitude', 'depth', 'camera',
-                       'photographer', 'water_quality', 'strobes',
-                       'framing', 'balance']
-        editable_fields = ['photo_date', 'height_in_cm'] + char_fields
-
-        for field_name in editable_fields:
-            form_field = self.fields[field_name]
-            form_field.label = Metadata._meta.get_field(field_name).verbose_name
-
-        for field_name in char_fields:
-
-            form_field = self.fields[field_name]
-            max_length = Metadata._meta.get_field(field_name).max_length
-
-            # If we were setting the max length through the CharField's
-            # __init__(), we could probably just set field.max_length and be
-            # done.  But since we're past __init__(), we have to do a bit more
-            # manual work.
-
-            # Set a max-length validator.
-            #
-            # It seems that validators are shared among all instances of a
-            # form class, even if the validators are added dynamically. So to
-            # avoid adding duplicates of the same MaxLengthValidator, we'll
-            # first check if the field already has such a validator. If it
-            # does, we do nothing. If it doesn't, we add a MaxLengthValidator.
-            if not any([isinstance(v, validators.MaxLengthValidator)
-                        for v in form_field.validators]):
-                form_field.validators.append(
-                    validators.MaxLengthValidator(max_length)
-                )
-
-            # Make it impossible to type more than max_length characters in
-            # the HTML input element. (Impossible without something like
-            # Inspect Element HTML editing, that is)
-            form_field.widget.attrs.update({'maxlength': max_length})
-
-        # Change the order that the fields appear on the page.
-        # This field order should match the order of the table headers
-        # in the page template.
-        self.order_fields(
-            ['image_id', 'photo_date'] + get_aux_field_names()
-            + ['height_in_cm'] + char_fields)
+        # Specify fields' size attributes. This is done during init so that
+        # we can modify existing widgets, thus avoiding having to manually
+        # re-specify the widget class and attributes besides size.
+        field_sizes = dict(
+            photo_date=8,
+            aux1=10,
+            aux2=10,
+            aux3=10,
+            aux4=10,
+            aux5=10,
+            height_in_cm=10,
+            latitude=10,
+            longitude=10,
+            depth=10,
+            camera=10,
+            photographer=10,
+            water_quality=10,
+            strobes=10,
+            framing=16,
+            balance=16,
+        )
+        for field_name, field_size in field_sizes.items():
+            self.fields[field_name].widget.attrs['size'] = str(field_size)
 
 
 class MetadataImportForm(forms.ModelForm):

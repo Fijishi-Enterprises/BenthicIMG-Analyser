@@ -1,6 +1,7 @@
 import csv
 import json
 import urllib
+from django.forms import modelformset_factory
 
 from numpy import zeros, sum, linalg, logical_and, vectorize
 
@@ -11,13 +12,12 @@ from django.db import transaction
 from django.forms.formsets import formset_factory
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, render
-from django.utils.functional import curry
 
 from .forms import BrowseSearchForm, StatisticsSearchForm, ImageBatchDeleteForm, ImageSpecifyForm, ImageBatchDownloadForm
 from .utils import generate_patch_if_doesnt_exist, get_patch_url
 from accounts.utils import get_robot_user
 from annotations.models import Annotation, Label, LabelSet, LabelGroup
-from images.models import Source, Image
+from images.models import Source, Image, Metadata
 from images.tasks import *
 from images.utils import delete_image, get_aux_metadata_str_list_for_image, get_aux_labels, get_aux_field_names, update_filter_args_specifying_aux_metadata
 from lib.decorators import source_visibility_required, source_permission_required
@@ -59,15 +59,6 @@ def visualize_source(request, source_id):
     errors = []
     source = get_object_or_404(Source, id=source_id)
     metadata_view_available = request.user.has_perm(Source.PermTypes.EDIT.code, source)
-
-
-    # This is used to create a formset out of the metadataForm. I need to do this
-    # in order to pass in the source id.
-    # From http://stackoverflow.com/a/624013
-    metadataFormSet = formset_factory(MetadataForm)
-    metadataFormSet.form = staticmethod(curry(MetadataForm, source_id=source_id))
-    # There is a separate form that controls the checkboxes.
-    checkboxFormSet = formset_factory(CheckboxForm)
 
 
     # Based on submitted GET/POST data, find the following:
@@ -329,60 +320,59 @@ def visualize_source(request, source_id):
 
     if page_view == 'metadata':
 
-        # Get image statuses (needs annotation, etc.)
-
-        statuses = []
-        for image in all_items:
-            statuses.append(image.get_annotation_status_str)
+        # Formset of MetadataForms.
+        MetadataFormSet = modelformset_factory(Metadata, form=MetadataForm)
+        # Separate formset that controls the checkboxes.
+        CheckboxFormSet = formset_factory(CheckboxForm)
 
         # Initialize the form set with the existing metadata values.
+        # Ensure that each form gets the source id.
+        # TODO: Use natural sort.
+        metadata_objs = \
+            Metadata.objects.filter(image__in=all_items).order_by('name')
+        metadata_formset = MetadataFormSet(
+            queryset=metadata_objs,
+            form_kwargs={'source_id': source_id})
 
-        initValues = {
-            'form-TOTAL_FORMS': '%s' % len(all_items),
-            'form-INITIAL_FORMS': '%s' % len(all_items),
-        }
-        initValuesMetadata = initValues
-
-        metadata_field_names = [
-            'photo_date', 'aux1', 'aux2', 'aux3', 'aux4', 'aux5',
-            'height_in_cm', 'latitude', 'longitude', 'depth',
-            'camera', 'photographer', 'water_quality',
-            'strobes', 'framing', 'balance']
-
-        for i, image in enumerate(all_items):
-
-            # Image id
-            initValuesMetadata['form-%s-image_id' % i] = image.id
-
-            # Other fields
-            for metadata_field_name in metadata_field_names:
-                formset_field_name = 'form-{num}-{field}'.format(
-                    num=i, field=metadata_field_name)
-                initValuesMetadata[formset_field_name] = \
-                    getattr(image.metadata, metadata_field_name)
-
-        metadataForm = metadataFormSet(initValuesMetadata)
-        if metadataForm.forms:
+        # Get column headers for the metadata form display.
+        if metadata_formset.forms:
             metadata_form_headers = [
-                metadataForm.forms[0].fields[field_name].label
-                for field_name in metadata_field_names
+                metadata_formset.forms[0].fields[field_name].label
+                for field_name in MetadataForm.Meta.fields
             ]
         else:
             # No images, thus no forms to get headers from.
             # But in this case there should be no form displayed anyway.
             metadata_form_headers = None
 
-        checkboxForm = checkboxFormSet(initValues)
-        metadataFormWithExtra = zip(metadataForm.forms, checkboxForm.forms, all_items, statuses)
+        # Initialize the checkbox parts.
+        initValues = {
+            'form-TOTAL_FORMS': '%s' % len(all_items),
+            'form-INITIAL_FORMS': '%s' % len(all_items),
+        }
+        checkbox_formset = CheckboxFormSet(initValues)
+
+        # Get images and image statuses (needs annotation, etc.)
+        # in the same order as the metadata objects
+        imgs = [Image.objects.get(metadata=m) for m in metadata_objs]
+        statuses = [img.get_annotation_status_str() for img in imgs]
+        # Put all the formset table stuff together in an iterable
+        metadata_rows = zip(
+            metadata_formset.forms,
+            checkbox_formset.forms,
+            imgs,
+            statuses,
+        )
+
         selectAllCheckbox = CheckboxForm()
 
     else:
 
         # Not showing the metadata view.
 
-        metadataForm = None
+        metadata_formset = None
         metadata_form_headers = None
-        metadataFormWithExtra = None
+        metadata_rows = None
         selectAllCheckbox = None
 
 
@@ -412,10 +402,10 @@ def visualize_source(request, source_id):
         # TODO: Uncomment this once downloading is implemented
         #'has_download_form': bool(download_form),
 
-        'metadataForm': metadataForm,
+        'metadata_formset': metadata_formset,
         'metadata_form_headers': metadata_form_headers,
         'selectAllForm': selectAllCheckbox,
-        'metadataFormWithExtra': metadataFormWithExtra,
+        'metadata_rows': metadata_rows,
 
         'page_view': page_view,
     })
@@ -427,46 +417,18 @@ def metadata_edit_ajax(request, source_id):
     """
     Submitting the metadata-edit form (an Ajax form).
     """
-    source = get_object_or_404(Source, id=source_id)
-
-    # This is used to create a formset out of the metadataForm. I need to do this
-    # in order to pass in the source id.
-    MetadataFormSet = formset_factory(MetadataForm)
-    MetadataFormSet.form = staticmethod(curry(MetadataForm, source_id=source_id))
-
-    formset = MetadataFormSet(request.POST)
+    MetadataFormSet = modelformset_factory(Metadata, form=MetadataForm)
+    formset = MetadataFormSet(
+        request.POST, form_kwargs={'source_id': source_id})
 
     if formset.is_valid():
-
-        # Data is valid. Save the data to the database.
-        for formData in formset.cleaned_data:
-
-            try:
-                image = Image.objects.get(pk=formData['image_id'], source=source)
-            except Image.DoesNotExist:
-                # If the image doesn't exist in the source (because another
-                # source editor deleted the image / someone tampered with the
-                # form data / etc.), then just don't do anything for this
-                # form instance. Move on to the next one.
-                continue
-
-            field_names = [
-                'photo_date', 'height_in_cm', 'latitude', 'longitude',
-                'depth', 'camera', 'photographer', 'water_quality',
-                'strobes', 'framing', 'balance',
-                'aux1', 'aux2', 'aux3', 'aux4', 'aux5']
-
-            for field_name in field_names:
-                setattr(image.metadata, field_name, formData[field_name])
-
-            image.metadata.save()
-
+        # Save the edits
+        formset.save()
         return JsonResponse(dict(
             status='success',
         ))
-
     else:
-
+        # Don't save; display the errors on the page
         error_list = []
 
         for form in formset:
@@ -482,9 +444,8 @@ def metadata_edit_ajax(request, source_id):
 
                 # Get the image this field corresponds to, then get the
                 # name (usually is the filename) of that image.
-                image_id = form.data[form.prefix + '-image_id']
-                img = Image.objects.get(pk=image_id)
-                image_name = img.metadata.name
+                metadata = form.instance
+                image_name = metadata.name
                 if image_name == '':
                     image_name = "(Unnamed image)"
 

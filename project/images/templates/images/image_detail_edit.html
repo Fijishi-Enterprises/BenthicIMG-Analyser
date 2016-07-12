@@ -2,10 +2,6 @@
 
 {% block title %}Edit Image Details | CoralNet{% endblock %}
 
-{% block page-specific-includes %}
-  {{ imageDetailForm.media }} {# CSS and JS #}
-{% endblock %}
-
 {% block content %}
 
     <legend>Edit Image Details</legend>
@@ -13,22 +9,36 @@
     <form action="" method="post">{% csrf_token %}
       
       <fieldset>
-        <legend class="small">Date and Location Keys</legend>
-        <span class="helptext">This information can be used as search keys when you browse through your Source's images.</span>
-        {% include "form_generic.html" with form=imageDetailForm.fieldsets.keys %}
+        <legend class="small">Date and Auxiliary Metadata</legend>
+        {% include "form_generic_one_field.html" with field=metadata_form.photo_date %}
+        {% include "form_generic_one_field.html" with field=metadata_form.aux1 %}
+        {% include "form_generic_one_field.html" with field=metadata_form.aux2 %}
+        {% include "form_generic_one_field.html" with field=metadata_form.aux3 %}
+        {% include "form_generic_one_field.html" with field=metadata_form.aux4 %}
+        {% include "form_generic_one_field.html" with field=metadata_form.aux5 %}
       </fieldset>
 
       <fieldset>
         <legend class="small">Image Annotation</legend>
 
         <legend class="smaller">Actual Height</legend>
-        <span class="helptext">{{ imageDetailForm.height_in_cm.help_text|linebreaksbr }}</span>
-        {% include "form_generic_one_field.html" with field=imageDetailForm.height_in_cm dont_show_help_text="True" %}
+        <span class="helptext">{{ metadata_form.height_in_cm.help_text|linebreaksbr }}</span>
+        {% include "form_generic_one_field.html" with field=metadata_form.height_in_cm dont_show_help_text="True" %}
       </fieldset>
-        
+
       <fieldset>
         <legend class="small">Other Information</legend>
-        {% include "form_generic.html" with form=imageDetailForm.fieldsets.other_info %}
+        {% include "form_generic_one_field.html" with field=metadata_form.name %}
+        {% include "form_generic_one_field.html" with field=metadata_form.latitude %}
+        {% include "form_generic_one_field.html" with field=metadata_form.longitude %}
+        {% include "form_generic_one_field.html" with field=metadata_form.depth %}
+        {% include "form_generic_one_field.html" with field=metadata_form.camera %}
+        {% include "form_generic_one_field.html" with field=metadata_form.photographer %}
+        {% include "form_generic_one_field.html" with field=metadata_form.water_quality %}
+        {% include "form_generic_one_field.html" with field=metadata_form.strobes %}
+        {% include "form_generic_one_field.html" with field=metadata_form.framing %}
+        {% include "form_generic_one_field.html" with field=metadata_form.balance %}
+        {% include "form_generic_one_field.html" with field=metadata_form.comments %}
       </fieldset>
 
       <div class="submit_button_wrapper_column_form">

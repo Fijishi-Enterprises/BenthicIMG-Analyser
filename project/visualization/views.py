@@ -17,13 +17,16 @@ from .forms import BrowseSearchForm, StatisticsSearchForm, ImageBatchDeleteForm,
 from .utils import generate_patch_if_doesnt_exist, get_patch_url
 from accounts.utils import get_robot_user
 from annotations.models import Annotation, Label, LabelSet, LabelGroup
+from images.forms import MetadataFormForGrid
 from images.models import Source, Image, Metadata
 from images.tasks import *
 from images.utils import delete_image, get_aux_metadata_str_list_for_image, get_aux_labels, get_aux_field_names, update_filter_args_specifying_aux_metadata
 from lib.decorators import source_visibility_required, source_permission_required
-from upload.forms import MetadataForm, CheckboxForm
 
 # TODO: Move to utils
+from visualization.forms import CheckboxForm
+
+
 def image_search_args_to_queryset_args(searchDict, source):
     """
     Take the image search arguments directly from the visualization search form's
@@ -321,7 +324,8 @@ def visualize_source(request, source_id):
     if page_view == 'metadata':
 
         # Formset of MetadataForms.
-        MetadataFormSet = modelformset_factory(Metadata, form=MetadataForm)
+        MetadataFormSet = modelformset_factory(
+            Metadata, form=MetadataFormForGrid)
         # Separate formset that controls the checkboxes.
         CheckboxFormSet = formset_factory(CheckboxForm)
 
@@ -338,7 +342,7 @@ def visualize_source(request, source_id):
         if metadata_formset.forms:
             metadata_form_headers = [
                 metadata_formset.forms[0].fields[field_name].label
-                for field_name in MetadataForm.Meta.fields
+                for field_name in MetadataFormForGrid.Meta.fields
             ]
         else:
             # No images, thus no forms to get headers from.
@@ -417,7 +421,7 @@ def metadata_edit_ajax(request, source_id):
     """
     Submitting the metadata-edit form (an Ajax form).
     """
-    MetadataFormSet = modelformset_factory(Metadata, form=MetadataForm)
+    MetadataFormSet = modelformset_factory(Metadata, form=MetadataFormForGrid)
     formset = MetadataFormSet(
         request.POST, form_kwargs={'source_id': source_id})
 

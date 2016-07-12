@@ -1,5 +1,6 @@
 import json
 from django import forms
+from django.forms import Form
 from django.forms.fields import ChoiceField, BooleanField
 from django.forms.widgets import HiddenInput
 from annotations.models import LabelGroup, Label
@@ -312,3 +313,10 @@ class StatisticsSearchForm(forms.Form):
         self.fields['include_robot'] = BooleanField(required=False)
 
 
+class CheckboxForm(Form):
+    """
+    This is used in conjunction with MetadataFormForGrid;
+    but since the metadata form is rendered as a form set,
+    and we only want one select-all checkbox, this form exists.
+    """
+    selected = BooleanField(required=False)

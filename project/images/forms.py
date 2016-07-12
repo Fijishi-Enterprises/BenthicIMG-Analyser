@@ -2,10 +2,9 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.forms import Form, ModelForm
 from django.forms.fields import CharField, ChoiceField, FileField, IntegerField
-from django.forms.widgets import  Select, TextInput, NumberInput
-from .models import Source, Image, Metadata, SourceInvite
+from django.forms.widgets import Select, TextInput, NumberInput
+from .models import Source, Metadata, SourceInvite
 from .model_utils import PointGen
-from .utils import get_aux_metadata_form_choices, get_aux_metadata_max_length, get_num_aux_fields, get_aux_label, get_aux_field_name
 
 
 def validate_aux_meta_field_name(field_name):
@@ -189,112 +188,87 @@ class SourceInviteForm(Form):
         super(SourceInviteForm, self).clean()
 
 
-class ImageDetailForm(ModelForm):
+class MetadataForm(ModelForm):
+    """
+    Edit metadata of an image.
+    """
     class Meta:
         model = Metadata
         fields = [
-            'name', 'photo_date', 'latitude', 'longitude', 'depth',
-            'height_in_cm', 'camera', 'photographer', 'water_quality',
+            'name', 'photo_date', 'aux1', 'aux2', 'aux3', 'aux4', 'aux5',
+            'height_in_cm', 'latitude', 'longitude', 'depth',
+            'camera', 'photographer', 'water_quality',
             'strobes', 'framing', 'balance', 'comments',
-            'aux1', 'aux2', 'aux3', 'aux4', 'aux5',
         ]
-        widgets = {
-            'height_in_cm': NumberInput(attrs={'size': 3}),
-            'longitude': TextInput(attrs={'size': 10}),
-            'latitude': TextInput(attrs={'size': 10}),
-            'depth': TextInput(attrs={'size': 10}),
-        }
-
-    class Media:
-        js = (
-            # Collected from app-specific static directory
-            "js/ImageDetailFormHelper.js",
-        )
 
     def __init__(self, *args, **kwargs):
-        """
-        Dynamically generate the labels for the location value
-        fields (the labels should be the Source's location keys).
-        Remove value fields that aren't used by this source.
-        """
-        source = kwargs.pop('source')
-        super(ImageDetailForm, self).__init__(*args, **kwargs)
+        self.source_id = kwargs.pop('source_id')
+        super(MetadataForm, self).__init__(*args, **kwargs)
+        self.source = Source.objects.get(pk=self.source_id)
 
-        valueFields = []
+        # Specify aux. fields' labels. These depend on the source,
+        # so this must be done during init.
+        self.fields['aux1'].label = self.source.key1
+        self.fields['aux2'].label = self.source.key2
+        self.fields['aux3'].label = self.source.key3
+        self.fields['aux4'].label = self.source.key4
+        self.fields['aux5'].label = self.source.key5
 
-        for n in range(1, get_num_aux_fields()+1):
-            aux_label = get_aux_label(source, n)
-            aux_field_name = get_aux_field_name(n)
+        # Specify fields' size attributes. This is done during init so that
+        # we can modify existing widgets, thus avoiding having to manually
+        # re-specify the widget class and attributes besides size.
+        field_sizes = dict(
+            photo_date=8,
+            aux1=10,
+            aux2=10,
+            aux3=10,
+            aux4=10,
+            aux5=10,
+            height_in_cm=10,
+            latitude=10,
+            longitude=10,
+            depth=10,
+            camera=10,
+            photographer=10,
+            water_quality=10,
+            strobes=10,
+            framing=16,
+            balance=16,
+        )
+        for field_name, field_size in field_sizes.items():
+            self.fields[field_name].widget.attrs['size'] = str(field_size)
 
-            # Create a choices iterable of all of this Source's values as
-            # well as an 'Other' value
+
+class MetadataFormForGrid(MetadataForm):
+    """
+    Metadata form which is used in the metadata-edit grid view.
+    """
+    class Meta:
+        model = Metadata
+        # No comments field, because that may be a bit large for a grid view.
+        #
+        # No name field, because... well, not sure. Seems tricky for the user
+        # to keep track of if they can rename images AND edit their metadata.
+        # And if we enforce no name dupes, can be tricky to enforce it with
+        # a bulk edit.
+        fields = [
+            'photo_date', 'aux1', 'aux2', 'aux3', 'aux4', 'aux5',
+            'height_in_cm', 'latitude', 'longitude', 'depth',
+            'camera', 'photographer', 'water_quality',
+            'strobes', 'framing', 'balance',
+        ]
+        widgets = {
+            # Our metadata-edit grid Javascript is wonky with a
+            # NumberInput widget.
             #
-            # Not sure why I need to specify the '' choice here;
-            # I thought required=False for the ChoiceField would
-            # automatically create this... -Stephen
-            choices = [('', '(None)')]
-            choices += get_aux_metadata_form_choices(source, n)
-            choices.append(('Other', 'Other (Specify)'))
-
-            self.fields[aux_field_name] = ChoiceField(
-                choices,
-                label=aux_label,
-                required=False,
-            )
-
-            # Add a text input field for specifying the Other choice
-            self.fields[aux_field_name+'_other'] = CharField(
-                label='Other',
-                max_length=get_aux_metadata_max_length(),
-                required=False,
-            )
-
-            valueFields += [aux_field_name, aux_field_name+'_other']
-
-        # For use in templates.
-        # Can iterate over fieldsets instead of the entire form.
-        self.fieldsets = {
-            'keys': [self[name] for name in (['photo_date'] + valueFields)],
-            'other_info': [self[name] for name in [
-                'name', 'latitude', 'longitude', 'depth',
-                'camera', 'photographer', 'water_quality', 'strobes',
-                'framing', 'balance', 'comments']
-            ],
+            # Browser-side checking makes the value not submit
+            # if it thinks the input is erroneous, leading to
+            # our Ajax returning "This field is required" when the field
+            # actually is filled with an erroneous value.
+            # Only change this to NumberInput if we have a good solution
+            # for this issue.
+            'height_in_cm': TextInput(attrs={'size': 10,}),
         }
-
-    def clean(self):
-        """
-        1. Handle the location values.
-        2. Call the parent's clean() to finish up with the default behavior.
-        """
-        data = self.cleaned_data
-
-        image = Image.objects.get(metadata=self.instance)
-        source = image.source
-
-        # Right now, the valueN field's value is the integer id
-        # of a ValueN object. We want the ValueN object.
-        for n in range(1, get_num_aux_fields()+1):
-            aux_label = get_aux_label(source, n)
-            aux_field_name = get_aux_field_name(n)
-
-            if not data[aux_field_name] == 'Other':
-                continue
-
-            # "Other" was chosen.
-            otherValue = data[aux_field_name+'_other']
-            if not otherValue:
-                # Error
-                error_message = (
-                    "Since you selected Other, you must use this text box"
-                    " to specify the {aux_label}.".format(
-                        aux_label=aux_label))
-                self.add_error(aux_field_name+'_other', error_message)
-            else:
-                data[aux_field_name] = otherValue
-            
-        self.cleaned_data = data
-        super(ImageDetailForm, self).clean()
 
 
 class PointGenForm(Form):

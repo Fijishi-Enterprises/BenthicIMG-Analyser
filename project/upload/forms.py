@@ -1,12 +1,12 @@
 from django import forms
-from django.core import validators
 from django.core.exceptions import ValidationError
-from django.forms import ImageField, Form, ChoiceField, FileField, CharField, BooleanField, DateField
-from django.forms.widgets import FileInput, TextInput
+from django.forms import ImageField, Form, ChoiceField, FileField, CharField
+from django.forms.widgets import FileInput
 from django.utils.translation import ugettext_lazy as _
-from images.utils import get_aux_metadata_max_length, get_num_aux_fields, get_aux_label, get_aux_labels, get_aux_field_name, get_aux_field_names
+from images.utils import get_aux_metadata_max_length, get_num_aux_fields, get_aux_label, get_aux_labels, get_aux_field_name
 from upload.utils import metadata_to_filename
-from images.models import Source, Metadata, ImageModelConstants
+from images.models import Source, Metadata
+
 
 class MultipleFileInput(FileInput):
     """
@@ -242,84 +242,14 @@ class AnnotationImportOptionsForm(Form):
 
         return self.cleaned_data[field_name]
 
-class CheckboxForm(Form):
-    """
-    This is used in conjunction with the metadataForm; but since the metadata form is rendered as
-    a form set, and I only want one select all checkbox, this form exists.
-    """
-    selected = BooleanField(required=False)
-
-class MetadataForm(forms.ModelForm):
-    """
-    This form is used to edit the metadata of an image within a source.
-
-    This is commonly used within a form set, so that multiple images can
-    be edited at once.
-    """
-    class Meta:
-        model = Metadata
-        fields = [
-            'photo_date', 'aux1', 'aux2', 'aux3', 'aux4', 'aux5',
-            'height_in_cm', 'latitude', 'longitude', 'depth',
-            'camera', 'photographer', 'water_quality',
-            'strobes', 'framing', 'balance',
-        ]
-        widgets = {
-            # This field is wonky with a NumberInput widget.
-            # Browser-side checking makes the value not submit
-            # if it thinks the input is erroneous, leading to
-            # our Ajax returning "This field is required" when the field
-            # actually is filled with an erroneous value.
-            # Only change this to NumberInput if we have a good solution
-            # for this issue.
-            'height_in_cm': TextInput(attrs={'size': 10,}),
-        }
-
-    def __init__(self, *args, **kwargs):
-        self.source_id = kwargs.pop('source_id')
-        super(MetadataForm, self).__init__(*args, **kwargs)
-        self.source = Source.objects.get(pk=self.source_id)
-
-        # Specify aux. fields' labels. These depend on the source,
-        # so this must be done during init.
-        self.fields['aux1'].label = self.source.key1
-        self.fields['aux2'].label = self.source.key2
-        self.fields['aux3'].label = self.source.key3
-        self.fields['aux4'].label = self.source.key4
-        self.fields['aux5'].label = self.source.key5
-
-        # Specify fields' size attributes. This is done during init so that
-        # we can modify existing widgets, thus avoiding having to manually
-        # re-specify the widget class and attributes besides size.
-        field_sizes = dict(
-            photo_date=8,
-            aux1=10,
-            aux2=10,
-            aux3=10,
-            aux4=10,
-            aux5=10,
-            height_in_cm=10,
-            latitude=10,
-            longitude=10,
-            depth=10,
-            camera=10,
-            photographer=10,
-            water_quality=10,
-            strobes=10,
-            framing=16,
-            balance=16,
-        )
-        for field_name, field_size in field_sizes.items():
-            self.fields[field_name].widget.attrs['size'] = str(field_size)
-
 
 class MetadataImportForm(forms.ModelForm):
     """
     Form used to import metadata from CSV.
 
-    This need not be completely different from MetadataForm, which is used
-    to edit metadata in a formset. Perhaps there is enough overlap in these
-    forms' functionality that they can share fields/attributes in a
+    This need not be completely different from MetadataFormForGrid, which is
+    used to edit metadata in a formset. Perhaps there is enough overlap in
+    these forms' functionality that they can share fields/attributes in a
     superclass.
     """
     class Meta:

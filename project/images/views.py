@@ -8,15 +8,14 @@ from django.contrib.auth.models import User
 from django.contrib import messages
 from django.core.urlresolvers import reverse
 from django.forms import ValidationError
-from django.forms.models import model_to_dict
 from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponseRedirect, HttpResponse
 from django.utils import timezone
 
 from . import utils
-from .forms import *
+from .forms import ImageSourceForm, LabelImportForm, MetadataForm, PointGenForm, SourceChangePermissionForm, SourceInviteForm, SourceRemoveUserForm
 from .model_utils import PointGen
-from .models import Source, Image, SourceInvite
+from .models import Source, Image, SourceInvite, Metadata
 from .tasks import *
 from .utils import get_date_and_aux_metadata_table
 from annotations.forms import AnnotationAreaPercentsForm
@@ -446,7 +445,6 @@ def invites_manage(request):
     })
 
 
-
 def image_detail_helper(image_id):
     """
         package the request form for image_details()
@@ -455,24 +453,19 @@ def image_detail_helper(image_id):
     source = image.source
     metadata = image.metadata
 
-    # Get the metadata fields (including the right no. of keys for the source)
-    # and organize into fieldsets.  The image detail form already has this
-    # logic, so let's just borrow the form's functionality...
-    imageDetailForm = ImageDetailForm(source=source, initial=model_to_dict(metadata))
-    fieldsets = imageDetailForm.fieldsets
-
-    # ...But we don't need the form's "Other" value fields.
-    # (Code note: [:] creates a copy of the list, so we're not iterating over the same list we're removing things from)
-    for field in fieldsets['keys'][:]:
-        if field.name.endswith('_other'):
-            fieldsets['keys'].remove(field)
-
-    detailsets = dict()
-    for key, fieldset in fieldsets.items():
-        detailsets[key] = [dict(label=field.label,
-                                name=field.name,
-                                value=getattr(metadata, field.name))
-                         for field in fieldset]
+    other_fields = [
+        dict(
+            name=field_name,
+            # Field's verbose name in title case (name -> Name)
+            label=Metadata._meta.get_field(field_name).verbose_name.title(),
+            value=getattr(metadata, field_name),
+        )
+        for field_name in [
+            'name', 'latitude', 'longitude', 'depth',
+            'camera', 'photographer', 'water_quality', 'strobes',
+            'framing', 'balance', 'comments',
+        ]
+    ]
 
     # Feel free to change this constant according to the page layout.
     MAX_SCALED_WIDTH = 800
@@ -503,7 +496,7 @@ def image_detail_helper(image_id):
             'prev_image': prev_image,
             'metadata': metadata,
             'image_meta_table': get_date_and_aux_metadata_table(image),
-            'detailsets': detailsets,
+            'other_fields': other_fields,
             'has_thumbnail': bool(thumbnail_dimensions),
             'thumbnail_dimensions': thumbnail_dimensions,
             'annotation_status': annotation_status,
@@ -562,6 +555,7 @@ def image_detail(request, image_id):
         image_detail_helper(image_id)
     )
 
+
 @image_permission_required('image_id', perm=Source.PermTypes.EDIT.code)
 def image_detail_edit(request, image_id):
     """
@@ -583,10 +577,11 @@ def image_detail_edit(request, image_id):
             return HttpResponseRedirect(reverse('image_detail', args=[image.id]))
 
         # Submit
-        imageDetailForm = ImageDetailForm(request.POST, instance=metadata, source=source)
+        metadata_form = MetadataForm(
+            request.POST, instance=metadata, source_id=source.pk)
 
-        if imageDetailForm.is_valid():
-            editedMetadata = imageDetailForm.instance
+        if metadata_form.is_valid():
+            editedMetadata = metadata_form.instance
             editedMetadata.save()
 
             if editedMetadata.height_in_cm != old_height_in_cm:
@@ -598,12 +593,12 @@ def image_detail_edit(request, image_id):
             messages.error(request, 'Please correct the errors below.')
     else:
         # Just reached this form page
-        imageDetailForm = ImageDetailForm(instance=metadata, source=source)
+        metadata_form = MetadataForm(instance=metadata, source_id=source.pk)
 
     return render(request, 'images/image_detail_edit.html', {
         'source': source,
         'image': image,
-        'imageDetailForm': imageDetailForm,
+        'metadata_form': metadata_form,
     })
 
 

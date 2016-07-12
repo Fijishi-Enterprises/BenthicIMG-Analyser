@@ -220,6 +220,8 @@ How to make PyCharm find everything:
 
 - Go to the Project Structure settings and mark ``project`` as a Sources directory (`Help <https://www.jetbrains.com/help/pycharm/2016.1/configuring-folders-within-a-content-root.html>`__). This is one way to make PyCharm recognize imports of our apps, such as ``annotations.models``. (There may be other ways.)
 
+- Go to the Python Template Languages settings. Under Template directories, add one entry for each ``templates`` subdirectory in the repository.
+
 How to make a Run Configuration that runs ``manage.py runserver`` from PyCharm:
 
 - Run -> Edit Configurations..., then make a new configuration under "Django server".

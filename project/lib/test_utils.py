@@ -1,12 +1,16 @@
 # Utility classes and functions for tests.
 import datetime
+from io import BytesIO
 import json
 import os
 import posixpath
-import urlparse
 import pytz
+import random
+import urlparse
+from PIL import Image as PILImage
 from django.contrib.auth import get_user_model
 from django.core import mail, management
+from django.core.files.base import ContentFile
 from django.core.files.storage import get_storage_class
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -516,11 +520,13 @@ class ClientTest(BaseTest):
         is_uploading_annotations_not_just_points='no',
     )
     @classmethod
-    def upload_image_new(cls, user, source, **options):
+    def upload_image_new(cls, user, source, image_options=None, **options):
         """
         Upload a data image.
         :param user: User to upload as.
         :param source: Source to upload to.
+        :param image_options: Dict of options for the image file.
+            Accepted keys: filetype, and whatever create_sample_image() takes.
         :param options: Other params to POST into the image upload form.
         :return: The new image.
         """
@@ -530,21 +536,30 @@ class ClientTest(BaseTest):
         post_dict.update(cls.image_upload_defaults)
         post_dict.update(options)
 
-        # TODO: Use auto-generated simple images rather than relying on
-        # a sample uploadables folder.
-        filepath = os.path.join(settings.SAMPLE_UPLOADABLES_ROOT,
-            'data', '001_2012-05-01_color-grid-001.png')
-        with open(filepath, 'rb') as f:
-            post_dict['file'] = f
-            cls.client.force_login(user)
-            response = cls.client.post(
-                reverse('image_upload_ajax', kwargs={'source_id': source.id}),
-                post_dict,
-            )
-            cls.client.logout()
+        # Get an in-memory PIL image
+        image_options = image_options or dict()
+        filetype = image_options.pop('filetype', 'PNG')
+        filename = "file_{count}.{filetype}".format(
+            count=cls.image_count, filetype=filetype.lower())
+        im = create_sample_image(**image_options)
+
+        with BytesIO() as stream:
+            # Save the PIL image to an IO stream
+            im.save(stream, filetype)
+            # Convert to a file-like object, and use that in the upload form
+            # http://stackoverflow.com/a/28209277/
+            post_dict['file'] = ContentFile(stream.getvalue(), name=filename)
+
+        # Send the upload form
+        cls.client.force_login(user)
+        response = cls.client.post(
+            reverse('image_upload_ajax', kwargs={'source_id': source.id}),
+            post_dict,
+        )
+        cls.client.logout()
 
         response_json = response.json()
-        image_id = response_json.get('image_id', None)
+        image_id = response_json['image_id']
         image = Image.objects.get(pk=image_id)
         return image
 
@@ -765,3 +780,72 @@ class StorageChecker(object):
         # during that same test run. Not sure how it is on Linux, but
         # overall it seems like directory cleanup is more trouble than
         # it's worth.
+
+
+def create_sample_image(width=200, height=200, cols=10, rows=10):
+    """
+    Create a test image. The image content is a color grid.
+    Optionally specify pixel width/height, and the color grid cols/rows.
+    Colors are interpolated along the grid with randomly picked color ranges.
+
+    Return as an in-memory PIL image.
+    """
+    # Randomly choose one RGB color component to vary along x, one to vary
+    # along y, and one to stay constant.
+    x_varying_component = random.choice([0, 1, 2])
+    y_varying_component = random.choice(list(
+        {0, 1, 2} - {x_varying_component}))
+    const_component = list(
+        {0, 1, 2} - {x_varying_component, y_varying_component})[0]
+    # Randomly choose the ranges of colors.
+    x_min_color = random.choice([0.0, 0.1, 0.2, 0.3])
+    x_max_color = random.choice([0.7, 0.8, 0.9, 1.0])
+    y_min_color = random.choice([0.0, 0.1, 0.2, 0.3])
+    y_max_color = random.choice([0.7, 0.8, 0.9, 1.0])
+    const_color = random.choice([0.3, 0.4, 0.5, 0.6, 0.7])
+
+    col_width = width / float(cols)
+    row_height = height / float(rows)
+    min_rgb = 0
+    max_rgb = 255
+
+    im = PILImage.new('RGB', (width,height))
+
+    const_color_value = int(round(
+        const_color*(max_rgb - min_rgb) + min_rgb
+    ))
+
+    for x in range(cols):
+
+        left_x = int(round(x*col_width))
+        right_x = int(round((x+1)*col_width))
+
+        x_varying_color_value = int(round(
+            (x/float(cols))*(x_max_color - x_min_color)*(max_rgb - min_rgb)
+            + (x_min_color*min_rgb)
+        ))
+
+        for y in range(rows):
+
+            upper_y = int(round(y*row_height))
+            lower_y = int(round((y+1)*row_height))
+
+            y_varying_color_value = int(round(
+                (y/float(rows))*(y_max_color - y_min_color)*(max_rgb - min_rgb)
+                + (y_min_color*min_rgb)
+            ))
+
+            color_dict = {
+                x_varying_component: x_varying_color_value,
+                y_varying_component: y_varying_color_value,
+                const_component: const_color_value,
+            }
+
+            # The dict's keys should be the literals 0, 1, and 2.
+            # We interpret these as R, G, and B respectively.
+            rgb_color = (color_dict[0], color_dict[1], color_dict[2])
+
+            # Write the RGB color to the range of pixels.
+            im.paste(rgb_color, (left_x, upper_y, right_x, lower_y))
+
+    return im

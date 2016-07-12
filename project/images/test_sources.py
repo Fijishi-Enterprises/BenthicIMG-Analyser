@@ -505,11 +505,10 @@ class ImageViewTest(ClientTest):
         cls.source = cls.create_source(cls.user)
 
         # Upload a small image and a large image
-        # TODO: Ensure the images are actually small and large respectively.
-        # This image upload utility function needs a way to customize the
-        # image contents.
-        cls.small_image = cls.upload_image_new(cls.user, cls.source)
-        cls.large_image = cls.upload_image_new(cls.user, cls.source)
+        cls.small_image = cls.upload_image_new(
+            cls.user, cls.source, image_options=dict(width=400, height=400))
+        cls.large_image = cls.upload_image_new(
+            cls.user, cls.source, image_options=dict(width=1600, height=1600))
 
     def test_view_page_with_small_image(self):
         url = reverse('image_detail', kwargs={'image_id': self.small_image.id})

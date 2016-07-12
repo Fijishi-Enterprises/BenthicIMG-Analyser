@@ -218,9 +218,8 @@ def source_main(request, source_id):
 @source_permission_required('source_id', perm=Source.PermTypes.ADMIN.code)
 def source_edit(request, source_id):
     """
-    Edit a source: name, visibility, location keys, etc.
+    Edit a source: name, visibility, aux. metadata, etc.
     """
-
     source = get_object_or_404(Source, id=source_id)
 
     if request.method == 'POST':

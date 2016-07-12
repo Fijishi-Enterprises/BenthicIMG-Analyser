@@ -2,17 +2,17 @@
 
 {% block content %}
     <h2>Sources</h2>
-    <p>A Source is CoralNet's name for a coral analysis project.
-       Generally, a Source will contain all of a research group's coral images from a particular world location.
-       Images are organized by their specific location and date. That way, you can compare annotation statistics from the same location between different years.</p>
+
+    <p>A Source is CoralNet's name for a coral analysis project.</p>
 
     <p>To get started, create a Source or get invited to a Source. You can choose to make your Source public or private.
        Once you have a Source, you'll create a labelset, which is the set of labels that you'll use to annotate your images.
        Image annotation means identifying points of the image: as Acropora coral, Porites coral, algae, and so on.</p>
     
     <p>Once you have a Source and labelset, you can upload images and start annotating them, using our in-browser annotation tool.
-       You can also upload both images and annotations if you have already annotated your images.
-       Then, you can view annotation statistics on your Source or a subset of images: how much Porites there was in 2009, the trend of coral numbers from 2008 to 2009, and so on.</p>
+       You can also upload pre-existing annotations.
+       Then, you can view annotation statistics on your entire Source or a subset of images. You can filter or aggregate images by image date and up to 5 custom metadata fields that you define.</p>
+
     {% if user_status == 'has_sources' %}
     <p><a href="{% url 'source_list' %}">See your Sources</a>.</p>
     {% endif %}

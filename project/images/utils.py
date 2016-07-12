@@ -408,7 +408,7 @@ def get_random_public_images():
     return random_image_list
 
 
-# Functions to encapsulate the auxiliary metadata / location value
+# Functions to encapsulate the auxiliary metadata
 # field details.
 
 def get_aux_label_field_name(aux_field_number):

@@ -413,7 +413,7 @@ class ImageDeleteTest(ClientTest):
 
     def test_delete_by_location_value(self):
         """
-        Delete images of a particular location value.
+        Delete images by aux. meta.
         """
         self.client.login(username='user2', password='secret')
         url = reverse('browse_delete', kwargs=dict(source_id=self.source_id))

@@ -515,7 +515,7 @@ def browse_delete(request, source_id):
 
     # Redirect to the default search. Don't try and retrieve the search args
     # that were used previously, because those search args might include
-    # location values that don't exist anymore.
+    # aux. meta values that don't exist anymore.
     return HttpResponseRedirect(reverse('visualize_source', args=[source_id]))
 
 

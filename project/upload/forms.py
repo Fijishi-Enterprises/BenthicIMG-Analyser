@@ -267,8 +267,8 @@ class MetadataImportForm(forms.ModelForm):
         self.source = Source.objects.get(pk=source_id)
         self.save_new_values = save_new_values
 
-        # Replace location value fields to make them CharFields instead of
-        # ModelChoiceFields. Also, remove location value fields that
+        # Replace aux. meta fields to make them CharFields instead of
+        # ModelChoiceFields. Also, remove aux. meta fields that
         # the source doesn't need.
         #
         # The main reason we still specify the value fields in Meta.fields is

@@ -220,11 +220,13 @@ Open the config file: ``vim /etc/automysqlbackup/automysqlbackup.conf``. Uncomme
   
 - Single-transaction must be no, because we have MyISAM tables. This means that backups could be inconsistent, but the alternative is to read-lock the tables during backup, which is bad for site availability.
 
-Check ``/etc/cron.daily`` to see if it contains an ``automysqlbackup`` executable. If so, you should be good to go; the backups should run daily, and during that daily run, the weekly/monthly config rules should be respected as well.
+You can invoke the backup manually as a test: ``sudo automysqlbackup``
 
-- You can check ``/etc/crontab`` to see what time of the day it runs.
+Check ``/etc/cron.daily`` to ensure it contains an ``automysqlbackup`` executable.
 
-- You can also invoke the backup manually: ``automysqlbackup``
+Open the root-cronjob file: ``sudo crontab -e``. Add a line with the command ``automysqlbackup``. Example of running at 4 AM every day: ``0 4 * * * automysqlbackup``
+
+Now you should be good to go; the backups should run daily, and during that daily run, the weekly/monthly config rules should be respected as well.
 
 
 Python

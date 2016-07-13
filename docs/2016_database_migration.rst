@@ -222,3 +222,27 @@ To apply the ``reversion`` migrations:
 - Now you can see with ``manage.py showmigrations`` that the ``reversion`` migration numbers have changed. Fake-run 0001, then run 0002.
 
 At this point, it's a good idea to make another snapshot of the RDS instance.
+
+
+File transfer to AWS S3
+-----------------------
+
+SSH into an EC2 instance. Mount the CoralNet alpha server's filesystem using SSHFS.
+
+- ``sudo apt-get install sshfs``
+- ``sudo mkdir /mnt/cnalpha``
+- ``sudo sshfs <username>@<alpha server host>/ /mnt/cnalpha`` to mount the root of the alpha server's filesystem at ``/mnt/cnalpha``.
+
+Install and configure the AWS command line interface.
+
+- ``sudo apt-get install awscli``
+- ``aws configure`` - When prompted, be sure to specify an access key that has access to the desired S3 bucket.
+
+You can sync small directories with the ``aws s3 sync`` command. For example: ``sudo aws s3 sync /mnt/cnalpha/path/to/media/label_thumbnails s3://<bucket-name>/media/labels``
+
+Unfortunately, the ``aws s3 sync`` command seems to hang without transferring anything when it comes to large directories. (`Related GitHub issue <https://github.com/aws/aws-cli/issues/1775>`__)
+Instead, use the ``scripts/s3_sync.py`` script in our repository to transfer the files. For example: ``sudo python path/to/s3_sync.py /mnt/cnalpha/path/to/media/data/original s3://<bucket-name>/media/images``. This script basically loops over the files and copies them one by one using ``aws s3 cp``.
+
+The script has a ``--filter`` option that allows you to try transferring just a subset of images. For example, to transfer all files whose filenames start with ``00``, run: ``sudo python path/to/s3_sync.py <src> <dest> --filter "00.*"``
+
+The process can be run in the background, and should not be interrupted even if you close your SSH session (despite SSHFS being used). When finished, a summary .txt file should be written, so you can see the number of files copied, time elapsed, etc. For us, the transfer of 1.2 TB of 600k image files would take about 15.5 days.

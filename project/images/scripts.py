@@ -285,8 +285,13 @@ def find_duplicate_imagenames():
     for source in Source.objects.filter():
         if not source.all_image_names_are_unique():
             print '==== Source {}[{}] ===='.format(source.name, source.id)
+            dupes = 0
             for image in source.get_all_images().filter(metadata__name__in = source.get_nonunique_image_names()):
-                print image.id, image.metadata.name
+                #print image.id, image.metadata.name
+                example = image.metadata.name
+                dupes += 1
+            total = source.get_all_images().count()
+            print('{}/{} - Example: {}'.format(dupes, total, example))
 
 
 

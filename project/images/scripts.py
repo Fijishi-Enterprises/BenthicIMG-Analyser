@@ -5,6 +5,8 @@ This file contains scripts that are not part of the main production server. But 
 from images.models import Point, Image, Source, Robot
 from annotations.models import Annotation
 import os
+import re
+import subprocess
 import numpy as np
 from django.conf import settings
 from datetime import datetime
@@ -292,6 +294,58 @@ def find_duplicate_imagenames():
                 dupes += 1
             total = source.get_all_images().count()
             print('{}/{} - Example: {}'.format(dupes, total, example))
+
+
+def move_unused_image_files(dry_run=False):
+    # TODO: This code is for the alpha server.
+    # Change it to work with the beta server when appropriate.
+    # Also make this into a management command.
+
+    print("Checking the DB to see which filenames are in use...")
+    filepaths_in_use_list = \
+        Image.objects.all().values_list('original_file', flat=True)
+    # We have a list of relative filepaths from the base media directory.
+    # Get a set of filenames only (no directories).
+    filenames_in_use = \
+        {os.path.split(filepath)[-1] for filepath in filepaths_in_use_list}
+
+    image_files_dir = os.path.join(settings.MEDIA_ROOT, 'data/original')
+    unused_image_files_dir = '/unused_images'
+    dot_number_regex = re.compile(r'\.\d')
+    unused_image_count = 0
+    checked_image_count = 0
+
+    print("Checking the image files dir...")
+    for filename in os.listdir(image_files_dir):
+        checked_image_count += 1
+
+        if filename in filenames_in_use:
+            # Base image, in use
+            continue
+
+        # Example thumbnail filename: a1b2c3d4e5.jpg.150x150_q85.jpg
+        # The base image filename comes before the first instance of
+        # a dot followed by a number (.1 in this case).
+        match = re.search(dot_number_regex, filename)
+        if match:
+            # Thumbnail image
+            base_filename = filename[:(match.span()[0])]
+            if base_filename in filenames_in_use:
+                # In use
+                continue
+
+        # Filename is not in use; move it to the unused image files dir.
+        unused_image_count += 1
+        src_filepath = os.path.join(image_files_dir, filename)
+
+        print("Moving {filename} ({unused} unused / {checked} checked)".format(
+            filename=filename,
+            unused=unused_image_count,
+            checked=checked_image_count,
+        ))
+        if not dry_run:
+            subprocess.call(
+                ['sudo', 'mv', src_filepath, unused_image_files_dir])
 
 
 

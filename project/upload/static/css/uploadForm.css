@@ -101,7 +101,7 @@ div#upload_summary_section {
     min-width: 60px;
 }
 
-#files_table tr.preupload_possible_dupe td.status_cell a{
+#files_table tr.preupload_dupe td.status_cell a{
     color: green;
 }
 #files_table tr.preupload_error{

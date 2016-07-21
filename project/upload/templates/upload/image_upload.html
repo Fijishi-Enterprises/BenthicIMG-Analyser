@@ -6,8 +6,6 @@
 
 {% block js-includes %}
     {% include "javascript-includes.html" with jquery_form="yes" jquery_ui="yes" %}
-    {# Remnants of an attempt at a progress bar... #}
-{#    {% include "javascript-includes.html" with jquery_form="yes" jquery_ui="yes" jquery_progressbar="yes" %}#}
 {% endblock %}
 
 {% block page-specific-includes %}
@@ -17,168 +15,82 @@
 
 {% block content %}
 
-    <legend>Upload Images</legend>
-	For an overview of how to upload images to CoralNet, refer to our <a href="http://vimeo.com/album/3015579">Upload Instructions</a> album on Vimeo.
-    <div class="narrow_column">
+  <legend>Upload Images</legend>
 
-        <form id="upload_options_form" action="" method="post" enctype="multipart/form-data">{% csrf_token %}
-            <legend class="small">Options</legend>
-            {% include "form_generic.html" with form=options_form dont_mark_required="yes" %}
+  <div class="narrow_column">
+
+    <div class="page_section" id="auto_generate_points_page_section">
+      <span class="helptext">{{ auto_generate_points_message|linebreaksbr }}</span>
+    </div>
+
+    <div class="page_section">
+
+      {% comment %}
+      The images_form's multi-file field is only used to let the user pick
+      files to upload. This form isn't directly submitted via Ajax, because we
+      want to submit files one by one.
+      {% endcomment %}
+      {% include "form_generic.html" with form=images_form dont_mark_required="yes" %}
+
+      <div id="upload_summary_section">
+
+        <span id="upload_start_info"></span>
+        <hr>
+
+        <span id="pre_upload_summary"></span>
+
+        <div id="files_table_auto_scroll_checkbox_container">
+            <input type="checkbox" id="files_table_auto_scroll_checkbox" checked="checked">
+            <label for="files_table_auto_scroll_checkbox">Auto-scroll to the currently uploading file</label>
+        </div>
+
+        {# Table showing the files selected for upload. #}
+        <div id="files_table_container">
+            <table id="files_table"></table>
+        </div>
+
+        <span id="mid_upload_summary"></span>
+      </div>
+
+
+      <div id="upload_and_proceed_buttons">
+
+        {# start/abort upload #}
+        <button type="button" class="submit" id="id_upload_submit" disabled="disabled">Start upload</button>
+        <button type="button" class="submit" id="id_upload_abort_button" disabled="disabled">Abort upload</button>
+
+        {# start another upload #}
+        <form action="" method="get" id="id_start_another_upload_form" class="inline">
+            <input type="submit" value="Upload more images" id="id_start_another_upload_button" />
+            <p class="helptext_small">Upload another set of images.</p>
         </form>
 
-        <form id="csv_form" action="" method="post" enctype="multipart/form-data">{% csrf_token %}
-            {% with field=csv_import_form.csv_file %}
-                {# The field label #}
-                <label for="{{ field.id_for_label }}" class="column_form_text_field">
-                    {{ field.label }}:
-                </label>
+        {# proceed to the page where you manage image metadata #}
+        <form action="{% url 'visualize_source' source.id %}" method="post"
+              id="id_proceed_to_manage_metadata_form" class="inline">{% csrf_token %}
 
-                <div class="field_wrapper">
-                    {# The file field element #}
-                    {{ field }}
+            {% for field in proceed_to_manage_metadata_form %}
+                {{ field }}
+            {% endfor %}
 
-                    <button type="button" class="submit" id="csv_file_process_button">Re-process file</button>
-
-                    {# Result of csv file processing #}
-                    <div id="csv_file_status" class="helptext_small"></div>
-
-                    {# Help text #}
-                    {% include "form_generic_one_field_help_text.html" %}
-                </div>
-            {% endwith %}
+            <input type="submit" value="Manage image metadata"
+                   name="image_specify_form_from_upload"
+                   id="id_proceed_to_manage_metadata_button"/>
+            <p class="helptext_small">View and edit the metadata of the images you just uploaded.</p>
         </form>
 
-        <div id="annotations_section">
-
-            <input type="checkbox" name="is_uploading_points_or_annotations" id="annotations_checkbox">
-            <label for="annotations_checkbox" class="section_header" id="annotations_checkbox_label">Points and annotations (optional)</label>
-
-            <form id="annotations_form" action="" method="post" enctype="multipart/form-data">{% csrf_token %}
-
-                {% comment %}
-                Field for the annotations file. We'll specify elements manually
-                instead of using form_generic.html, so we can put the annotation
-                file status between elements.
-                {% endcomment %}
-                {% with field=annotation_import_form.annotations_file %}
-                    {# The field label #}
-                    <label for="{{ field.id_for_label }}" class="column_form_text_field">
-                        {{ field.label }}:
-                    </label>
-
-                    <div class="field_wrapper">
-                        {# The file field element #}
-                        {{ field }}
-
-                        <button type="button" class="submit" id="annotation_file_process_button">Re-process file</button>
-
-                        {# Result of annotation file processing #}
-                        <div id="annotation_file_status" class="helptext_small"></div>
-
-                        {# Help text #}
-                        {% include "form_generic_one_field_help_text.html" %}
-                    </div>
-                {% endwith %}
-
-                {# Options related to the annotations file. #}
-                {% include "form_generic_one_field.html" with field=annotation_import_options_form.is_uploading_annotations_not_just_points dont_mark_required="yes" %}
-            </form>
-
-        </div>
-
-        <div class="page_section" id="auto_generate_points_page_section">
-            <span class="helptext">{{ auto_generate_points_message|linebreaksbr }}</span>
-        </div>
-
-        <div class="page_section">
-            <h3>Images to upload</h3>
-
-            {% comment %}
-            The images_form's multi-file field is not part of the actual form element.
-            We will be submitting files one by one via Ajax manually, and the
-            images_form's file field will only be used to let the user pick files
-            to upload.
-            {% endcomment %}
-            {% include "form_generic.html" with form=images_form dont_mark_required="yes" %}
-
-            {# Remnants of an attempt at a progress bar... #}
-            {% comment %}
-            <div id="progress_bar_area">
-                <span id="progress_bar"></span>
-            </div>
-            {% endcomment %}
-
-            <div id="upload_summary_section">
-
-                <span id="upload_start_info"></span>
-                <hr>
-
-                <span id="pre_upload_summary"></span>
-
-                <div id="files_table_auto_scroll_checkbox_container">
-                    <input type="checkbox" id="files_table_auto_scroll_checkbox" checked="checked">
-                    <label for="files_table_auto_scroll_checkbox">Auto-scroll to the currently uploading file</label>
-                </div>
-
-                {# Table showing the files selected for upload. #}
-                <div id="files_table_container">
-                    <table id="files_table"></table>
-                </div>
-
-                <span id="mid_upload_summary"></span>
-            </div>
-
-
-            <div id="upload_and_proceed_buttons">
-
-                {# start/abort upload #}
-                <button type="button" class="submit" id="id_upload_submit" disabled="disabled">Start upload</button>
-                <button type="button" class="submit" id="id_upload_abort_button" disabled="disabled">Abort upload</button>
-
-                {# start another upload #}
-                <form action="" method="get" id="id_start_another_upload_form" class="inline">
-                    <input type="submit" value="Upload more images" id="id_start_another_upload_button" />
-                    <p class="helptext_small">Upload another set of images.</p>
-                </form>
-
-                {# proceed to the page where you manage image metadata #}
-                <form action="{% url 'visualize_source' source.id %}" method="post"
-                      id="id_proceed_to_manage_metadata_form" class="inline">{% csrf_token %}
-
-                    {% for field in proceed_to_manage_metadata_form %}
-                        {{ field }}
-                    {% endfor %}
-
-                    <input type="submit" value="Manage image metadata"
-                           name="image_specify_form_from_upload"
-                           id="id_proceed_to_manage_metadata_button"/>
-                    <p class="helptext_small">View and edit the metadata of the images you just uploaded.</p>
-                </form>
-
-            </div>
-
-        </div>
+      </div>
 
     </div>
 
-    <div id="csv_file_upload_preview" title="Preview CSV Data">
-        <p>Based on the CSV file uploaded, this is what will be saved:</p>
-        <table id="metadata_table"></table>
-    </div>
+  </div>
 
-    <!-- Script in the body will run on page load. -->
-    <script type="text/javascript">
-
-        ImageUploadFormHelper.initForm({
-            uploadPreviewUrl: "{% url 'image_upload_preview_ajax' source.id %}",
-            uploadStartUrl: "{% url 'image_upload_ajax' source.id %}",
-            annotationFileProcessUrl: "{% url 'annotation_file_process_ajax' source.id %}",
-            csvFileProcessUrl: "{% url 'csv_file_process_ajax' source.id %}",
-            {# Remnants of an attempt at a progress bar... #}
-            {#            uploadProgressUrl: {% url 'ajax_upload_progress' source.id %}#}
-            locationKeyList: {{ aux_labels|jsonify }}
-        });
-
-    </script>
+  <!-- Script in the body will run on page load. -->
+  <script type="text/javascript">
+    ImageUploadFormHelper.init({
+        uploadPreviewUrl: "{% url 'image_upload_preview_ajax' source.id %}",
+        uploadStartUrl: "{% url 'image_upload_ajax' source.id %}"
+    });
+  </script>
 
 {% endblock %}

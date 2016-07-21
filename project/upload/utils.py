@@ -302,11 +302,298 @@ def annotations_file_to_python(annoFile, source, expecting_labels):
     return (annotation_dict, annotation_dict_id)
 
 
-def image_upload_process(imageFile, imageOptionsForm,
-                         annotation_dict_id,
-                         csv_dict_id, metadata_import_form_class,
-                         annotation_options_form,
-                         source, currentUser):
+def upload_image_process(imageFile, source, currentUser):
+
+    filename = imageFile.name
+    metadata_obj = Metadata(
+        name=filename,
+        height_in_cm=source.image_height_in_cm,
+        annotation_area=source.image_annotation_area,
+    )
+    metadata_obj.save()
+
+    image_status = ImageStatus()
+    image_status.save()
+
+    # Save the image into the DB
+    img = Image(
+        original_file=imageFile,
+        uploaded_by=currentUser,
+        point_generation_method=source.default_point_generation_method,
+        metadata=metadata_obj,
+        source=source,
+        status=image_status,
+    )
+    img.save()
+
+    # Generate and save points
+    generate_points(img)
+
+    return img
+
+
+def upload_metadata_process(
+        imageFile, imageOptionsForm, annotation_dict_id,
+        csv_dict_id, metadata_import_form_class,
+        annotation_options_form, source, currentUser):
+
+    is_uploading_points_or_annotations = annotation_options_form.cleaned_data['is_uploading_points_or_annotations']
+
+    filename = imageFile.name
+    metadata_dict = None
+    metadata_obj = Metadata(height_in_cm=source.image_height_in_cm)
+
+    if imageOptionsForm.cleaned_data['specify_metadata'] == 'filenames':
+
+        filename_check_result = check_image_filename(filename, source)
+        filename_status = filename_check_result['status']
+
+        if filename_status == 'error':
+            # This case should never happen if the pre-upload
+            # status checking is doing its job, but just in case...
+            return dict(
+                status=filename_status,
+                message=u"{m}".format(m=filename_check_result['message']),
+                link=None,
+                title=None,
+            )
+
+        # Set the metadata
+        metadata_dict = filename_check_result['metadata_dict']
+
+        value_dict = get_aux_metadata_db_value_dict_from_str_list(
+            source, metadata_dict['values'])
+        photo_date = datetime.date(
+            year = int(metadata_dict['year']),
+            month = int(metadata_dict['month']),
+            day = int(metadata_dict['day'])
+        )
+
+        metadata_obj.name = metadata_dict['name']
+        metadata_obj.photo_date = photo_date
+        for key, value in value_dict.iteritems():
+            setattr(metadata_obj, key, value)
+
+    elif imageOptionsForm.cleaned_data['specify_metadata'] == 'csv':
+
+        if not csv_dict_id:
+            return dict(
+                status='error',
+                message=u"{m}".format(m="CSV file was not uploaded."),
+                link=None,
+                title=None,
+            )
+
+        csv_dict_filename = os.path.join(
+            settings.SHELVED_ANNOTATIONS_DIR,
+            'csv_source{source_id}_{dict_id}.db'.format(
+                source_id=source.id,
+                dict_id=csv_dict_id,
+            ),
+        )
+
+        # Corner case: the specified shelved annotation file doesn't exist.
+        # Perhaps the file was created a while ago and has been pruned since,
+        # or perhaps there is a bug.
+        if not os.path.isfile(csv_dict_filename):
+            return dict(
+                status='error',
+                message="CSV file could not be found - if you provided the .csv file a while ago, maybe it just timed out. Please retry the upload.",
+                link=None,
+                title=None,
+            )
+
+        csv_dict = shelve.open(csv_dict_filename)
+
+        #index into the csv_dict with the filename. the str() is to handle
+        #the case where the filename is a unicode object instead of a str;
+        #unicode objects can't index into dicts.
+        filename_str = str(filename)
+
+        if filename_str in csv_dict:
+
+            # There is CSV metadata for this file.
+
+            metadata_dict = csv_dict[str(filename)]
+            csv_dict.close()
+
+            # The reason this uses metadata_import_form_class instead of
+            # importing MetadataImportForm is that I'm too lazy to deal with the
+            # circular-import implications of the latter solution right now.
+            # -Stephen
+            metadata_import_form = metadata_import_form_class(
+                source.id, True, metadata_dict,
+            )
+
+            if not metadata_import_form.is_valid():
+                return dict(
+                    status='error',
+                    message="Unknown error with the CSV metadata.",
+                    link=None,
+                    title=None,
+                )
+
+            fields = ['photo_date', 'aux1', 'aux2', 'aux3', 'aux4',
+                      'aux5', 'height_in_cm', 'latitude', 'longitude',
+                      'depth', 'camera', 'photographer', 'water_quality',
+                      'strobes', 'framing', 'balance']
+
+            for field in fields:
+
+                if not field in metadata_import_form.fields:
+                    # A location value field that's not in this form
+                    continue
+
+                value = metadata_import_form.cleaned_data[field]
+                # Check for a non-empty value; don't want empty values to
+                # override default values that we've already set on the
+                # metadata_obj
+                if value:
+                    setattr(metadata_obj, field, value)
+
+        else:
+
+            # No CSV metadata for this file.
+
+            csv_dict.close()
+
+        metadata_obj.name = filename
+
+    else:
+
+        # Not specifying any metadata at upload time.
+        metadata_obj.name = filename
+
+
+    image_annotations = None
+    has_points_or_annotations = False
+
+    if is_uploading_points_or_annotations:
+
+        # Corner case: somehow, we're uploading with points+annotations and without
+        # a checked annotation file specified.  This probably indicates a bug.
+        if not annotation_dict_id:
+            return dict(
+                status='error',
+                message=u"{m}".format(m=str_consts.UPLOAD_ANNOTATIONS_ON_AND_NO_ANNOTATION_DICT_ERROR_STR),
+                link=None,
+                title=None,
+            )
+
+        annotation_dict_filename = os.path.join(
+            settings.SHELVED_ANNOTATIONS_DIR,
+            'source{source_id}_{dict_id}'.format(
+                source_id=source.id,
+                dict_id=annotation_dict_id,
+            ),
+        )
+
+        # Corner case: the specified shelved annotation file doesn't exist.
+        # Perhaps the file was created a while ago and has been pruned since,
+        # or perhaps there is a bug.
+        if not os.path.isfile(annotation_dict_filename):
+            return dict(
+                status='error',
+                message="Annotations could not be found - if you provided the .txt file a while ago, maybe it just timed out. Please retry the upload.",
+                link=None,
+                title=None,
+            )
+
+
+        # Use the location values and the year to build a string identifier for the image, such as:
+        # Shore1;Reef5;...;2008
+        # Convert to a string (instead of a unicode string) for the shelve key lookup.
+        image_identifier = str(get_image_identifier(metadata_dict['values'], metadata_dict['year']))
+
+        annotation_dict = shelve.open(annotation_dict_filename)
+
+        if annotation_dict.has_key(image_identifier):
+            image_annotations = annotation_dict[image_identifier]
+            has_points_or_annotations = True
+        annotation_dict.close()
+
+    if has_points_or_annotations:
+        # Image upload with points/annotations
+
+        is_uploading_annotations_not_just_points = annotation_options_form.cleaned_data['is_uploading_annotations_not_just_points']
+        imported_user = get_imported_user()
+
+        status = ImageStatus()
+        status.save()
+
+        metadata_obj.annotation_area = AnnotationAreaUtils.IMPORTED_STR
+        metadata_obj.save()
+
+        img = Image(
+            original_file=imageFile,
+            uploaded_by=currentUser,
+            point_generation_method=PointGen.args_to_db_format(
+                point_generation_type=PointGen.Types.IMPORTED,
+                imported_number_of_points=len(image_annotations)
+            ),
+            metadata=metadata_obj,
+            source=source,
+            status=status,
+        )
+        img.save()
+
+        # Iterate over this image's annotations and save them.
+        point_num = 0
+        for anno in image_annotations:
+
+            # Save the Point in the database.
+            point_num += 1
+            point = Point(row=anno['row'], column=anno['col'], point_number=point_num, image=img)
+            point.save()
+
+            if is_uploading_annotations_not_just_points:
+                label = Label.objects.filter(code=anno['label'])[0]
+
+                # Save the Annotation in the database, marking the annotations as imported.
+                annotation = Annotation(user=imported_user,
+                    point=point, image=img, label=label, source=source)
+                annotation.save()
+
+        img.status.hasRandomPoints = True
+        if is_uploading_annotations_not_just_points:
+            img.status.annotatedByHuman = True
+        img.status.save()
+    else:
+        # Image upload, no points/annotations
+        image_status = ImageStatus()
+        image_status.save()
+
+        metadata_obj.annotation_area = source.image_annotation_area
+        metadata_obj.save()
+
+        # Save the image into the DB
+        img = Image(original_file=imageFile,
+            uploaded_by=currentUser,
+            point_generation_method=source.default_point_generation_method,
+            metadata=metadata_obj,
+            source=source,
+            status=image_status,
+        )
+        img.save()
+
+        # Generate and save points
+        generate_points(img)
+
+    success_message = "Uploaded"
+
+    return dict(
+        status='ok',
+        message=success_message,
+        link=reverse('image_detail', args=[img.id]),
+        title=img.get_image_element_title(),
+        image_id=img.id,
+    )
+
+
+def upload_annotations_process(
+        imageFile, imageOptionsForm, annotation_dict_id,
+        csv_dict_id, metadata_import_form_class,
+        annotation_options_form, source, currentUser):
 
     is_uploading_points_or_annotations = annotation_options_form.cleaned_data['is_uploading_points_or_annotations']
 
@@ -670,45 +957,6 @@ def metadata_dupe_comparison_key_to_display(metadata_key):
     This function turns the key into a displayable string.
     """
     return metadata_key.replace(';', ' ')
-
-
-def check_image_filename(filename, source, verify_metadata=True):
-    """
-    When gathering uploaded-image metadata from filenames, this function
-    checks the filename and determines whether the file:
-    - Has a filename error
-    - Is a duplicate of an existing image
-    - Neither
-    """
-    metadata_dict = None
-
-    if verify_metadata:
-        try:
-            metadata_dict = filename_to_metadata(filename, source)
-        except FilenameError as error:
-            # Filename parse error.
-            return dict(
-                status='error',
-                message=error.message,
-            )
-        image_name = metadata_dict['name']
-    else:
-        image_name = filename
-
-    dupe = find_dupe_image(source, image_name)
-
-    return_dict = dict()
-
-    if dupe:
-        return_dict['status'] = 'possible_dupe'
-        return_dict['dupe'] = dupe
-    else:
-        return_dict['status'] = 'ok'
-
-    if metadata_dict:
-        return_dict['metadata_dict'] = metadata_dict
-
-    return return_dict
 
 
 def load_archived_csv(source_id, file_):

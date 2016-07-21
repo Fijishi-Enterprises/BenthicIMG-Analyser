@@ -9,23 +9,19 @@ from images.utils import get_aux_labels
 from lib.decorators import source_permission_required
 from lib.exceptions import FileContentError
 from .forms import MultiImageUploadForm, ImageUploadForm, ImageUploadOptionsForm, AnnotationImportForm, AnnotationImportOptionsForm, CSVImportForm, MetadataImportForm, ImportArchivedAnnotationsForm
-from .utils import annotations_file_to_python, image_upload_process, metadata_dict_to_dupe_comparison_key, check_image_filename, store_csv_file, load_archived_csv, check_archived_csv, import_archived_annotations
+from .utils import annotations_file_to_python, upload_image_process, store_csv_file, load_archived_csv, check_archived_csv, import_archived_annotations, find_dupe_image, upload_metadata_process
 from visualization.forms import ImageSpecifyForm
+
 
 @source_permission_required('source_id', perm=Source.PermTypes.EDIT.code)
 def image_upload(request, source_id):
     """
-    This view serves the image upload page.  It doesn't actually do any
-    upload processing, though; that's left to the Ajax views.
+    Upload images to a source.
+    This view is for the non-Ajax frontend.
     """
-
     source = get_object_or_404(Source, id=source_id)
 
     images_form = MultiImageUploadForm()
-    options_form = ImageUploadOptionsForm(source=source)
-    csv_import_form = CSVImportForm()
-    annotation_import_form = AnnotationImportForm()
-    annotation_import_options_form = AnnotationImportOptionsForm(source=source)
     proceed_to_manage_metadata_form = ImageSpecifyForm(
         initial=dict(specify_method='image_ids'),
         source=source,
@@ -35,21 +31,17 @@ def image_upload(request, source_id):
         "We will generate points for the images you upload.\n"
         "Your Source's point generation settings: {pointgen}\n"
         "Your Source's annotation area settings: {annoarea}").format(
-            pointgen=PointGen.db_to_readable_format(source.default_point_generation_method),
-            annoarea=AnnotationAreaUtils.db_format_to_display(source.image_annotation_area,
-        ),
-    )
+            pointgen=PointGen.db_to_readable_format(
+                source.default_point_generation_method),
+            annoarea=AnnotationAreaUtils.db_format_to_display(
+                source.image_annotation_area),
+        )
 
     return render(request, 'upload/image_upload.html', {
         'source': source,
         'images_form': images_form,
-        'options_form': options_form,
-        'csv_import_form': csv_import_form,
-        'annotation_import_form': annotation_import_form,
-        'annotation_import_options_form': annotation_import_options_form,
         'proceed_to_manage_metadata_form': proceed_to_manage_metadata_form,
         'auto_generate_points_message': auto_generate_points_message,
-        'aux_labels': get_aux_labels(source),
     })
 
 
@@ -63,59 +55,36 @@ def image_upload_preview_ajax(request, source_id):
     :returns: A dict containing a 'statusList' specifying the status of
         each filename, or an 'error' with an error message.
     """
-
-    source = get_object_or_404(Source, id=source_id)
-
-    if request.method == 'POST':
-
-        filenames = request.POST.getlist('filenames[]')
-        metadataOption = request.POST['metadataOption']
-
-        # List of filename statuses.
-        statusList = []
-
-        for index, filename in enumerate(filenames):
-
-            if metadataOption == 'filenames':
-                result = check_image_filename(filename, source)
-            else:
-                result = check_image_filename(filename, source, verify_metadata=False)
-
-            status = result['status']
-            metadata_key = None
-
-            if 'metadata_dict' in result:
-                # We successfully extracted metadata from the filename.
-                metadata_key = metadata_dict_to_dupe_comparison_key(result['metadata_dict'])
-
-            if status == 'error':
-                statusList.append(dict(
-                    status=status,
-                    message=u"{m}".format(m=result['message']),
-                ))
-            elif status == 'ok':
-                statusList.append(dict(
-                    status=status,
-                    metadataKey=metadata_key,
-                ))
-            elif status == 'possible_dupe':
-                dupe_image = result['dupe']
-                statusList.append(dict(
-                    status=status,
-                    metadataKey=metadata_key,
-                    url=reverse('image_detail', args=[dupe_image.id]),
-                    title=dupe_image.get_image_element_title(),
-                ))
-
-        return JsonResponse(dict(
-            statusList=statusList,
-        ))
-
-    else:
-
+    if request.method != 'POST':
         return JsonResponse(dict(
             error="Not a POST request",
         ))
+
+    source = get_object_or_404(Source, id=source_id)
+
+    filenames = request.POST.getlist('filenames[]')
+
+    # List of filename statuses.
+    statusList = []
+
+    for index, filename in enumerate(filenames):
+
+        dupe_image = find_dupe_image(source, filename)
+
+        if dupe_image:
+            statusList.append(dict(
+                status='dupe',
+                url=reverse('image_detail', args=[dupe_image.id]),
+                title=dupe_image.get_image_element_title(),
+            ))
+        else:
+            statusList.append(dict(
+                status='ok',
+            ))
+
+    return JsonResponse(dict(
+        statusList=statusList,
+    ))
 
 
 @source_permission_required(
@@ -184,49 +153,19 @@ def image_upload_ajax(request, source_id):
     for each image file.  This view saves the image and its
     points/annotations to the database.
     """
+    if request.method != 'POST':
+        return JsonResponse(dict(
+            error="Not a POST request",
+        ))
 
     source = get_object_or_404(Source, id=source_id)
 
     # Retrieve image related fields
     image_form = ImageUploadForm(request.POST, request.FILES)
-    options_form = ImageUploadOptionsForm(request.POST, source=source)
-
-    annotation_dict_id = request.POST.get('annotation_dict_id', None)
-    annotation_options_form = AnnotationImportOptionsForm(request.POST, source=source)
-
-    csv_dict_id = request.POST.get('csv_dict_id', None)
 
     # Check for validity of the file (filetype and non-corruptness) and
     # the options forms.
-    if image_form.is_valid():
-        if options_form.is_valid():
-            if annotation_options_form.is_valid():
-                resultDict = image_upload_process(
-                    imageFile=image_form.cleaned_data['file'],
-                    imageOptionsForm=options_form,
-                    annotation_dict_id=annotation_dict_id,
-                    annotation_options_form=annotation_options_form,
-                    csv_dict_id=csv_dict_id,
-                    metadata_import_form_class=MetadataImportForm,
-                    source=source,
-                    currentUser=request.user,
-                )
-                return JsonResponse(resultDict)
-            else:
-                return JsonResponse(dict(
-                    status='error',
-                    message="Annotation options were invalid",
-                    link=None,
-                    title=None,
-                ))
-        else:
-            return JsonResponse(dict(
-                status='error',
-                message="Options form is invalid",
-                link=None,
-                title=None,
-            ))
-    else:
+    if not image_form.is_valid():
         # File error: filetype is not an image,
         # file is corrupt, file is empty, etc.
         return JsonResponse(dict(
@@ -235,6 +174,21 @@ def image_upload_ajax(request, source_id):
             link=None,
             title=None,
         ))
+
+    img = upload_image_process(
+        imageFile=image_form.cleaned_data['file'],
+        source=source,
+        currentUser=request.user,
+    )
+
+    return JsonResponse(dict(
+        status='ok',
+        message="Uploaded",
+        link=reverse('image_detail', args=[img.id]),
+        title=img.get_image_element_title(),
+        image_id=img.id,
+    ))
+
 
 @source_permission_required(
     'source_id', perm=Source.PermTypes.EDIT.code, ajax=True)
@@ -293,6 +247,173 @@ def csv_file_process_ajax(request,source_id):
         status='error',
         message="Request was not POST",
     ))
+
+
+@source_permission_required('source_id', perm=Source.PermTypes.EDIT.code)
+def upload_metadata(request, source_id):
+    """
+    Set image metadata by uploading a CSV file containing the metadata.
+    This view is for the non-Ajax frontend.
+    """
+    source = get_object_or_404(Source, id=source_id)
+
+    csv_import_form = CSVImportForm()
+
+    return render(request, 'upload/upload_metadata.html', {
+        'source': source,
+        'csv_import_form': csv_import_form,
+        'aux_labels': get_aux_labels(source),
+    })
+
+
+@source_permission_required(
+    'source_id', perm=Source.PermTypes.EDIT.code, ajax=True)
+def upload_metadata_ajax(request, source_id):
+    """
+    After the "Start upload" button is clicked, this view is entered once
+    for each image file.  This view saves the image and its
+    points/annotations to the database.
+    """
+    if request.method != 'POST':
+        return JsonResponse(dict(
+            error="Not a POST request",
+        ))
+
+    source = get_object_or_404(Source, id=source_id)
+
+    # Retrieve image related fields
+    image_form = ImageUploadForm(request.POST, request.FILES)
+    options_form = ImageUploadOptionsForm(request.POST, source=source)
+
+    annotation_dict_id = request.POST.get('annotation_dict_id', None)
+    annotation_options_form = AnnotationImportOptionsForm(request.POST, source=source)
+
+    csv_dict_id = request.POST.get('csv_dict_id', None)
+
+    # Check for validity of the file (filetype and non-corruptness) and
+    # the options forms.
+    if image_form.is_valid():
+        if options_form.is_valid():
+            if annotation_options_form.is_valid():
+                resultDict = upload_metadata_process(
+                    imageFile=image_form.cleaned_data['file'],
+                    imageOptionsForm=options_form,
+                    annotation_dict_id=annotation_dict_id,
+                    annotation_options_form=annotation_options_form,
+                    csv_dict_id=csv_dict_id,
+                    metadata_import_form_class=MetadataImportForm,
+                    source=source,
+                    currentUser=request.user,
+                )
+                return JsonResponse(resultDict)
+            else:
+                return JsonResponse(dict(
+                    status='error',
+                    message="Annotation options were invalid",
+                    link=None,
+                    title=None,
+                ))
+        else:
+            return JsonResponse(dict(
+                status='error',
+                message="Options form is invalid",
+                link=None,
+                title=None,
+            ))
+    else:
+        # File error: filetype is not an image,
+        # file is corrupt, file is empty, etc.
+        return JsonResponse(dict(
+            status='error',
+            message=image_form.errors['file'][0],
+            link=None,
+            title=None,
+        ))
+
+
+# TODO: Check whether any of these remnants of the old image-upload views
+# are suitable for inclusion in the new archived-annotation views.
+
+
+# @source_permission_required('source_id', perm=Source.PermTypes.EDIT.code)
+# def upload_archived_annotations(request, source_id):
+#     source = get_object_or_404(Source, id=source_id)
+#
+#     annotation_import_form = AnnotationImportForm()
+#     annotation_import_options_form = AnnotationImportOptionsForm(source=source)
+#
+#     return render(request, 'upload/upload_archived_annotations.html', {
+#         'source': source,
+#         'annotation_import_form': annotation_import_form,
+#         'annotation_import_options_form': annotation_import_options_form,
+#         'aux_labels': get_aux_labels(source),
+#     })
+
+
+# @source_permission_required(
+#     'source_id', perm=Source.PermTypes.EDIT.code, ajax=True)
+# def upload_archived_annotations_ajax(request, source_id):
+#     """
+#     After the "Start upload" button is clicked, this view is entered once
+#     for each image file.  This view saves the image and its
+#     points/annotations to the database.
+#     """
+#     if request.method != 'POST':
+#         return JsonResponse(dict(
+#             error="Not a POST request",
+#         ))
+#
+#     source = get_object_or_404(Source, id=source_id)
+#
+#     # Retrieve image related fields
+#     image_form = ImageUploadForm(request.POST, request.FILES)
+#     options_form = ImageUploadOptionsForm(request.POST, source=source)
+#
+#     annotation_dict_id = request.POST.get('annotation_dict_id', None)
+#     annotation_options_form = AnnotationImportOptionsForm(request.POST, source=source)
+#
+#     csv_dict_id = request.POST.get('csv_dict_id', None)
+#
+#     # Check for validity of the file (filetype and non-corruptness) and
+#     # the options forms.
+#     if image_form.is_valid():
+#         if options_form.is_valid():
+#             if annotation_options_form.is_valid():
+#                 resultDict = upload_annotations_process(
+#                     imageFile=image_form.cleaned_data['file'],
+#                     imageOptionsForm=options_form,
+#                     annotation_dict_id=annotation_dict_id,
+#                     annotation_options_form=annotation_options_form,
+#                     csv_dict_id=csv_dict_id,
+#                     metadata_import_form_class=MetadataImportForm,
+#                     source=source,
+#                     currentUser=request.user,
+#                 )
+#                 return JsonResponse(resultDict)
+#             else:
+#                 return JsonResponse(dict(
+#                     status='error',
+#                     message="Annotation options were invalid",
+#                     link=None,
+#                     title=None,
+#                 ))
+#         else:
+#             return JsonResponse(dict(
+#                 status='error',
+#                 message="Options form is invalid",
+#                 link=None,
+#                 title=None,
+#             ))
+#     else:
+#         # File error: filetype is not an image,
+#         # file is corrupt, file is empty, etc.
+#         return JsonResponse(dict(
+#             status='error',
+#             message=image_form.errors['file'][0],
+#             link=None,
+#             title=None,
+#         ))
+
 
 @source_permission_required('source_id', perm=Source.PermTypes.EDIT.code)
 def upload_archived_annotations(request, source_id):

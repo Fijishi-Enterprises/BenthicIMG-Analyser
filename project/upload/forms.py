@@ -3,8 +3,7 @@ from django.core.exceptions import ValidationError
 from django.forms import ImageField, Form, ChoiceField, FileField, CharField
 from django.forms.widgets import FileInput
 from django.utils.translation import ugettext_lazy as _
-from images.utils import get_aux_metadata_max_length, get_num_aux_fields, get_aux_label, get_aux_labels, get_aux_field_name
-from upload.utils import metadata_to_filename
+from images.utils import get_aux_metadata_max_length, get_num_aux_fields, get_aux_label, get_aux_field_name
 from images.models import Source, Metadata
 
 
@@ -100,43 +99,6 @@ class ImageUploadForm(Form):
             'invalid_image': _(u"The file is either a corrupt image, or in a file format that we don't support."),
         },
     )
-
-
-class ImageUploadOptionsForm(Form):
-    """
-    Helper form for the ImageUploadForm.
-    """
-
-    specify_metadata = ChoiceField(
-        label='Specify image metadata',
-        help_text='',  # To be filled in by the form's __init__()
-        choices=(
-            ('after', 'Later (after upload)'),
-            ('filenames', 'In the image filenames'),
-            ('csv', 'From a CSV file')
-        ),
-        initial='after',
-        required=True
-    )
-
-    def __init__(self, *args, **kwargs):
-
-        source = kwargs.pop('source')
-        super(ImageUploadOptionsForm, self).__init__(*args, **kwargs)
-
-        # Dynamically generate a source-specific string for the metadata
-        # field's help text.
-        filename_format_args = dict(year='YYYY', month='MM', day='DD')
-        source_keys = get_aux_labels(source)
-        filename_format_args['values'] = source_keys
-
-        self.fields['specify_metadata'].source_specific_filename_format =\
-        metadata_to_filename(**filename_format_args)
-
-        # This field's help text will go in a separate template, which
-        # can be displayed in a modal dialog.
-        self.fields['specify_metadata'].dialog_help_text_template = \
-            'upload/help_specify_metadata.html'
 
 
 class AnnotationImportForm(Form):

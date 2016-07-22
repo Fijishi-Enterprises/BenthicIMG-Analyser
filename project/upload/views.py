@@ -1,15 +1,17 @@
-from django.core.urlresolvers import reverse
-from django.shortcuts import get_object_or_404, render
-from django.http import HttpResponseRedirect, JsonResponse
 from django.contrib import messages
+from django.core.urlresolvers import reverse
+from django.http import HttpResponseRedirect, JsonResponse
+from django.shortcuts import get_object_or_404, render
+
 from annotations.model_utils import AnnotationAreaUtils
+from images.forms import MetadataForm
 from images.model_utils import PointGen
-from images.models import Source
-from images.utils import get_aux_labels
+from images.models import Source, Metadata
 from lib.decorators import source_permission_required
 from lib.exceptions import FileContentError
-from .forms import MultiImageUploadForm, ImageUploadForm, ImageUploadOptionsForm, AnnotationImportForm, AnnotationImportOptionsForm, CSVImportForm, MetadataImportForm, ImportArchivedAnnotationsForm
-from .utils import annotations_file_to_python, upload_image_process, store_csv_file, load_archived_csv, check_archived_csv, import_archived_annotations, find_dupe_image, upload_metadata_process
+from .forms import MultiImageUploadForm, ImageUploadForm, AnnotationImportForm, AnnotationImportOptionsForm, CSVImportForm, ImportArchivedAnnotationsForm
+from .utils import annotations_file_to_python, upload_image_process, load_archived_csv, check_archived_csv, import_archived_annotations, find_dupe_image, metadata_csv_to_dict, \
+    metadata_csv_fields
 from visualization.forms import ImageSpecifyForm
 
 
@@ -190,65 +192,6 @@ def image_upload_ajax(request, source_id):
     ))
 
 
-@source_permission_required(
-    'source_id', perm=Source.PermTypes.EDIT.code, ajax=True)
-def csv_file_process_ajax(request,source_id):
-
-    source = get_object_or_404(Source, id=source_id)
-
-    if request.method == 'POST':
-
-        csv_import_form = CSVImportForm(request.POST, request.FILES)
-
-        if not csv_import_form.is_valid():
-            return JsonResponse(dict(
-                status='error',
-                message=csv_import_form.errors['csv_file'][0],
-            ))
-
-        csv_file = csv_import_form.cleaned_data['csv_file']
-
-        try:
-            csv_dict, csv_dict_id = store_csv_file(csv_file, source)
-        except FileContentError as error:
-            return JsonResponse(dict(
-                status='error',
-                message=error.message,
-             ))
-
-        # Check if all the CSV metadata is valid.
-        for filename, data in csv_dict.iteritems():
-            metadata_import_form = MetadataImportForm(
-                source.id, False, data
-            )
-            if not metadata_import_form.is_valid():
-                # One of the filenames' metadata is not valid. Get one
-                # error message and return that.
-                for field_name, messages in metadata_import_form.errors.iteritems():
-                    field_label = metadata_import_form.fields[field_name].label
-                    if messages != []:
-                        error_message = messages[0]
-                        return JsonResponse(dict(
-                            status='error',
-                            message="({filename} - {field_label}) {message}".format(
-                                filename=filename,
-                                field_label=field_label,
-                                message=error_message,
-                            )
-                        ))
-
-        return JsonResponse(dict(
-            status='ok',
-            csv_dict_id=csv_dict_id,
-            csv_dict=csv_dict,
-        ))
-
-    return JsonResponse(dict(
-        status='error',
-        message="Request was not POST",
-    ))
-
-
 @source_permission_required('source_id', perm=Source.PermTypes.EDIT.code)
 def upload_metadata(request, source_id):
     """
@@ -262,17 +205,16 @@ def upload_metadata(request, source_id):
     return render(request, 'upload/upload_metadata.html', {
         'source': source,
         'csv_import_form': csv_import_form,
-        'aux_labels': get_aux_labels(source),
     })
 
 
 @source_permission_required(
     'source_id', perm=Source.PermTypes.EDIT.code, ajax=True)
-def upload_metadata_ajax(request, source_id):
+def upload_metadata_preview_ajax(request,source_id):
     """
-    After the "Start upload" button is clicked, this view is entered once
-    for each image file.  This view saves the image and its
-    points/annotations to the database.
+    Set image metadata by uploading a CSV file containing the metadata.
+    This view takes the CSV file by Ajax and returns
+    a preview of the metadata to be saved.
     """
     if request.method != 'POST':
         return JsonResponse(dict(
@@ -281,54 +223,126 @@ def upload_metadata_ajax(request, source_id):
 
     source = get_object_or_404(Source, id=source_id)
 
-    # Retrieve image related fields
-    image_form = ImageUploadForm(request.POST, request.FILES)
-    options_form = ImageUploadOptionsForm(request.POST, source=source)
-
-    annotation_dict_id = request.POST.get('annotation_dict_id', None)
-    annotation_options_form = AnnotationImportOptionsForm(request.POST, source=source)
-
-    csv_dict_id = request.POST.get('csv_dict_id', None)
-
-    # Check for validity of the file (filetype and non-corruptness) and
-    # the options forms.
-    if image_form.is_valid():
-        if options_form.is_valid():
-            if annotation_options_form.is_valid():
-                resultDict = upload_metadata_process(
-                    imageFile=image_form.cleaned_data['file'],
-                    imageOptionsForm=options_form,
-                    annotation_dict_id=annotation_dict_id,
-                    annotation_options_form=annotation_options_form,
-                    csv_dict_id=csv_dict_id,
-                    metadata_import_form_class=MetadataImportForm,
-                    source=source,
-                    currentUser=request.user,
-                )
-                return JsonResponse(resultDict)
-            else:
-                return JsonResponse(dict(
-                    status='error',
-                    message="Annotation options were invalid",
-                    link=None,
-                    title=None,
-                ))
-        else:
-            return JsonResponse(dict(
-                status='error',
-                message="Options form is invalid",
-                link=None,
-                title=None,
-            ))
-    else:
-        # File error: filetype is not an image,
-        # file is corrupt, file is empty, etc.
+    csv_import_form = CSVImportForm(request.POST, request.FILES)
+    if not csv_import_form.is_valid():
         return JsonResponse(dict(
-            status='error',
-            message=image_form.errors['file'][0],
-            link=None,
-            title=None,
+            error=csv_import_form.errors['csv_file'][0],
         ))
+
+    try:
+        # Dict of (metadata ids -> dicts of (column name -> value))
+        csv_metadata = metadata_csv_to_dict(
+            csv_import_form.cleaned_data['csv_file'], source)
+    except FileContentError as error:
+        return JsonResponse(dict(
+            error=error.message,
+         ))
+
+    # Create a preview table, starting with column headers
+    # TODO: Only include columns that are included in the CSV
+    metadata_fields = metadata_csv_fields(source)
+    metadata_preview_table = [metadata_fields.values()]
+    num_fields_replaced = 0
+
+    for metadata_id, metadata_dict in csv_metadata.items():
+
+        metadata = Metadata.objects.get(pk=metadata_id)
+        metadata_form = MetadataForm(
+            metadata_dict, instance=metadata, source_id=source.pk)
+
+        if not metadata_form.is_valid():
+            # One of the filenames' metadata is not valid. Get one
+            # error message and return that.
+            for field_name, messages in metadata_form.errors.items():
+                field_label = metadata_form.fields[field_name].label
+                if messages != []:
+                    error_message = messages[0]
+                    return JsonResponse(dict(
+                        error="({filename} - {field_label}) {message}".format(
+                            filename=metadata_dict['name'],
+                            field_label=field_label,
+                            message=error_message,
+                        )
+                    ))
+
+        row = []
+        for field_name in metadata_fields.keys():
+            new_value = str(metadata_form.cleaned_data[field_name] or '')
+            old_value = str(metadata_form.initial[field_name] or '')
+
+            if (not old_value) or (old_value == new_value):
+                row.append(new_value)
+            else:
+                # Old value is present and different; include this in the
+                # display so the user knows what's going to be replaced
+                row.append([new_value, old_value])
+                num_fields_replaced += 1
+        metadata_preview_table.append(row)
+
+    return JsonResponse(dict(
+        success=True,
+        metadataPreviewTable=metadata_preview_table,
+        numImages=len(csv_metadata),
+        numFieldsReplaced=num_fields_replaced,
+    ))
+
+
+@source_permission_required(
+    'source_id', perm=Source.PermTypes.EDIT.code, ajax=True)
+def upload_metadata_ajax(request, source_id):
+    """
+    Set image metadata by uploading a CSV file containing the metadata.
+    This view takes the CSV file by Ajax and saves the metadata
+    to the database.
+    """
+    if request.method != 'POST':
+        return JsonResponse(dict(
+            error="Not a POST request",
+        ))
+
+    source = get_object_or_404(Source, id=source_id)
+
+    csv_import_form = CSVImportForm(request.POST, request.FILES)
+    if not csv_import_form.is_valid():
+        return JsonResponse(dict(
+            error=csv_import_form.errors['csv_file'][0],
+        ))
+
+    try:
+        # Dict of (metadata ids -> dicts of (column name -> value))
+        csv_metadata = metadata_csv_to_dict(
+            csv_import_form.cleaned_data['csv_file'], source)
+    except FileContentError as error:
+        return JsonResponse(dict(
+            error=error.message,
+         ))
+
+    for metadata_id, metadata_dict in csv_metadata.items():
+
+        metadata = Metadata.objects.get(pk=metadata_id)
+        metadata_form = MetadataForm(
+            metadata_dict, instance=metadata, source_id=source.pk)
+
+        if not metadata_form.is_valid():
+            # One of the filenames' metadata is not valid. Get one
+            # error message and return that.
+            for field_name, messages in metadata_form.errors.items():
+                field_label = metadata_form.fields[field_name].label
+                if messages != []:
+                    error_message = messages[0]
+                    return JsonResponse(dict(
+                        error="({filename} - {field_label}) {message}".format(
+                            filename=metadata_dict['name'],
+                            field_label=field_label,
+                            message=error_message,
+                        )
+                    ))
+
+        metadata_form.save()
+
+    return JsonResponse(dict(
+        success=True,
+    ))
 
 
 # TODO: Check whether any of these remnants of the old image-upload views

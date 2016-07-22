@@ -44,25 +44,25 @@ div#upload_summary_section {
     border-radius: 5px;
 }
 
-#upload_start_info {
+#upload_start_info, #status_display {
     display: block;
     margin: 10px 0;
     font-size: 120%;
 }
 
-#pre_upload_summary{
+#pre_upload_summary, #status_detail{
     display: block;
     margin: 10px 0;  /* top/bottom left/right */
 }
-#pre_upload_summary ul{
+#pre_upload_summary ul, #status_detail ul{
     list-style: disc;
     margin-left: 20px;
 }
-#pre_upload_summary li{
+#pre_upload_summary li, #status_detail li{
     margin: 3px 0;
 }
 
-#files_table_container{
+#files_table_container, #preview_table_container{
     margin: 10px 0;  /* top/bottom left/right */
 
     /* scrollbars will appear only if the files table
@@ -77,17 +77,17 @@ div#upload_summary_section {
     display: none;
 }
 
-#files_table{
+#files_table, #preview_table{
     border: 2px solid #999;
     border-collapse: collapse;
     border-spacing: 0;
 }
 
-#files_table th, #files_table td{
+#files_table th, #files_table td, #preview_table th, #preview_table td{
     border: 2px solid #999;
     padding: 2px 10px;  /* top/bottom left/right */
 }
-#files_table td{
+#files_table td, #preview_table td{
     font-size: 0.9em;
 }
 #files_table td.size_cell{
@@ -138,14 +138,17 @@ div#upload_summary_section {
     font-size: 0.9em;
 }
 
-#csv_file_upload_preview{
+#preview_table_container{
     margin: 10px 0;  /* top/bottom left/right */
 
     /* scrollbars will appear only if the files table
-       exceeds the container's max height. */
+       exceeds the container's max height/width. */
     overflow: auto;
     max-height: 20em;
-    display:none;
+    max-width: 800px;
+}
+#preview_table_container span.old-metadata-value{
+    color: red;
 }
 
 /* TODO: Merge this rule into master.css at some point? */

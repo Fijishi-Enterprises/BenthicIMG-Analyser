@@ -1,0 +1,62 @@
+{% extends "images/base_source.html" %}
+{% load thumbnail %}
+{% load common_tags %}
+
+{% block title %}Upload Metadata | CoralNet{% endblock %}
+
+{% block js-includes %}
+    {% include "javascript-includes.html" with jquery_form="yes" jquery_ui="yes" %}
+{% endblock %}
+
+{% block page-specific-includes %}
+    {% include "static-local-include.html" with type="css" path="css/uploadForm.css" %}
+    {% include "static-local-include.html" with type="js" path="js/UploadMetadataHelper.js" %}
+{% endblock %}
+
+{% block content %}
+
+  <legend>Upload Metadata</legend>
+
+  <div class="narrow_column">
+
+    <div class="page_section">
+
+      <form id="csv_form" action="" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        {% include "form_generic_one_field.html" with field=csv_import_form.csv_file dont_mark_required="yes" %}
+
+        <button type="button" class="submit" id="csv_refresh_button">
+          Refresh file</button>
+      </form>
+
+      <div id="upload_summary_section">
+
+        <span id="status_display"></span>
+        <hr>
+        <span id="status_detail"></span>
+
+        <div id="preview_table_container">
+          <table id="preview_table"></table>
+        </div>
+      </div>
+
+      <div id="upload_and_proceed_buttons">
+
+        <button type="button" class="submit" id="id_upload_submit" disabled="disabled">Save metadata</button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Script in the body will run on page load. -->
+  <script type="text/javascript">
+    UploadMetadataHelper.initForm({
+        uploadPreviewUrl: "{% url 'upload_metadata_preview_ajax' source.id %}",
+        uploadStartUrl: "{% url 'upload_metadata_ajax' source.id %}"
+    });
+  </script>
+
+{% endblock %}

@@ -8,7 +8,7 @@ from images.forms import MetadataForm
 from images.model_utils import PointGen
 from images.models import Source, Metadata
 from lib.decorators import source_permission_required
-from lib.exceptions import FileContentError
+from lib.exceptions import FileProcessError
 from .forms import MultiImageUploadForm, ImageUploadForm, AnnotationImportForm, AnnotationImportOptionsForm, CSVImportForm, ImportArchivedAnnotationsForm
 from .utils import annotations_file_to_python, upload_image_process, load_archived_csv, check_archived_csv, import_archived_annotations, find_dupe_image, metadata_csv_to_dict, \
     metadata_csv_fields
@@ -126,7 +126,7 @@ def annotation_file_process_ajax(request, source_id):
                 annotations_file, source,
                 expecting_labels=is_uploading_annotations_not_just_points,
             )
-        except FileContentError as error:
+        except FileProcessError as error:
             return JsonResponse(dict(
                 status='error',
                 message=error.message,
@@ -233,22 +233,32 @@ def upload_metadata_preview_ajax(request,source_id):
         # Dict of (metadata ids -> dicts of (column name -> value))
         csv_metadata = metadata_csv_to_dict(
             csv_import_form.cleaned_data['csv_file'], source)
-    except FileContentError as error:
+    except FileProcessError as error:
         return JsonResponse(dict(
             error=error.message,
          ))
 
-    # Create a preview table, starting with column headers
-    # TODO: Only include columns that are included in the CSV
-    metadata_fields = metadata_csv_fields(source)
-    metadata_preview_table = [metadata_fields.values()]
+    field_names_to_labels = metadata_csv_fields(source)
+    metadata_preview_table = []
     num_fields_replaced = 0
 
-    for metadata_id, metadata_dict in csv_metadata.items():
+    for metadata_id, csv_row_metadata in csv_metadata.items():
+
+        if len(metadata_preview_table) == 0:
+            # Column headers: Get the relevant field names from any data row
+            # (the first one in our case), and go from field names to labels
+            metadata_preview_table.append(
+                [field_names_to_labels[name]
+                 for name in csv_row_metadata.keys()]
+            )
 
         metadata = Metadata.objects.get(pk=metadata_id)
+
+        # We'll use this form just to see what the metadata would look like
+        # if updated with the CSV. But since we are just previewing
+        # the metadata, we won't actually save the form.
         metadata_form = MetadataForm(
-            metadata_dict, instance=metadata, source_id=source.pk)
+            csv_row_metadata, instance=metadata, source_id=source.pk)
 
         if not metadata_form.is_valid():
             # One of the filenames' metadata is not valid. Get one
@@ -259,22 +269,24 @@ def upload_metadata_preview_ajax(request,source_id):
                     error_message = messages[0]
                     return JsonResponse(dict(
                         error="({filename} - {field_label}) {message}".format(
-                            filename=metadata_dict['name'],
+                            filename=csv_row_metadata['name'],
                             field_label=field_label,
                             message=error_message,
                         )
                     ))
 
         row = []
-        for field_name in metadata_fields.keys():
+        for field_name in csv_row_metadata.keys():
             new_value = str(metadata_form.cleaned_data[field_name] or '')
             old_value = str(metadata_form.initial[field_name] or '')
 
             if (not old_value) or (old_value == new_value):
+                # Old value is blank, or old value is equal to new value.
+                # No value is being replaced here.
                 row.append(new_value)
             else:
                 # Old value is present and different; include this in the
-                # display so the user knows what's going to be replaced
+                # display so the user knows what's going to be replaced.
                 row.append([new_value, old_value])
                 num_fields_replaced += 1
         metadata_preview_table.append(row)
@@ -312,16 +324,16 @@ def upload_metadata_ajax(request, source_id):
         # Dict of (metadata ids -> dicts of (column name -> value))
         csv_metadata = metadata_csv_to_dict(
             csv_import_form.cleaned_data['csv_file'], source)
-    except FileContentError as error:
+    except FileProcessError as error:
         return JsonResponse(dict(
             error=error.message,
          ))
 
-    for metadata_id, metadata_dict in csv_metadata.items():
+    for metadata_id, csv_row_metadata in csv_metadata.items():
 
         metadata = Metadata.objects.get(pk=metadata_id)
         metadata_form = MetadataForm(
-            metadata_dict, instance=metadata, source_id=source.pk)
+            csv_row_metadata, instance=metadata, source_id=source.pk)
 
         if not metadata_form.is_valid():
             # One of the filenames' metadata is not valid. Get one
@@ -332,7 +344,7 @@ def upload_metadata_ajax(request, source_id):
                     error_message = messages[0]
                     return JsonResponse(dict(
                         error="({filename} - {field_label}) {message}".format(
-                            filename=metadata_dict['name'],
+                            filename=csv_row_metadata['name'],
                             field_label=field_label,
                             message=error_message,
                         )

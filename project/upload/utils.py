@@ -16,7 +16,7 @@ from images.model_utils import PointGen
 from images.models import Metadata, ImageStatus, Image, Point, Source
 from images.utils import generate_points, get_aux_metadata_db_value_dict_from_str_list, get_aux_field_names
 from lib import str_consts
-from lib.exceptions import DirectoryAccessError, FileContentError
+from lib.exceptions import DirectoryAccessError, FileProcessError
 from lib.utils import rand_string
 
 
@@ -41,30 +41,108 @@ def metadata_csv_fields(source):
 
 
 def metadata_csv_to_dict(csv_file, source):
-    # TODO: Check for dupe field labels
+    """
+    Go from metadata CSV file to a dict of metadata dicts.
+    The first CSV row is assumed to have metadata field labels like
+    "Date", "Aux3", and "White balance card".
+
+    DictReader is not used here because (1) it can't return an OrderedDict,
+    and (2) the fact that column names need to be transformed to get the
+    dict keys makes usage a bit clunky.
+    """
+    # splitlines() is to do system-agnostic handling of newline characters.
+    # The csv module can't do that by default (fails on CR only).
+    reader = csv.reader(csv_file.read().splitlines(), dialect='excel')
+
+    # Read the first row, which should have column names.
+    column_names = next(reader)
+    # There could be a UTF-8 BOM character at the start of the file.
+    # Strip it in that case.
+    column_names[0] = column_names[0].lstrip(codecs.BOM_UTF8)
+    column_names_lower = [n.lower() for n in column_names]
+
+    # The column names are field labels (e.g. Date) while we want
+    # dicts of the metadata model fields' names (e.g. photo_date).
+    #
+    # lower() is used to tolerate the CSV column names being in a different
+    # case from the model fields' names.
+    #
+    # If a column name doesn't match any metadata field, we'll use
+    # a field name of None to indicate that we're ignoring that column.
     field_names_to_labels = metadata_csv_fields(source)
-    field_labels_to_names = {
-        v.lower(): k
+    field_labels_to_names = dict(
+        (v.lower(), k)
         for k, v in field_names_to_labels.items()
-    }
-    csv_dict = dict()
-
-    # TODO: Check for rows with same filename
-    # TODO: Check for filename that's not in DB, ensure we skip that
-    # TODO: Check that there's at least one non-name column
-    # TODO: Check if CR-only newlines work with DictReader
-    # TODO: Check if UTF-8 characters work
-    # TODO: Check if UTF-8 BOM character is handled correctly
-    reader = csv.DictReader(csv_file)
-    reader.fieldnames = [
-        field_labels_to_names[label.lower()]
-        for label in reader.fieldnames
+    )
+    metadata_field_names_in_column_order = [
+        field_labels_to_names.get(label, None)
+        for label in column_names_lower
     ]
-    for metadata_dict in reader:
-        metadata_id = Metadata.objects.get(name=metadata_dict['name']).pk
-        csv_dict[metadata_id] = metadata_dict
 
-    return csv_dict
+    field_labels = field_names_to_labels.values()
+    dupe_labels = [
+        label for label in field_labels
+        if field_labels.count(label) > 1
+    ]
+    if dupe_labels:
+        raise FileProcessError(
+            "More than one metadata field uses the label '{}'."
+            " Your auxiliary fields' names must be unique"
+            " and different from the default metadata fields.".format(
+                dupe_labels[0]))
+
+    dupe_column_names = [
+        name for name in column_names_lower
+        if column_names_lower.count(name) > 1
+    ]
+    if dupe_column_names:
+        raise FileProcessError(
+            "Column name appears more than once: {}".format(
+                dupe_column_names[0]))
+
+    if 'name' not in column_names_lower:
+        raise FileProcessError("No 'Name' column found in CSV")
+
+    if len(metadata_field_names_in_column_order) <= 1:
+        raise FileProcessError(
+            "No metadata columns other than 'Name' found in CSV")
+
+    csv_metadata = dict()
+    image_names_seen = set()
+
+    # Read the rest of the rows, which have metadata for one image per row.
+    for row in reader:
+        # Make a metadata dict for one image,
+        # e.g. {photo_date='2016-06-12', camera='Nikon', ...}
+        # A field name of None indicates that we're ignoring that column.
+        csv_row_metadata = OrderedDict(
+            (k, v)
+            for (k, v) in zip(metadata_field_names_in_column_order, row)
+            if k is not None
+        )
+
+        image_name = csv_row_metadata['name']
+        if image_name in image_names_seen:
+            raise FileProcessError(
+                "More than one row with the same image name: {}".format(
+                    image_name))
+        image_names_seen.add(image_name)
+
+        try:
+            metadata_id = Metadata.objects.get(name=image_name).pk
+        except Metadata.DoesNotExist:
+            # This filename isn't in the source. Just skip this CSV row
+            # without raising an error. It could be an image the user is
+            # planning to upload later, or an image they're not planning
+            # to upload but are still tracking in their records.
+            continue
+
+        csv_metadata[metadata_id] = csv_row_metadata
+
+    if len(csv_metadata) == 0:
+        raise FileProcessError("No matching filenames found in the source")
+
+    return csv_metadata
 
 
 def annotations_file_to_python(annoFile, source, expecting_labels):
@@ -149,7 +227,7 @@ def annotations_file_to_python(annoFile, source, expecting_labels):
         if not words_format_is_valid:
             annotation_dict.close()
             annoFile.close()
-            raise FileContentError(file_error_format_str.format(
+            raise FileProcessError(file_error_format_str.format(
                 line_num=line_num,
                 line=stripped_line,
                 error=str_consts.ANNOTATION_FILE_TOKEN_COUNT_ERROR_FMTSTR.format(
@@ -171,7 +249,7 @@ def annotations_file_to_python(annoFile, source, expecting_labels):
         except ValueError:
             annotation_dict.close()
             annoFile.close()
-            raise FileContentError(file_error_format_str.format(
+            raise FileProcessError(file_error_format_str.format(
                 line_num=line_num,
                 line=stripped_line,
                 error=str_consts.ANNOTATION_FILE_ROW_NOT_POSITIVE_INT_ERROR_FMTSTR.format(row=lineData['row']),
@@ -184,7 +262,7 @@ def annotations_file_to_python(annoFile, source, expecting_labels):
         except ValueError:
             annotation_dict.close()
             annoFile.close()
-            raise FileContentError(file_error_format_str.format(
+            raise FileProcessError(file_error_format_str.format(
                 line_num=line_num,
                 line=stripped_line,
                 error=str_consts.ANNOTATION_FILE_COL_NOT_POSITIVE_INT_ERROR_FMTSTR.format(column=lineData['col']),
@@ -203,7 +281,7 @@ def annotations_file_to_python(annoFile, source, expecting_labels):
                 if len(labelObjs) == 0:
                     annotation_dict.close()
                     annoFile.close()
-                    raise FileContentError(file_error_format_str.format(
+                    raise FileProcessError(file_error_format_str.format(
                         line_num=line_num,
                         line=stripped_line,
                         error=str_consts.ANNOTATION_FILE_LABEL_NOT_IN_DATABASE_ERROR_FMTSTR.format(label_code=label_code),
@@ -213,7 +291,7 @@ def annotations_file_to_python(annoFile, source, expecting_labels):
                 if labelObj not in source.labelset.labels.all():
                     annotation_dict.close()
                     annoFile.close()
-                    raise FileContentError(file_error_format_str.format(
+                    raise FileProcessError(file_error_format_str.format(
                         line_num=line_num,
                         line=stripped_line,
                         error=str_consts.ANNOTATION_FILE_LABEL_NOT_IN_LABELSET_ERROR_FMTSTR.format(label_code=label_code),
@@ -230,7 +308,7 @@ def annotations_file_to_python(annoFile, source, expecting_labels):
         except ValueError:
             annotation_dict.close()
             annoFile.close()
-            raise FileContentError(file_error_format_str.format(
+            raise FileProcessError(file_error_format_str.format(
                 line_num=line_num,
                 line=stripped_line,
                 error=str_consts.ANNOTATION_FILE_YEAR_ERROR_FMTSTR.format(year=year),

@@ -154,6 +154,8 @@ var UploadMetadataHelper = (function() {
     }
 
     function updateUploadPreview() {
+        csvMetadata = null;
+
         if (csvFileField.files.length === 0) {
             // No CSV file.
             updateStatus();

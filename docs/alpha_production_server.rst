@@ -224,7 +224,9 @@ You can invoke the backup manually as a test: ``sudo automysqlbackup``
 
 Check ``/etc/cron.daily`` to ensure it contains an ``automysqlbackup`` executable.
 
-Open the root-cronjob file: ``sudo crontab -e``. Add a line with the command ``automysqlbackup``. Example of running at 4 AM every day: ``0 4 * * * automysqlbackup``
+Open the root-cronjob file: ``sudo crontab -e``. Add a line to run automysqlbackup. Example of running at 4 AM every day: ``0 4 * * * /path/to/automysqlbackup``
+
+- Although a simple command of ``automysqlbackup`` (no path specified) might work from the command line, it may not work from cron. Run ``which automysqlbackup`` to confirm where the executable is, then specify the executable's full path when editing the cronjob file.
 
 Now you should be good to go; the backups should run daily, and during that daily run, the weekly/monthly config rules should be respected as well.
 

@@ -40,6 +40,14 @@ def metadata_csv_fields(source):
     )
 
 
+def metadata_obj_to_dict(metadata):
+    """
+    Go from Metadata DB object to metadata dict.
+    """
+    source = Image.objects.get(metadata=metadata).source
+    return MetadataForm(instance=metadata, source_id=source.pk).initial
+
+
 def metadata_csv_to_dict(csv_file, source):
     """
     Go from metadata CSV file to a dict of metadata dicts.
@@ -79,10 +87,11 @@ def metadata_csv_to_dict(csv_file, source):
         for label in column_names_lower
     ]
 
-    field_labels = field_names_to_labels.values()
+    field_labels_lower = [
+        label.lower() for label in field_names_to_labels.values()]
     dupe_labels = [
-        label for label in field_labels
-        if field_labels.count(label) > 1
+        label for label in field_labels_lower
+        if field_labels_lower.count(label) > 1
     ]
     if dupe_labels:
         raise FileProcessError(
@@ -103,7 +112,9 @@ def metadata_csv_to_dict(csv_file, source):
     if 'name' not in column_names_lower:
         raise FileProcessError("No 'Name' column found in CSV")
 
-    if len(metadata_field_names_in_column_order) <= 1:
+    if len(set(metadata_field_names_in_column_order) - {None}) <= 1:
+        # If we subtract the ignored columns,
+        # all we are left with is the name column
         raise FileProcessError(
             "No metadata columns other than 'Name' found in CSV")
 

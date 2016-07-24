@@ -513,14 +513,8 @@ class ClientTest(BaseTest):
         return source.labelset
 
     image_count = 0
-    image_upload_defaults = dict(
-        specify_metadata='after',
-        skip_or_upload_duplicates='skip',
-        is_uploading_points_or_annotations=False,
-        is_uploading_annotations_not_just_points='no',
-    )
     @classmethod
-    def upload_image_new(cls, user, source, image_options=None, **options):
+    def upload_image_new(cls, user, source, image_options=None):
         """
         Upload a data image.
         :param user: User to upload as.
@@ -533,22 +527,15 @@ class ClientTest(BaseTest):
         cls.image_count += 1
 
         post_dict = dict()
-        post_dict.update(cls.image_upload_defaults)
-        post_dict.update(options)
 
-        # Get an in-memory PIL image
+        # Get an image file
         image_options = image_options or dict()
         filetype = image_options.pop('filetype', 'PNG')
-        filename = "file_{count}.{filetype}".format(
+        default_filename = "file_{count}.{filetype}".format(
             count=cls.image_count, filetype=filetype.lower())
-        im = create_sample_image(**image_options)
-
-        with BytesIO() as stream:
-            # Save the PIL image to an IO stream
-            im.save(stream, filetype)
-            # Convert to a file-like object, and use that in the upload form
-            # http://stackoverflow.com/a/28209277/
-            post_dict['file'] = ContentFile(stream.getvalue(), name=filename)
+        filename = image_options.pop('filename', default_filename)
+        post_dict['file'] = sample_image_as_file(
+            filename, filetype, image_options)
 
         # Send the upload form
         cls.client.force_login(user)
@@ -849,3 +836,24 @@ def create_sample_image(width=200, height=200, cols=10, rows=10):
             im.paste(rgb_color, (left_x, upper_y, right_x, lower_y))
 
     return im
+
+
+def sample_image_as_file(filename, filetype=None, image_options=None):
+    if not filetype:
+        if posixpath.splitext(filename)[-1].upper() in ['.JPG', '.JPEG']:
+            filetype = 'JPEG'
+        elif posixpath.splitext(filename)[-1].upper() == '.PNG':
+            filetype = 'PNG'
+        else:
+            raise ValueError(
+                "Couldn't get filetype from filename: {}".format(filename))
+
+    image_options = image_options or dict()
+    im = create_sample_image(**image_options)
+    with BytesIO() as stream:
+        # Save the PIL image to an IO stream
+        im.save(stream, filetype)
+        # Convert to a file-like object, and use that in the upload form
+        # http://stackoverflow.com/a/28209277/
+        image_file = ContentFile(stream.getvalue(), name=filename)
+    return image_file

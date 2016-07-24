@@ -1,19 +1,21 @@
+import csv
 from collections import defaultdict
 import datetime
+from io import BytesIO
 import os
+import re
 import tempfile
+
 from django.conf import settings
+from django.core.files.base import ContentFile
 from django.core.urlresolvers import reverse
-from django.forms import forms
 from django.utils import timezone
 from annotations.model_utils import AnnotationAreaUtils
 from annotations.models import Annotation
 from images.model_utils import PointGen
 from images.models import Source, Image, Point
-from images.utils import get_aux_metadata_str_list_for_image
 from lib import str_consts
-from lib.test_utils import ClientTest
-from upload.forms import ImageUploadForm
+from lib.test_utils import ClientTest, sample_image_as_file
 
 
 class ImageUploadBaseTest(ClientTest):
@@ -206,451 +208,1203 @@ class ImageUploadBaseTest(ClientTest):
         return image_id, response
 
 
-class UploadValidImageTest(ImageUploadBaseTest):
+class UploadImagePreviewTest(ClientTest):
     """
-    Valid images.
+    Test the upload-image preview view.
     """
+    @classmethod
+    def setUpTestData(cls):
+        super(UploadImagePreviewTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(cls.user)
+
+        cls.img1 = cls.upload_image_new(
+            cls.user, cls.source, image_options=dict(filename='1.png'))
+        cls.img2 = cls.upload_image_new(
+            cls.user, cls.source, image_options=dict(filename='2.png'))
+
+    def test_no_dupe(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse(
+                'image_upload_preview_ajax',
+                kwargs={'source_id': self.source.pk}),
+            {'filenames[]': ['3.png']},
+        )
+
+        response_json = response.json()
+        self.assertDictEqual(
+            response_json,
+            dict(
+                statusList=[dict(
+                    status='ok',
+                )]
+            ),
+        )
+
+    def test_detect_dupe(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse(
+                'image_upload_preview_ajax',
+                kwargs={'source_id': self.source.pk}),
+            {'filenames[]': ['1.png']},
+        )
+
+        response_json = response.json()
+        self.assertDictEqual(
+            response_json,
+            dict(
+                statusList=[dict(
+                    status='dupe',
+                    url=reverse('image_detail', args=[self.img1.id]),
+                    title=self.img1.get_image_element_title(),
+                )]
+            ),
+        )
+
+    def test_detect_multiple_dupes(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse(
+                'image_upload_preview_ajax',
+                kwargs={'source_id': self.source.pk}),
+            {'filenames[]': ['1.png', '2.png', '3.png']},
+        )
+
+        response_json = response.json()
+        self.assertDictEqual(
+            response_json,
+            dict(
+                statusList=[
+                    dict(
+                        status='dupe',
+                        url=reverse('image_detail', args=[self.img1.id]),
+                        title=self.img1.get_image_element_title(),
+                    ),
+                    dict(
+                        status='dupe',
+                        url=reverse('image_detail', args=[self.img2.id]),
+                        title=self.img2.get_image_element_title(),
+                    ),
+                    dict(
+                        status='ok',
+                    ),
+                ]
+            ),
+        )
+
+
+class UploadImageTest(ClientTest):
+    """
+    Upload a valid image.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super(UploadImageTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(cls.user)
+
     def test_valid_png(self):
         """ .png created using the PIL. """
-        self.upload_image_test('001_2012-05-01_color-grid-001.png')
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse('image_upload_ajax', kwargs={'source_id': self.source.pk}),
+            dict(file=sample_image_as_file('1.png'))
+        )
+
+        response_json = response.json()
+        self.assertEqual(response_json['status'], 'ok')
+        image_id = response_json['image_id']
+        image = Image.objects.get(pk=image_id)
+        self.assertEqual(image.metadata.name, '1.png')
 
     def test_valid_jpg(self):
         """ .jpg created using the PIL. """
-        self.upload_image_test('001_2012-05-01_color-grid-001_jpg-valid.jpg')
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse('image_upload_ajax', kwargs={'source_id': self.source.pk}),
+            dict(file=sample_image_as_file('A.jpg'))
+        )
 
-    # TODO: Test a fairly large upload (at least 50 MB, or whatever
-    # the upload limit is when memory is used for temp storage)?
+        response_json = response.json()
+        self.assertEqual(response_json['status'], 'ok')
+        image_id = response_json['image_id']
+        image = Image.objects.get(pk=image_id)
+        self.assertEqual(image.metadata.name, 'A.jpg')
 
-class UploadImageFieldsTest(ImageUploadBaseTest):
-    """
-    Upload an image and see if all the fields have been set correctly.
-    """
-    def test_basic_image_fields(self):
-        self.upload_image_test_with_field_checks('001_2012-05-01_color-grid-001.png')
+    def test_image_fields(self):
+        """
+        Upload an image and see if the fields have been set correctly.
+        """
+        datetime_before_upload = timezone.now()
 
-class UploadDupeImageTest(ImageUploadBaseTest):
-    """
-    Duplicate images.
-    """
-    def duplicate_upload_test(self, dupe_option):
-        options = dict(skip_or_upload_duplicates=dupe_option)
+        image_file = sample_image_as_file(
+            '1.png',
+            image_options=dict(
+                width=600, height=450,
+            ),
+        )
 
-        self.upload_image_test('001_2012-05-01_color-grid-001.png', **options)
+        self.client.force_login(self.user)
+        post_dict = dict(file=image_file)
+        response = self.client.post(
+            reverse('image_upload_ajax', kwargs={'source_id': self.source.pk}),
+            post_dict,
+        )
 
-        # Non-duplicate
-        self.upload_image_test('002_2012-06-28_color-grid-002.png', **options)
+        response_json = response.json()
+        image_id = response_json['image_id']
+        img = Image.objects.get(pk=image_id)
 
-        # Duplicate
-        datetime_before_dupe_upload = timezone.now()
-        self.upload_image_test('001_2012-05-01_color-grid-001.png', expecting_dupe=True, **options)
+        # Check that the filepath follows the expected pattern
+        image_filepath_regex = re.compile(
+            settings.IMAGE_FILE_PATTERN
+            .replace('{name}', r'[a-z0-9]+')
+            .replace('{extension}', r'\.png')
+        )
+        self.assertRegexpMatches(
+            str(img.original_file), image_filepath_regex)
 
-        filter_args = dict(source__pk=self.source_id)
-        filter_args['metadata__aux1'] = '001'
-        image_001 = Image.objects.get(**filter_args)
+        self.assertEqual(img.original_width, 600)
+        self.assertEqual(img.original_height, 450)
 
-        image_001_name = image_001.metadata.name
+        self.assertTrue(datetime_before_upload <= img.upload_date)
+        self.assertTrue(img.upload_date <= timezone.now())
 
-        if dupe_option == 'skip':
+        # Check that the user who uploaded the image is the
+        # currently logged in user.
+        self.assertEqual(img.uploaded_by.pk, self.user.pk)
 
-            # Check that the image name is from the original,
-            # not the skipped dupe.
-            self.assertEqual(image_001_name, 'color-grid-001.png')
-            # Sanity check of the datetime of upload.
-            self.assertTrue(image_001.upload_date <= datetime_before_dupe_upload)
-
-        else:  # 'upload_anyway'
-
-            # Check that the image name is from the dupe
-            # we just uploaded.
-            self.assertEqual(image_001_name, 'color-grid-001_jpg-valid.jpg')
-            # Sanity check of the datetime of upload.
-            self.assertTrue(datetime_before_dupe_upload <= image_001.upload_date)
-
-
-    def test_duplicate_upload_with_skip(self):
-        self.duplicate_upload_test('skip')
-
-    def test_duplicate_upload_with_replace(self):
-        self.duplicate_upload_test('upload_anyway')
+        # cm height.
+        self.assertEqual(
+            img.metadata.height_in_cm, img.source.image_height_in_cm)
 
 
-class UploadInvalidImageTest(ImageUploadBaseTest):
+class UploadInvalidImageTest(ClientTest):
     """
     Image upload tests: errors related to the image files, such as errors
-    about corrupt images, non-images, etc.
+    about non-images.
     """
-    invalid_image_error_msg = ImageUploadForm.base_fields['file'].error_messages['invalid_image']
+    @classmethod
+    def setUpTestData(cls):
+        super(UploadInvalidImageTest, cls).setUpTestData()
 
-    def test_unloadable_corrupt_png_1(self):
-        """ .png with some bytes swapped around.
-        PIL load() would get IOError: broken data stream when reading image file """
-        self.upload_image_test(
-            '001_2012-05-01_color-grid-001_png-corrupt-unloadable-1.png',
-            expected_error=self.invalid_image_error_msg,
-        )
-
-    def test_unloadable_corrupt_png_2(self):
-        """ .png with some bytes deleted from the end.
-        PIL load() would get IndexError: string index out of range """
-        self.upload_image_test(
-            '001_2012-05-01_color-grid-001_png-corrupt-unloadable-2.png',
-            expected_error=self.invalid_image_error_msg,
-        )
-
-    def test_unopenable_corrupt_png(self):
-        """ .png with some bytes deleted near the beginning.
-        PIL open() would get IOError: cannot identify image file """
-        self.upload_image_test(
-            '001_2012-05-01_color-grid-001_png-corrupt-unopenable.png',
-            expected_error=self.invalid_image_error_msg,
-        )
-
-    def test_unloadable_corrupt_jpg(self):
-        """ .jpg with bytes deleted from the end.
-        PIL load() would get IOError: image file is truncated (4 bytes not processed) """
-        self.upload_image_test(
-            '001_2012-05-01_color-grid-001_jpg-corrupt-unloadable.jpg',
-            expected_error=self.invalid_image_error_msg,
-        )
-
-    def test_unopenable_corrupt_jpg(self):
-        """ .jpg with bytes deleted near the beginning.
-        PIL open() would get IOError: cannot identify image file """
-        self.upload_image_test(
-            '001_2012-05-01_color-grid-001_jpg-corrupt-unopenable.jpg',
-            expected_error=self.invalid_image_error_msg,
-        )
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(cls.user)
 
     def test_non_image(self):
-        """ .txt in UTF-8 created using Notepad++.
-        NOTE: the filename will have to be valid for an
-        equivalent Selenium test."""
-        self.upload_image_test(
-            'sample_text_file.txt',
-            expected_error=self.invalid_image_error_msg,
+        """ Text file. Should get an error."""
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse('image_upload_ajax', kwargs={'source_id': self.source.pk}),
+            dict(file=ContentFile('here is some text', name='1.txt')),
+        )
+
+        response_json = response.json()
+        self.assertDictEqual(
+            response_json,
+            dict(
+                status='error',
+                message=(
+                    "The file is either a corrupt image,"
+                    " or in a file format that we don't support."
+                ),
+                link=None,
+                title=None,
+            )
         )
 
     def test_empty_file(self):
-        """ 0-byte .png.
-        NOTE: the filename will have to be valid for an
-        equivalent Selenium test."""
-        self.upload_image_test(
-            'empty.png',
-            expected_error=forms.FileField.default_error_messages['empty']
+        """0-byte file. Should get an error."""
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse('image_upload_ajax', kwargs={'source_id': self.source.pk}),
+            dict(file=ContentFile(bytes(), name='1.png')),
         )
 
-    # TODO: Test uploading a nonexistent file (i.e. filling the file field with
-    # a nonexistent filename).  However, this will probably have to be done
-    # with a Selenium test.
+        response_json = response.json()
+        self.assertDictEqual(
+            response_json,
+            dict(
+                status='error',
+                message="The submitted file is empty.",
+                link=None,
+                title=None,
+            )
+        )
 
-    # TODO: Test sending the POST request with no file specified?
-    # This normally won't happen unless there's a manually crafted POST
-    # request, so this isn't high priority.
+    # TODO: Test an upload larger than the upload limit
+    # TODO: Test an upload larger than FILE_UPLOAD_MAX_MEMORY_SIZE, but
+    # smaller than the upload limit (should NOT get an error)
+    # TODO: Test uploads larger than the dimensions limits
 
 
-class UploadFilenameCheckTest(ImageUploadBaseTest):
+class UploadMetadataTest(ClientTest):
     """
-    Image upload tests: related to filename checking.
-    Checking for correct number of location values, duplicate images,
-    correct date format, recognition of the custom name at the end,
-    and so on.
-
-    Note that these are tests on the actual image upload operation.
-    We actually expect the ajax-image-upload-preview to get these checks
-    right in the first place.  What we are testing here is: if the
-    Javascript is somehow faulty and allows the user to bypass the upload
-    preview, could we catch filename errors on the server side as well?
+    Metadata upload and preview.
     """
+    @classmethod
+    def setUpTestData(cls):
+        super(UploadMetadataTest, cls).setUpTestData()
 
-    def test_filename_zero_location_keys(self):
-        """
-        Upload with zero location keys:
-        test upload, location values, photo date, and name.
-        """
-        self.source_id = Source.objects.get(name='0 keys').pk
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(cls.user)
 
-        # Without custom filename.
-        image_id, response = self.upload_image_test(os.path.join('0keys', '2011-05-28.png'))
+        cls.source.key1 = 'Site'
+        cls.source.key2 = 'Habitat'
+        cls.source.key3 = 'Transect'
+        cls.source.image_height_in_cm = 50
+        cls.source.save()
 
-        img = Image.objects.get(pk=image_id)
-        self.assertEqual(get_aux_metadata_str_list_for_image(img), [])
-        self.assertEqual(img.metadata.name, '2011-05-28.png')
-        self.assertEqual(img.metadata.photo_date, datetime.date(2011,5,28))
+        cls.img1 = cls.upload_image_new(
+            cls.user, cls.source, image_options=dict(filename='1.png'))
+        cls.img2 = cls.upload_image_new(
+            cls.user, cls.source, image_options=dict(filename='2.png'))
 
-        # With custom filename.
-        image_id, response = self.upload_image_test(os.path.join('0keys', '2012-05-28_grid1.png'))
-
-        img = Image.objects.get(pk=image_id)
-        self.assertEqual(get_aux_metadata_str_list_for_image(img), [])
-        self.assertEqual(img.metadata.name, 'grid1.png')
-        self.assertEqual(img.metadata.photo_date, datetime.date(2012,5,28))
-
-    def test_filename_one_location_key(self):
-        """
-        Upload with zero location keys:
-        test upload, location values, photo date, name, and dupe checking.
-        """
-        self.source_id = Source.objects.get(name='1 key').pk
-
-        image_id, response = self.upload_image_test(os.path.join('1key', '001_2011-05-28.png'))
-
-        img = Image.objects.get(pk=image_id)
-        self.assertEqual(get_aux_metadata_str_list_for_image(img), ['001'])
-        self.assertEqual(img.metadata.name, '001_2011-05-28.png')
-        self.assertEqual(img.metadata.photo_date, datetime.date(2011,5,28))
-
-        image_id, response = self.upload_image_test(os.path.join('1key', '001_2012-05-28_rainbow-grid-one.png'))
-
-        img = Image.objects.get(pk=image_id)
-        self.assertEqual(get_aux_metadata_str_list_for_image(img), ['001'])
-        self.assertEqual(img.metadata.name, 'rainbow-grid-one.png')
-        self.assertEqual(img.metadata.photo_date, datetime.date(2012,5,28))
-
-    def test_filename_two_location_keys(self):
-        self.source_id = Source.objects.get(name='2 keys').pk
-
-        image_id, response = self.upload_image_test(os.path.join('2keys', 'rainbow_002_2011-05-28.png'))
-
-        img = Image.objects.get(pk=image_id)
-        self.assertEqual(get_aux_metadata_str_list_for_image(img), ['rainbow', '002'])
-        self.assertEqual(img.metadata.name, 'rainbow_002_2011-05-28.png')
-        self.assertEqual(img.metadata.photo_date, datetime.date(2011,5,28))
-
-        image_id, response = self.upload_image_test(os.path.join('2keys', 'cool_001_2012-05-28_cool_image_one.png'))
-
-        img = Image.objects.get(pk=image_id)
-        self.assertEqual(get_aux_metadata_str_list_for_image(img), ['cool', '001'])
-        self.assertEqual(img.metadata.name, 'cool_image_one.png')
-        self.assertEqual(img.metadata.photo_date, datetime.date(2012,5,28))
-
-    def test_filename_five_location_keys(self):
-        self.source_id = Source.objects.get(name='5 keys').pk
-
-        image_id, response = self.upload_image_test(os.path.join('5keys', 'square_img-s_elmt-m_rainbow_002_2012-05-28.png'))
-
-        img = Image.objects.get(pk=image_id)
-        self.assertEqual(get_aux_metadata_str_list_for_image(img), ['square', 'img-s', 'elmt-m', 'rainbow', '002'])
-        self.assertEqual(img.metadata.name, 'square_img-s_elmt-m_rainbow_002_2012-05-28.png')
-        self.assertEqual(img.metadata.photo_date, datetime.date(2012,5,28))
-
-        image_id, response = self.upload_image_test(os.path.join('5keys', 'rect_img-m_elmt-l_cool_001_2012-05-28__cool_image_one_.png'))
-
-        img = Image.objects.get(pk=image_id)
-        self.assertEqual(get_aux_metadata_str_list_for_image(img), ['rect', 'img-m', 'elmt-l', 'cool', '001'])
-        self.assertEqual(img.metadata.name, '_cool_image_one_.png')
-        self.assertEqual(img.metadata.photo_date, datetime.date(2012,5,28))
-
-    def test_filename_dupe_detection(self):
-        self.source_id = Source.objects.get(name='0 keys').pk
-
-        self.upload_image_test(os.path.join('0keys', '2012-05-28_grid1.png'))
-        self.upload_image_test(os.path.join('0keys', '2011-05-28.png'))    # Year different
-        self.upload_image_test(os.path.join('0keys', '2012-05-28.png'), expecting_dupe=True)
-
-        self.source_id = Source.objects.get(name='1 key').pk
-
-        self.upload_image_test(os.path.join('1key', '001_2012-05-28_rainbow-grid-one.png'))
-        self.upload_image_test(os.path.join('1key', '002_2012-05-28.png'))    # Number different
-        self.upload_image_test(os.path.join('1key', '001_2011-05-28.png'))    # Year different
-        self.upload_image_test(os.path.join('1key', '002_2011-05-28.png'))    # Both different
-        self.upload_image_test(os.path.join('1key', '001_2012-05-28.png'), expecting_dupe=True)
-
-        self.source_id = Source.objects.get(name='2 keys').pk
-
-        self.upload_image_test(os.path.join('2keys', 'cool_001_2012-05-28_cool_image_one.png'))
-        self.upload_image_test(os.path.join('2keys', 'rainbow_001_2012-05-28.png'))    # Color different
-        self.upload_image_test(os.path.join('2keys', 'cool_002_2012-05-28.png'))    # Number different
-        self.upload_image_test(os.path.join('2keys', 'cool_001_2011-05-28.png'))    # Year different
-        self.upload_image_test(os.path.join('2keys', 'cool_001_2012-05-28.png'), expecting_dupe=True)
-
-        self.source_id = Source.objects.get(name='5 keys').pk
-
-        self.upload_image_test(os.path.join('5keys', 'rect_img-m_elmt-l_cool_001_2012-05-28__cool_image_one_.png'))
-        self.upload_image_test(os.path.join('5keys', 'square_img-m_elmt-l_cool_001_2012-05-28.png'))    # Shape different
-        self.upload_image_test(os.path.join('5keys', 'rect_img-s_elmt-l_cool_001_2012-05-28.png'))    # Image size different
-        self.upload_image_test(os.path.join('5keys', 'rect_img-m_elmt-m_cool_001_2012-05-28.png'))    # Element size different
-        self.upload_image_test(os.path.join('5keys', 'rect_img-m_elmt-l_rainbow_001_2012-05-28.png'))    # Color different
-        self.upload_image_test(os.path.join('5keys', 'rect_img-m_elmt-l_cool_002_2012-05-28.png'))    # Number different
-        self.upload_image_test(os.path.join('5keys', 'rect_img-m_elmt-l_cool_001_2011-05-28.png'))    # Year different
-        self.upload_image_test(os.path.join('5keys', 'rect_img-m_elmt-l_cool_001_2012-05-28.png'), expecting_dupe=True)
-
-
-    def test_filename_not_enough_location_values(self):
-        self.source_id = Source.objects.get(name='2 keys').pk
-
-        self.upload_image_test(
-            os.path.join('1key', '001_2011-05-28.png'),
-            expected_error=str_consts.FILENAME_PARSE_ERROR_STR,
-        )
-
-    def test_filename_too_many_location_values(self):
-        self.source_id = Source.objects.get(name='1 key').pk
-
-        # Upload a 2-location-value filename.
-        # We'll end up attempting to parse the second value
-        # as a date, and that will fail.
-        self.upload_image_test(
-            os.path.join('2keys', 'cool_001_2012-05-28.png'),
-            expected_error=str_consts.DATE_PARSE_ERROR_FMTSTR.format(date_token='001'),
-        )
-
-    def test_filename_date_formats(self):
-        self.source_id = Source.objects.get(name='1 key').pk
-
-        # Valid dates.
-
-        self.upload_image_test(
-            os.path.join('dates', '002_2012-02-29.png'),
-        )
-        self.upload_image_test(
-            os.path.join('dates', '003_2012-2-29.png'),
-        )
-        self.upload_image_test(
-            os.path.join('dates', '004_2012-2-2.png'),
-        )
-
-        # Incorrect number of hyphens.
-
-        self.upload_image_test(
-            os.path.join('dates', '001_20120229.png'),
-            expected_error=str_consts.DATE_PARSE_ERROR_FMTSTR.format(date_token='20120229'),
-        )
-        self.upload_image_test(
-            os.path.join('dates', '001_2012-0229.png'),
-            expected_error=str_consts.DATE_PARSE_ERROR_FMTSTR.format(date_token='2012-0229'),
-        )
-        self.upload_image_test(
-            os.path.join('dates', '001_2012-02-2-9.png'),
-            expected_error=str_consts.DATE_PARSE_ERROR_FMTSTR.format(date_token='2012-02-2-9'),
-        )
-
-        # Incorrect or missing y/m/d.
-
-        # Missing
-        self.upload_image_test(
-            os.path.join('dates', '001_2012--29.png'),
-            expected_error=str_consts.DATE_VALUE_ERROR_FMTSTR.format(date_token='2012--29'),
-        )
-        # Not a number
-        self.upload_image_test(
-            os.path.join('dates', '001_2012-02-ab.png'),
-            expected_error=str_consts.DATE_VALUE_ERROR_FMTSTR.format(date_token='2012-02-ab'),
-        )
-        # Day out of range (for the month)
-        self.upload_image_test(
-            os.path.join('dates', '001_2012-02-30.png'),
-            expected_error=str_consts.DATE_VALUE_ERROR_FMTSTR.format(date_token='2012-02-30'),
-        )
-        # Month out of range
-        self.upload_image_test(
-            os.path.join('dates', '001_2012-00-01.png'),
-            expected_error=str_consts.DATE_VALUE_ERROR_FMTSTR.format(date_token='2012-00-01'),
-        )
-        # Year out of range
-        self.upload_image_test(
-            os.path.join('dates', '001_10000-01-01.png'),
-            expected_error=str_consts.DATE_VALUE_ERROR_FMTSTR.format(date_token='10000-01-01'),
-        )
-        # Could test more dates, but would kind of boil down to whether the
-        # built-in library datetime is doing its job or not.
-
-
-class PreviewFilenameTest(ImageUploadBaseTest):
-
-    def test_status_types(self):
-        """
-        Try one error, one ok, and one dupe, all in the same preview batch.
-        Check that all the expected returned information is present and correct.
-        """
-        image_id, response = self.upload_image_test(os.path.join('1key', '001_2011-05-28.png'))
-
-        files = [
-            ('rainbow_001_2011-05-28.png', 'error', None),
-            ('002_2011-05-28.png', 'ok', '002;2011'),
-            ('001_2011-06-19.png', 'dupe', '001;2011'),
+        cls.standard_column_order = [
+            'Name', 'Date', 'Site', 'Habitat', 'Transect', 'Aux4', 'Aux5',
+            'Height (cm)', 'Latitude', 'Longitude', 'Depth',
+            'Camera', 'Photographer', 'Water quality',
+            'Strobes', 'Framing gear used', 'White balance card', 'Comments',
         ]
-        filenames = [f[0] for f in files]
 
-        response = self.client.post(
-            reverse('image_upload_preview_ajax', kwargs={'source_id': self.source_id}),
-            {'metadataOption': 'filenames', 'filenames[]': filenames},
+    def preview(self, csv_file):
+        return self.client.post(
+            reverse(
+                'upload_metadata_preview_ajax',
+                kwargs={'source_id': self.source.pk}),
+            {'csv_file': csv_file},
         )
-        response_json = response.json()
-        status_list = response_json['statusList']
 
-        for index, f in enumerate(files):
-            expected_status = f[1]
-            self.assertEqual(status_list[index]['status'], expected_status)
+    def upload(self, csv_file):
+        return self.client.post(
+            reverse(
+                'upload_metadata_ajax',
+                kwargs={'source_id': self.source.pk}),
+            {'csv_file': csv_file},
+        )
 
-            expected_metadata_key = f[2]
-            if expected_metadata_key is not None:
-                self.assertEqual(status_list[index]['metadataKey'], expected_metadata_key)
-
-            # Yeah, this is ugly code...
-            if index == 2:
-                # Dupe; two more values to check.
-                self.assertEqual(status_list[index]['url'], reverse('image_detail', args=[image_id]))
-                self.assertEqual(status_list[index]['title'], Image.objects.get(pk=image_id).get_image_element_title())
-
-                if settings.UNIT_TEST_VERBOSITY >= 1:
-                    print "Dupe image URL: {url}".format(url=status_list[index]['url'])
-                    print "Dupe image title: {title}".format(title=status_list[index]['title'])
-
-    def test_dupe_detection(self):
+    def test_starting_from_blank_metadata(self):
         """
-        Dupes and non-dupes should be detected as such.
-
-        Not going to test all the filenames in the upload tests all
-        over again.  Just a sampling, as a sanity check that filename
-        checks behave the same between preview and upload.
+        Everything except height (cm) starts blank and has nothing
+        to be replaced.
         """
-        self.upload_image_test(os.path.join('1key', '001_2012-05-28_rainbow-grid-one.png'))
+        self.client.force_login(self.user)
 
-        files = [
-            ('002_2012-05-28.png', 'ok'),    # Number different
-            ('001_2011-05-28.png', 'ok'),    # Year different
-            ('002_2011-05-28.png', 'ok'),    # Both different
-            ('001_2012-05-28.png', 'ok'),    # Same keys but other filename
-            ('001_2012-05-28_rainbow-grid-one.png', 'possible_dupe'), # Duplicate
+        with BytesIO() as stream:
+            writer = csv.DictWriter(stream, self.standard_column_order)
+            writer.writeheader()
+            writer.writerow({
+                'Name': '1.png',
+                'Date': '2016-07-18',
+                'Site': 'SiteA',
+                'Habitat': 'Fringing Reef',
+                'Transect': '2-4',
+                'Aux4': 'Q5',
+                'Aux5': '28',
+                'Height (cm)': '50',
+                'Latitude': '20.18',
+                'Longitude': '-59.64',
+                'Depth': '30m',
+                'Camera': 'Canon',
+                'Photographer': 'Bob Doe',
+                'Water quality': 'Mostly clear',
+                'Strobes': '2x blue',
+                'Framing gear used': 'FG-16',
+                'White balance card': 'WB-03',
+                'Comments': 'A bit off to the left from the transect line.',
+            })
+            writer.writerow({
+                'Name': '2.png',
+                'Date': '',
+                'Site': 'SiteB',
+                'Habitat': '10m out',
+                'Transect': '',
+                'Aux4': '',
+                'Aux5': '',
+                'Height (cm)': '50',
+                'Latitude': '',
+                'Longitude': '',
+                'Depth': '',
+                'Camera': 'Canon',
+                'Photographer': '',
+                'Water quality': '',
+                'Strobes': '',
+                'Framing gear used': 'FG-15',
+                'White balance card': '',
+                'Comments': '',
+            })
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            upload_response = self.upload(f)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                success=True,
+                metadataPreviewTable=[
+                    self.standard_column_order,
+                    ['1.png', '2016-07-18', 'SiteA', 'Fringing Reef', '2-4',
+                     'Q5', '28', '50', '20.18', '-59.64', '30m',
+                     'Canon', 'Bob Doe', 'Mostly clear', '2x blue', 'FG-16',
+                     'WB-03', 'A bit off to the left from the transect line.'],
+                    ['2.png', '', 'SiteB', '10m out', '', '', '', '50',
+                     '', '', '', 'Canon', '', '', '', 'FG-15', '', ''],
+                ],
+                numImages=2,
+                numFieldsReplaced=0,
+            ),
+        )
+
+        self.assertDictEqual(upload_response.json(), dict(success=True))
+
+        meta1 = self.img1.metadata
+        meta1.refresh_from_db()
+        self.assertEqual(meta1.name, '1.png')
+        self.assertEqual(meta1.photo_date, datetime.date(2016,7,18))
+        self.assertEqual(meta1.aux1, 'SiteA')
+        self.assertEqual(meta1.aux2, 'Fringing Reef')
+        self.assertEqual(meta1.aux3, '2-4')
+        self.assertEqual(meta1.aux4, 'Q5')
+        self.assertEqual(meta1.aux5, '28')
+        self.assertEqual(meta1.height_in_cm, 50)
+        self.assertEqual(meta1.latitude, '20.18')
+        self.assertEqual(meta1.longitude, '-59.64')
+        self.assertEqual(meta1.depth, '30m')
+        self.assertEqual(meta1.camera, 'Canon')
+        self.assertEqual(meta1.photographer, 'Bob Doe')
+        self.assertEqual(meta1.water_quality, 'Mostly clear')
+        self.assertEqual(meta1.strobes, '2x blue')
+        self.assertEqual(meta1.framing, 'FG-16')
+        self.assertEqual(meta1.balance, 'WB-03')
+        self.assertEqual(
+            meta1.comments, 'A bit off to the left from the transect line.')
+
+        meta2 = self.img2.metadata
+        meta2.refresh_from_db()
+        self.assertEqual(meta2.name, '2.png')
+        self.assertEqual(meta2.photo_date, None)
+        self.assertEqual(meta2.aux1, 'SiteB')
+        self.assertEqual(meta2.aux2, '10m out')
+        self.assertEqual(meta2.aux3, '')
+        self.assertEqual(meta2.aux4, '')
+        self.assertEqual(meta2.aux5, '')
+        self.assertEqual(meta2.height_in_cm, 50)
+        self.assertEqual(meta2.latitude, '')
+        self.assertEqual(meta2.longitude, '')
+        self.assertEqual(meta2.depth, '')
+        self.assertEqual(meta2.camera, 'Canon')
+        self.assertEqual(meta2.photographer, '')
+        self.assertEqual(meta2.water_quality, '')
+        self.assertEqual(meta2.strobes, '')
+        self.assertEqual(meta2.framing, 'FG-15')
+        self.assertEqual(meta2.balance, '')
+        self.assertEqual(meta2.comments, '')
+
+    def test_some_same_metadata(self):
+        """
+        Some fields start out with non-blank values and
+        the metadata specifies the same values for those fields.
+        """
+        self.client.force_login(self.user)
+
+        meta1 = self.img1.metadata
+        meta1.photo_date = datetime.date(2016,7,18)
+        meta1.aux1 = 'SiteA'
+        meta1.camera = 'Canon'
+        meta1.save()
+
+        with BytesIO() as stream:
+            writer = csv.DictWriter(stream, self.standard_column_order)
+            writer.writeheader()
+            writer.writerow({
+                'Name': '1.png',
+                'Date': '2016-07-18',
+                'Site': 'SiteA',
+                'Habitat': 'Fringing Reef',
+                'Transect': '2-4',
+                'Aux4': 'Q5',
+                'Aux5': '28',
+                'Height (cm)': '50',
+                'Latitude': '20.18',
+                'Longitude': '-59.64',
+                'Depth': '30m',
+                'Camera': 'Canon',
+                'Photographer': '',
+                'Water quality': '',
+                'Strobes': '',
+                'Framing gear used': '',
+                'White balance card': '',
+                'Comments': '',
+            })
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            upload_response = self.upload(f)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                success=True,
+                metadataPreviewTable=[
+                    self.standard_column_order,
+                    ['1.png', '2016-07-18', 'SiteA',
+                     'Fringing Reef', '2-4',
+                     'Q5', '28', '50', '20.18', '-59.64', '30m',
+                     'Canon', '', '', '', '', '', ''],
+                ],
+                numImages=1,
+                numFieldsReplaced=0,
+            ),
+        )
+
+        self.assertDictEqual(upload_response.json(), dict(success=True))
+
+        meta1.refresh_from_db()
+        self.assertEqual(meta1.name, '1.png')
+        self.assertEqual(meta1.photo_date, datetime.date(2016,7,18))
+        self.assertEqual(meta1.aux1, 'SiteA')
+        self.assertEqual(meta1.aux2, 'Fringing Reef')
+        self.assertEqual(meta1.aux3, '2-4')
+        self.assertEqual(meta1.aux4, 'Q5')
+        self.assertEqual(meta1.aux5, '28')
+        self.assertEqual(meta1.height_in_cm, 50)
+        self.assertEqual(meta1.latitude, '20.18')
+        self.assertEqual(meta1.longitude, '-59.64')
+        self.assertEqual(meta1.depth, '30m')
+        self.assertEqual(meta1.camera, 'Canon')
+        self.assertEqual(meta1.photographer, '')
+        self.assertEqual(meta1.water_quality, '')
+        self.assertEqual(meta1.strobes, '')
+        self.assertEqual(meta1.framing, '')
+        self.assertEqual(meta1.balance, '')
+        self.assertEqual(meta1.comments, '')
+
+    def test_some_replaced_metadata(self):
+        """
+        Some fields get their non-blank values replaced
+        with different values (blank or non-blank).
+        """
+        self.client.force_login(self.user)
+
+        meta1 = self.img1.metadata
+        meta1.photo_date = datetime.date(2014,2,27)
+        meta1.aux1 = 'SiteC'
+        meta1.camera = 'Nikon'
+        meta1.save()
+
+        with BytesIO() as stream:
+            writer = csv.DictWriter(stream, self.standard_column_order)
+            writer.writeheader()
+            writer.writerow({
+                'Name': '1.png',
+                'Date': '2016-07-18',
+                'Site': 'SiteA',
+                'Habitat': 'Fringing Reef',
+                'Transect': '2-4',
+                'Aux4': 'Q5',
+                'Aux5': '28',
+                'Height (cm)': '',
+                'Latitude': '20.18',
+                'Longitude': '-59.64',
+                'Depth': '30m',
+                'Camera': '',
+                'Photographer': '',
+                'Water quality': '',
+                'Strobes': '',
+                'Framing gear used': '',
+                'White balance card': '',
+                'Comments': '',
+            })
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            upload_response = self.upload(f)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                success=True,
+                metadataPreviewTable=[
+                    self.standard_column_order,
+                    ['1.png', ['2016-07-18', '2014-02-27'], ['SiteA', 'SiteC'],
+                     'Fringing Reef', '2-4',
+                     'Q5', '28', ['', '50'], '20.18', '-59.64', '30m',
+                     ['', 'Nikon'], '', '', '', '', '', ''],
+                ],
+                numImages=1,
+                numFieldsReplaced=4,
+            ),
+        )
+
+        self.assertDictEqual(upload_response.json(), dict(success=True))
+
+        meta1.refresh_from_db()
+        self.assertEqual(meta1.name, '1.png')
+        self.assertEqual(meta1.photo_date, datetime.date(2016,7,18))
+        self.assertEqual(meta1.aux1, 'SiteA')
+        self.assertEqual(meta1.aux2, 'Fringing Reef')
+        self.assertEqual(meta1.aux3, '2-4')
+        self.assertEqual(meta1.aux4, 'Q5')
+        self.assertEqual(meta1.aux5, '28')
+        self.assertEqual(meta1.height_in_cm, None)
+        self.assertEqual(meta1.latitude, '20.18')
+        self.assertEqual(meta1.longitude, '-59.64')
+        self.assertEqual(meta1.depth, '30m')
+        self.assertEqual(meta1.camera, '')
+        self.assertEqual(meta1.photographer, '')
+        self.assertEqual(meta1.water_quality, '')
+        self.assertEqual(meta1.strobes, '')
+        self.assertEqual(meta1.framing, '')
+        self.assertEqual(meta1.balance, '')
+        self.assertEqual(meta1.comments, '')
+
+    def test_skipped_fields(self):
+        """
+        The CSV doesn't have to cover every possible field in its columns.
+        Excluded fields should have their metadata untouched.
+        """
+        self.client.force_login(self.user)
+
+        meta1 = self.img1.metadata
+        meta1.photo_date = datetime.date(2014,2,27)
+        meta1.aux1 = 'SiteC'
+        meta1.camera = 'Nikon'
+        meta1.save()
+
+        column_names = ['Name', 'Site', 'Habitat', 'Transect']
+
+        with BytesIO() as stream:
+            writer = csv.DictWriter(stream, column_names)
+            writer.writeheader()
+            writer.writerow({
+                'Name': '1.png',
+                'Site': 'SiteA',
+                'Habitat': 'Fringing Reef',
+                'Transect': '2-4',
+            })
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            upload_response = self.upload(f)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                success=True,
+                metadataPreviewTable=[
+                    column_names,
+                    ['1.png', ['SiteA', 'SiteC'],
+                     'Fringing Reef', '2-4'],
+                ],
+                numImages=1,
+                numFieldsReplaced=1,
+            ),
+        )
+
+        self.assertDictEqual(upload_response.json(), dict(success=True))
+
+        meta1.refresh_from_db()
+        self.assertEqual(meta1.name, '1.png')
+        self.assertEqual(meta1.photo_date, datetime.date(2014,2,27))
+        self.assertEqual(meta1.aux1, 'SiteA')
+        self.assertEqual(meta1.aux2, 'Fringing Reef')
+        self.assertEqual(meta1.aux3, '2-4')
+        self.assertEqual(meta1.height_in_cm, 50)
+        self.assertEqual(meta1.camera, 'Nikon')
+
+    def test_skipped_csv_columns(self):
+        """
+        The CSV can have column names that we don't recognize. Those columns
+        will just be ignored.
+        """
+        self.client.force_login(self.user)
+
+        column_names = ['Name', 'Site', 'Time of day', 'Habitat', 'Transect']
+
+        with BytesIO() as stream:
+            writer = csv.DictWriter(stream, column_names)
+            writer.writeheader()
+            writer.writerow({
+                'Name': '1.png',
+                'Site': 'SiteA',
+                'Time of day': 'Sunset',
+                'Habitat': 'Fringing Reef',
+                'Transect': '2-4',
+            })
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            upload_response = self.upload(f)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                success=True,
+                metadataPreviewTable=[
+                    ['Name', 'Site', 'Habitat', 'Transect'],
+                    ['1.png', 'SiteA', 'Fringing Reef', '2-4'],
+                ],
+                numImages=1,
+                numFieldsReplaced=0,
+            ),
+        )
+
+        self.assertDictEqual(upload_response.json(), dict(success=True))
+
+        meta1 = self.img1.metadata
+        meta1.refresh_from_db()
+        self.assertEqual(meta1.name, '1.png')
+        self.assertEqual(meta1.aux1, 'SiteA')
+        self.assertEqual(meta1.aux2, 'Fringing Reef')
+        self.assertEqual(meta1.aux3, '2-4')
+
+    def test_skipped_filenames(self):
+        """
+        The CSV can have filenames that we don't recognize. Those rows
+        will just be ignored.
+        """
+        self.client.force_login(self.user)
+
+        column_names = ['Name', 'Site']
+
+        with BytesIO() as stream:
+            writer = csv.DictWriter(stream, column_names)
+            writer.writeheader()
+            writer.writerow({
+                'Name': '1.png',
+                'Site': 'SiteA',
+            })
+            writer.writerow({
+                'Name': '10.png',
+                'Site': 'SiteJ',
+            })
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            upload_response = self.upload(f)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                success=True,
+                metadataPreviewTable=[
+                    ['Name', 'Site'],
+                    ['1.png', 'SiteA'],
+                ],
+                numImages=1,
+                numFieldsReplaced=0,
+            ),
+        )
+
+        self.assertDictEqual(upload_response.json(), dict(success=True))
+
+        meta1 = self.img1.metadata
+        meta1.refresh_from_db()
+        self.assertEqual(meta1.name, '1.png')
+        self.assertEqual(meta1.aux1, 'SiteA')
+
+    def test_columns_different_order(self):
+        """
+        The CSV columns can be in a different order.
+        """
+        self.client.force_login(self.user)
+
+        column_names = ['Transect', 'Site', 'Name']
+
+        with BytesIO() as stream:
+            writer = csv.DictWriter(stream, column_names)
+            writer.writeheader()
+            writer.writerow({
+                'Transect': '2-4',
+                'Site': 'SiteA',
+                'Name': '1.png',
+            })
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            upload_response = self.upload(f)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                success=True,
+                metadataPreviewTable=[
+                    column_names,
+                    ['2-4', 'SiteA', '1.png'],
+                ],
+                numImages=1,
+                numFieldsReplaced=0,
+            ),
+        )
+
+        self.assertDictEqual(upload_response.json(), dict(success=True))
+
+        meta1 = self.img1.metadata
+        meta1.refresh_from_db()
+        self.assertEqual(meta1.name, '1.png')
+        self.assertEqual(meta1.aux1, 'SiteA')
+        self.assertEqual(meta1.aux3, '2-4')
+
+    def test_columns_different_case(self):
+        """
+        The CSV column names can use different upper/lower case and still
+        be matched to the metadata field labels.
+        """
+        self.client.force_login(self.user)
+
+        column_names = ['TRANSECT', 'site', 'NaMe']
+
+        with BytesIO() as stream:
+            writer = csv.DictWriter(stream, column_names)
+            writer.writeheader()
+            writer.writerow({
+                'TRANSECT': '2-4',
+                'site': 'SiteA',
+                'NaMe': '1.png',
+            })
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            upload_response = self.upload(f)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                success=True,
+                metadataPreviewTable=[
+                    ['Transect', 'Site', 'Name'],
+                    ['2-4', 'SiteA', '1.png'],
+                ],
+                numImages=1,
+                numFieldsReplaced=0,
+            ),
+        )
+
+        self.assertDictEqual(upload_response.json(), dict(success=True))
+
+        meta1 = self.img1.metadata
+        meta1.refresh_from_db()
+        self.assertEqual(meta1.name, '1.png')
+        self.assertEqual(meta1.aux1, 'SiteA')
+        self.assertEqual(meta1.aux3, '2-4')
+
+
+class UploadMetadataPreviewErrorTest(ClientTest):
+    """
+    Metadata upload preview, error cases (mainly related to CSV content).
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super(UploadMetadataPreviewErrorTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(cls.user)
+
+        cls.img1 = cls.upload_image_new(
+            cls.user, cls.source, image_options=dict(filename='1.png'))
+        cls.img2 = cls.upload_image_new(
+            cls.user, cls.source, image_options=dict(filename='2.png'))
+
+        cls.standard_column_order = [
+            'Name', 'Date', 'Aux1', 'Aux2', 'Aux3', 'Aux4', 'Aux5',
+            'Height (cm)', 'Latitude', 'Longitude', 'Depth',
+            'Camera', 'Photographer', 'Water quality',
+            'Strobes', 'Framing gear used', 'White balance card', 'Comments',
         ]
-        filenames = [f[0] for f in files]
 
-        response = self.client.post(
-            reverse('image_upload_preview_ajax', kwargs={'source_id': self.source_id}),
-            {'metadataOption': 'filenames', 'filenames[]': filenames},
+    def preview(self, csv_file):
+        return self.client.post(
+            reverse(
+                'upload_metadata_preview_ajax',
+                kwargs={'source_id': self.source.pk}),
+            {'csv_file': csv_file},
         )
-        response_json = response.json()
-        status_list = response_json['statusList']
 
-        for index, expected_status in enumerate([f[1] for f in files]):
-            self.assertEqual(status_list[index]['status'], expected_status)
-
-    def test_filename_errors(self):
+    def test_dupe_field_labels_1(self):
         """
-        Error messages should be returned as expected.
+        An aux. metadata field has the same label (non case sensitive)
+        as a default metadata field.
 
-        Again, not going to test all the same filenames as
-        the upload tests.
+        Gets an error even if this metadata field is not involved in the
+        import.
+        (It behaves this way just to make implementing the check simpler.)
         """
-        files = [
-            ('2011-05-28.png', str_consts.FILENAME_PARSE_ERROR_STR),
-            ('001_20120229.png', str_consts.DATE_PARSE_ERROR_FMTSTR.format(date_token='20120229')),
-            ('001_2012-02-30.png', str_consts.DATE_VALUE_ERROR_FMTSTR.format(date_token='2012-02-30')),
-            ('001_2011-01-01.png', str_consts.UPLOAD_PREVIEW_SAME_METADATA_ERROR_FMTSTR.format(metadata='001 2011')),
-            ('001_2011-05-28.png', str_consts.UPLOAD_PREVIEW_SAME_METADATA_ERROR_FMTSTR.format(metadata='001 2011')),
-        ]
-        filenames = [f[0] for f in files]
+        self.client.force_login(self.user)
 
-        response = self.client.post(
-            reverse('image_upload_preview_ajax', kwargs={'source_id': self.source_id}),
-            {'metadataOption': 'filenames', 'filenames[]': filenames},
+        self.source.key2 = 'CAMERA'
+        self.source.save()
+
+        column_names = ['Name', 'Aux1']
+
+        with BytesIO() as stream:
+            writer = csv.DictWriter(stream, column_names)
+            writer.writeheader()
+            writer.writerow({
+                'Name': '1.png',
+                'Aux1': 'SiteA',
+            })
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                error=(
+                    "More than one metadata field uses the label 'camera'."
+                    " Your auxiliary fields' names must be unique"
+                    " and different from the default metadata fields."
+                ),
+            ),
         )
-        response_json = response.json()
-        status_list = response_json['statusList']
 
-        for index, expected_error in enumerate([f[1] for f in files]):
-            self.assertEqual(status_list[index]['status'], 'error')
-            self.assertEqual(status_list[index]['message'], expected_error)
+    def test_dupe_field_labels_2(self):
+        """
+        Two aux. metadata fields have the same label.
+        """
+        self.client.force_login(self.user)
+
+        self.source.key1 = 'Site'
+        self.source.key2 = 'site'
+        self.source.save()
+
+        column_names = ['Name', 'Site']
+
+        with BytesIO() as stream:
+            writer = csv.DictWriter(stream, column_names)
+            writer.writeheader()
+            writer.writerow({
+                'Name': '1.png',
+                'Site': 'SiteA',
+            })
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                error=(
+                    "More than one metadata field uses the label 'site'."
+                    " Your auxiliary fields' names must be unique"
+                    " and different from the default metadata fields."
+                ),
+            ),
+        )
+
+    def test_dupe_column_names(self):
+        """
+        Two CSV columns have the same name.
+        """
+        self.client.force_login(self.user)
+
+        column_names = ['Name', 'Latitude', 'LATITUDE']
+
+        with BytesIO() as stream:
+            writer = csv.DictWriter(stream, column_names)
+            writer.writeheader()
+            writer.writerow({
+                'Name': '1.png',
+                'Latitude': '24.08',
+                'LATITUDE': '24.08',
+            })
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                error=(
+                    "Column name appears more than once: latitude"
+                ),
+            ),
+        )
+
+    def test_dupe_row_filenames(self):
+        """
+        Two CSV rows have the same filename.
+        """
+        self.client.force_login(self.user)
+
+        column_names = ['Name', 'Aux1']
+
+        with BytesIO() as stream:
+            writer = csv.DictWriter(stream, column_names)
+            writer.writeheader()
+            writer.writerow({
+                'Name': '1.png',
+                'Aux1': 'SiteA',
+            })
+            writer.writerow({
+                'Name': '1.png',
+                'Aux1': 'SiteA',
+            })
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                error=(
+                    "More than one row with the same image name: 1.png"
+                ),
+            ),
+        )
+
+    def test_no_specified_images_found_in_source(self):
+        """
+        No CSV rows have a filename that can be found in the source.
+        """
+        self.client.force_login(self.user)
+
+        column_names = ['Name', 'Aux1']
+
+        with BytesIO() as stream:
+            writer = csv.DictWriter(stream, column_names)
+            writer.writeheader()
+            writer.writerow({
+                'Name': '3.png',
+                'Aux1': 'SiteA',
+            })
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                error=(
+                    "No matching filenames found in the source"
+                ),
+            ),
+        )
+
+    def test_no_name_column(self):
+        """
+        No CSV columns correspond to the name field.
+        """
+        self.client.force_login(self.user)
+
+        column_names = ['Aux1', 'Aux2']
+
+        with BytesIO() as stream:
+            writer = csv.DictWriter(stream, column_names)
+            writer.writeheader()
+            writer.writerow({
+                'Aux1': 'SiteA',
+                'Aux2': 'Fringing Reef',
+            })
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                error=(
+                    "No 'Name' column found in CSV"
+                ),
+            ),
+        )
+
+    def test_no_recognized_non_name_column(self):
+        """
+        No CSV columns correspond to metadata fields besides the name field,
+        and thus no metadata could be found.
+        """
+        self.client.force_login(self.user)
+
+        column_names = ['Name', 'Time of day']
+
+        with BytesIO() as stream:
+            writer = csv.DictWriter(stream, column_names)
+            writer.writeheader()
+            writer.writerow({
+                'Name': '1.png',
+                'Time of day': 'Sunset',
+            })
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                error=(
+                    "No metadata columns other than 'Name' found in CSV"
+                ),
+            ),
+        )
+
+
+class UploadMetadataPreviewFormatTest(ClientTest):
+    """
+    Metadata upload preview, special cases or error cases with CSV formats.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super(UploadMetadataPreviewFormatTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(cls.user)
+
+        cls.img1 = cls.upload_image_new(
+            cls.user, cls.source, image_options=dict(filename='1.png'))
+        cls.img2 = cls.upload_image_new(
+            cls.user, cls.source, image_options=dict(filename='2.png'))
+
+    def preview(self, csv_file):
+        return self.client.post(
+            reverse(
+                'upload_metadata_preview_ajax',
+                kwargs={'source_id': self.source.pk}),
+            {'csv_file': csv_file},
+        )
+
+    def test_cr_only_newlines(self):
+        """
+        Tolerate carriage-return-only newlines in the CSV (old Mac style).
+        """
+        self.client.force_login(self.user)
+
+        content = (
+            'Name,Aux1'
+            '\r1.png,SiteA'
+        )
+        f = ContentFile(content, name='A.csv')
+        preview_response = self.preview(f)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                success=True,
+                metadataPreviewTable=[
+                    ['Name', 'Aux1'],
+                    ['1.png', 'SiteA'],
+                ],
+                numImages=1,
+                numFieldsReplaced=0,
+            ),
+        )
+
+    def test_utf8_chars(self):
+        """
+        Tolerate non-ASCII UTF-8 characters in the CSV.
+        """
+        # TODO: Not sure how to make this work with Python 2 and its CSV module
+        # (getting them to work with non-ASCII is a known pain).
+        # But it seems the use case hasn't come up in practice yet, so let's
+        # defer this until (1) it comes up in practice, or
+        # (2) we upgrade to Python 3.
+        return
+
+        self.client.force_login(self.user)
+
+        content = (
+            'Name,Aux1'
+            '\r1.png,\xe5\x9c\xb0\xe7\x82\xb9A'
+        )
+        f = ContentFile(content, name='A.csv')
+        preview_response = self.preview(f)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                success=True,
+                metadataPreviewTable=[
+                    ['Name', 'Aux1'],
+                    ['1.png', '\xe5\x9c\xb0\xe7\x82\xb9A'],
+                ],
+                numImages=1,
+                numFieldsReplaced=0,
+            ),
+        )
+
+    def test_utf8_bom_char(self):
+        """
+        Tolerate UTF-8 BOM character at the start of the CSV.
+        """
+        self.client.force_login(self.user)
+
+        content = (
+            '\xef\xbb\xbfName,Aux1'
+            '\n1.png,SiteA'
+        )
+        f = ContentFile(content, name='A.csv')
+        preview_response = self.preview(f)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                success=True,
+                metadataPreviewTable=[
+                    ['Name', 'Aux1'],
+                    ['1.png', 'SiteA'],
+                ],
+                numImages=1,
+                numFieldsReplaced=0,
+            ),
+        )
+
+    def test_extra_quotes(self):
+        """
+        Strip "surrounding quotes" around CSV values. This is the most common
+        text delimiter for CSVs, used to enclose cell values containing commas.
+        Depending on how you save your CSV, your program might auto-add quotes
+        even in the absence of commas.
+        """
+        self.client.force_login(self.user)
+
+        content = (
+            'Name,Aux1'
+            '\n"1.png","SiteA,IsleB"'
+        )
+        f = ContentFile(content, name='A.csv')
+        preview_response = self.preview(f)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                success=True,
+                metadataPreviewTable=[
+                    ['Name', 'Aux1'],
+                    ['1.png', 'SiteA,IsleB'],
+                ],
+                numImages=1,
+                numFieldsReplaced=0,
+            ),
+        )
+
+    def test_non_csv(self):
+        """
+        Do at least basic detection of non-CSV files.
+        """
+        self.client.force_login(self.user)
+
+        f = sample_image_as_file('A.jpg')
+        preview_response = self.preview(f)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                error="This file is not a CSV file.",
+            ),
+        )
 
 
 class AnnotationUploadBaseTest(ImageUploadBaseTest):

@@ -11,7 +11,7 @@ from lib.decorators import source_permission_required
 from lib.exceptions import FileProcessError
 from .forms import MultiImageUploadForm, ImageUploadForm, AnnotationImportForm, AnnotationImportOptionsForm, CSVImportForm, ImportArchivedAnnotationsForm
 from .utils import annotations_file_to_python, upload_image_process, load_archived_csv, check_archived_csv, import_archived_annotations, find_dupe_image, metadata_csv_to_dict, \
-    metadata_csv_fields
+    metadata_csv_fields, metadata_obj_to_dict
 from visualization.forms import ImageSpecifyForm
 
 
@@ -332,8 +332,11 @@ def upload_metadata_ajax(request, source_id):
     for metadata_id, csv_row_metadata in csv_metadata.items():
 
         metadata = Metadata.objects.get(pk=metadata_id)
+        new_metadata_dict = metadata_obj_to_dict(metadata)
+        new_metadata_dict.update(csv_row_metadata)
+
         metadata_form = MetadataForm(
-            csv_row_metadata, instance=metadata, source_id=source.pk)
+            new_metadata_dict, instance=metadata, source_id=source.pk)
 
         if not metadata_form.is_valid():
             # One of the filenames' metadata is not valid. Get one

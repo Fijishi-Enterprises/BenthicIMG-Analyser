@@ -96,7 +96,10 @@ class ImageUploadForm(Form):
         label='Image file',
         widget=FileInput(),
         error_messages={
-            'invalid_image': _(u"The file is either a corrupt image, or in a file format that we don't support."),
+            'invalid_image': (
+                "The file is either a corrupt image,"
+                " or in a file format that we don't support."
+            ),
         },
     )
 

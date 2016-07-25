@@ -216,24 +216,13 @@ var UploadMetadataHelper = (function() {
         updateStatus();
 
         // Warn the user if they're trying to
-        // leave the page during the upload.
-        util.pageLeaveWarningEnable("The upload is still going.");
+        // leave the page during the save.
+        util.pageLeaveWarningEnable("Metadata is still being saved.");
 
         // Start the upload.
         $.ajax({
             // URL to make request to
             url: uploadStartUrl,
-            // Data to send in the request
-            // https://developer.mozilla.org/en-US/docs/Web/API/FormData/Using_FormData_Objects
-            data: new FormData($csvForm[0]),
-            // Don't let jQuery auto-set the Content-Type header
-            // if we're using FormData
-            // http://stackoverflow.com/a/5976031/
-            contentType: false,
-            // Don't let jQuery attempt to convert the FormData
-            // to a string, as it will fail
-            // http://stackoverflow.com/a/5976031/
-            processData: false,
             type: 'POST',
             // Callbacks
             success: handleUploadResponse,

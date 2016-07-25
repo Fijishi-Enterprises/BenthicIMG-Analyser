@@ -215,8 +215,9 @@ def upload_metadata(request, source_id):
 def upload_metadata_preview_ajax(request,source_id):
     """
     Set image metadata by uploading a CSV file containing the metadata.
-    This view takes the CSV file by Ajax and returns
-    a preview of the metadata to be saved.
+
+    This view takes the CSV file, processes it, saves the processed metadata
+    to the session, and returns a preview table of the metadata to be saved.
     """
     if request.method != 'POST':
         return JsonResponse(dict(
@@ -265,10 +266,10 @@ def upload_metadata_preview_ajax(request,source_id):
         if not metadata_form.is_valid():
             # One of the filenames' metadata is not valid. Get one
             # error message and return that.
-            for field_name, messages in metadata_form.errors.items():
+            for field_name, error_messages in metadata_form.errors.items():
                 field_label = metadata_form.fields[field_name].label
-                if messages != []:
-                    error_message = messages[0]
+                if error_messages != []:
+                    error_message = error_messages[0]
                     return JsonResponse(dict(
                         error="({filename} - {field_label}) {message}".format(
                             filename=csv_row_metadata['name'],
@@ -293,6 +294,8 @@ def upload_metadata_preview_ajax(request,source_id):
                 num_fields_replaced += 1
         metadata_preview_table.append(row)
 
+    request.session['csv_metadata'] = csv_metadata
+
     return JsonResponse(dict(
         success=True,
         metadataPreviewTable=metadata_preview_table,
@@ -306,8 +309,9 @@ def upload_metadata_preview_ajax(request,source_id):
 def upload_metadata_ajax(request, source_id):
     """
     Set image metadata by uploading a CSV file containing the metadata.
-    This view takes the CSV file by Ajax and saves the metadata
-    to the database.
+
+    This view gets the metadata that was previously saved to the session
+    by the upload-preview view. Then it saves the metadata to the database.
     """
     if request.method != 'POST':
         return JsonResponse(dict(
@@ -316,20 +320,7 @@ def upload_metadata_ajax(request, source_id):
 
     source = get_object_or_404(Source, id=source_id)
 
-    csv_import_form = CSVImportForm(request.POST, request.FILES)
-    if not csv_import_form.is_valid():
-        return JsonResponse(dict(
-            error=csv_import_form.errors['csv_file'][0],
-        ))
-
-    try:
-        # Dict of (metadata ids -> dicts of (column name -> value))
-        csv_metadata = metadata_csv_to_dict(
-            csv_import_form.cleaned_data['csv_file'], source)
-    except FileProcessError as error:
-        return JsonResponse(dict(
-            error=error.message,
-         ))
+    csv_metadata = request.session.pop('csv_metadata')
 
     for metadata_id, csv_row_metadata in csv_metadata.items():
 
@@ -343,10 +334,10 @@ def upload_metadata_ajax(request, source_id):
         if not metadata_form.is_valid():
             # One of the filenames' metadata is not valid. Get one
             # error message and return that.
-            for field_name, messages in metadata_form.errors.items():
+            for field_name, error_messages in metadata_form.errors.items():
                 field_label = metadata_form.fields[field_name].label
-                if messages != []:
-                    error_message = messages[0]
+                if error_messages != []:
+                    error_message = error_messages[0]
                     return JsonResponse(dict(
                         error="({filename} - {field_label}) {message}".format(
                             filename=csv_row_metadata['name'],

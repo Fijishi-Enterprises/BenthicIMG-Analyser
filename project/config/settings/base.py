@@ -279,6 +279,17 @@ IMPORTED_USERNAME = "Imported"
 ROBOT_USERNAME = "robot"
 ALLEVIATE_USERNAME = "Alleviate"
 
+# [Custom settings] Upload restrictions
+IMAGE_UPLOAD_MAX_FILE_SIZE = 30*1024*1024  # 30 MB
+IMAGE_UPLOAD_MAX_DIMENSIONS = (8000, 8000)
+IMAGE_UPLOAD_ACCEPTED_CONTENT_TYPES = [
+    # https://www.sitepoint.com/web-foundations/mime-types-complete-list/
+    'image/jpeg',
+    'image/pjpeg',  # Progressive JPEG
+    'image/png',
+]
+CSV_UPLOAD_MAX_FILE_SIZE = 30*1024*1024  # 30 MB
+
 # [Custom setting]
 # Go to https://code.google.com/apis/console/ and get an API key
 GOOGLE_MAPS_API_KEY = get_secret("GOOGLE_MAPS_API_KEY")

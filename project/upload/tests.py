@@ -15,7 +15,7 @@ from annotations.models import Annotation
 from images.model_utils import PointGen
 from images.models import Source, Image, Point
 from lib import str_consts
-from lib.test_utils import ClientTest, sample_image_as_file
+from lib.test_utils import ClientTest, sample_image_as_file, create_sample_image
 
 
 class ImageUploadBaseTest(ClientTest):
@@ -396,7 +396,7 @@ class UploadInvalidImageTest(ClientTest):
         cls.source = cls.create_source(cls.user)
 
     def test_non_image(self):
-        """ Text file. Should get an error."""
+        """Text file. Should get an error."""
         self.client.force_login(self.user)
         response = self.client.post(
             reverse('image_upload_ajax', kwargs={'source_id': self.source.pk}),
@@ -412,6 +412,31 @@ class UploadInvalidImageTest(ClientTest):
                     "The file is either a corrupt image,"
                     " or in a file format that we don't support."
                 ),
+                link=None,
+                title=None,
+            )
+        )
+
+    def test_unsupported_image_type(self):
+        """An image, but not a supported type. Should get an error."""
+        self.client.force_login(self.user)
+
+        im = create_sample_image()
+        with BytesIO() as stream:
+            im.save(stream, 'BMP')
+            bmp_file = ContentFile(stream.getvalue(), name='1.bmp')
+
+        response = self.client.post(
+            reverse('image_upload_ajax', kwargs={'source_id': self.source.pk}),
+            dict(file=bmp_file),
+        )
+
+        response_json = response.json()
+        self.assertDictEqual(
+            response_json,
+            dict(
+                status='error',
+                message="This image file format isn't supported.",
                 link=None,
                 title=None,
             )
@@ -436,10 +461,67 @@ class UploadInvalidImageTest(ClientTest):
             )
         )
 
+    def test_max_image_dimensions_1(self):
+        """Should check the max image width."""
+        image_file = sample_image_as_file(
+            '1.png', image_options=dict(width=600, height=450),
+        )
+
+        self.client.force_login(self.user)
+        post_dict = dict(file=image_file)
+        with self.settings(IMAGE_UPLOAD_MAX_DIMENSIONS=(599, 1000)):
+            response = self.client.post(
+                reverse(
+                    'image_upload_ajax', kwargs={'source_id': self.source.pk}),
+                post_dict,
+            )
+
+        response_json = response.json()
+        self.assertDictEqual(
+            response_json,
+            dict(
+                status='error',
+                message="Ensure the image dimensions are at most 599 x 1000.",
+                link=None,
+                title=None,
+            )
+        )
+
+    def test_max_image_dimensions_2(self):
+        """Should check the max image height."""
+        image_file = sample_image_as_file(
+            '1.png', image_options=dict(width=600, height=450),
+        )
+
+        self.client.force_login(self.user)
+        post_dict = dict(file=image_file)
+        with self.settings(IMAGE_UPLOAD_MAX_DIMENSIONS=(1000, 449)):
+            response = self.client.post(
+                reverse(
+                    'image_upload_ajax', kwargs={'source_id': self.source.pk}),
+                post_dict,
+            )
+
+        response_json = response.json()
+        self.assertDictEqual(
+            response_json,
+            dict(
+                status='error',
+                message="Ensure the image dimensions are at most 1000 x 449.",
+                link=None,
+                title=None,
+            )
+        )
+
     # TODO: Test an upload larger than the upload limit
     # TODO: Test an upload larger than FILE_UPLOAD_MAX_MEMORY_SIZE, but
     # smaller than the upload limit (should NOT get an error)
-    # TODO: Test uploads larger than the dimensions limits
+    #
+    # Not sure how to craft an image of a specific size though. Maybe there
+    # is some metadata field that can be arbitrarily long?
+    # Also, testing the upload limit should be done on the client side,
+    # before the image is actually uploaded.
+    # So might have to be a client-side test.
 
 
 class UploadMetadataTest(ClientTest):

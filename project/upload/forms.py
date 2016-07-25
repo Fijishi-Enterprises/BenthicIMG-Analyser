@@ -1,8 +1,9 @@
 from django import forms
+from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.files.images import get_image_dimensions
 from django.forms import ImageField, Form, ChoiceField, FileField, CharField
 from django.forms.widgets import FileInput
-from django.utils.translation import ugettext_lazy as _
 from images.utils import get_aux_metadata_max_length, get_num_aux_fields, get_aux_label, get_aux_field_name
 from images.models import Source, Metadata
 
@@ -67,7 +68,10 @@ class MultiImageUploadForm(Form):
     """
     Takes multiple image files.
 
-    This is used only for the frontend of the image upload form.
+    This is used only for the frontend of the image upload form,
+    not the backend.
+    That is, the user selects multiple images in the browser,
+    but the images are sent to the server one by one.
     """
     files = MultipleImageField(
         label='Image files',
@@ -90,7 +94,10 @@ class ImageUploadForm(Form):
     """
     Takes a single image file.
 
-    This is used only for the backend of the image upload form.
+    This is used only for the backend of the image upload form,
+    not the frontend.
+    That is, the user selects multiple images in the browser,
+    but the images are sent to the server one by one.
     """
     file = ImageField(
         label='Image file',
@@ -102,6 +109,29 @@ class ImageUploadForm(Form):
             ),
         },
     )
+
+    def clean_file(self):
+        image_file = self.cleaned_data['file']
+
+        if image_file.content_type not in \
+         settings.IMAGE_UPLOAD_ACCEPTED_CONTENT_TYPES:
+            raise ValidationError(
+                "This image file format isn't supported.",
+                code='image_file_format',
+            )
+
+        width, height = get_image_dimensions(image_file)
+        max_width, max_height = settings.IMAGE_UPLOAD_MAX_DIMENSIONS
+
+        if width > max_width or height > max_height:
+            raise ValidationError(
+                "Ensure the image dimensions are at most"
+                " {w} x {h}.".format(w=max_width, h=max_height),
+                code='max_image_dimensions',
+            )
+
+        return self.cleaned_data['file']
+
 
 
 class AnnotationImportForm(Form):

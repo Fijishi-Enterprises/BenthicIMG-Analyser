@@ -29,9 +29,10 @@ var ImageUploadFormHelper = (function() {
 
     var uploadPreviewUrl = null;
     var uploadStartUrl = null;
+    var maxFileSizeBytes = null;
 
     var files = [];
-    var numDupes = 0;
+    var numErrors = 0;
     var numUploadables = 0;
     var uploadableTotalSize = 0;
 
@@ -129,8 +130,8 @@ var ImageUploadFormHelper = (function() {
             if (files[i].status === 'ok') {
                 styleFilesTableRow(i, '');
             }
-            else if (files[i].status === 'dupe') {
-                styleFilesTableRow(i, 'preupload_dupe');
+            else if (files[i].status === 'error') {
+                styleFilesTableRow(i, 'preupload_error');
             }
             else {
                 // Perhaps no status is set yet. As far as this function is
@@ -156,18 +157,18 @@ var ImageUploadFormHelper = (function() {
         $summaryList.append(
             $('<li>').append(
                 $('<strong>').text(
-                    "{0} file(s) ({1}) are uploadable images".format(
+                    "{0} file(s) ({1}) can be uploaded".format(
                         numUploadables,
                         util.filesizeDisplay(uploadableTotalSize)
                     )
                 )
             )
         );
-        if (numDupes > 0) {
+        if (numErrors > 0) {
             $summaryList.append(
                 $('<li>').text(
-                    "{0} image(s) have names matching existing images".format(
-                        numDupes
+                    "{0} file(s) can't be uploaded".format(
+                        numErrors
                     )
                 )
             );
@@ -254,7 +255,7 @@ var ImageUploadFormHelper = (function() {
     }
 
     function updateFilenameStatuses(statusList) {
-        numDupes = 0;
+        numErrors = 0;
 
         var i;
         for (i = 0; i < statusList.length; i++) {
@@ -274,20 +275,32 @@ var ImageUploadFormHelper = (function() {
                 linkToDupe.attr('title', statusList[i].title);
                 $statusCell.append(linkToDupe);
 
-                numDupes += 1;
+                files[i].status = 'error';
+                numErrors += 1;
             }
             else if (statusStr === 'ok') {
-                $statusCell.text("Ready");
+
+                // Check filesize.
+                // This isn't part of the filename check, so maybe putting the
+                // check here is kind of confusing. But it's also a
+                // pre-upload check which should affect the preview status.
+                if (files[i].file.size > maxFileSizeBytes) {
+                    $statusCell.append("Exceeds size limit of {0}".format(
+                        util.filesizeDisplay(maxFileSizeBytes)
+                    ));
+                    files[i].status = 'error';
+                    numErrors += 1;
+                }
+                else {
+                    $statusCell.text("Ready");
+                    files[i].status = 'ok';
+                }
             }
             else {
                 // This'll only happen if we don't keep the status strings
                 // synced between server code and client code.
                 console.log("Invalid status: " + statusStr);
-            }
-
-            files[i].status = statusStr;
-            if (statusList[i].hasOwnProperty('metadataKey')) {
-                files[i].metadataKey = statusList[i].metadataKey;
+                files[i].status = statusStr;
             }
         }
 
@@ -514,6 +527,7 @@ var ImageUploadFormHelper = (function() {
             // Get the parameters.
             uploadPreviewUrl = params.uploadPreviewUrl;
             uploadStartUrl = params.uploadStartUrl;
+            maxFileSizeBytes = params.maxFileSizeBytes;
 
             // Upload status summary elements.
             $preUploadSummary = $('#pre_upload_summary');

@@ -89,7 +89,8 @@
   <script type="text/javascript">
     ImageUploadFormHelper.init({
         uploadPreviewUrl: "{% url 'image_upload_preview_ajax' source.id %}",
-        uploadStartUrl: "{% url 'image_upload_ajax' source.id %}"
+        uploadStartUrl: "{% url 'image_upload_ajax' source.id %}",
+        maxFileSizeBytes: "{{ max_file_size_bytes|jsonify }}"
     });
   </script>
 

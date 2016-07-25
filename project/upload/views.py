@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib import messages
 from django.core.urlresolvers import reverse
 from django.http import HttpResponseRedirect, JsonResponse
@@ -44,6 +45,7 @@ def image_upload(request, source_id):
         'images_form': images_form,
         'proceed_to_manage_metadata_form': proceed_to_manage_metadata_form,
         'auto_generate_points_message': auto_generate_points_message,
+        'max_file_size_bytes': settings.IMAGE_UPLOAD_MAX_FILE_SIZE,
     })
 
 

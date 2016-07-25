@@ -321,6 +321,14 @@ def upload_metadata_ajax(request, source_id):
     source = get_object_or_404(Source, id=source_id)
 
     csv_metadata = request.session.pop('csv_metadata')
+    if not csv_metadata:
+        return JsonResponse(dict(
+            error=(
+                "We couldn't find the expected data in your session."
+                " Please try loading this page again. If the problem persists,"
+                " contact a site admin."
+            ),
+        ))
 
     for metadata_id, csv_row_metadata in csv_metadata.items():
 

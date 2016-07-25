@@ -561,12 +561,11 @@ class UploadMetadataTest(ClientTest):
             {'csv_file': csv_file},
         )
 
-    def upload(self, csv_file):
+    def upload(self):
         return self.client.post(
             reverse(
                 'upload_metadata_ajax',
                 kwargs={'source_id': self.source.pk}),
-            {'csv_file': csv_file},
         )
 
     def test_starting_from_blank_metadata(self):
@@ -622,8 +621,7 @@ class UploadMetadataTest(ClientTest):
 
             f = ContentFile(stream.getvalue(), name='A.csv')
             preview_response = self.preview(f)
-            f = ContentFile(stream.getvalue(), name='A.csv')
-            upload_response = self.upload(f)
+            upload_response = self.upload()
 
         self.assertDictEqual(
             preview_response.json(),
@@ -727,8 +725,7 @@ class UploadMetadataTest(ClientTest):
 
             f = ContentFile(stream.getvalue(), name='A.csv')
             preview_response = self.preview(f)
-            f = ContentFile(stream.getvalue(), name='A.csv')
-            upload_response = self.upload(f)
+            upload_response = self.upload()
 
         self.assertDictEqual(
             preview_response.json(),
@@ -807,8 +804,7 @@ class UploadMetadataTest(ClientTest):
 
             f = ContentFile(stream.getvalue(), name='A.csv')
             preview_response = self.preview(f)
-            f = ContentFile(stream.getvalue(), name='A.csv')
-            upload_response = self.upload(f)
+            upload_response = self.upload()
 
         self.assertDictEqual(
             preview_response.json(),
@@ -875,8 +871,7 @@ class UploadMetadataTest(ClientTest):
 
             f = ContentFile(stream.getvalue(), name='A.csv')
             preview_response = self.preview(f)
-            f = ContentFile(stream.getvalue(), name='A.csv')
-            upload_response = self.upload(f)
+            upload_response = self.upload()
 
         self.assertDictEqual(
             preview_response.json(),
@@ -925,8 +920,7 @@ class UploadMetadataTest(ClientTest):
 
             f = ContentFile(stream.getvalue(), name='A.csv')
             preview_response = self.preview(f)
-            f = ContentFile(stream.getvalue(), name='A.csv')
-            upload_response = self.upload(f)
+            upload_response = self.upload()
 
         self.assertDictEqual(
             preview_response.json(),
@@ -973,8 +967,7 @@ class UploadMetadataTest(ClientTest):
 
             f = ContentFile(stream.getvalue(), name='A.csv')
             preview_response = self.preview(f)
-            f = ContentFile(stream.getvalue(), name='A.csv')
-            upload_response = self.upload(f)
+            upload_response = self.upload()
 
         self.assertDictEqual(
             preview_response.json(),
@@ -1015,8 +1008,7 @@ class UploadMetadataTest(ClientTest):
 
             f = ContentFile(stream.getvalue(), name='A.csv')
             preview_response = self.preview(f)
-            f = ContentFile(stream.getvalue(), name='A.csv')
-            upload_response = self.upload(f)
+            upload_response = self.upload()
 
         self.assertDictEqual(
             preview_response.json(),
@@ -1059,8 +1051,7 @@ class UploadMetadataTest(ClientTest):
 
             f = ContentFile(stream.getvalue(), name='A.csv')
             preview_response = self.preview(f)
-            f = ContentFile(stream.getvalue(), name='A.csv')
-            upload_response = self.upload(f)
+            upload_response = self.upload()
 
         self.assertDictEqual(
             preview_response.json(),
@@ -1082,6 +1073,177 @@ class UploadMetadataTest(ClientTest):
         self.assertEqual(meta1.name, '1.png')
         self.assertEqual(meta1.aux1, 'SiteA')
         self.assertEqual(meta1.aux3, '2-4')
+
+
+class UploadMetadataPreviewTest(ClientTest):
+    """
+    Tests only pertaining to metadata preview.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super(UploadMetadataPreviewTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(cls.user)
+
+        cls.source.key1 = 'Site'
+        cls.source.save()
+
+        cls.img1 = cls.upload_image_new(
+            cls.user, cls.source, image_options=dict(filename='1.png'))
+        cls.img2 = cls.upload_image_new(
+            cls.user, cls.source, image_options=dict(filename='2.png'))
+        cls.img3 = cls.upload_image_new(
+            cls.user, cls.source, image_options=dict(filename='3.png'))
+        cls.img4 = cls.upload_image_new(
+            cls.user, cls.source, image_options=dict(filename='4.png'))
+        cls.img5 = cls.upload_image_new(
+            cls.user, cls.source, image_options=dict(filename='5.png'))
+        cls.img6 = cls.upload_image_new(
+            cls.user, cls.source, image_options=dict(filename='6.png'))
+        cls.img7 = cls.upload_image_new(
+            cls.user, cls.source, image_options=dict(filename='7.png'))
+        cls.img8 = cls.upload_image_new(
+            cls.user, cls.source, image_options=dict(filename='8.png'))
+        cls.img9 = cls.upload_image_new(
+            cls.user, cls.source, image_options=dict(filename='9.png'))
+        cls.img10 = cls.upload_image_new(
+            cls.user, cls.source, image_options=dict(filename='10.png'))
+
+    def preview(self, csv_file):
+        return self.client.post(
+            reverse(
+                'upload_metadata_preview_ajax',
+                kwargs={'source_id': self.source.pk}),
+            {'csv_file': csv_file},
+        )
+
+    def test_row_order_preserved_in_preview_table(self):
+        """
+        The CSV row order should be the same as the row order
+        in the preview table.
+        """
+        self.client.force_login(self.user)
+
+        column_names = ['Name', 'Site']
+
+        with BytesIO() as stream:
+            writer = csv.DictWriter(stream, column_names)
+            writer.writeheader()
+            writer.writerow({'Name': '5.png', 'Site': 'SiteE'})
+            writer.writerow({'Name': '1.png', 'Site': 'SiteA'})
+            writer.writerow({'Name': '2.png', 'Site': 'SiteB'})
+            writer.writerow({'Name': '6.png', 'Site': 'SiteF'})
+            writer.writerow({'Name': '10.png', 'Site': 'SiteJ'})
+            writer.writerow({'Name': '4.png', 'Site': 'SiteD'})
+            writer.writerow({'Name': '7.png', 'Site': 'SiteG'})
+            writer.writerow({'Name': '8.png', 'Site': 'SiteH'})
+            writer.writerow({'Name': '9.png', 'Site': 'SiteI'})
+            writer.writerow({'Name': '3.png', 'Site': 'SiteC'})
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                success=True,
+                metadataPreviewTable=[
+                    column_names,
+                    ['5.png', 'SiteE'],
+                    ['1.png', 'SiteA'],
+                    ['2.png', 'SiteB'],
+                    ['6.png', 'SiteF'],
+                    ['10.png', 'SiteJ'],
+                    ['4.png', 'SiteD'],
+                    ['7.png', 'SiteG'],
+                    ['8.png', 'SiteH'],
+                    ['9.png', 'SiteI'],
+                    ['3.png', 'SiteC'],
+                ],
+                numImages=10,
+                numFieldsReplaced=0,
+            ),
+        )
+
+
+class UploadMetadataErrorTest(ClientTest):
+    """
+    Metadata upload, error cases.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super(UploadMetadataErrorTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(cls.user)
+
+        cls.img1 = cls.upload_image_new(
+            cls.user, cls.source, image_options=dict(filename='1.png'))
+        cls.img2 = cls.upload_image_new(
+            cls.user, cls.source, image_options=dict(filename='2.png'))
+
+        cls.standard_column_order = [
+            'Name', 'Date', 'Aux1', 'Aux2', 'Aux3', 'Aux4', 'Aux5',
+            'Height (cm)', 'Latitude', 'Longitude', 'Depth',
+            'Camera', 'Photographer', 'Water quality',
+            'Strobes', 'Framing gear used', 'White balance card', 'Comments',
+        ]
+
+    def preview(self, csv_file):
+        return self.client.post(
+            reverse(
+                'upload_metadata_preview_ajax',
+                kwargs={'source_id': self.source.pk}),
+            {'csv_file': csv_file},
+        )
+
+    def upload(self):
+        return self.client.post(
+            reverse(
+                'upload_metadata_ajax',
+                kwargs={'source_id': self.source.pk})
+        )
+
+    def test_expired_session(self):
+        """
+        The session variable is cleared between preview and upload.
+        """
+        self.client.force_login(self.user)
+
+        column_names = ['Name', 'Aux1']
+
+        with BytesIO() as stream:
+            writer = csv.DictWriter(stream, column_names)
+            writer.writeheader()
+            writer.writerow({
+                'Name': '1.png',
+                'Aux1': 'SiteA',
+            })
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            self.preview(f)
+
+        # Clear the session data
+        #
+        # "Be careful: To modify the session and then save it,
+        # it must be stored in a variable first (because a new SessionStore
+        # is created every time this property is accessed)"
+        # http://stackoverflow.com/a/4454671/
+        session = self.client.session
+        session.pop('csv_metadata')
+        session.save()
+
+        upload_response = self.upload()
+
+        self.assertDictEqual(
+            upload_response.json(),
+            dict(error=(
+                "We couldn't find the expected data in your session."
+                " Please try loading this page again. If the problem persists,"
+                " contact a site admin."
+            )),
+        )
 
 
 class UploadMetadataPreviewErrorTest(ClientTest):

@@ -1,23 +1,16 @@
 import codecs
 from collections import OrderedDict
 import csv
-import datetime
-import os
-import shelve
 
-from django.conf import settings
 from django.core.urlresolvers import reverse
 
 from accounts.utils import get_imported_user
-from annotations.model_utils import AnnotationAreaUtils
 from annotations.models import Label, Annotation
 from images.forms import MetadataForm
 from images.model_utils import PointGen
 from images.models import Metadata, ImageStatus, Image, Point, Source
-from images.utils import generate_points, get_aux_metadata_db_value_dict_from_str_list, get_aux_field_names
-from lib import str_consts
-from lib.exceptions import DirectoryAccessError, FileProcessError
-from lib.utils import rand_string
+from images.utils import generate_points
+from lib.exceptions import FileProcessError
 
 
 def get_image_identifier(valueList, year):
@@ -156,211 +149,183 @@ def metadata_csv_to_dict(csv_file, source):
     return csv_metadata
 
 
-def annotations_file_to_python(annoFile, source, expecting_labels):
+def annotations_csv_to_dict(csv_file, source):
     """
-    Takes: an annotations file
+    Go from annotations CSV file to
+    dict of (image ids -> lists of dicts with keys row, column, (opt.) label).
 
-    Returns: the Pythonized annotations:
-    A dictionary like this:
-    {'Shore1;Reef3;...;2008': [{'row':'695', 'col':'802', 'label':'POR'},
-                               {'row':'284', 'col':'1002', 'label':'ALG'},
-                               ...],
-     'Shore2;Reef5;...;2009': [...]
-     ... }
-
-    Checks for: correctness of file formatting, i.e. all words/tokens are there on each line
-    (will throw an error otherwise)
+    The first CSV row is assumed to have column headers.
+    Valid headers: Name, Row, Column, Label (not case sensitive)
+    Label is optional.
     """
+    # splitlines() is to do system-agnostic handling of newline characters.
+    # The csv module can't do that by default (fails on CR only).
+    reader = csv.reader(csv_file.read().splitlines(), dialect='excel')
 
-    # We'll assume annoFile is an InMemoryUploadedFile, as opposed to a filename of a temp-disk-storage file.
-    # If we encounter a case where we have a filename, use the below:
-    #annoFile = open(annoFile, 'r')
+    # Read the first row, which should have column names.
+    column_names = next(reader)
+    # There could be a UTF-8 BOM character at the start of the file.
+    # Strip it in that case.
+    column_names[0] = column_names[0].lstrip(codecs.BOM_UTF8)
+    column_names = [name.lower() for name in column_names]
 
-    # Format args: line number, line contents, error message
-    file_error_format_str = str_consts.ANNOTATION_FILE_FULL_ERROR_MESSAGE_FMTSTR
+    required_field_names = ['name', 'row', 'column']
+    field_names = required_field_names + ['label']
+    fields_of_columns = [
+        name if name in field_names else None
+        for name in column_names
+    ]
 
-    uniqueLabelCodes = []
+    for name in required_field_names:
+        if name not in column_names:
+            raise FileProcessError("CSV must have a {name} column".format(
+                name=name.title()))
 
-    # The order of the words/tokens is encoded here.  If the order ever
-    # changes, we should only have to change this part.
-    words_format_without_label = get_aux_field_names()
-    words_format_without_label += ['date', 'row', 'col']
-    words_format_with_label = words_format_without_label + ['label']
+    csv_annotations = OrderedDict()
 
-    num_words_with_label = len(words_format_with_label)
-    num_words_without_label = len(words_format_without_label)
-
-    # The annotation dict needs to be kept on disk temporarily until all the
-    # Ajax upload requests are done. Thus, we'll use Python's shelve module
-    # to make a persistent dict.
-    if not os.access(settings.SHELVED_ANNOTATIONS_DIR, os.R_OK | os.W_OK):
-        # Don't catch this error and display it to the user.
-        # Just let it become a server error to be e-mailed to the admins.
-        raise DirectoryAccessError(
-            "The SHELVED_ANNOTATIONS_DIR either does not exist, is not readable, or is not writable. Please rectify this."
+    # Read the rest of the rows. Each row has data for one point.
+    for row in reader:
+        csv_point_dict = OrderedDict(
+            (k, v)
+            for (k, v) in zip(fields_of_columns, row)
+            if k is not None and v is not ''
         )
-    annotation_dict_id = rand_string(10)
-    annotation_dict = shelve.open(os.path.join(
-        settings.SHELVED_ANNOTATIONS_DIR,
-        'source{source_id}_{dict_id}'.format(
-            source_id=source.id,
-            dict_id=annotation_dict_id,
-        ),
-    ))
 
-    for line_num, line in enumerate(annoFile, 1):
+        for name in required_field_names:
+            if name not in csv_point_dict:
+                raise FileProcessError(
+                    "CSV row {line_num} is missing a {name} value".format(
+                        line_num=reader.line_num, name=name.title()))
 
-        # Strip any leading UTF-8 BOM, then strip any
-        # leading/trailing whitespace.
-        stripped_line = line.lstrip(codecs.BOM_UTF8).strip()
+        image_name = csv_point_dict.pop('name')
+        if image_name not in csv_annotations:
+            csv_annotations[image_name] = []
 
-        # Ignore empty lines.
-        if stripped_line == '':
+        csv_annotations[image_name].append(csv_point_dict)
+
+    # So far we've checked the CSV formatting. Now check the validity
+    # of the contents.
+    csv_annotations = annotations_verify_contents(csv_annotations, source)
+
+    return csv_annotations
+
+
+def annotations_verify_contents(csv_annotations_by_image_name, source):
+    """
+    Argument dict is indexed by image name. We'll create a new dict indexed
+    by image id, while verifying image existence, row, column, and label.
+    """
+    csv_annotations = OrderedDict()
+
+    labelset_label_codes = {obj.code for obj in source.labelset.labels.all()}
+
+    for image_name, annotations_for_image \
+            in csv_annotations_by_image_name.items():
+        try:
+            img = Image.objects.get(metadata__name=image_name, source=source)
+        except Image.DoesNotExist:
+            # This filename isn't in the source. Just skip it
+            # without raising an error. It could be an image the user is
+            # planning to upload later, or an image they're not planning
+            # to upload but are still tracking in their records.
             continue
 
-        # Split the line into words/tokens.
-        unstripped_words = stripped_line.split(';')
-        # Strip leading and trailing whitespace from each token.
-        words = [w.strip() for w in unstripped_words]
+        for point_dict in annotations_for_image:
+            # Check that row/column are within the image dimensions
+            row_str = point_dict['row']
+            try:
+                row = int(row_str)
+                if row <= 0:
+                    raise ValueError
+            except ValueError:
+                raise FileProcessError(
+                    "Row value is not a positive integer: {row}".format(
+                        row=row_str))
 
-        # Check that all expected words/tokens are there.
-        is_valid_format_with_label = (len(words) == num_words_with_label)
-        is_valid_format_without_label = (len(words) == num_words_without_label)
-        words_format_is_valid = (
-            (expecting_labels and is_valid_format_with_label)
-            or (not expecting_labels and (is_valid_format_with_label or is_valid_format_without_label))
+            column_str = point_dict['column']
+            try:
+                column = int(column_str)
+                if column <= 0:
+                    raise ValueError
+            except ValueError:
+                raise FileProcessError(
+                    "Column value is not a positive integer: {column}".format(
+                        column=column_str))
+
+            if img.original_height < row:
+                raise FileProcessError(
+                    "Row value of {row} is too large"
+                    " for image {name}, which has dimensions"
+                    " {width} x {height}".format(
+                        row=row, name=image_name,
+                        width=img.original_width, height=img.original_height))
+
+            if img.original_width < column:
+                raise FileProcessError(
+                    "Column value of {column} is too large"
+                    " for image {name}, which has dimensions"
+                    " {width} x {height}".format(
+                        column=column, name=image_name,
+                        width=img.original_width, height=img.original_height))
+
+            if 'label' in point_dict:
+                # Check that the label is in the labelset
+                label_code = point_dict['label']
+                if label_code not in labelset_label_codes:
+                    raise FileProcessError(
+                        "No label of code {code} found"
+                        " in this source's labelset".format(
+                            code=label_code))
+
+        # TODO: Check for multiple points on the same row+col
+
+        csv_annotations[img.pk] = annotations_for_image
+
+    if len(csv_annotations) == 0:
+        raise FileProcessError("No matching filenames found in the source")
+
+    return csv_annotations
+
+
+def annotations_preview(csv_annotations, source):
+    table = []
+    details = dict()
+    total_csv_points = 0
+    total_csv_annotations = 0
+    num_images_with_existing_annotations = 0
+
+    for image_id, points_list in csv_annotations.items():
+
+        img = Image.objects.get(pk=image_id, source=source)
+        preview_dict = dict(
+            name=img.metadata.name,
+            link=reverse('annotation_tool', kwargs=dict(image_id=img.pk)),
         )
-        if expecting_labels:
-            num_words_expected = num_words_with_label
-        else:
-            num_words_expected = num_words_without_label
 
-        if not words_format_is_valid:
-            annotation_dict.close()
-            annoFile.close()
-            raise FileProcessError(file_error_format_str.format(
-                line_num=line_num,
-                line=stripped_line,
-                error=str_consts.ANNOTATION_FILE_TOKEN_COUNT_ERROR_FMTSTR.format(
-                    num_words_expected=num_words_expected,
-                    num_words_found=len(words),
-                )
-            ))
+        num_csv_points = len(points_list)
+        total_csv_points += num_csv_points
+        num_csv_annotations = \
+            sum(1 for point_dict in points_list if 'label' in point_dict)
+        total_csv_annotations += num_csv_annotations
+        preview_dict['createInfo'] = \
+            "Will create {points} points, {annotations} annotations".format(
+                points=num_csv_points, annotations=num_csv_annotations)
 
-        # Encode the line data into a dictionary: {'aux1':'Shore2', 'row':'575', ...}
-        if is_valid_format_with_label:
-            lineData = dict(zip(words_format_with_label, words))
-        else:  # valid format without label
-            lineData = dict(zip(words_format_without_label, words))
+        num_existing_annotations = Annotation.objects.filter(image=img).count()
+        if num_existing_annotations > 0:
+            preview_dict['deleteInfo'] = \
+                "Will delete {annotations} existing annotations".format(
+                    annotations=num_existing_annotations)
+            num_images_with_existing_annotations += 1
 
-        try:
-            row = int(lineData['row'])
-            if row <= 0:
-                raise ValueError
-        except ValueError:
-            annotation_dict.close()
-            annoFile.close()
-            raise FileProcessError(file_error_format_str.format(
-                line_num=line_num,
-                line=stripped_line,
-                error=str_consts.ANNOTATION_FILE_ROW_NOT_POSITIVE_INT_ERROR_FMTSTR.format(row=lineData['row']),
-            ))
+        table.append(preview_dict)
 
-        try:
-            col = int(lineData['col'])
-            if col <= 0:
-                raise ValueError
-        except ValueError:
-            annotation_dict.close()
-            annoFile.close()
-            raise FileProcessError(file_error_format_str.format(
-                line_num=line_num,
-                line=stripped_line,
-                error=str_consts.ANNOTATION_FILE_COL_NOT_POSITIVE_INT_ERROR_FMTSTR.format(column=lineData['col']),
-            ))
+    details['numImages'] = len(csv_annotations)
+    details['totalPoints'] = total_csv_points
+    details['totalAnnotations'] = total_csv_annotations
+    details['existingAnnotations'] = num_images_with_existing_annotations
 
-        if expecting_labels:
-            # Check that the label code corresponds to a label in the database
-            # and in the source's labelset.
-            # Only check this if the label code hasn't been seen before
-            # in the annotations file.
-
-            label_code = lineData['label']
-            if label_code not in uniqueLabelCodes:
-
-                labelObjs = Label.objects.filter(code=label_code)
-                if len(labelObjs) == 0:
-                    annotation_dict.close()
-                    annoFile.close()
-                    raise FileProcessError(file_error_format_str.format(
-                        line_num=line_num,
-                        line=stripped_line,
-                        error=str_consts.ANNOTATION_FILE_LABEL_NOT_IN_DATABASE_ERROR_FMTSTR.format(label_code=label_code),
-                    ))
-
-                labelObj = labelObjs[0]
-                if labelObj not in source.labelset.labels.all():
-                    annotation_dict.close()
-                    annoFile.close()
-                    raise FileProcessError(file_error_format_str.format(
-                        line_num=line_num,
-                        line=stripped_line,
-                        error=str_consts.ANNOTATION_FILE_LABEL_NOT_IN_LABELSET_ERROR_FMTSTR.format(label_code=label_code),
-                    ))
-
-                uniqueLabelCodes.append(label_code)
-
-        # Get and check the photo year to make sure it's valid.
-        # We'll assume the year is the first 4 characters of the date.
-        year = lineData['date'][:4]
-        try:
-            datetime.date(int(year),1,1)
-        # Year is non-coercable to int, or year is out of range (e.g. 0 or negative)
-        except ValueError:
-            annotation_dict.close()
-            annoFile.close()
-            raise FileProcessError(file_error_format_str.format(
-                line_num=line_num,
-                line=stripped_line,
-                error=str_consts.ANNOTATION_FILE_YEAR_ERROR_FMTSTR.format(year=year),
-            ))
-
-        # TODO: Check if the row and col in this line are a valid row and col
-        # for the image.  Need the image to do that, though...
-
-
-        # Use the location values and the year to build a string identifier for the image, such as:
-        # Shore1;Reef5;...;2008
-        valueList = [lineData[name] for name in get_aux_field_names()]
-        imageIdentifier = get_image_identifier(valueList, year)
-
-        # Add/update a dictionary entry for the image with this identifier.
-        # The dict entry's value is a list of labels.  Each label is a dict:
-        # {'row':'484', 'col':'320', 'label':'POR'}
-        if not annotation_dict.has_key(imageIdentifier):
-            annotation_dict[imageIdentifier] = []
-
-        # Append the annotation as a dict containing row, col, and label
-        # (or just row and col, if no labels).
-        #
-        # Can't append directly to annotation_dict[imageIdentifier], due to
-        # how shelved dicts work. So we use this pattern with a temporary
-        # variable.
-        # See http://docs.python.org/library/shelve.html?highlight=shelve#example
-        tmp_data = annotation_dict[imageIdentifier]
-        if expecting_labels:
-            tmp_data.append(
-                dict(row=row, col=col, label=lineData['label'])
-            )
-        else:
-            tmp_data.append(
-                dict(row=row, col=col)
-            )
-        annotation_dict[imageIdentifier] = tmp_data
-
-    annoFile.close()
-
-    return (annotation_dict, annotation_dict_id)
+    return table, details
 
 
 def upload_image_process(imageFile, source, currentUser):
@@ -391,264 +356,6 @@ def upload_image_process(imageFile, source, currentUser):
     generate_points(img)
 
     return img
-
-
-def upload_annotations_process(
-        imageFile, imageOptionsForm, annotation_dict_id,
-        csv_dict_id, metadata_import_form_class,
-        annotation_options_form, source, currentUser):
-
-    is_uploading_points_or_annotations = annotation_options_form.cleaned_data['is_uploading_points_or_annotations']
-
-    filename = imageFile.name
-    metadata_dict = None
-    metadata_obj = Metadata(height_in_cm=source.image_height_in_cm)
-
-    if imageOptionsForm.cleaned_data['specify_metadata'] == 'filenames':
-
-        filename_check_result = check_image_filename(filename, source)
-        filename_status = filename_check_result['status']
-
-        if filename_status == 'error':
-            # This case should never happen if the pre-upload
-            # status checking is doing its job, but just in case...
-            return dict(
-                status=filename_status,
-                message=u"{m}".format(m=filename_check_result['message']),
-                link=None,
-                title=None,
-            )
-
-        # Set the metadata
-        metadata_dict = filename_check_result['metadata_dict']
-
-        value_dict = get_aux_metadata_db_value_dict_from_str_list(
-            source, metadata_dict['values'])
-        photo_date = datetime.date(
-            year = int(metadata_dict['year']),
-            month = int(metadata_dict['month']),
-            day = int(metadata_dict['day'])
-        )
-
-        metadata_obj.name = metadata_dict['name']
-        metadata_obj.photo_date = photo_date
-        for key, value in value_dict.iteritems():
-            setattr(metadata_obj, key, value)
-
-    elif imageOptionsForm.cleaned_data['specify_metadata'] == 'csv':
-
-        if not csv_dict_id:
-            return dict(
-                status='error',
-                message=u"{m}".format(m="CSV file was not uploaded."),
-                link=None,
-                title=None,
-            )
-
-        csv_dict_filename = os.path.join(
-            settings.SHELVED_ANNOTATIONS_DIR,
-            'csv_source{source_id}_{dict_id}.db'.format(
-                source_id=source.id,
-                dict_id=csv_dict_id,
-            ),
-        )
-
-        # Corner case: the specified shelved annotation file doesn't exist.
-        # Perhaps the file was created a while ago and has been pruned since,
-        # or perhaps there is a bug.
-        if not os.path.isfile(csv_dict_filename):
-            return dict(
-                status='error',
-                message="CSV file could not be found - if you provided the .csv file a while ago, maybe it just timed out. Please retry the upload.",
-                link=None,
-                title=None,
-            )
-
-        csv_dict = shelve.open(csv_dict_filename)
-
-        #index into the csv_dict with the filename. the str() is to handle
-        #the case where the filename is a unicode object instead of a str;
-        #unicode objects can't index into dicts.
-        filename_str = str(filename)
-
-        if filename_str in csv_dict:
-
-            # There is CSV metadata for this file.
-
-            metadata_dict = csv_dict[str(filename)]
-            csv_dict.close()
-
-            # The reason this uses metadata_import_form_class instead of
-            # importing MetadataImportForm is that I'm too lazy to deal with the
-            # circular-import implications of the latter solution right now.
-            # -Stephen
-            metadata_import_form = metadata_import_form_class(
-                source.id, True, metadata_dict,
-            )
-
-            if not metadata_import_form.is_valid():
-                return dict(
-                    status='error',
-                    message="Unknown error with the CSV metadata.",
-                    link=None,
-                    title=None,
-                )
-
-            fields = ['photo_date', 'aux1', 'aux2', 'aux3', 'aux4',
-                      'aux5', 'height_in_cm', 'latitude', 'longitude',
-                      'depth', 'camera', 'photographer', 'water_quality',
-                      'strobes', 'framing', 'balance']
-
-            for field in fields:
-
-                if not field in metadata_import_form.fields:
-                    # A location value field that's not in this form
-                    continue
-
-                value = metadata_import_form.cleaned_data[field]
-                # Check for a non-empty value; don't want empty values to
-                # override default values that we've already set on the
-                # metadata_obj
-                if value:
-                    setattr(metadata_obj, field, value)
-
-        else:
-
-            # No CSV metadata for this file.
-
-            csv_dict.close()
-
-        metadata_obj.name = filename
-
-    else:
-
-        # Not specifying any metadata at upload time.
-        metadata_obj.name = filename
-
-
-    image_annotations = None
-    has_points_or_annotations = False
-
-    if is_uploading_points_or_annotations:
-
-        # Corner case: somehow, we're uploading with points+annotations and without
-        # a checked annotation file specified.  This probably indicates a bug.
-        if not annotation_dict_id:
-            return dict(
-                status='error',
-                message=u"{m}".format(m=str_consts.UPLOAD_ANNOTATIONS_ON_AND_NO_ANNOTATION_DICT_ERROR_STR),
-                link=None,
-                title=None,
-            )
-
-        annotation_dict_filename = os.path.join(
-            settings.SHELVED_ANNOTATIONS_DIR,
-            'source{source_id}_{dict_id}'.format(
-                source_id=source.id,
-                dict_id=annotation_dict_id,
-            ),
-        )
-
-        # Corner case: the specified shelved annotation file doesn't exist.
-        # Perhaps the file was created a while ago and has been pruned since,
-        # or perhaps there is a bug.
-        if not os.path.isfile(annotation_dict_filename):
-            return dict(
-                status='error',
-                message="Annotations could not be found - if you provided the .txt file a while ago, maybe it just timed out. Please retry the upload.",
-                link=None,
-                title=None,
-            )
-
-
-        # Use the location values and the year to build a string identifier for the image, such as:
-        # Shore1;Reef5;...;2008
-        # Convert to a string (instead of a unicode string) for the shelve key lookup.
-        image_identifier = str(get_image_identifier(metadata_dict['values'], metadata_dict['year']))
-
-        annotation_dict = shelve.open(annotation_dict_filename)
-
-        if annotation_dict.has_key(image_identifier):
-            image_annotations = annotation_dict[image_identifier]
-            has_points_or_annotations = True
-        annotation_dict.close()
-
-    if has_points_or_annotations:
-        # Image upload with points/annotations
-
-        is_uploading_annotations_not_just_points = annotation_options_form.cleaned_data['is_uploading_annotations_not_just_points']
-        imported_user = get_imported_user()
-
-        status = ImageStatus()
-        status.save()
-
-        metadata_obj.annotation_area = AnnotationAreaUtils.IMPORTED_STR
-        metadata_obj.save()
-
-        img = Image(
-            original_file=imageFile,
-            uploaded_by=currentUser,
-            point_generation_method=PointGen.args_to_db_format(
-                point_generation_type=PointGen.Types.IMPORTED,
-                imported_number_of_points=len(image_annotations)
-            ),
-            metadata=metadata_obj,
-            source=source,
-            status=status,
-        )
-        img.save()
-
-        # Iterate over this image's annotations and save them.
-        point_num = 0
-        for anno in image_annotations:
-
-            # Save the Point in the database.
-            point_num += 1
-            point = Point(row=anno['row'], column=anno['col'], point_number=point_num, image=img)
-            point.save()
-
-            if is_uploading_annotations_not_just_points:
-                label = Label.objects.filter(code=anno['label'])[0]
-
-                # Save the Annotation in the database, marking the annotations as imported.
-                annotation = Annotation(user=imported_user,
-                    point=point, image=img, label=label, source=source)
-                annotation.save()
-
-        img.status.hasRandomPoints = True
-        if is_uploading_annotations_not_just_points:
-            img.status.annotatedByHuman = True
-        img.status.save()
-    else:
-        # Image upload, no points/annotations
-        image_status = ImageStatus()
-        image_status.save()
-
-        metadata_obj.annotation_area = source.image_annotation_area
-        metadata_obj.save()
-
-        # Save the image into the DB
-        img = Image(original_file=imageFile,
-            uploaded_by=currentUser,
-            point_generation_method=source.default_point_generation_method,
-            metadata=metadata_obj,
-            source=source,
-            status=image_status,
-        )
-        img.save()
-
-        # Generate and save points
-        generate_points(img)
-
-    success_message = "Uploaded"
-
-    return dict(
-        status='ok',
-        message=success_message,
-        link=reverse('image_detail', args=[img.id]),
-        title=img.get_image_element_title(),
-        image_id=img.id,
-    )
 
 
 def find_dupe_image(source, image_name):

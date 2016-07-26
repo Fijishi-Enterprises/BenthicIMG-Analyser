@@ -4,15 +4,18 @@ from django.core.urlresolvers import reverse
 from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, render
 
+from accounts.utils import get_imported_user
 from annotations.model_utils import AnnotationAreaUtils
+from annotations.models import Annotation
 from images.forms import MetadataForm
 from images.model_utils import PointGen
-from images.models import Source, Metadata
+from images.models import Source, Metadata, Image, Point
 from lib.decorators import source_permission_required
 from lib.exceptions import FileProcessError
-from .forms import MultiImageUploadForm, ImageUploadForm, AnnotationImportForm, AnnotationImportOptionsForm, CSVImportForm, ImportArchivedAnnotationsForm
-from .utils import annotations_file_to_python, upload_image_process, load_archived_csv, check_archived_csv, import_archived_annotations, find_dupe_image, metadata_csv_to_dict, \
-    metadata_csv_fields, metadata_obj_to_dict
+from .forms import MultiImageUploadForm, ImageUploadForm, CSVImportForm, ImportArchivedAnnotationsForm
+from .utils import upload_image_process, load_archived_csv, check_archived_csv, import_archived_annotations, find_dupe_image, metadata_csv_to_dict, \
+    metadata_csv_fields, metadata_obj_to_dict, annotations_csv_to_dict, \
+    annotations_preview
 from visualization.forms import ImageSpecifyForm
 
 
@@ -89,64 +92,6 @@ def image_upload_preview_ajax(request, source_id):
     return JsonResponse(dict(
         statusList=statusList,
     ))
-
-
-@source_permission_required(
-    'source_id', perm=Source.PermTypes.EDIT.code, ajax=True)
-def annotation_file_process_ajax(request, source_id):
-    """
-    Takes an annotation .txt file and processes it.  Saves the processing
-    results to a "shelved" dictionary file on disk, ready to be used in
-    subsequent image-upload operations.  Returns status info in a JSON
-    response.
-    """
-
-    source = get_object_or_404(Source, id=source_id)
-
-    if request.method == 'POST':
-
-        annotation_import_form = AnnotationImportForm(request.POST, request.FILES)
-        annotation_import_options_form = AnnotationImportOptionsForm(request.POST, request.FILES, source=source)
-
-        if not annotation_import_form.is_valid():
-            return JsonResponse(dict(
-                status='error',
-                message=annotation_import_form.errors['annotations_file'][0],
-            ))
-
-        if not annotation_import_options_form.is_valid():
-            return JsonResponse(dict(
-                status='error',
-                message="Annotation options form is invalid",
-            ))
-
-        is_uploading_annotations_not_just_points = annotation_import_options_form.cleaned_data['is_uploading_annotations_not_just_points']
-        annotations_file = annotation_import_form.cleaned_data['annotations_file']
-
-        try:
-            annotation_dict, annotation_dict_id = annotations_file_to_python(
-                annotations_file, source,
-                expecting_labels=is_uploading_annotations_not_just_points,
-            )
-        except FileProcessError as error:
-            return JsonResponse(dict(
-                status='error',
-                message=error.message,
-            ))
-
-        # Return information on how many points/annotations
-        # each metadata set has in the annotation file.
-        annotations_per_image = dict(
-            [(k, len(v)) for k, v in annotation_dict.iteritems()]
-        )
-        # We're done with the shelved dict for now.
-        annotation_dict.close()
-
-        return JsonResponse(dict(
-            status='ok',
-            annotations_per_image=annotations_per_image,
-            annotation_dict_id=annotation_dict_id,
-        ))
 
 
 @source_permission_required(
@@ -361,88 +306,147 @@ def upload_metadata_ajax(request, source_id):
     ))
 
 
-# TODO: Check whether any of these remnants of the old image-upload views
-# are suitable for inclusion in the new archived-annotation views.
+@source_permission_required('source_id', perm=Source.PermTypes.EDIT.code)
+def upload_annotations(request, source_id):
+    source = get_object_or_404(Source, id=source_id)
+
+    csv_import_form = CSVImportForm()
+
+    return render(request, 'upload/upload_annotations.html', {
+        'source': source,
+        'csv_import_form': csv_import_form,
+    })
 
 
-# @source_permission_required('source_id', perm=Source.PermTypes.EDIT.code)
-# def upload_archived_annotations(request, source_id):
-#     source = get_object_or_404(Source, id=source_id)
-#
-#     annotation_import_form = AnnotationImportForm()
-#     annotation_import_options_form = AnnotationImportOptionsForm(source=source)
-#
-#     return render(request, 'upload/upload_archived_annotations.html', {
-#         'source': source,
-#         'annotation_import_form': annotation_import_form,
-#         'annotation_import_options_form': annotation_import_options_form,
-#         'aux_labels': get_aux_labels(source),
-#     })
+@source_permission_required(
+    'source_id', perm=Source.PermTypes.EDIT.code, ajax=True)
+def upload_annotations_preview_ajax(request, source_id):
+    """
+    Add points/annotations to images by uploading a CSV file.
+
+    This view takes the CSV file, processes it, saves the processed data
+    to the session, and returns a preview table of the data to be saved.
+    """
+    if request.method != 'POST':
+        return JsonResponse(dict(
+            error="Not a POST request",
+        ))
+
+    source = get_object_or_404(Source, id=source_id)
+
+    csv_import_form = CSVImportForm(request.POST, request.FILES)
+    if not csv_import_form.is_valid():
+        return JsonResponse(dict(
+            error=csv_import_form.errors['csv_file'][0],
+        ))
+
+    try:
+        csv_annotations = annotations_csv_to_dict(
+            csv_import_form.cleaned_data['csv_file'], source)
+    except FileProcessError as error:
+        return JsonResponse(dict(
+            error=error.message,
+        ))
+
+    preview_table, preview_details = \
+        annotations_preview(csv_annotations, source)
+
+    request.session['csv_annotations'] = csv_annotations
+
+    return JsonResponse(dict(
+        success=True,
+        previewTable=preview_table,
+        previewDetails=preview_details,
+    ))
 
 
-# @source_permission_required(
-#     'source_id', perm=Source.PermTypes.EDIT.code, ajax=True)
-# def upload_archived_annotations_ajax(request, source_id):
-#     """
-#     After the "Start upload" button is clicked, this view is entered once
-#     for each image file.  This view saves the image and its
-#     points/annotations to the database.
-#     """
-#     if request.method != 'POST':
-#         return JsonResponse(dict(
-#             error="Not a POST request",
-#         ))
-#
-#     source = get_object_or_404(Source, id=source_id)
-#
-#     # Retrieve image related fields
-#     image_form = ImageUploadForm(request.POST, request.FILES)
-#     options_form = ImageUploadOptionsForm(request.POST, source=source)
-#
-#     annotation_dict_id = request.POST.get('annotation_dict_id', None)
-#     annotation_options_form = AnnotationImportOptionsForm(request.POST, source=source)
-#
-#     csv_dict_id = request.POST.get('csv_dict_id', None)
-#
-#     # Check for validity of the file (filetype and non-corruptness) and
-#     # the options forms.
-#     if image_form.is_valid():
-#         if options_form.is_valid():
-#             if annotation_options_form.is_valid():
-#                 resultDict = upload_annotations_process(
-#                     imageFile=image_form.cleaned_data['file'],
-#                     imageOptionsForm=options_form,
-#                     annotation_dict_id=annotation_dict_id,
-#                     annotation_options_form=annotation_options_form,
-#                     csv_dict_id=csv_dict_id,
-#                     metadata_import_form_class=MetadataImportForm,
-#                     source=source,
-#                     currentUser=request.user,
-#                 )
-#                 return JsonResponse(resultDict)
-#             else:
-#                 return JsonResponse(dict(
-#                     status='error',
-#                     message="Annotation options were invalid",
-#                     link=None,
-#                     title=None,
-#                 ))
-#         else:
-#             return JsonResponse(dict(
-#                 status='error',
-#                 message="Options form is invalid",
-#                 link=None,
-#                 title=None,
-#             ))
-#     else:
-#         # File error: filetype is not an image,
-#         # file is corrupt, file is empty, etc.
-#         return JsonResponse(dict(
-#             status='error',
-#             message=image_form.errors['file'][0],
-#             link=None,
-#             title=None,
-#         ))
+@source_permission_required(
+    'source_id', perm=Source.PermTypes.EDIT.code, ajax=True)
+def upload_annotations_ajax(request, source_id):
+    """
+    Add points/annotations to images by uploading a CSV file.
+
+    This view gets the data that was previously saved to the session
+    by the upload-preview view. Then it saves the data to the database,
+    while deleting all previous points/annotations for the images involved.
+    """
+    if request.method != 'POST':
+        return JsonResponse(dict(
+            error="Not a POST request",
+        ))
+
+    source = get_object_or_404(Source, id=source_id)
+
+    csv_annotations = request.session.pop('csv_annotations')
+    if not csv_annotations:
+        return JsonResponse(dict(
+            error=(
+                "We couldn't find the expected data in your session."
+                " Please try loading this page again. If the problem persists,"
+                " contact a site admin."
+            ),
+        ))
+
+    label_codes_to_objs = dict(
+        (obj.code, obj) for obj in source.labelset.labels.all()
+    )
+
+    for image_id, csv_annotations_for_image in csv_annotations.items():
+
+        img = Image.objects.get(pk=image_id, source=source)
+
+        # Delete previous annotations and points for this image.
+        # Calling delete() on these querysets is more efficient
+        # than calling delete() on each of the individual objects.
+        Annotation.objects.filter(image=img).delete()
+        Point.objects.filter(image=img).delete()
+
+        # Create new points and annotations.
+        new_points = []
+        new_annotations = []
+
+        for num, point_dict in enumerate(csv_annotations_for_image, 1):
+            # Create a Point.
+            point = Point(
+                row=point_dict['row'], column=point_dict['column'],
+                point_number=num, image=img)
+            new_points.append(point)
+        # Save to DB with an efficient bulk operation.
+        Point.objects.bulk_create(new_points)
+
+        for num, point_dict in enumerate(csv_annotations_for_image, 1):
+            # Create an Annotation if a label is specified.
+            if 'label' in point_dict:
+                label_obj = label_codes_to_objs[point_dict['label']]
+                new_annotations.append(Annotation(
+                    point=Point.objects.get(point_number=num, image=img),
+                    image=img, source=source,
+                    label=label_obj, user=get_imported_user()))
+        # Save to DB with an efficient bulk operation.
+        # TODO: It may be possible to merge the Point and Annotation
+        # creation code more cleanly in Django 1.10:
+        # https://github.com/django/django/pull/5936
+        Annotation.objects.bulk_create(new_annotations)
+
+        # Update relevant image/metadata fields.
+        img.point_generation_method = PointGen.args_to_db_format(
+            point_generation_type=PointGen.Types.IMPORTED,
+            imported_number_of_points=len(new_points)
+        )
+        img.save()
+
+        img.metadata.annotation_area = AnnotationAreaUtils.IMPORTED_STR
+        img.metadata.save()
+
+        # Update relevant image status fields.
+        img.status.hasRandomPoints = True
+        img.status.annotatedByHuman = (len(new_points) == len(new_annotations))
+        img.status.save()
+        img.after_annotation_area_change()
+
+    return JsonResponse(dict(
+        success=True,
+    ))
 
 
 @source_permission_required('source_id', perm=Source.PermTypes.EDIT.code)

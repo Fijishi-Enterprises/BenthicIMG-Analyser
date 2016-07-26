@@ -144,7 +144,8 @@ div#upload_summary_section {
     max-height: 20em;
     max-width: 800px;
 }
-#preview_table_container span.old-metadata-value{
+span.old-metadata-value,
+span.annotation-delete-info {
     color: red;
 }
 

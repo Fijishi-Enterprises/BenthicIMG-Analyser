@@ -1,11 +1,8 @@
-from django import forms
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.files.images import get_image_dimensions
-from django.forms import ImageField, Form, ChoiceField, FileField, CharField
+from django.forms import ImageField, Form, ChoiceField, FileField
 from django.forms.widgets import FileInput
-from images.utils import get_aux_metadata_max_length, get_num_aux_fields, get_aux_label, get_aux_field_name
-from images.models import Source, Metadata
 
 
 class MultipleFileInput(FileInput):
@@ -131,132 +128,6 @@ class ImageUploadForm(Form):
             )
 
         return self.cleaned_data['file']
-
-
-
-class AnnotationImportForm(Form):
-    annotations_file = FileField(
-        label='Points/Annotations file (.txt)',
-    )
-
-    def __init__(self, *args, **kwargs):
-        """
-        Add extra_help_text to the file field.
-        """
-        super(AnnotationImportForm, self).__init__(*args, **kwargs)
-
-        # This field's help text will go in a separate template, which
-        # can be displayed in a modal dialog.
-        self.fields['annotations_file'].dialog_help_text_template = \
-            'upload/help_annotations_file.html'
-
-    def clean_annotations_file(self):
-        anno_file = self.cleaned_data['annotations_file']
-
-        # Naively validate that the file is a text file through
-        # (1) given MIME type, or (2) file extension.  Either of them
-        # can be faked though.
-        #
-        # For the file extension check, would be more "correct" to use:
-        # mimetypes.guess_type(csv_file.name).startswith('text/')
-        # but the mimetypes module doesn't recognize csv for
-        # some reason.
-        if anno_file.content_type.startswith('text/'):
-            pass
-        elif anno_file.name.endswith('.txt'):
-            pass
-        else:
-            raise ValidationError("This file is not a plain text file.")
-
-        return self.cleaned_data['annotations_file']
-
-
-class AnnotationImportOptionsForm(Form):
-    """
-    Helper form for the AnnotationImportForm, containing import options.
-    """
-    is_uploading_points_or_annotations = forms.fields.BooleanField(
-        required=False,
-    )
-
-    is_uploading_annotations_not_just_points = ChoiceField(
-        label='Data',
-        choices=(
-            ('yes', "Points and annotations"),
-            ('no', "Points only"),
-        ),
-        initial='yes',
-    )
-
-    def __init__(self, *args, **kwargs):
-        """
-        Add extra_help_text to the file field.
-        """
-        source = kwargs.pop('source')
-        super(AnnotationImportOptionsForm, self).__init__(*args, **kwargs)
-
-        if source.labelset is None:
-            self.fields['is_uploading_annotations_not_just_points'].choices = (
-                ('no', "Points only"),
-            )
-            self.fields['is_uploading_annotations_not_just_points'].initial = 'no'
-            self.fields['is_uploading_annotations_not_just_points'].help_text = (
-                "This source doesn't have a labelset yet, so you can't upload annotations."
-            )
-
-    def clean_is_uploading_annotations_not_just_points(self):
-        field_name = 'is_uploading_annotations_not_just_points'
-        option = self.cleaned_data[field_name]
-
-        if option == 'yes':
-            self.cleaned_data[field_name] = True
-        elif option == 'no':
-            self.cleaned_data[field_name] = False
-        else:
-            raise ValidationError("Unknown value for {field_name}".format(field_name=field_name))
-
-        return self.cleaned_data[field_name]
-
-
-class MetadataImportForm(forms.ModelForm):
-    """
-    Form used to import metadata from CSV.
-
-    This need not be completely different from MetadataFormForGrid, which is
-    used to edit metadata in a formset. Perhaps there is enough overlap in
-    these forms' functionality that they can share fields/attributes in a
-    superclass.
-    """
-    class Meta:
-        model = Metadata
-        fields = ['photo_date', 'aux1', 'aux2', 'aux3', 'aux4',
-                  'aux5', 'height_in_cm', 'latitude', 'longitude',
-                  'depth', 'camera', 'photographer', 'water_quality',
-                  'strobes', 'framing', 'balance']
-
-    # TODO: (Possibly) Remove when aux metadata are simple string fields
-    # AND assuming all 5 aux fields are always used
-    def __init__(self, source_id, save_new_values, *args, **kwargs):
-
-        super(MetadataImportForm, self).__init__(*args, **kwargs)
-        self.source = Source.objects.get(pk=source_id)
-        self.save_new_values = save_new_values
-
-        # Replace aux. meta fields to make them CharFields instead of
-        # ModelChoiceFields. Also, remove aux. meta fields that
-        # the source doesn't need.
-        #
-        # The main reason we still specify the value fields in Meta.fields is
-        # to make it easy to specify the fields' ordering.
-        for n in range(1, get_num_aux_fields()+1):
-            aux_label = get_aux_label(self.source, n)
-            aux_field_name = get_aux_field_name(n)
-
-            self.fields[aux_field_name] = CharField(
-                required=False,
-                label=aux_label,
-                max_length=get_aux_metadata_max_length(),
-            )
 
 
 class CSVImportForm(Form):

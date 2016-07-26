@@ -1,7 +1,7 @@
 /* The following "singleton" design pattern is from
  * http://stackoverflow.com/a/1479341/
  */
-var UploadMetadataHelper = (function() {
+var UploadAnnotationsHelper = (function() {
 
     var $statusDisplay = null;
     var $statusDetail = null;
@@ -12,9 +12,8 @@ var UploadMetadataHelper = (function() {
     var csvFileField = null;
     var csvFileStatus = null;
     var csvFileError = null;
-    var csvMetadata = null;
-    var csvNumImages = null;
-    var csvNumFieldsReplaced = null;
+    var previewTableContent = null;
+    var previewDetails = null;
 
     var $csvRefreshButton = null;
     var $uploadStartButton = null;
@@ -59,24 +58,35 @@ var UploadMetadataHelper = (function() {
         else if (csvFileStatus === 'ready') {
             $uploadStartButton.enable();
             $statusDisplay.text(
-                "Metadata OK; confirm below and click 'Save metadata'");
+                "Data OK; confirm below and click" +
+                " 'Save points and annotations'");
 
             $statusDetail.empty();
-            $statusDetail.append(csvNumImages + " images found");
-            $statusDetail.append($('<br>'));
             $statusDetail.append(
-                csvNumFieldsReplaced
-                + " non-blank fields to be replaced (in red)"
-            );
+                "Found data for {0} images".format(
+                    previewDetails['numImages']),
+                $('<br>'),
+                "Total of {0} points and {1} annotations".format(
+                    previewDetails['totalPoints'],
+                    previewDetails['totalAnnotations']));
+
+            if (Number(previewDetails['existingAnnotations']) > 0) {
+                $statusDetail.append(
+                    $('<br>'),
+                    $('<span class="annotation-delete-info">').append((
+                        "{0} images have existing annotations" +
+                        " that will be deleted").format(
+                            previewDetails['existingAnnotations'])));
+            }
         }
         else if (csvFileStatus === 'saving') {
             $uploadStartButton.disable();
-            $statusDisplay.text("Saving metadata...");
+            $statusDisplay.text("Saving points and annotations...");
             // Retain previous status detail
         }
         else if (csvFileStatus === 'save_error') {
             $uploadStartButton.disable();
-            $statusDisplay.text("Error saving the CSV file; no metadata saved");
+            $statusDisplay.text("Error while saving; no points or annotations saved");
             $statusDetail.empty();
 
             // Fill $statusDetail with the error message,
@@ -92,7 +102,7 @@ var UploadMetadataHelper = (function() {
         }
         else if (csvFileStatus === 'saved') {
             $uploadStartButton.disable();
-            $statusDisplay.text("Metadata saved");
+            $statusDisplay.text("Points and annotations saved");
             // Retain previous status detail
         }
         else {
@@ -105,50 +115,47 @@ var UploadMetadataHelper = (function() {
     function updatePreviewTable() {
         $previewTable.empty();
 
-        if (csvMetadata === null) {
+        if (previewTableContent === null) {
             return;
         }
 
-        var $firstRow = $('<tr>');
-        var tableHeaders = csvMetadata[0];
-        var i, j;
-
-        // Header row
-        for (i = 0; i < tableHeaders.length; i++) {
-            $firstRow.append($('<th>').text(tableHeaders[i]));
-        }
-        $previewTable.append($firstRow);
         // One row for each image specified in the CSV
-        for (i = 1; i < csvMetadata.length; i++) {
-            var rowContent = csvMetadata[i];
+        var i;
+        for (i = 0; i < previewTableContent.length; i++) {
+            var contentForImage = previewTableContent[i];
             var $row = $('<tr>');
 
-            for (j = 0; j < rowContent.length; j++) {
-                var cellContent = rowContent[j];
-                if (cellContent instanceof Array) {
-                    $row.append(
-                        $('<td>').append(
-                            // New value
-                            cellContent[0],
-                            // Line break
-                            $('<br>'),
-                            // Old value, styled differently
-                            $('<span class="old-metadata-value">').append(
-                                cellContent[1]
-                            )
-                        )
-                    );
-                }
-                else {
-                    $row.append($('<td>').text(cellContent));
-                }
+            $row.append(
+                $('<td>').append(
+                    $('<a>').append(
+                        contentForImage['name']
+                    ).attr(
+                        'href', contentForImage['link']
+                    ).attr(
+                        'target', '_blank'
+                    )
+                )
+            );
+
+            var $cell2 = $('<td>').append(
+                contentForImage['createInfo']
+            );
+            if (contentForImage.hasOwnProperty('deleteInfo')) {
+                $cell2.append(
+                    $('<br>'),
+                    $('<span class="annotation-delete-info">').append(
+                        contentForImage['deleteInfo']
+                    )
+                );
             }
+            $row.append($cell2);
+
             $previewTable.append($row);
         }
     }
 
     function updateUploadPreview() {
-        csvMetadata = null;
+        csvData = null;
 
         if (csvFileField.files.length === 0) {
             // No CSV file.
@@ -183,15 +190,14 @@ var UploadMetadataHelper = (function() {
     }
 
     function handleUploadPreviewResponse(response) {
-        if (response.error) {
+        if (response['error']) {
             csvFileStatus = 'preview_error';
-            csvFileError = response.error;
+            csvFileError = response['error'];
         }
         else {
             csvFileStatus = 'ready';
-            csvMetadata = response.metadataPreviewTable;
-            csvNumImages = response.numImages;
-            csvNumFieldsReplaced = response.numFieldsReplaced;
+            previewTableContent = response['previewTable'];
+            previewDetails = response['previewDetails'];
         }
         updateStatus();
         updatePreviewTable();
@@ -211,7 +217,7 @@ var UploadMetadataHelper = (function() {
 
         // Warn the user if they're trying to
         // leave the page during the save.
-        util.pageLeaveWarningEnable("Metadata is still being saved.");
+        util.pageLeaveWarningEnable("Points/annotations are still being saved.");
 
         // Start the upload.
         $.ajax({
@@ -227,9 +233,9 @@ var UploadMetadataHelper = (function() {
     /* Callback after the Ajax response is received, indicating that
      * the server upload and processing are done. */
     function handleUploadResponse(response) {
-        if (response.error) {
+        if (response['error']) {
             csvFileStatus = 'save_error';
-            csvFileError = response.error;
+            csvFileError = response['error'];
         }
         else {
             csvFileStatus = 'saved';
@@ -242,7 +248,7 @@ var UploadMetadataHelper = (function() {
 
     /* Public methods.
      * These are the only methods that need to be referred to as
-     * UploadMetadataHelper.methodname. */
+     * UploadAnnotationsHelper.methodname. */
     return {
 
         /* Initialize the upload form. */

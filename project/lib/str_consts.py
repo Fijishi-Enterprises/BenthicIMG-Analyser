@@ -12,12 +12,6 @@ CONTACT_EMAIL_MESSAGE_FMTSTR = _(u"This email was sent using the Contact Us form
 
 # Upload related
 
-DATE_PARSE_ERROR_FMTSTR = _(u"Tried to parse {date_token} as a date, but failed")
-DATE_VALUE_ERROR_FMTSTR = _(u"Could not recognize {date_token} as a valid year-month-day combination")
-FILENAME_PARSE_ERROR_STR = _(u"Could not extract metadata from filename")
-
-UPLOAD_PREVIEW_SAME_METADATA_ERROR_FMTSTR = _(u"Multiple images with same metadata: {metadata}")
-
 ANNOTATION_FILE_FULL_ERROR_MESSAGE_FMTSTR = _(u"On line {line_num}:\n{line}\n{error}")
 ANNOTATION_FILE_TOKEN_COUNT_ERROR_FMTSTR = _(u"We expected {num_words_expected} semicolon-separated tokens, but found {num_words_found} instead.")
 ANNOTATION_FILE_ROW_NOT_POSITIVE_INT_ERROR_FMTSTR = _(u"{row} is not a valid row (not a positive integer number).")

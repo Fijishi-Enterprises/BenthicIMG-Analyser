@@ -157,7 +157,7 @@ def upload_metadata(request, source_id):
 
 @source_permission_required(
     'source_id', perm=Source.PermTypes.EDIT.code, ajax=True)
-def upload_metadata_preview_ajax(request,source_id):
+def upload_metadata_preview_ajax(request, source_id):
     """
     Set image metadata by uploading a CSV file containing the metadata.
 
@@ -200,7 +200,7 @@ def upload_metadata_preview_ajax(request,source_id):
                  for name in csv_row_metadata.keys()]
             )
 
-        metadata = Metadata.objects.get(pk=metadata_id)
+        metadata = Metadata.objects.get(pk=metadata_id, image__source=source)
 
         # We'll use this form just to see what the metadata would look like
         # if updated with the CSV. But since we are just previewing
@@ -277,7 +277,7 @@ def upload_metadata_ajax(request, source_id):
 
     for metadata_id, csv_row_metadata in csv_metadata.items():
 
-        metadata = Metadata.objects.get(pk=metadata_id)
+        metadata = Metadata.objects.get(pk=metadata_id, image__source=source)
         new_metadata_dict = metadata_obj_to_dict(metadata)
         new_metadata_dict.update(csv_row_metadata)
 

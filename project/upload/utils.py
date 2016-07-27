@@ -133,7 +133,8 @@ def metadata_csv_to_dict(csv_file, source):
         image_names_seen.add(image_name)
 
         try:
-            metadata_id = Metadata.objects.get(name=image_name).pk
+            metadata_id = \
+                Metadata.objects.get(name=image_name, image__source=source).pk
         except Metadata.DoesNotExist:
             # This filename isn't in the source. Just skip this CSV row
             # without raising an error. It could be an image the user is

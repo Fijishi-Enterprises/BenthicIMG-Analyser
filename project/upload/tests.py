@@ -883,6 +883,131 @@ class UploadMetadataTest(ClientTest):
         self.assertEqual(meta1.aux3, '2-4')
 
 
+class UploadMetadataMultipleSourcesTest(ClientTest):
+    """
+    Test involving multiple sources.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super(UploadMetadataMultipleSourcesTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(cls.user)
+        cls.source2 = cls.create_source(cls.user)
+
+        cls.img1_s1 = cls.upload_image_new(
+            cls.user, cls.source, image_options=dict(filename='1.png'))
+        cls.img1_s2 = cls.upload_image_new(
+            cls.user, cls.source2, image_options=dict(filename='1.png'))
+        cls.img2_s2 = cls.upload_image_new(
+            cls.user, cls.source2, image_options=dict(filename='2.png'))
+
+    def preview1(self, csv_file):
+        return self.client.post(
+            reverse(
+                'upload_metadata_preview_ajax',
+                kwargs={'source_id': self.source.pk}),
+            {'csv_file': csv_file},
+        )
+
+    def upload1(self):
+        return self.client.post(
+            reverse(
+                'upload_metadata_ajax',
+                kwargs={'source_id': self.source.pk}),
+        )
+
+    def preview2(self, csv_file):
+        return self.client.post(
+            reverse(
+                'upload_metadata_preview_ajax',
+                kwargs={'source_id': self.source2.pk}),
+            {'csv_file': csv_file},
+        )
+
+    def upload2(self):
+        return self.client.post(
+            reverse(
+                'upload_metadata_ajax',
+                kwargs={'source_id': self.source2.pk}),
+        )
+
+    def test_other_sources_unaffected(self):
+        """
+        We shouldn't touch images of other sources which happen to have
+        the same image names.
+        """
+        self.client.force_login(self.user)
+
+        column_names = ['Name', 'Aux1']
+
+        # Upload to source 2
+        with BytesIO() as stream:
+            writer = csv.DictWriter(stream, column_names)
+            writer.writeheader()
+            writer.writerow({
+                'Name': '1.png',
+                'Aux1': 'SiteA',
+            })
+            writer.writerow({
+                'Name': '2.png',
+                'Aux1': 'SiteB',
+            })
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            self.preview2(f)
+            self.upload2()
+
+        # Upload to source 1
+        with BytesIO() as stream:
+            writer = csv.DictWriter(stream, column_names)
+            writer.writeheader()
+            writer.writerow({
+                'Name': '1.png',
+                'Aux1': 'SiteC',
+            })
+            writer.writerow({
+                'Name': '2.png',
+                'Aux1': 'SiteD',
+            })
+
+            f = ContentFile(stream.getvalue(), name='B.csv')
+            preview_response = self.preview1(f)
+            upload_response = self.upload1()
+
+        # Check source 1 responses
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                success=True,
+                metadataPreviewTable=[
+                    column_names,
+                    ['1.png', 'SiteC'],
+                ],
+                numImages=1,
+                numFieldsReplaced=0,
+            ),
+        )
+
+        self.assertDictEqual(upload_response.json(), dict(success=True))
+
+        # Check source 1 objects
+
+        meta1_s1 = self.img1_s1.metadata
+        self.assertEqual(meta1_s1.name, '1.png')
+        self.assertEqual(meta1_s1.aux1, 'SiteC')
+
+        # Check source 2 objects
+
+        meta1_s2 = self.img1_s2.metadata
+        meta2_s2 = self.img2_s2.metadata
+        self.assertEqual(meta1_s2.name, '1.png')
+        self.assertEqual(meta1_s2.aux1, 'SiteA')
+        self.assertEqual(meta2_s2.name, '2.png')
+        self.assertEqual(meta2_s2.aux1, 'SiteB')
+
+
 class UploadMetadataPreviewTest(ClientTest):
     """
     Tests only pertaining to metadata preview.

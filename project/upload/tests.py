@@ -1428,6 +1428,30 @@ class UploadMetadataPreviewErrorTest(ClientTest):
             ),
         )
 
+    def test_invalid_metadata_value(self):
+        """
+        One of the metadata values is invalid.
+        """
+        self.client.force_login(self.user)
+
+        column_names = ['Name', 'Date']
+
+        with BytesIO() as stream:
+            writer = csv.DictWriter(stream, column_names)
+            writer.writeheader()
+            writer.writerow({
+                'Name': '1.png',
+                'Date': '2015-02-29',  # Nonexistent date
+            })
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(error=("(1.png - Date) Enter a valid date.")),
+        )
+
 
 class UploadMetadataPreviewFormatTest(ClientTest):
     """

@@ -12,9 +12,8 @@ var UploadMetadataHelper = (function() {
     var csvFileField = null;
     var csvFileStatus = null;
     var csvFileError = null;
-    var csvMetadata = null;
-    var csvNumImages = null;
-    var csvNumFieldsReplaced = null;
+    var previewTableContent = null;
+    var previewDetails = null;
 
     var $csvRefreshButton = null;
     var $uploadStartButton = null;
@@ -62,12 +61,17 @@ var UploadMetadataHelper = (function() {
                 "Metadata OK; confirm below and click 'Save metadata'");
 
             $statusDetail.empty();
-            $statusDetail.append(csvNumImages + " images found");
-            $statusDetail.append($('<br>'));
             $statusDetail.append(
-                csvNumFieldsReplaced
-                + " non-blank fields to be replaced (in red)"
-            );
+                "{0} images found".format(previewDetails['numImages']));
+
+            if (previewDetails['numFieldsReplaced'] > 0) {
+                $statusDetail.append(
+                    $('<br>'),
+                    $('<span class="old-metadata-value">').append(
+                        "{0} non-blank fields to be replaced".format(
+                        previewDetails['numFieldsReplaced']))
+                );
+            }
         }
         else if (csvFileStatus === 'saving') {
             $uploadStartButton.disable();
@@ -105,12 +109,12 @@ var UploadMetadataHelper = (function() {
     function updatePreviewTable() {
         $previewTable.empty();
 
-        if (csvMetadata === null) {
+        if (previewTableContent === null) {
             return;
         }
 
         var $firstRow = $('<tr>');
-        var tableHeaders = csvMetadata[0];
+        var tableHeaders = previewTableContent[0];
         var i, j;
 
         // Header row
@@ -119,8 +123,8 @@ var UploadMetadataHelper = (function() {
         }
         $previewTable.append($firstRow);
         // One row for each image specified in the CSV
-        for (i = 1; i < csvMetadata.length; i++) {
-            var rowContent = csvMetadata[i];
+        for (i = 1; i < previewTableContent.length; i++) {
+            var rowContent = previewTableContent[i];
             var $row = $('<tr>');
 
             for (j = 0; j < rowContent.length; j++) {
@@ -148,7 +152,7 @@ var UploadMetadataHelper = (function() {
     }
 
     function updateUploadPreview() {
-        csvMetadata = null;
+        previewTableContent = null;
 
         if (csvFileField.files.length === 0) {
             // No CSV file.
@@ -183,15 +187,14 @@ var UploadMetadataHelper = (function() {
     }
 
     function handleUploadPreviewResponse(response) {
-        if (response.error) {
+        if (response['error']) {
             csvFileStatus = 'preview_error';
-            csvFileError = response.error;
+            csvFileError = response['error'];
         }
         else {
             csvFileStatus = 'ready';
-            csvMetadata = response.metadataPreviewTable;
-            csvNumImages = response.numImages;
-            csvNumFieldsReplaced = response.numFieldsReplaced;
+            previewTableContent = response['previewTable'];
+            previewDetails = response['previewDetails'];
         }
         updateStatus();
         updatePreviewTable();
@@ -249,8 +252,8 @@ var UploadMetadataHelper = (function() {
         initForm: function(params){
 
             // Get the parameters.
-            uploadPreviewUrl = params.uploadPreviewUrl;
-            uploadStartUrl = params.uploadStartUrl;
+            uploadPreviewUrl = params['uploadPreviewUrl'];
+            uploadStartUrl = params['uploadStartUrl'];
 
             // Upload status elements.
             $statusDisplay = $('#status_display');

@@ -68,8 +68,8 @@ var UploadAnnotationsHelper = (function() {
                 $('<br>'),
                 "Total of {0} points and {1} annotations".format(
                     previewDetails['totalPoints'],
-                    previewDetails['totalAnnotations']));
-
+                    previewDetails['totalAnnotations'])
+            );
 
             var numImagesWithExistingAnnotations =
                 Number(previewDetails['numImagesWithExistingAnnotations']);
@@ -79,7 +79,8 @@ var UploadAnnotationsHelper = (function() {
                     $('<span class="annotation-delete-info">').append((
                         "{0} images have existing annotations" +
                         " that will be deleted").format(
-                            numImagesWithExistingAnnotations)));
+                            numImagesWithExistingAnnotations))
+                );
             }
         }
         else if (csvFileStatus === 'saving') {
@@ -158,7 +159,7 @@ var UploadAnnotationsHelper = (function() {
     }
 
     function updateUploadPreview() {
-        csvData = null;
+        previewTableContent = null;
 
         if (csvFileField.files.length === 0) {
             // No CSV file.
@@ -220,7 +221,8 @@ var UploadAnnotationsHelper = (function() {
 
         // Warn the user if they're trying to
         // leave the page during the save.
-        util.pageLeaveWarningEnable("Points/annotations are still being saved.");
+        util.pageLeaveWarningEnable(
+            "Points/annotations are still being saved.");
 
         // Start the upload.
         $.ajax({
@@ -258,8 +260,8 @@ var UploadAnnotationsHelper = (function() {
         initForm: function(params){
 
             // Get the parameters.
-            uploadPreviewUrl = params.uploadPreviewUrl;
-            uploadStartUrl = params.uploadStartUrl;
+            uploadPreviewUrl = params['uploadPreviewUrl'];
+            uploadStartUrl = params['uploadStartUrl'];
 
             // Upload status elements.
             $statusDisplay = $('#status_display');

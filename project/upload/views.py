@@ -14,8 +14,8 @@ from lib.decorators import source_permission_required
 from lib.exceptions import FileProcessError
 from .forms import MultiImageUploadForm, ImageUploadForm, CSVImportForm, ImportArchivedAnnotationsForm
 from .utils import upload_image_process, load_archived_csv, check_archived_csv, import_archived_annotations, find_dupe_image, metadata_csv_to_dict, \
-    metadata_csv_fields, metadata_obj_to_dict, annotations_csv_to_dict, \
-    annotations_preview
+    metadata_obj_to_dict, annotations_csv_to_dict, \
+    annotations_preview, metadata_preview
 from visualization.forms import ImageSpecifyForm
 
 
@@ -186,66 +186,15 @@ def upload_metadata_preview_ajax(request, source_id):
             error=error.message,
          ))
 
-    field_names_to_labels = metadata_csv_fields(source)
-    metadata_preview_table = []
-    num_fields_replaced = 0
-
-    for metadata_id, csv_row_metadata in csv_metadata.items():
-
-        if len(metadata_preview_table) == 0:
-            # Column headers: Get the relevant field names from any data row
-            # (the first one in our case), and go from field names to labels
-            metadata_preview_table.append(
-                [field_names_to_labels[name]
-                 for name in csv_row_metadata.keys()]
-            )
-
-        metadata = Metadata.objects.get(pk=metadata_id, image__source=source)
-
-        # We'll use this form just to see what the metadata would look like
-        # if updated with the CSV. But since we are just previewing
-        # the metadata, we won't actually save the form.
-        metadata_form = MetadataForm(
-            csv_row_metadata, instance=metadata, source_id=source.pk)
-
-        if not metadata_form.is_valid():
-            # One of the filenames' metadata is not valid. Get one
-            # error message and return that.
-            for field_name, error_messages in metadata_form.errors.items():
-                field_label = metadata_form.fields[field_name].label
-                if error_messages != []:
-                    error_message = error_messages[0]
-                    return JsonResponse(dict(
-                        error="({filename} - {field_label}) {message}".format(
-                            filename=csv_row_metadata['name'],
-                            field_label=field_label,
-                            message=error_message,
-                        )
-                    ))
-
-        row = []
-        for field_name in csv_row_metadata.keys():
-            new_value = str(metadata_form.cleaned_data[field_name] or '')
-            old_value = str(metadata_form.initial[field_name] or '')
-
-            if (not old_value) or (old_value == new_value):
-                # Old value is blank, or old value is equal to new value.
-                # No value is being replaced here.
-                row.append(new_value)
-            else:
-                # Old value is present and different; include this in the
-                # display so the user knows what's going to be replaced.
-                row.append([new_value, old_value])
-                num_fields_replaced += 1
-        metadata_preview_table.append(row)
+    preview_table, preview_details = \
+        metadata_preview(csv_metadata, source)
 
     request.session['csv_metadata'] = csv_metadata
 
     return JsonResponse(dict(
         success=True,
-        metadataPreviewTable=metadata_preview_table,
-        numImages=len(csv_metadata),
-        numFieldsReplaced=num_fields_replaced,
+        previewTable=preview_table,
+        previewDetails=preview_details,
     ))
 
 
@@ -275,29 +224,18 @@ def upload_metadata_ajax(request, source_id):
             ),
         ))
 
-    for metadata_id, csv_row_metadata in csv_metadata.items():
+    for metadata_id, csv_metadata_for_image in csv_metadata.items():
 
         metadata = Metadata.objects.get(pk=metadata_id, image__source=source)
         new_metadata_dict = metadata_obj_to_dict(metadata)
-        new_metadata_dict.update(csv_row_metadata)
+        new_metadata_dict.update(csv_metadata_for_image)
 
         metadata_form = MetadataForm(
             new_metadata_dict, instance=metadata, source_id=source.pk)
 
+        # We already validated previously, so this SHOULD be valid.
         if not metadata_form.is_valid():
-            # One of the filenames' metadata is not valid. Get one
-            # error message and return that.
-            for field_name, error_messages in metadata_form.errors.items():
-                field_label = metadata_form.fields[field_name].label
-                if error_messages != []:
-                    error_message = error_messages[0]
-                    return JsonResponse(dict(
-                        error="({filename} - {field_label}) {message}".format(
-                            filename=csv_row_metadata['name'],
-                            field_label=field_label,
-                            message=error_message,
-                        )
-                    ))
+            raise ValueError("Metadata became invalid for some reason.")
 
         metadata_form.save()
 

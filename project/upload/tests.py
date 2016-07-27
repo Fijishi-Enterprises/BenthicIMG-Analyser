@@ -435,7 +435,7 @@ class UploadMetadataTest(ClientTest):
             preview_response.json(),
             dict(
                 success=True,
-                metadataPreviewTable=[
+                previewTable=[
                     self.standard_column_order,
                     ['1.png', '2016-07-18', 'SiteA', 'Fringing Reef', '2-4',
                      'Q5', '28', '50', '20.18', '-59.64', '30m',
@@ -444,8 +444,10 @@ class UploadMetadataTest(ClientTest):
                     ['2.png', '', 'SiteB', '10m out', '', '', '', '50',
                      '', '', '', 'Canon', '', '', '', 'FG-15', '', ''],
                 ],
-                numImages=2,
-                numFieldsReplaced=0,
+                previewDetails=dict(
+                    numImages=2,
+                    numFieldsReplaced=0,
+                ),
             ),
         )
 
@@ -539,15 +541,17 @@ class UploadMetadataTest(ClientTest):
             preview_response.json(),
             dict(
                 success=True,
-                metadataPreviewTable=[
+                previewTable=[
                     self.standard_column_order,
                     ['1.png', '2016-07-18', 'SiteA',
                      'Fringing Reef', '2-4',
                      'Q5', '28', '50', '20.18', '-59.64', '30m',
                      'Canon', '', '', '', '', '', ''],
                 ],
-                numImages=1,
-                numFieldsReplaced=0,
+                previewDetails=dict(
+                    numImages=1,
+                    numFieldsReplaced=0,
+                ),
             ),
         )
 
@@ -618,15 +622,17 @@ class UploadMetadataTest(ClientTest):
             preview_response.json(),
             dict(
                 success=True,
-                metadataPreviewTable=[
+                previewTable=[
                     self.standard_column_order,
                     ['1.png', ['2016-07-18', '2014-02-27'], ['SiteA', 'SiteC'],
                      'Fringing Reef', '2-4',
                      'Q5', '28', ['', '50'], '20.18', '-59.64', '30m',
                      ['', 'Nikon'], '', '', '', '', '', ''],
                 ],
-                numImages=1,
-                numFieldsReplaced=4,
+                previewDetails=dict(
+                    numImages=1,
+                    numFieldsReplaced=4,
+                ),
             ),
         )
 
@@ -685,13 +691,15 @@ class UploadMetadataTest(ClientTest):
             preview_response.json(),
             dict(
                 success=True,
-                metadataPreviewTable=[
+                previewTable=[
                     column_names,
                     ['1.png', ['SiteA', 'SiteC'],
                      'Fringing Reef', '2-4'],
                 ],
-                numImages=1,
-                numFieldsReplaced=1,
+                previewDetails=dict(
+                    numImages=1,
+                    numFieldsReplaced=1,
+                ),
             ),
         )
 
@@ -734,12 +742,14 @@ class UploadMetadataTest(ClientTest):
             preview_response.json(),
             dict(
                 success=True,
-                metadataPreviewTable=[
+                previewTable=[
                     ['Name', 'Site', 'Habitat', 'Transect'],
                     ['1.png', 'SiteA', 'Fringing Reef', '2-4'],
                 ],
-                numImages=1,
-                numFieldsReplaced=0,
+                previewDetails=dict(
+                    numImages=1,
+                    numFieldsReplaced=0,
+                ),
             ),
         )
 
@@ -781,12 +791,14 @@ class UploadMetadataTest(ClientTest):
             preview_response.json(),
             dict(
                 success=True,
-                metadataPreviewTable=[
+                previewTable=[
                     ['Name', 'Site'],
                     ['1.png', 'SiteA'],
                 ],
-                numImages=1,
-                numFieldsReplaced=0,
+                previewDetails=dict(
+                    numImages=1,
+                    numFieldsReplaced=0,
+                ),
             ),
         )
 
@@ -822,12 +834,14 @@ class UploadMetadataTest(ClientTest):
             preview_response.json(),
             dict(
                 success=True,
-                metadataPreviewTable=[
+                previewTable=[
                     column_names,
                     ['2-4', 'SiteA', '1.png'],
                 ],
-                numImages=1,
-                numFieldsReplaced=0,
+                previewDetails=dict(
+                    numImages=1,
+                    numFieldsReplaced=0,
+                ),
             ),
         )
 
@@ -865,12 +879,14 @@ class UploadMetadataTest(ClientTest):
             preview_response.json(),
             dict(
                 success=True,
-                metadataPreviewTable=[
+                previewTable=[
                     ['Transect', 'Site', 'Name'],
                     ['2-4', 'SiteA', '1.png'],
                 ],
-                numImages=1,
-                numFieldsReplaced=0,
+                previewDetails=dict(
+                    numImages=1,
+                    numFieldsReplaced=0,
+                ),
             ),
         )
 
@@ -908,12 +924,14 @@ class UploadMetadataTest(ClientTest):
             preview_response.json(),
             dict(
                 success=True,
-                metadataPreviewTable=[
+                previewTable=[
                     ['Name', 'Latitude'],
                     ['1.png', '42.67'],
                 ],
-                numImages=1,
-                numFieldsReplaced=0,
+                previewDetails=dict(
+                    numImages=1,
+                    numFieldsReplaced=0,
+                ),
             ),
         )
 
@@ -1023,12 +1041,14 @@ class UploadMetadataMultipleSourcesTest(ClientTest):
             preview_response.json(),
             dict(
                 success=True,
-                metadataPreviewTable=[
+                previewTable=[
                     column_names,
                     ['1.png', 'SiteC'],
                 ],
-                numImages=1,
-                numFieldsReplaced=0,
+                previewDetails=dict(
+                    numImages=1,
+                    numFieldsReplaced=0,
+                ),
             ),
         )
 
@@ -1123,7 +1143,7 @@ class UploadMetadataPreviewTest(ClientTest):
             preview_response.json(),
             dict(
                 success=True,
-                metadataPreviewTable=[
+                previewTable=[
                     column_names,
                     ['5.png', 'SiteE'],
                     ['1.png', 'SiteA'],
@@ -1136,8 +1156,10 @@ class UploadMetadataPreviewTest(ClientTest):
                     ['9.png', 'SiteI'],
                     ['3.png', 'SiteC'],
                 ],
-                numImages=10,
-                numFieldsReplaced=0,
+                previewDetails=dict(
+                    numImages=10,
+                    numFieldsReplaced=0,
+                ),
             ),
         )
 
@@ -1407,7 +1429,7 @@ class UploadMetadataPreviewErrorTest(ClientTest):
             preview_response.json(),
             dict(
                 error=(
-                    "No 'Name' column found in CSV"
+                    "CSV must have a column called Name"
                 ),
             ),
         )
@@ -1434,11 +1456,9 @@ class UploadMetadataPreviewErrorTest(ClientTest):
 
         self.assertDictEqual(
             preview_response.json(),
-            dict(
-                error=(
-                    "No metadata columns other than 'Name' found in CSV"
-                ),
-            ),
+            dict(error=(
+                "CSV must have at least one metadata columns other than Name"
+            )),
         )
 
     def test_invalid_metadata_value(self):
@@ -1507,12 +1527,14 @@ class UploadMetadataPreviewFormatTest(ClientTest):
             preview_response.json(),
             dict(
                 success=True,
-                metadataPreviewTable=[
+                previewTable=[
                     ['Name', 'Aux1'],
                     ['1.png', 'SiteA'],
                 ],
-                numImages=1,
-                numFieldsReplaced=0,
+                previewDetails=dict(
+                    numImages=1,
+                    numFieldsReplaced=0,
+                ),
             ),
         )
 
@@ -1540,12 +1562,14 @@ class UploadMetadataPreviewFormatTest(ClientTest):
             preview_response.json(),
             dict(
                 success=True,
-                metadataPreviewTable=[
+                previewTable=[
                     ['Name', 'Aux1'],
                     ['1.png', '\xe5\x9c\xb0\xe7\x82\xb9A'],
                 ],
-                numImages=1,
-                numFieldsReplaced=0,
+                previewDetails=dict(
+                    numImages=1,
+                    numFieldsReplaced=0,
+                ),
             ),
         )
 
@@ -1566,12 +1590,14 @@ class UploadMetadataPreviewFormatTest(ClientTest):
             preview_response.json(),
             dict(
                 success=True,
-                metadataPreviewTable=[
+                previewTable=[
                     ['Name', 'Aux1'],
                     ['1.png', 'SiteA'],
                 ],
-                numImages=1,
-                numFieldsReplaced=0,
+                previewDetails=dict(
+                    numImages=1,
+                    numFieldsReplaced=0,
+                ),
             ),
         )
 
@@ -1595,12 +1621,14 @@ class UploadMetadataPreviewFormatTest(ClientTest):
             preview_response.json(),
             dict(
                 success=True,
-                metadataPreviewTable=[
+                previewTable=[
                     ['Name', 'Aux1'],
                     ['1.png', 'SiteA,IsleB'],
                 ],
-                numImages=1,
-                numFieldsReplaced=0,
+                previewDetails=dict(
+                    numImages=1,
+                    numFieldsReplaced=0,
+                ),
             ),
         )
 

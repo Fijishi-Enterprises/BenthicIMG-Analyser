@@ -178,8 +178,9 @@ def annotations_csv_to_dict(csv_file, source):
 
     for name in required_field_names:
         if name not in column_names:
-            raise FileProcessError("CSV must have a {name} column".format(
-                name=name.title()))
+            raise FileProcessError(
+                "CSV must have a column called {name}".format(
+                    name=name.title()))
 
     csv_annotations = OrderedDict()
 
@@ -217,7 +218,11 @@ def annotations_verify_contents(csv_annotations_by_image_name, source):
     """
     csv_annotations = OrderedDict()
 
-    labelset_label_codes = {obj.code for obj in source.labelset.labels.all()}
+    if source.labelset:
+        labelset_label_codes = set(
+            obj.code for obj in source.labelset.labels.all())
+    else:
+        labelset_label_codes = set()
 
     for image_name, annotations_for_image \
             in csv_annotations_by_image_name.items():
@@ -323,7 +328,8 @@ def annotations_preview(csv_annotations, source):
     details['numImages'] = len(csv_annotations)
     details['totalPoints'] = total_csv_points
     details['totalAnnotations'] = total_csv_annotations
-    details['existingAnnotations'] = num_images_with_existing_annotations
+    details['numImagesWithExistingAnnotations'] = \
+        num_images_with_existing_annotations
 
     return table, details
 

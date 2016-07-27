@@ -1,211 +1,19 @@
 import csv
-from collections import defaultdict
 import datetime
 from io import BytesIO
-import os
 import re
-import tempfile
 
 from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.urlresolvers import reverse
 from django.utils import timezone
+
+from accounts.utils import get_imported_user
 from annotations.model_utils import AnnotationAreaUtils
 from annotations.models import Annotation
 from images.model_utils import PointGen
-from images.models import Source, Image, Point
-from lib import str_consts
+from images.models import Image, Point
 from lib.test_utils import ClientTest, sample_image_as_file, create_sample_image
-
-
-class ImageUploadBaseTest(ClientTest):
-    """
-    Base test class for the image upload page.
-
-    This is an abstract class of sorts, as it doesn't actually contain
-    any test methods.  However, its subclasses have test methods.
-    """
-    fixtures = ['test_users.yaml', 'test_sources_with_different_keys.yaml']
-    source_member_roles = [
-        ('0 keys', 'user2', Source.PermTypes.ADMIN.code),
-        ('1 key', 'user2', Source.PermTypes.ADMIN.code),
-        ('2 keys', 'user2', Source.PermTypes.ADMIN.code),
-        ('5 keys', 'user2', Source.PermTypes.ADMIN.code),
-    ]
-
-    def setUp(self):
-        super(ImageUploadBaseTest, self).setUp()
-
-        # Default user; individual tests are free to change it
-        self.client.login(username='user2', password='secret')
-
-        # Default source; individual tests are free to change it
-        self.source_id = Source.objects.get(name='1 key').pk
-
-    def get_source_image_count(self):
-        return Image.objects.filter(source=Source.objects.get(pk=self.source_id)).count()
-
-    def get_full_upload_options(self, specified_options):
-        full_options = dict(self.default_upload_params)
-        full_options.update(specified_options)
-        return full_options
-
-    def upload_image_test(self, filename,
-                          expecting_dupe=False,
-                          expected_error=None,
-                          **options):
-        """
-        Upload a single image via the Ajax view, and perform a few checks
-        to see that the upload worked.
-
-        (Multi-image upload only takes place on the client side; it's really
-        just a series of single-image uploads on the server side. So unit
-        testing multi-image upload doesn't make sense unless we can
-        test on the client side, with Selenium or something.)
-
-        :param filename: The image file's filepath as a string, relative to
-            <settings.SAMPLE_UPLOADABLES_ROOT>/data.
-        :param expecting_dupe: True if we expect the image to be a duplicate
-            of an existing image, False otherwise.
-        :param expected_error: Expected error message, if any.
-        :param options: Extra options to include in the Ajax-image-upload
-            request.
-        :return: Tuple of (new image id, response from Ajax-image-upload).
-            This way, the calling function can do some additional checks
-            if it wants to.
-        """
-        old_source_image_count = self.get_source_image_count()
-
-        image_id, response = self.upload_image(filename, **options)
-        response_json = response.json()
-
-        new_source_image_count = self.get_source_image_count()
-
-        if expected_error:
-
-            self.assertEqual(response_json['status'], 'error')
-            self.assertEqual(response_json['message'], expected_error)
-
-            if settings.UNIT_TEST_VERBOSITY >= 1:
-                print "Error message:\n{error}".format(error=response_json['message'])
-
-            # Error, so nothing was uploaded.
-            # The number of images in the source should have stayed the same.
-            self.assertEqual(new_source_image_count, old_source_image_count)
-
-        else:
-
-            if expecting_dupe:
-                # We just replaced a duplicate image.
-                full_options = self.get_full_upload_options(options)
-
-                if full_options['skip_or_upload_duplicates'] == 'skip':
-                    self.assertEqual(response_json['status'], 'error')
-                else:  # replace
-                    self.assertEqual(response_json['status'], 'ok')
-
-                # The number of images in the source should have stayed the same.
-                self.assertEqual(new_source_image_count, old_source_image_count)
-            else:
-                # We uploaded a new, non-duplicate image.
-                self.assertEqual(response_json['status'], 'ok')
-
-                # The number of images in the source should have gone up by 1.
-                self.assertEqual(new_source_image_count, 1+old_source_image_count)
-
-        return image_id, response
-
-    def check_fields_for_non_annotation_upload(self, img):
-
-        # Uploading without points/annotations.
-        self.assertFalse(img.status.annotatedByHuman)
-        self.assertEqual(img.point_generation_method, img.source.default_point_generation_method)
-        self.assertEqual(img.metadata.annotation_area, img.source.image_annotation_area)
-
-    def upload_image_test_with_field_checks(self, filename,
-                                            expecting_dupe=False,
-                                            expected_error=None,
-                                            **options):
-        """
-        Like upload_image_test(), but with additional checks that the
-        various image fields are set correctly.
-        """
-        datetime_before_upload = timezone.now()
-
-        image_id, response = self.upload_image_test(
-            filename,
-            expecting_dupe,
-            expected_error,
-            **options
-        )
-
-        img = Image.objects.get(pk=image_id)
-
-        # Not sure if we can check the file location in a cross-platform way,
-        # so we'll skip a check of original_file.path for now.
-        if settings.UNIT_TEST_VERBOSITY >= 1:
-            print "Uploaded file's path: {path}".format(path=img.original_file.path)
-
-        self.assertEqual(img.original_height, 400)
-        self.assertEqual(img.original_width, 400)
-
-        self.assertTrue(datetime_before_upload <= img.upload_date)
-        self.assertTrue(img.upload_date <= timezone.now())
-
-        # Check that the user who uploaded the image is the
-        # currently logged in user.
-        self.assertEqual(
-            img.uploaded_by.id, int(self.client.session['_auth_user_id']))
-
-        # Status fields.
-        self.assertFalse(img.status.preprocessed)
-        self.assertTrue(img.status.hasRandomPoints)
-        self.assertFalse(img.status.featuresExtracted)
-        self.assertFalse(img.status.annotatedByRobot)
-        self.assertFalse(img.status.featureFileHasHumanLabels)
-        self.assertFalse(img.status.usedInCurrentModel)
-
-        # cm height.
-        self.assertEqual(img.metadata.height_in_cm, img.source.image_height_in_cm)
-
-        full_options = self.get_full_upload_options(options)
-
-        if full_options['is_uploading_points_or_annotations'] == True:
-
-            # Uploading with points/annotations.
-
-            # Pointgen method and annotation area should both indicate that
-            # points have been imported.
-            self.assertEqual(
-                PointGen.db_to_args_format(img.point_generation_method)['point_generation_type'],
-                PointGen.Types.IMPORTED,
-            )
-            self.assertEqual(
-                img.metadata.annotation_area,
-                AnnotationAreaUtils.IMPORTED_STR,
-            )
-
-            # Depending on whether we're uploading annotations, the
-            # annotatedByHuman status flag may or may not apply.
-            if full_options['is_uploading_annotations_not_just_points'] == 'yes':
-                # Points + annotations upload.
-                self.assertTrue(img.status.annotatedByHuman)
-
-            else:  # 'no'
-                # Points only upload.
-                self.assertFalse(img.status.annotatedByHuman)
-
-        else:  # False
-
-            self.check_fields_for_non_annotation_upload(img)
-
-        # Other metadata fields aren't covered here because:
-        # - name, photo_date, aux1/2/3/4/5: covered by filename tests
-        # - latitude, longitude, depth, camera, photographer, water_quality,
-        #   strobes, framing, balance, comments: not specifiable from the
-        #   upload page
-
-        return image_id, response
 
 
 class UploadImagePreviewTest(ClientTest):
@@ -1651,518 +1459,1139 @@ class UploadMetadataPreviewFormatTest(ClientTest):
         )
 
 
-class AnnotationUploadBaseTest(ImageUploadBaseTest):
+class UploadAnnotationsTest(ClientTest):
+    """
+    Point/annotation upload and preview.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super(UploadAnnotationsTest, cls).setUpTestData()
 
-    default_options = dict(
-        is_uploading_points_or_annotations=True,
-        is_uploading_annotations_not_just_points='yes',
-    )
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(cls.user)
+        labels = cls.create_labels(cls.user, cls.source, ['A', 'B'], 'Group1')
+        cls.create_labelset(cls.user, cls.source, labels)
 
-    def process_annotation_text(self, annotations_text, **extra_options):
+        cls.img1 = cls.upload_image_new(
+            cls.user, cls.source,
+            image_options=dict(filename='1.png', width=100, height=100))
+        cls.img2 = cls.upload_image_new(
+            cls.user, cls.source,
+            image_options=dict(filename='2.png', width=100, height=100))
+        cls.img3 = cls.upload_image_new(
+            cls.user, cls.source,
+            image_options=dict(filename='3.png', width=100, height=100))
 
-        tmp_file = tempfile.NamedTemporaryFile(mode='w+t', suffix='.txt', delete=False)
-        tmp_file.write(annotations_text)
-        name = tmp_file.name
-        tmp_file.close()
-        tmp_file = open(name, 'rb')
-
-        return self.process_open_annotation_file(tmp_file, **extra_options)
-
-    def process_annotation_file(self, annotations_filename, **extra_options):
-
-        annotations_file_dir = os.path.join(settings.SAMPLE_UPLOADABLES_ROOT, 'annotations_txt')
-        annotations_filepath = os.path.join(annotations_file_dir, annotations_filename)
-        annotations_file = open(annotations_filepath, 'rb')
-
-        return self.process_open_annotation_file(annotations_file, **extra_options)
-
-    def process_open_annotation_file(self, annotations_file, **extra_options):
-
-        options = dict(self.default_options)
-        options.update(extra_options)
-        options.update(annotations_file=annotations_file)
-        options.update(metadataOption='filenames')
-
-        response = self.client.post(
-            reverse('annotation_file_process_ajax', kwargs={'source_id': self.source_id}),
-            options,
+    def preview(self, csv_file):
+        return self.client.post(
+            reverse(
+                'upload_annotations_preview_ajax',
+                kwargs={'source_id': self.source.pk}),
+            {'csv_file': csv_file},
         )
-        annotations_file.close()
 
-        self.assertStatusOK(response)
-        response_json = response.json()
+    def upload(self):
+        return self.client.post(
+            reverse(
+                'upload_annotations_ajax',
+                kwargs={'source_id': self.source.pk}),
+        )
 
-        return response_json
+    def test_points_only(self):
+        """
+        No annotations on specified points.
+        """
+        self.client.force_login(self.user)
 
-    def process_annotations_and_upload(self, annotations_text, image_filenames,
-                                       expected_annotations_per_image,
-                                       expected_annotations, **extra_options):
+        with BytesIO() as stream:
+            writer = csv.writer(stream)
+            writer.writerow(['Name', 'Row', 'Column'])
+            writer.writerow(['1.png', 50, 50])
+            writer.writerow(['1.png', 40, 60])
+            writer.writerow(['1.png', 30, 70])
+            writer.writerow(['1.png', 20, 80])
+            writer.writerow(['1.png', 10, 90])
+            writer.writerow(['2.png', 1, 1])
+            writer.writerow(['2.png', 100, 100])
+            writer.writerow(['2.png', 44, 44])
 
-        options = dict(self.default_options)
-        options.update(extra_options)
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+            upload_response = self.upload()
 
-        # Perform the annotation file check.
-        response_content = self.process_annotation_text(annotations_text, **options)
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                success=True,
+                previewTable=[
+                    dict(
+                        name=self.img1.metadata.name,
+                        link=reverse(
+                            'annotation_tool',
+                            kwargs=dict(image_id=self.img1.pk)),
+                        createInfo="Will create 5 points, 0 annotations",
+                    ),
+                    dict(
+                        name=self.img2.metadata.name,
+                        link=reverse(
+                            'annotation_tool',
+                            kwargs=dict(image_id=self.img2.pk)),
+                        createInfo="Will create 3 points, 0 annotations",
+                    ),
+                ],
+                previewDetails=dict(
+                    numImages=2,
+                    totalPoints=8,
+                    totalAnnotations=0,
+                    numImagesWithExistingAnnotations=0,
+                ),
+            ),
+        )
 
-        self.assertEqual(response_content['status'], 'ok')
+        self.assertDictEqual(upload_response.json(), dict(success=True))
 
-        annotations_per_image = response_content['annotations_per_image']
+        values_set = set(
+            Point.objects.filter(image__in=[self.img1, self.img2]) \
+            .values_list('row', 'column', 'point_number', 'image_id'))
+        self.assertSetEqual(values_set, {
+            (50, 50, 1, self.img1.pk),
+            (40, 60, 2, self.img1.pk),
+            (30, 70, 3, self.img1.pk),
+            (20, 80, 4, self.img1.pk),
+            (10, 90, 5, self.img1.pk),
+            (1,  1,  1, self.img2.pk),
+            (100, 100, 2, self.img2.pk),
+            (44, 44, 3, self.img2.pk),
+        })
 
-        # Check annotations_per_image for correctness:
-        # Check keys.
+        self.img1.refresh_from_db()
         self.assertEqual(
-            set(annotations_per_image.keys()),
-            set(expected_annotations_per_image.keys()),
-        )
-        # Check values.
-        self.assertEqual(annotations_per_image, expected_annotations_per_image)
-
-        # Modify options so we can pass it into the image-upload view.
-        options['annotation_dict_id'] = response_content['annotation_dict_id']
-
-        actual_annotations = defaultdict(set)
-
-        for image_filename in image_filenames:
-
-            # Upload the file, and test that the upload succeeds and that
-            # image fields are set correctly.
-            image_id, response = self.upload_image_test_with_field_checks(
-                image_filename,
-                **options
-            )
-
-            img = Image.objects.get(pk=image_id)
-            img_title = img.get_image_element_title()
-
-            # Test that points/annotations were generated correctly.
-            pts = Point.objects.filter(image=img)
-
-            for pt in pts:
-                if options['is_uploading_annotations_not_just_points'] == 'yes':
-                    anno = Annotation.objects.get(point=pt)
-                    actual_annotations[img_title].add( (pt.row, pt.column, anno.label.code) )
-                else:  # 'no'
-                    actual_annotations[img_title].add( (pt.row, pt.column))
-
-
-        # All images we specified should have annotations, and there
-        # shouldn't be any annotations for images we didn't specify.
-        self.assertEqual(set(actual_annotations.keys()), set(expected_annotations.keys()))
-
-        # All the annotations we specified should be there.
-        for img_key in expected_annotations:
-            self.assertEqual(actual_annotations[img_key], expected_annotations[img_key])
-
-
-class AnnotationUploadTest(AnnotationUploadBaseTest):
-
-    fixtures = ['test_users.yaml', 'test_labels.yaml',
-                'test_labelsets.yaml', 'test_sources_with_labelsets.yaml']
-    source_member_roles = [
-        ('Labelset 2keys', 'user2', Source.PermTypes.ADMIN.code),
-    ]
-
-    def setUp(self):
-        ClientTest.setUp(self)
-        self.client.login(username='user2', password='secret')
-        self.source_id = Source.objects.get(name='Labelset 2keys').pk
-
-        # Files to upload.
-        self.image_filenames = [
-            os.path.join('2keys', 'cool_001_2011-05-28.png'),
-            os.path.join('2keys', 'cool_001_2012-05-28.png'),
-            os.path.join('2keys', 'cool_002_2011-05-28.png'),
-        ]
-
-        self.annotation_file_contents_with_labels = (
-            "cool; 001; 2011; 200; 300; Scarlet\n"
-            "cool; 001; 2011; 50; 250; Lime\n"
-            "cool; 001; 2011; 10; 10; Turq\n"
-            "\n"
-            "cool; 001; 2012; 1; 1; UMarine\n"
-            "cool; 001; 2012; 400; 400; Lime\n"
-            "\n"
-            "cool; 002; 2011; 160; 40; Turq\n"
-            "\n"
-            "will_not_be_uploaded; 025; 2004; 1465; 797; UMarine\n"
-        )
-        self.annotation_file_contents_without_labels = (
-            "cool; 001; 2011; 200; 300\n"
-            "cool; 001; 2011; 50; 250\n"
-            "cool; 001; 2011; 10; 10\n"
-            "\n"
-            "cool; 001; 2012; 1; 1\n"
-            "cool; 001; 2012; 400; 400\n"
-            "\n"
-            "cool; 002; 2011; 160; 40\n"
-            "\n"
-            "will_not_be_uploaded; 025; 2004; 1465; 797\n"
-        )
-
-        # Number of annotations that should be recognized by the annotation
-        # file check.  Note that the annotation file check does not know
-        # what image files are actually going to be uploaded; so if the
-        # annotation file contains annotations for image A, then it would
-        # report an annotation count for image A even if A isn't uploaded.
-        self.expected_annotations_per_image = {
-            'cool;001;2011': 3,
-            'cool;001;2012': 2,
-            'cool;002;2011': 1,
-            'will_not_be_uploaded;025;2004': 1,
-        }
-
-        # The annotations that should actually be created after the upload
-        # completes.
-        self.expected_annotations = {
-            'cool_001_2011-05-28.png': set([
-                (200, 300, 'Scarlet'),
-                (50, 250, 'Lime'),
-                (10, 10, 'Turq'),
-            ]),
-            'cool_001_2012-05-28.png': set([
-                (1, 1, 'UMarine'),
-                (400, 400, 'Lime'),
-            ]),
-            'cool_002_2011-05-28.png': set([
-                (160, 40, 'Turq'),
-            ]),
-        }
-
-        # Same as expected_annotations, but for the points-only option.
-        self.expected_points = {
-            'cool_001_2011-05-28.png': set([
-                (200, 300),
-                (50, 250),
-                (10, 10),
-            ]),
-            'cool_001_2012-05-28.png': set([
-                (1, 1),
-                (400, 400),
-            ]),
-            'cool_002_2011-05-28.png': set([
-                (160, 40),
-            ]),
-        }
-
-    def test_annotation_upload(self):
-
-        annotation_text = self.annotation_file_contents_with_labels
-        self.process_annotations_and_upload(
-            annotation_text,
-            self.image_filenames,
-            self.expected_annotations_per_image,
-            self.expected_annotations,
-            is_uploading_annotations_not_just_points='yes'
-        )
-
-    def test_points_only_with_labels_in_file(self):
-
-        annotation_text = self.annotation_file_contents_with_labels
-        self.process_annotations_and_upload(
-            annotation_text,
-            self.image_filenames,
-            self.expected_annotations_per_image,
-            self.expected_points,
-            is_uploading_annotations_not_just_points='no',
-        )
-
-    def test_points_only_without_labels_in_file(self):
-
-        annotation_text = self.annotation_file_contents_without_labels
-        self.process_annotations_and_upload(
-            annotation_text,
-            self.image_filenames,
-            self.expected_annotations_per_image,
-            self.expected_points,
-            is_uploading_annotations_not_just_points='no',
-        )
-
-    def test_upload_an_image_with_zero_annotations_specified(self):
-
-        annotation_text = self.annotation_file_contents_with_labels
-        options = dict(
-            is_uploading_points_or_annotations=True,
-            is_uploading_annotations_not_just_points='no',
-        )
-
-        response_content = self.process_annotation_text(
-            annotation_text,
-            **options
-        )
-
-        # Run an image upload, avoiding most of the checks
-        # that the other tests run.
-        image_id, response = self.upload_image_test(
-            os.path.join('2keys', 'rainbow_002_2012-05-28.png'),
-            annotation_dict_id=response_content['annotation_dict_id'],
-            **options
-        )
-
-        # Just check that the image fields are what we'd
-        # expect for an image that doesn't have annotations
-        # specified for it.  (i.e., it should have points
-        # automatically generated.)
-        img = Image.objects.get(pk=image_id)
-        self.check_fields_for_non_annotation_upload(img)
-
-
-class AnnotationUploadErrorTest(AnnotationUploadBaseTest):
-
-    fixtures = ['test_users.yaml', 'test_labels.yaml',
-                'test_labelsets.yaml', 'test_sources_with_labelsets.yaml']
-    source_member_roles = [
-        ('Labelset 2keys', 'user2', Source.PermTypes.ADMIN.code),
-    ]
-
-    def setUp(self):
-        ClientTest.setUp(self)
-        self.client.login(username='user2', password='secret')
-        self.source_id = Source.objects.get(name='Labelset 2keys').pk
-
-    def assert_annotation_file_error(self, response_content, line_num, line, error):
-        self.assertEqual(response_content['status'], 'error')
+            self.img1.point_generation_method,
+            PointGen.args_to_db_format(
+                point_generation_type=PointGen.Types.IMPORTED,
+                imported_number_of_points=5))
         self.assertEqual(
-            response_content['message'],
-            str_consts.ANNOTATION_FILE_FULL_ERROR_MESSAGE_FMTSTR.format(
-                line_num=line_num,
-                line=line,
-                error=error,
-            )
-        )
-        if settings.UNIT_TEST_VERBOSITY >= 1:
-            print "Annotation file error:\n{m}".format(m=response_content['message'])
+            self.img1.metadata.annotation_area,
+            AnnotationAreaUtils.IMPORTED_STR)
 
-    def test_annotations_on_and_no_annotation_dict_id(self):
+        self.img2.refresh_from_db()
+        self.assertEqual(
+            self.img2.point_generation_method,
+            PointGen.args_to_db_format(
+                point_generation_type=PointGen.Types.IMPORTED,
+                imported_number_of_points=3))
+        self.assertEqual(
+            self.img2.metadata.annotation_area,
+            AnnotationAreaUtils.IMPORTED_STR)
+
+    def test_with_all_annotations(self):
         """
-        Annotation upload is on, but no annotation dict identifier was
-        passed into the upload function.
-
-        A corner case that the client side code should prevent,
-        but it's worth a test anyway.
+        Annotations on all specified points.
         """
-        options = dict(
-            is_uploading_points_or_annotations=True,
+        self.client.force_login(self.user)
+
+        with BytesIO() as stream:
+            writer = csv.writer(stream)
+            writer.writerow(['Name', 'Row', 'Column', 'Label'])
+            writer.writerow(['1.png', 50, 50, 'A'])
+            writer.writerow(['1.png', 40, 60, 'B'])
+            writer.writerow(['2.png', 30, 70, 'A'])
+            writer.writerow(['2.png', 20, 80, 'A'])
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+            upload_response = self.upload()
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                success=True,
+                previewTable=[
+                    dict(
+                        name=self.img1.metadata.name,
+                        link=reverse(
+                            'annotation_tool',
+                            kwargs=dict(image_id=self.img1.pk)),
+                        createInfo="Will create 2 points, 2 annotations",
+                    ),
+                    dict(
+                        name=self.img2.metadata.name,
+                        link=reverse(
+                            'annotation_tool',
+                            kwargs=dict(image_id=self.img2.pk)),
+                        createInfo="Will create 2 points, 2 annotations",
+                    ),
+                ],
+                previewDetails=dict(
+                    numImages=2,
+                    totalPoints=4,
+                    totalAnnotations=4,
+                    numImagesWithExistingAnnotations=0,
+                ),
+            ),
         )
 
-        image_id, response = self.upload_image(
-            os.path.join('2keys', 'rainbow_002_2012-05-28.png'),
-            **options
-        )
+        self.assertDictEqual(upload_response.json(), dict(success=True))
 
-        response_json = response.json()
-        self.assertEqual(response_json['status'], 'error')
-        self.assertEqual(response_json['message'], str_consts.UPLOAD_ANNOTATIONS_ON_AND_NO_ANNOTATION_DICT_ERROR_STR)
+        values_set = set(
+            Point.objects.filter(image__in=[self.img1, self.img2]) \
+            .values_list('row', 'column', 'point_number', 'image_id'))
+        self.assertSetEqual(values_set, {
+            (50, 50, 1, self.img1.pk),
+            (40, 60, 2, self.img1.pk),
+            (30, 70, 1, self.img2.pk),
+            (20, 80, 2, self.img2.pk),
+        })
 
-    def test_shelved_annotation_file_is_missing(self):
+        annotations = Annotation.objects.filter(
+            image__in=[self.img1, self.img2])
+        values_set = set(
+            annotations.values_list('label__code', 'point_id', 'image_id'))
+        self.assertSetEqual(values_set, {
+            ('A', Point.objects.get(
+                point_number=1, image=self.img1).pk, self.img1.pk),
+            ('B', Point.objects.get(
+                point_number=2, image=self.img1).pk, self.img1.pk),
+            ('A', Point.objects.get(
+                point_number=1, image=self.img2).pk, self.img2.pk),
+            ('A', Point.objects.get(
+                point_number=2, image=self.img2).pk, self.img2.pk),
+        })
+        for annotation in annotations:
+            self.assertEqual(annotation.source.pk, self.source.pk)
+            self.assertEqual(annotation.user.pk, get_imported_user().pk)
+            self.assertEqual(annotation.robot_version, None)
+            self.assertLess(
+                self.source.create_date, annotation.annotation_date)
+
+    def test_with_some_annotations(self):
         """
-        Annotation upload is on, and an annotation dict identifier was
-        passed in, but no shelved annotation file with that identifier
-        exists.
-
-        A corner case that the client side code should prevent,
-        but it's worth a test anyway.
+        Annotations on some specified points.
         """
-        pass #TODO
+        self.client.force_login(self.user)
 
-    def test_token_count_error(self):
-        # Labels expected, too few tokens
-        line = "cool; 001; 2011; 200; 300"
-        response_content = self.process_annotation_text(
-            line,
-            is_uploading_points_or_annotations=True,
-            is_uploading_annotations_not_just_points='yes',
-        )
-        self.assert_annotation_file_error(
-            response_content,
-            line_num="1", line=line,
-            error=str_consts.ANNOTATION_FILE_TOKEN_COUNT_ERROR_FMTSTR.format(
-                num_words_expected=6,
-                num_words_found=5,
-            )
-        )
+        with BytesIO() as stream:
+            writer = csv.writer(stream)
+            writer.writerow(['Name', 'Row', 'Column', 'Label'])
+            writer.writerow(['1.png', 50, 50, 'A'])
+            writer.writerow(['1.png', 40, 60, 'B'])
+            writer.writerow(['2.png', 30, 70, 'A'])
+            writer.writerow(['2.png', 20, 80])
+            writer.writerow(['3.png', 30, 70])
+            writer.writerow(['3.png', 20, 80])
 
-        # Labels expected, too many tokens
-        line = "cool; 001; 2011; 200; 300; Scarlet; UMarine"
-        response_content = self.process_annotation_text(
-            line,
-            is_uploading_points_or_annotations=True,
-            is_uploading_annotations_not_just_points='yes',
-        )
-        self.assert_annotation_file_error(
-            response_content,
-            line_num="1", line=line,
-            error=str_consts.ANNOTATION_FILE_TOKEN_COUNT_ERROR_FMTSTR.format(
-                num_words_expected=6,
-                num_words_found=7,
-            )
-        )
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+            upload_response = self.upload()
 
-        # Labels not expected, too few tokens
-        line = "cool; 001; 2011; 200"
-        response_content = self.process_annotation_text(
-            line,
-            is_uploading_points_or_annotations=True,
-            is_uploading_annotations_not_just_points='no',
-        )
-        self.assert_annotation_file_error(
-            response_content,
-            line_num="1",  line=line,
-            error=str_consts.ANNOTATION_FILE_TOKEN_COUNT_ERROR_FMTSTR.format(
-                num_words_expected=5,
-                num_words_found=4,
-            )
-        )
-
-        # Labels not expected, too few tokens
-        line = "cool; 001; 2011; 200; 300; Scarlet; UMarine"
-        response_content = self.process_annotation_text(
-            line,
-            is_uploading_points_or_annotations=True,
-            is_uploading_annotations_not_just_points='no',
-        )
-        self.assert_annotation_file_error(
-            response_content,
-            line_num="1", line=line,
-            error=str_consts.ANNOTATION_FILE_TOKEN_COUNT_ERROR_FMTSTR.format(
-                num_words_expected=5,
-                num_words_found=7,
-            )
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                success=True,
+                previewTable=[
+                    dict(
+                        name=self.img1.metadata.name,
+                        link=reverse(
+                            'annotation_tool',
+                            kwargs=dict(image_id=self.img1.pk)),
+                        createInfo="Will create 2 points, 2 annotations",
+                    ),
+                    dict(
+                        name=self.img2.metadata.name,
+                        link=reverse(
+                            'annotation_tool',
+                            kwargs=dict(image_id=self.img2.pk)),
+                        createInfo="Will create 2 points, 1 annotations",
+                    ),
+                    dict(
+                        name=self.img3.metadata.name,
+                        link=reverse(
+                            'annotation_tool',
+                            kwargs=dict(image_id=self.img3.pk)),
+                        createInfo="Will create 2 points, 0 annotations",
+                    ),
+                ],
+                previewDetails=dict(
+                    numImages=3,
+                    totalPoints=6,
+                    totalAnnotations=3,
+                    numImagesWithExistingAnnotations=0,
+                ),
+            ),
         )
 
-    def test_row_col_not_a_number(self):
-        line_A = "cool; 001; 2011; 123abc; 300; Scarlet"
-        line_B = "cool; 001; 2011; 200; def; Scarlet"
+        self.assertDictEqual(upload_response.json(), dict(success=True))
 
-        options = dict(
-            is_uploading_points_or_annotations=True,
-            is_uploading_annotations_not_just_points='yes',
+        values_set = set(
+            Point.objects.filter(
+                image__in=[self.img1, self.img2, self.img3]) \
+            .values_list('row', 'column', 'point_number', 'image_id'))
+        self.assertSetEqual(values_set, {
+            (50, 50, 1, self.img1.pk),
+            (40, 60, 2, self.img1.pk),
+            (30, 70, 1, self.img2.pk),
+            (20, 80, 2, self.img2.pk),
+            (30, 70, 1, self.img3.pk),
+            (20, 80, 2, self.img3.pk),
+        })
+
+        annotations = Annotation.objects.filter(
+            image__in=[self.img1, self.img2, self.img3])
+        values_set = set(
+            annotations.values_list('label__code', 'point_id', 'image_id'))
+        self.assertSetEqual(values_set, {
+            ('A', Point.objects.get(
+                point_number=1, image=self.img1).pk, self.img1.pk),
+            ('B', Point.objects.get(
+                point_number=2, image=self.img1).pk, self.img1.pk),
+            ('A', Point.objects.get(
+                point_number=1, image=self.img2).pk, self.img2.pk),
+        })
+        for annotation in annotations:
+            self.assertEqual(annotation.source.pk, self.source.pk)
+            self.assertEqual(annotation.user.pk, get_imported_user().pk)
+            self.assertEqual(annotation.robot_version, None)
+            self.assertLess(
+                self.source.create_date, annotation.annotation_date)
+
+    def test_overwrite_annotations(self):
+        """
+        Save some annotations, then overwrite those with other annotations.
+        """
+        self.client.force_login(self.user)
+
+        with BytesIO() as stream:
+            writer = csv.writer(stream)
+            writer.writerow(['Name', 'Row', 'Column', 'Label'])
+            writer.writerow(['1.png', 50, 50, 'A'])
+            writer.writerow(['1.png', 40, 60, 'B'])
+            writer.writerow(['2.png', 30, 70, 'A'])
+            writer.writerow(['2.png', 20, 80])
+            writer.writerow(['3.png', 30, 70])
+            writer.writerow(['3.png', 20, 80])
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            self.preview(f)
+            self.upload()
+
+        with BytesIO() as stream:
+            writer = csv.writer(stream)
+            writer.writerow(['Name', 'Row', 'Column', 'Label'])
+            writer.writerow(['1.png', 10, 10, 'A'])
+            writer.writerow(['1.png', 20, 20, 'A'])
+            writer.writerow(['2.png', 30, 30])
+            writer.writerow(['2.png', 40, 40])
+            writer.writerow(['3.png', 50, 50, 'A'])
+            writer.writerow(['3.png', 60, 60, 'B'])
+
+            f = ContentFile(stream.getvalue(), name='B.csv')
+            preview_response = self.preview(f)
+            upload_response = self.upload()
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                success=True,
+                previewTable=[
+                    dict(
+                        name=self.img1.metadata.name,
+                        link=reverse(
+                            'annotation_tool',
+                            kwargs=dict(image_id=self.img1.pk)),
+                        createInfo="Will create 2 points, 2 annotations",
+                        deleteInfo="Will delete 2 existing annotations",
+                    ),
+                    dict(
+                        name=self.img2.metadata.name,
+                        link=reverse(
+                            'annotation_tool',
+                            kwargs=dict(image_id=self.img2.pk)),
+                        createInfo="Will create 2 points, 0 annotations",
+                        deleteInfo="Will delete 1 existing annotations",
+                    ),
+                    dict(
+                        name=self.img3.metadata.name,
+                        link=reverse(
+                            'annotation_tool',
+                            kwargs=dict(image_id=self.img3.pk)),
+                        createInfo="Will create 2 points, 2 annotations",
+                    ),
+                ],
+                previewDetails=dict(
+                    numImages=3,
+                    totalPoints=6,
+                    totalAnnotations=4,
+                    numImagesWithExistingAnnotations=2,
+                ),
+            ),
         )
 
-        response_content = self.process_annotation_text(
-            line_A, **options
-        )
-        self.assert_annotation_file_error(
-            response_content,
-            line_num="1", line=line_A,
-            error=str_consts.ANNOTATION_FILE_ROW_NOT_POSITIVE_INT_ERROR_FMTSTR.format(
-                row='123abc',
-            )
+        self.assertDictEqual(upload_response.json(), dict(success=True))
+
+        values_set = set(
+            Point.objects.filter(
+                image__in=[self.img1, self.img2, self.img3]) \
+            .values_list('row', 'column', 'point_number', 'image_id'))
+        self.assertSetEqual(values_set, {
+            (10, 10, 1, self.img1.pk),
+            (20, 20, 2, self.img1.pk),
+            (30, 30, 1, self.img2.pk),
+            (40, 40, 2, self.img2.pk),
+            (50, 50, 1, self.img3.pk),
+            (60, 60, 2, self.img3.pk),
+        })
+
+        annotations = Annotation.objects.filter(
+            image__in=[self.img1, self.img2, self.img3])
+        values_set = set(
+            annotations.values_list('label__code', 'point_id', 'image_id'))
+        self.assertSetEqual(values_set, {
+            ('A', Point.objects.get(
+                point_number=1, image=self.img1).pk, self.img1.pk),
+            ('A', Point.objects.get(
+                point_number=2, image=self.img1).pk, self.img1.pk),
+            ('A', Point.objects.get(
+                point_number=1, image=self.img3).pk, self.img3.pk),
+            ('B', Point.objects.get(
+                point_number=2, image=self.img3).pk, self.img3.pk),
+        })
+
+    def test_skipped_filenames(self):
+        """
+        The CSV can have filenames that we don't recognize. Those rows
+        will just be ignored.
+        """
+        self.client.force_login(self.user)
+
+        with BytesIO() as stream:
+            writer = csv.writer(stream)
+            writer.writerow(['Name', 'Row', 'Column', 'Label'])
+            writer.writerow(['1.png', 50, 50, 'A'])
+            writer.writerow(['4.png', 40, 60, 'B'])
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+            upload_response = self.upload()
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                success=True,
+                previewTable=[
+                    dict(
+                        name=self.img1.metadata.name,
+                        link=reverse(
+                            'annotation_tool',
+                            kwargs=dict(image_id=self.img1.pk)),
+                        createInfo="Will create 1 points, 1 annotations",
+                    ),
+                ],
+                previewDetails=dict(
+                    numImages=1,
+                    totalPoints=1,
+                    totalAnnotations=1,
+                    numImagesWithExistingAnnotations=0,
+                ),
+            ),
         )
 
-        response_content = self.process_annotation_text(
-            line_B, **options
-        )
-        self.assert_annotation_file_error(
-            response_content,
-            line_num="1", line=line_B,
-            error=str_consts.ANNOTATION_FILE_COL_NOT_POSITIVE_INT_ERROR_FMTSTR.format(
-                column='def',
-            )
+        self.assertDictEqual(upload_response.json(), dict(success=True))
+
+        values_set = set(
+            Point.objects.filter(image__in=[self.img1]) \
+            .values_list('row', 'column', 'point_number', 'image_id'))
+        self.assertSetEqual(values_set, {
+            (50, 50, 1, self.img1.pk),
+        })
+
+        annotations = Annotation.objects.filter(image__in=[self.img1])
+        values_set = set(
+            annotations.values_list('label__code', 'point_id', 'image_id'))
+        self.assertSetEqual(values_set, {
+            ('A', Point.objects.get(
+                point_number=1, image=self.img1).pk, self.img1.pk),
+        })
+
+    def test_skipped_csv_columns(self):
+        """
+        The CSV can have column names that we don't recognize. Those columns
+        will just be ignored.
+        """
+        self.client.force_login(self.user)
+
+        with BytesIO() as stream:
+            writer = csv.writer(stream)
+            writer.writerow(['Name', 'Row', 'Column', 'Annotator', 'Label'])
+            writer.writerow(['1.png', 40, 60, 'Jane', 'A'])
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+            self.upload()
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                success=True,
+                previewTable=[
+                    dict(
+                        name=self.img1.metadata.name,
+                        link=reverse(
+                            'annotation_tool',
+                            kwargs=dict(image_id=self.img1.pk)),
+                        createInfo="Will create 1 points, 1 annotations",
+                    ),
+                ],
+                previewDetails=dict(
+                    numImages=1,
+                    totalPoints=1,
+                    totalAnnotations=1,
+                    numImagesWithExistingAnnotations=0,
+                ),
+            ),
         )
 
-    def test_row_col_not_an_integer(self):
-        line_A = "cool; 001; 2011; 123.0; 300; Scarlet"
-        line_B = "cool; 001; 2011; 200; 0.78; Scarlet"
+        values_set = set(
+            Point.objects.filter(image__in=[self.img1]) \
+            .values_list('row', 'column', 'point_number', 'image_id'))
+        self.assertSetEqual(values_set, {
+            (40, 60, 1, self.img1.pk),
+        })
 
-        options = dict(
-            is_uploading_points_or_annotations=True,
-            is_uploading_annotations_not_just_points='yes',
-        )
+        annotations = Annotation.objects.filter(image__in=[self.img1])
+        values_set = set(
+            annotations.values_list('label__code', 'point_id', 'image_id'))
+        self.assertSetEqual(values_set, {
+            ('A', Point.objects.get(
+                point_number=1, image=self.img1).pk, self.img1.pk),
+        })
 
-        response_content = self.process_annotation_text(
-            line_A, **options
-        )
-        self.assert_annotation_file_error(
-            response_content,
-            line_num="1", line=line_A,
-            error=str_consts.ANNOTATION_FILE_ROW_NOT_POSITIVE_INT_ERROR_FMTSTR.format(
-                row='123.0',
-            )
-        )
+    def test_columns_different_order(self):
+        """
+        The CSV columns can be in a different order.
+        """
+        self.client.force_login(self.user)
 
-        response_content = self.process_annotation_text(
-            line_B, **options
-        )
-        self.assert_annotation_file_error(
-            response_content,
-            line_num="1", line=line_B,
-            error=str_consts.ANNOTATION_FILE_COL_NOT_POSITIVE_INT_ERROR_FMTSTR.format(
-                column='0.78',
-            )
-        )
+        with BytesIO() as stream:
+            writer = csv.writer(stream)
+            writer.writerow(['Column', 'Name', 'Label', 'Row'])
+            writer.writerow([60, '1.png', 'A', 40])
 
-    def test_row_col_not_a_positive_integer(self):
-        line_A = "cool; 001; 2011; 0; 300; Scarlet"
-        line_B = "cool; 001; 2011; 200; -10; Scarlet"
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+            self.upload()
 
-        options = dict(
-            is_uploading_points_or_annotations=True,
-            is_uploading_annotations_not_just_points='yes',
-        )
-
-        response_content = self.process_annotation_text(
-            line_A, **options
-        )
-        self.assert_annotation_file_error(
-            response_content,
-            line_num="1", line=line_A,
-            error=str_consts.ANNOTATION_FILE_ROW_NOT_POSITIVE_INT_ERROR_FMTSTR.format(
-                row='0',
-            )
-        )
-
-        response_content = self.process_annotation_text(
-            line_B, **options
-        )
-        self.assert_annotation_file_error(
-            response_content,
-            line_num="1", line=line_B,
-            error=str_consts.ANNOTATION_FILE_COL_NOT_POSITIVE_INT_ERROR_FMTSTR.format(
-                column='-10',
-            )
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                success=True,
+                previewTable=[
+                    dict(
+                        name=self.img1.metadata.name,
+                        link=reverse(
+                            'annotation_tool',
+                            kwargs=dict(image_id=self.img1.pk)),
+                        createInfo="Will create 1 points, 1 annotations",
+                    ),
+                ],
+                previewDetails=dict(
+                    numImages=1,
+                    totalPoints=1,
+                    totalAnnotations=1,
+                    numImagesWithExistingAnnotations=0,
+                ),
+            ),
         )
 
-    def test_label_not_in_database(self):
-        line = "cool; 001; 2011; 200; 300; Yellow"
-        response_content = self.process_annotation_text(
-            line,
-            is_uploading_points_or_annotations=True,
-            is_uploading_annotations_not_just_points='yes',
+        values_set = set(
+            Point.objects.filter(image__in=[self.img1]) \
+            .values_list('row', 'column', 'point_number', 'image_id'))
+        self.assertSetEqual(values_set, {
+            (40, 60, 1, self.img1.pk),
+        })
+
+        annotations = Annotation.objects.filter(image__in=[self.img1])
+        values_set = set(
+            annotations.values_list('label__code', 'point_id', 'image_id'))
+        self.assertSetEqual(values_set, {
+            ('A', Point.objects.get(
+                point_number=1, image=self.img1).pk, self.img1.pk),
+        })
+
+    def test_columns_different_case(self):
+        """
+        The CSV column names can use different upper/lower case and still
+        be matched to the expected column names.
+        """
+        self.client.force_login(self.user)
+
+        with BytesIO() as stream:
+            writer = csv.writer(stream)
+            writer.writerow(['name', 'ROW', 'coLUmN', 'Label'])
+            writer.writerow(['1.png', 40, 60, 'A'])
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+            upload_response = self.upload()
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                success=True,
+                previewTable=[
+                    dict(
+                        name=self.img1.metadata.name,
+                        link=reverse(
+                            'annotation_tool',
+                            kwargs=dict(image_id=self.img1.pk)),
+                        createInfo="Will create 1 points, 1 annotations",
+                    ),
+                ],
+                previewDetails=dict(
+                    numImages=1,
+                    totalPoints=1,
+                    totalAnnotations=1,
+                    numImagesWithExistingAnnotations=0,
+                ),
+            ),
         )
-        self.assert_annotation_file_error(
-            response_content,
-            line_num="1", line=line,
-            error=str_consts.ANNOTATION_FILE_LABEL_NOT_IN_DATABASE_ERROR_FMTSTR.format(
-                label_code='Yellow',
-            )
+
+        self.assertDictEqual(upload_response.json(), dict(success=True))
+
+        values_set = set(
+            Point.objects.filter(image__in=[self.img1]) \
+            .values_list('row', 'column', 'point_number', 'image_id'))
+        self.assertSetEqual(values_set, {
+            (40, 60, 1, self.img1.pk),
+        })
+
+        annotations = Annotation.objects.filter(image__in=[self.img1])
+        values_set = set(
+            annotations.values_list('label__code', 'point_id', 'image_id'))
+        self.assertSetEqual(values_set, {
+            ('A', Point.objects.get(
+                point_number=1, image=self.img1).pk, self.img1.pk),
+        })
+
+
+class UploadAnnotationsMultipleSourcesTest(ClientTest):
+    """
+    Test involving multiple sources.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super(UploadAnnotationsMultipleSourcesTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(cls.user)
+        cls.source2 = cls.create_source(cls.user)
+
+        labels = cls.create_labels(cls.user, cls.source, ['A', 'B'], 'Group1')
+        cls.create_labelset(cls.user, cls.source, labels)
+        cls.create_labelset(cls.user, cls.source2, labels)
+
+        cls.img1_s1 = cls.upload_image_new(
+            cls.user, cls.source,
+            image_options=dict(filename='1.png', width=100, height=100))
+        cls.img1_s2 = cls.upload_image_new(
+            cls.user, cls.source2,
+            image_options=dict(filename='1.png', width=100, height=100))
+        cls.img2_s2 = cls.upload_image_new(
+            cls.user, cls.source2,
+            image_options=dict(filename='2.png', width=100, height=100))
+
+    def preview1(self, csv_file):
+        return self.client.post(
+            reverse(
+                'upload_annotations_preview_ajax',
+                kwargs={'source_id': self.source.pk}),
+            {'csv_file': csv_file},
+        )
+
+    def upload1(self):
+        return self.client.post(
+            reverse(
+                'upload_annotations_ajax',
+                kwargs={'source_id': self.source.pk}),
+        )
+
+    def preview2(self, csv_file):
+        return self.client.post(
+            reverse(
+                'upload_annotations_preview_ajax',
+                kwargs={'source_id': self.source2.pk}),
+            {'csv_file': csv_file},
+        )
+
+    def upload2(self):
+        return self.client.post(
+            reverse(
+                'upload_annotations_ajax',
+                kwargs={'source_id': self.source2.pk}),
+        )
+
+    def test_other_sources_unaffected(self):
+        """
+        We shouldn't touch images of other sources which happen to have
+        the same image names.
+        """
+        self.client.force_login(self.user)
+
+        # Upload to source 2
+        with BytesIO() as stream:
+            writer = csv.writer(stream)
+            writer.writerow(['Name', 'Row', 'Column', 'Label'])
+            writer.writerow(['1.png', 10, 10, 'B'])
+            writer.writerow(['1.png', 20, 20, 'B'])
+            writer.writerow(['2.png', 15, 15, 'A'])
+            writer.writerow(['2.png', 25, 25, 'A'])
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            self.preview2(f)
+            self.upload2()
+
+        # Upload to source 1
+        with BytesIO() as stream:
+            writer = csv.writer(stream)
+            writer.writerow(['Name', 'Row', 'Column', 'Label'])
+            writer.writerow(['1.png', 50, 50, 'A'])
+            writer.writerow(['2.png', 40, 60, 'B'])
+
+            f = ContentFile(stream.getvalue(), name='B.csv')
+            preview_response = self.preview1(f)
+            upload_response = self.upload1()
+
+        # Check source 1 responses
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                success=True,
+                previewTable=[
+                    dict(
+                        name=self.img1_s1.metadata.name,
+                        link=reverse(
+                            'annotation_tool',
+                            kwargs=dict(image_id=self.img1_s1.pk)),
+                        createInfo="Will create 1 points, 1 annotations",
+                    ),
+                ],
+                previewDetails=dict(
+                    numImages=1,
+                    totalPoints=1,
+                    totalAnnotations=1,
+                    numImagesWithExistingAnnotations=0,
+                ),
+            ),
+        )
+
+        self.assertDictEqual(upload_response.json(), dict(success=True))
+
+        # Check source 1 objects
+
+        values_set = set(
+            Point.objects.filter(image__in=[self.img1_s1]) \
+            .values_list('row', 'column', 'point_number', 'image_id'))
+        self.assertSetEqual(values_set, {
+            (50, 50, 1, self.img1_s1.pk),
+        })
+
+        annotations = Annotation.objects.filter(image__in=[self.img1_s1])
+        values_set = set(
+            annotations.values_list('label__code', 'point_id', 'image_id'))
+        self.assertSetEqual(values_set, {
+            ('A', Point.objects.get(
+                point_number=1, image=self.img1_s1).pk, self.img1_s1.pk),
+        })
+
+        # Check source 2 objects
+
+        values_set = set(
+            Point.objects.filter(image__in=[self.img1_s2, self.img2_s2]) \
+            .values_list('row', 'column', 'point_number', 'image_id'))
+        self.assertSetEqual(values_set, {
+            (10, 10, 1, self.img1_s2.pk),
+            (20, 20, 2, self.img1_s2.pk),
+            (15, 15, 1, self.img2_s2.pk),
+            (25, 25, 2, self.img2_s2.pk),
+        })
+
+        annotations = Annotation.objects.filter(
+            image__in=[self.img1_s2, self.img2_s2])
+        values_set = set(
+            annotations.values_list('label__code', 'point_id', 'image_id'))
+        self.assertSetEqual(values_set, {
+            ('B', Point.objects.get(
+                point_number=1, image=self.img1_s2).pk, self.img1_s2.pk),
+            ('B', Point.objects.get(
+                point_number=2, image=self.img1_s2).pk, self.img1_s2.pk),
+            ('A', Point.objects.get(
+                point_number=1, image=self.img2_s2).pk, self.img2_s2.pk),
+            ('A', Point.objects.get(
+                point_number=2, image=self.img2_s2).pk, self.img2_s2.pk),
+        })
+
+
+class UploadAnnotationsPreviewErrorTest(ClientTest):
+    """
+    Upload preview, error cases (mainly related to CSV content).
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super(UploadAnnotationsPreviewErrorTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(cls.user)
+        # Labels in labelset
+        labels = cls.create_labels(cls.user, cls.source, ['A', 'B'], 'Group1')
+        cls.create_labelset(cls.user, cls.source, labels)
+        # Label not in labelset
+        cls.create_labels(cls.user, cls.source, ['C'], 'Group1')
+
+        cls.img1 = cls.upload_image_new(
+            cls.user, cls.source,
+            image_options=dict(filename='1.png', width=100, height=200))
+        cls.img2 = cls.upload_image_new(
+            cls.user, cls.source,
+            image_options=dict(filename='2.png', width=200, height=100))
+
+    def preview(self, csv_file):
+        return self.client.post(
+            reverse(
+                'upload_annotations_preview_ajax',
+                kwargs={'source_id': self.source.pk}),
+            {'csv_file': csv_file},
+        )
+
+    def test_no_name_column(self):
+        """
+        No CSV columns correspond to the name field.
+        """
+        self.client.force_login(self.user)
+
+        with BytesIO() as stream:
+            writer = csv.writer(stream)
+            writer.writerow(['Row', 'Column', 'Label'])
+            writer.writerow([50, 50, 'A'])
+            writer.writerow([40, 60, 'B'])
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(error="CSV must have a column called Name"),
+        )
+
+    def test_no_row_column(self):
+        """
+        No CSV columns correspond to the row field.
+        """
+        self.client.force_login(self.user)
+
+        with BytesIO() as stream:
+            writer = csv.writer(stream)
+            writer.writerow(['Name', 'Column', 'Label'])
+            writer.writerow(['1.png', 50, 'A'])
+            writer.writerow(['1.png', 60, 'B'])
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(error="CSV must have a column called Row"),
+        )
+
+    def test_no_column_column(self):
+        """
+        No CSV columns correspond to the column field.
+        """
+        self.client.force_login(self.user)
+
+        with BytesIO() as stream:
+            writer = csv.writer(stream)
+            writer.writerow(['Name', 'Row'])
+            writer.writerow(['1.png', 50])
+            writer.writerow(['1.png', 40])
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(error="CSV must have a column called Column"),
+        )
+
+    def test_missing_row(self):
+        """
+        A row is missing the row field.
+        """
+        self.client.force_login(self.user)
+
+        with BytesIO() as stream:
+            writer = csv.writer(stream)
+            writer.writerow(['Name', 'Row', 'Column'])
+            writer.writerow(['1.png', 50, 50])
+            writer.writerow(['1.png', '', 60])
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(error="CSV row 3 is missing a Row value"),
+        )
+
+    def test_missing_column(self):
+        """
+        A row is missing the column field.
+        """
+        self.client.force_login(self.user)
+
+        with BytesIO() as stream:
+            writer = csv.writer(stream)
+            writer.writerow(['Name', 'Row', 'Column'])
+            writer.writerow(['1.png', 50, ''])
+            writer.writerow(['1.png', 40, 60])
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(error="CSV row 2 is missing a Column value"),
+        )
+
+    def test_row_not_positive_integer(self):
+        self.client.force_login(self.user)
+
+        with BytesIO() as stream:
+            writer = csv.writer(stream)
+            writer.writerow(['Name', 'Row', 'Column'])
+            writer.writerow(['1.png', 'abc', 50])
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(error="Row value is not a positive integer: abc"),
+        )
+
+    def test_column_not_positive_integer(self):
+        """
+        A row is missing the column field.
+        """
+        self.client.force_login(self.user)
+
+        with BytesIO() as stream:
+            writer = csv.writer(stream)
+            writer.writerow(['Name', 'Row', 'Column'])
+            writer.writerow(['1.png', 50, 0])
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(error="Column value is not a positive integer: 0"),
+        )
+
+    def test_row_too_large(self):
+        self.client.force_login(self.user)
+
+        with BytesIO() as stream:
+            writer = csv.writer(stream)
+            writer.writerow(['Name', 'Row', 'Column'])
+            writer.writerow(['2.png', 101, 50])
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(error=(
+                "Row value of 101 is too large for image 2.png,"
+                " which has dimensions 200 x 100")),
+        )
+
+    def test_column_too_large(self):
+        self.client.force_login(self.user)
+
+        with BytesIO() as stream:
+            writer = csv.writer(stream)
+            writer.writerow(['Name', 'Row', 'Column'])
+            writer.writerow(['1.png', 150, 101])
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(error=(
+                "Column value of 101 is too large for image 1.png,"
+                " which has dimensions 100 x 200")),
         )
 
     def test_label_not_in_labelset(self):
-        line = "cool; 001; 2011; 200; 300; Forest"
-        response_content = self.process_annotation_text(
-            line,
-            is_uploading_points_or_annotations=True,
-            is_uploading_annotations_not_just_points='yes',
-        )
-        self.assert_annotation_file_error(
-            response_content,
-            line_num="1", line=line,
-            error=str_consts.ANNOTATION_FILE_LABEL_NOT_IN_LABELSET_ERROR_FMTSTR.format(
-                label_code='Forest',
-            )
+        self.client.force_login(self.user)
+
+        with BytesIO() as stream:
+            writer = csv.writer(stream)
+            writer.writerow(['Name', 'Row', 'Column', 'Label'])
+            writer.writerow(['1.png', 50, 50, 'C'])
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(error="No label of code C found in this source's labelset"),
         )
 
-    def test_invalid_year(self):
-        line = "cool; 001; 04-26-2011; 200; 300; Scarlet"
-        response_content = self.process_annotation_text(
-            line,
-            is_uploading_points_or_annotations=True,
-            is_uploading_annotations_not_just_points='yes',
+    def test_label_not_in_site(self):
+        """
+        Label doesn't exist in the entire site.
+        Should just get the same message as 'not in labelset'.
+        """
+        self.client.force_login(self.user)
+
+        with BytesIO() as stream:
+            writer = csv.writer(stream)
+            writer.writerow(['Name', 'Row', 'Column', 'Label'])
+            writer.writerow(['1.png', 50, 50, 'D'])
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(error="No label of code D found in this source's labelset"),
         )
-        self.assert_annotation_file_error(
-            response_content,
-            line_num="1", line=line,
-            error=str_consts.ANNOTATION_FILE_YEAR_ERROR_FMTSTR.format(
-                year='04-2',
-            )
+
+    def test_no_specified_images_found_in_source(self):
+        """
+        No CSV rows have a filename that can be found in the source.
+        """
+        self.client.force_login(self.user)
+
+        with BytesIO() as stream:
+            writer = csv.writer(stream)
+            writer.writerow(['Name', 'Row', 'Column'])
+            writer.writerow(['3.png', 50, 50])
+            writer.writerow(['4.png', 40, 60])
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                error="No matching filenames found in the source",
+            ),
+        )
+
+
+class UploadAnnotationsNoLabelsetTest(ClientTest):
+    """
+    Point/annotation upload attempts with no labelset.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super(UploadAnnotationsNoLabelsetTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(cls.user)
+
+        cls.img1 = cls.upload_image_new(
+            cls.user, cls.source,
+            image_options=dict(filename='1.png', width=100, height=100))
+
+    def preview(self, csv_file):
+        return self.client.post(
+            reverse(
+                'upload_annotations_preview_ajax',
+                kwargs={'source_id': self.source.pk}),
+            {'csv_file': csv_file},
+        )
+
+    def upload(self):
+        return self.client.post(
+            reverse(
+                'upload_annotations_ajax',
+                kwargs={'source_id': self.source.pk}),
+        )
+
+    def test_points_only(self):
+        """
+        No annotations on specified points. Should work.
+        """
+        self.client.force_login(self.user)
+
+        with BytesIO() as stream:
+            writer = csv.writer(stream)
+            writer.writerow(['Name', 'Row', 'Column'])
+            writer.writerow(['1.png', 50, 50])
+            writer.writerow(['1.png', 40, 60])
+            writer.writerow(['1.png', 30, 70])
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+            upload_response = self.upload()
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                success=True,
+                previewTable=[
+                    dict(
+                        name=self.img1.metadata.name,
+                        link=reverse(
+                            'annotation_tool',
+                            kwargs=dict(image_id=self.img1.pk)),
+                        createInfo="Will create 3 points, 0 annotations",
+                    ),
+                ],
+                previewDetails=dict(
+                    numImages=1,
+                    totalPoints=3,
+                    totalAnnotations=0,
+                    numImagesWithExistingAnnotations=0,
+                ),
+            ),
+        )
+
+        self.assertDictEqual(upload_response.json(), dict(success=True))
+
+        values_set = set(
+            Point.objects.filter(image__in=[self.img1]) \
+            .values_list('row', 'column', 'point_number', 'image_id'))
+        self.assertSetEqual(values_set, {
+            (50, 50, 1, self.img1.pk),
+            (40, 60, 2, self.img1.pk),
+            (30, 70, 3, self.img1.pk),
+        })
+
+    def test_with_annotations(self):
+        """
+        With annotations. Should fail at the preview.
+        """
+        self.client.force_login(self.user)
+
+        with BytesIO() as stream:
+            writer = csv.writer(stream)
+            writer.writerow(['Name', 'Row', 'Column', 'Label'])
+            writer.writerow(['1.png', 50, 50, 'A'])
+            writer.writerow(['1.png', 40, 60, 'B'])
+            writer.writerow(['2.png', 30, 70, 'A'])
+            writer.writerow(['2.png', 20, 80, 'A'])
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                error="No label of code A found in this source's labelset",
+            ),
         )

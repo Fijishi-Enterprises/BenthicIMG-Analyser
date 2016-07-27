@@ -387,9 +387,12 @@ def upload_annotations_ajax(request, source_id):
             ),
         ))
 
-    label_codes_to_objs = dict(
-        (obj.code, obj) for obj in source.labelset.labels.all()
-    )
+    if source.labelset:
+        label_codes_to_objs = dict(
+            (obj.code, obj) for obj in source.labelset.labels.all()
+        )
+    else:
+        label_codes_to_objs = dict()
 
     for image_id, csv_annotations_for_image in csv_annotations.items():
 

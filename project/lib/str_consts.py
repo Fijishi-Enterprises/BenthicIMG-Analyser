@@ -9,15 +9,3 @@ CONTACT_EMAIL_MESSAGE_FMTSTR = _(u"This email was sent using the Contact Us form
                                  u"User's email: {user_email}\n"
                                  u"\n"
                                  u"{base_message}")
-
-# Upload related
-
-ANNOTATION_FILE_FULL_ERROR_MESSAGE_FMTSTR = _(u"On line {line_num}:\n{line}\n{error}")
-ANNOTATION_FILE_TOKEN_COUNT_ERROR_FMTSTR = _(u"We expected {num_words_expected} semicolon-separated tokens, but found {num_words_found} instead.")
-ANNOTATION_FILE_ROW_NOT_POSITIVE_INT_ERROR_FMTSTR = _(u"{row} is not a valid row (not a positive integer number).")
-ANNOTATION_FILE_COL_NOT_POSITIVE_INT_ERROR_FMTSTR = _(u"{column} is not a valid column (not a positive integer number).")
-ANNOTATION_FILE_LABEL_NOT_IN_DATABASE_ERROR_FMTSTR = _(u"This line has label code {label_code}, but CoralNet has no label with this code.")
-ANNOTATION_FILE_LABEL_NOT_IN_LABELSET_ERROR_FMTSTR = _(u"This line has label code {label_code}, but your labelset has no label with this code.")
-ANNOTATION_FILE_YEAR_ERROR_FMTSTR = _(u"{year} is not a valid year.")
-
-UPLOAD_ANNOTATIONS_ON_AND_NO_ANNOTATION_DICT_ERROR_STR = _(u"Could not find annotation data")

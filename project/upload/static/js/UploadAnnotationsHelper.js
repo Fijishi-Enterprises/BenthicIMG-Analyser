@@ -70,13 +70,16 @@ var UploadAnnotationsHelper = (function() {
                     previewDetails['totalPoints'],
                     previewDetails['totalAnnotations']));
 
-            if (Number(previewDetails['existingAnnotations']) > 0) {
+
+            var numImagesWithExistingAnnotations =
+                Number(previewDetails['numImagesWithExistingAnnotations']);
+            if (numImagesWithExistingAnnotations > 0) {
                 $statusDetail.append(
                     $('<br>'),
                     $('<span class="annotation-delete-info">').append((
                         "{0} images have existing annotations" +
                         " that will be deleted").format(
-                            previewDetails['existingAnnotations'])));
+                            numImagesWithExistingAnnotations)));
             }
         }
         else if (csvFileStatus === 'saving') {

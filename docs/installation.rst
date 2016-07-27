@@ -160,7 +160,6 @@ Certain file-creation parts of the project code may trigger an error such as ``N
 - ``<PROCESSING_ROOT>/unittests/images/features``
 - ``<PROCESSING_ROOT>/unittests/images/preprocess``
 - ``<PROCESSING_ROOT>/unittests/logs``
-- ``<SHELVED_ANNOTATIONS_DIR>``
 - ``<MEDIA_ROOT>/unittests`` (Windows only)
 
 

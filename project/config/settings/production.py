@@ -95,12 +95,6 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 
 # [Custom setting]
-# When uploading images and annotations together, the annotation dict needs
-# to be kept on disk temporarily until all the Ajax upload requests are done.
-# This is the directory where the dict files will be kept.
-SHELVED_ANNOTATIONS_DIR = SITE_DIR.child('tmp').child('shelved_annotations')
-
-# [Custom setting]
 # Verbosity of print messages printed by our unit tests' code. Note that
 # this is different from Django's test runner's verbosity setting, which
 # relates to messages printed by Django's test runner code.

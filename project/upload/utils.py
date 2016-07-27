@@ -93,15 +93,6 @@ def metadata_csv_to_dict(csv_file, source):
             " and different from the default metadata fields.".format(
                 dupe_labels[0]))
 
-    dupe_column_names = [
-        name for name in column_names_lower
-        if column_names_lower.count(name) > 1
-    ]
-    if dupe_column_names:
-        raise FileProcessError(
-            "Column name appears more than once: {}".format(
-                dupe_column_names[0]))
-
     if 'name' not in column_names_lower:
         raise FileProcessError("No 'Name' column found in CSV")
 

@@ -882,6 +882,48 @@ class UploadMetadataTest(ClientTest):
         self.assertEqual(meta1.aux1, 'SiteA')
         self.assertEqual(meta1.aux3, '2-4')
 
+    def test_dupe_column_names(self):
+        """
+        Two CSV columns have the same name. Shouldn't get a server error.
+        (Arbitrarily, the later column will take precedence).
+        """
+        self.client.force_login(self.user)
+
+        column_names = ['Name', 'Latitude', 'LATITUDE']
+
+        with BytesIO() as stream:
+            writer = csv.DictWriter(stream, column_names)
+            writer.writeheader()
+            writer.writerow({
+                'Name': '1.png',
+                'Latitude': '24.08',
+                'LATITUDE': '42.67',
+            })
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+            upload_response = self.upload()
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                success=True,
+                metadataPreviewTable=[
+                    ['Name', 'Latitude'],
+                    ['1.png', '42.67'],
+                ],
+                numImages=1,
+                numFieldsReplaced=0,
+            ),
+        )
+
+        self.assertDictEqual(upload_response.json(), dict(success=True))
+
+        meta1 = self.img1.metadata
+        meta1.refresh_from_db()
+        self.assertEqual(meta1.name, '1.png')
+        self.assertEqual(meta1.latitude, '42.67')
+
 
 class UploadMetadataMultipleSourcesTest(ClientTest):
     """
@@ -1278,35 +1320,6 @@ class UploadMetadataPreviewErrorTest(ClientTest):
                     "More than one metadata field uses the label 'site'."
                     " Your auxiliary fields' names must be unique"
                     " and different from the default metadata fields."
-                ),
-            ),
-        )
-
-    def test_dupe_column_names(self):
-        """
-        Two CSV columns have the same name.
-        """
-        self.client.force_login(self.user)
-
-        column_names = ['Name', 'Latitude', 'LATITUDE']
-
-        with BytesIO() as stream:
-            writer = csv.DictWriter(stream, column_names)
-            writer.writeheader()
-            writer.writerow({
-                'Name': '1.png',
-                'Latitude': '24.08',
-                'LATITUDE': '24.08',
-            })
-
-            f = ContentFile(stream.getvalue(), name='A.csv')
-            preview_response = self.preview(f)
-
-        self.assertDictEqual(
-            preview_response.json(),
-            dict(
-                error=(
-                    "Column name appears more than once: latitude"
                 ),
             ),
         )

@@ -1457,7 +1457,7 @@ class UploadMetadataPreviewErrorTest(ClientTest):
         self.assertDictEqual(
             preview_response.json(),
             dict(error=(
-                "CSV must have at least one metadata columns other than Name"
+                "CSV must have at least one metadata column other than Name"
             )),
         )
 

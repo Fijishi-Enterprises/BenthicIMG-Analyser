@@ -100,7 +100,7 @@ def metadata_csv_to_dict(csv_file, source):
         # If we subtract the ignored columns,
         # all we are left with is the name column
         raise FileProcessError(
-            "CSV must have at least one metadata columns other than Name")
+            "CSV must have at least one metadata column other than Name")
 
     csv_metadata = OrderedDict()
     image_names_seen = set()

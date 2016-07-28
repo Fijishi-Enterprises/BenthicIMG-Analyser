@@ -1,5 +1,6 @@
 import csv
 import datetime
+import json
 from io import BytesIO
 import re
 
@@ -38,17 +39,13 @@ class UploadImagePreviewTest(ClientTest):
             reverse(
                 'image_upload_preview_ajax',
                 kwargs={'source_id': self.source.pk}),
-            {'filenames[]': ['3.png']},
+            dict(file_info=json.dumps([dict(filename='3.png', size=1024)])),
         )
 
         response_json = response.json()
         self.assertDictEqual(
             response_json,
-            dict(
-                statusList=[dict(
-                    status='ok',
-                )]
-            ),
+            dict(statuses=[dict(ok=True)]),
         )
 
     def test_detect_dupe(self):
@@ -57,17 +54,16 @@ class UploadImagePreviewTest(ClientTest):
             reverse(
                 'image_upload_preview_ajax',
                 kwargs={'source_id': self.source.pk}),
-            {'filenames[]': ['1.png']},
+            dict(file_info=json.dumps([dict(filename='1.png', size=1024)])),
         )
 
         response_json = response.json()
         self.assertDictEqual(
             response_json,
             dict(
-                statusList=[dict(
-                    status='dupe',
+                statuses=[dict(
+                    error="Image with this name already exists",
                     url=reverse('image_detail', args=[self.img1.id]),
-                    title=self.img1.get_image_element_title(),
                 )]
             ),
         )
@@ -78,26 +74,28 @@ class UploadImagePreviewTest(ClientTest):
             reverse(
                 'image_upload_preview_ajax',
                 kwargs={'source_id': self.source.pk}),
-            {'filenames[]': ['1.png', '2.png', '3.png']},
+            dict(file_info=json.dumps([
+                dict(filename='1.png', size=1024),
+                dict(filename='2.png', size=1024),
+                dict(filename='3.png', size=1024),
+            ])),
         )
 
         response_json = response.json()
         self.assertDictEqual(
             response_json,
             dict(
-                statusList=[
+                statuses=[
                     dict(
-                        status='dupe',
+                        error="Image with this name already exists",
                         url=reverse('image_detail', args=[self.img1.id]),
-                        title=self.img1.get_image_element_title(),
                     ),
                     dict(
-                        status='dupe',
+                        error="Image with this name already exists",
                         url=reverse('image_detail', args=[self.img2.id]),
-                        title=self.img2.get_image_element_title(),
                     ),
                     dict(
-                        status='ok',
+                        ok=True,
                     ),
                 ]
             ),
@@ -124,7 +122,7 @@ class UploadImageTest(ClientTest):
         )
 
         response_json = response.json()
-        self.assertEqual(response_json['status'], 'ok')
+        self.assertEqual(response_json['success'], True)
         image_id = response_json['image_id']
         image = Image.objects.get(pk=image_id)
         self.assertEqual(image.metadata.name, '1.png')
@@ -138,7 +136,7 @@ class UploadImageTest(ClientTest):
         )
 
         response_json = response.json()
-        self.assertEqual(response_json['status'], 'ok')
+        self.assertEqual(response_json['success'], True)
         image_id = response_json['image_id']
         image = Image.objects.get(pk=image_id)
         self.assertEqual(image.metadata.name, 'A.jpg')
@@ -191,14 +189,13 @@ class UploadImageTest(ClientTest):
             img.metadata.height_in_cm, img.source.image_height_in_cm)
 
 
-class UploadInvalidImageTest(ClientTest):
+class UploadImageFormatTest(ClientTest):
     """
-    Image upload tests: errors related to the image files, such as errors
-    about non-images.
+    Tests pertaining to filetype, filesize and dimensions.
     """
     @classmethod
     def setUpTestData(cls):
-        super(UploadInvalidImageTest, cls).setUpTestData()
+        super(UploadImageFormatTest, cls).setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -214,15 +211,10 @@ class UploadInvalidImageTest(ClientTest):
         response_json = response.json()
         self.assertDictEqual(
             response_json,
-            dict(
-                status='error',
-                message=(
-                    "The file is either a corrupt image,"
-                    " or in a file format that we don't support."
-                ),
-                link=None,
-                title=None,
-            )
+            dict(error=(
+                "The file is either a corrupt image,"
+                " or in a file format that we don't support."
+            ))
         )
 
     def test_unsupported_image_type(self):
@@ -242,12 +234,7 @@ class UploadInvalidImageTest(ClientTest):
         response_json = response.json()
         self.assertDictEqual(
             response_json,
-            dict(
-                status='error',
-                message="This image file format isn't supported.",
-                link=None,
-                title=None,
-            )
+            dict(error=("This image file format isn't supported."))
         )
 
     def test_empty_file(self):
@@ -261,12 +248,7 @@ class UploadInvalidImageTest(ClientTest):
         response_json = response.json()
         self.assertDictEqual(
             response_json,
-            dict(
-                status='error',
-                message="The submitted file is empty.",
-                link=None,
-                title=None,
-            )
+            dict(error=("The submitted file is empty."))
         )
 
     def test_max_image_dimensions_1(self):
@@ -287,12 +269,7 @@ class UploadInvalidImageTest(ClientTest):
         response_json = response.json()
         self.assertDictEqual(
             response_json,
-            dict(
-                status='error',
-                message="Ensure the image dimensions are at most 599 x 1000.",
-                link=None,
-                title=None,
-            )
+            dict(error=("Ensure the image dimensions are at most 599 x 1000."))
         )
 
     def test_max_image_dimensions_2(self):
@@ -313,23 +290,54 @@ class UploadInvalidImageTest(ClientTest):
         response_json = response.json()
         self.assertDictEqual(
             response_json,
-            dict(
-                status='error',
-                message="Ensure the image dimensions are at most 1000 x 449.",
-                link=None,
-                title=None,
-            )
+            dict(error=("Ensure the image dimensions are at most 1000 x 449."))
         )
 
-    # TODO: Test an upload larger than the upload limit
-    # TODO: Test an upload larger than FILE_UPLOAD_MAX_MEMORY_SIZE, but
-    # smaller than the upload limit (should NOT get an error)
-    #
-    # Not sure how to craft an image of a specific size though. Maybe there
-    # is some metadata field that can be arbitrarily long?
-    # Also, testing the upload limit should be done on the client side,
-    # before the image is actually uploaded.
-    # So might have to be a client-side test.
+    def test_max_filesize(self):
+        """Should check the max filesize in the upload preview."""
+        self.client.force_login(self.user)
+
+        post_dict = dict(file_info=json.dumps(
+            [dict(filename='1.png', size=1024*1024*1024)]
+        ))
+
+        with self.settings(IMAGE_UPLOAD_MAX_FILE_SIZE=1024*1024*30):
+            response = self.client.post(
+                reverse(
+                    'image_upload_preview_ajax',
+                    kwargs={'source_id': self.source.pk}),
+                post_dict,
+            )
+
+        response_json = response.json()
+        self.assertDictEqual(
+            response_json,
+            dict(statuses=[dict(error="Exceeds size limit of 30.00 MB")])
+        )
+
+    def test_upload_max_memory_size(self):
+        """Exceeding the upload max memory size setting should be okay."""
+        image_file = sample_image_as_file(
+            '1.png', image_options=dict(width=600, height=450),
+        )
+
+        self.client.force_login(self.user)
+        post_dict = dict(file=image_file)
+
+        # Use an upload max memory size of 200 bytes; as long as the image has
+        # some color variation, no way it'll be smaller than that
+        with self.settings(FILE_UPLOAD_MAX_MEMORY_SIZE=200):
+            response = self.client.post(
+                reverse(
+                    'image_upload_ajax', kwargs={'source_id': self.source.pk}),
+                post_dict,
+            )
+
+        response_json = response.json()
+        self.assertEqual(response_json['success'], True)
+        image_id = response_json['image_id']
+        image = Image.objects.get(pk=image_id)
+        self.assertEqual(image.metadata.name, '1.png')
 
 
 class UploadMetadataTest(ClientTest):

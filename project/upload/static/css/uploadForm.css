@@ -1,32 +1,3 @@
-#annotations_form {
-    /* This section starts out hidden; it's shown when the annotations
-       checkbox is ticked. */
-    display: none;
-}
-
-#csv_file_status.ok {
-    background-color: #88ff88;
-}
-#csv_file_status.error {
-    background-color: #ff8888;
-}
-
-#annotation_file_status {
-    padding: 2px;
-}
-#annotation_file_status.ok {
-    background-color: #88ff88;
-}
-#annotation_file_status.error {
-    background-color: #ff8888;
-}
-
-#annotation_file_process_button {
-    /* This button starts out hidden; it's shown when the user chooses
-       to upload points/annotations. */
-    display: none;
-}
-
 #id_upload_abort_button{
     /* This button starts out hidden; it's shown when the upload begins. */
     display: none;
@@ -44,7 +15,7 @@ div#upload_summary_section {
     border-radius: 5px;
 }
 
-#upload_start_info, #status_display {
+#status_display {
     display: block;
     margin: 10px 0;
     font-size: 120%;

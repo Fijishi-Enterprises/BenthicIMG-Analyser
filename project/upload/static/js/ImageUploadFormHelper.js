@@ -1,14 +1,9 @@
 /* The following "singleton" design pattern is from
  * http://stackoverflow.com/a/1479341/
- *
- * Main update functions called in event handling code:
- * updateFilesTable
- *
- * Typically, any event handling function will only need to call
- * that function.
  */
 var ImageUploadFormHelper = (function() {
 
+    var $statusDisplay = null;
     var $preUploadSummary = null;
     var $midUploadSummary = null;
     var $filesTable = null;
@@ -23,13 +18,8 @@ var ImageUploadFormHelper = (function() {
     var $startAnotherUploadForm = null;
     var $proceedToManageMetadataForm = null;
 
-    var $uploadStartInfo = null;
-
-    var $pointGenText = null;
-
     var uploadPreviewUrl = null;
     var uploadStartUrl = null;
-    var maxFileSizeBytes = null;
 
     var files = [];
     var numErrors = 0;
@@ -46,137 +36,70 @@ var ImageUploadFormHelper = (function() {
     var uploadXHRObject = null;
 
 
-    /* Makes cssClass the only style class of a particular row (tr element)
-     * of the files table.
-     * Pass in '' as the cssClass to just remove the style.
-     *
-     * Assumes we only need up to 1 style on any row at any given time.
-     * If that assumption is no longer valid, then this function should be
-     * changed. */
+    /**
+    Makes cssClass the only style class of a particular row (tr element)
+    of the files table.
+    Pass in '' as the cssClass to just remove the style.
+
+    Assumes we only need up to 1 style on any row at any given time.
+    If that assumption is no longer valid, then this function should be
+    changed.
+    */
     function styleFilesTableRow(rowIndex, cssClass) {
         files[rowIndex].$tableRow.attr('class', cssClass);
     }
 
-    function updateFormFields() {
-        // Update the upload start button.
-        if (files.length === 0) {
-            // No image files
-            $uploadStartButton.disable();
-            $uploadStartInfo.text("No image files selected yet");
+    function updateStatus(newStatus) {
+        $statusDisplay.empty();
+
+        // Hide and disable both buttons by default. In each case below,
+        // specify only what's shown and enabled.
+        $uploadStartButton.hide();
+        $uploadStartButton.disable();
+        $uploadAbortButton.hide();
+        $uploadAbortButton.disable();
+
+        if (newStatus === 'no_files') {
+            $uploadStartButton.show();
+            $statusDisplay.text("No image files selected yet");
         }
-        else if (numUploadables === 0) {
-            // No uploadable image files
-            $uploadStartButton.disable();
-            $uploadStartInfo.text("Cannot upload any of these image files");
+        else if (newStatus === 'checking') {
+            $uploadStartButton.show();
+            $statusDisplay.text("Checking files...");
         }
-        else {
-            // Uploadable image files present
+        else if (newStatus === 'no_uploadables') {
+            $uploadStartButton.show();
+            $statusDisplay.text("Cannot upload any of these image files");
+        }
+        else if (newStatus === 'ready') {
+            $uploadStartButton.show();
             $uploadStartButton.enable();
-            $uploadStartInfo.text("Ready for upload");
+            $statusDisplay.text("Ready for upload");
         }
-
-        // Show or hide the files list auto-scroll option
-        // depending on whether it's relevant or not.
-        if ($filesTableContainer[0].scrollHeight > $filesTableContainer[0].clientHeight) {
-            // There is overflow in the files table container, such that
-            // it has a scrollbar. So the auto-scroll option is relevant.
-            $filesTableAutoScrollCheckboxContainer.show();
+        else if (newStatus === 'uploading') {
+            $uploadAbortButton.show();
+            $uploadAbortButton.enable();
+            $statusDisplay.text("Uploading...");
+        }
+        else if (newStatus === 'uploaded') {
+            $statusDisplay.text("Upload complete");
+        }
+        else if (newStatus === 'aborted') {
+            $statusDisplay.text("Upload aborted");
         }
         else {
-            // No scrollbar. The auto-scroll option is not relevant.
-            $filesTableAutoScrollCheckboxContainer.hide();
-        }
-    }
-
-    function updateFilesTable() {
-        // Are the files uploadable or not?
-        updateUploadability();
-
-        // Update table row styles according to file status
-        updatePreUploadStyle();
-
-        // Update the summary text above the files table
-        updatePreUploadSummary();
-
-        // Update the form fields. For example, depending on the file statuses,
-        // the ability to click the start upload button could change.
-        updateFormFields();
-    }
-
-    /* Update the isUploadable status of each file. */
-    function updateUploadability() {
-        numUploadables = 0;
-        uploadableTotalSize = 0;
-
-        var i;
-        for (i = 0; i < files.length; i++) {
-            // Uploadable: ok, possible dupe
-            // Not uploadable: error, null(uninitialized status)
-            var isUploadable = (files[i].status === 'ok');
-
-            if (isUploadable) {
-                numUploadables++;
-                uploadableTotalSize += files[i].file.size;
-            }
-
-            files[i].isUploadable = isUploadable;
-        }
-    }
-
-    /* Update the files table rows' styles according to the file statuses. */
-    function updatePreUploadStyle() {
-        var i;
-        for (i = 0; i < files.length; i++) {
-            if (files[i].status === 'ok') {
-                styleFilesTableRow(i, '');
-            }
-            else if (files[i].status === 'error') {
-                styleFilesTableRow(i, 'preupload_error');
-            }
-            else {
-                // Perhaps no status is set yet. As far as this function is
-                // concerned, that's fine; just use the default style.
-                styleFilesTableRow(i, '');
-            }
-        }
-    }
-
-    /* Update the summary text above the files table. */
-    function updatePreUploadSummary() {
-        $preUploadSummary.empty();
-
-        if (files.length === 0) {
-            return;
-        }
-
-        $preUploadSummary.text(files.length + " file(s) total");
-
-        var $summaryList = $('<ul>');
-        $preUploadSummary.append($summaryList);
-
-        $summaryList.append(
-            $('<li>').append(
-                $('<strong>').text(
-                    "{0} file(s) ({1}) can be uploaded".format(
-                        numUploadables,
-                        util.filesizeDisplay(uploadableTotalSize)
-                    )
-                )
-            )
-        );
-        if (numErrors > 0) {
-            $summaryList.append(
-                $('<li>').text(
-                    "{0} file(s) can't be uploaded".format(
-                        numErrors
-                    )
-                )
+            // This should only happen if we don't keep the status strings
+            // synced between status get / status set code.
+            alert(
+                "Error - Invalid status: {0}".format(newStatus) +
+                "\nIf the problem persists, please contact the site admins."
             );
         }
     }
 
     /* Get the file details and display them in the table. */
     function updateFiles() {
+
         // Clear the table rows
         var i;
         for (i = 0; i < files.length; i++) {
@@ -187,8 +110,11 @@ var ImageUploadFormHelper = (function() {
 
         // No need to do anything more if there are no files anyway.
         if (filesField.files.length === 0) {
+            updateStatus('no_files');
             return;
         }
+
+        updateStatus('checking');
 
         // Re-build the file array.
         // Set the image files as files[0].file, files[1].file, etc.
@@ -226,96 +152,128 @@ var ImageUploadFormHelper = (function() {
             files[i].status = null;
         }
 
-        var filenameList = new Array(files.length);
+        var fileInfoForPreviewQuery = new Array(files.length);
         for (i = 0; i < files.length; i++) {
-            filenameList[i] = files[i].file.name;
+            fileInfoForPreviewQuery[i] = {
+                filename: files[i].file.name,
+                size: files[i].file.size
+            }
         }
 
-        // Ask the server (via Ajax) about the filenames: are they in the
-        // right format (if applicable)? Are they duplicates of files on
-        // the server?
+        // Update upload statuses based on the server's info
         $.ajax({
-            // Data to send in the request
-            data: {
-                filenames: filenameList
-            },
-
-            // Callback on successful response
-            success: filenameStatusAjaxResponseHandler,
-
-            type: 'POST',
-
             // URL to make request to
-            url: uploadPreviewUrl
+            url: uploadPreviewUrl,
+            // Data to send in the request. This is a data structure we'll
+            // send as JSON.
+            data: {
+                file_info: JSON.stringify(fileInfoForPreviewQuery)
+            },
+            type: 'POST',
+            // Callbacks
+            success: handleUploadPreviewResponse,
+            error: util.handleServerError
         });
     }
 
-    function filenameStatusAjaxResponseHandler(response) {
-        updateFilenameStatuses(response.statusList);
-    }
-
-    function updateFilenameStatuses(statusList) {
+    function handleUploadPreviewResponse(response) {
+        var statuses = response['statuses'];
         numErrors = 0;
+        numUploadables = 0;
+        uploadableTotalSize = 0;
 
+        // Update table's status cells
         var i;
-        for (i = 0; i < statusList.length; i++) {
+        for (i = 0; i < statuses.length; i++) {
+
+            var fileStatus = statuses[i];
 
             var $statusCell = files[i].$statusCell;
             $statusCell.empty();
 
-            var statusStr = statusList[i].status;
+            if (fileStatus.hasOwnProperty('error')) {
 
-            if (statusStr === 'dupe') {
-
-                var linkToDupe = $("<a>").text("Duplicate name");
-                // Link to the image's page
-                linkToDupe.attr('href', statusList[i].url);
-                // Open in new window
-                linkToDupe.attr('target', '_blank');
-                linkToDupe.attr('title', statusList[i].title);
-                $statusCell.append(linkToDupe);
-
-                files[i].status = 'error';
-                numErrors += 1;
-            }
-            else if (statusStr === 'ok') {
-
-                // Check filesize.
-                // This isn't part of the filename check, so maybe putting the
-                // check here is kind of confusing. But it's also a
-                // pre-upload check which should affect the preview status.
-                if (files[i].file.size > maxFileSizeBytes) {
-                    $statusCell.append("Exceeds size limit of {0}".format(
-                        util.filesizeDisplay(maxFileSizeBytes)
-                    ));
-                    files[i].status = 'error';
-                    numErrors += 1;
+                if (fileStatus.hasOwnProperty('link')) {
+                    $statusCell.append(
+                        $("<a>")
+                            .text(fileStatus['error'])
+                            .attr('href', fileStatus['link'])
+                            // Open in new window
+                            .attr('target', '_blank')
+                    );
                 }
                 else {
-                    $statusCell.text("Ready");
-                    files[i].status = 'ok';
+                    $statusCell.text(fileStatus['error']);
                 }
+
+                files[i].status = 'error';
+                files[i].isUploadable = false;
+                numErrors += 1;
+                styleFilesTableRow(i, 'preupload_error');
             }
             else {
-                // This'll only happen if we don't keep the status strings
-                // synced between server code and client code.
-                console.log("Invalid status: " + statusStr);
-                files[i].status = statusStr;
+                $statusCell.text("Ready");
+
+                files[i].status = 'ok';
+                files[i].isUploadable = true;
+                numUploadables += 1;
+                uploadableTotalSize += files[i].file.size;
+                styleFilesTableRow(i, '');
             }
         }
 
-        updateFilesTable();
+        // Update summary above table
+        $preUploadSummary.empty();
+
+        var $summaryList = $('<ul>');
+        $summaryList.append(
+            $('<li>').append(
+                $('<strong>').text(
+                    "{0} file(s) ({1}) can be uploaded".format(
+                        numUploadables,
+                        util.filesizeDisplay(uploadableTotalSize)
+                    )
+                )
+            )
+        );
+        if (numErrors > 0) {
+            $summaryList.append(
+                $('<li>').text(
+                    "{0} file(s) can't be uploaded".format(
+                        numErrors
+                    )
+                )
+            );
+        }
+        $preUploadSummary.append(
+            "{0} file(s) total".format(files.length),
+            $summaryList
+        );
+
+        if (numUploadables <= 0) {
+            updateStatus('no_uploadables');
+        }
+        else {
+            updateStatus('ready');
+        }
+
+        // Show or hide the files table auto-scroll option
+        // depending on whether the table is tall enough to need a scrollbar.
+        if ($filesTableContainer[0].scrollHeight >
+            $filesTableContainer[0].clientHeight) {
+            // There is overflow in the files table container, such that
+            // it has a scrollbar.
+            $filesTableAutoScrollCheckboxContainer.show();
+        }
+        else {
+            // No scrollbar.
+            $filesTableAutoScrollCheckboxContainer.hide();
+        }
     }
 
-    function startAjaxImageUpload() {
+    function startUpload() {
         // Disable all form fields and buttons on the page.
         $(filesField).prop('disabled', true);
-
-        $uploadStartButton.hideAndDisable();
-        $uploadStartInfo.text("Uploading...");
-
-        $uploadAbortButton.prop('disabled', false);
-        $uploadAbortButton.show();
 
         // Initialize the upload progress stats.
         numUploaded = 0;
@@ -330,38 +288,36 @@ var ImageUploadFormHelper = (function() {
         // leave the page during the upload.
         util.pageLeaveWarningEnable("The upload is still going.");
 
+        updateStatus('uploading');
+
         // Finally, upload the first file.
         currentFileIndex = 0;
         uploadFile();
     }
 
-    /* Callback after the Ajax response is received, indicating that
-     * the server upload and processing are done. */
-    function ajaxUploadHandleResponse(response) {
+    /* Callback after one image's upload and processing are done. */
+    function handleUploadResponse(response) {
 
         // Update the table with the upload status from the server.
         var $statusCell = files[currentFileIndex].$statusCell;
         $statusCell.empty();
 
-        if (response.link !== null) {
-            var linkToImage = $('<a>').text(response.message);
-            linkToImage.attr('href', response.link);
-            linkToImage.attr('target', '_blank');
-            linkToImage.attr('title', response.title);
-            $statusCell.append(linkToImage);
-        }
-        else {
-            $statusCell.text(response.message);
-        }
-
-        if (response.status === 'ok') {
-            styleFilesTableRow(currentFileIndex, 'uploaded');
-            numUploadSuccesses++;
-            uploadedImageIds.push(response.image_id);
-        }
-        else {  // 'error'
+        if (response.hasOwnProperty('error')) {
+            $statusCell.text(response['error']);
             styleFilesTableRow(currentFileIndex, 'upload_error');
             numUploadErrors++;
+        }
+        else {
+            $statusCell.append(
+                $("<a>")
+                    .text("Uploaded")
+                    .attr('href', response['link'])
+                    // Open in new window
+                    .attr('target', '_blank')
+            );
+            styleFilesTableRow(currentFileIndex, 'uploaded');
+            numUploadSuccesses++;
+            uploadedImageIds.push(response['image_id']);
         }
         numUploaded++;
         uploadedTotalSize += files[currentFileIndex].file.size;
@@ -403,8 +359,9 @@ var ImageUploadFormHelper = (function() {
                     // http://stackoverflow.com/a/5976031/
                     processData: false,
                     type: 'POST',
-                    // Callback on successful response
-                    success: ajaxUploadHandleResponse
+                    // Callbacks
+                    success: handleUploadResponse,
+                    error: util.handleServerError
                 });
 
                 // In the files table, update the status for that file.
@@ -432,8 +389,7 @@ var ImageUploadFormHelper = (function() {
         }
 
         // Reached the end of the files array.
-        $uploadStartInfo.text("Upload Complete");
-
+        updateStatus('uploaded');
         postUploadCleanup();
 
         // Set the uploaded image Ids in the proceed-to-manage-metadata form.
@@ -447,10 +403,6 @@ var ImageUploadFormHelper = (function() {
 
     function postUploadCleanup() {
         uploadXHRObject = null;
-
-        $uploadAbortButton.hide();
-        $uploadAbortButton.prop('disabled', true);
-
         util.pageLeaveWarningDisable();
     }
 
@@ -498,14 +450,14 @@ var ImageUploadFormHelper = (function() {
     in the absence of Web Workers.
     http://stackoverflow.com/questions/9999056/
     */
-    function abortAjaxUpload() {
+    function abortUpload() {
         var confirmation = window.confirm(
             "Are you sure you want to abort the upload?");
 
         if (confirmation) {
             if (uploadXHRObject !== null) {
                 uploadXHRObject.abort();
-                $uploadStartInfo.text("Upload aborted");
+                updateStatus('aborted');
                 postUploadCleanup();
             }
             // Else, the upload finished before the user could confirm the
@@ -525,9 +477,8 @@ var ImageUploadFormHelper = (function() {
         init: function(params){
 
             // Get the parameters.
-            uploadPreviewUrl = params.uploadPreviewUrl;
-            uploadStartUrl = params.uploadStartUrl;
-            maxFileSizeBytes = params.maxFileSizeBytes;
+            uploadPreviewUrl = params['uploadPreviewUrl'];
+            uploadStartUrl = params['uploadStartUrl'];
 
             // Upload status summary elements.
             $preUploadSummary = $('#pre_upload_summary');
@@ -546,16 +497,13 @@ var ImageUploadFormHelper = (function() {
             // Field elements.
             filesField = $('#id_files')[0];
 
-            // Other form field related elements.
-            $pointGenText = $('#auto_generate_points_page_section');
-
             // Button elements.
             $uploadStartButton = $('#id_upload_submit');
             $uploadAbortButton = $('#id_upload_abort_button');
             $startAnotherUploadForm = $('#id_start_another_upload_form');
             $proceedToManageMetadataForm = $('#id_proceed_to_manage_metadata_form');
 
-            $uploadStartInfo = $('#upload_start_info');
+            $statusDisplay = $('#status_display');
 
 
             // Hide the after-upload buttons for now
@@ -565,16 +513,14 @@ var ImageUploadFormHelper = (function() {
             // Set onchange handlers for form fields.
             $(filesField).change( function(){
                 updateFiles();
-                updateFilesTable();
             });
 
-            // Make sure the files table initially looks right
-            updateFilesTable();
+            updateStatus('no_files');
 
 
             // Upload button event handlers.
-            $uploadStartButton.click(startAjaxImageUpload);
-            $uploadAbortButton.click(abortAjaxUpload);
+            $uploadStartButton.click(startUpload);
+            $uploadAbortButton.click(abortUpload);
         }
     }
 })();

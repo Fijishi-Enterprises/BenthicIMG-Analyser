@@ -34,9 +34,8 @@
 
       <div id="upload_summary_section">
 
-        <span id="upload_start_info"></span>
+        <span id="status_display"></span>
         <hr>
-
         <span id="pre_upload_summary"></span>
 
         <div id="files_table_auto_scroll_checkbox_container">
@@ -89,8 +88,7 @@
   <script type="text/javascript">
     ImageUploadFormHelper.init({
         uploadPreviewUrl: "{% url 'image_upload_preview_ajax' source.id %}",
-        uploadStartUrl: "{% url 'image_upload_ajax' source.id %}",
-        maxFileSizeBytes: "{{ max_file_size_bytes|jsonify }}"
+        uploadStartUrl: "{% url 'image_upload_ajax' source.id %}"
     });
   </script>
 

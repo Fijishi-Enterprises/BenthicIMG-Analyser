@@ -1,8 +1,27 @@
 # General utility functions and classes can go here.
 
-import random, string
+import math
+import random
+import string
 
 from django.utils import functional
+
+
+def filesize_display(num_bytes):
+    """
+    Return a human-readable filesize string in B, KB, MB, or GB.
+    """
+    KILO = 1024
+    MEGA = 1024 * 1024
+    GIGA = 1024 * 1024 * 1024
+
+    if num_bytes < KILO:
+        return "{n} B".format(n=num_bytes)
+    if num_bytes < MEGA:
+        return "{n:.2f} KB".format(n=math.floor(num_bytes / KILO))
+    if num_bytes < GIGA:
+        return "{n:.2f} MB".format(n=math.floor(num_bytes / MEGA))
+    return "{n:.2f} GB".format(n=math.floor(num_bytes / GIGA))
 
 
 def rand_string(num_of_chars):

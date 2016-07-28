@@ -42,6 +42,18 @@ var util = {
         }
     },
 
+    handleServerError: function(jqXHR, textStatus, errorThrown) {
+        if (textStatus === 'abort') {
+            // A manually aborted request, not a server issue.
+            return;
+        }
+        alert(
+            "There was a server error:" +
+            "\n{0} / {1}".format(textStatus, errorThrown) +
+            "\nIf the problem persists, please contact the site admins."
+        )
+    },
+
     /*
     Take a mouse event and return "LEFT", "MIDDLE", or "RIGHT" depending
     on which mouse button was clicked.

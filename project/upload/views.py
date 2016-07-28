@@ -1,3 +1,5 @@
+import json
+
 from django.conf import settings
 from django.contrib import messages
 from django.core.urlresolvers import reverse
@@ -12,6 +14,7 @@ from images.model_utils import PointGen
 from images.models import Source, Metadata, Image, Point
 from lib.decorators import source_permission_required
 from lib.exceptions import FileProcessError
+from lib.utils import filesize_display
 from .forms import MultiImageUploadForm, ImageUploadForm, CSVImportForm, ImportArchivedAnnotationsForm
 from .utils import upload_image_process, load_archived_csv, check_archived_csv, import_archived_annotations, find_dupe_image, metadata_csv_to_dict, \
     metadata_obj_to_dict, annotations_csv_to_dict, \
@@ -48,7 +51,6 @@ def image_upload(request, source_id):
         'images_form': images_form,
         'proceed_to_manage_metadata_form': proceed_to_manage_metadata_form,
         'auto_generate_points_message': auto_generate_points_message,
-        'max_file_size_bytes': settings.IMAGE_UPLOAD_MAX_FILE_SIZE,
     })
 
 
@@ -56,11 +58,8 @@ def image_upload(request, source_id):
     'source_id', perm=Source.PermTypes.EDIT.code, ajax=True)
 def image_upload_preview_ajax(request, source_id):
     """
-    Called when a user selects files to upload in the image upload form.
-
-    :param filenames: A list of filenames.
-    :returns: A dict containing a 'statusList' specifying the status of
-        each filename, or an 'error' with an error message.
+    Preview the images that are about to be uploaded.
+    Check to see if there's any problems with the filenames or file sizes.
     """
     if request.method != 'POST':
         return JsonResponse(dict(
@@ -69,28 +68,31 @@ def image_upload_preview_ajax(request, source_id):
 
     source = get_object_or_404(Source, id=source_id)
 
-    filenames = request.POST.getlist('filenames[]')
+    file_info_list = json.loads(request.POST.get('file_info'))
 
-    # List of filename statuses.
-    statusList = []
+    statuses = []
 
-    for index, filename in enumerate(filenames):
+    for file_info in file_info_list:
 
-        dupe_image = find_dupe_image(source, filename)
-
+        dupe_image = find_dupe_image(source, file_info['filename'])
         if dupe_image:
-            statusList.append(dict(
-                status='dupe',
+            statuses.append(dict(
+                error="Image with this name already exists",
                 url=reverse('image_detail', args=[dupe_image.id]),
-                title=dupe_image.get_image_element_title(),
+            ))
+        elif file_info['size'] > settings.IMAGE_UPLOAD_MAX_FILE_SIZE:
+            statuses.append(dict(
+                error="Exceeds size limit of {limit}".format(
+                    limit=filesize_display(
+                        settings.IMAGE_UPLOAD_MAX_FILE_SIZE))
             ))
         else:
-            statusList.append(dict(
-                status='ok',
+            statuses.append(dict(
+                ok=True,
             ))
 
     return JsonResponse(dict(
-        statusList=statusList,
+        statuses=statuses,
     ))
 
 
@@ -99,8 +101,8 @@ def image_upload_preview_ajax(request, source_id):
 def image_upload_ajax(request, source_id):
     """
     After the "Start upload" button is clicked, this view is entered once
-    for each image file.  This view saves the image and its
-    points/annotations to the database.
+    for each image file. This view saves the image to the database
+    and media storage.
     """
     if request.method != 'POST':
         return JsonResponse(dict(
@@ -118,10 +120,7 @@ def image_upload_ajax(request, source_id):
         # File error: filetype is not an image,
         # file is corrupt, file is empty, etc.
         return JsonResponse(dict(
-            status='error',
-            message=image_form.errors['file'][0],
-            link=None,
-            title=None,
+            error=image_form.errors['file'][0],
         ))
 
     img = upload_image_process(
@@ -131,10 +130,8 @@ def image_upload_ajax(request, source_id):
     )
 
     return JsonResponse(dict(
-        status='ok',
-        message="Uploaded",
+        success=True,
         link=reverse('image_detail', args=[img.id]),
-        title=img.get_image_element_title(),
         image_id=img.id,
     ))
 

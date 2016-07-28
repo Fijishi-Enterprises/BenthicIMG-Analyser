@@ -110,9 +110,12 @@ var UploadAnnotationsHelper = (function() {
             // Retain previous status detail
         }
         else {
-            // This'll only happen if we don't keep the status strings
+            // This should only happen if we don't keep the status strings
             // synced between status get / status set code.
-            console.log("Invalid status: " + csvFileStatus);
+            alert(
+                "Error - Invalid status: {0}".format(csvFileStatus) +
+                "\nIf the problem persists, please contact the site admins."
+            );
         }
     }
 
@@ -189,7 +192,7 @@ var UploadAnnotationsHelper = (function() {
             type: 'POST',
             // Callbacks
             success: handleUploadPreviewResponse,
-            error: handleServerError
+            error: util.handleServerError
         });
     }
 
@@ -205,14 +208,6 @@ var UploadAnnotationsHelper = (function() {
         }
         updateStatus();
         updatePreviewTable();
-    }
-
-    function handleServerError(jqXHR, textStatus, errorThrown) {
-        alert(
-            "There was a server error:" +
-            "\n{0} / {1}".format(textStatus, errorThrown) +
-            "\nIf the problem persists, please contact the site admins."
-        )
     }
 
     function startUpload() {
@@ -231,7 +226,7 @@ var UploadAnnotationsHelper = (function() {
             type: 'POST',
             // Callbacks
             success: handleUploadResponse,
-            error: handleServerError
+            error: util.handleServerError
         });
     }
 

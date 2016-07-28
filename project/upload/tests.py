@@ -461,8 +461,7 @@ class UploadMetadataTest(ClientTest):
 
         self.assertDictEqual(upload_response.json(), dict(success=True))
 
-        meta1 = self.img1.metadata
-        meta1.refresh_from_db()
+        meta1 = Image.objects.get(pk=self.img1.pk).metadata
         self.assertEqual(meta1.name, '1.png')
         self.assertEqual(meta1.photo_date, datetime.date(2016,7,18))
         self.assertEqual(meta1.aux1, 'SiteA')
@@ -483,8 +482,7 @@ class UploadMetadataTest(ClientTest):
         self.assertEqual(
             meta1.comments, 'A bit off to the left from the transect line.')
 
-        meta2 = self.img2.metadata
-        meta2.refresh_from_db()
+        meta2 = Image.objects.get(pk=self.img2.pk).metadata
         self.assertEqual(meta2.name, '2.png')
         self.assertEqual(meta2.photo_date, None)
         self.assertEqual(meta2.aux1, 'SiteB')
@@ -565,7 +563,7 @@ class UploadMetadataTest(ClientTest):
 
         self.assertDictEqual(upload_response.json(), dict(success=True))
 
-        meta1.refresh_from_db()
+        meta1 = Image.objects.get(pk=self.img1.pk).metadata
         self.assertEqual(meta1.name, '1.png')
         self.assertEqual(meta1.photo_date, datetime.date(2016,7,18))
         self.assertEqual(meta1.aux1, 'SiteA')
@@ -646,7 +644,7 @@ class UploadMetadataTest(ClientTest):
 
         self.assertDictEqual(upload_response.json(), dict(success=True))
 
-        meta1.refresh_from_db()
+        meta1 = Image.objects.get(pk=self.img1.pk).metadata
         self.assertEqual(meta1.name, '1.png')
         self.assertEqual(meta1.photo_date, datetime.date(2016,7,18))
         self.assertEqual(meta1.aux1, 'SiteA')
@@ -713,7 +711,7 @@ class UploadMetadataTest(ClientTest):
 
         self.assertDictEqual(upload_response.json(), dict(success=True))
 
-        meta1.refresh_from_db()
+        meta1 = Image.objects.get(pk=self.img1.pk).metadata
         self.assertEqual(meta1.name, '1.png')
         self.assertEqual(meta1.photo_date, datetime.date(2014,2,27))
         self.assertEqual(meta1.aux1, 'SiteA')
@@ -763,8 +761,7 @@ class UploadMetadataTest(ClientTest):
 
         self.assertDictEqual(upload_response.json(), dict(success=True))
 
-        meta1 = self.img1.metadata
-        meta1.refresh_from_db()
+        meta1 = Image.objects.get(pk=self.img1.pk).metadata
         self.assertEqual(meta1.name, '1.png')
         self.assertEqual(meta1.aux1, 'SiteA')
         self.assertEqual(meta1.aux2, 'Fringing Reef')
@@ -812,8 +809,7 @@ class UploadMetadataTest(ClientTest):
 
         self.assertDictEqual(upload_response.json(), dict(success=True))
 
-        meta1 = self.img1.metadata
-        meta1.refresh_from_db()
+        meta1 = Image.objects.get(pk=self.img1.pk).metadata
         self.assertEqual(meta1.name, '1.png')
         self.assertEqual(meta1.aux1, 'SiteA')
 
@@ -855,8 +851,7 @@ class UploadMetadataTest(ClientTest):
 
         self.assertDictEqual(upload_response.json(), dict(success=True))
 
-        meta1 = self.img1.metadata
-        meta1.refresh_from_db()
+        meta1 = Image.objects.get(pk=self.img1.pk).metadata
         self.assertEqual(meta1.name, '1.png')
         self.assertEqual(meta1.aux1, 'SiteA')
         self.assertEqual(meta1.aux3, '2-4')
@@ -900,8 +895,7 @@ class UploadMetadataTest(ClientTest):
 
         self.assertDictEqual(upload_response.json(), dict(success=True))
 
-        meta1 = self.img1.metadata
-        meta1.refresh_from_db()
+        meta1 = Image.objects.get(pk=self.img1.pk).metadata
         self.assertEqual(meta1.name, '1.png')
         self.assertEqual(meta1.aux1, 'SiteA')
         self.assertEqual(meta1.aux3, '2-4')
@@ -945,8 +939,7 @@ class UploadMetadataTest(ClientTest):
 
         self.assertDictEqual(upload_response.json(), dict(success=True))
 
-        meta1 = self.img1.metadata
-        meta1.refresh_from_db()
+        meta1 = Image.objects.get(pk=self.img1.pk).metadata
         self.assertEqual(meta1.name, '1.png')
         self.assertEqual(meta1.latitude, '42.67')
 

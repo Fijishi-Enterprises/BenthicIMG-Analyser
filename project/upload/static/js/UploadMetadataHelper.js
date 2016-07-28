@@ -10,7 +10,6 @@ var UploadMetadataHelper = (function() {
 
     var $csvForm = null;
     var csvFileField = null;
-    var csvFileStatus = null;
     var csvFileError = null;
     var previewTableContent = null;
     var previewDetails = null;
@@ -22,24 +21,24 @@ var UploadMetadataHelper = (function() {
     var uploadStartUrl = null;
 
 
-    function updateStatus() {
+    function updateStatus(newStatus) {
         var messageLines;
         var i;
 
         $statusDisplay.empty();
 
         // Update the upload start button.
-        if (csvFileField.files.length === 0) {
+        if (newStatus === 'no_file') {
             $uploadStartButton.disable();
             $statusDisplay.text("CSV file not selected yet");
             $statusDetail.empty();
         }
-        else if (csvFileStatus === 'processing') {
+        else if (newStatus === 'processing') {
             $uploadStartButton.disable();
             $statusDisplay.text("Processing CSV file...");
             $statusDetail.empty();
         }
-        else if (csvFileStatus === 'preview_error') {
+        else if (newStatus === 'preview_error') {
             $uploadStartButton.disable();
             $statusDisplay.text("Error reading the CSV file");
             $statusDetail.empty();
@@ -55,7 +54,7 @@ var UploadMetadataHelper = (function() {
                 }
             }
         }
-        else if (csvFileStatus === 'ready') {
+        else if (newStatus === 'ready') {
             $uploadStartButton.enable();
             $statusDisplay.text(
                 "Metadata OK; confirm below and click 'Save metadata'");
@@ -73,12 +72,12 @@ var UploadMetadataHelper = (function() {
                 );
             }
         }
-        else if (csvFileStatus === 'saving') {
+        else if (newStatus === 'saving') {
             $uploadStartButton.disable();
             $statusDisplay.text("Saving metadata...");
             // Retain previous status detail
         }
-        else if (csvFileStatus === 'save_error') {
+        else if (newStatus === 'save_error') {
             $uploadStartButton.disable();
             $statusDisplay.text("Error saving the CSV file; no metadata saved");
             $statusDetail.empty();
@@ -94,7 +93,7 @@ var UploadMetadataHelper = (function() {
                 }
             }
         }
-        else if (csvFileStatus === 'saved') {
+        else if (newStatus === 'saved') {
             $uploadStartButton.disable();
             $statusDisplay.text("Metadata saved");
             // Retain previous status detail
@@ -103,7 +102,7 @@ var UploadMetadataHelper = (function() {
             // This should only happen if we don't keep the status strings
             // synced between status get / status set code.
             alert(
-                "Error - Invalid status: {0}".format(csvFileStatus) +
+                "Error - Invalid status: {0}".format(newStatus) +
                 "\nIf the problem persists, please contact the site admins."
             );
         }
@@ -159,13 +158,12 @@ var UploadMetadataHelper = (function() {
 
         if (csvFileField.files.length === 0) {
             // No CSV file.
-            updateStatus();
+            updateStatus('no_file');
             updatePreviewTable();
             return;
         }
 
-        csvFileStatus = 'processing';
-        updateStatus();
+        updateStatus('processing');
         updatePreviewTable();
 
         $.ajax({
@@ -191,21 +189,19 @@ var UploadMetadataHelper = (function() {
 
     function handleUploadPreviewResponse(response) {
         if (response['error']) {
-            csvFileStatus = 'preview_error';
             csvFileError = response['error'];
+            updateStatus('preview_error');
         }
         else {
-            csvFileStatus = 'ready';
             previewTableContent = response['previewTable'];
             previewDetails = response['previewDetails'];
+            updateStatus('ready');
         }
-        updateStatus();
         updatePreviewTable();
     }
 
     function startUpload() {
-        csvFileStatus = 'saving';
-        updateStatus();
+        updateStatus('saving');
 
         // Warn the user if they're trying to
         // leave the page during the save.
@@ -225,14 +221,13 @@ var UploadMetadataHelper = (function() {
     /* Callback after the Ajax response is received, indicating that
      * the server upload and processing are done. */
     function handleUploadResponse(response) {
-        if (response.error) {
-            csvFileStatus = 'save_error';
-            csvFileError = response.error;
+        if (response['error']) {
+            csvFileError = response['error'];
+            updateStatus('save_error');
         }
         else {
-            csvFileStatus = 'saved';
+            updateStatus('saved');
         }
-        updateStatus();
 
         util.pageLeaveWarningDisable();
     }
@@ -279,7 +274,10 @@ var UploadMetadataHelper = (function() {
                 startUpload();
             });
 
-            updateStatus();
+            // Initialize the page properly regardless of whether
+            // we load the page straight (no files initially) or
+            // refresh the page (browser may keep previous file field value).
+            updateUploadPreview();
         }
     }
 })();

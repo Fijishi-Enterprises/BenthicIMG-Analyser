@@ -510,17 +510,17 @@ var ImageUploadFormHelper = (function() {
             $startAnotherUploadForm.hide();
             $proceedToManageMetadataForm.hide();
 
-            // Set onchange handlers for form fields.
+            // Handlers.
             $(filesField).change( function(){
                 updateFiles();
             });
-
-            updateStatus('no_files');
-
-
-            // Upload button event handlers.
             $uploadStartButton.click(startUpload);
             $uploadAbortButton.click(abortUpload);
+
+            // Initialize the page properly regardless of whether
+            // we load the page straight (no files initially) or
+            // refresh the page (browser may keep previous file field value).
+            updateFiles();
         }
     }
 })();

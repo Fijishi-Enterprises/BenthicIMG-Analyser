@@ -10,7 +10,6 @@ var UploadAnnotationsHelper = (function() {
 
     var $csvForm = null;
     var csvFileField = null;
-    var csvFileStatus = null;
     var csvFileError = null;
     var previewTableContent = null;
     var previewDetails = null;
@@ -22,24 +21,24 @@ var UploadAnnotationsHelper = (function() {
     var uploadStartUrl = null;
 
 
-    function updateStatus() {
+    function updateStatus(newStatus) {
         var messageLines;
         var i;
 
         $statusDisplay.empty();
 
         // Update the upload start button.
-        if (csvFileField.files.length === 0) {
+        if (newStatus === 'no_file') {
             $uploadStartButton.disable();
             $statusDisplay.text("CSV file not selected yet");
             $statusDetail.empty();
         }
-        else if (csvFileStatus === 'processing') {
+        else if (newStatus === 'processing') {
             $uploadStartButton.disable();
             $statusDisplay.text("Processing CSV file...");
             $statusDetail.empty();
         }
-        else if (csvFileStatus === 'preview_error') {
+        else if (newStatus === 'preview_error') {
             $uploadStartButton.disable();
             $statusDisplay.text("Error reading the CSV file");
             $statusDetail.empty();
@@ -55,7 +54,7 @@ var UploadAnnotationsHelper = (function() {
                 }
             }
         }
-        else if (csvFileStatus === 'ready') {
+        else if (newStatus === 'ready') {
             $uploadStartButton.enable();
             $statusDisplay.text(
                 "Data OK; confirm below and click" +
@@ -83,12 +82,12 @@ var UploadAnnotationsHelper = (function() {
                 );
             }
         }
-        else if (csvFileStatus === 'saving') {
+        else if (newStatus === 'saving') {
             $uploadStartButton.disable();
             $statusDisplay.text("Saving points and annotations...");
             // Retain previous status detail
         }
-        else if (csvFileStatus === 'save_error') {
+        else if (newStatus === 'save_error') {
             $uploadStartButton.disable();
             $statusDisplay.text("Error while saving; no points or annotations saved");
             $statusDetail.empty();
@@ -104,7 +103,7 @@ var UploadAnnotationsHelper = (function() {
                 }
             }
         }
-        else if (csvFileStatus === 'saved') {
+        else if (newStatus === 'saved') {
             $uploadStartButton.disable();
             $statusDisplay.text("Points and annotations saved");
             // Retain previous status detail
@@ -113,7 +112,7 @@ var UploadAnnotationsHelper = (function() {
             // This should only happen if we don't keep the status strings
             // synced between status get / status set code.
             alert(
-                "Error - Invalid status: {0}".format(csvFileStatus) +
+                "Error - Invalid status: {0}".format(newStatus) +
                 "\nIf the problem persists, please contact the site admins."
             );
         }
@@ -166,13 +165,12 @@ var UploadAnnotationsHelper = (function() {
 
         if (csvFileField.files.length === 0) {
             // No CSV file.
-            updateStatus();
+            updateStatus('no_file');
             updatePreviewTable();
             return;
         }
 
-        csvFileStatus = 'processing';
-        updateStatus();
+        updateStatus('processing');
         updatePreviewTable();
 
         $.ajax({
@@ -198,21 +196,19 @@ var UploadAnnotationsHelper = (function() {
 
     function handleUploadPreviewResponse(response) {
         if (response['error']) {
-            csvFileStatus = 'preview_error';
             csvFileError = response['error'];
+            updateStatus('preview_error');
         }
         else {
-            csvFileStatus = 'ready';
             previewTableContent = response['previewTable'];
             previewDetails = response['previewDetails'];
+            updateStatus('ready');
         }
-        updateStatus();
         updatePreviewTable();
     }
 
     function startUpload() {
-        csvFileStatus = 'saving';
-        updateStatus();
+        updateStatus('saving');
 
         // Warn the user if they're trying to
         // leave the page during the save.
@@ -234,13 +230,12 @@ var UploadAnnotationsHelper = (function() {
      * the server upload and processing are done. */
     function handleUploadResponse(response) {
         if (response['error']) {
-            csvFileStatus = 'save_error';
+            updateStatus('save_error');
             csvFileError = response['error'];
         }
         else {
-            csvFileStatus = 'saved';
+            updateStatus('saved');
         }
-        updateStatus();
 
         util.pageLeaveWarningDisable();
     }
@@ -287,7 +282,10 @@ var UploadAnnotationsHelper = (function() {
                 startUpload();
             });
 
-            updateStatus();
+            // Initialize the page properly regardless of whether
+            // we load the page straight (no files initially) or
+            // refresh the page (browser may keep previous file field value).
+            updateUploadPreview();
         }
     }
 })();

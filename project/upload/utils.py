@@ -60,7 +60,7 @@ def metadata_csv_to_dict(csv_file, source):
     # There could be a UTF-8 BOM character at the start of the file.
     # Strip it in that case.
     column_names[0] = column_names[0].lstrip(codecs.BOM_UTF8)
-    column_names = [n.lower() for n in column_names]
+    column_names = [n.lower().strip() for n in column_names]
 
     # The column names are field labels (e.g. Date) while we want
     # dicts of the metadata model fields' names (e.g. photo_date).
@@ -110,8 +110,9 @@ def metadata_csv_to_dict(csv_file, source):
         # Make a metadata dict for one image,
         # e.g. {photo_date='2016-06-12', camera='Nikon', ...}
         # A field name of None indicates that we're ignoring that column.
+        # strip() removes leading/trailing whitespace from the CSV value.
         metadata_for_image = OrderedDict(
-            (k, v)
+            (k, v.strip())
             for (k, v) in zip(fields_of_columns, row)
             if k is not None
         )
@@ -241,7 +242,7 @@ def annotations_csv_to_dict(csv_file, source):
     # There could be a UTF-8 BOM character at the start of the file.
     # Strip it in that case.
     column_names[0] = column_names[0].lstrip(codecs.BOM_UTF8)
-    column_names = [name.lower() for name in column_names]
+    column_names = [name.lower().strip() for name in column_names]
 
     required_field_names = ['name', 'row', 'column']
     field_names = required_field_names + ['label']
@@ -261,7 +262,7 @@ def annotations_csv_to_dict(csv_file, source):
     # Read the rest of the rows. Each row has data for one point.
     for row in reader:
         csv_point_dict = OrderedDict(
-            (k, v)
+            (k, v.strip())
             for (k, v) in zip(fields_of_columns, row)
             if k is not None and v is not ''
         )

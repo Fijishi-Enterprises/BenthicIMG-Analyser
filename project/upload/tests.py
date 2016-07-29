@@ -1633,6 +1633,34 @@ class UploadMetadataPreviewFormatTest(ClientTest):
             ),
         )
 
+    def test_surrounding_whitespace(self):
+        """
+        Strip leading and trailing whitespace around CSV values.
+        """
+        self.client.force_login(self.user)
+
+        content = (
+            'Name,Aux1  '
+            '\n 1.png\t,  SiteA '
+        )
+        f = ContentFile(content, name='A.csv')
+        preview_response = self.preview(f)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                success=True,
+                previewTable=[
+                    ['Name', 'Aux1'],
+                    ['1.png', 'SiteA'],
+                ],
+                previewDetails=dict(
+                    numImages=1,
+                    numFieldsReplaced=0,
+                ),
+            ),
+        )
+
     def test_non_csv(self):
         """
         Do at least basic detection of non-CSV files.
@@ -2219,6 +2247,58 @@ class UploadAnnotationsTest(ClientTest):
             writer = csv.writer(stream)
             writer.writerow(['name', 'ROW', 'coLUmN', 'Label'])
             writer.writerow(['1.png', 40, 60, 'A'])
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+            upload_response = self.upload()
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                success=True,
+                previewTable=[
+                    dict(
+                        name=self.img1.metadata.name,
+                        link=reverse(
+                            'annotation_tool',
+                            kwargs=dict(image_id=self.img1.pk)),
+                        createInfo="Will create 1 points, 1 annotations",
+                    ),
+                ],
+                previewDetails=dict(
+                    numImages=1,
+                    totalPoints=1,
+                    totalAnnotations=1,
+                    numImagesWithExistingAnnotations=0,
+                ),
+            ),
+        )
+
+        self.assertDictEqual(upload_response.json(), dict(success=True))
+
+        values_set = set(
+            Point.objects.filter(image__in=[self.img1]) \
+            .values_list('row', 'column', 'point_number', 'image_id'))
+        self.assertSetEqual(values_set, {
+            (40, 60, 1, self.img1.pk),
+        })
+
+        annotations = Annotation.objects.filter(image__in=[self.img1])
+        values_set = set(
+            annotations.values_list('label__code', 'point_id', 'image_id'))
+        self.assertSetEqual(values_set, {
+            ('A', Point.objects.get(
+                point_number=1, image=self.img1).pk, self.img1.pk),
+        })
+
+    def test_surrounding_whitespace(self):
+        """Strip whitespace surrounding the CSV values."""
+        self.client.force_login(self.user)
+
+        with BytesIO() as stream:
+            writer = csv.writer(stream)
+            writer.writerow(['Name ', '  Row', '\tColumn\t', '\tLabel    '])
+            writer.writerow(['\t1.png', ' 40', '    60   ', 'A'])
 
             f = ContentFile(stream.getvalue(), name='A.csv')
             preview_response = self.preview(f)

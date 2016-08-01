@@ -338,17 +338,6 @@ def visualize_source(request, source_id):
             queryset=metadata_objs,
             form_kwargs={'source': source})
 
-        # Get column headers for the metadata form display.
-        if metadata_formset.forms:
-            metadata_form_headers = [
-                metadata_formset.forms[0].fields[field_name].label
-                for field_name in MetadataFormForGrid.Meta.fields
-            ]
-        else:
-            # No images, thus no forms to get headers from.
-            # But in this case there should be no form displayed anyway.
-            metadata_form_headers = None
-
         # Initialize the checkbox parts.
         initValues = {
             'form-TOTAL_FORMS': '%s' % len(all_items),
@@ -375,7 +364,6 @@ def visualize_source(request, source_id):
         # Not showing the metadata view.
 
         metadata_formset = None
-        metadata_form_headers = None
         metadata_rows = None
         selectAllCheckbox = None
 
@@ -407,7 +395,6 @@ def visualize_source(request, source_id):
         #'has_download_form': bool(download_form),
 
         'metadata_formset': metadata_formset,
-        'metadata_form_headers': metadata_form_headers,
         'selectAllForm': selectAllCheckbox,
         'metadata_rows': metadata_rows,
 

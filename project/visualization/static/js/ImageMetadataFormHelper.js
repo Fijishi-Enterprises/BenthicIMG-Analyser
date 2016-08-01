@@ -8,13 +8,13 @@ function selectall() {
 }
 
 // Given the row/column, this will return the value at that cell in the table.
-function getValueFromCell(row, column)
+function getCellValue(row, column)
 {
     return $('#metadataFormTable')[0].rows[row+1].cells[column+1].childNodes[0].value;
 }
 
 // Given the row/column, this sets the value in that cell to what value is.
-function setValueFromCell(row, column, value)
+function setCellValue(row, column, value)
 {
     var field = $('#metadataFormTable')[0].rows[row+1].cells[column+1].childNodes[0];
 
@@ -52,15 +52,18 @@ function setCheckedRows(checked) {
     }
 }
 
-// This will handle updating all checked rows in the form. This is called whenever a user
-// types in one of the text fields.
+// This will handle updating all checked rows in the form.
+// This is called whenever a user types in one of the text fields.
+// row and column correspond to the text field that was just typed in.
 function updateCheckedRowFields(row, column) {
     var checked = checkedRows();
-    if (checked[row] == false) return;
-    var input = getValueFromCell(row, column);
-    for (var i = 0; i < checked.length; i++)
-    {
-        if(checked[i] == true) setValueFromCell(i, column, input);
+
+    // If the edited text field wasn't checked, then do nothing.
+    if (checked[row] == false) {return;}
+
+    var input = getCellValue(row, column);
+    for (var i = 0; i < checked.length; i++) {
+        if(checked[i] == true) {setCellValue(i, column, input);}
     }
 }
 
@@ -83,83 +86,61 @@ function updateMetadataChangeStatus($field) {
 
 // This initializes the form with the correct bindings.
 function setUpBindings(params) {
-    var rows = $("#metadataFormTable tr").length;
-    var columns = $("#metadataFormTable tr")[0].cells.length;
-    var id;
-    for (var i = 1; i < rows; i++)
-    {
-        // This row should correspond to an image.
+    // Get all form input fields except type="hidden"
+    var $editableFields = $('#metadataFormTable').find(
+        'input[type="text"],input[type="number"]');
 
-        for (var j = 3; j < columns; j++)
-        {
-            // This column should correspond to an editable field.
-
-            id = '#' + $('#metadataFormTable')[0].rows[i].cells[j].childNodes[0].getAttribute('id');
-
-            if (j == 3)
-            {
-                // This is the date field.
-                $(id).datepicker({ dateFormat: 'yy-mm-dd' });
-                setRowColumnBindingsChange({id: id, isDate: true});
-            }
-            else
-            {
-                setRowColumnBindingsChange({id: id, isDate: false});
-                setRowColumnBindingsKeyUp(id);
-            }
+    $editableFields.each(function() {
+        if (this.id.endsWith('photo_date')) {
+            $(this).datepicker({ dateFormat: 'yy-mm-dd' });
+            setRowColumnBindingsChangeDate($(this));
         }
-    }
+        else {
+            setRowColumnBindingsChange($(this));
+            setRowColumnBindingsKeyUp($(this));
+        }
+    });
 
     // When the top checkbox is checked/unchecked, check/uncheck
     // all the checkboxes
-    id = "#id_selected";
-    $(id).bind("change", function() {
+    $('#id_selected').bind("change", function() {
         selectall();
     });
 
     // When the metadata save button is clicked...
-    id = '#id_metadata_form_save_button';
-    $(id).bind("click", submitMetadataForm.curry(params.metadataSaveAjaxUrl));
-
-/*  For later use (ajax)
-    id = "#id_view";
-    $(id).bind("change", function() {
-        ajax(ajax_url);
-    });*/
+    $('#id_metadata_form_save_button').bind(
+        "click", submitMetadataForm.curry(params.metadataSaveAjaxUrl));
 }
 
-// Given the id, this will set a key-up binding that calls
+// This will set a key-up binding that calls
 // updateCheckedRowFields with the given row and column of the table form.
-function setRowColumnBindingsKeyUp(id) {
-    $(id).bind("keyup", function() {
+function setRowColumnBindingsKeyUp($element) {
+    $element.bind("keyup", function() {
         var row_index = $(this).parent().parent().index('tr');
         var col_index = $(this).parent().index('tr:eq('+row_index+') td');
         updateCheckedRowFields(row_index-1, col_index-1);
     });
 }
 
-function setRowColumnBindingsChange(params) {
-    var $field = $(params.id);
+function setRowColumnBindingsChange($field) {
+    $field.bind("change", function() {
+        // Update indicators that a value in the form
+        // has changed.
+        updateMetadataChangeStatus($(this));
+    });
+}
 
-    if (params.isDate === true) {
-        $field.bind("change", function() {
-            // Update indicators that a value in the form
-            // has changed.
-            updateMetadataChangeStatus($(this));
+function setRowColumnBindingsChangeDate($field) {
+    $field.bind("change", function() {
+        // Update indicators that a value in the form
+        // has changed.
+        updateMetadataChangeStatus($(this));
 
-            // Update checked rows.
-            var row_index = $(this).parent().parent().index('tr');
-            var col_index = $(this).parent().index('tr:eq('+row_index+') td');
-            updateCheckedRowFields(row_index-1, col_index-1);
-        });
-    }
-    else {
-        $field.bind("change", function() {
-            // Update indicators that a value in the form
-            // has changed.
-            updateMetadataChangeStatus($(this));
-        });
-    }
+        // Update checked rows.
+        var row_index = $(this).parent().parent().index('tr');
+        var col_index = $(this).parent().index('tr:eq('+row_index+') td');
+        updateCheckedRowFields(row_index-1, col_index-1);
+    });
 }
 
 // Submit the metadata form (using Ajax).
@@ -175,36 +156,36 @@ function submitMetadataForm(metadataSaveAjaxUrl) {
 
     // Submit the metadata form with Ajax
     $.ajax({
+        // URL to make request to
+        url: metadataSaveAjaxUrl,
         // Data to send in the request
         data: $('#id_metadata_form').serialize(),
-
-        // Callback on successful response
-        success: metadataSaveAjaxResponseHandler,
-
         type: 'POST',
-
-        // URL to make request to
-        url: metadataSaveAjaxUrl
+        // Callbacks
+        success: metadataSaveAjaxResponseHandler,
+        error: util.handleServerError
     });
 }
 
 // This function runs when the metadata-save-via-Ajax returns from
 // the server side.
 function metadataSaveAjaxResponseHandler(response) {
-    console.log(response.status);
-
     // Update text next to the Save button
     if (response.status === 'success') {
         $('#id_metadata_save_status').text("All changes saved");
 
-        // Disable "You have unsaved changes" warning when trying to navigate away
+        // Disable "You have unsaved changes" warning
+        // when trying to navigate away
         util.pageLeaveWarningDisable();
 
         // Remove field stylings
-        $('#id_metadata_form input[type="text"]').removeClass('changed', 'error');
+        var $editableFields = $('#metadataFormTable').find(
+            'input[type="text"],input[type="number"]');
+        $editableFields.removeClass('changed', 'error');
     }
     else {  // 'error'
-        $('#id_metadata_save_status').text("There were error(s); couldn't save");
+        $('#id_metadata_save_status').text(
+            "There were error(s); couldn't save");
 
         var $errorsList = $('ul#id_metadata_errors_list');
         var numOfErrors = response.errors.length;
@@ -215,30 +196,11 @@ function metadataSaveAjaxResponseHandler(response) {
                 response.errors[i].errorMessage
             ));
             // Style the field to indicate an error
-            $('#' + response.errors[i].fieldId).addClass('error').removeClass('changed');
+            $('#' + response.errors[i].fieldId)
+                .addClass('error').removeClass('changed');
         }
     }
 }
-
-/* For later use (ajax)
-function ajax(url) {
-
-    var checked = $("#id_view").attr('checked');
-    $.ajax({
-        type: "POST",
-        url:url,
-        data: {
-            'checked': checked
-        },
-        success: function(data){
-            $("#result").val(data.result);
-        },
-        error: function(request){
-            console.log(request.responseText);
-        }
-    });
-}
-*/
 
 function initMetadataForm(params) {
     // Initialize save status

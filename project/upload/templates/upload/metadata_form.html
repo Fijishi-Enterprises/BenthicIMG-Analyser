@@ -10,53 +10,68 @@ This is a template that is used to render a form for editing metadata
     {% endfor %}
 
     <div style="overflow:auto;max-height:500px">
-        <ul>
-            {% for error in metadata_formset.errors %}
-                <li>{{ error }}</li>
+      <ul>
+        {% for error in metadata_formset.errors %}
+          <li>{{ error }}</li>
+        {% endfor %}
+      </ul>
+
+      <table id="metadataFormTable" style="white-space:nowrap">
+        {# Header row #}
+        <tr>
+          {# This is the checkbox column #}
+          <th></th>
+
+          {# Use an arbitrary form to get the field labels #}
+          {% for field in metadata_formset.forms.0 %}
+            {% if field.name == 'name' %}
+              {# Link/Status comes after name field #}
+              <th>{{ field.label }}</th>
+              <th>Link/Status</th>
+            {% elif field.name == 'id' %}
+              {# id goes in the name column, not a column of its own #}
+            {% else %}
+              {# Any other field gets a column of its own #}
+              <th>{{ field.label }}</th>
+            {% endif %}
+          {% endfor %}
+        </tr>
+
+        {# One row per image #}
+        {% for metadata_form, checkbox_form, image, status in metadata_rows %}
+          <tr>
+            {# Checkbox #}
+            {% for field in checkbox_form %}
+              <td>{{ field }}</td>
             {% endfor %}
-        </ul>
 
-        <table id="metadataFormTable" style="white-space:nowrap">
-            <tr>
-                <th></th> {# This is the checkbox column #}
-                <th>Filename</th>
-                <th>Status</th>
+            {% for field in metadata_form %}
+              {% if field.name == 'name' %}
+                <td>
+                  {# Name / filename #}
+                  {{ field }}
 
-                {% for header in metadata_form_headers %}
-                    <th>{{ header }}</th>
-                {% endfor %}
-
-            </tr>
-            {% for metadata_form, checkbox_form, image, status in metadata_rows %}
-                <tr>
-                    {# Checkbox #}
-                    {% for field in checkbox_form %}
-                        <td>{{ field }}</td>
-                    {% endfor %}
-
-                    <td>
-                        {# Name / filename #}
-                        <a href="{% url 'image_detail' image.id %}">{{ image.metadata.name }}</a>
-
-                        {# Metadata id (hidden, and piggybacking in one of #}
-                        {# the td elements, because td/th are #}
-                        {# the only elements that should be #}
-                        {# immediate children of a tr) #}
-                        {{ metadata_form.id }}
-                    </td>
-
-                    {# Annotation status #}
-                    <td id="status" style="padding: 0 10px 0 10px">{{ status }}</td>
-
-                    {# Editable metadata fields #}
-                    {% for field in metadata_form %}
-                        {% if field.name != 'id' %}
-                            <td>{{ field }}</td>
-                        {% endif %}
-                    {% endfor %}
-                </tr>
+                  {# Metadata id (hidden, and piggybacking in one of #}
+                  {# the td elements, because td/th are #}
+                  {# the only elements that should be #}
+                  {# immediate children of a tr) #}
+                  {{ metadata_form.id }}
+                </td>
+                <td id="status" style="padding: 0 10px 0 10px">
+                  {# Link and annotation status #}
+                  <a href="{% url 'image_detail' image.id %}" target="_blank">
+                    {{ status }}</a>
+                </td>
+              {% elif field.name == 'id' %}
+                {# id goes in the name column, not a column of its own #}
+              {% else %}
+                {# Any other field gets a column of its own #}
+                <td>{{ field }}</td>
+              {% endif %}
             {% endfor %}
-        </table>
+          </tr>
+        {% endfor %}
+      </table>
     </div>
 
     {# TODO: Might want to re-use this style for separating text divs from #}

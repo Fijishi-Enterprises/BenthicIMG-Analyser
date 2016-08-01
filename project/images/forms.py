@@ -237,6 +237,7 @@ class MetadataForm(ModelForm):
         # we can modify existing widgets, thus avoiding having to manually
         # re-specify the widget class and attributes besides size.
         field_sizes = dict(
+            name=30,
             photo_date=8,
             aux1=10,
             aux2=10,
@@ -266,14 +267,9 @@ class MetadataFormForGrid(MetadataForm):
         model = Metadata
 
         # No comments field, because that may be a bit large for a grid view.
-        #
-        # No name field, because... well, not sure. Seems tricky for the user
-        # to keep track of if they can rename images AND edit their metadata.
-        # And if we enforce no name dupes, can be tricky to enforce it with
-        # a bulk edit.
         fields = [
             n for n in Metadata.EDIT_FORM_FIELDS
-            if n not in ['name', 'comments']
+            if n not in ['comments']
         ]
 
         widgets = {

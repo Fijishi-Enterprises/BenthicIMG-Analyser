@@ -283,9 +283,9 @@ class NewLabelsetTest(ClientTest):
 
         # Check the new labelset for the expected labels.
         labelset = Source.objects.get(pk=source_pk).labelset
-        self.assertListEqual(
-            [label.code for label in labelset.labels.all()],
-            ['UMarine', 'Forest'],
+        self.assertSetEqual(
+            {label.code for label in labelset.labels.all()},
+            {'UMarine', 'Forest'},
         )
 
 class EditLabelsetTest(ClientTest):

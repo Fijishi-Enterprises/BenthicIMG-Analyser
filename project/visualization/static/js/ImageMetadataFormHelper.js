@@ -181,7 +181,7 @@ function metadataSaveAjaxResponseHandler(response) {
         // Remove field stylings
         var $editableFields = $('#metadataFormTable').find(
             'input[type="text"],input[type="number"]');
-        $editableFields.removeClass('changed', 'error');
+        $editableFields.removeClass('changed error');
     }
     else {  // 'error'
         $('#id_metadata_save_status').text(

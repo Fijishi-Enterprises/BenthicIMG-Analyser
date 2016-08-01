@@ -3,8 +3,10 @@ from django.core.exceptions import ValidationError
 from django.forms import Form, ModelForm
 from django.forms.fields import CharField, ChoiceField, FileField, IntegerField
 from django.forms.widgets import Select, TextInput, NumberInput
+
 from .models import Source, Metadata, SourceInvite
 from .model_utils import PointGen
+from .utils import get_aux_label_field_names, aux_label_name_collisions
 
 
 def validate_aux_meta_field_name(field_name):
@@ -86,6 +88,29 @@ class ImageSourceForm(ModelForm):
         if longitude < -180 or longitude > 180:
             raise ValidationError("Longitude is out of range.")
         return data
+
+    def clean(self):
+        cleaned_data = super(ImageSourceForm, self).clean()
+
+        aux_label_kwargs = dict(
+            (n, cleaned_data.get(n))
+            for n in get_aux_label_field_names()
+            if n in cleaned_data
+        )
+
+        dummy_source = Source(**aux_label_kwargs)
+        dupe_labels = aux_label_name_collisions(dummy_source)
+        if dupe_labels:
+            # Add the error to any field which has one of the dupe labels.
+            for field_name, field_label in aux_label_kwargs.items():
+                if field_label.lower() in dupe_labels:
+                    self.add_error(
+                        field_name,
+                        ValidationError(
+                            "This conflicts with either a built-in metadata"
+                            " field or another auxiliary field.",
+                            code='dupe_label',
+                        ))
 
 
 class SourceChangePermissionForm(Form):
@@ -194,17 +219,11 @@ class MetadataForm(ModelForm):
     """
     class Meta:
         model = Metadata
-        fields = [
-            'name', 'photo_date', 'aux1', 'aux2', 'aux3', 'aux4', 'aux5',
-            'height_in_cm', 'latitude', 'longitude', 'depth',
-            'camera', 'photographer', 'water_quality',
-            'strobes', 'framing', 'balance', 'comments',
-        ]
+        fields = Metadata.EDIT_FORM_FIELDS
 
     def __init__(self, *args, **kwargs):
-        self.source_id = kwargs.pop('source_id')
+        self.source = kwargs.pop('source')
         super(MetadataForm, self).__init__(*args, **kwargs)
-        self.source = Source.objects.get(pk=self.source_id)
 
         # Specify aux. fields' labels. These depend on the source,
         # so this must be done during init.
@@ -245,6 +264,7 @@ class MetadataFormForGrid(MetadataForm):
     """
     class Meta:
         model = Metadata
+
         # No comments field, because that may be a bit large for a grid view.
         #
         # No name field, because... well, not sure. Seems tricky for the user
@@ -252,11 +272,10 @@ class MetadataFormForGrid(MetadataForm):
         # And if we enforce no name dupes, can be tricky to enforce it with
         # a bulk edit.
         fields = [
-            'photo_date', 'aux1', 'aux2', 'aux3', 'aux4', 'aux5',
-            'height_in_cm', 'latitude', 'longitude', 'depth',
-            'camera', 'photographer', 'water_quality',
-            'strobes', 'framing', 'balance',
+            n for n in Metadata.EDIT_FORM_FIELDS
+            if n not in ['name', 'comments']
         ]
+
         widgets = {
             # Our metadata-edit grid Javascript is wonky with a
             # NumberInput widget.

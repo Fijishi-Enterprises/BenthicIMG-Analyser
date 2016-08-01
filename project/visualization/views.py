@@ -330,13 +330,13 @@ def visualize_source(request, source_id):
         CheckboxFormSet = formset_factory(CheckboxForm)
 
         # Initialize the form set with the existing metadata values.
-        # Ensure that each form gets the source id.
+        # Ensure that each form gets the source.
         # TODO: Use natural sort.
         metadata_objs = \
             Metadata.objects.filter(image__in=all_items).order_by('name')
         metadata_formset = MetadataFormSet(
             queryset=metadata_objs,
-            form_kwargs={'source_id': source_id})
+            form_kwargs={'source': source})
 
         # Get column headers for the metadata form display.
         if metadata_formset.forms:
@@ -421,9 +421,10 @@ def metadata_edit_ajax(request, source_id):
     """
     Submitting the metadata-edit form (an Ajax form).
     """
+    source = get_object_or_404(Source, id=source_id)
     MetadataFormSet = modelformset_factory(Metadata, form=MetadataFormForGrid)
     formset = MetadataFormSet(
-        request.POST, form_kwargs={'source_id': source_id})
+        request.POST, form_kwargs={'source': source})
 
     if formset.is_valid():
         # Save the edits

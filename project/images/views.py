@@ -577,7 +577,7 @@ def image_detail_edit(request, image_id):
 
         # Submit
         metadata_form = MetadataForm(
-            request.POST, instance=metadata, source_id=source.pk)
+            request.POST, instance=metadata, source=source)
 
         if metadata_form.is_valid():
             editedMetadata = metadata_form.instance
@@ -592,7 +592,7 @@ def image_detail_edit(request, image_id):
             messages.error(request, 'Please correct the errors below.')
     else:
         # Just reached this form page
-        metadata_form = MetadataForm(instance=metadata, source_id=source.pk)
+        metadata_form = MetadataForm(instance=metadata, source=source)
 
     return render(request, 'images/image_detail_edit.html', {
         'source': source,

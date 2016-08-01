@@ -1,3 +1,4 @@
+from collections import OrderedDict
 import datetime
 import math
 import random
@@ -8,8 +9,8 @@ from django.core.urlresolvers import reverse
 from accounts.utils import get_robot_user, get_alleviate_user
 from annotations.model_utils import AnnotationAreaUtils
 from annotations.models import Annotation
-from images.model_utils import PointGen
-from images.models import Source, Point, Image, Metadata
+from .model_utils import PointGen
+from .models import Source, Point, Image, Metadata
 
 
 def get_first_image(source, conditions=None):
@@ -83,6 +84,48 @@ def get_prev_image(current_image, conditions=None):
     Return None if the current image is the first image.
     """
     return get_prev_or_next_image(current_image, 'prev', conditions=conditions)
+
+
+def metadata_field_names_to_labels(source):
+    """
+    Get an OrderedDict of Metadata field names to field labels.
+    e.g. 'photo_date': "Date", 'aux1': "Site", 'camera': "Camera", ...
+    """
+    d = OrderedDict(
+        (field_name, Metadata._meta.get_field(field_name).verbose_name)
+        for field_name
+        in Metadata.EDIT_FORM_FIELDS
+    )
+    # Instead of "Aux1" for field aux1, use the source specified label,
+    # e.g. "Site"
+    for num, aux_field_name in enumerate(get_aux_field_names(), 1):
+        d[aux_field_name] = get_aux_label(source, num)
+    return d
+
+
+def metadata_obj_to_dict(metadata):
+    """
+    Go from Metadata DB object to metadata dict.
+    """
+    return dict((k, getattr(metadata, k)) for k in Metadata.EDIT_FORM_FIELDS)
+
+
+def aux_label_name_collisions(source):
+    """
+    See if the given source's auxiliary metadata field labels have
+    name collisions with (1) built-in metadata fields, or (2) each other.
+    Return a list of the names which appear more than once.
+    Comparisons are case insensitive.
+    """
+    field_names_to_labels = metadata_field_names_to_labels(source)
+    field_labels_lower = [
+        label.lower() for label in field_names_to_labels.values()]
+
+    dupe_labels = [
+        label for label in field_labels_lower
+        if field_labels_lower.count(label) > 1
+    ]
+    return dupe_labels
 
 
 def delete_image(img):

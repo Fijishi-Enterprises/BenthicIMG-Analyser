@@ -404,7 +404,7 @@ class Robot(models.Model):
 
 
 class Metadata(models.Model):
-    name = models.CharField(max_length=200, blank=True)
+    name = models.CharField("Name", max_length=200, blank=True)
     photo_date = models.DateField(
         "Date",
         help_text='Format: YYYY-MM-DD',
@@ -440,13 +440,23 @@ class Metadata(models.Model):
     framing = models.CharField("Framing gear used", max_length=200, blank=True)
     balance = models.CharField("White balance card", max_length=200, blank=True)
     
-    comments = models.TextField(max_length=1000, blank=True)
+    comments = models.TextField("Comments", max_length=1000, blank=True)
 
     aux1 = models.CharField(max_length=50, blank=True)
     aux2 = models.CharField(max_length=50, blank=True)
     aux3 = models.CharField(max_length=50, blank=True)
     aux4 = models.CharField(max_length=50, blank=True)
     aux5 = models.CharField(max_length=50, blank=True)
+
+    # Names of fields that may be included in a basic 'edit metadata' form.
+    # annotation_area is more complex to edit, which is why it's
+    # not included here.
+    EDIT_FORM_FIELDS = [
+        'name', 'photo_date', 'aux1', 'aux2', 'aux3', 'aux4', 'aux5',
+        'height_in_cm', 'latitude', 'longitude', 'depth',
+        'camera', 'photographer', 'water_quality',
+        'strobes', 'framing', 'balance', 'comments',
+    ]
 
     def __unicode__(self):
         return "Metadata of " + self.name

@@ -12,12 +12,13 @@ from annotations.models import Annotation
 from images.forms import MetadataForm
 from images.model_utils import PointGen
 from images.models import Source, Metadata, Image, Point
+from images.utils import metadata_obj_to_dict
 from lib.decorators import source_permission_required
 from lib.exceptions import FileProcessError
 from lib.utils import filesize_display
 from .forms import MultiImageUploadForm, ImageUploadForm, CSVImportForm, ImportArchivedAnnotationsForm
 from .utils import upload_image_process, load_archived_csv, check_archived_csv, import_archived_annotations, find_dupe_image, metadata_csv_to_dict, \
-    metadata_obj_to_dict, annotations_csv_to_dict, \
+    annotations_csv_to_dict, \
     annotations_preview, metadata_preview
 from visualization.forms import ImageSpecifyForm
 
@@ -228,7 +229,7 @@ def upload_metadata_ajax(request, source_id):
         new_metadata_dict.update(csv_metadata_for_image)
 
         metadata_form = MetadataForm(
-            new_metadata_dict, instance=metadata, source_id=source.pk)
+            new_metadata_dict, instance=metadata, source=source)
 
         # We already validated previously, so this SHOULD be valid.
         if not metadata_form.is_valid():

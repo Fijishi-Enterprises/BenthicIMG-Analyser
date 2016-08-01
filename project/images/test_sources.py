@@ -329,6 +329,69 @@ class SourceNewTest(ClientTest):
         # Should have no source created.
         self.assertEqual(Source.objects.all().count(), 0)
 
+    def test_aux_name_conflict_with_builtin_name(self):
+        """
+        If an aux. meta field name conflicts with a built-in metadata field,
+        show an error.
+        """
+        source_args = dict()
+        source_args.update(self.source_defaults)
+        source_args.update(dict(
+            key1="name",
+            key2="Comments",
+            key3="FRAMING GEAR used",
+        ))
+
+        self.client.force_login(self.user)
+        response = self.client.post(reverse('source_new'), source_args)
+
+        # Should be back on the new source form with errors.
+        self.assertTemplateUsed(response, 'images/source_new.html')
+        error_conflict = (
+            "This conflicts with either a built-in metadata"
+            " field or another auxiliary field."
+        )
+        self.assertDictEqual(
+            response.context['sourceForm'].errors,
+            dict(
+                key1=[error_conflict],
+                key2=[error_conflict],
+                key3=[error_conflict],
+            )
+        )
+        # Should have no source created.
+        self.assertEqual(Source.objects.all().count(), 0)
+
+    def test_aux_name_conflict_with_other_aux_name(self):
+        """
+        If two aux. meta field names are the same, show an error.
+        """
+        source_args = dict()
+        source_args.update(self.source_defaults)
+        source_args.update(dict(
+            key2="Site",
+            key3="site",
+        ))
+
+        self.client.force_login(self.user)
+        response = self.client.post(reverse('source_new'), source_args)
+
+        # Should be back on the new source form with errors.
+        self.assertTemplateUsed(response, 'images/source_new.html')
+        error_conflict = (
+            "This conflicts with either a built-in metadata"
+            " field or another auxiliary field."
+        )
+        self.assertDictEqual(
+            response.context['sourceForm'].errors,
+            dict(
+                key2=[error_conflict],
+                key3=[error_conflict],
+            )
+        )
+        # Should have no source created.
+        self.assertEqual(Source.objects.all().count(), 0)
+
 
 class SourceEditTest(ClientTest):
     """

@@ -9,36 +9,9 @@ from annotations.models import Label, Annotation
 from images.forms import MetadataForm
 from images.model_utils import PointGen
 from images.models import Metadata, ImageStatus, Image, Point, Source
-from images.utils import generate_points
+from images.utils import generate_points, aux_label_name_collisions, \
+    metadata_field_names_to_labels
 from lib.exceptions import FileProcessError
-
-
-def get_image_identifier(valueList, year):
-    """
-    Use the location values and the year to build a string identifier for an image:
-    Shore1;Reef5;...;2008
-    """
-    return ';'.join(valueList + [year])
-
-
-def metadata_csv_fields(source):
-    """
-    Get an OrderedDict of Metadata field names to field labels.
-    e.g. 'photo_date': "Date", 'aux1': "Site", 'camera': "Camera", ...
-    """
-    return OrderedDict(
-        (field_name, field.label)
-        for field_name, field
-        in MetadataForm(source_id=source.pk).fields.items()
-    )
-
-
-def metadata_obj_to_dict(metadata):
-    """
-    Go from Metadata DB object to metadata dict.
-    """
-    source = Image.objects.get(metadata=metadata).source
-    return MetadataForm(instance=metadata, source_id=source.pk).initial
 
 
 def metadata_csv_to_dict(csv_file, source):
@@ -70,7 +43,7 @@ def metadata_csv_to_dict(csv_file, source):
     #
     # If a column name doesn't match any metadata field, we'll use
     # a field name of None to indicate that we're ignoring that column.
-    field_names_to_labels = metadata_csv_fields(source)
+    field_names_to_labels = metadata_field_names_to_labels(source)
     field_labels_to_names = dict(
         (v.lower(), k)
         for k, v in field_names_to_labels.items()
@@ -80,12 +53,7 @@ def metadata_csv_to_dict(csv_file, source):
         for label in column_names
     ]
 
-    field_labels_lower = [
-        label.lower() for label in field_names_to_labels.values()]
-    dupe_labels = [
-        label for label in field_labels_lower
-        if field_labels_lower.count(label) > 1
-    ]
+    dupe_labels = aux_label_name_collisions(source)
     if dupe_labels:
         raise FileProcessError(
             "More than one metadata field uses the label '{}'."
@@ -152,7 +120,7 @@ def metadata_csv_verify_contents(csv_metadata_by_image_name, source):
 
         # Use this form just to check the metadata, not to save anything.
         metadata_form = MetadataForm(
-            metadata_for_image, instance=metadata, source_id=source.pk)
+            metadata_for_image, instance=metadata, source=source)
 
         if not metadata_form.is_valid():
             # One of the filenames' metadata is not valid. Get one
@@ -180,7 +148,7 @@ def metadata_csv_verify_contents(csv_metadata_by_image_name, source):
 def metadata_preview(csv_metadata, source):
     table = []
     details = dict()
-    field_names_to_labels = metadata_csv_fields(source)
+    field_names_to_labels = metadata_field_names_to_labels(source)
     num_fields_replaced = 0
 
     for metadata_id, metadata_for_image in csv_metadata.items():
@@ -197,7 +165,7 @@ def metadata_preview(csv_metadata, source):
 
         # Use this form just to preview the metadata, not to save anything.
         metadata_form = MetadataForm(
-            metadata_for_image, instance=metadata, source_id=source.pk)
+            metadata_for_image, instance=metadata, source=source)
         # We already validated previously, so this SHOULD be valid.
         if not metadata_form.is_valid():
             raise ValueError("Metadata became invalid for some reason.")

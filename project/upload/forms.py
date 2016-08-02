@@ -139,10 +139,10 @@ class CSVImportForm(Form):
         """
         Add extra_help_text to the file field.
         """
+        template = kwargs.pop('dialog_help_text_template')
         super(CSVImportForm, self).__init__(*args, **kwargs)
 
-        self.fields['csv_file'].dialog_help_text_template =\
-            'upload/help_csv_file.html'
+        self.fields['csv_file'].dialog_help_text_template = template
 
     def clean_csv_file(self):
         csv_file = self.cleaned_data['csv_file']

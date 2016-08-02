@@ -12,7 +12,8 @@ from annotations.models import Annotation
 from images.forms import MetadataForm
 from images.model_utils import PointGen
 from images.models import Source, Metadata, Image, Point
-from images.utils import metadata_obj_to_dict
+from images.utils import metadata_obj_to_dict, get_aux_labels, \
+    metadata_field_names_to_labels
 from lib.decorators import source_permission_required
 from lib.exceptions import FileProcessError
 from lib.utils import filesize_display
@@ -52,6 +53,8 @@ def image_upload(request, source_id):
         'images_form': images_form,
         'proceed_to_manage_metadata_form': proceed_to_manage_metadata_form,
         'auto_generate_points_message': auto_generate_points_message,
+        'image_upload_max_file_size': filesize_display(
+            settings.IMAGE_UPLOAD_MAX_FILE_SIZE),
     })
 
 
@@ -145,11 +148,14 @@ def upload_metadata(request, source_id):
     """
     source = get_object_or_404(Source, id=source_id)
 
-    csv_import_form = CSVImportForm()
+    csv_import_form = CSVImportForm(
+        dialog_help_text_template='upload/upload_metadata_help.html')
 
     return render(request, 'upload/upload_metadata.html', {
         'source': source,
         'csv_import_form': csv_import_form,
+        'field_labels': metadata_field_names_to_labels(source).values(),
+        'aux_field_labels': get_aux_labels(source),
     })
 
 
@@ -246,7 +252,8 @@ def upload_metadata_ajax(request, source_id):
 def upload_annotations(request, source_id):
     source = get_object_or_404(Source, id=source_id)
 
-    csv_import_form = CSVImportForm()
+    csv_import_form = CSVImportForm(
+        dialog_help_text_template='upload/upload_annotations_help.html')
 
     return render(request, 'upload/upload_annotations.html', {
         'source': source,

@@ -1,0 +1,54 @@
+<p>Your CSV (comma-separated values) file should have one row per image,
+  and one column per metadata field that you want to specify.
+The first row must contain column headers that specify which column is which.
+  Here's an example:</p>
+
+<table class="generic">
+  <tr>
+    <td>Name</td>
+    <td>Date</td>
+    <td>{{ aux_field_labels.0 }}</td>
+    <td>Camera</td>
+  </tr>
+  <tr>
+    <td>IMG_0056.jpg</td>
+    <td>2015-04-17</td>
+    <td>Value A</td>
+    <td>Nikon</td>
+  </tr>
+  <tr>
+    <td>DSC_0162__postprocess.png</td>
+    <td>2015-04-28</td>
+    <td>Value C</td>
+    <td></td>
+  </tr>
+</table>
+
+<p>Recognized column names:</p>
+<ul>
+  {% for field_label in field_labels %}
+    <li>{{ field_label }}</li>
+  {% endfor %}
+</ul>
+
+<p>You can use a spreadsheet program such as Excel to create the
+CSV file. It's not much different from creating a normal spreadsheet;
+  just select the CSV format in the "Save As" dialog.
+  Alternatively, depending on how your metadata is organized,
+  you could save some manual work and automate the CSV file creation
+  with a programming language like Python.</p>
+
+<p>Details on how your CSV file will be processed:</p>
+<ul>
+  <li>If a non-blank metadata value is going to be overwritten, that value
+  will be shown alongside the CSV's value in the preview.</li>
+  <li>Blank CSV cells are accepted. You can also use blank cells to overwrite
+    non-blank metadata values.</li>
+  <li>The Name column is required. You can specify as many or as few of
+    the other columns as you like. If a column is excluded, that metadata
+  field will be untouched.</li>
+  <li>You may include rows with image names that aren't in your source.
+  Those rows will just be ignored.</li>
+  <li>You may include extra columns with names outside of the recognized
+  column names. Those columns will just be ignored.</li>
+</ul>

@@ -1,6 +1,6 @@
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
-from django.forms import Form, ModelForm
+from django.forms import Form, ModelForm, BaseModelFormSet
 from django.forms.fields import CharField, ChoiceField, FileField, IntegerField
 from django.forms.widgets import Select, TextInput, NumberInput
 
@@ -90,6 +90,12 @@ class ImageSourceForm(ModelForm):
         return data
 
     def clean(self):
+        """
+        Check for aux label name collisions with other aux fields or built-in
+        metadata fields.
+        Since this involves comparing the aux labels with each other,
+        it has to be implemented in the form-wide clean function.
+        """
         cleaned_data = super(ImageSourceForm, self).clean()
 
         aux_label_kwargs = dict(
@@ -98,10 +104,13 @@ class ImageSourceForm(ModelForm):
             if n in cleaned_data
         )
 
+        # Initialize a dummy Source (which we won't actually save) with the
+        # aux label values. We'll just use this to call our function which
+        # checks for name collisions.
         dummy_source = Source(**aux_label_kwargs)
         dupe_labels = aux_label_name_collisions(dummy_source)
         if dupe_labels:
-            # Add the error to any field which has one of the dupe labels.
+            # Add an error to any field which has one of the dupe labels.
             for field_name, field_label in aux_label_kwargs.items():
                 if field_label.lower() in dupe_labels:
                     self.add_error(
@@ -284,6 +293,51 @@ class MetadataFormForGrid(MetadataForm):
             # for this issue.
             'height_in_cm': TextInput(attrs={'size': 10,}),
         }
+
+
+class BaseMetadataFormSet(BaseModelFormSet):
+    def clean(self):
+        """
+        Checks that no two images in the source have the same name.
+        """
+        if any(self.errors):
+            # Don't bother validating the formset
+            # unless each form is valid on its own
+            return
+
+        source = self.forms[0].source
+        # For some reason, there is an extra form at the end which has
+        # no valid values...
+        actual_forms = self.forms[:-1]
+
+        # Find dupe image names in the source, taking together the
+        # existing names of images not in the forms, and the new names
+        # of images in the forms
+        pks_in_forms = [f.instance.pk for f in actual_forms]
+        names_not_in_forms = list(
+            Metadata.objects
+            .filter(image__source=source)
+            .exclude(pk__in=pks_in_forms)
+            .values_list('name', flat=True)
+        )
+        names_in_forms = [f.cleaned_data['name'] for f in actual_forms]
+        all_names = names_not_in_forms + names_in_forms
+        dupe_names = [
+            name for name in all_names
+            if all_names.count(name) > 1
+        ]
+
+        for form in actual_forms:
+            name = form.cleaned_data['name']
+            if name in dupe_names:
+                form.add_error(
+                    'name',
+                    ValidationError(
+                        "Same name as another image in"
+                        " the source or this form",
+                        code='dupe_name',
+                    )
+                )
 
 
 class PointGenForm(Form):

@@ -17,7 +17,7 @@ from .forms import BrowseSearchForm, StatisticsSearchForm, ImageBatchDeleteForm,
 from .utils import generate_patch_if_doesnt_exist, get_patch_url
 from accounts.utils import get_robot_user
 from annotations.models import Annotation, Label, LabelSet, LabelGroup
-from images.forms import MetadataFormForGrid
+from images.forms import MetadataFormForGrid, BaseMetadataFormSet
 from images.models import Source, Image, Metadata
 from images.tasks import *
 from images.utils import delete_image, get_aux_metadata_str_list_for_image, get_aux_labels, get_aux_field_names, update_filter_args_specifying_aux_metadata
@@ -325,7 +325,7 @@ def visualize_source(request, source_id):
 
         # Formset of MetadataForms.
         MetadataFormSet = modelformset_factory(
-            Metadata, form=MetadataFormForGrid)
+            Metadata, form=MetadataFormForGrid, formset=BaseMetadataFormSet)
         # Separate formset that controls the checkboxes.
         CheckboxFormSet = formset_factory(CheckboxForm)
 
@@ -409,7 +409,8 @@ def metadata_edit_ajax(request, source_id):
     Submitting the metadata-edit form (an Ajax form).
     """
     source = get_object_or_404(Source, id=source_id)
-    MetadataFormSet = modelformset_factory(Metadata, form=MetadataFormForGrid)
+    MetadataFormSet = modelformset_factory(
+        Metadata, form=MetadataFormForGrid, formset=BaseMetadataFormSet)
     formset = MetadataFormSet(
         request.POST, form_kwargs={'source': source})
 

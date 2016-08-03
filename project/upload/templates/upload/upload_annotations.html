@@ -24,11 +24,21 @@
       <form id="csv_form" action="" method="post" enctype="multipart/form-data">
         {% csrf_token %}
 
-        {% include "form_generic_one_field.html" with field=csv_import_form.csv_file dont_mark_required="yes" %}
+        {% with csv_import_form.csv_file as field %}
+          {{ field.label }}: {{ field }}
+        {% endwith %}
 
-        <button type="button" class="submit" id="csv_refresh_button">
-          Refresh file</button>
+        <div class="tutorial-message">
+          {% include 'upload/upload_annotations_help.html' %}
+        </div>
       </form>
+
+      <button type="button" class="submit" id="csv_refresh_button">
+        Refresh file</button>
+
+    </div>
+
+    <div class="page_section">
 
       <div id="upload_summary_section">
 

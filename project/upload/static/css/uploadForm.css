@@ -105,23 +105,32 @@ span.annotation-delete-info {
     color: red;
 }
 
-/* TODO: Merge this rule into master.css at some point? */
-form, div.page_section {
-    margin: 20px 0 30px;  /* top left/right bottom */
+
+/* Some form/field rules to make styling a bit cleaner compared to
+ using master.css. */
+/* TODO: Merge some of these rules into master.css? */
+
+div.page_section {
+    margin: 20px 0;  /* top/bottom left/right */
     padding: 0;
 
     width: auto;
 }
 
-form.inline {
+form {
     margin: 0;
     padding: 0;
     width: auto;
 }
 
+label {
+    width: auto;
+}
+
+
+/* Override defaults for jQuery UI widgets. */
 
 .ui-widget {
-    /* Override jQuery UI defaults */
     font-family: inherit;
     font-size: 0.9em;
 }

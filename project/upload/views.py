@@ -148,8 +148,7 @@ def upload_metadata(request, source_id):
     """
     source = get_object_or_404(Source, id=source_id)
 
-    csv_import_form = CSVImportForm(
-        dialog_help_text_template='upload/upload_metadata_help.html')
+    csv_import_form = CSVImportForm()
 
     return render(request, 'upload/upload_metadata.html', {
         'source': source,
@@ -252,8 +251,7 @@ def upload_metadata_ajax(request, source_id):
 def upload_annotations(request, source_id):
     source = get_object_or_404(Source, id=source_id)
 
-    csv_import_form = CSVImportForm(
-        dialog_help_text_template='upload/upload_annotations_help.html')
+    csv_import_form = CSVImportForm()
 
     return render(request, 'upload/upload_annotations.html', {
         'source': source,

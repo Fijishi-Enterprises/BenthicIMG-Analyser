@@ -75,17 +75,6 @@ class MultiImageUploadForm(Form):
         widget=MultipleFileInput(),
     )
 
-    def __init__(self, *args, **kwargs):
-        """
-        - Add extra_help_text to the file field.
-        """
-        super(MultiImageUploadForm, self).__init__(*args, **kwargs)
-
-        # This field's help text will go in a separate template, which
-        # can be displayed in a modal dialog.
-        self.fields['files'].dialog_help_text_template = \
-            'upload/help_image_files.html'
-
 
 class ImageUploadForm(Form):
     """
@@ -134,15 +123,6 @@ class CSVImportForm(Form):
     csv_file = FileField(
         label='CSV file',
     )
-
-    def __init__(self, *args, **kwargs):
-        """
-        Add extra_help_text to the file field.
-        """
-        template = kwargs.pop('dialog_help_text_template')
-        super(CSVImportForm, self).__init__(*args, **kwargs)
-
-        self.fields['csv_file'].dialog_help_text_template = template
 
     def clean_csv_file(self):
         csv_file = self.cleaned_data['csv_file']

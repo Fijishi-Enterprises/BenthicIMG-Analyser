@@ -263,7 +263,7 @@ def annotations_csv_verify_contents(csv_annotations_by_image_name, source):
 
     if source.labelset:
         labelset_label_codes = set(
-            obj.code for obj in source.labelset.labels.all())
+            obj.code.lower() for obj in source.labelset.labels.all())
     else:
         labelset_label_codes = set()
 
@@ -319,7 +319,7 @@ def annotations_csv_verify_contents(csv_annotations_by_image_name, source):
             if 'label' in point_dict:
                 # Check that the label is in the labelset
                 label_code = point_dict['label']
-                if label_code not in labelset_label_codes:
+                if label_code.lower() not in labelset_label_codes:
                     raise FileProcessError(
                         "No label of code {code} found"
                         " in this source's labelset".format(

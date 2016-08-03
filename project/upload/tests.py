@@ -2075,6 +2075,67 @@ class UploadAnnotationsTest(ClientTest):
                 point_number=2, image=self.img3).pk, self.img3.pk),
         })
 
+    def test_label_codes_different_case(self):
+        """
+        The CSV label codes can use different upper/lower case and still
+        be matched to the corresponding labelset label codes.
+        """
+        self.client.force_login(self.user)
+
+        # Make a longer-than-1-char label code so we can test that
+        # lower() is being used on both the label's code and the CSV value
+        labels = self.create_labels(self.user, self.source, ['Abc'], 'Group1')
+        self.source.labelset.labels.add(labels[0])
+        self.source.labelset.save()
+
+        with BytesIO() as stream:
+            writer = csv.writer(stream)
+            writer.writerow(['Name', 'Row', 'Column', 'Label'])
+            writer.writerow(['1.png', 40, 60, 'aBc'])
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+            upload_response = self.upload()
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                success=True,
+                previewTable=[
+                    dict(
+                        name=self.img1.metadata.name,
+                        link=reverse(
+                            'annotation_tool',
+                            kwargs=dict(image_id=self.img1.pk)),
+                        createInfo="Will create 1 points, 1 annotations",
+                    ),
+                ],
+                previewDetails=dict(
+                    numImages=1,
+                    totalPoints=1,
+                    totalAnnotations=1,
+                    numImagesWithExistingAnnotations=0,
+                ),
+            ),
+        )
+
+        self.assertDictEqual(upload_response.json(), dict(success=True))
+
+        values_set = set(
+            Point.objects.filter(image__in=[self.img1]) \
+            .values_list('row', 'column', 'point_number', 'image_id'))
+        self.assertSetEqual(values_set, {
+            (40, 60, 1, self.img1.pk),
+        })
+
+        annotations = Annotation.objects.filter(image__in=[self.img1])
+        values_set = set(
+            annotations.values_list('label__code', 'point_id', 'image_id'))
+        self.assertSetEqual(values_set, {
+            ('Abc', Point.objects.get(
+                point_number=1, image=self.img1).pk, self.img1.pk),
+        })
+
     def test_skipped_filenames(self):
         """
         The CSV can have filenames that we don't recognize. Those rows

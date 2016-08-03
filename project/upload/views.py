@@ -330,7 +330,7 @@ def upload_annotations_ajax(request, source_id):
 
     if source.labelset:
         label_codes_to_objs = dict(
-            (obj.code, obj) for obj in source.labelset.labels.all()
+            (obj.code.lower(), obj) for obj in source.labelset.labels.all()
         )
     else:
         label_codes_to_objs = dict()
@@ -361,7 +361,7 @@ def upload_annotations_ajax(request, source_id):
         for num, point_dict in enumerate(csv_annotations_for_image, 1):
             # Create an Annotation if a label is specified.
             if 'label' in point_dict:
-                label_obj = label_codes_to_objs[point_dict['label']]
+                label_obj = label_codes_to_objs[point_dict['label'].lower()]
                 new_annotations.append(Annotation(
                     point=Point.objects.get(point_number=num, image=img),
                     image=img, source=source,

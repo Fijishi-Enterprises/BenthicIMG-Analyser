@@ -4,7 +4,7 @@ import csv
 
 from django.core.urlresolvers import reverse
 
-from accounts.utils import get_imported_user
+from accounts.utils import get_imported_user, get_robot_user
 from annotations.models import Label, Annotation
 from images.forms import MetadataForm
 from images.model_utils import PointGen
@@ -359,7 +359,11 @@ def annotations_preview(csv_annotations, source):
             "Will create {points} points, {annotations} annotations".format(
                 points=num_csv_points, annotations=num_csv_annotations)
 
-        num_existing_annotations = Annotation.objects.filter(image=img).count()
+        num_existing_annotations = (
+            Annotation.objects.filter(image=img)
+            .exclude(user=get_robot_user())
+            .count()
+        )
         if num_existing_annotations > 0:
             preview_dict['deleteInfo'] = \
                 "Will delete {annotations} existing annotations".format(

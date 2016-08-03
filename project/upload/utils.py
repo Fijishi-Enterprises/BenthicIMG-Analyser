@@ -278,6 +278,8 @@ def annotations_csv_verify_contents(csv_annotations_by_image_name, source):
             # to upload but are still tracking in their records.
             continue
 
+        row_col_set = set()
+
         for point_dict in annotations_for_image:
             # Check that row/column are within the image dimensions
             row_str = point_dict['row']
@@ -325,7 +327,12 @@ def annotations_csv_verify_contents(csv_annotations_by_image_name, source):
                         " in this source's labelset".format(
                             code=label_code))
 
-        # TODO: Check for multiple points on the same row+col
+            if (row, column) in row_col_set:
+                raise FileProcessError(
+                    "Image {name} has multiple points on the same position:"
+                    " row {row}, column {column}".format(
+                        name=image_name, row=row, column=column))
+            row_col_set.add((row, column))
 
         csv_annotations[img.pk] = annotations_for_image
 

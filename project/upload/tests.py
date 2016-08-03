@@ -2765,6 +2765,29 @@ class UploadAnnotationsPreviewErrorTest(ClientTest):
                 " which has dimensions 100 x 200")),
         )
 
+    def test_multiple_points_same_row_column(self):
+        """
+        More than one point in the same image on the exact same position
+        (same row and same column) should not be allowed.
+        """
+        self.client.force_login(self.user)
+
+        with BytesIO() as stream:
+            writer = csv.writer(stream)
+            writer.writerow(['Name', 'Row', 'Column', 'Label'])
+            writer.writerow(['1.png', 150, 90, 'A'])
+            writer.writerow(['1.png', 150, 90, 'B'])
+
+            f = ContentFile(stream.getvalue(), name='A.csv')
+            preview_response = self.preview(f)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(error=(
+                "Image 1.png has multiple points on the same position:"
+                " row 150, column 90")),
+        )
+
     def test_label_not_in_labelset(self):
         self.client.force_login(self.user)
 

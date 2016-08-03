@@ -201,6 +201,14 @@ var UploadMetadataHelper = (function() {
     }
 
     function startUpload() {
+        if (Number(previewDetails['numFieldsReplaced']) > 0) {
+            var confirmResult = window.confirm(
+                "Some existing metadata will be replaced. Are you sure?");
+            if (!confirmResult) {
+                return;
+            }
+        }
+
         updateStatus('saving');
 
         // Warn the user if they're trying to

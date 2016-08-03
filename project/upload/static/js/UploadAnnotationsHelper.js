@@ -208,6 +208,14 @@ var UploadAnnotationsHelper = (function() {
     }
 
     function startUpload() {
+        if (Number(previewDetails['numImagesWithExistingAnnotations']) > 0) {
+            var confirmResult = window.confirm(
+                "Some existing annotations will be replaced. Are you sure?");
+            if (!confirmResult) {
+                return;
+            }
+        }
+
         updateStatus('saving');
 
         // Warn the user if they're trying to

@@ -6,11 +6,11 @@ urlpatterns = [
         views.upload_portal, name="upload_portal"),
 
     url(r'^images/$',
-        views.image_upload, name="image_upload"),
+        views.upload_images, name="upload_images"),
     url(r'^images_preview_ajax/$',
-        views.image_upload_preview_ajax, name="image_upload_preview_ajax"),
+        views.upload_images_preview_ajax, name="upload_images_preview_ajax"),
     url(r'^images_ajax/$',
-        views.image_upload_ajax, name="image_upload_ajax"),
+        views.upload_images_ajax, name="upload_images_ajax"),
 
     url(r'^metadata/$',
         views.upload_metadata, name="upload_metadata"),

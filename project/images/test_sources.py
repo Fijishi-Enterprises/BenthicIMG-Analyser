@@ -550,8 +550,8 @@ class SourceInviteTest(ClientTest):
         # Test that the given permission level works
         self.client.force_login(self.user_editor)
         response = self.client.get(
-            reverse('image_upload', kwargs={'source_id': self.source.pk}))
-        self.assertTemplateUsed(response, 'upload/image_upload.html')
+            reverse('upload_images', kwargs={'source_id': self.source.pk}))
+        self.assertTemplateUsed(response, 'upload/upload_images.html')
 
 
 class ImageViewTest(ClientTest):

@@ -36,9 +36,7 @@ class UploadImagePreviewTest(ClientTest):
     def test_no_dupe(self):
         self.client.force_login(self.user)
         response = self.client.post(
-            reverse(
-                'image_upload_preview_ajax',
-                kwargs={'source_id': self.source.pk}),
+            reverse('upload_images_preview_ajax', args=[self.source.pk]),
             dict(file_info=json.dumps([dict(filename='3.png', size=1024)])),
         )
 
@@ -51,9 +49,7 @@ class UploadImagePreviewTest(ClientTest):
     def test_detect_dupe(self):
         self.client.force_login(self.user)
         response = self.client.post(
-            reverse(
-                'image_upload_preview_ajax',
-                kwargs={'source_id': self.source.pk}),
+            reverse('upload_images_preview_ajax', args=[self.source.pk]),
             dict(file_info=json.dumps([dict(filename='1.png', size=1024)])),
         )
 
@@ -71,9 +67,7 @@ class UploadImagePreviewTest(ClientTest):
     def test_detect_multiple_dupes(self):
         self.client.force_login(self.user)
         response = self.client.post(
-            reverse(
-                'image_upload_preview_ajax',
-                kwargs={'source_id': self.source.pk}),
+            reverse('upload_images_preview_ajax', args=[self.source.pk]),
             dict(file_info=json.dumps([
                 dict(filename='1.png', size=1024),
                 dict(filename='2.png', size=1024),
@@ -117,7 +111,7 @@ class UploadImageTest(ClientTest):
         """ .png created using the PIL. """
         self.client.force_login(self.user)
         response = self.client.post(
-            reverse('image_upload_ajax', kwargs={'source_id': self.source.pk}),
+            reverse('upload_images_ajax', args=[self.source.pk]),
             dict(file=sample_image_as_file('1.png'))
         )
 
@@ -131,7 +125,7 @@ class UploadImageTest(ClientTest):
         """ .jpg created using the PIL. """
         self.client.force_login(self.user)
         response = self.client.post(
-            reverse('image_upload_ajax', kwargs={'source_id': self.source.pk}),
+            reverse('upload_images_ajax', args=[self.source.pk]),
             dict(file=sample_image_as_file('A.jpg'))
         )
 
@@ -157,7 +151,7 @@ class UploadImageTest(ClientTest):
         self.client.force_login(self.user)
         post_dict = dict(file=image_file)
         response = self.client.post(
-            reverse('image_upload_ajax', kwargs={'source_id': self.source.pk}),
+            reverse('upload_images_ajax', args=[self.source.pk]),
             post_dict,
         )
 
@@ -204,7 +198,7 @@ class UploadImageFormatTest(ClientTest):
         """Text file. Should get an error."""
         self.client.force_login(self.user)
         response = self.client.post(
-            reverse('image_upload_ajax', kwargs={'source_id': self.source.pk}),
+            reverse('upload_images_ajax', args=[self.source.pk]),
             dict(file=ContentFile('here is some text', name='1.txt')),
         )
 
@@ -227,7 +221,7 @@ class UploadImageFormatTest(ClientTest):
             bmp_file = ContentFile(stream.getvalue(), name='1.bmp')
 
         response = self.client.post(
-            reverse('image_upload_ajax', kwargs={'source_id': self.source.pk}),
+            reverse('upload_images_ajax', args=[self.source.pk]),
             dict(file=bmp_file),
         )
 
@@ -241,7 +235,7 @@ class UploadImageFormatTest(ClientTest):
         """0-byte file. Should get an error."""
         self.client.force_login(self.user)
         response = self.client.post(
-            reverse('image_upload_ajax', kwargs={'source_id': self.source.pk}),
+            reverse('upload_images_ajax', args=[self.source.pk]),
             dict(file=ContentFile(bytes(), name='1.png')),
         )
 
@@ -261,8 +255,7 @@ class UploadImageFormatTest(ClientTest):
         post_dict = dict(file=image_file)
         with self.settings(IMAGE_UPLOAD_MAX_DIMENSIONS=(599, 1000)):
             response = self.client.post(
-                reverse(
-                    'image_upload_ajax', kwargs={'source_id': self.source.pk}),
+                reverse('upload_images_ajax', args=[self.source.pk]),
                 post_dict,
             )
 
@@ -282,8 +275,7 @@ class UploadImageFormatTest(ClientTest):
         post_dict = dict(file=image_file)
         with self.settings(IMAGE_UPLOAD_MAX_DIMENSIONS=(1000, 449)):
             response = self.client.post(
-                reverse(
-                    'image_upload_ajax', kwargs={'source_id': self.source.pk}),
+                reverse('upload_images_ajax', args=[self.source.pk]),
                 post_dict,
             )
 
@@ -303,9 +295,7 @@ class UploadImageFormatTest(ClientTest):
 
         with self.settings(IMAGE_UPLOAD_MAX_FILE_SIZE=1024*1024*30):
             response = self.client.post(
-                reverse(
-                    'image_upload_preview_ajax',
-                    kwargs={'source_id': self.source.pk}),
+                reverse('upload_images_preview_ajax', args=[self.source.pk]),
                 post_dict,
             )
 
@@ -328,8 +318,7 @@ class UploadImageFormatTest(ClientTest):
         # some color variation, no way it'll be smaller than that
         with self.settings(FILE_UPLOAD_MAX_MEMORY_SIZE=200):
             response = self.client.post(
-                reverse(
-                    'image_upload_ajax', kwargs={'source_id': self.source.pk}),
+                reverse('upload_images_ajax', args=[self.source.pk]),
                 post_dict,
             )
 
@@ -371,17 +360,13 @@ class UploadMetadataTest(ClientTest):
 
     def preview(self, csv_file):
         return self.client.post(
-            reverse(
-                'upload_metadata_preview_ajax',
-                kwargs={'source_id': self.source.pk}),
+            reverse('upload_metadata_preview_ajax', args=[self.source.pk]),
             {'csv_file': csv_file},
         )
 
     def upload(self):
         return self.client.post(
-            reverse(
-                'upload_metadata_ajax',
-                kwargs={'source_id': self.source.pk}),
+            reverse('upload_metadata_ajax', args=[self.source.pk]),
         )
 
     def test_starting_from_blank_metadata(self):
@@ -965,32 +950,24 @@ class UploadMetadataMultipleSourcesTest(ClientTest):
 
     def preview1(self, csv_file):
         return self.client.post(
-            reverse(
-                'upload_metadata_preview_ajax',
-                kwargs={'source_id': self.source.pk}),
+            reverse('upload_metadata_preview_ajax', args=[self.source.pk]),
             {'csv_file': csv_file},
         )
 
     def upload1(self):
         return self.client.post(
-            reverse(
-                'upload_metadata_ajax',
-                kwargs={'source_id': self.source.pk}),
+            reverse('upload_metadata_ajax', args=[self.source.pk]),
         )
 
     def preview2(self, csv_file):
         return self.client.post(
-            reverse(
-                'upload_metadata_preview_ajax',
-                kwargs={'source_id': self.source2.pk}),
+            reverse('upload_metadata_preview_ajax', args=[self.source2.pk]),
             {'csv_file': csv_file},
         )
 
     def upload2(self):
         return self.client.post(
-            reverse(
-                'upload_metadata_ajax',
-                kwargs={'source_id': self.source2.pk}),
+            reverse('upload_metadata_ajax', args=[self.source2.pk]),
         )
 
     def test_other_sources_unaffected(self):
@@ -1108,9 +1085,7 @@ class UploadMetadataPreviewTest(ClientTest):
 
     def preview(self, csv_file):
         return self.client.post(
-            reverse(
-                'upload_metadata_preview_ajax',
-                kwargs={'source_id': self.source.pk}),
+            reverse('upload_metadata_preview_ajax', args=[self.source.pk]),
             {'csv_file': csv_file},
         )
 
@@ -1190,17 +1165,13 @@ class UploadMetadataErrorTest(ClientTest):
 
     def preview(self, csv_file):
         return self.client.post(
-            reverse(
-                'upload_metadata_preview_ajax',
-                kwargs={'source_id': self.source.pk}),
+            reverse('upload_metadata_preview_ajax', args=[self.source.pk]),
             {'csv_file': csv_file},
         )
 
     def upload(self):
         return self.client.post(
-            reverse(
-                'upload_metadata_ajax',
-                kwargs={'source_id': self.source.pk})
+            reverse('upload_metadata_ajax', args=[self.source.pk]),
         )
 
     def test_expired_session(self):
@@ -1269,9 +1240,7 @@ class UploadMetadataPreviewErrorTest(ClientTest):
 
     def preview(self, csv_file):
         return self.client.post(
-            reverse(
-                'upload_metadata_preview_ajax',
-                kwargs={'source_id': self.source.pk}),
+            reverse('upload_metadata_preview_ajax', args=[self.source.pk]),
             {'csv_file': csv_file},
         )
 
@@ -1505,9 +1474,7 @@ class UploadMetadataPreviewFormatTest(ClientTest):
 
     def preview(self, csv_file):
         return self.client.post(
-            reverse(
-                'upload_metadata_preview_ajax',
-                kwargs={'source_id': self.source.pk}),
+            reverse('upload_metadata_preview_ajax', args=[self.source.pk]),
             {'csv_file': csv_file},
         )
 
@@ -1703,17 +1670,13 @@ class UploadAnnotationsTest(ClientTest):
 
     def preview(self, csv_file):
         return self.client.post(
-            reverse(
-                'upload_annotations_preview_ajax',
-                kwargs={'source_id': self.source.pk}),
+            reverse('upload_annotations_preview_ajax', args=[self.source.pk]),
             {'csv_file': csv_file},
         )
 
     def upload(self):
         return self.client.post(
-            reverse(
-                'upload_annotations_ajax',
-                kwargs={'source_id': self.source.pk}),
+            reverse('upload_annotations_ajax', args=[self.source.pk]),
         )
 
     def test_points_only(self):
@@ -2433,32 +2396,24 @@ class UploadAnnotationsMultipleSourcesTest(ClientTest):
 
     def preview1(self, csv_file):
         return self.client.post(
-            reverse(
-                'upload_annotations_preview_ajax',
-                kwargs={'source_id': self.source.pk}),
+            reverse('upload_annotations_preview_ajax', args=[self.source.pk]),
             {'csv_file': csv_file},
         )
 
     def upload1(self):
         return self.client.post(
-            reverse(
-                'upload_annotations_ajax',
-                kwargs={'source_id': self.source.pk}),
+            reverse('upload_annotations_ajax', args=[self.source.pk]),
         )
 
     def preview2(self, csv_file):
         return self.client.post(
-            reverse(
-                'upload_annotations_preview_ajax',
-                kwargs={'source_id': self.source2.pk}),
+            reverse('upload_annotations_preview_ajax', args=[self.source2.pk]),
             {'csv_file': csv_file},
         )
 
     def upload2(self):
         return self.client.post(
-            reverse(
-                'upload_annotations_ajax',
-                kwargs={'source_id': self.source2.pk}),
+            reverse('upload_annotations_ajax', args=[self.source2.pk]),
         )
 
     def test_other_sources_unaffected(self):
@@ -2588,9 +2543,7 @@ class UploadAnnotationsPreviewErrorTest(ClientTest):
 
     def preview(self, csv_file):
         return self.client.post(
-            reverse(
-                'upload_annotations_preview_ajax',
-                kwargs={'source_id': self.source.pk}),
+            reverse('upload_annotations_preview_ajax', args=[self.source.pk]),
             {'csv_file': csv_file},
         )
 
@@ -2864,17 +2817,13 @@ class UploadAnnotationsNoLabelsetTest(ClientTest):
 
     def preview(self, csv_file):
         return self.client.post(
-            reverse(
-                'upload_annotations_preview_ajax',
-                kwargs={'source_id': self.source.pk}),
+            reverse('upload_annotations_preview_ajax', args=[self.source.pk]),
             {'csv_file': csv_file},
         )
 
     def upload(self):
         return self.client.post(
-            reverse(
-                'upload_annotations_ajax',
-                kwargs={'source_id': self.source.pk}),
+            reverse('upload_annotations_ajax', args=[self.source.pk]),
         )
 
     def test_points_only(self):

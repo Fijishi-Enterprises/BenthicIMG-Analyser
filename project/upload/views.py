@@ -32,7 +32,7 @@ def upload_portal(request, source_id):
     if request.method == 'POST':
         if request.POST.get('images'):
             return HttpResponseRedirect(
-                reverse('image_upload', args=[source_id]))
+                reverse('upload_images', args=[source_id]))
         if request.POST.get('metadata'):
             return HttpResponseRedirect(
                 reverse('upload_metadata', args=[source_id]))
@@ -47,7 +47,7 @@ def upload_portal(request, source_id):
 
 
 @source_permission_required('source_id', perm=Source.PermTypes.EDIT.code)
-def image_upload(request, source_id):
+def upload_images(request, source_id):
     """
     Upload images to a source.
     This view is for the non-Ajax frontend.
@@ -70,7 +70,7 @@ def image_upload(request, source_id):
                 source.image_annotation_area),
         )
 
-    return render(request, 'upload/image_upload.html', {
+    return render(request, 'upload/upload_images.html', {
         'source': source,
         'images_form': images_form,
         'proceed_to_manage_metadata_form': proceed_to_manage_metadata_form,
@@ -82,7 +82,7 @@ def image_upload(request, source_id):
 
 @source_permission_required(
     'source_id', perm=Source.PermTypes.EDIT.code, ajax=True)
-def image_upload_preview_ajax(request, source_id):
+def upload_images_preview_ajax(request, source_id):
     """
     Preview the images that are about to be uploaded.
     Check to see if there's any problems with the filenames or file sizes.
@@ -124,7 +124,7 @@ def image_upload_preview_ajax(request, source_id):
 
 @source_permission_required(
     'source_id', perm=Source.PermTypes.EDIT.code, ajax=True)
-def image_upload_ajax(request, source_id):
+def upload_images_ajax(request, source_id):
     """
     After the "Start upload" button is clicked, this view is entered once
     for each image file. This view saves the image to the database

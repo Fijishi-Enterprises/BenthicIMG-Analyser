@@ -10,7 +10,7 @@
 
 {% block page-specific-includes %}
     {% include "static-local-include.html" with type="css" path="css/uploadForm.css" %}
-    {% include "static-local-include.html" with type="js" path="js/ImageUploadFormHelper.js" %}
+    {% include "static-local-include.html" with type="js" path="js/UploadImagesHelper.js" %}
 {% endblock %}
 
 {% block content %}
@@ -96,9 +96,9 @@
 
   <!-- Script in the body will run on page load. -->
   <script type="text/javascript">
-    ImageUploadFormHelper.init({
-        uploadPreviewUrl: "{% url 'image_upload_preview_ajax' source.id %}",
-        uploadStartUrl: "{% url 'image_upload_ajax' source.id %}"
+    UploadImagesHelper.init({
+        uploadPreviewUrl: "{% url 'upload_images_preview_ajax' source.id %}",
+        uploadStartUrl: "{% url 'upload_images_ajax' source.id %}"
     });
   </script>
 

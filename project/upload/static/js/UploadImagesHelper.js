@@ -1,7 +1,7 @@
 /* The following "singleton" design pattern is from
  * http://stackoverflow.com/a/1479341/
  */
-var ImageUploadFormHelper = (function() {
+var UploadImagesHelper = (function() {
 
     var $statusDisplay = null;
     var $preUploadSummary = null;
@@ -470,7 +470,7 @@ var ImageUploadFormHelper = (function() {
 
     /* Public methods.
      * These are the only methods that need to be referred to as
-     * ImageUploadFormHelper.methodname. */
+     * UploadImagesHelper.methodname. */
     return {
 
         /* Initialize the page. */

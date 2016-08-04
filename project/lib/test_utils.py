@@ -324,7 +324,7 @@ class ClientTest(BaseTest):
         post_dict.update(options)
 
         response = self.client.post(
-            reverse('image_upload_ajax', kwargs={'source_id': self.source_id}),
+            reverse('upload_images_ajax', kwargs={'source_id': self.source_id}),
             post_dict,
         )
         file_to_upload.close()
@@ -540,7 +540,7 @@ class ClientTest(BaseTest):
         # Send the upload form
         cls.client.force_login(user)
         response = cls.client.post(
-            reverse('image_upload_ajax', kwargs={'source_id': source.id}),
+            reverse('upload_images_ajax', kwargs={'source_id': source.id}),
             post_dict,
         )
         cls.client.logout()

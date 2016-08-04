@@ -25,6 +25,28 @@ from visualization.forms import ImageSpecifyForm
 
 
 @source_permission_required('source_id', perm=Source.PermTypes.EDIT.code)
+def upload_portal(request, source_id):
+    """
+    Page which points to the pages for the three different upload types.
+    """
+    if request.method == 'POST':
+        if request.POST.get('images'):
+            return HttpResponseRedirect(
+                reverse('image_upload', args=[source_id]))
+        if request.POST.get('metadata'):
+            return HttpResponseRedirect(
+                reverse('upload_metadata', args=[source_id]))
+        if request.POST.get('annotations'):
+            return HttpResponseRedirect(
+                reverse('upload_annotations', args=[source_id]))
+
+    source = get_object_or_404(Source, id=source_id)
+    return render(request, 'upload/upload_portal.html', {
+        'source': source,
+    })
+
+
+@source_permission_required('source_id', perm=Source.PermTypes.EDIT.code)
 def image_upload(request, source_id):
     """
     Upload images to a source.

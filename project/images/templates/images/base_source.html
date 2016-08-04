@@ -21,7 +21,7 @@
           <li><a href="{% url 'source_admin' source.id %}"><span>{% trans 'Admin' %}</span></a></li>
         {% endif %}
         {% if "source_edit" in source_perms %}
-          <li><a href="{% url 'image_upload' source.id %}"><span>{% trans 'Upload' %}</span></a></li>
+          <li><a href="{% url 'upload_portal' source.id %}"><span>{% trans 'Upload' %}</span></a></li>
         {% endif %}
         <li><a href="{% url 'visualize_source' source.id %}"><span>{% trans 'Browse' %}</span></a></li>
         <li><a href="{% url 'statistics' source.id %}"><span>{% trans 'Statistics' %}</span></a></li>

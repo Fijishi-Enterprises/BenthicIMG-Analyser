@@ -1,0 +1,21 @@
+{% extends "images/base_source.html" %}
+{% load thumbnail %}
+{% load common_tags %}
+
+{% block title %}Upload | CoralNet{% endblock %}
+
+{% block js-includes %}
+    {% include "javascript-includes.html" %}
+{% endblock %}
+
+{% block content %}
+
+  <p>Choose what you want to upload.</p>
+
+  <form action="" method="post" enctype="multipart/form-data">{% csrf_token %}
+    <input type="submit" name="images" value="Upload Images" />
+    <input type="submit" name="metadata" value="Upload Metadata" />
+    <input type="submit" name="annotations" value="Upload Points/Annotations" />
+  </form>
+
+{% endblock %}

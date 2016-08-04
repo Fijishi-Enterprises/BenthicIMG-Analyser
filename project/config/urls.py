@@ -12,7 +12,7 @@ urlpatterns = [
     url(r'^visualization/', include('visualization.urls')),
     url(r'^annotations/', include('annotations.urls')),
     url(r'^requests/', include('requests.urls')),
-    url(r'^upload/', include('upload.urls')),
+    url(r'^source/(?P<source_id>\d+)/upload/', include('upload.urls')),
 
     url(r'^admin/doc/', include('django.contrib.admindocs.urls')),
     url(r'^admin/', include(admin.site.urls)),

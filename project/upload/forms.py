@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.files.images import get_image_dimensions
-from django.forms import ImageField, Form, ChoiceField, FileField
+from django.forms import ImageField, Form, FileField
 from django.forms.widgets import FileInput
 
 
@@ -122,42 +122,6 @@ class ImageUploadForm(Form):
 class CSVImportForm(Form):
     csv_file = FileField(
         label='CSV file',
-    )
-
-    def clean_csv_file(self):
-        csv_file = self.cleaned_data['csv_file']
-
-        # Naively validate that the file is a CSV file through
-        # (1) given MIME type, or (2) file extension.  Either of them
-        # can be faked though.
-        #
-        # For the file extension check, would be more "correct" to use:
-        # mimetypes.guess_type(csv_file.name) == 'text/csv'
-        # but the mimetypes module doesn't recognize csv for
-        # some reason.
-        if csv_file.content_type == 'text/csv':
-            pass
-        elif csv_file.name.endswith('.csv'):
-            pass
-        else:
-            raise ValidationError("This file is not a CSV file.")
-
-        return self.cleaned_data['csv_file']
-
-
-
-
-class ImportArchivedAnnotationsForm(Form):
-    csv_file = FileField(
-        label='CSV file TEST',
-    )
-    is_uploading_annotations_not_just_points = ChoiceField(
-        label='Data',
-        choices=(
-            (True, "Points and annotations"),
-            (False, "Points only"),
-        ),
-        initial=True,
     )
 
     def clean_csv_file(self):

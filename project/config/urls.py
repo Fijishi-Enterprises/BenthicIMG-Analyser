@@ -28,6 +28,8 @@ urlpatterns = [
     ),
     url(r'^contact/$', lib_views.contact, name='contact'),
 
+    url(r'^nav_test/(?P<source_id>\d+)/$', lib_views.nav_test, name="nav_test"),
+
     # Internationalization
     url(r'^i18n/', include('django.conf.urls.i18n')),
 ]

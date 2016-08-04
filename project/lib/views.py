@@ -1,10 +1,11 @@
 from django.conf import settings
 from django.contrib import messages
+from django.contrib.auth.decorators import permission_required
 from django.core.mail import mail_admins
 from django.core.mail.message import BadHeaderError
 from django.core.urlresolvers import reverse
 from django.http import HttpResponseRedirect, HttpResponseServerError
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from django.template import loader, TemplateDoesNotExist, Context
 
 from annotations.models import Point
@@ -117,3 +118,14 @@ def handler500(request, template_name='500.html'):
     return HttpResponseServerError(template.render({
         'request': request,
     }))
+
+
+@permission_required('is_superuser')
+def nav_test(request, source_id):
+    """
+    Test page for a new navigation header layout.
+    """
+    source = get_object_or_404(Source, id=source_id)
+    return render(request, 'lib/nav_test.html', {
+        'source': source,
+    })

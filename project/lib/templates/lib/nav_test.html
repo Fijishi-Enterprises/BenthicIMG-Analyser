@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Nav test</title>
+
+{#  <link rel="stylesheet" type="text/css" href="/static/css/master.css">#}
+
+  <style>
+    @import url(https://fonts.googleapis.com/css?family=Droid+Sans:regular,bold);
+
+    html, body {
+        font-family: 'Droid Sans', helvetica, arial, Geneva, sans-serif;
+    }
+
+    /* Main menu */
+    ul.nav {
+        /* Don't have a chunk of left padding (as browser defaults often do) */
+        padding: 0;
+
+        /* None of the navigation elements are allowed to word-wrap text */
+        white-space: nowrap;
+    }
+    /* Main menu item or submenu item */
+    ul.nav > li, ul.nav > li > ul > li {
+        background-color: #c8c8e8;
+    }
+    /* Sub-menu item (hovered) */
+    ul.nav > li > ul > li:hover {
+        background-color: #b8b8f0;
+    }
+    /* Main menu item */
+    ul.nav > li {
+        /* Sequential items appear side by side */
+        display: inline-block;
+        /* Allow child elements to use absolute positioning relative to this */
+        position: relative;
+
+        /* Sub-menus may overlap with other page content. Ensure that the
+         sub-menus appear above most other page content.
+         Browser default z-index seems to be typically 0.
+         http://stackoverflow.com/a/18965381/
+
+         Not sure why this is the particular element we want to put the
+         z-index on, but it seems to work. */
+        z-index: 1;
+
+        /* Assign a fixed height so that it's possible to absolute-position
+         a sub-menu flush with the bottom of this item. */
+        height: 20px;
+
+        padding: 4px;
+        border: 2px solid black;
+    }
+    /* Sub-menu */
+    ul.nav > li > ul {
+        /* Start off hidden. */
+        display: none;
+        /* Don't allow this sub-menu to push other page elements around */
+        position: absolute;
+
+        /* Position at an offset from the main-nav item's position.
+         Position from left should account for the item's border.
+         Position from top should account for the item's full height,
+         including inner height, border, padding, and margin.
+         TODO: Check both Firefox and Chrome. Firefox has been sketchy
+         about border widths in the past. Might consider dropping borders
+         as a result. There are other possibilities like a background
+         image with a border expressed in its colors. */
+        left: -2px;
+        top: 30px;
+
+        /* Don't have a chunk of left padding (as browser defaults often do) */
+        padding: 0;
+    }
+    ul.nav > li:hover > ul {
+        /* The sub-menu appears below the main-menu item. */
+        display: block;
+    }
+    /* Sub-menu item */
+    ul.nav > li > ul > li {
+        /* Sequential items appear top to bottom. */
+        display: block;
+    }
+    /* Sub-menu item's link */
+    ul.nav > li > ul > li > a {
+        /* No underline on contained text */
+        text-decoration: none;
+        /* Get text color from parent, don't use default link colors */
+        color: inherit;
+    }
+    /* Sub-menu item's clickable link area.
+     Note that if we put text directly in the a element, the clickable link
+     area is confined to the text. We must wrap the text with something
+     like a span to make the clickable area bigger. */
+    ul.nav > li > ul > li > a > span {
+        /* Fill allotted space */
+        display: block;
+
+        cursor: pointer;
+
+        /* Add padding and a border around the text.
+         This must be added on the element corresponding to the
+         clickable link area, so that the padding and border can also be
+         clicked to go to the link. */
+        padding: 4px;
+        border: 2px solid black;
+    }
+  </style>
+
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"
+          type="text/javascript"></script>
+
+  <script type="text/javascript">
+    // Allow the sub-menus to be shown/hidden with clicks, in case the
+    // user cannot mouseover (e.g. they are on mobile).
+    //
+    // TODO: Mouseover may not work as expected after clicking menu items.
+    // Not sure if that can be improved. Not a huge problem though.
+    function init() {
+        $('ul.nav > li').click(function() {
+            var $subMenu = $(this).find('ul');
+
+            if ($subMenu.is(':visible')) {
+                // Sub-menu is currently visible. Hide it.
+                $subMenu.hide();
+            }
+            else {
+                // Sub-menu is currently hidden. Hide the currently visible
+                // sub-menu and show this one.
+                $('ul.nav > li > ul').hide();
+                $subMenu.show();
+            }
+        });
+    }
+  </script>
+</head>
+<body>
+
+<div id="header">
+  <ul class="nav">
+
+    <li>
+      {{ source.name }}
+
+      <ul>
+
+        <li><a href="{% url 'source_main' source.pk %}">
+          <span>Overview</span>
+        </a></li>
+
+        <li><a href="{% url 'source_edit' source.pk %}">
+          <span>Edit Settings</span>
+        </a></li>
+
+        <li><a href="{% url 'source_admin' source.pk %}">
+          <span>Admin</span>
+        </a></li>
+
+        <li><a href="{% url 'labelset_main' source.pk %}">
+          <span>Labelset</span>
+        </a></li>
+
+      </ul>
+    </li>
+
+    <li>
+      Browse
+
+      <ul>
+
+        <li><a href="{% url 'visualize_source' source.pk %}">
+          <span>Images</span>
+        </a></li>
+
+        {# TODO: Should make this jump to the metadata view #}
+        <li><a href="{% url 'visualize_source' source.pk %}">
+          <span>Metadata</span>
+        </a></li>
+
+        {# TODO: Should make this jump to the patches view #}
+        <li><a href="{% url 'visualize_source' source.pk %}">
+          <span>Patches</span>
+        </a></li>
+
+      </ul>
+    </li>
+
+    <li>
+      Upload
+
+      <ul>
+
+        <li><a href="{% url 'image_upload' source.pk %}">
+          <span>Images</span>
+        </a></li>
+
+        <li><a href="{% url 'upload_metadata' source.pk %}">
+          <span>Metadata</span>
+        </a></li>
+
+        <li><a href="{% url 'upload_annotations' source.pk %}">
+          <span>Annotations</span>
+        </a></li>
+
+      </ul>
+    </li>
+
+    <li>
+      CoralNet
+
+      <ul>
+
+        <li><a href="{% url 'label_list' %}">
+          <span>All Labels</span>
+        </a></li>
+
+        <li><a href="{% url 'about' %}">
+          <span>About Us</span>
+        </a></li>
+
+        <li><a href="{% url 'contact' %}">
+          <span>Contact Us</span>
+        </a></li>
+
+        <li><a href="{% url 'userena_signup' %}">
+          <span>Add User</span>
+        </a></li>
+
+        <li><a href="{% url 'emailall' %}">
+          <span>Email All</span>
+        </a></li>
+
+      </ul>
+    </li>
+
+    <li>
+      Account ({{ user.username }})
+
+      <ul>
+
+        <li><a href="{% url 'index' %}">
+          <span>Your Sources</span>
+        </a></li>
+
+        <li><a href="{% url 'invites_manage' %}">
+          <span>Source Invites</span>
+        </a></li>
+
+        <li><a href="{% url 'userena_profile_detail' user.username %}">
+          <span>Manage Account</span>
+        </a></li>
+
+        <li><a href="{% url 'userena_signout' %}">
+          <span>Sign out</span>
+        </a></li>
+
+      </ul>
+    </li>
+  </ul>
+</div>
+
+<div id="content-container">
+  This is some test content.
+  This is some test content.
+  <br />
+  This is some test content.
+  This is some test content.
+  <br />
+  This is some test content.
+  This is some test content.
+  <br />
+  This is some test content.
+  This is some test content.
+  <br />
+  This is some test content.
+  This is some test content.
+</div>
+
+<script type="text/javascript">
+  init();
+</script>
+
+</body>
+</html>

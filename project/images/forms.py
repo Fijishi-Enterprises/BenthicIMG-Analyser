@@ -274,13 +274,7 @@ class MetadataFormForGrid(MetadataForm):
     """
     class Meta:
         model = Metadata
-
-        # No comments field, because that may be a bit large for a grid view.
-        fields = [
-            n for n in Metadata.EDIT_FORM_FIELDS
-            if n not in ['comments']
-        ]
-
+        fields = Metadata.EDIT_FORM_FIELDS
         widgets = {
             # Our metadata-edit grid Javascript is wonky with a
             # NumberInput widget.

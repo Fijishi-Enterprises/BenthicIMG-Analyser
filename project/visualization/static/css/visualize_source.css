@@ -32,6 +32,19 @@ form.box {
     border-radius: 5px;
 }
 
+textarea {
+    /* Make this fit better in a grid (at the expense of ease of editing). */
+    width: 200px;
+    height: 1.5em;
+    margin: 0;
+}
+#metadataFormTable td {
+    /* Make the text fields and text areas line up better.
+    'baseline' makes them line up weird. */
+    vertical-align: middle;
+}
+
+
 /* Customize the help dialog contents. This should really go in a site-global
    CSS instead of in here (and in the Upload CSS), so do that at some point. */
 .ui-widget {

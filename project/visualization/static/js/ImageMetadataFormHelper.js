@@ -88,7 +88,7 @@ function updateMetadataChangeStatus($field) {
 function setUpBindings(params) {
     // Get all form input fields except type="hidden"
     var $editableFields = $('#metadataFormTable').find(
-        'input[type="text"],input[type="number"]');
+        'input[type="text"],input[type="number"],textarea');
 
     $editableFields.each(function() {
         if (this.id.endsWith('photo_date')) {
@@ -180,7 +180,7 @@ function metadataSaveAjaxResponseHandler(response) {
 
         // Remove field stylings
         var $editableFields = $('#metadataFormTable').find(
-            'input[type="text"],input[type="number"]');
+            'input[type="text"],input[type="number"],textarea');
         $editableFields.removeClass('changed error');
     }
     else {  // 'error'

@@ -82,11 +82,11 @@ class MetadataEditTest(ClientTest):
         cls.source = cls.create_source(cls.user)
 
         cls.user_editor = cls.create_user()
-        cls.add_source_member(cls.user, cls.source,
-            cls.user_editor, Source.PermTypes.EDIT.code)
+        cls.add_source_member(
+            cls.user, cls.source, cls.user_editor, Source.PermTypes.EDIT.code)
         cls.user_viewer = cls.create_user()
-        cls.add_source_member(cls.user, cls.source,
-            cls.user_viewer, Source.PermTypes.VIEW.code)
+        cls.add_source_member(
+            cls.user, cls.source, cls.user_viewer, Source.PermTypes.VIEW.code)
 
         cls.img1 = cls.upload_image_new(cls.user, cls.source)
         cls.img2 = cls.upload_image_new(cls.user, cls.source)
@@ -163,7 +163,7 @@ class MetadataEditTest(ClientTest):
         """
         # We'll test various fields, and ensure that there is at least one
         # field where the two images have different non-empty values.
-        self.img1.metadata.photo_date = datetime.date(2015,11,15)
+        self.img1.metadata.photo_date = datetime.date(2015, 11, 15)
         self.img1.metadata.aux1 = "1"
         self.img1.metadata.aux2 = "A"
         self.img1.metadata.framing = "Framing device FD-09"
@@ -173,6 +173,7 @@ class MetadataEditTest(ClientTest):
         self.img2.metadata.height_in_cm = 45
         self.img2.metadata.latitude = '-20.98'
         self.img2.metadata.camera = "Nikon"
+        self.img2.metadata.comments = "This, is; a< test/\ncomment."
         self.img2.metadata.save()
 
         url = (
@@ -194,8 +195,8 @@ class MetadataEditTest(ClientTest):
         img2_form = metadata_pks_to_forms[self.img2.pk]
 
         self.assertEqual(img1_form['name'].value(), self.img1.metadata.name)
-        self.assertEqual(img1_form['photo_date'].value(),
-            datetime.date(2015,11,15))
+        self.assertEqual(
+            img1_form['photo_date'].value(), datetime.date(2015, 11, 15))
         self.assertEqual(img1_form['aux1'].value(), "1")
         self.assertEqual(img1_form['aux2'].value(), "A")
         self.assertEqual(img1_form['framing'].value(), "Framing device FD-09")
@@ -206,6 +207,8 @@ class MetadataEditTest(ClientTest):
         self.assertEqual(img2_form['height_in_cm'].value(), 45)
         self.assertEqual(img2_form['latitude'].value(), "-20.98")
         self.assertEqual(img2_form['camera'].value(), "Nikon")
+        self.assertEqual(
+            img2_form['comments'].value(), "This, is; a< test/\ncomment.")
 
     def test_submit_edits(self):
         """
@@ -237,6 +240,7 @@ class MetadataEditTest(ClientTest):
             'form-0-strobes': "",
             'form-0-framing': "",
             'form-0-balance': "Balance card A",
+            'form-0-comments': "These, are; some<\n test/ comments.",
         }
         response = self.client.post(url, post_data)
 
@@ -247,7 +251,8 @@ class MetadataEditTest(ClientTest):
 
         self.img1.metadata.refresh_from_db()
         self.assertEqual('new_name.arbitrary_ext', self.img1.metadata.name)
-        self.assertEqual(datetime.date(2004,7,19), self.img1.metadata.photo_date)
+        self.assertEqual(
+            datetime.date(2004, 7, 19), self.img1.metadata.photo_date)
         self.assertEqual(325, self.img1.metadata.height_in_cm)
         self.assertEqual('68', self.img1.metadata.latitude)
         self.assertEqual('-25.908', self.img1.metadata.longitude)
@@ -258,6 +263,8 @@ class MetadataEditTest(ClientTest):
         self.assertEqual("", self.img1.metadata.strobes)
         self.assertEqual("", self.img1.metadata.framing)
         self.assertEqual("Balance card A", self.img1.metadata.balance)
+        self.assertEqual(
+            "These, are; some<\n test/ comments.", self.img1.metadata.comments)
 
     def test_submit_errors(self):
         """
@@ -289,6 +296,7 @@ class MetadataEditTest(ClientTest):
             'form-0-strobes': "",
             'form-0-framing': "",
             'form-0-balance': "",
+            'form-0-comments': "",
             'form-1-id': self.img2.metadata.pk,
             'form-1-name': self.img2.metadata.name,
             'form-1-photo_date': '205938',    # Not valid
@@ -302,6 +310,7 @@ class MetadataEditTest(ClientTest):
             'form-1-strobes': "",
             'form-1-framing': "",
             'form-1-balance': "Balance card A",    # Valid edit
+            'form-1-comments': "",
         }
         response = self.client.post(url, post_data)
 
@@ -317,12 +326,14 @@ class MetadataEditTest(ClientTest):
             for e in response_json['errors']
         ])
         expected_error_dict = dict()
-        expected_error_dict['id_form-1-photo_date'] = self.img2.metadata.name \
-             + " | Date" \
-             + " | Enter a valid date."
-        expected_error_dict['id_form-1-height_in_cm'] = self.img2.metadata.name \
-             + " | Height (cm)" \
-             + " | Ensure this value is greater than or equal to 1."
+        expected_error_dict['id_form-1-photo_date'] = (
+            self.img2.metadata.name
+            + " | Date"
+            + " | Enter a valid date.")
+        expected_error_dict['id_form-1-height_in_cm'] = (
+            self.img2.metadata.name
+            + " | Height (cm)"
+            + " | Ensure this value is greater than or equal to 1.")
         self.assertDictEqual(
             response_error_dict,
             expected_error_dict,
@@ -367,6 +378,7 @@ class MetadataEditTest(ClientTest):
             'form-0-strobes': "",
             'form-0-framing': "",
             'form-0-balance': "",
+            'form-0-comments': "",
 
             'form-1-id': self.img2.metadata.pk,
             # Dupe with img3, which is also in the form
@@ -382,6 +394,7 @@ class MetadataEditTest(ClientTest):
             'form-1-strobes': "",
             'form-1-framing': "",
             'form-1-balance': "",
+            'form-1-comments': "",
 
             'form-2-id': self.img3.metadata.pk,
             # Dupe with img2, which is also in the form
@@ -397,6 +410,7 @@ class MetadataEditTest(ClientTest):
             'form-2-strobes': "",
             'form-2-framing': "",
             'form-2-balance': "",
+            'form-2-comments': "",
 
             'form-3-id': self.img4.metadata.pk,
             # Not dupe
@@ -412,6 +426,7 @@ class MetadataEditTest(ClientTest):
             'form-3-strobes': "",
             'form-3-framing': "",
             'form-3-balance': "",
+            'form-3-comments': "",
         }
         response = self.client.post(url, post_data)
 
@@ -578,4 +593,3 @@ class ImageDeleteTest(ClientTest):
         Image.objects.get(pk=self.image_id_2)
         self.assertRaises(
             Image.DoesNotExist, Image.objects.get, pk=self.image_id_3)
-

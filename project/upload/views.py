@@ -54,7 +54,6 @@ def upload_images(request, source_id):
     source = get_object_or_404(Source, id=source_id)
 
     images_form = MultiImageUploadForm()
-    # TODO: Check that this still works
     proceed_to_manage_metadata_form = ImageSpecifyByIdForm(source=source)
 
     auto_generate_points_message = (

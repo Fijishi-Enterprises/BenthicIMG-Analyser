@@ -392,9 +392,10 @@ var UploadImagesHelper = (function() {
         updateStatus('uploaded');
         postUploadCleanup();
 
-        // Set the uploaded image Ids in the proceed-to-manage-metadata form.
+        // Set the uploaded image ids in the proceed-to-manage-metadata form.
         var commaSeparatedImageIds = uploadedImageIds.join();
-        $('input#id_specify_str').val(commaSeparatedImageIds);
+        $proceedToManageMetadataForm.find('input[name=ids]')
+            .val(commaSeparatedImageIds);
 
         // Show the buttons for the user's next step.
         $startAnotherUploadForm.show();

@@ -169,17 +169,15 @@
 
       <ul>
 
-        <li><a href="{% url 'visualize_source' source.pk %}">
+        <li><a href="{% url 'browse_images' source.pk %}">
           <span>Images</span>
         </a></li>
 
-        {# TODO: Should make this jump to the metadata view #}
-        <li><a href="{% url 'visualize_source' source.pk %}">
+        <li><a href="{% url 'edit_metadata' source.pk %}">
           <span>Metadata</span>
         </a></li>
 
-        {# TODO: Should make this jump to the patches view #}
-        <li><a href="{% url 'visualize_source' source.pk %}">
+        <li><a href="{% url 'browse_patches' source.pk %}">
           <span>Patches</span>
         </a></li>
 

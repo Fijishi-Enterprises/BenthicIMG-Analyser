@@ -75,7 +75,7 @@
         </form>
 
         {# proceed to the page where you manage image metadata #}
-        <form action="{% url 'visualize_source' source.id %}" method="post"
+        <form action="{% url 'edit_metadata' source.id %}" method="post"
               id="id_proceed_to_manage_metadata_form">{% csrf_token %}
 
             {% for field in proceed_to_manage_metadata_form %}

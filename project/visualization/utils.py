@@ -4,7 +4,57 @@ from django.conf import settings
 from django.core.files.storage import get_storage_class
 from django.core.paginator import Paginator, EmptyPage, InvalidPage
 from PIL import Image as PILImage
-from images.models import Point
+from images.models import Point, Image
+from images.utils import get_num_aux_fields, get_aux_field_name
+
+
+def image_search_kwargs_to_queryset(search_kwargs, source):
+    queryset_kwargs = dict()
+
+    # Year
+    year = search_kwargs.get('year', '')
+    if year == '':
+        # Don't filter by year
+        pass
+    elif year == '(none)':
+        # Get images with no photo date specified
+        queryset_kwargs['metadata__photo_date'] = None
+    else:
+        # Filter by the given year
+        queryset_kwargs['metadata__photo_date__year'] = int(year)
+
+    # Aux1, Aux2, etc.
+    for n in range(1, get_num_aux_fields() + 1):
+        aux_field_name = get_aux_field_name(n)
+
+        aux_value = search_kwargs.get(aux_field_name, '')
+        if aux_value == '':
+            # Don't filter by this aux field
+            pass
+        elif aux_value == '(none)':
+            # Get images with an empty aux value
+            queryset_kwargs['metadata__' + aux_field_name] = ''
+        else:
+            # Filter by the given non-empty aux value
+            queryset_kwargs['metadata__' + aux_field_name] = aux_value
+
+    # Annotation status
+    annotation_status = search_kwargs.get('annotation_status', '')
+    if annotation_status == '':
+        # Don't filter
+        pass
+    elif annotation_status == 'confirmed':
+        queryset_kwargs['status__annotatedByHuman'] = True
+    elif annotation_status == 'unconfirmed':
+        queryset_kwargs['status__annotatedByHuman'] = False
+        queryset_kwargs['status__annotatedByRobot'] = True
+    elif annotation_status == 'unclassified':
+        queryset_kwargs['status__annotatedByHuman'] = False
+        queryset_kwargs['status__annotatedByRobot'] = False
+
+    image_results = Image.objects.filter(source=source, **queryset_kwargs)
+
+    return image_results
 
 
 def paginate(results, items_per_page, query_args):

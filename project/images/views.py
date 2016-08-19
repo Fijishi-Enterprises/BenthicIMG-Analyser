@@ -1,4 +1,5 @@
 import json, csv, os.path, time, datetime
+import urllib
 
 from numpy import vectorize
 
@@ -23,6 +24,7 @@ from annotations.model_utils import AnnotationAreaUtils
 from annotations.models import LabelGroup, Label, LabelSet
 from annotations.utils import image_annotation_area_is_editable, image_has_any_human_annotations
 from lib.decorators import source_permission_required, image_visibility_required, image_permission_required, source_visibility_required
+from visualization.utils import image_search_kwargs_to_queryset
 
 
 def source_list(request):
@@ -171,6 +173,8 @@ def source_main(request, source_id):
     """
 
     source = get_object_or_404(Source, id=source_id)
+
+    # Users who are members of the source
     members = source.get_members_ordered_by_role()
     memberDicts = [dict(username=member.username,
                         role=source.get_member_role(member))
@@ -178,27 +182,31 @@ def source_main(request, source_id):
 
     all_images = source.get_all_images()
     latest_images = all_images.order_by('-upload_date')[:3]
-    # TODO: Fix this browse url stuff
-    browse_url_base = reverse('visualize_source', args=[source.id])
+
+    # Images' annotation status
+    browse_url_base = reverse('browse_images', args=[source.id])
+    confirmed_kwargs = dict(annotation_status='confirmed')
+    unclassified_kwargs = dict(annotation_status='unclassified')
+    unconfirmed_kwargs = dict(annotation_status='unconfirmed')
 
     image_stats = dict(
         total = all_images.count(),
         total_link = browse_url_base,
-        annotated = all_images.filter(status__annotatedByHuman=True).count(),
+        confirmed = image_search_kwargs_to_queryset(
+            confirmed_kwargs, source).count(),
+        confirmed_link = browse_url_base + '?'
+            + urllib.urlencode(confirmed_kwargs),
+        unclassified = image_search_kwargs_to_queryset(
+            unclassified_kwargs, source).count(),
+        unclassified_link = browse_url_base + '?'
+            + urllib.urlencode(unclassified_kwargs),
     )
     if source.enable_robot_classifier:
-        image_stats.update( dict(
-            annotated_link = browse_url_base + '?image_status=' + BrowseSearchForm.STATUS_CONFIRMED,
-            not_annotated = all_images.filter(status__annotatedByHuman=False, status__annotatedByRobot=False).count(),
-            not_annotated_link = browse_url_base + '?image_status=' + BrowseSearchForm.STATUS_NEEDS_ANNOTATION,
-            not_human_annotated = all_images.filter(status__annotatedByHuman=False, status__annotatedByRobot=True).count(),
-            not_human_annotated_link = browse_url_base + '?image_status=' + BrowseSearchForm.STATUS_UNCONFIRMED,
-        ))
-    else:
-        image_stats.update( dict(
-            annotated_link = browse_url_base + '?image_status=' + BrowseSearchForm.STATUS_ANNOTATED,
-            not_annotated = all_images.filter(status__annotatedByHuman=False).count(),
-            not_annotated_link = browse_url_base + '?image_status=' + BrowseSearchForm.STATUS_NEEDS_ANNOTATION,
+        image_stats.update(dict(
+            unconfirmed = image_search_kwargs_to_queryset(
+                unconfirmed_kwargs, source).count(),
+            unconfirmed_link = browse_url_base + '?'
+                + urllib.urlencode(unconfirmed_kwargs),
         ))
 
     ### PREPARE ALL ROBOT STATS ###

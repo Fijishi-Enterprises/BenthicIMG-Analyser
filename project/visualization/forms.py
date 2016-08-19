@@ -9,6 +9,7 @@ from accounts.utils import get_robot_user
 from annotations.models import LabelGroup, Label, Annotation
 from images.models import Source, Metadata, Image, Point
 from images.utils import get_aux_metadata_form_choices, get_num_aux_fields, get_aux_label, get_aux_field_name
+from visualization.utils import image_search_kwargs_to_queryset
 
 
 class ImageSearchForm(forms.Form):
@@ -77,53 +78,7 @@ class ImageSearchForm(forms.Form):
         Call this after cleaning the form to get the image search results
         specified by the fields.
         """
-        data = self.cleaned_data
-        queryset_kwargs = dict()
-
-        # Year
-        if data['year'] == '':
-            # Don't filter by year
-            pass
-        elif data['year'] == '(none)':
-            # Get images with no photo date specified
-            queryset_kwargs['metadata__photo_date'] = None
-        else:
-            # Filter by the given year
-            queryset_kwargs['metadata__photo_date__year'] = int(data['year'])
-
-        # Aux1, Aux2, etc.
-        for n in range(1, get_num_aux_fields() + 1):
-            aux_field_name = get_aux_field_name(n)
-
-            if data[aux_field_name] == '':
-                # Don't filter by this aux field
-                pass
-            elif data[aux_field_name] == '(none)':
-                # Get images with an empty aux value
-                queryset_kwargs['metadata__' + aux_field_name] = ''
-            else:
-                # Filter by the given non-empty aux value
-                queryset_kwargs['metadata__' + aux_field_name] = \
-                    data[aux_field_name]
-
-        # Annotation status
-        if 'annotation_status' in data:
-            if data['annotation_status'] == '':
-                # Don't filter
-                pass
-            elif data['annotation_status'] == 'confirmed':
-                queryset_kwargs['status__annotatedByHuman'] = True
-            elif data['annotation_status'] == 'unconfirmed':
-                queryset_kwargs['status__annotatedByHuman'] = False
-                queryset_kwargs['status__annotatedByRobot'] = True
-            elif data['annotation_status'] == 'unclassified':
-                queryset_kwargs['status__annotatedByHuman'] = False
-                queryset_kwargs['status__annotatedByRobot'] = False
-
-        image_results = \
-            Image.objects.filter(source=self.source, **queryset_kwargs)
-
-        return image_results
+        return image_search_kwargs_to_queryset(self.cleaned_data, self.source)
 
 
 class PatchSearchOptionsForm(forms.Form):

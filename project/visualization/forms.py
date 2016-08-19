@@ -1,263 +1,263 @@
-import json
 from django import forms
+from django.contrib.auth.models import User
+from django.core.validators import validate_comma_separated_integer_list
 from django.forms import Form
 from django.forms.fields import ChoiceField, BooleanField
 from django.forms.widgets import HiddenInput
-from annotations.models import LabelGroup, Label
-from images.models import Source, Metadata, Image
-from images.utils import get_aux_metadata_form_choices, update_filter_args_specifying_aux_metadata, get_num_aux_fields, get_aux_label, get_aux_field_name, get_aux_field_names
-from lib.forms import clean_comma_separated_image_ids_field
+
+from accounts.utils import get_robot_user
+from annotations.models import LabelGroup, Label, Annotation
+from images.models import Source, Metadata, Image, Point
+from images.utils import get_aux_metadata_form_choices, get_num_aux_fields, get_aux_label, get_aux_field_name
 
 
-class YearModelChoiceField(forms.ModelChoiceField):
-    def label_from_instance(self, Metadata):
-        return Metadata.photo_date.year
+class ImageSearchForm(forms.Form):
 
+    def __init__(self, *args, **kwargs):
 
-class ImageLocationValueForm(forms.Form):
+        self.source = kwargs.pop('source')
+        has_annotation_status = kwargs.pop('has_annotation_status')
+        super(ImageSearchForm, self).__init__(*args, **kwargs)
 
-    def __init__(self,source_id,*args,**kwargs):
-
-        super(ImageLocationValueForm,self).__init__(*args,**kwargs)
-        source = Source.objects.get(id=source_id)
-
-        # year
-
-        metadatas = Metadata.objects.filter(image__source=source).distinct().dates('photo_date', 'year')
-        years = []
-        for metadata in metadatas:
-            if metadata:
-                if not metadata.year in years:
-                    years.append(metadata.year)
+        # Year
+        metadatas = Metadata.objects.filter(image__source=self.source)
+        years = [date.year for date in metadatas.dates('photo_date', 'year')]
 
         self.fields['year'] = ChoiceField(
-            choices=[('all',"All")] + [(year,year) for year in years] + [('none', '(None)')],
+            # A value of '' will denote that we're not filtering by year.
+            # Basically it's like we're not using this field, so an empty
+            # value makes the most sense.
+            #
+            # A value of '(none)' will denote that we want images that don't
+            # specify a year in their metadata.
+            # We can't denote this with a Python None value, because that
+            # becomes '' in the rendered dropdown, which conflicts with the
+            # above.
+            # So we'll use the value '(all)', which seems reasonably unlikely
+            # to conflict with other values in these dropdowns.
+            choices=(
+                [('', "All")]
+                + [(year,year) for year in years]
+                + [('(none)', "(None)")]
+            ),
             required=False
         )
 
-        # aux1, aux2, etc.
-
+        # Aux1, Aux2, etc.
         for n in range(1, get_num_aux_fields()+1):
-            aux_label = get_aux_label(source, n)
+            aux_label = get_aux_label(self.source, n)
             aux_field_name = get_aux_field_name(n)
 
-            choices = [('all', 'All')]
-            choices += get_aux_metadata_form_choices(source, n)
-            choices.append(('none', '(None)'))
+            choices = (
+                [('', "All")]
+                + get_aux_metadata_form_choices(self.source, n)
+                + [('(none)', "(None)")]
+            )
 
             self.fields[aux_field_name] = forms.ChoiceField(
-                choices,
+                choices=choices,
                 label=aux_label,
                 required=False,
             )
 
+        # Annotation status
+        if has_annotation_status:
+            status_choices = [('', "All"), ('confirmed', "Confirmed")]
+            if self.source.enable_robot_classifier:
+                status_choices.append(('unconfirmed', "Unconfirmed"))
+            status_choices.append(('unclassified', "Unclassified"))
 
-class BrowseSearchForm(ImageLocationValueForm):
+            self.fields['annotation_status'] = forms.ChoiceField(
+                choices=status_choices,
+                required=False,
+            )
 
-    STATUS_NEEDS_ANNOTATION = 'n'
-    STATUS_UNCONFIRMED = 'm'
-    STATUS_CONFIRMED = 'h'
-    STATUS_ANNOTATED = 'a'
+    def get_images(self):
+        """
+        Call this after cleaning the form to get the image search results
+        specified by the fields.
+        """
+        data = self.cleaned_data
+        queryset_kwargs = dict()
 
-    page_view = forms.ChoiceField(
-        choices=[],  # Will be filled in by __init__()
-        initial='images',
-        widget=forms.widgets.RadioSelect(),
-        required=False,
-    )
-
-    annotated_by = forms.ChoiceField(
-        label="Annotation made by",
-        choices=[('human','Human'), ('machine','Machine'), ('either','Human or Machine')],
-        required=False,
-    )
-        
-    def __init__(self, source_id, metadata_view_available, *args, **kwargs):
-
-        ImageLocationValueForm.__init__(self, source_id,*args,**kwargs)
-        source = Source.objects.get(id=source_id)
-
-        # page_view - add choices depending on whether the metadata view
-        # should be available
-
-        if metadata_view_available:
-            self.fields['page_view'].choices = \
-                ('images','Images'), ('metadata','Metadata'), ('patches','Annotation Patches')
+        # Year
+        if data['year'] == '':
+            # Don't filter by year
+            pass
+        elif data['year'] == '(none)':
+            # Get images with no photo date specified
+            queryset_kwargs['metadata__photo_date'] = None
         else:
-            self.fields['page_view'].choices = \
-                ('images','Images'), ('patches','Annotation Patches')
+            # Filter by the given year
+            queryset_kwargs['metadata__photo_date__year'] = int(data['year'])
 
-        # labels
+        # Aux1, Aux2, etc.
+        for n in range(1, get_num_aux_fields() + 1):
+            aux_field_name = get_aux_field_name(n)
 
+            if data[aux_field_name] == '':
+                # Don't filter by this aux field
+                pass
+            elif data[aux_field_name] == '(none)':
+                # Get images with an empty aux value
+                queryset_kwargs['metadata__' + aux_field_name] = ''
+            else:
+                # Filter by the given non-empty aux value
+                queryset_kwargs['metadata__' + aux_field_name] = \
+                    data[aux_field_name]
+
+        # Annotation status
+        if 'annotation_status' in data:
+            if data['annotation_status'] == '':
+                # Don't filter
+                pass
+            elif data['annotation_status'] == 'confirmed':
+                queryset_kwargs['status__annotatedByHuman'] = True
+            elif data['annotation_status'] == 'unconfirmed':
+                queryset_kwargs['status__annotatedByHuman'] = False
+                queryset_kwargs['status__annotatedByRobot'] = True
+            elif data['annotation_status'] == 'unclassified':
+                queryset_kwargs['status__annotatedByHuman'] = False
+                queryset_kwargs['status__annotatedByRobot'] = False
+
+        image_results = \
+            Image.objects.filter(source=self.source, **queryset_kwargs)
+
+        return image_results
+
+
+class PatchSearchOptionsForm(forms.Form):
+
+    def __init__(self, *args, **kwargs):
+
+        source = kwargs.pop('source')
+        super(PatchSearchOptionsForm, self).__init__(*args, **kwargs)
+
+        # Label
         if source.labelset is None:
             label_choices = Label.objects.none()
         else:
             label_choices = source.labelset.labels.all()
         self.fields['label'] = forms.ModelChoiceField(
-            label_choices,
+            queryset=label_choices,
             required=False,
+            empty_label="All",
         )
 
-        # image_status
-
-        status_choices = [
-            ('all', 'All'),
-            (BrowseSearchForm.STATUS_NEEDS_ANNOTATION,'Needs annotation')
-        ]
+        # Annotation status
+        status_choices = [('', "All"), ('confirmed', "Confirmed")]
         if source.enable_robot_classifier:
-            status_choices.extend([
-                (BrowseSearchForm.STATUS_UNCONFIRMED, 'Unconfirmed'),
-                (BrowseSearchForm.STATUS_CONFIRMED, 'Confirmed'),
-            ])
-        else:
-            status_choices.append((BrowseSearchForm.STATUS_ANNOTATED, 'Annotated'))
+            status_choices.append(('unconfirmed', "Unconfirmed"))
 
-        self.fields['image_status'] = forms.ChoiceField(
-            label="Image's annotation status",
+        self.fields['annotation_status'] = forms.ChoiceField(
             choices=status_choices,
             required=False,
         )
 
-        # group the fields
-
-        self.field_groups = dict(
-            location_values=[self[name] for name in [
-                'year', 'aux1', 'aux2', 'aux3', 'aux4', 'aux5']
-                if name in self.fields
-            ],
-            image_patch_view=[self[name] for name in ['label', 'annotated_by']],
-            image_or_metadata_view=[self[name] for name in ['image_status']],
+        # Annotator
+        confirmed_annotations = \
+            Annotation.objects.filter(source=source) \
+            .exclude(user=get_robot_user())
+        annotator_choices = \
+            User.objects.filter(annotation__in=confirmed_annotations) \
+            .order_by('username') \
+            .distinct()
+        self.fields['annotator'] = forms.ModelChoiceField(
+            queryset=annotator_choices,
+            required=False,
+            empty_label="All",
         )
 
+    def get_patches(self, image_results):
+        """
+        Call this after cleaning the form to get the patch search results
+        specified by the fields, within the specified images.
+        """
+        data = self.cleaned_data
 
-class ImageSpecifyForm(forms.Form):
+        # Only get patches corresponding to annotated points of the
+        # given images.
+        patch_results = \
+            Point.objects.filter(image__in=image_results) \
+            .exclude(annotation=None)
 
-    # Images can be specified in one of two ways. This selects which way.
-    specify_method = forms.ChoiceField(
-        choices=(
-            ('search_keys', ''),
-            ('image_ids', ''),
-        ),
+        # Empty value is None for ModelChoiceFields, '' for other fields.
+        # (If we could use None for every field, we would, but there seems to
+        # be no way to do that with plain ChoiceFields out of the box.)
+        #
+        # An empty value for these fields means we're not filtering
+        # by the field.
+
+        if data['label'] is not None:
+            patch_results = patch_results.filter(
+                annotation__label=data['label'])
+
+        if data['annotation_status'] == 'unconfirmed':
+            patch_results = patch_results.filter(
+                annotation__user=get_robot_user())
+        elif data['annotation_status'] == 'confirmed':
+            patch_results = patch_results.exclude(
+                annotation__user=get_robot_user())
+
+        # This option doesn't really make sense if filtering status as
+        # 'unconfirmed', but not a big deal if the user does a search
+        # like that. It'll just get 0 results.
+        if data['annotator'] is not None:
+            patch_results = patch_results.filter(
+                annotation__user=data['annotator'])
+
+        return patch_results
+
+
+class ImageSpecifyByIdForm(forms.Form):
+
+    ids = forms.CharField(
         widget=HiddenInput(),
-    )
-
-    # String that specifies images according to the specify_method.
-    specify_str = forms.CharField(widget=HiddenInput())
-
+        validators=[validate_comma_separated_integer_list])
 
     def __init__(self, *args, **kwargs):
-
         self.source = kwargs.pop('source')
-        super(ImageSpecifyForm,self).__init__(*args, **kwargs)
+        super(ImageSpecifyByIdForm,self).__init__(*args, **kwargs)
 
-    def clean_specify_str(self):
+    def clean_ids(self):
+        id_str_list = self.cleaned_data['ids'].split(',')
+        id_list = []
 
-        if self.cleaned_data['specify_method'] == 'search_keys':
+        for img_id in id_str_list:
+            try:
+                id_num = int(img_id)
+            except ValueError:
+                # Not an int for some reason. Just skip this faulty id.
+                continue
 
-            # Load the dict of search keys from the string input.
-            search_keys_dict_raw = json.loads(self.cleaned_data['specify_str'])
+            # Check that these ids correspond to images in the source (not to
+            # images of other sources).
+            # This ensures that any attempt to forge POST data to specify
+            # other sources' image ids will not work.
+            try:
+                Image.objects.get(pk=id_num, source=self.source)
+            except Image.DoesNotExist:
+                # The image either doesn't exist or isn't in this source.
+                # Skip it.
+                continue
 
-            # Get rid of search keys with the values:
-            # - 'all', which indicates that we shouldn't filter by that key
-            # - u'', a missing argument, which we could get by e.g.
-            # landing on the Browse page and then clicking the page 2 link
-            search_keys_dict = dict()
-            for k,v in search_keys_dict_raw.iteritems():
-                if v == 'all' or v == u'':
-                    continue
-                search_keys_dict[k] = v
+            id_list.append(id_num)
 
-            # Go over each search key/value from the form input, and turn
-            # those into image queryset filters.
-            filter_args = dict()
-
-            for k,v in search_keys_dict.iteritems():
-
-                if k in get_aux_field_names():
-
-                    # aux1, aux2, ..., aux5
-                    aux_field_number = k[-1]
-                    if v == 'none':
-                        # Search for images with no ValueN object.
-                        update_filter_args_specifying_aux_metadata(
-                            filter_args, aux_field_number, '')
-                    else:
-                        # Search for images with the ValueN object of
-                        # the given database id.
-                        update_filter_args_specifying_aux_metadata(
-                            filter_args, aux_field_number, v)
-
-                elif k == 'year':
-
-                    if v == 'none':
-                        # Search for images with no photo date.
-                        filter_args['metadata__photo_date'] = None
-                    else:
-                        # Search for images with a photo date of the
-                        # given year.
-                        filter_args['metadata__photo_date__year'] = int(v)
-
-
-                elif k == 'image_status':
-
-                    # annotation status (by human, or by robot).
-                    #
-                    # This field should ONLY be here if not searching in
-                    # patch mode.
-                    if self.source.enable_robot_classifier:
-                        if v == BrowseSearchForm.STATUS_NEEDS_ANNOTATION:
-                            filter_args['status__annotatedByHuman'] = False
-                            filter_args['status__annotatedByRobot'] = False
-                        elif v == BrowseSearchForm.STATUS_UNCONFIRMED:
-                            filter_args['status__annotatedByHuman'] = False
-                            filter_args['status__annotatedByRobot'] = True
-                        elif v == BrowseSearchForm.STATUS_CONFIRMED:
-                            filter_args['status__annotatedByHuman'] = True
-                        # else, don't filter
-                    else:
-                        if v == BrowseSearchForm.STATUS_NEEDS_ANNOTATION:
-                            filter_args['status__annotatedByHuman'] = False
-                        elif v == BrowseSearchForm.STATUS_ANNOTATED:
-                            filter_args['status__annotatedByHuman'] = True
-                        # else, don't filter
-
-                else:
-
-                    # if there are any unknown args, ignore them
-                    pass
-
-            self.cleaned_data['specify_str'] = filter_args
-
-        else:  # 'image_ids'
-
-            self.cleaned_data['specify_str'] = \
-                clean_comma_separated_image_ids_field(
-                    self.cleaned_data['specify_str'],
-                    self.source,
-                )
-
-        return self.cleaned_data['specify_str']
+        return id_list
 
     def get_images(self):
         """
         Call this after cleaning the form to get the images
         specified by the fields.
         """
-        if self.cleaned_data['specify_method'] == 'search_keys':
-
-            search_keys_as_filter_args = self.cleaned_data['specify_str']
-            return Image.objects.filter(source=self.source, **search_keys_as_filter_args)
-
-        else:  # 'image_ids'
-
-            image_ids = self.cleaned_data['specify_str']
-            return Image.objects.filter(source=self.source, pk__in=image_ids)
+        return Image.objects.filter(
+            source=self.source, pk__in=self.cleaned_data['ids'])
 
 
-class ImageBatchDeleteForm(ImageSpecifyForm):
+# TODO: Figure out what to do with these
+class ImageBatchDeleteForm(ImageSearchForm):
     pass
-
-class ImageBatchDownloadForm(ImageSpecifyForm):
+class ImageBatchDownloadForm(ImageSearchForm):
     pass
 
 

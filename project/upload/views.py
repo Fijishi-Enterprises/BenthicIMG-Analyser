@@ -16,11 +16,11 @@ from images.utils import metadata_obj_to_dict, get_aux_labels, \
 from lib.decorators import source_permission_required
 from lib.exceptions import FileProcessError
 from lib.utils import filesize_display
+from visualization.forms import ImageSpecifyByIdForm
 from .forms import MultiImageUploadForm, ImageUploadForm, CSVImportForm
 from .utils import upload_image_process, find_dupe_image,\
     metadata_csv_to_dict, annotations_csv_to_dict, \
     annotations_preview, metadata_preview
-from visualization.forms import ImageSpecifyForm
 
 
 @source_permission_required('source_id', perm=Source.PermTypes.EDIT.code)
@@ -54,10 +54,8 @@ def upload_images(request, source_id):
     source = get_object_or_404(Source, id=source_id)
 
     images_form = MultiImageUploadForm()
-    proceed_to_manage_metadata_form = ImageSpecifyForm(
-        initial=dict(specify_method='image_ids'),
-        source=source,
-    )
+    # TODO: Check that this still works
+    proceed_to_manage_metadata_form = ImageSpecifyByIdForm(source=source)
 
     auto_generate_points_message = (
         "We will generate points for the images you upload.\n"

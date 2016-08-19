@@ -23,7 +23,7 @@ from annotations.model_utils import AnnotationAreaUtils
 from annotations.models import LabelGroup, Label, LabelSet
 from annotations.utils import image_annotation_area_is_editable, image_has_any_human_annotations
 from lib.decorators import source_permission_required, image_visibility_required, image_permission_required, source_visibility_required
-from visualization.forms import BrowseSearchForm
+
 
 def source_list(request):
     """
@@ -178,6 +178,7 @@ def source_main(request, source_id):
 
     all_images = source.get_all_images()
     latest_images = all_images.order_by('-upload_date')[:3]
+    # TODO: Fix this browse url stuff
     browse_url_base = reverse('visualize_source', args=[source.id])
 
     image_stats = dict(

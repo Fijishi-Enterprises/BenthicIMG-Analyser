@@ -253,14 +253,14 @@ def label_main(request, label_id):
         .order_by('?')[:5]
 
     for anno in example_annotations:
-        generate_patch_if_doesnt_exist(anno)
+        generate_patch_if_doesnt_exist(anno.point)
 
     patches = [
         dict(
             annotation=a,
             fullImage=a.image,
             source=a.image.source,
-            url=get_patch_url(a.id),
+            url=get_patch_url(a.point.pk),
             row=a.point.row,
             col=a.point.column,
             pointNum=a.point.point_number,

@@ -1,0 +1,98 @@
+{% extends "images/base_source.html" %}
+{% load thumbnail %}
+{% load guardian_tags %}
+{% load common_tags %}
+
+{% block title %}{{ source.name }} - Browse Patches | CoralNet{% endblock %}
+{% block js-includes %}
+    {% include "javascript-includes.html" with jquery_ui="yes" %}
+{% endblock %}
+
+{% block page-specific-includes %}
+    {# TODO: Check if needed #}
+{#    {% include "static-local-include.html" with type="js" path="js/VisSearchFormHelper.js" %}#}
+    {# TODO: Check if needed #}
+{#    {% include "static-local-include.html" with type="js" path="js/ImageBatchActionFormHelper.js" %}#}
+  {% include "static-local-include.html" with type="css" path="css/visualize_source.css" %}
+{% endblock %}
+
+{% block content %}
+
+    <legend>Browse Patches</legend>
+
+    <div class="tutorial-message">
+      {% include "visualization/help_browse.html" %}
+    </div>
+    
+    {# Search form #}
+    <div id="search-form-box" class="box">
+      <form action="" method="get" id="id_search_form">
+
+        {% with image_form=image_search_form patch_form=patch_search_form %}
+
+          {{ image_form.year.label }}: {{ image_form.year }}
+          {{ image_form.aux1.label }}: {{ image_form.aux1 }}
+          {{ image_form.aux2.label }}: {{ image_form.aux2 }}
+          {{ image_form.aux3.label }}: {{ image_form.aux3 }}
+          {{ image_form.aux4.label }}: {{ image_form.aux4 }}
+          {{ image_form.aux5.label }}: {{ image_form.aux5 }}
+          <br/>
+          {{ patch_form.label.label }}: {{ patch_form.label }}
+          {{ patch_form.annotation_status.label }}:
+            {{ patch_form.annotation_status }}
+          {{ patch_form.annotator.label }}: {{ patch_form.annotator }}
+
+        {% endwith %}
+
+        <div class="submit_button_wrapper_center">
+          <input type='submit' value="Search">
+        </div>
+      </form>
+    </div>
+
+    {# Grid of patches #}
+    {% for patch in patches %}
+      <span class="thumb_wrapper">
+        <a href="{% url 'annotation_tool' patch.image.pk %}">
+          <img class="thumb"
+               src="{{ patch.thumbnail_url }}"
+               title="Point {{ patch.point_number }} ({{ patch.row }},{{ patch.col }}) in: {{ patch.image.get_image_element_title }}"/>
+        </a>
+      </span>
+    {% endfor %}
+
+    {% if page_results.paginator.count == 0 %}
+      {{ empty_message }}
+    {% else %}
+      {# Pagination info and links #}
+      <div class="pagination">
+        <span>
+          Showing {{ page_results.start_index }}-{{ page_results.end_index }}
+          of {{ page_results.paginator.count }}
+        </span>
+        <br />
+        <br />
+        <span class="step-links">
+          {% if prev_page_link %}
+            <a href="{{ prev_page_link }}">&lt;</a>
+          {% endif %}
+
+          <span class="current">
+            Page {{ page_results.number }} of {{ page_results.paginator.num_pages }}
+          </span>
+
+          {% if next_page_link %}
+            <a href="{{ next_page_link }}">&gt;</a>
+          {% endif %}
+        </span>
+      </div>
+    {% endif %}
+
+    {# Script in the body will run on page load. #}
+    <script type="text/javascript">
+      {# TODO: Add Javascript which prevents passing empty search arguments #}
+      {# upon search submission (thus keeping the URL concise) #}
+      {# http://stackoverflow.com/questions/8029532/ #}
+    </script>
+
+{% endblock %}

@@ -1,0 +1,66 @@
+{% extends "images/base_source.html" %}
+{% load thumbnail %}
+{% load guardian_tags %}
+{% load common_tags %}
+
+{% block title %}{{ source.name }} - Edit Metadata | CoralNet{% endblock %}
+{% block js-includes %}
+    {% include "javascript-includes.html" with jquery_ui="yes" %}
+{% endblock %}
+
+{% block page-specific-includes %}
+  {# TODO: Check if needed #}
+{#  {% include "static-local-include.html" with type="js" path="js/VisSearchFormHelper.js" %}#}
+  {# TODO: Check if needed #}
+{#  {% include "static-local-include.html" with type="js" path="js/ImageBatchActionFormHelper.js" %}#}
+  {% include "static-local-include.html" with type="js" path="js/ImageMetadataFormHelper.js" %}
+  {% include "static-local-include.html" with type="css" path="css/visualize_source.css" %}
+{% endblock %}
+
+{% block content %}
+
+    <legend>Edit Metadata</legend>
+
+    <div class="tutorial-message">
+      {% include "visualization/help_browse.html" %}
+    </div>
+    
+    {# Search form #}
+    <div id="search-form-box" class="box">
+      <form action="" method="get" id="id_search_form">
+
+        {% with form=image_search_form %}
+
+          {{ form.year.label }}: {{ form.year }}
+          {{ form.aux1.label }}: {{ form.aux1 }}
+          {{ form.aux2.label }}: {{ form.aux2 }}
+          {{ form.aux3.label }}: {{ form.aux3 }}
+          {{ form.aux4.label }}: {{ form.aux4 }}
+          {{ form.aux5.label }}: {{ form.aux5 }}
+          <br/>
+          {{ form.annotation_status.label }}: {{ form.annotation_status }}
+
+        {% endwith %}
+
+        <div class="submit_button_wrapper_center">
+          <input type='submit' value="Search">
+        </div>
+      </form>
+    </div>
+
+    {% if num_images == 0 %}
+      {{ empty_message }}
+    {% else %}
+      {% include "visualization/metadata_form.html" with metadata_formset=metadata_formset metadata_rows=metadata_rows select_all_form=select_all_form num_images=num_images %}
+    {% endif %}
+
+    {# Script in the body will run on page load. #}
+    <script type="text/javascript">
+      {% if num_images > 0 %}
+        initMetadataForm({
+            metadataSaveAjaxUrl: '{% url 'metadata_edit_ajax' source.id %}'
+        });
+      {% endif %}
+    </script>
+
+{% endblock %}

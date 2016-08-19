@@ -1142,17 +1142,6 @@ span.thumb_wrapper {
     /* Effective height of <max image height in row, including border>+11px+11px */
 }
 
-span.thumb_small_wrapper {
-    display: inline-block;
-    text-align: center;
-
-    width: 100px;
-    padding: 10px;  /* Total width of 100px+10px+10px = 120px */
-
-    /* Effective height of <max image height in row, including border>+10px+10px */
-}
-
-
 span.thumb_large_wrapper {
     display: inline-block;
     text-align: center;
@@ -1174,15 +1163,6 @@ span.thumb_front_wrapper {
 
 img.thumb {
     vertical-align: middle;
-}
-img.thumb.confirmed, img.thumb.annotated {
-    border: 4px #00CC00 solid;
-}
-img.thumb.unconfirmed {
-    border: 4px #FF9900 solid;
-}
-img.thumb.needs_annotation {
-    border: 4px #CC4444 solid;
 }
 
 img.thumb_small {

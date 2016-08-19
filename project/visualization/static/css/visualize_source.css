@@ -1,37 +1,50 @@
-#id_search_form div.form_item_wrapper {
-    display: inline-block;
-    margin: 0 10px;
-    border: 0;
-}
+/* Some form/field rules to make styling a bit cleaner compared to
+ using master.css. */
+/* TODO: Merge some of these rules into master.css? */
 
-#id_search_form label {
+div.box {
+    padding: 10px;
+    margin: 10px 0;
+
+    background-color: #e0e0e0;
+    border: 1px solid #000000;
+    border-radius: 5px;
+}
+div#search-form-box {
+    width: 800px;
+
+    /* Center horizontally */
+    margin: 10px auto;
+}
+form {
+    margin: 0;
+    padding: 0;
+    width: auto;
+}
+label {
     width: auto;
 }
 
-/* Page-view radio button styling. Django 1.3 and below
-makes radio buttons use li elements. */
-#id_page_view_wrapper .field_wrapper label {
-    margin: 0 5px;  /* top/bottom left/right */
+
+/* Image/patch thumbnail grid, indicating annotation status. */
+img.thumb.confirmed, img.thumb.annotated {
+    border: 4px #00CC00 solid;
 }
-#id_page_view_wrapper .field_wrapper li {
-    display: inline;
+img.thumb.unconfirmed {
+    border: 4px #FF9900 solid;
+}
+img.thumb.needs_annotation {
+    border: 4px #CC4444 solid;
 }
 
+
+/* Edit-metadata form. */
 #id_metadata_form input[type="text"].changed {
     border-color: blue;
 }
 #id_metadata_form input[type="text"].error {
     border-color: red;
 }
-
-/* Differentiate certain parts of the page from others with a colored box.
-   Maybe this could be used throughout the site, not just here. */
-form.box {
-    background-color: #e0e0e0;
-    border: 1px solid #000000;
-    border-radius: 5px;
-}
-
 textarea {
     /* Make this fit better in a grid (at the expense of ease of editing). */
     width: 200px;

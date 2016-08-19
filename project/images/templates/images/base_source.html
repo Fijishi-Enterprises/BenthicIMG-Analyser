@@ -15,18 +15,37 @@
 
     <div class="nav_container" id="nav_second_container">
       <ul class="nav nav_right" id="nav_source">
-        <li><a href="{% url 'source_main' source.id %}"><span>{% trans 'Source' %}</span></a></li>
         {% get_obj_perms user for source as "source_perms" %}
+
         {% if "source_admin" in source_perms %}
-          <li><a href="{% url 'source_admin' source.id %}"><span>{% trans 'Admin' %}</span></a></li>
+          <li><a href="{% url 'source_admin' source.id %}">
+            <span>Admin</span></a></li>
         {% endif %}
+
         {% if "source_edit" in source_perms %}
-          <li><a href="{% url 'upload_portal' source.id %}"><span>{% trans 'Upload' %}</span></a></li>
+          <li><a href="{% url 'upload_portal' source.id %}">
+            <span>Upload</span></a></li>
         {% endif %}
-        <li><a href="{% url 'visualize_source' source.id %}"><span>{% trans 'Browse' %}</span></a></li>
-        <li><a href="{% url 'statistics' source.id %}"><span>{% trans 'Statistics' %}</span></a></li>
-        <li><a href="{% url 'export_menu' source.id %}"><span>{% trans 'Export' %}</span></a></li>
-        <li><a href="{% url 'labelset_main' source.id %}"><span>{% trans 'LabelSet' %}</span></a></li>
+
+        {% if "source_edit" in source_perms %}
+          <li><a href="{% url 'edit_metadata' source.id %}">
+            <span>Metadata</span></a></li>
+        {% endif %}
+
+        <li><a href="{% url 'labelset_main' source.id %}">
+          <span>Labelset</span></a></li>
+
+        <li><a href="{% url 'browse_images' source.id %}">
+          <span>Browse</span></a></li>
+
+        <li><a href="{% url 'browse_patches' source.id %}">
+          <span>Patches</span></a></li>
+
+        <li><a href="{% url 'statistics' source.id %}">
+          <span>Statistics</span></a></li>
+
+        <li><a href="{% url 'export_menu' source.id %}">
+          <span>Export</span></a></li>
       </ul>
     </div>
 {% endblock %}

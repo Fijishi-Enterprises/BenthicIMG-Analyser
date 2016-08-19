@@ -5,7 +5,7 @@ This is a template that is used to render a form for editing metadata
 <form method="post" id="id_metadata_form">{% csrf_token %}
     {{ metadata_formset.management_form }}
 
-    {% for field in selectAllForm %}
+    {% for field in select_all_form %}
         {{ field }}
     {% endfor %}
 
@@ -77,7 +77,7 @@ This is a template that is used to render a form for editing metadata
     {# TODO: Might want to re-use this style for separating text divs from #}
     {# surrounding elements, in general #}
     <div style="margin: 5px 0">
-        Showing {{ num_of_total_results }} image results
+        Showing {{ num_images }} image results
     </div>
 
     <button type="button" class="submit" id="id_metadata_form_save_button">

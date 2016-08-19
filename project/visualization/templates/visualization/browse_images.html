@@ -1,0 +1,95 @@
+{% extends "images/base_source.html" %}
+{% load thumbnail %}
+{% load guardian_tags %}
+{% load common_tags %}
+
+{% block title %}{{ source.name }} - Browse Images | CoralNet{% endblock %}
+{% block js-includes %}
+    {% include "javascript-includes.html" with jquery_ui="yes" %}
+{% endblock %}
+
+{% block page-specific-includes %}
+    {# TODO: Check if needed #}
+{#    {% include "static-local-include.html" with type="js" path="js/VisSearchFormHelper.js" %}#}
+    {# TODO: Check if needed #}
+{#    {% include "static-local-include.html" with type="js" path="js/ImageBatchActionFormHelper.js" %}#}
+  {% include "static-local-include.html" with type="css" path="css/visualize_source.css" %}
+{% endblock %}
+
+{% block content %}
+
+    <legend>Browse Images</legend>
+
+    <div class="tutorial-message">
+      {% include "visualization/help_browse.html" %}
+    </div>
+    
+    {# Search form #}
+    <div id="search-form-box" class="box">
+      <form action="" method="get" id="id_search_form">
+
+        {% with form=image_search_form %}
+
+          {{ form.year.label }}: {{ form.year }}
+          {{ form.aux1.label }}: {{ form.aux1 }}
+          {{ form.aux2.label }}: {{ form.aux2 }}
+          {{ form.aux3.label }}: {{ form.aux3 }}
+          {{ form.aux4.label }}: {{ form.aux4 }}
+          {{ form.aux5.label }}: {{ form.aux5 }}
+          <br/>
+          {{ form.annotation_status.label }}: {{ form.annotation_status }}
+
+        {% endwith %}
+
+        <div class="submit_button_wrapper_center">
+          <input type='submit' value="Search">
+        </div>
+      </form>
+    </div>
+
+    {# Grid of images #}
+    {% for image in page_results.object_list %}
+      <span class="thumb_wrapper">
+        <a href="{% url 'image_detail' image.pk %}">
+          <img class="thumb {{ image.get_annotation_status_code }}"
+            src="{% thumbnail image.original_file 150x150 %}"
+            title="{{ image.get_image_element_title }} - {{ image.get_annotation_status_str }}"/>
+        </a>
+      </span>
+    {% endfor %}
+
+    {% if page_results.paginator.count == 0 %}
+      {{ empty_message }}
+    {% else %}
+      {# Pagination info and links #}
+      <div class="pagination">
+        <span>
+          Showing {{ page_results.start_index }}-{{ page_results.end_index }}
+          of {{ page_results.paginator.count }}
+        </span>
+        <br />
+        <br />
+        <span class="step-links">
+          {% if prev_page_link %}
+            <a href="{{ prev_page_link }}">&lt;</a>
+          {% endif %}
+
+          <span class="current">
+            Page {{ page_results.number }} of {{ page_results.paginator.num_pages }}
+          </span>
+
+          {% if next_page_link %}
+            <a href="{{ next_page_link }}">&gt;</a>
+          {% endif %}
+        </span>
+      </div>
+    {% endif %}
+
+    {# Script in the body will run on page load. #}
+    <script type="text/javascript">
+      {# TODO: Add Javascript which prevents passing empty search arguments #}
+      {# upon search submission (thus keeping the URL concise) #}
+      {# http://stackoverflow.com/questions/8029532/ #}
+    </script>
+
+{% endblock %}

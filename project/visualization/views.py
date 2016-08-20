@@ -11,7 +11,7 @@ from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, render
 
 from .forms import StatisticsSearchForm, ImageBatchDeleteForm, ImageBatchDownloadForm, \
-    ImageSearchForm, PatchSearchOptionsForm, ImageSpecifyByIdForm
+    ImageSearchForm, PatchSearchOptionsForm, ImageSpecifyByIdForm, HiddenForm
 from .utils import generate_patch_if_doesnt_exist, get_patch_url, paginate
 from accounts.utils import get_robot_user
 from annotations.models import Annotation, Label, LabelSet, LabelGroup
@@ -378,10 +378,10 @@ def browse_images(request, source_id):
     """
     source = get_object_or_404(Source, id=source_id)
 
-    if request.GET:
+    if request.POST:
         # Search form submitted OR a URL with GET parameters was entered.
         image_search_form = ImageSearchForm(
-            request.GET, source=source, has_annotation_status=True)
+            request.POST, source=source, has_annotation_status=True)
 
         if image_search_form.is_valid():
             image_results = image_search_form.get_images()
@@ -390,28 +390,28 @@ def browse_images(request, source_id):
             image_results = Image.objects.none()
             empty_message = "Search parameters were invalid."
     else:
-        # request.GET is an empty structure
         image_results = Image.objects.filter(source=source)
         image_search_form = ImageSearchForm(
             source=source, has_annotation_status=True)
         empty_message = "No image results."
+
+    hidden_search_form = HiddenForm(forms=[image_search_form])
 
     # TODO: Delete form?
     # TODO: Export form?
 
     image_results = image_results.order_by('metadata__name')
 
-    page_results, prev_page_link, next_page_link = paginate(
+    page_results = paginate(
         image_results,
         settings.BROWSE_DEFAULT_THUMBNAILS_PER_PAGE,
-        request.GET)
+        request.POST)
 
     return render(request, 'visualization/browse_images.html', {
         'source': source,
         'image_search_form': image_search_form,
         'page_results': page_results,
-        'prev_page_link': prev_page_link,
-        'next_page_link': next_page_link,
+        'hidden_search_form': hidden_search_form,
         'empty_message': empty_message,
     })
 
@@ -422,9 +422,6 @@ def edit_metadata(request, source_id):
     Grid of editable metadata fields.
     """
     source = get_object_or_404(Source, id=source_id)
-
-    # TODO: Split up the search form into (1) image specify form and
-    # (2) label, annotated_by. Or use subclasses, or something.
 
     if request.POST and 'image_specify_form_from_upload' in request.POST:
 
@@ -440,11 +437,11 @@ def edit_metadata(request, source_id):
         image_search_form = ImageSearchForm(
             source=source, has_annotation_status=True)
 
-    elif request.GET:
+    elif request.POST:
 
         # Search form submitted OR a URL with GET parameters was entered.
         image_search_form = ImageSearchForm(
-            request.GET, source=source, has_annotation_status=True)
+            request.POST, source=source, has_annotation_status=True)
 
         if image_search_form.is_valid():
             image_results = image_search_form.get_images()
@@ -455,7 +452,6 @@ def edit_metadata(request, source_id):
 
     else:
 
-        # No GET data or recognized POST data
         image_results = Image.objects.filter(source=source)
         image_search_form = ImageSearchForm(
             source=source, has_annotation_status=True)
@@ -514,12 +510,12 @@ def browse_patches(request, source_id):
     """
     source = get_object_or_404(Source, id=source_id)
 
-    if request.GET:
+    if request.POST:
 
         # Search form submitted OR a URL with GET parameters was entered.
         image_search_form = ImageSearchForm(
-            request.GET, source=source, has_annotation_status=False)
-        patch_search_form = PatchSearchOptionsForm(request.GET, source=source)
+            request.POST, source=source, has_annotation_status=False)
+        patch_search_form = PatchSearchOptionsForm(request.POST, source=source)
 
         if image_search_form.is_valid() and patch_search_form.is_valid():
             image_results = image_search_form.get_images()
@@ -531,7 +527,6 @@ def browse_patches(request, source_id):
 
     else:
 
-        # No GET data or recognized POST data
         patch_results = Point.objects.none()
         image_search_form = ImageSearchForm(
             source=source, has_annotation_status=False)
@@ -541,22 +536,20 @@ def browse_patches(request, source_id):
             " corresponding to annotated points."
         )
 
+    hidden_search_form = HiddenForm(
+        forms=[image_search_form, patch_search_form])
+
     # Random order
     patch_results = patch_results.order_by('?')
 
-    page_results, prev_page_link, next_page_link = paginate(
+    page_results = paginate(
         patch_results,
         settings.BROWSE_DEFAULT_THUMBNAILS_PER_PAGE,
-        request.GET)
+        request.POST)
 
     patches = []
     for index, point in enumerate(page_results.object_list):
         generate_patch_if_doesnt_exist(point)
-
-        # TODO
-        # "QuerySet object does not support item assignment"
-        # You'll want to either redefine the whole object_list at once,
-        # or change it from a QuerySet to a mutable list.
         patches.append(dict(
             image=point.image,
             thumbnail_url=get_patch_url(point.id),
@@ -571,8 +564,7 @@ def browse_patches(request, source_id):
         'patch_search_form': patch_search_form,
         'page_results': page_results,
         'patches': patches,
-        'prev_page_link': prev_page_link,
-        'next_page_link': next_page_link,
+        'hidden_search_form': hidden_search_form,
         'empty_message': empty_message,
     })
 

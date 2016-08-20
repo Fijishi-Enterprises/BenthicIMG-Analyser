@@ -1,4 +1,3 @@
-import urllib
 from io import BytesIO
 from django.conf import settings
 from django.core.files.storage import get_storage_class
@@ -11,17 +10,10 @@ from images.utils import get_num_aux_fields, get_aux_field_name
 def image_search_kwargs_to_queryset(search_kwargs, source):
     queryset_kwargs = dict()
 
-    # Year
-    year = search_kwargs.get('year', '')
-    if year == '':
-        # Don't filter by year
-        pass
-    elif year == '(none)':
-        # Get images with no photo date specified
-        queryset_kwargs['metadata__photo_date'] = None
-    else:
-        # Filter by the given year
-        queryset_kwargs['metadata__photo_date__year'] = int(year)
+    # Date
+    date_filter_kwargs = search_kwargs.get('date_filter', None)
+    if date_filter_kwargs:
+        queryset_kwargs.update(date_filter_kwargs)
 
     # Aux1, Aux2, etc.
     for n in range(1, get_num_aux_fields() + 1):
@@ -57,12 +49,13 @@ def image_search_kwargs_to_queryset(search_kwargs, source):
     return image_results
 
 
-def paginate(results, items_per_page, query_args):
+def paginate(results, items_per_page, request_args):
     paginator = Paginator(results, items_per_page)
+    request_args = request_args or dict()
 
     # Make sure page request is an int. If not, deliver first page.
     try:
-        page = int(query_args.get('page', '1'))
+        page = int(request_args.get('page', '1'))
     except ValueError:
         page = 1
 
@@ -72,23 +65,7 @@ def paginate(results, items_per_page, query_args):
     except (EmptyPage, InvalidPage):
         page_results = paginator.page(paginator.num_pages)
 
-    # If there are previous or next pages, construct links to them.
-    # These links include GET parameters in the form of
-    # ?arg1=value1&arg2=value2 etc.
-
-    prev_page_link = None
-    if page_results.has_previous():
-        prev_page_query_args = query_args.copy()
-        prev_page_query_args['page'] = page_results.previous_page_number()
-        prev_page_link = '?' + urllib.urlencode(prev_page_query_args)
-
-    next_page_link = None
-    if page_results.has_next():
-        next_page_query_args = query_args.copy()
-        next_page_query_args['page'] = page_results.next_page_number()
-        next_page_link = '?' + urllib.urlencode(next_page_query_args)
-
-    return page_results, prev_page_link, next_page_link
+    return page_results
 
 
 def get_patch_path(point_id):

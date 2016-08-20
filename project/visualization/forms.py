@@ -2,14 +2,129 @@ from django import forms
 from django.contrib.auth.models import User
 from django.core.validators import validate_comma_separated_integer_list
 from django.forms import Form
-from django.forms.fields import ChoiceField, BooleanField
-from django.forms.widgets import HiddenInput
+from django.forms.fields import ChoiceField, BooleanField, DateField, \
+    MultiValueField, CharField
+from django.forms.widgets import HiddenInput, MultiWidget
 
 from accounts.utils import get_robot_user
 from annotations.models import LabelGroup, Label, Annotation
 from images.models import Source, Metadata, Image, Point
 from images.utils import get_aux_metadata_form_choices, get_num_aux_fields, get_aux_label, get_aux_field_name
 from visualization.utils import image_search_kwargs_to_queryset
+
+
+class DateFilterWidget(MultiWidget):
+
+    def __init__(self, date_filter_field, attrs=None):
+        widgets = (
+            date_filter_field.date_filter_type.widget,
+            date_filter_field.year.widget,
+            date_filter_field.date.widget,
+            date_filter_field.start_date.widget,
+            date_filter_field.end_date.widget,
+        )
+        super(DateFilterWidget, self).__init__(widgets, attrs)
+
+    def decompress(self, value):
+        if value is None:
+            return [
+                'year',
+                None,
+                None,
+                None,
+                None,
+            ]
+
+        queryset_kwargs = value
+
+        if 'metadata__photo_date__year' in queryset_kwargs:
+            return [
+                'year',
+                queryset_kwargs['metadata__photo_date__year'],
+                None,
+                None,
+                None,
+            ]
+
+        if 'metadata__photo_date' in queryset_kwargs:
+            return [
+                'date',
+                None,
+                queryset_kwargs['metadata__photo_date'],
+                None,
+                None,
+            ]
+
+        if 'metadata__photo_date__range' in queryset_kwargs:
+            return [
+                'date_range',
+                None,
+                None,
+                queryset_kwargs['metadata__photo_date__range'][0],
+                queryset_kwargs['metadata__photo_date__range'][1],
+            ]
+
+
+class DateFilterField(MultiValueField):
+    # To be filled in by __init__()
+    widget = None
+
+    date_filter_type = ChoiceField(
+        choices=[
+            ('year', "Year"),
+            ('date', "Date"),
+            ('date_range', "Date range"),
+        ],
+        initial='year',
+        required=True)
+    # To be filled in by __init__()
+    year = None
+    date = DateField(required=False)
+    start_date = DateField(required=False)
+    end_date = DateField(required=False)
+
+    def __init__(self, *args, **kwargs):
+        self.year = ChoiceField(
+            choices=kwargs.pop('year_choices'),
+            required=False,
+        )
+        self.widget = DateFilterWidget(date_filter_field=self)
+
+        self.date.widget.attrs['size'] = 8
+        self.date.widget.attrs['placeholder'] = "Select date"
+        self.start_date.widget.attrs['size'] = 8
+        self.start_date.widget.attrs['placeholder'] = "Start date"
+        self.end_date.widget.attrs['size'] = 8
+        self.end_date.widget.attrs['placeholder'] = "End date"
+
+        super(DateFilterField, self).__init__(
+            fields=[
+                self.date_filter_type,
+                self.year,
+                self.date,
+                self.start_date,
+                self.end_date,
+            ],
+            require_all_fields=False, *args, **kwargs)
+
+    def compress(self, data_list):
+        date_filter_type, year, date, start_date, end_date = data_list
+        queryset_kwargs = dict()
+
+        if date_filter_type == 'year':
+            if not year:
+                pass
+            elif year == '(none)':
+                queryset_kwargs['metadata__photo_date'] = None
+            else:
+                queryset_kwargs['metadata__photo_date__year'] = year
+        elif date_filter_type == 'date':
+            queryset_kwargs['metadata__photo_date'] = date
+        elif date_filter_type == 'date_range':
+            queryset_kwargs['metadata__photo_date__range'] = \
+                [start_date, end_date]
+
+        return queryset_kwargs
 
 
 class ImageSearchForm(forms.Form):
@@ -20,29 +135,26 @@ class ImageSearchForm(forms.Form):
         has_annotation_status = kwargs.pop('has_annotation_status')
         super(ImageSearchForm, self).__init__(*args, **kwargs)
 
-        # Year
+        # Year choices
         metadatas = Metadata.objects.filter(image__source=self.source)
         years = [date.year for date in metadatas.dates('photo_date', 'year')]
 
-        self.fields['year'] = ChoiceField(
-            # A value of '' will denote that we're not filtering by year.
-            # Basically it's like we're not using this field, so an empty
-            # value makes the most sense.
-            #
-            # A value of '(none)' will denote that we want images that don't
-            # specify a year in their metadata.
-            # We can't denote this with a Python None value, because that
-            # becomes '' in the rendered dropdown, which conflicts with the
-            # above.
-            # So we'll use the value '(all)', which seems reasonably unlikely
-            # to conflict with other values in these dropdowns.
-            choices=(
-                [('', "All")]
-                + [(year,year) for year in years]
-                + [('(none)', "(None)")]
-            ),
-            required=False
+        # A value of '' will denote that we're not filtering by year.
+        # Basically it's like we're not using this field, so an empty
+        # value makes the most sense.
+        #
+        # A value of '(none)' will denote that we want images that don't
+        # specify a year in their metadata.
+        # We can't denote this with a Python None value, because that
+        # becomes '' in the rendered dropdown, which conflicts with the
+        # above.
+        year_choices = (
+            [('', "All")]
+            + [(year, year) for year in years]
+            + [('(none)', "(None)")]
         )
+        self.fields['date_filter'] = DateFilterField(
+            label="Date filter", year_choices=year_choices, required=False)
 
         # Aux1, Aux2, etc.
         for n in range(1, get_num_aux_fields()+1):
@@ -207,6 +319,37 @@ class ImageSpecifyByIdForm(forms.Form):
         """
         return Image.objects.filter(
             source=self.source, pk__in=self.cleaned_data['ids'])
+
+
+class HiddenForm(forms.Form):
+    """
+    Takes a list of forms as an init parameter, copies the forms'
+    submitted data, and adds corresponding fields with HiddenInput widgets.
+
+    This is useful if the previous page load submitted form data,
+    and we wish to pass those submitted values to a subsequent request.
+    """
+    def __init__(self, *args, **kwargs):
+        forms = kwargs.pop('forms')
+        super(HiddenForm, self).__init__(*args, **kwargs)
+
+        for form in forms:
+            for name, field in form.fields.items():
+                if isinstance(field, MultiValueField):
+                    # Must look in the MultiValueField's attributes
+                    # to get the actual rendered input fields.
+                    for i, sub_field in enumerate(field.fields):
+                        sub_field_name = '{name}_{i}'.format(name=name, i=i)
+                        self.fields[sub_field_name] = CharField(
+                            initial=form.data.get(
+                                sub_field_name, sub_field.initial),
+                            widget=HiddenInput(),
+                            required=False)
+                else:
+                    self.fields[name] = CharField(
+                        initial=form.data.get(name, field.initial),
+                        widget=HiddenInput(),
+                        required=False)
 
 
 # TODO: Figure out what to do with these

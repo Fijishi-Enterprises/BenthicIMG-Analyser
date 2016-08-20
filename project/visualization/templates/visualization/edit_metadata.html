@@ -5,12 +5,11 @@
 
 {% block title %}{{ source.name }} - Edit Metadata | CoralNet{% endblock %}
 {% block js-includes %}
-    {% include "javascript-includes.html" with jquery_ui="yes" %}
+  {% include "javascript-includes.html" with jquery_ui="yes" %}
 {% endblock %}
 
 {% block page-specific-includes %}
-  {# TODO: Check if needed #}
-{#  {% include "static-local-include.html" with type="js" path="js/VisSearchFormHelper.js" %}#}
+  {% include "static-local-include.html" with type="js" path="js/VisSearchFormHelper.js" %}
   {# TODO: Check if needed #}
 {#  {% include "static-local-include.html" with type="js" path="js/ImageBatchActionFormHelper.js" %}#}
   {% include "static-local-include.html" with type="js" path="js/ImageMetadataFormHelper.js" %}
@@ -27,17 +26,18 @@
     
     {# Search form #}
     <div id="search-form-box" class="box">
-      <form action="" method="get" id="id_search_form">
+      <form action="" method="post" id="id_search_form">
+        {% csrf_token %}
 
         {% with form=image_search_form %}
 
-          {{ form.year.label }}: {{ form.year }}
           {{ form.aux1.label }}: {{ form.aux1 }}
           {{ form.aux2.label }}: {{ form.aux2 }}
           {{ form.aux3.label }}: {{ form.aux3 }}
           {{ form.aux4.label }}: {{ form.aux4 }}
           {{ form.aux5.label }}: {{ form.aux5 }}
           <br/>
+          {{ form.date_filter.label }}: {{ form.date_filter }}
           {{ form.annotation_status.label }}: {{ form.annotation_status }}
 
         {% endwith %}
@@ -56,6 +56,7 @@
 
     {# Script in the body will run on page load. #}
     <script type="text/javascript">
+      BrowseSearchHelper.init('id_search_form');
       {% if num_images > 0 %}
         initMetadataForm({
             metadataSaveAjaxUrl: '{% url 'metadata_edit_ajax' source.id %}'

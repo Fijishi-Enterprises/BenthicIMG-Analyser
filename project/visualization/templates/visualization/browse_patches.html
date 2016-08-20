@@ -5,12 +5,11 @@
 
 {% block title %}{{ source.name }} - Browse Patches | CoralNet{% endblock %}
 {% block js-includes %}
-    {% include "javascript-includes.html" with jquery_ui="yes" %}
+  {% include "javascript-includes.html" with jquery_ui="yes" %}
 {% endblock %}
 
 {% block page-specific-includes %}
-    {# TODO: Check if needed #}
-{#    {% include "static-local-include.html" with type="js" path="js/VisSearchFormHelper.js" %}#}
+  {% include "static-local-include.html" with type="js" path="js/VisSearchFormHelper.js" %}
     {# TODO: Check if needed #}
 {#    {% include "static-local-include.html" with type="js" path="js/ImageBatchActionFormHelper.js" %}#}
   {% include "static-local-include.html" with type="css" path="css/visualize_source.css" %}
@@ -26,16 +25,18 @@
     
     {# Search form #}
     <div id="search-form-box" class="box">
-      <form action="" method="get" id="id_search_form">
+      <form action="" method="post" id="id_search_form">
+        {% csrf_token %}
 
         {% with image_form=image_search_form patch_form=patch_search_form %}
 
-          {{ image_form.year.label }}: {{ image_form.year }}
           {{ image_form.aux1.label }}: {{ image_form.aux1 }}
           {{ image_form.aux2.label }}: {{ image_form.aux2 }}
           {{ image_form.aux3.label }}: {{ image_form.aux3 }}
           {{ image_form.aux4.label }}: {{ image_form.aux4 }}
           {{ image_form.aux5.label }}: {{ image_form.aux5 }}
+          <br/>
+          {{ image_form.date_filter.label }}: {{ image_form.date_filter }}
           <br/>
           {{ patch_form.label.label }}: {{ patch_form.label }}
           {{ patch_form.annotation_status.label }}:
@@ -65,34 +66,12 @@
       {{ empty_message }}
     {% else %}
       {# Pagination info and links #}
-      <div class="pagination">
-        <span>
-          Showing {{ page_results.start_index }}-{{ page_results.end_index }}
-          of {{ page_results.paginator.count }}
-        </span>
-        <br />
-        <br />
-        <span class="step-links">
-          {% if prev_page_link %}
-            <a href="{{ prev_page_link }}">&lt;</a>
-          {% endif %}
-
-          <span class="current">
-            Page {{ page_results.number }} of {{ page_results.paginator.num_pages }}
-          </span>
-
-          {% if next_page_link %}
-            <a href="{{ next_page_link }}">&gt;</a>
-          {% endif %}
-        </span>
-      </div>
+      {% include 'visualization/browse_pagination_info.html' with hidden_search_form=hidden_search_form page_results=page_results %}
     {% endif %}
 
     {# Script in the body will run on page load. #}
     <script type="text/javascript">
-      {# TODO: Add Javascript which prevents passing empty search arguments #}
-      {# upon search submission (thus keeping the URL concise) #}
-      {# http://stackoverflow.com/questions/8029532/ #}
+      BrowseSearchHelper.init('id_search_form');
     </script>
 
 {% endblock %}

@@ -1,45 +1,61 @@
 var BrowseSearchHelper = (function() {
 
-    var $pageViewChoices;
-    var $pageViewPatchesChoice;
-    var $imagePatchViewFieldsWrapper;
-    var $imageOrMetadataViewFieldsWrapper;
+    var $form;
+    var dateFieldNameToIndex = {
+        filter_type: 0,
+        year: 1,
+        date: 2,
+        start_date: 3,
+        end_date: 4
+    };
 
-    var sourceUsesMachineAnnotator;
+    function get$dateField(name) {
+        return $form.find(
+            'input[name=date_filter_{0}], select[name=date_filter_{0}]'.format(
+                dateFieldNameToIndex[name]));
+    }
 
-    function displayStatusOrAnnotatorField() {
-        if ($pageViewPatchesChoice.prop('checked') === true) {
-            // Image patches
-            $imagePatchViewFieldsWrapper.show();
-            $imageOrMetadataViewFieldsWrapper.hide();
+    function onDateFilterTypeChange() {
+        // Show different date sub-fields
+        // according to the filter type value.
+        var value = get$dateField('filter_type').val();
+
+        if (value === 'year') {
+            get$dateField('year').show();
+            get$dateField('date').hide();
+            get$dateField('start_date').hide();
+            get$dateField('end_date').hide();
         }
-        else {
-            // Images or metadata
-            $imagePatchViewFieldsWrapper.hide();
-            $imageOrMetadataViewFieldsWrapper.show();
+        else if (value === 'date') {
+            get$dateField('year').hide();
+            get$dateField('date').show();
+            get$dateField('start_date').hide();
+            get$dateField('end_date').hide();
+        }
+        else if (value === 'date_range') {
+            get$dateField('year').hide();
+            get$dateField('date').hide();
+            get$dateField('start_date').show();
+            get$dateField('end_date').show();
         }
     }
 
     return {
 
-        init: function(sourceUsesMachineAnnotator) {
-            $pageViewChoices = $('#id_page_view_wrapper input[type="radio"]');
-            $pageViewPatchesChoice = $('#id_page_view_wrapper input[value="patches"]');
+        init: function(searchFormId) {
+            $form = $('#'+searchFormId);
 
-            $imagePatchViewFieldsWrapper = $('#id_image_patch_view_fields_wrapper');
-            $imageOrMetadataViewFieldsWrapper = $('#id_image_or_metadata_view_fields_wrapper');
+            // Add a handler.
+            var $dateFilterTypeField = get$dateField('filter_type');
+            $dateFilterTypeField.change(onDateFilterTypeChange);
 
-            // TODO: If this is false, don't show the Annotator field?
-            sourceUsesMachineAnnotator = sourceUsesMachineAnnotator;
+            // Add datepickers.
+            get$dateField('date').datepicker({dateFormat: 'yy-mm-dd'});
+            get$dateField('start_date').datepicker({dateFormat: 'yy-mm-dd'});
+            get$dateField('end_date').datepicker({dateFormat: 'yy-mm-dd'});
 
-            // Based on initial value of the page view field, show one group
-            // of fields or the other.
-            displayStatusOrAnnotatorField();
-
-            // When any of the radio buttons are clicked, show/hide the appropriate fields.
-            $pageViewChoices.click(function() {
-                displayStatusOrAnnotatorField();
-            });
+            // Initialize the date field appearance.
+            onDateFilterTypeChange();
         }
     }
 })();

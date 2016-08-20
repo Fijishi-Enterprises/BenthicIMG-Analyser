@@ -17,6 +17,7 @@ div#search-form-box {
     margin: 10px auto;
 }
 form {
+    display: inline-block;
     margin: 0;
     padding: 0;
     width: auto;
@@ -55,6 +56,29 @@ textarea {
     /* Make the text fields and text areas line up better.
     'baseline' makes them line up weird. */
     vertical-align: middle;
+}
+
+
+input[type=submit].gray {
+    /* Make these input elements look roughly like normal buttons. */
+    /* TODO: Instead of doing THIS much style resetting, perhaps the
+       'standard' submit button should have its own class, instead
+       of just taking over input type=submit in general. */
+    background: hsl(0, 0%, 80%);
+    color: inherit;
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    line-height: inherit;
+    letter-spacing: inherit;
+    text-shadow: none;
+
+    min-width: inherit;
+    height: inherit;
+    border: none;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
 }
 
 

@@ -2,9 +2,9 @@ from io import BytesIO
 from django.conf import settings
 from django.core.files.storage import get_storage_class
 from django.core.paginator import Paginator, EmptyPage, InvalidPage
+import django.db.models.fields as model_fields
 from PIL import Image as PILImage
-from images.models import Point, Image
-from images.utils import get_num_aux_fields, get_aux_field_name
+from images.models import Point, Image, Metadata
 
 
 def image_search_kwargs_to_queryset(search_kwargs, source):
@@ -15,20 +15,28 @@ def image_search_kwargs_to_queryset(search_kwargs, source):
     if date_filter_kwargs:
         queryset_kwargs.update(date_filter_kwargs)
 
-    # Aux1, Aux2, etc.
-    for n in range(1, get_num_aux_fields() + 1):
-        aux_field_name = get_aux_field_name(n)
-
-        aux_value = search_kwargs.get(aux_field_name, '')
-        if aux_value == '':
-            # Don't filter by this aux field
+    # Metadata fields
+    metadata_field_names = [
+        'aux1', 'aux2', 'aux3', 'aux4', 'aux5',
+        'height_in_cm', 'latitude', 'longitude', 'depth',
+        'camera', 'photographer', 'water_quality',
+        'strobes', 'framing', 'balance',
+    ]
+    for field_name in metadata_field_names:
+        value = search_kwargs.get(field_name, '')
+        if value == '':
+            # Don't filter by this field
             pass
-        elif aux_value == '(none)':
-            # Get images with an empty aux value
-            queryset_kwargs['metadata__' + aux_field_name] = ''
+        elif value == '(none)':
+            # Get images with an empty value for this field
+            if isinstance(
+              Metadata._meta.get_field(field_name), model_fields.CharField):
+                queryset_kwargs['metadata__' + field_name] = ''
+            else:
+                queryset_kwargs['metadata__' + field_name] = None
         else:
-            # Filter by the given non-empty aux value
-            queryset_kwargs['metadata__' + aux_field_name] = aux_value
+            # Filter by the given non-empty value
+            queryset_kwargs['metadata__' + field_name] = value
 
     # Annotation status
     annotation_status = search_kwargs.get('annotation_status', '')

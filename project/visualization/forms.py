@@ -135,7 +135,7 @@ class ImageSearchForm(forms.Form):
         has_annotation_status = kwargs.pop('has_annotation_status')
         super(ImageSearchForm, self).__init__(*args, **kwargs)
 
-        # Year choices
+        # Date filter
         metadatas = Metadata.objects.filter(image__source=self.source)
         years = [date.year for date in metadatas.dates('photo_date', 'year')]
 
@@ -156,22 +156,52 @@ class ImageSearchForm(forms.Form):
         self.fields['date_filter'] = DateFilterField(
             label="Date filter", year_choices=year_choices, required=False)
 
-        # Aux1, Aux2, etc.
-        for n in range(1, get_num_aux_fields()+1):
-            aux_label = get_aux_label(self.source, n)
-            aux_field_name = get_aux_field_name(n)
+        # Metadata fields
+        metadata_choice_fields = []
 
-            choices = (
-                [('', "All")]
-                + get_aux_metadata_form_choices(self.source, n)
-                + [('(none)', "(None)")]
+        for n in range(1, get_num_aux_fields()+1):
+            metadata_choice_fields.append(
+                (get_aux_field_name(n), get_aux_label(self.source, n))
+            )
+        non_aux_fields = [
+            'height_in_cm', 'latitude', 'longitude', 'depth',
+            'camera', 'photographer', 'water_quality',
+            'strobes', 'framing', 'balance',
+        ]
+        for field_name in non_aux_fields:
+            metadata_choice_fields.append(
+                (field_name, Metadata._meta.get_field(field_name).verbose_name)
             )
 
-            self.fields[aux_field_name] = forms.ChoiceField(
-                choices=choices,
-                label=aux_label,
+        self.metadata_choice_fields = []
+
+        for field_name, field_label in metadata_choice_fields:
+            choices = Metadata.objects.filter(image__source=self.source) \
+                .order_by(field_name) \
+                .values_list(field_name, flat=True) \
+                .distinct()
+
+            if len(choices) <= 1:
+                # No point in having a dropdown for this
+                continue
+
+            self.fields[field_name] = forms.ChoiceField(
+                label=field_label,
+                choices=(
+                    # Any value
+                    [('', "All")]
+                    # Non-blank values
+                    + [(c, c) for c in choices if c]
+                    # Blank value
+                    + [('(none)', "(None)")]
+                ),
                 required=False,
             )
+
+            # Set this for ease of listing the fields in templates.
+            # self[field_name] seems to be a different field object from
+            # self.fields[field_name], and seems easier to use in templates.
+            self.metadata_choice_fields.append(self[field_name])
 
         # Annotation status
         if has_annotation_status:

@@ -30,11 +30,9 @@
 
         {% with form=image_search_form %}
 
-          {{ form.aux1.label }}: {{ form.aux1 }}
-          {{ form.aux2.label }}: {{ form.aux2 }}
-          {{ form.aux3.label }}: {{ form.aux3 }}
-          {{ form.aux4.label }}: {{ form.aux4 }}
-          {{ form.aux5.label }}: {{ form.aux5 }}
+          {% for field in form.metadata_choice_fields %}
+            {{ field.label }}: {{ field }}
+          {% endfor %}
           <br/>
           {{ form.date_filter.label }}: {{ form.date_filter }}
           {{ form.annotation_status.label }}: {{ form.annotation_status }}

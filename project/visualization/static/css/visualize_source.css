@@ -52,6 +52,11 @@ textarea {
     height: 1.5em;
     margin: 0;
 }
+#metadataFormTable {
+    /* Don't allow descendant elements to word-wrap, including the
+    column headers and the cells in the annotation status column. */
+    white-space: nowrap;
+}
 #metadataFormTable td {
     /* Make the text fields and text areas line up better.
     'baseline' makes them line up weird. */

@@ -9,14 +9,8 @@ This is a template that is used to render a form for editing metadata
         {{ field }}
     {% endfor %}
 
-    <div style="overflow:auto;max-height:500px">
-      <ul>
-        {% for error in metadata_formset.errors %}
-          <li>{{ error }}</li>
-        {% endfor %}
-      </ul>
-
-      <table id="metadataFormTable" style="white-space:nowrap">
+    <div style="overflow:auto; max-height:500px; width:980px;">
+      <table id="metadataFormTable">
         {# Header row #}
         <tr>
           {# This is the checkbox column #}

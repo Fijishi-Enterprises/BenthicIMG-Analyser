@@ -5,6 +5,7 @@ var BrowseSearchHelper = (function() {
 
     var $searchForm;
     var $actionForm;
+    var $actionFormFieldContainer;
     var $actionFormBox;
     var $actionSelectField;
     var $actionSubmitButton;
@@ -58,7 +59,7 @@ var BrowseSearchHelper = (function() {
     }
 
     function addActionFormField(name, value) {
-        $actionForm.append($('<input/>', {
+        $actionFormFieldContainer.append($('<input/>', {
             type: 'hidden',
             name: name,
             value: value
@@ -73,6 +74,9 @@ var BrowseSearchHelper = (function() {
             " You won't be able to undo this.");
     }
     function actionSubmit() {
+        // Clear fields from any previous submit attempts.
+        $actionFormFieldContainer.empty();
+
         var action = $actionSelectField.val();
         var imageSelectType =
             $actionFormBox.find('select[name=image_select_type]').val();
@@ -113,7 +117,14 @@ var BrowseSearchHelper = (function() {
             }
 
             // This will run after deletion is complete.
-            var callback = function() {
+            var callback = function(response) {
+                if (response['error']) {
+                    alert("Error: " + response['error']);
+                    $actionSubmitButton.enable();
+                    $actionSubmitButton.text("Go");
+                    return;
+                }
+
                 // Re-fetch the current browse page.
                 $('#previous-image-form-fields').find('input').each(
                     function () { addActionFormField(this.name, this.value); }
@@ -126,7 +137,7 @@ var BrowseSearchHelper = (function() {
             // Delete images, then once it's done, run the callback.
             //
             // Since the first step is Ajax, let the user know what's going
-            // on and disallow double submission.
+            // on, and disable the button to prevent double submission.
             $actionSubmitButton.disable();
             $actionSubmitButton.text("Deleting...");
             $.post(links['delete'], data, callback);
@@ -158,6 +169,7 @@ var BrowseSearchHelper = (function() {
 
             $actionForm = $('#action-form');
             $actionFormBox = $('#action-form-box');
+            $actionFormFieldContainer = $('#action-form-field-container');
 
             /* Action form. */
             // Add handlers.

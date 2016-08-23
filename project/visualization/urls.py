@@ -9,9 +9,6 @@ urlpatterns = [
     url(r'^patches/$',
         views.browse_patches, name="browse_patches"),
 
-    # TODO: Check if needed
-    #url(r'^(?P<source_id>\d+)/$', views.visualize_source, name="visualize_source"),
-
     url(r'^delete_ajax/$',
         views.browse_delete_ajax, name="browse_delete_ajax"),
     url(r'^edit_metadata_ajax/$',

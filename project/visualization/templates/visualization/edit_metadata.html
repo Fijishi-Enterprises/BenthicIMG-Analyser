@@ -30,7 +30,9 @@
       {% with form=image_search_form %}
 
         {% for field in form.metadata_choice_fields %}
-          {{ field.label }}: {{ field }}
+          {# Put label+field in a div to ensure they stay on the same line. #}
+          <div style="display: inline-block">
+            {{ field.label }}: {{ field }} </div>
         {% endfor %}
         <br/>
         {{ form.date_filter.label }}: {{ form.date_filter }}

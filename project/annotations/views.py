@@ -7,18 +7,18 @@ from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import render, get_object_or_404
 from easy_thumbnails.files import get_thumbnailer
 from reversion.models import Version, Revision
+
 from accounts.utils import get_robot_user, is_robot_user
-import annotations.forms as annotations_forms
-import annotations.utils as annotations_utils
-from annotations.forms import NewLabelForm, NewLabelSetForm, AnnotationForm, AnnotationAreaPixelsForm, AnnotationToolSettingsForm, AnnotationImageOptionsForm
-from annotations.model_utils import AnnotationAreaUtils
-from annotations.models import Label, LabelSet, Annotation, AnnotationToolAccess, AnnotationToolSettings
-from annotations.utils import get_annotation_version_user_display, image_annotation_all_done
 from lib.decorators import source_permission_required, source_visibility_required, image_permission_required, image_annotation_area_must_be_editable, image_labelset_required, login_required_ajax
 from images import task_utils
 from images.models import Source, Image, Point
-from images.utils import generate_points, get_first_image, get_next_image, get_date_and_aux_metadata_table
+from images.utils import generate_points, get_next_image, get_date_and_aux_metadata_table
+from visualization.forms import HiddenForm, process_image_forms
 from visualization.utils import generate_patch_if_doesnt_exist, get_patch_url
+from .model_utils import AnnotationAreaUtils
+from .models import Label, LabelSet, Annotation, AnnotationToolAccess, AnnotationToolSettings
+from .utils import get_annotation_version_user_display, image_annotation_all_done, apply_alleviate
+from .forms import NewLabelForm, NewLabelSetForm, AnnotationForm, AnnotationAreaPixelsForm, AnnotationToolSettingsForm, AnnotationImageOptionsForm, AnnotationToolNavHistoryForm
 
 
 @login_required
@@ -397,90 +397,65 @@ def annotation_area_edit(request, image_id):
 
 
 @image_permission_required('image_id', perm=Source.PermTypes.EDIT.code)
-@image_labelset_required('image_id', message='You need to create a labelset for your source before you can annotate images.')
+@image_labelset_required('image_id', message=(
+    "You need to create a labelset for your source"
+    " before you can annotate images."))
 def annotation_tool(request, image_id):
     """
     View for the annotation tool.
     """
-
     image = get_object_or_404(Image, id=image_id)
     source = image.source
     metadata = image.metadata
 
-
     # Image navigation history.
     # Establish default values for the history, first.
-    nav_history_form =\
-        annotations_forms.AnnotationToolNavHistoryForm(
-            initial=dict(back="[]", forward="[]", from_image_id=image_id)
-        )
+    nav_history_form = AnnotationToolNavHistoryForm(
+        initial=dict(back="[]", forward="[]", from_image_id=image_id),
+    )
     nav_history = dict(
         form=nav_history_form,
         back=None,
         forward=None,
     )
-    # We made a POST request if the user is going to another image,
-    # going back, or going forward.
-    # (It's non-POST if they came from a non annotation tool page, or
-    # came via URL typing.)
-    if request.method == 'POST':
-        nav_history_form_submitted =\
-            annotations_forms.AnnotationToolNavHistoryForm(request.POST)
+
+    if request.POST and 'nav_type' in request.POST:
+        # Coming from the nav form of another image's annotation tool page.
+        nav_history_form_submitted = AnnotationToolNavHistoryForm(request.POST)
+        nav_type = request.POST.get('nav_type')
 
         if nav_history_form_submitted.is_valid():
-            # Nav history is a serialized list of image ids.
-            # For example: "[258,259,268,109]"
-            form_data = nav_history_form_submitted.cleaned_data
-            back_submitted_list = json.loads(form_data['back'])
-            forward_submitted_list = json.loads(form_data['forward'])
-            from_image_id = form_data['from_image_id']
-
-            # Construct new back and forward lists based on
-            # where we're navigating.
-            if request.POST.get('nav_next', None):
-                back_list = back_submitted_list + [from_image_id]
-                forward_list = []
-            elif request.POST.get('nav_back', None):
-                back_list = back_submitted_list[:-1]
-                forward_list = [from_image_id] + forward_submitted_list
-            else:  # 'nav_forward'
-                back_list = back_submitted_list + [from_image_id]
-                forward_list = forward_submitted_list[1:]
-
-            limit = 10
-            nav_history_form = \
-                annotations_forms.AnnotationToolNavHistoryForm(
-                    initial=dict(
-                        back=json.dumps(back_list[-limit:]),
-                        forward=json.dumps(forward_list[:limit]),
-                        from_image_id=image_id,
-                    )
-                )
-
-            if len(back_list) > 0:
-                back = Image.objects.get(pk=back_list[-1])
-            else:
-                back = None
-            if len(forward_list) > 0:
-                forward = Image.objects.get(pk=forward_list[0])
-            else:
-                forward = None
+            new_nav_history_form, back, forward = \
+                nav_history_form_submitted.get_new_nav_history(
+                    nav_type, image_id)
             nav_history = dict(
-                form=nav_history_form,
+                form=new_nav_history_form,
                 back=back,
                 forward=forward,
             )
-        else:
-            # Invalid form for some reason.
-            # Fail silently, I guess? That is, use an empty history.
-            pass
 
+    # The set of images we're annotating.
+    image_set = Image.objects.filter(source=source)
+    hidden_image_set_form = None
+
+    image_form = \
+        process_image_forms(request.POST, source, has_annotation_status=True)
+    if image_form:
+        if image_form.is_valid():
+            image_set = image_form.get_images()
+            hidden_image_set_form = HiddenForm(forms=[image_form])
+
+    # Get the next image to annotate.
+    image_set = image_set.filter(status__annotatedByHuman=False)
+    # TODO: Natural-sort by name.
+    next_image_to_annotate = get_next_image(
+        image, image_set,
+        ('metadata__name', image.metadata.name, False), wrap=True)
 
     # Get the settings object for this user.
     # If there is no such settings object, then create it.
     settings_obj, created = AnnotationToolSettings.objects.get_or_create(user=request.user)
     settings_form = AnnotationToolSettingsForm(instance=settings_obj)
-
 
     # Get all labels, ordered first by functional group, then by short code.
     labels = source.labelset.labels.all().order_by('group', 'code')
@@ -500,7 +475,7 @@ def annotation_tool(request, image_id):
         # label_probabilities can still be None here if something goes wrong.
         # But if not None, apply Alleviate.
         if label_probabilities:
-            annotations_utils.apply_alleviate(image_id, label_probabilities)
+            apply_alleviate(image_id, label_probabilities)
         else:
             error_message.append('Woops! Could not read the label probabilities. Manual annotation still works.')
 
@@ -566,20 +541,6 @@ def annotation_tool(request, image_id):
         )))
 
 
-    # Get the next image to annotate.
-    # This'll be the next image that needs annotation;
-    # or if we're at the last image, wrap around to the first image.
-    next_image_to_annotate = get_next_image(image, dict(status__annotatedByHuman=False))
-
-    if next_image_to_annotate is None:
-        next_image_to_annotate = get_first_image(
-            image.source, dict(status__annotatedByHuman=False)
-        )
-        # Don't allow getting the current image as the next image to annotate.
-        if next_image_to_annotate is not None and next_image_to_annotate.id == image.id:
-            next_image_to_annotate = None
-
-
     # Record this access of the annotation tool page.
     access = AnnotationToolAccess(image=image, source=source, user=request.user)
     access.save()
@@ -587,6 +548,7 @@ def annotation_tool(request, image_id):
     return render(request, 'annotations/annotation_tool.html', {
         'source': source,
         'image': image,
+        'hidden_image_set_form': hidden_image_set_form,
         'next_image_to_annotate': next_image_to_annotate,
         'nav_history': nav_history,
         'metadata': metadata,

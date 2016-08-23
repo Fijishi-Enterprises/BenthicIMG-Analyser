@@ -1,5 +1,6 @@
 from django import forms
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 from django.core.validators import validate_comma_separated_integer_list
 from django.forms import Form
 from django.forms.fields import ChoiceField, BooleanField, DateField, \
@@ -129,6 +130,13 @@ class DateFilterField(MultiValueField):
 
 class ImageSearchForm(forms.Form):
 
+    # This field makes it easier to tell which kind of image-specifying
+    # form has been submitted.
+    # It also ensures there's at least one required field, so checking form
+    # validity is also a check of whether the relevant POST data is there.
+    image_form_type = forms.CharField(
+        widget=HiddenInput(), initial='search', required=True)
+
     def __init__(self, *args, **kwargs):
 
         self.source = kwargs.pop('source')
@@ -215,6 +223,12 @@ class ImageSearchForm(forms.Form):
                 required=False,
             )
 
+    def clean_image_form_type(self):
+        value = self.cleaned_data['image_form_type']
+        if value != 'search':
+            raise ValidationError("Incorrect value")
+        return value
+
     def get_images(self):
         """
         Call this after cleaning the form to get the image search results
@@ -234,7 +248,7 @@ class PatchSearchOptionsForm(forms.Form):
         if source.labelset is None:
             label_choices = Label.objects.none()
         else:
-            label_choices = source.labelset.labels.all()
+            label_choices = source.labelset.labels.all().order_by('name')
         self.fields['label'] = forms.ModelChoiceField(
             queryset=label_choices,
             required=False,
@@ -308,13 +322,25 @@ class PatchSearchOptionsForm(forms.Form):
 
 class ImageSpecifyByIdForm(forms.Form):
 
+    # This field makes it easier to tell which kind of image-specifying
+    # form has been submitted.
+    image_form_type = forms.CharField(
+        widget=HiddenInput(), initial='ids', required=True)
+
     ids = forms.CharField(
         widget=HiddenInput(),
-        validators=[validate_comma_separated_integer_list])
+        validators=[validate_comma_separated_integer_list],
+        required=True)
 
     def __init__(self, *args, **kwargs):
         self.source = kwargs.pop('source')
         super(ImageSpecifyByIdForm,self).__init__(*args, **kwargs)
+
+    def clean_image_form_type(self):
+        value = self.cleaned_data['image_form_type']
+        if value != 'ids':
+            raise ValidationError("Incorrect value")
+        return value
 
     def clean_ids(self):
         id_str_list = self.cleaned_data['ids'].split(',')
@@ -351,6 +377,23 @@ class ImageSpecifyByIdForm(forms.Form):
             source=self.source, pk__in=self.cleaned_data['ids'])
 
 
+def process_image_forms(POST_data, source, has_annotation_status):
+    """
+    All the browse views and the annotation tool view can use this
+    to process image-specification forms.
+    TODO: Consider a function rename.
+    """
+    image_form = None
+    if POST_data.get('image_form_type') == 'search':
+        image_form = ImageSearchForm(
+            POST_data, source=source,
+            has_annotation_status=has_annotation_status)
+    elif POST_data.get('image_form_type') == 'ids':
+        image_form = ImageSpecifyByIdForm(POST_data, source=source)
+
+    return image_form
+
+
 class HiddenForm(forms.Form):
     """
     Takes a list of forms as an init parameter, copies the forms'
@@ -380,13 +423,6 @@ class HiddenForm(forms.Form):
                         initial=form.data.get(name, field.initial),
                         widget=HiddenInput(),
                         required=False)
-
-
-# TODO: Figure out what to do with these
-class ImageBatchDeleteForm(ImageSearchForm):
-    pass
-class ImageBatchDownloadForm(ImageSearchForm):
-    pass
 
 
 # Similar to VisualizationSearchForm with the difference that

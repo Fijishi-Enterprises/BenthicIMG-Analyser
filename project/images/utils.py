@@ -10,80 +10,61 @@ from accounts.utils import get_robot_user, get_alleviate_user
 from annotations.model_utils import AnnotationAreaUtils
 from annotations.models import Annotation
 from .model_utils import PointGen
-from .models import Source, Point, Image, Metadata
+from .models import Source, Point, Image, Metadata, ImageStatus
 
 
-def get_first_image(source, conditions=None):
+def get_next_image(current_image, image_queryset, ordering, wrap=False):
     """
-    Gets the first image in the source.
-    Ordering is done by image id.
+    Get the next image in the image_queryset, relative to current_image.
 
-    conditions:
-    A dict specifying additional filters.
+    ordering is a tuple.
+    1st element specifies how to order the queryset;
+    this is a string that you could pass into order_by.
+    2nd element is the order-able attribute of current_image.
+    3rd element is True if descending order, False if ascending.
+
+    If wrap is True, then the definition of 'next' is extended to allow
+    wrapping from the last image to the first.
+
+    If there is no next image, return None.
     """
-    imgs = Image.objects.filter(source=source)
+    ordering_key, current_image_ordering_value, descending = ordering
 
-    if conditions:
-        filter_kwargs = dict()
-        for key, value in conditions.iteritems():
-            filter_kwargs[key] = value
-        imgs = imgs.filter(**filter_kwargs)
-
-    if not imgs:
-        return None
-
-    imgs_ordered = imgs.order_by('pk')
-
-    return imgs_ordered[0]
-
-
-def get_prev_or_next_image(current_image, kind, conditions=None):
-    """
-    Gets the previous or next image in this image's source.
-
-    conditions:
-    A list specifying additional filters. For example, 'needs_human_annotation'.
-    """
-    imgs = Image.objects.filter(source=current_image.source)
-
-    if conditions:
-        filter_kwargs = dict()
-        for key, value in conditions.iteritems():
-            filter_kwargs[key] = value
-        imgs = imgs.filter(**filter_kwargs)
-
-    if kind == 'prev':
-        # Order imgs so that highest pk comes first.
-        # Then keep only the imgs with pk less than this image.
-        imgs_ordered = imgs.order_by('-pk')
-        candidate_imgs = imgs_ordered.filter(pk__lt=current_image.pk)
-    else: # next
-        # Order imgs so that lowest pk comes first.
-        # Then keep only the imgs with pk greater than this image.
-        imgs_ordered = imgs.order_by('pk')
-        candidate_imgs = imgs_ordered.filter(pk__gt=current_image.pk)
-
-    if candidate_imgs:
-        return candidate_imgs[0]
+    if descending:
+        # Descending order specified
+        kwargs = {ordering_key+'__lt': current_image_ordering_value}
+        ordered_images = image_queryset.order_by(ordering_key).reverse()
     else:
-        # No matching images before this image (if requesting prev) or
-        # after this image (if requesting next).
+        kwargs = {ordering_key+'__gt': current_image_ordering_value}
+        ordered_images = image_queryset.order_by(ordering_key)
+    next_images = ordered_images.filter(**kwargs)
+
+    if next_images:
+        return next_images[0]
+    elif wrap:
+        # No matching images after this image,
+        # so we wrap around to the first image.
+        target_image = ordered_images[0]
+        # Don't allow getting the current image as the target image.
+        if target_image is not None and target_image.pk == current_image.pk:
+            return None
+        else:
+            return target_image
+    else:
+        # No matching images after this image, and we're not allowed to wrap.
         return None
 
 
-def get_next_image(current_image, conditions=None):
+def get_prev_image(current_image, image_queryset, ordering, wrap=False):
     """
-    Get the "next" image in the source.
-    Return None if the current image is the last image.
+    Get the previous image in the image_queryset, relative to current_image.
     """
-    return get_prev_or_next_image(current_image, 'next', conditions=conditions)
-
-def get_prev_image(current_image, conditions=None):
-    """
-    Get the "previous" image in the source.
-    Return None if the current image is the first image.
-    """
-    return get_prev_or_next_image(current_image, 'prev', conditions=conditions)
+    # Finding the previous image is equivalent to
+    # finding the next image in the reverse queryset.
+    # Reverse the 3rd element, which denotes ascending or descending.
+    ordering = (ordering[0], ordering[1], not ordering[2])
+    return get_next_image(
+        current_image, image_queryset, ordering, wrap)
 
 
 def metadata_field_names_to_labels(source):
@@ -128,40 +109,41 @@ def aux_label_name_collisions(source):
     return dupe_labels
 
 
-def delete_image(img):
+def delete_images(image_queryset):
     """
-    Delete an Image object without leaving behind leftover related objects.
+    Delete Image objects without leaving behind leftover related objects.
+    Return the number of Images that were actually deleted.
 
     We DON'T delete the original image file just yet, because if we did,
     then a subsequent exception in this request/response cycle would leave
     us in an inconsistent state. Leave original image deletion to a
     management command or cronjob.
 
-    We do delete easy-thumbnails' image thumbnails though.
-    Unlike the original image, these thumbnails can be re-generated at
-    any time, so it's no big deal if we get an exception later.
-
-    :param img: The Image object to delete.
-    :param delete_files: True to delete the associated image files from
-    the filesystem.
-    :return: None.
+    It would be reasonable to delete easy-thumbnails' image thumbnails now,
+    but best left for later again, for better user-end responsiveness.
     """
-    # Delete easy-thumbnails-generated thumbnail files.
-    # This is easier to do while the image still exists, so we can
-    # just call delete_thumbnails().
-    img.original_file.delete_thumbnails()
-
     # These are ForeignKey fields of the Image, and thus deleting the Image
     # can't trigger a cascade delete on these objects. So we have to get
-    # these objects and delete them separately. Also, we delete them after
-    # deleting the image to not trigger PROTECT-related errors on those
-    # ForeignKeys.
-    metadata = img.metadata
-    status = img.status
+    # these objects and delete them separately.
+    metadata_queryset = Metadata.objects.filter(image__in=image_queryset)
+    status_queryset = ImageStatus.objects.filter(image__in=image_queryset)
 
-    img.delete()
-    metadata.delete()
-    status.delete()
+    # We delete the related objects after deleting the image to not trigger
+    # PROTECT-related errors on those ForeignKeys.
+    #
+    # Also, we call delete() on the querysets rather than the individual
+    # objects for faster performance.
+    _, num_objects_deleted = image_queryset.delete()
+    delete_count = num_objects_deleted.get('images.Image', 0)
+
+    metadata_queryset.delete()
+    status_queryset.delete()
+
+    return delete_count
+
+
+def delete_image(img):
+    delete_images(Image.objects.filter(pk=img.pk))
 
 
 def calculate_points(img,

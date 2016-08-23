@@ -10,56 +10,56 @@
 
 {% block page-specific-includes %}
   {% include "static-local-include.html" with type="js" path="js/VisSearchFormHelper.js" %}
-  {# TODO: Check if needed #}
-{#  {% include "static-local-include.html" with type="js" path="js/ImageBatchActionFormHelper.js" %}#}
   {% include "static-local-include.html" with type="js" path="js/ImageMetadataFormHelper.js" %}
   {% include "static-local-include.html" with type="css" path="css/visualize_source.css" %}
 {% endblock %}
 
 {% block content %}
 
-    <legend>Edit Metadata</legend>
+  <legend>Edit Metadata</legend>
 
-    <div class="tutorial-message">
-      {% include "visualization/help_browse.html" %}
-    </div>
-    
-    {# Search form #}
-    <div id="search-form-box" class="box">
-      <form action="" method="post" id="id_search_form">
-        {% csrf_token %}
+  <div class="tutorial-message">
+    {% include "visualization/help_browse.html" %}
+  </div>
 
-        {% with form=image_search_form %}
+  {# Search form #}
+  <div id="search-form-box" class="box">
+    <form action="" method="post" id="search-form">
+      {% csrf_token %}
 
-          {% for field in form.metadata_choice_fields %}
-            {{ field.label }}: {{ field }}
-          {% endfor %}
-          <br/>
-          {{ form.date_filter.label }}: {{ form.date_filter }}
-          {{ form.annotation_status.label }}: {{ form.annotation_status }}
+      {% with form=image_search_form %}
 
-        {% endwith %}
+        {% for field in form.metadata_choice_fields %}
+          {{ field.label }}: {{ field }}
+        {% endfor %}
+        <br/>
+        {{ form.date_filter.label }}: {{ form.date_filter }}
+        {{ form.annotation_status.label }}: {{ form.annotation_status }}
+        {# Hidden field #}
+        {{ form.image_form_type }}
 
-        <div class="submit_button_wrapper_center">
-          <input type='submit' value="Search">
-        </div>
-      </form>
-    </div>
+      {% endwith %}
 
-    {% if num_images == 0 %}
-      {{ empty_message }}
-    {% else %}
-      {% include "visualization/metadata_form.html" with metadata_formset=metadata_formset metadata_rows=metadata_rows select_all_form=select_all_form num_images=num_images %}
+      <div class="submit_button_wrapper_center">
+        <input type='submit' value="Search">
+      </div>
+    </form>
+  </div>
+
+  {% if num_images == 0 %}
+    {{ empty_message }}
+  {% else %}
+    {% include "visualization/metadata_form.html" with metadata_formset=metadata_formset metadata_rows=metadata_rows select_all_form=select_all_form num_images=num_images %}
+  {% endif %}
+
+  {# Script in the body will run on page load. #}
+  <script type="text/javascript">
+    BrowseSearchHelper.initSearchForm();
+    {% if num_images > 0 %}
+      initMetadataForm({
+          metadataSaveAjaxUrl: '{% url 'metadata_edit_ajax' source.id %}'
+      });
     {% endif %}
-
-    {# Script in the body will run on page load. #}
-    <script type="text/javascript">
-      BrowseSearchHelper.init('id_search_form');
-      {% if num_images > 0 %}
-        initMetadataForm({
-            metadataSaveAjaxUrl: '{% url 'metadata_edit_ajax' source.id %}'
-        });
-      {% endif %}
-    </script>
+  </script>
 
 {% endblock %}

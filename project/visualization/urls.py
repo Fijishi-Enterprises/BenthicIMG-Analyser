@@ -12,10 +12,8 @@ urlpatterns = [
     # TODO: Check if needed
     #url(r'^(?P<source_id>\d+)/$', views.visualize_source, name="visualize_source"),
 
-    url(r'^delete/$',
-        views.browse_delete, name="browse_delete"),
-    url(r'^download/$',
-        views.browse_download, name="browse_download"),
+    url(r'^delete_ajax/$',
+        views.browse_delete_ajax, name="browse_delete_ajax"),
     url(r'^edit_metadata_ajax/$',
         views.metadata_edit_ajax, name="metadata_edit_ajax"),
 

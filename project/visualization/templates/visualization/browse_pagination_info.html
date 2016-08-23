@@ -10,7 +10,7 @@
     {% if page_results.has_previous %}
       <form action="" method="post">
         {% csrf_token %}
-        {% for field in hidden_search_form %}
+        {% for field in hidden_form %}
           {{ field }}
         {% endfor %}
         <input type="hidden" name="page"
@@ -28,7 +28,7 @@
     {% if page_results.has_next %}
       <form action="" method="post">
         {% csrf_token %}
-        {% for field in hidden_search_form %}
+        {% for field in hidden_form %}
           {{ field }}
         {% endfor %}
         <input type="hidden" name="page"

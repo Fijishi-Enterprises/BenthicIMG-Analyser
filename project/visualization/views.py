@@ -7,20 +7,19 @@ from django.contrib import messages
 from django.core.urlresolvers import reverse
 from django.db import transaction
 from django.forms.formsets import formset_factory
-from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, render
 
-from .forms import StatisticsSearchForm, ImageBatchDeleteForm, ImageBatchDownloadForm, \
-    ImageSearchForm, PatchSearchOptionsForm, ImageSpecifyByIdForm, HiddenForm
+from .forms import CheckboxForm, StatisticsSearchForm, ImageSearchForm, \
+    PatchSearchOptionsForm, HiddenForm, process_image_forms
 from .utils import generate_patch_if_doesnt_exist, get_patch_url, paginate
 from accounts.utils import get_robot_user
 from annotations.models import Annotation, Label, LabelSet, LabelGroup
 from images.forms import MetadataFormForGrid, BaseMetadataFormSet
 from images.models import Source, Image, Metadata
 from images.tasks import *
-from images.utils import delete_image, get_aux_metadata_str_list_for_image, get_aux_labels
+from images.utils import delete_images, get_aux_metadata_str_list_for_image, get_aux_labels
 from lib.decorators import source_visibility_required, source_permission_required
-from visualization.forms import CheckboxForm
 
 
 # TODO: Check if needed
@@ -378,27 +377,29 @@ def browse_images(request, source_id):
     """
     source = get_object_or_404(Source, id=source_id)
 
-    if request.POST:
-        # Search form submitted OR a URL with GET parameters was entered.
-        image_search_form = ImageSearchForm(
-            request.POST, source=source, has_annotation_status=True)
+    # Defaults
+    empty_message = "No image results."
+    image_search_form = ImageSearchForm(
+        source=source, has_annotation_status=True)
+    hidden_image_form = None
 
-        if image_search_form.is_valid():
-            image_results = image_search_form.get_images()
-            empty_message = "No image results."
+    image_form = \
+        process_image_forms(request.POST, source, has_annotation_status=True)
+    if image_form:
+        if image_form.is_valid():
+            image_results = image_form.get_images()
+            hidden_image_form = HiddenForm(forms=[image_form])
         else:
             image_results = Image.objects.none()
             empty_message = "Search parameters were invalid."
+
+        # If a search form was submitted, use that as the displayed
+        # search form. Otherwise we'll display a default-values search form.
+        if isinstance(image_form, ImageSearchForm):
+            image_search_form = image_form
     else:
+        # Coming from a straight link or URL entry
         image_results = Image.objects.filter(source=source)
-        image_search_form = ImageSearchForm(
-            source=source, has_annotation_status=True)
-        empty_message = "No image results."
-
-    hidden_search_form = HiddenForm(forms=[image_search_form])
-
-    # TODO: Delete form?
-    # TODO: Export form?
 
     image_results = image_results.order_by('metadata__name')
 
@@ -407,11 +408,30 @@ def browse_images(request, source_id):
         settings.BROWSE_DEFAULT_THUMBNAILS_PER_PAGE,
         request.POST)
 
+    if page_results.paginator.count > 0:
+        page_image_ids = [
+            int(pk)
+            for pk in page_results.object_list.values_list('pk', flat=True)]
+        links = dict(
+            annotation_tool_first_result=
+                reverse('annotation_tool', args=[image_results[0].pk]),
+            annotation_tool_page_results=
+                [reverse('annotation_tool', args=[pk])
+                 for pk in page_image_ids],
+            browse=reverse('browse_images', args=[source.pk]),
+            delete=reverse('browse_delete_ajax', args=[source.pk]),
+        )
+    else:
+        page_image_ids = None
+        links = None
+
     return render(request, 'visualization/browse_images.html', {
         'source': source,
         'image_search_form': image_search_form,
         'page_results': page_results,
-        'hidden_search_form': hidden_search_form,
+        'page_image_ids': page_image_ids,
+        'links': links,
+        'hidden_image_form': hidden_image_form,
         'empty_message': empty_message,
     })
 
@@ -423,39 +443,27 @@ def edit_metadata(request, source_id):
     """
     source = get_object_or_404(Source, id=source_id)
 
-    if request.POST and 'image_specify_form_from_upload' in request.POST:
+    # Defaults
+    empty_message = "No image results."
+    image_search_form = ImageSearchForm(
+        source=source, has_annotation_status=True)
 
-        # Images are specified by image id in the POST
-        image_specify_form = ImageSpecifyByIdForm(request.POST, source=source)
-        if image_specify_form.is_valid():
-            image_results = image_specify_form.get_images()
-            empty_message = "No image results."
+    image_form = \
+        process_image_forms(request.POST, source, has_annotation_status=True)
+    if image_form:
+        if image_form.is_valid():
+            image_results = image_form.get_images()
         else:
             image_results = Image.objects.none()
             empty_message = "Search parameters were invalid."
 
-        image_search_form = ImageSearchForm(
-            source=source, has_annotation_status=True)
-
-    elif request.POST:
-
-        # Search form submitted OR a URL with GET parameters was entered.
-        image_search_form = ImageSearchForm(
-            request.POST, source=source, has_annotation_status=True)
-
-        if image_search_form.is_valid():
-            image_results = image_search_form.get_images()
-            empty_message = "No image results."
-        else:
-            image_results = Image.objects.none()
-            empty_message = "Search parameters were invalid."
-
+        # If a search form was submitted, use that as the displayed
+        # search form. Otherwise we'll display a default-values search form.
+        if isinstance(image_form, ImageSearchForm):
+            image_search_form = image_form
     else:
-
+        # Coming from a straight link or URL entry
         image_results = Image.objects.filter(source=source)
-        image_search_form = ImageSearchForm(
-            source=source, has_annotation_status=True)
-        empty_message = "No image results."
 
     image_results = image_results.order_by('metadata__name')
     num_images = image_results.count()
@@ -510,34 +518,36 @@ def browse_patches(request, source_id):
     """
     source = get_object_or_404(Source, id=source_id)
 
-    if request.POST:
+    # Defaults
+    empty_message = (
+        "Use the form to retrieve image patches"
+        " corresponding to annotated points."
+    )
+    patch_results = Point.objects.none()
+    image_search_form = ImageSearchForm(
+        source=source, has_annotation_status=False)
+    patch_search_form = PatchSearchOptionsForm(source=source)
+    hidden_image_and_patch_form = None
 
-        # Search form submitted OR a URL with GET parameters was entered.
-        image_search_form = ImageSearchForm(
-            request.POST, source=source, has_annotation_status=False)
+    image_form = \
+        process_image_forms(request.POST, source, has_annotation_status=False)
+    if request.POST:
         patch_search_form = PatchSearchOptionsForm(request.POST, source=source)
 
-        if image_search_form.is_valid() and patch_search_form.is_valid():
-            image_results = image_search_form.get_images()
+    if image_form:
+        if image_form.is_valid() and patch_search_form.is_valid():
+            image_results = image_form.get_images()
             patch_results = patch_search_form.get_patches(image_results)
+            hidden_image_and_patch_form = \
+                HiddenForm(forms=[image_form, patch_search_form])
             empty_message = "No patch results."
         else:
-            patch_results = Point.objects.none()
             empty_message = "Search parameters were invalid."
 
-    else:
-
-        patch_results = Point.objects.none()
-        image_search_form = ImageSearchForm(
-            source=source, has_annotation_status=False)
-        patch_search_form = PatchSearchOptionsForm(source=source)
-        empty_message = (
-            "Use the form to retrieve image patches"
-            " corresponding to annotated points."
-        )
-
-    hidden_search_form = HiddenForm(
-        forms=[image_search_form, patch_search_form])
+        # If a search form was submitted, use that as the displayed
+        # search form. Otherwise we'll display a default-values search form.
+        if isinstance(image_form, ImageSearchForm):
+            image_search_form = image_form
 
     # Random order
     patch_results = patch_results.order_by('?')
@@ -564,7 +574,7 @@ def browse_patches(request, source_id):
         'patch_search_form': patch_search_form,
         'page_results': page_results,
         'patches': patches,
-        'hidden_search_form': hidden_search_form,
+        'hidden_image_and_patch_form': hidden_image_and_patch_form,
         'empty_message': empty_message,
     })
 
@@ -632,101 +642,49 @@ def metadata_edit_ajax(request, source_id):
         ))
 
 
-@source_permission_required('source_id', perm=Source.PermTypes.EDIT.code)
-def browse_delete(request, source_id):
+@source_permission_required(
+    'source_id', perm=Source.PermTypes.EDIT.code, ajax=True)
+def browse_delete_ajax(request, source_id):
     """
-    From the browse images page, select delete as the batch action.
+    From the browse images page, select delete from the action form.
     """
     source = get_object_or_404(Source, id=source_id)
 
-    if request.POST:
-
-        # Get the images from the POST form.
-        # Will either be in the form of a list of image ids, or in the form
-        # of search args.
+    image_form = \
+        process_image_forms(request.POST, source, has_annotation_status=True)
+    if not image_form:
+        # There's nothing invalid about a user wanting to delete all images
+        # in the source, but it's somewhat plausible that we'd accidentally
+        # reach this case if we screwed something up.
         #
-        # TODO: if search args, it should also come with the number of
-        # images, so that we can do a sanity check (do the number of images
-        # match?)
+        # It's not good to accidentally delete everything, and it's uncommon
+        # to do it intentionally. So we'll play it safe.
+        # If the user really wants to delete everything, they can simply
+        # click Search with all fields at the defaults ("All" etc.)
+        # and then choose Delete.
+        return JsonResponse(dict(
+            error=(
+                "You must first use the search form"
+                " or select images on the page to use the delete function."
+            )
+        ))
+    if not image_form.is_valid():
+        return JsonResponse(dict(
+            error=(
+                "There was an error with the form."
+                " Nothing was deleted."
+            )
+        ))
 
-        delete_form = ImageBatchDeleteForm(request.POST, source=source)
+    image_set = image_form.get_images()
+    delete_count = delete_images(image_set)
 
-        if delete_form.is_valid():
-            images_to_delete = delete_form.get_images()
+    # This should appear on the next browse load.
+    messages.success(
+        request, 'The {num} selected images have been deleted.'.format(
+            num=delete_count))
 
-            num_of_images = images_to_delete.count()
-
-            for img in images_to_delete:
-                delete_image(img)
-
-            messages.success(request, 'The {num} selected images have been deleted.'.format(num=num_of_images))
-
-        else:
-
-            messages.success(request, 'The delete form had an error. Nothing was deleted.')
-
-    else:
-
-        messages.success(request, 'The delete form had an error. Nothing was deleted.')
-
-    # Redirect to the default search. Don't try and retrieve the search args
-    # that were used previously, because those search args might include
-    # aux. meta values that don't exist anymore.
-    return HttpResponseRedirect(reverse('visualize_source', args=[source_id]))
-
-
-@source_permission_required('source_id', perm=Source.PermTypes.VIEW.code)
-def browse_download(request, source_id):
-    """
-    From the browse images page, select download as the batch action.
-    """
-    source = get_object_or_404(Source, id=source_id)
-
-    if request.POST:
-
-        # Get the images from the POST form.
-        # Will either be in the form of a list of image ids, or in the form
-        # of search args.
-        # TODO: if search args, it should also come with the number of
-        # images, so that we can do a sanity check (do the number of images
-        # match?)
-
-        download_form = ImageBatchDownloadForm(request.POST, source=source)
-
-
-        if download_form.is_valid():
-
-            images_to_download = download_form.get_images()
-
-            # TODO: Instead of putting up a CSV for download, put the
-            # requested images in a .zip (with the images'
-            # original filenames) and put that up for download.
-
-            # get the response object, this can be used as a stream.
-            response = HttpResponse(content_type='text/csv')
-            # force download.
-            response['Content-Disposition'] = 'attachment;filename="images.csv"'
-            # the csv writer
-            writer = csv.writer(response)
-            writer.writerow(["Download test"])
-
-            return response
-
-        else:
-
-            # TODO: Include a way to reach the admin from here. This is a
-            # dev error, not a user error
-            # TODO: Include search args here too, if any.
-            response = HttpResponseRedirect(reverse('visualize_source', args=[source_id]))
-            messages.success(request, 'The download form had an error.')
-
-    else:
-
-        # TODO: Include search args here too, if any.
-        response = HttpResponseRedirect(reverse('visualize_source', args=[source_id]))
-        messages.success(request, 'The download form had an error.')
-
-    return response
+    return JsonResponse(dict(success=True))
 
 
 @source_visibility_required('source_id')

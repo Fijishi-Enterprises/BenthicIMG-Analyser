@@ -10,40 +10,44 @@
 
 {% block page-specific-includes %}
   {% include "static-local-include.html" with type="js" path="js/VisSearchFormHelper.js" %}
-    {# TODO: Check if needed #}
-{#    {% include "static-local-include.html" with type="js" path="js/ImageBatchActionFormHelper.js" %}#}
   {% include "static-local-include.html" with type="css" path="css/visualize_source.css" %}
 {% endblock %}
 
 {% block content %}
 
-    <legend>Browse Images</legend>
+  <legend>Browse Images</legend>
 
-    <div class="tutorial-message">
-      {% include "visualization/help_browse.html" %}
-    </div>
-    
-    {# Search form #}
-    <div id="search-form-box" class="box">
-      <form action="" method="post" id="id_search_form">
-        {% csrf_token %}
+  <div class="tutorial-message">
+    {% include "visualization/help_browse.html" %}
+  </div>
 
-        {% with form=image_search_form %}
+  {# Search form #}
+  <div id="search-form-box" class="box">
+    <form action="" method="post" id="search-form">
+      {% csrf_token %}
 
-          {% for field in form.metadata_choice_fields %}
-            {{ field.label }}: {{ field }}
-          {% endfor %}
-          <br/>
-          {{ form.date_filter.label }}: {{ form.date_filter }}
-          {{ form.annotation_status.label }}: {{ form.annotation_status }}
+      {% with form=image_search_form %}
 
-        {% endwith %}
+        {% for field in form.metadata_choice_fields %}
+          {{ field.label }}: {{ field }}
+        {% endfor %}
+        <br/>
+        {{ form.date_filter.label }}: {{ form.date_filter }}
+        {{ form.annotation_status.label }}: {{ form.annotation_status }}
+        {# Hidden field #}
+        {{ form.image_form_type }}
 
-        <div class="submit_button_wrapper_center">
-          <input type="submit" value="Search">
-        </div>
-      </form>
-    </div>
+      {% endwith %}
+
+      <div class="submit_button_wrapper_center">
+        <input type="submit" value="Search">
+      </div>
+    </form>
+  </div>
+
+  {% if page_results.paginator.count == 0 %}
+    {{ empty_message }}
+  {% else %}
 
     {# Grid of images #}
     {% for image in page_results.object_list %}
@@ -56,16 +60,62 @@
       </span>
     {% endfor %}
 
-    {% if page_results.paginator.count == 0 %}
-      {{ empty_message }}
-    {% else %}
-      {# Pagination info and links #}
-      {% include 'visualization/browse_pagination_info.html' with hidden_search_form=hidden_search_form page_results=page_results %}
-    {% endif %}
+    {# Pagination info and links #}
+    {% include 'visualization/browse_pagination_info.html' with hidden_form=hidden_image_form page_results=page_results %}
 
-    {# Script in the body will run on page load. #}
-    <script type="text/javascript">
-      BrowseSearchHelper.init('id_search_form');
-    </script>
+    {# The image-filter parameters that led us to this browse page. #}
+    {# May be used when submitting the action form. #}
+    <span id="previous-image-form-fields" style="display:none;">
+      {% if hidden_image_form %}
+        {% for field in hidden_image_form %}{{ field }}{% endfor %}
+      {% endif %}
+    </span>
+
+    {# Action form #}
+    <div id="action-form-box" class="box">
+
+      {# TODO: Put permissions on these options #}
+      <select name="browse_action" title="Action">
+        <option value="annotate">Enter Annotation Tool</option>
+        <option value="delete">Delete</option>
+      </select>
+
+      <span id="action_form_annotate_specifics">
+        for
+      </span>
+      <span id="action_form_delete_specifics">
+      </span>
+
+      <select name="image_select_type" title="Image selection">
+        <option value="all">
+          All {{ page_results.paginator.count }}
+          image results</option>
+        {# The name 'selected' will make more sense when we replace this #}
+        {# option with the more general 'the checkbox-selected images on #}
+        {# this page' option. #}
+        <option value="selected">
+          The {{ page_results.object_list.count }}
+          images on this page</option>
+      </select>
+
+      <form action="" method="post" id="action-form">
+        {% csrf_token %}
+        <button type="button" class="submit" id="action-submit-button">
+          Go</button>
+      </form>
+    </div>
+  {% endif %}
+
+  {# Script in the body will run on page load. #}
+  <script type="text/javascript">
+    BrowseSearchHelper.initSearchForm();
+
+    {% if page_results.paginator.count > 0 %}
+      BrowseSearchHelper.initActionForm({
+          pageImageIds: {{ page_image_ids|jsonify }},
+          links: {{ links|jsonify }}
+      });
+    {% endif %}
+  </script>
 
 {% endblock %}

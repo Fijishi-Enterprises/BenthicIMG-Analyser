@@ -18,7 +18,7 @@ from .forms import ImageSourceForm, LabelImportForm, MetadataForm, PointGenForm,
 from .model_utils import PointGen
 from .models import Source, Image, SourceInvite, Metadata
 from .tasks import *
-from .utils import get_date_and_aux_metadata_table
+from .utils import get_date_and_aux_metadata_table, get_next_image, get_prev_image
 from annotations.forms import AnnotationAreaPercentsForm
 from annotations.model_utils import AnnotationAreaUtils
 from annotations.models import LabelGroup, Label, LabelSet
@@ -486,8 +486,13 @@ def image_detail_helper(image_id):
         thumbnail_dimensions = False
 
     # Next and previous image links
-    next_image = utils.get_next_image(image)
-    prev_image = utils.get_prev_image(image)
+    source_images = Image.objects.filter(source=source)
+    next_image = get_next_image(
+        image, source_images,
+        ('metadata__name', image.metadata.name, False), wrap=False)
+    prev_image = get_prev_image(
+        image, source_images,
+        ('metadata__name', image.metadata.name, False), wrap=False)
 
     # Annotation status
     if image.status.annotatedByHuman:

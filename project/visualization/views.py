@@ -72,6 +72,7 @@ def browse_images(request, source_id):
                  for pk in page_image_ids],
             browse=reverse('browse_images', args=[source.pk]),
             delete=reverse('browse_delete_ajax', args=[source.pk]),
+            export_metadata=reverse('export_metadata', args=[source.pk]),
         )
     else:
         page_image_ids = None

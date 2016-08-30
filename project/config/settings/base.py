@@ -117,6 +117,7 @@ INSTALLED_APPS = [
     'annotations',
     'bug_reporting',
     'errorlogs.apps.ErrorlogsConfig',
+    'export',
     'images',
     'lib',
     'requests',

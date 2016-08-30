@@ -54,6 +54,7 @@ var BrowseSearchHelper = (function() {
 
         // Show the 'specifics' element for only the selected action
         $('#action_form_annotate_specifics').hide();
+        $('#action_form_export_specifics').hide();
         $('#action_form_delete_specifics').hide();
         $('#action_form_{0}_specifics'.format(action)).show();
     }
@@ -98,6 +99,27 @@ var BrowseSearchHelper = (function() {
                 addActionFormField('ids', pageImageIds.toString());
                 // Annotation tool for first image on this page
                 setActionFormUrl(links['annotation_tool_page_results'][0]);
+            }
+
+            $actionForm.submit();
+        }
+        else if (action === 'export') {
+
+            var exportType =
+                $actionFormBox.find('select[name=export_type]').val();
+
+            if (exportType === 'metadata') {
+                setActionFormUrl(links['export_metadata']);
+            }
+
+            if (imageSelectType === 'all') {
+                $('#previous-image-form-fields').find('input').each(
+                    function () { addActionFormField(this.name, this.value); }
+                );
+            }
+            else if (imageSelectType === 'selected') {
+                addActionFormField('image_form_type', 'ids');
+                addActionFormField('ids', pageImageIds.toString());
             }
 
             $actionForm.submit();

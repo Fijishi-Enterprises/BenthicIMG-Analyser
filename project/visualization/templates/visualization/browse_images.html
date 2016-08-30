@@ -79,10 +79,17 @@
       {# TODO: Put permissions on these options #}
       <select name="browse_action" title="Action">
         <option value="annotate">Enter Annotation Tool</option>
+        <option value="export">Export</option>
         <option value="delete">Delete</option>
       </select>
 
       <span id="action_form_annotate_specifics">
+        for
+      </span>
+      <span id="action_form_export_specifics">
+        <select name="export_type" title="Export type">
+          <option value="metadata">Metadata</option>
+        </select>
         for
       </span>
       <span id="action_form_delete_specifics">

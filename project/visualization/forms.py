@@ -219,6 +219,7 @@ class ImageSearchForm(forms.Form):
             status_choices.append(('unclassified', "Unclassified"))
 
             self.fields['annotation_status'] = forms.ChoiceField(
+                label="Annotation status",
                 choices=status_choices,
                 required=False,
             )
@@ -235,6 +236,32 @@ class ImageSearchForm(forms.Form):
         specified by the fields.
         """
         return image_search_kwargs_to_queryset(self.cleaned_data, self.source)
+
+    def get_filters_used_display(self):
+        """
+        Return a display of the non-blank filters used on the source's images
+        based on this form.
+        e.g. "height (cm), year, habitat, camera"
+        """
+        filters_used = []
+        for key, value in self.cleaned_data.items():
+            if value == '':
+                pass
+            elif key == 'image_form_type':
+                pass
+            elif key == 'date_filter':
+                if 'metadata__photo_date__year' in value:
+                    filters_used.append('year')
+                elif 'metadata__photo_date' in value:
+                    # This actually encompasses both the date option and
+                    # an empty year option, but either way this is
+                    # an accurate enough display.
+                    filters_used.append('date')
+                elif 'metadata__photo_date__range' in value:
+                    filters_used.append('date range')
+            else:
+                filters_used.append(self.fields[key].label.lower())
+        return ", ".join(filters_used)
 
 
 class PatchSearchOptionsForm(forms.Form):
@@ -375,6 +402,9 @@ class ImageSpecifyByIdForm(forms.Form):
         """
         return Image.objects.filter(
             source=self.source, pk__in=self.cleaned_data['ids'])
+
+    def get_filters_used_display(self):
+        return "(Manual selection)"
 
 
 def process_image_forms(POST_data, source, has_annotation_status):

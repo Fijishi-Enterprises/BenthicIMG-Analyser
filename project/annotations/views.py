@@ -12,13 +12,14 @@ from accounts.utils import get_robot_user, is_robot_user
 from lib.decorators import source_permission_required, source_visibility_required, image_permission_required, image_annotation_area_must_be_editable, image_labelset_required, login_required_ajax
 from images import task_utils
 from images.models import Source, Image, Point
-from images.utils import generate_points, get_next_image, get_date_and_aux_metadata_table
+from images.utils import generate_points, get_next_image, get_date_and_aux_metadata_table, \
+    get_prev_image, get_image_order_placement
 from visualization.forms import HiddenForm, process_image_forms
 from visualization.utils import generate_patch_if_doesnt_exist, get_patch_url
 from .model_utils import AnnotationAreaUtils
 from .models import Label, LabelSet, Annotation, AnnotationToolAccess, AnnotationToolSettings
 from .utils import get_annotation_version_user_display, image_annotation_all_done, apply_alleviate
-from .forms import NewLabelForm, NewLabelSetForm, AnnotationForm, AnnotationAreaPixelsForm, AnnotationToolSettingsForm, AnnotationImageOptionsForm, AnnotationToolNavHistoryForm
+from .forms import NewLabelForm, NewLabelSetForm, AnnotationForm, AnnotationAreaPixelsForm, AnnotationToolSettingsForm, AnnotationImageOptionsForm
 
 
 @login_required
@@ -408,35 +409,10 @@ def annotation_tool(request, image_id):
     source = image.source
     metadata = image.metadata
 
-    # Image navigation history.
-    # Establish default values for the history, first.
-    nav_history_form = AnnotationToolNavHistoryForm(
-        initial=dict(back="[]", forward="[]", from_image_id=image_id),
-    )
-    nav_history = dict(
-        form=nav_history_form,
-        back=None,
-        forward=None,
-    )
-
-    if request.POST and 'nav_type' in request.POST:
-        # Coming from the nav form of another image's annotation tool page.
-        nav_history_form_submitted = AnnotationToolNavHistoryForm(request.POST)
-        nav_type = request.POST.get('nav_type')
-
-        if nav_history_form_submitted.is_valid():
-            new_nav_history_form, back, forward = \
-                nav_history_form_submitted.get_new_nav_history(
-                    nav_type, image_id)
-            nav_history = dict(
-                form=new_nav_history_form,
-                back=back,
-                forward=forward,
-            )
-
     # The set of images we're annotating.
     image_set = Image.objects.filter(source=source)
     hidden_image_set_form = None
+    filters_used_display = None
 
     image_form = \
         process_image_forms(request.POST, source, has_annotation_status=True)
@@ -444,13 +420,19 @@ def annotation_tool(request, image_id):
         if image_form.is_valid():
             image_set = image_form.get_images()
             hidden_image_set_form = HiddenForm(forms=[image_form])
+            filters_used_display = image_form.get_filters_used_display()
 
-    # Get the next image to annotate.
-    image_set = image_set.filter(status__annotatedByHuman=False)
+    # Get the next and previous images in the image set.
     # TODO: Natural-sort by name.
-    next_image_to_annotate = get_next_image(
+    prev_image = get_prev_image(
         image, image_set,
         ('metadata__name', image.metadata.name, False), wrap=True)
+    next_image = get_next_image(
+        image, image_set,
+        ('metadata__name', image.metadata.name, False), wrap=True)
+    # Get the image's ordered placement in the image set, e.g. 5th.
+    image_set_order_placement = get_image_order_placement(
+        image_set, ('metadata__name', image.metadata.name, False))
 
     # Get the settings object for this user.
     # If there is no such settings object, then create it.
@@ -549,8 +531,11 @@ def annotation_tool(request, image_id):
         'source': source,
         'image': image,
         'hidden_image_set_form': hidden_image_set_form,
-        'next_image_to_annotate': next_image_to_annotate,
-        'nav_history': nav_history,
+        'next_image': next_image,
+        'prev_image': prev_image,
+        'image_set_size': image_set.count(),
+        'image_set_order_placement': image_set_order_placement,
+        'filters_used_display': filters_used_display,
         'metadata': metadata,
         'image_meta_table': get_date_and_aux_metadata_table(image),
         'labels': labelValues,

@@ -996,11 +996,8 @@ var AnnotationToolHelper = (function() {
         // data we want to submit.
         $('#nav-next-submit').click();
     }
-    function navBack() {
-        $('#nav-back-submit').click();
-    }
-    function navForward() {
-        $('#nav-forward-submit').click();
+    function navPrev() {
+        $('#nav-prev-submit').click();
     }
 
 
@@ -1877,9 +1874,8 @@ var AnnotationToolHelper = (function() {
                 ['.', selectFirstUnannotatedPoint, 'top'],
                 ['?', function() {$controlsButton.click();}, 'top'],
 
+                ['g p', navPrev, 'top'],
                 ['g n', navNext, 'top'],
-                ['g b', navBack, 'top'],
-                ['g f', navForward, 'top'],
 
                 ['return', labelSelectedAndVerify, 'field'],
                 ['shift+tab', selectPrevPoint, 'field'],

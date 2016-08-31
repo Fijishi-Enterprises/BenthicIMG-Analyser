@@ -240,7 +240,7 @@ def browse_patches(request, source_id):
 
 @source_permission_required(
     'source_id', perm=Source.PermTypes.EDIT.code, ajax=True)
-def metadata_edit_ajax(request, source_id):
+def edit_metadata_ajax(request, source_id):
     """
     Submitting the metadata-edit form (an Ajax form).
     """

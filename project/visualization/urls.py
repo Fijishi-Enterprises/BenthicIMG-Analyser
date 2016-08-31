@@ -12,7 +12,7 @@ urlpatterns = [
     url(r'^delete_ajax/$',
         views.browse_delete_ajax, name="browse_delete_ajax"),
     url(r'^edit_metadata_ajax/$',
-        views.metadata_edit_ajax, name="metadata_edit_ajax"),
+        views.edit_metadata_ajax, name="edit_metadata_ajax"),
 
     url(r'^statistics/$',
         views.generate_statistics, name="statistics"),

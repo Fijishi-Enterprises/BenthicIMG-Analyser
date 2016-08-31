@@ -59,7 +59,7 @@
     BrowseSearchHelper.initSearchForm();
     {% if num_images > 0 %}
       initMetadataForm({
-          metadataSaveAjaxUrl: '{% url 'metadata_edit_ajax' source.id %}'
+          metadataSaveAjaxUrl: '{% url 'edit_metadata_ajax' source.id %}'
       });
     {% endif %}
   </script>

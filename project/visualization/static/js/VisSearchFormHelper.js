@@ -117,6 +117,9 @@ var BrowseSearchHelper = (function() {
             else if (exportType === 'annotations_full') {
                 setActionFormUrl(links['export_annotations_full']);
             }
+            else if (exportType === 'image_covers') {
+                setActionFormUrl(links['export_image_covers']);
+            }
 
             if (imageSelectType === 'all') {
                 $('#previous-image-form-fields').find('input').each(

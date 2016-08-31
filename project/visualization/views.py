@@ -77,6 +77,8 @@ def browse_images(request, source_id):
                 'export_annotations_simple', args=[source.pk]),
             export_annotations_full=reverse(
                 'export_annotations_full', args=[source.pk]),
+            export_image_covers=reverse(
+                'export_image_covers', args=[source.pk]),
         )
     else:
         page_image_ids = None

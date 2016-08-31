@@ -16,12 +16,6 @@ urlpatterns = [
 
     url(r'^statistics/$',
         views.generate_statistics, name="statistics"),
-    url(r'^export_annotations/$',
-        views.export_annotations, name="export_annotations"),
-    url(r'^export_statistics/$',
-        views.export_statistics, name="export_statistics"),
     url(r'^csv_abundances/$',
         views.export_abundance, name="export_abundance"),
-    url(r'^export_menu/$',
-        views.export_menu, name="export_menu"),
 ]

@@ -3,6 +3,7 @@ import csv
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
+from django.db import transaction
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 
@@ -15,6 +16,9 @@ from lib.decorators import source_visibility_required
 
 
 @source_visibility_required('source_id')
+# This is a potentially slow view that doesn't modify the database,
+# so don't open a transaction for the view.
+@transaction.non_atomic_requests
 def export_metadata(request, source_id):
     source = get_object_or_404(Source, id=source_id)
 
@@ -50,6 +54,7 @@ def export_metadata(request, source_id):
 
 
 @source_visibility_required('source_id')
+@transaction.non_atomic_requests
 def export_annotations_simple(request, source_id):
     source = get_object_or_404(Source, id=source_id)
 
@@ -68,6 +73,7 @@ def export_annotations_simple(request, source_id):
 
 
 @source_visibility_required('source_id')
+@transaction.non_atomic_requests
 def export_annotations_full(request, source_id):
     source = get_object_or_404(Source, id=source_id)
 
@@ -86,6 +92,7 @@ def export_annotations_full(request, source_id):
 
 
 @source_visibility_required('source_id')
+@transaction.non_atomic_requests
 def export_image_covers(request, source_id):
     source = get_object_or_404(Source, id=source_id)
 

@@ -111,6 +111,12 @@ var BrowseSearchHelper = (function() {
             if (exportType === 'metadata') {
                 setActionFormUrl(links['export_metadata']);
             }
+            else if (exportType === 'annotations_simple') {
+                setActionFormUrl(links['export_annotations_simple']);
+            }
+            else if (exportType === 'annotations_full') {
+                setActionFormUrl(links['export_annotations_full']);
+            }
 
             if (imageSelectType === 'all') {
                 $('#previous-image-form-fields').find('input').each(

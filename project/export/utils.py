@@ -47,11 +47,9 @@ def write_annotations_csv(writer, image_set, full):
     writer.writerow(row)
 
     # Annotation data for the image set, one row per annotation
-    # Only get confirmed annotations
     # Order by image name, then point number
     annotations = Annotation.objects \
         .filter(image__in=image_set) \
-        .exclude(user=get_robot_user()) \
         .order_by('image__metadata__name', 'point__point_number')
 
     for annotation in annotations:

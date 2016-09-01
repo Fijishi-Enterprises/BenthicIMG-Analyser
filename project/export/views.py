@@ -115,11 +115,6 @@ def export_image_covers(request, source_id):
 
     # Metadata, one row per image
     for image in image_set:
-        # Skip images that aren't fully annotated
-        if not (
-         image.status.annotatedByHuman or image.status.annotatedByRobot):
-            continue
-
         row = [
             image.metadata.name,
             image.get_annotation_status_str(),
@@ -129,10 +124,13 @@ def export_image_covers(request, source_id):
         image_annotations = Annotation.objects.filter(image=image)
         image_annotation_count = image_annotations.count()
         for label in labels:
-            coverage_fraction = (
-                image_annotations.filter(label=label).count()
-                / float(image_annotation_count)
-            )
+            if image_annotation_count == 0:
+                coverage_fraction = 0
+            else:
+                coverage_fraction = (
+                    image_annotations.filter(label=label).count()
+                    / float(image_annotation_count)
+                )
             coverage_percent_str = format(coverage_fraction * 100.0, '.1f')
             row.append(coverage_percent_str)
         writer.writerow(row)

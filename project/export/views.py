@@ -106,7 +106,7 @@ def export_image_covers(request, source_id):
     response = create_csv_stream_response('annotations_full.csv')
     writer = csv.writer(response)
 
-    labels = source.labelset.labels.all().order_by('code')
+    labels = source.labelset.labels.all().order_by('group', 'code')
 
     # Header row
     row = ["Name", "Annotation status", "Annotation area"]

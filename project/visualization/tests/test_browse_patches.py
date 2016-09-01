@@ -85,12 +85,6 @@ class SearchTest(ClientTest):
             cls.user, cls.source, cls.user_editor, Source.PermTypes.EDIT.code)
 
         cls.img1 = cls.upload_image_new(cls.user, cls.source)
-        cls.add_annotations(
-            cls.user, cls.img1,
-            {1: 'A', 2: 'A', 3: 'A', 4: 'A', 5: 'B', 6: 'B'})
-        cls.add_annotations(
-            cls.user_editor, cls.img1,
-            {7: 'A', 8: 'A', 9: 'A', 10: 'B'})
 
         cls.url = reverse('browse_patches', args=[cls.source.pk])
 
@@ -114,25 +108,67 @@ class SearchTest(ClientTest):
         )
 
     def test_default_search(self):
+        self.add_annotations(
+            self.user, self.img1,
+            {1: 'A', 2: 'A', 3: 'A'})
+
         self.client.force_login(self.user)
         response = self.client.post(self.url, self.default_search_params)
         self.assertEqual(
-            response.context['page_results'].paginator.count, 10)
+            response.context['page_results'].paginator.count, 3)
 
-    def test_filter_by_annotation_status(self):
-        # TODO: Have a way to add robot annotations
-        pass
+    def test_filter_by_annotation_status_confirmed(self):
+        robot = self.create_robot(self.source)
+        self.add_annotations(
+            self.user, self.img1,
+            {1: 'A', 2: 'A', 3: 'A'})
+        self.add_robot_annotations(
+            robot, self.img1,
+            {4: 'B', 5: 'B'})
+
+        post_data = self.default_search_params.copy()
+        post_data['annotation_status'] = 'confirmed'
+
+        self.client.force_login(self.user)
+        response = self.client.post(self.url, post_data)
+        self.assertEqual(
+            response.context['page_results'].paginator.count, 3)
+
+    def test_filter_by_annotation_status_unconfirmed(self):
+        robot = self.create_robot(self.source)
+        self.add_annotations(
+            self.user, self.img1,
+            {1: 'A', 2: 'A', 3: 'A'})
+        self.add_robot_annotations(
+            robot, self.img1,
+            {4: 'B', 5: 'B'})
+
+        post_data = self.default_search_params.copy()
+        post_data['annotation_status'] = 'unconfirmed'
+
+        self.client.force_login(self.user)
+        response = self.client.post(self.url, post_data)
+        self.assertEqual(
+            response.context['page_results'].paginator.count, 2)
 
     def test_filter_by_label(self):
+        self.add_annotations(
+            self.user, self.img1,
+            {1: 'A', 2: 'A', 3: 'A', 4: 'B', 5: 'B'})
+
         post_data = self.default_search_params.copy()
         post_data['label'] = Label.objects.get(code='A').pk
 
         self.client.force_login(self.user)
         response = self.client.post(self.url, post_data)
         self.assertEqual(
-            response.context['page_results'].paginator.count, 7)
+            response.context['page_results'].paginator.count, 3)
 
     def test_label_choices(self):
+        self.add_annotations(
+            self.user, self.img1,
+            {1: 'A', 2: 'A', 3: 'A', 4: 'B', 5: 'B'})
+
         self.client.force_login(self.user)
         response = self.client.get(self.url)
 
@@ -146,15 +182,29 @@ class SearchTest(ClientTest):
         )
 
     def test_filter_by_annotator(self):
+        self.add_annotations(
+            self.user, self.img1,
+            {1: 'A', 2: 'A', 3: 'A'})
+        self.add_annotations(
+            self.user_editor, self.img1,
+            {4: 'A', 5: 'A'})
+
         post_data = self.default_search_params.copy()
         post_data['annotator'] = self.user.pk
 
         self.client.force_login(self.user)
         response = self.client.post(self.url, post_data)
         self.assertEqual(
-            response.context['page_results'].paginator.count, 6)
+            response.context['page_results'].paginator.count, 3)
 
     def test_annotator_choices(self):
+        self.add_annotations(
+            self.user, self.img1,
+            {1: 'A', 2: 'A', 3: 'A'})
+        self.add_annotations(
+            self.user_editor, self.img1,
+            {4: 'A', 5: 'A'})
+
         self.client.force_login(self.user)
         response = self.client.get(self.url)
 

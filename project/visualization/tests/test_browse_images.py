@@ -204,10 +204,13 @@ class SearchTest(ClientTest):
             {self.imgs[1].pk, self.imgs[2].pk, self.imgs[3].pk})
 
     def test_filter_by_annotation_status_confirmed(self):
-        # 2 points per image, so 2 are confirmed here
+        robot = self.create_robot(self.source)
+        # 2 points per image
+        # confirmed, confirmed, unconfirmed, partial
         self.add_annotations(self.user, self.imgs[0], {1: 'A', 2: 'B'})
         self.add_annotations(self.user, self.imgs[1], {1: 'B', 2: 'A'})
-        self.add_annotations(self.user, self.imgs[2], {1: 'B'})
+        self.add_robot_annotations(robot, self.imgs[2], {1: 'A', 2: 'B'})
+        self.add_annotations(self.user, self.imgs[3], {1: 'B'})
 
         post_data = self.default_search_params.copy()
         post_data['annotation_status'] = 'confirmed'
@@ -218,13 +221,29 @@ class SearchTest(ClientTest):
             response.context['page_results'].paginator.count, 2)
 
     def test_filter_by_annotation_status_unconfirmed(self):
-        # TODO: Have a way to add robot annotations
-        pass
+        robot = self.create_robot(self.source)
+        # 2 points per image
+        # confirmed, unconfirmed, unconfirmed, partial
+        self.add_annotations(self.user, self.imgs[0], {1: 'A', 2: 'B'})
+        self.add_robot_annotations(robot, self.imgs[1], {1: 'B', 2: 'A'})
+        self.add_robot_annotations(robot, self.imgs[2], {1: 'A', 2: 'B'})
+        self.add_annotations(self.user, self.imgs[3], {1: 'B'})
+
+        post_data = self.default_search_params.copy()
+        post_data['annotation_status'] = 'unconfirmed'
+
+        self.client.force_login(self.user)
+        response = self.client.post(self.url, post_data)
+        self.assertEqual(
+            response.context['page_results'].paginator.count, 2)
 
     def test_filter_by_annotation_status_unclassified(self):
-        # 2 points per image, so 1 is confirmed here, 4 are not
+        robot = self.create_robot(self.source)
+        # 2 points per image
+        # confirmed, unconfirmed, partial (counts as unclassified)
         self.add_annotations(self.user, self.imgs[0], {1: 'A', 2: 'B'})
-        self.add_annotations(self.user, self.imgs[1], {1: 'B'})
+        self.add_robot_annotations(robot, self.imgs[1], {1: 'A', 2: 'B'})
+        self.add_annotations(self.user, self.imgs[2], {1: 'B'})
 
         post_data = self.default_search_params.copy()
         post_data['annotation_status'] = 'unclassified'
@@ -232,7 +251,7 @@ class SearchTest(ClientTest):
         self.client.force_login(self.user)
         response = self.client.post(self.url, post_data)
         self.assertEqual(
-            response.context['page_results'].paginator.count, 4)
+            response.context['page_results'].paginator.count, 3)
 
     def test_filter_by_aux1(self):
         self.imgs[0].metadata.aux1 = 'Site1'

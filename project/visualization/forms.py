@@ -455,9 +455,10 @@ class HiddenForm(forms.Form):
                         required=False)
 
 
-# Similar to VisualizationSearchForm with the difference that
+# Similar to ImageSearchForm with the difference that
 # label selection appears on a multi-select checkbox form
-# TODO: Merge with VisualizationSearchForm to remove redundancy
+# TODO: Remove parts that are redundant with ImageSearchForm, and use
+# ImageSearchForm along with this form in the statistics page
 
 class StatisticsSearchForm(forms.Form):
     class Meta:

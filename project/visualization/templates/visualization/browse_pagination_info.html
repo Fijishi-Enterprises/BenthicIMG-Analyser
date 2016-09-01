@@ -5,7 +5,7 @@
   </span>
   <br />
   <br />
-  <span class="step-links">
+  <span>
 
     {% if page_results.has_previous %}
       <form action="" method="post">
@@ -20,7 +20,7 @@
       </form>
     {% endif %}
 
-    <span class="current">
+    <span>
       Page {{ page_results.number }}
       of {{ page_results.paginator.num_pages }}
     </span>

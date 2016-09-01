@@ -151,14 +151,22 @@ def delete_images(image_queryset):
     metadata_queryset = Metadata.objects.filter(image__in=image_queryset)
     status_queryset = ImageStatus.objects.filter(image__in=image_queryset)
 
-    # We delete the related objects after deleting the image to not trigger
-    # PROTECT-related errors on those ForeignKeys.
-    #
-    # Also, we call delete() on the querysets rather than the individual
+    # Since these querysets are obtained based on their related images,
+    # the querysets will change once the images are deleted!
+    # Force-evaluate these querysets BEFORE image deletion.
+    # https://docs.djangoproject.com/en/dev/ref/models/querysets/#when-querysets-are-evaluated
+    metadata_pks = list(metadata_queryset.values_list('pk', flat=True))
+    metadata_queryset = Metadata.objects.filter(pk__in=metadata_pks)
+    status_pks = list(status_queryset.values_list('pk', flat=True))
+    status_queryset = ImageStatus.objects.filter(pk__in=status_pks)
+
+    # We call delete() on the querysets rather than the individual
     # objects for faster performance.
     _, num_objects_deleted = image_queryset.delete()
     delete_count = num_objects_deleted.get('images.Image', 0)
 
+    # We delete the related objects AFTER deleting the images to not trigger
+    # PROTECT-related errors on those ForeignKeys.
     metadata_queryset.delete()
     status_queryset.delete()
 

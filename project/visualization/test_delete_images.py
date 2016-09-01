@@ -1,5 +1,3 @@
-import json
-
 from django.core.urlresolvers import reverse
 
 from images.models import Source, Image, Metadata, ImageStatus

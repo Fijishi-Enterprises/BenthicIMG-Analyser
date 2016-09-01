@@ -205,9 +205,9 @@ class SearchTest(ClientTest):
 
     def test_filter_by_annotation_status_confirmed(self):
         # 2 points per image, so 2 are confirmed here
-        self.add_annotations(self.user, self.imgs[0], {1:'A', 2:'B'})
-        self.add_annotations(self.user, self.imgs[1], {1:'B', 2:'A'})
-        self.add_annotations(self.user, self.imgs[2], {1:'B'})
+        self.add_annotations(self.user, self.imgs[0], {1: 'A', 2: 'B'})
+        self.add_annotations(self.user, self.imgs[1], {1: 'B', 2: 'A'})
+        self.add_annotations(self.user, self.imgs[2], {1: 'B'})
 
         post_data = self.default_search_params.copy()
         post_data['annotation_status'] = 'confirmed'
@@ -223,8 +223,8 @@ class SearchTest(ClientTest):
 
     def test_filter_by_annotation_status_unclassified(self):
         # 2 points per image, so 1 is confirmed here, 4 are not
-        self.add_annotations(self.user, self.imgs[0], {1:'A', 2:'B'})
-        self.add_annotations(self.user, self.imgs[1], {1:'B'})
+        self.add_annotations(self.user, self.imgs[0], {1: 'A', 2: 'B'})
+        self.add_annotations(self.user, self.imgs[1], {1: 'B'})
 
         post_data = self.default_search_params.copy()
         post_data['annotation_status'] = 'unclassified'

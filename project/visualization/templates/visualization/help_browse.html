@@ -1,44 +1,84 @@
+<p>There are three different pages which give an overview of
+  your source's data.</p>
+
+
 <h3>Browse Images</h3>
 
-<p>You can browse through all of the source's images here. Use the dropdown
-    boxes to specify which images you want to see, then click Search to
-    apply those filters.</p>
+<p>Browse through pages of images displayed as thumbnails.
+  Below the grid, click the arrow buttons to go to the next or
+  previous page.</p>
 
-<p>Use the <strong>Page view</strong> option to see different aspects of the
-    source's data:</p>
+<p>The search box at the top lets you narrow down the view to a smaller set
+  of images. Change the search fields and click Search to apply the filters.
+
+<p>You can mouse-over an image thumbnail to see its filename and
+  annotation status. The thumbnail's border color also indicates the
+  image's annotation status.</p>
+
+<p>The box below the page navigator lets you run an action on the
+  current set of images:</p>
 
 <ul>
-    <li><p><strong>Images</strong>: View the images as a grid of thumbnails.
-        20 images are shown per page; below the thumbnail grid, you can
-        navigate to a different page.</p>
+  <li><p><strong>Enter Annotation Tool</strong>:
+    (Requires source Edit or Admin permissions)
+    Enter the annotation tool for the first image in the specified image set.
+    The annotation tool's Prev/Next buttons will only navigate through the
+    image set.
+    </p></li>
 
-        <p>You can mouse-over an image thumbnail to see its filename and
-        annotation status. The thumbnail's border color also indicates the
-        image's annotation status.</p>
+  <li><p><strong>Export</strong>: Export (download) data about the specified
+    image set as a CSV file. You can choose between several kinds of data:</p>
+    <ul>
+      <li>Metadata: This contains anything you would see in the
+        "Edit Metadata" page: image date, auxiliary metadata, and so on.</li>
+      <li>Annotations, Simple: Image name, Row, Column, and Label for each
+        annotation point in the image set.</li>
+      <li>Annotations, Full: The fields of "Annotations, Simple" plus
+        the annotator, annotation date, and top robot suggestions for the
+        point.</li>
+      <li>Image Covers: Coverage statistics for each image in the set;
+        for example, this image consists of 5% label A, 10% label B,
+        etc. based on the annotations.
+        Also included is the image's "annotation area", which
+        is the area of the image where the random points are scattered.</li>
+    </ul>
+    <p>Note that the CSV file may take a while to generate, particularly
+      for sources with many images and points.</p>
+  </li>
 
-        <p>(<i>For source members with Edit or Admin permissions</i>) You can
-        also <strong>delete</strong> images using the form at the bottom of
-        the page. This function will delete all images in the current search.
-        When you click the button to delete the images, a confirmation dialog
-        will pop up to reduce the chances of accidental deletion.</p></li>
+  <li><p><strong>Delete</strong>:
+    (Requires source Edit or Admin permissions)
+    Permanently delete the images in the specified image set.
+    When you click the button to delete the images, a confirmation dialog
+    will pop up to reduce the chances of accidental deletion.</p>
+</ul>
 
-    <li><p><strong>Metadata</strong> (<i>For source members with
-        Edit or Admin permissions</i>): View the images' metadata as a grid of
-        text fields. Type in the text fields to edit the metadata, then
-        click the Save Edits button below to save your edits.</p>
+<p>Once you've specified an action, use the other dropdown box to specify
+  whether to apply the action to all images in the search, or just the
+  selected images.</p>
 
-        <p>You can edit multiple images' metadata at the same time by using
+
+<h3>Edit Metadata</h3>
+
+<p>Requires source Edit or Admin permissions.</p>
+
+<p>Show images' metadata as a grid of text fields.
+  You can get a smaller set of images with the Search form,
+  just like in Browse Images.</p>
+
+<p>Type in the text fields to edit the metadata, then click the Save Edits button below to save your edits. If there are any errors, the errors will display below the metadata grid and nothing will be saved yet. Note that saving might take a while if there are many images in the metadata grid.</p>
+
+<p>You can edit multiple images' metadata at the same time by using
         the checkboxes along the left side. If you check multiple images, and
         then edit the metadata of one of those checked images, those edits
         will be applied to all of the images you've checked. You can also use
-        the top checkbox to check or un-check all of the images.</p></li>
+        the top checkbox to check or un-check all of the images.</p>
 
-    <li><p><strong>Annotation Patches</strong>: Pick a label from the source's
-        labelset, then click Search to see image "patches" representing that
-        label. Each image patch corresponds to one point in an image that has
-        been annotated with that label. You can mouse-over an image patch to
-        see which image and which point the patch is from.</p>
 
-        <p>20 image patches are shown per page; below the patch grid, you can
-        navigate to a different page.</p></li>
-</ul>
+<h3>Browse Patches</h3>
+
+<p>Similar to Browse Images, except that each thumbnail is an image cut-out
+  or "patch" which represents a point location within that image.
+  You can use the Search form to only display patches of a particular Label.
+  Mouse-over an image patch to see which image and which point the patch is
+  from.</p>

@@ -113,7 +113,7 @@ def export_image_covers(request, source_id):
     row.extend(labels.values_list('code', flat=True))
     writer.writerow(row)
 
-    # Metadata, one row per image
+    # One row per image
     for image in image_set:
         row = [
             image.metadata.name,

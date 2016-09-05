@@ -15,11 +15,7 @@ class PermissionTest(ClientTest):
 
         cls.user = cls.create_user()
 
-        cls.source = cls.create_source(
-            cls.user, visibility=Source.VisibilityTypes.PUBLIC,
-            point_generation_type=PointGen.Types.SIMPLE,
-            simple_number_of_points=10,
-        )
+        cls.source = cls.create_source(cls.user)
         labels = cls.create_labels(cls.user, cls.source, ['A', 'B'], 'GroupA')
         cls.create_labelset(cls.user, cls.source, labels)
 
@@ -145,11 +141,7 @@ class LoadImageTest(ClientTest):
 
         cls.user = cls.create_user()
 
-        cls.source = cls.create_source(
-            cls.user, visibility=Source.VisibilityTypes.PUBLIC,
-            point_generation_type=PointGen.Types.SIMPLE,
-            simple_number_of_points=10,
-        )
+        cls.source = cls.create_source(cls.user)
         labels = cls.create_labels(cls.user, cls.source, ['A', 'B'], 'GroupA')
         cls.create_labelset(cls.user, cls.source, labels)
 
@@ -182,6 +174,90 @@ class LoadImageTest(ClientTest):
         # generation doesn't go nuts.
         response = self.client.get(url)
         self.assertStatusOK(response)
+
+
+class NavigationTest(ClientTest):
+    """
+    Test the annotation tool buttons that let you navigate to other images.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super(NavigationTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+
+        cls.source = cls.create_source(cls.user)
+        labels = cls.create_labels(cls.user, cls.source, ['A', 'B'], 'GroupA')
+        cls.create_labelset(cls.user, cls.source, labels)
+
+        cls.img1 = cls.upload_image_new(
+            cls.user, cls.source, dict(filename='1.png'))
+        cls.img2 = cls.upload_image_new(
+            cls.user, cls.source, dict(filename='2.png'))
+        cls.img3 = cls.upload_image_new(
+            cls.user, cls.source, dict(filename='3.png'))
+
+        cls.default_search_params = dict(
+            image_form_type='search',
+            aux1='', aux2='', aux3='', aux4='', aux5='',
+            height_in_cm='', latitude='', longitude='', depth='',
+            photographer='', framing='', balance='',
+            date_filter_0='year', date_filter_1='',
+            date_filter_2='', date_filter_3='',
+            annotation_status='',
+        )
+
+    def test_next(self):
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse('annotation_tool', args=[self.img2.pk]))
+        self.assertEqual(response.context['next_image'].pk, self.img3.pk)
+
+    def test_prev(self):
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse('annotation_tool', args=[self.img2.pk]))
+        self.assertEqual(response.context['prev_image'].pk, self.img1.pk)
+
+    def test_next_wrap_to_first(self):
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse('annotation_tool', args=[self.img3.pk]))
+        self.assertEqual(response.context['next_image'].pk, self.img1.pk)
+
+    def test_prev_wrap_to_last(self):
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse('annotation_tool', args=[self.img1.pk]))
+        self.assertEqual(response.context['prev_image'].pk, self.img3.pk)
+
+    def test_next_with_search_filter(self):
+        self.img1.metadata.aux1 = 'SiteA'
+        self.img1.metadata.save()
+        self.img2.metadata.aux1 = 'SiteB'
+        self.img2.metadata.save()
+        self.img3.metadata.aux1 = 'SiteA'
+        self.img3.metadata.save()
+
+        # Exclude img2 with the filter
+        post_data = self.default_search_params.copy()
+        post_data['aux1'] = 'SiteA'
+
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse('annotation_tool', args=[self.img1.pk]), post_data)
+        self.assertEqual(response.context['next_image'].pk, self.img3.pk)
+
+    def test_prev_with_image_id_filter(self):
+        # Exclude img2 with the filter
+        post_data = self.default_search_params.copy()
+        post_data['image_form_type'] = 'ids'
+        post_data['ids'] = ','.join([str(self.img1.pk), str(self.img3.pk)])
+
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse('annotation_tool', args=[self.img3.pk]), post_data)
+        self.assertEqual(response.context['prev_image'].pk, self.img1.pk)
 
 
 class SaveAnnotationsTest(ClientTest):
@@ -351,11 +427,7 @@ class SettingsTest(ClientTest):
 
         cls.user = cls.create_user()
 
-        cls.source = cls.create_source(
-            cls.user, visibility=Source.VisibilityTypes.PUBLIC,
-            point_generation_type=PointGen.Types.SIMPLE,
-            simple_number_of_points=3,
-        )
+        cls.source = cls.create_source(cls.user)
         labels = cls.create_labels(cls.user, cls.source, ['A', 'B'], 'GroupA')
         cls.create_labelset(cls.user, cls.source, labels)
 

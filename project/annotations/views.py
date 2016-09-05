@@ -652,24 +652,17 @@ def save_annotations_ajax(request, image_id):
         image.status.annotatedByHuman = all_done
         image.status.save()
 
-    if all_done:
-        return JsonResponse(dict(all_done=True))
-    else:
-        return JsonResponse(dict())
+    return JsonResponse(dict(all_done=all_done))
 
 
 @image_permission_required(
-    'image_id', perm=Source.PermTypes.EDIT.code, ajax=True)
+    'image_id', perm=Source.PermTypes.VIEW.code, ajax=True)
 def is_annotation_all_done_ajax(request, image_id):
     """
     :returns dict of:
       all_done: True if the image has all points confirmed, False otherwise
       error: Error message if there was an error
     """
-
-    if request.method != 'POST':
-        return JsonResponse(dict(error="Not a POST request"))
-
     image = get_object_or_404(Image, id=image_id)
     return JsonResponse(dict(all_done=image_annotation_all_done(image)))
 

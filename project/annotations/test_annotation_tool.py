@@ -102,24 +102,12 @@ class PermissionTest(ClientTest):
 
     def test_check_annotation_done_as_source_viewer(self):
         """
-        Don't have permission.
+        Can check.
         """
         url = reverse('is_annotation_all_done_ajax', args=[self.img.pk])
         self.client.force_login(self.user_viewer)
         response = self.client.post(url, dict()).json()
         # Response should include an error that contains the word "permission"
-        self.assertTrue(
-            'error' in response and "permission" in response['error'])
-
-    def test_check_annotation_done_as_source_editor(self):
-        """
-        Can check.
-        """
-        url = reverse('is_annotation_all_done_ajax', args=[self.img.pk])
-        self.client.force_login(self.user_editor)
-        response = self.client.post(url, dict()).json()
-        # Response may include an error, but if it does, it shouldn't contain
-        # the word "permission"
         self.assertFalse(
             'error' in response and "permission" in response['error'])
 
@@ -297,7 +285,7 @@ class SaveAnnotationsTest(ClientTest):
 
         self.assertTrue('error' not in response)
         # Since we skipped some points, we shouldn't be 'all done'
-        self.assertTrue('all_done' not in response)
+        self.assertFalse(response['all_done'])
 
         # Check that point 2 doesn't have an annotation
         self.assertRaises(
@@ -323,7 +311,7 @@ class SaveAnnotationsTest(ClientTest):
         response = self.client.post(self.url, data).json()
 
         self.assertTrue('error' not in response)
-        self.assertTrue('all_done' in response)
+        self.assertTrue(response['all_done'])
 
         # Check that point 2's annotation is what we expect
         annotation_2 = Annotation.objects.get(
@@ -395,7 +383,7 @@ class IsAnnotationAllDoneTest(ClientTest):
         self.add_annotations(self.user, self.img, annotations)
 
         self.client.force_login(self.user)
-        response = self.client.post(self.url, dict()).json()
+        response = self.client.get(self.url).json()
 
         self.assertTrue('error' not in response)
         # Since we skipped some points, we shouldn't be 'all done'
@@ -410,7 +398,7 @@ class IsAnnotationAllDoneTest(ClientTest):
         self.add_annotations(self.user, self.img, annotations)
 
         self.client.force_login(self.user)
-        response = self.client.post(self.url, dict()).json()
+        response = self.client.get(self.url).json()
 
         self.assertTrue('error' not in response)
         # Since we labeled all points, we should be 'all done'

@@ -1025,7 +1025,6 @@ var AnnotationToolHelper = (function() {
 
     // AJAX callback.
     function ajaxSaveButtonCallback(returnDict) {
-
         if (returnDict.error) {
             setSaveButtonText("Error");
             console.log("Annotation save error: {0}".format(returnDict.error));
@@ -1035,7 +1034,7 @@ var AnnotationToolHelper = (function() {
         setSaveButtonText("Saved");
 
         // Add or remove ALL DONE indicator
-        setAllDoneIndicator(returnDict.hasOwnProperty('all_done'));
+        setAllDoneIndicator(returnDict.all_done);
 
         util.pageLeaveWarningDisable();
     }
@@ -1067,18 +1066,23 @@ var AnnotationToolHelper = (function() {
         util.pageLeaveWarningEnable("You have unsaved changes.");
     }
 
-    function setAllDoneIndicator(responseObj) {
-        if (responseObj.error) {
-            $('#allDone').append('<span>').text("Error");
-            console.log("All-done status check error: {0}".format(responseObj.error));
+    // AJAX callback.
+    function ajaxIsAllDoneCallback(returnDict) {
+        if (returnDict.error) {
+            console.log(
+                "All-done status check error: {0}".format(returnDict.error));
             return;
         }
 
-        if (responseObj.all_done) {
-            $('#allDone').append('<span>').text("ALL DONE");
-        }
-        else {
-            $('#allDone').empty();
+        // Add or remove ALL DONE indicator
+        setAllDoneIndicator(returnDict.all_done);
+    }
+
+    function setAllDoneIndicator(allDone) {
+        var $allDone = $('#allDone');
+        $allDone.empty();
+        if (allDone) {
+            $allDone.append('<span>').text("ALL DONE");
         }
     }
 
@@ -1701,9 +1705,9 @@ var AnnotationToolHelper = (function() {
             // Initialize all_done state
             $.ajax({
                 // Callback on successful response
-                success: setAllDoneIndicator,
+                success: ajaxIsAllDoneCallback,
 
-                type: 'POST',
+                type: 'GET',
 
                 // URL to make request to
                 url: isAnnotationAllDoneUrl

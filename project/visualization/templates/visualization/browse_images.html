@@ -9,8 +9,10 @@
 {% endblock %}
 
 {% block page-specific-includes %}
-  {% include "static-local-include.html" with type="js" path="js/VisSearchFormHelper.js" %}
-  {% include "static-local-include.html" with type="css" path="css/visualize_source.css" %}
+  {% include "static-local-include.html" with type="js" path="js/ImageSearchHelper.js" %}
+  {% include "static-local-include.html" with type="js" path="js/BrowseActionHelper.js" %}
+
+  {% include "static-local-include.html" with type="css" path="css/browse.css" %}
 {% endblock %}
 
 {% block content %}
@@ -128,10 +130,10 @@
 
   {# Script in the body will run on page load. #}
   <script type="text/javascript">
-    BrowseSearchHelper.initSearchForm();
+    ImageSearchHelper.init();
 
     {% if page_results.paginator.count > 0 %}
-      BrowseSearchHelper.initActionForm({
+      BrowseActionHelper.init({
           pageImageIds: {{ page_image_ids|jsonify }},
           links: {{ links|jsonify }}
       });

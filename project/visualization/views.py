@@ -11,7 +11,7 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, render
 
 from .forms import CheckboxForm, StatisticsSearchForm, ImageSearchForm, \
-    PatchSearchOptionsForm, HiddenForm, process_image_forms
+    PatchSearchOptionsForm, HiddenForm, post_to_image_filter_form
 from .utils import generate_patch_if_doesnt_exist, get_patch_url, paginate
 from accounts.utils import get_robot_user
 from annotations.models import Annotation, Label, LabelSet, LabelGroup
@@ -36,7 +36,7 @@ def browse_images(request, source_id):
     hidden_image_form = None
 
     image_form = \
-        process_image_forms(request.POST, source, has_annotation_status=True)
+        post_to_image_filter_form(request.POST, source, has_annotation_status=True)
     if image_form:
         if image_form.is_valid():
             image_results = image_form.get_images()
@@ -108,7 +108,7 @@ def edit_metadata(request, source_id):
         source=source, has_annotation_status=True)
 
     image_form = \
-        process_image_forms(request.POST, source, has_annotation_status=True)
+        post_to_image_filter_form(request.POST, source, has_annotation_status=True)
     if image_form:
         if image_form.is_valid():
             image_results = image_form.get_images()
@@ -189,7 +189,7 @@ def browse_patches(request, source_id):
     hidden_image_and_patch_form = None
 
     image_form = \
-        process_image_forms(request.POST, source, has_annotation_status=False)
+        post_to_image_filter_form(request.POST, source, has_annotation_status=False)
     if request.POST:
         patch_search_form = PatchSearchOptionsForm(request.POST, source=source)
 
@@ -310,7 +310,7 @@ def browse_delete_ajax(request, source_id):
     source = get_object_or_404(Source, id=source_id)
 
     image_form = \
-        process_image_forms(request.POST, source, has_annotation_status=True)
+        post_to_image_filter_form(request.POST, source, has_annotation_status=True)
     if not image_form:
         # There's nothing invalid about a user wanting to delete all images
         # in the source, but it's somewhat plausible that we'd accidentally

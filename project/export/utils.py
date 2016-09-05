@@ -4,12 +4,12 @@ from django.http import HttpResponse
 from accounts.utils import get_robot_user
 from annotations.models import Annotation
 from images.models import Image
-from visualization.forms import process_image_forms
+from visualization.forms import post_to_image_filter_form
 
 
 def get_request_images(request, source):
     image_form = \
-        process_image_forms(request.POST, source, has_annotation_status=True)
+        post_to_image_filter_form(request.POST, source, has_annotation_status=True)
     if image_form:
         if image_form.is_valid():
             image_set = image_form.get_images()

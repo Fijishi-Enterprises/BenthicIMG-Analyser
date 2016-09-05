@@ -14,7 +14,7 @@ from images import task_utils
 from images.models import Source, Image, Point
 from images.utils import generate_points, get_next_image, get_date_and_aux_metadata_table, \
     get_prev_image, get_image_order_placement
-from visualization.forms import HiddenForm, process_image_forms
+from visualization.forms import HiddenForm, post_to_image_filter_form
 from visualization.utils import generate_patch_if_doesnt_exist, get_patch_url
 from .model_utils import AnnotationAreaUtils
 from .models import Label, LabelSet, Annotation, AnnotationToolAccess, AnnotationToolSettings
@@ -415,7 +415,7 @@ def annotation_tool(request, image_id):
     filters_used_display = None
 
     image_form = \
-        process_image_forms(request.POST, source, has_annotation_status=True)
+        post_to_image_filter_form(request.POST, source, has_annotation_status=True)
     if image_form:
         if image_form.is_valid():
             image_set = image_form.get_images()

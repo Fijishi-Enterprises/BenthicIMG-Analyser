@@ -407,11 +407,10 @@ class ImageSpecifyByIdForm(forms.Form):
         return "(Manual selection)"
 
 
-def process_image_forms(POST_data, source, has_annotation_status):
+def post_to_image_filter_form(POST_data, source, has_annotation_status):
     """
     All the browse views and the annotation tool view can use this
     to process image-specification forms.
-    TODO: Consider a function rename.
     """
     image_form = None
     if POST_data.get('image_form_type') == 'search':

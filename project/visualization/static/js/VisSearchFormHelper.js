@@ -70,9 +70,11 @@ var BrowseSearchHelper = (function() {
         $actionForm.attr('action', url);
     }
     function areYouSureDelete() {
-        return window.confirm(
+        var userInput = window.prompt(
             "Are you sure you want to delete these images?" +
-            " You won't be able to undo this.");
+            " You won't be able to undo this." +
+            " Type \"delete\" if you're sure.");
+        return (userInput === "delete");
     }
     function actionSubmit() {
         // Clear fields from any previous submit attempts.

@@ -73,14 +73,21 @@
       {% endif %}
     </span>
 
+    {% get_obj_perms user for source as 'source_perms' %}
+
     {# Action form #}
     <div id="action-form-box" class="box">
 
-      {# TODO: Put permissions on these options #}
       <select name="browse_action" title="Action">
-        <option value="annotate">Enter Annotation Tool</option>
+        {% if 'source_edit' in source_perms %}
+          <option value="annotate">Enter Annotation Tool</option>
+        {% endif %}
+
         <option value="export">Export</option>
-        <option value="delete">Delete</option>
+
+        {% if 'source_edit' in source_perms %}
+          <option value="delete">Delete</option>
+        {% endif %}
       </select>
 
       <span id="action_form_annotate_specifics">

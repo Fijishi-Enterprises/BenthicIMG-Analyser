@@ -55,14 +55,26 @@
     {{ empty_message }}
   {% else %}
 
+    {% get_obj_perms user for source as 'source_perms' %}
+
     {# Grid of patches #}
     {% for patch in patches %}
       <span class="thumb_wrapper">
-        <a href="{% url 'annotation_tool' patch.image.pk %}">
-          <img class="thumb"
-               src="{{ patch.thumbnail_url }}"
-               title="Point {{ patch.point_number }} ({{ patch.row }},{{ patch.col }}) in: {{ patch.image.get_image_element_title }}"/>
-        </a>
+
+        {% if 'source_edit' in source_perms %}
+          <a href="{% url 'annotation_tool' patch.image.pk %}">
+            <img class="thumb"
+                 src="{{ patch.thumbnail_url }}"
+                 title="Point {{ patch.point_number }} ({{ patch.row }},{{ patch.col }}) in: {{ patch.image.get_image_element_title }}"/>
+          </a>
+        {% else %}
+          <a href="{% url 'image_detail' patch.image.pk %}">
+            <img class="thumb"
+                 src="{{ patch.thumbnail_url }}"
+                 title="Point {{ patch.point_number }} ({{ patch.row }},{{ patch.col }}) in: {{ patch.image.get_image_element_title }}"/>
+          </a>
+        {% endif %}
+
       </span>
     {% endfor %}
 

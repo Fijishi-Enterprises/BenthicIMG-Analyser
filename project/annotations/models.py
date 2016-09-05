@@ -169,7 +169,7 @@ class AnnotationToolSettings(models.Model):
 
     unannotated_point_color = models.CharField(max_length=6, default='FFFF00', verbose_name='Not annotated point color')
     robot_annotated_point_color = models.CharField(max_length=6, default='FFFF00', verbose_name='Unconfirmed point color')
-    human_annotated_point_color = models.CharField(max_length=6, default='8888FF', verbose_name='Conformed point color')
+    human_annotated_point_color = models.CharField(max_length=6, default='8888FF', verbose_name='Confirmed point color')
     selected_point_color = models.CharField(max_length=6, default='00FF00')
 
     show_machine_annotations = models.BooleanField(default=True)

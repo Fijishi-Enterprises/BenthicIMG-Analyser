@@ -586,11 +586,17 @@ def save_annotations_ajax(request, image_id):
 
     for pointNum in points.keys():
 
-        labelCode = request.POST['label_'+str(pointNum)]
+        labelCode = request.POST.get('label_'+str(pointNum), None)
+        if labelCode is None:
+            return JsonResponse(
+                dict(error="Missing label field for point %s." % pointNum))
 
         # Does the form field have a non-human-confirmed robot annotation?
-        isFormRobotAnnotation = json.loads(
-            request.POST['robot_'+str(pointNum)])
+        is_unconfirmed_in_form_raw = request.POST.get('robot_'+str(pointNum))
+        if is_unconfirmed_in_form_raw is None:
+            return JsonResponse(
+                dict(error="Missing robot field for point %s." % pointNum))
+        is_unconfirmed_in_form = json.loads(is_unconfirmed_in_form_raw)
 
         point = points[pointNum]
 
@@ -619,7 +625,7 @@ def save_annotations_ajax(request, image_id):
                 pass
             # Label was robot annotated, and then the human user
             # confirmed or changed it
-            elif is_robot_user(anno.user) and not isFormRobotAnnotation:
+            elif is_robot_user(anno.user) and not is_unconfirmed_in_form:
                 anno.label = label
                 anno.user = request.user
                 anno.save()

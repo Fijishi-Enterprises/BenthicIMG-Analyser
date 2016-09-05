@@ -583,7 +583,7 @@ class ClientTest(BaseTest):
         NOTE: This does not use any standard task or utility function
         for adding a robot, so standard assumptions might not hold.
         :param source: Source to add a robot for.
-        :return:
+        :return: The new Robot.
         """
         latest_robot = source.get_latest_robot()
         if latest_robot:

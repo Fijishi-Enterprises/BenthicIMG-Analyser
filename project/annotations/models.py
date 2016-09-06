@@ -1,30 +1,9 @@
 from django.contrib.auth.models import User
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
-from labels.models import LabelGroup, Label
+from labels.models import Label
 
 
-class LabelSet(models.Model):
-    # description and location are obsolete if we're staying with a 1-to-1
-    # correspondence between labelsets and sources.
-    description = models.TextField(blank=True)
-    location = models.CharField(max_length=45, blank=True)
-    labels = models.ManyToManyField(Label)
-    edit_date = models.DateTimeField('Date edited', auto_now=True, editable=False)
-
-    def __unicode__(self):
-        try:
-            source = self.source_set.first()
-            #source = get_labelset_source(self.pk)
-            # Labelset of a source
-            return "%s labelset" % source
-        except Source.DoesNotExist:
-            # Labelset that's not in any source (either a really old
-            # labelset from early site development, or a labelset of a
-            # deleted source)
-            return "(Labelset not used in any source) " + self.description
-
-    
 class Annotation(models.Model):
     annotation_date = models.DateTimeField(
         blank=True, auto_now=True, editable=False)

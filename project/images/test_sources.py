@@ -4,10 +4,8 @@ from django.core.urlresolvers import reverse
 from django.utils import timezone
 from guardian.shortcuts import get_objects_for_user
 from annotations.model_utils import AnnotationAreaUtils
-from annotations.models import LabelSet
 from images.model_utils import PointGen
 from images.models import Source
-from lib import str_consts
 from lib.test_utils import ClientTest
 
 

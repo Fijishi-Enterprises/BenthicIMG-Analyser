@@ -4,10 +4,9 @@ from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.db.models import Count
 
-from annotations.models import LabelSet
 from images.model_utils import PointGen
 from images.models import Source
-from labels.models import LabelGroup, Label
+from labels.models import LabelGroup, Label, LabelSet
 from lib.test_utils import ClientTest
 
 class LabelListTest(ClientTest):

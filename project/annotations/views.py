@@ -8,18 +8,19 @@ from django.shortcuts import render, get_object_or_404
 from easy_thumbnails.files import get_thumbnailer
 from reversion.models import Version, Revision
 
+from .forms import NewLabelForm, NewLabelSetForm, AnnotationForm, AnnotationAreaPixelsForm, AnnotationToolSettingsForm, AnnotationImageOptionsForm
+from .model_utils import AnnotationAreaUtils
+from .models import Annotation, AnnotationToolAccess, AnnotationToolSettings
+from .utils import get_annotation_version_user_display, image_annotation_all_done, apply_alleviate
 from accounts.utils import get_robot_user, is_robot_user
-from lib.decorators import source_permission_required, source_visibility_required, image_permission_required, image_annotation_area_must_be_editable, image_labelset_required, login_required_ajax
 from images import task_utils
 from images.models import Source, Image, Point
 from images.utils import generate_points, get_next_image, get_date_and_aux_metadata_table, \
     get_prev_image, get_image_order_placement
+from labels.models import Label
+from lib.decorators import source_permission_required, source_visibility_required, image_permission_required, image_annotation_area_must_be_editable, image_labelset_required, login_required_ajax
 from visualization.forms import HiddenForm, post_to_image_filter_form
 from visualization.utils import generate_patch_if_doesnt_exist, get_patch_url
-from .model_utils import AnnotationAreaUtils
-from .models import Label, LabelSet, Annotation, AnnotationToolAccess, AnnotationToolSettings
-from .utils import get_annotation_version_user_display, image_annotation_all_done, apply_alleviate
-from .forms import NewLabelForm, NewLabelSetForm, AnnotationForm, AnnotationAreaPixelsForm, AnnotationToolSettingsForm, AnnotationImageOptionsForm
 
 
 @login_required

@@ -21,9 +21,8 @@ from .tasks import *
 from .utils import get_date_and_aux_metadata_table, get_next_image, get_prev_image
 from annotations.forms import AnnotationAreaPercentsForm
 from annotations.model_utils import AnnotationAreaUtils
-from annotations.models import LabelSet
 from annotations.utils import image_annotation_area_is_editable, image_has_any_human_annotations
-from labels.models import LabelGroup, Label
+from labels.models import LabelGroup, Label, LabelSet
 from lib.decorators import source_permission_required, image_visibility_required, image_permission_required, source_visibility_required
 from visualization.utils import image_search_kwargs_to_queryset
 

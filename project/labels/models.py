@@ -82,3 +82,24 @@ class Label(models.Model):
         To-string method.
         """
         return self.name
+
+
+class LabelSet(models.Model):
+    # description and location are obsolete if we're staying with a 1-to-1
+    # correspondence between labelsets and sources.
+    description = models.TextField(blank=True)
+    location = models.CharField(max_length=45, blank=True)
+    labels = models.ManyToManyField(Label)
+    edit_date = models.DateTimeField(
+        'Date edited', auto_now=True, editable=False)
+
+    def __unicode__(self):
+        source = self.source_set.first()
+        if source:
+            # Labelset of a source
+            return "%s labelset" % source
+        else:
+            # Labelset that's not in any source (either a really old
+            # labelset from early site development, or a labelset of a
+            # deleted source which wasn't properly cleaned up)
+            return "(Labelset not used in any source) " + self.description

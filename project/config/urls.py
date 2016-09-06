@@ -7,9 +7,10 @@ from django.views.generic import TemplateView
 import lib.views as lib_views
 
 urlpatterns = [
+    url(r'^annotations/', include('annotations.urls')),
     url(r'^feedback/', include('bug_reporting.urls')),
     url(r'^images/', include('images.urls')),
-    url(r'^annotations/', include('annotations.urls')),
+    url(r'^labels/', include('labels.urls')),
     url(r'^requests/', include('requests.urls')),
 
     url(r'^source/(?P<source_id>\d+)/browse/', include('visualization.urls')),

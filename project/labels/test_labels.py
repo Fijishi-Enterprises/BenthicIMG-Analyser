@@ -9,6 +9,7 @@ from images.models import Source
 from labels.models import LabelGroup, Label, LabelSet
 from lib.test_utils import ClientTest
 
+
 class LabelListTest(ClientTest):
     """
     Test the label list page.
@@ -19,6 +20,7 @@ class LabelListTest(ClientTest):
         """Load the page."""
         response = self.client.get(reverse('label_list'))
         self.assertStatusOK(response)
+
 
 class LabelDetailTest(ClientTest):
     """
@@ -34,6 +36,7 @@ class LabelDetailTest(ClientTest):
             ))
         )
         self.assertStatusOK(response)
+
 
 class LabelDetailPatchesTest(ClientTest):
     """
@@ -135,6 +138,7 @@ class LabelDetailPatchesTest(ClientTest):
         )
         self.assertEqual(len(response.context['patches']), 3)
 
+
 class NewLabelTest(ClientTest):
     """
     As long as the new label page still exists, at least check that it
@@ -149,6 +153,7 @@ class NewLabelTest(ClientTest):
             response,
             reverse('signin')+'?next='+reverse('label_new'),
         )
+
 
 class NewLabelsetTest(ClientTest):
     """
@@ -287,6 +292,7 @@ class NewLabelsetTest(ClientTest):
             {label.code for label in labelset.labels.all()},
             {'UMarine', 'Forest'},
         )
+
 
 class EditLabelsetTest(ClientTest):
     """

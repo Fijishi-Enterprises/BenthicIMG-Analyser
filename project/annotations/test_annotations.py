@@ -3,9 +3,9 @@ import random
 from django.conf import settings
 from django.core.urlresolvers import reverse
 from annotations.model_utils import AnnotationAreaUtils
-from annotations.models import Label
 from images.model_utils import PointGen
 from images.models import Source, Image, Point
+from labels.models import Label
 from lib.test_utils import ClientTest
 
 

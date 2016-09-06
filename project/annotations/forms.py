@@ -14,8 +14,9 @@ from django.utils.safestring import mark_safe
 from django.utils.encoding import force_unicode
 from accounts.utils import is_robot_user, get_robot_user
 from annotations.model_utils import AnnotationAreaUtils
-from annotations.models import Label, LabelSet, Annotation, AnnotationToolSettings
+from annotations.models import LabelSet, Annotation, AnnotationToolSettings
 from images.models import Point, Source, Metadata, Image
+from labels.models import Label
 
 
 class CustomCheckboxSelectMultiple(forms.CheckboxSelectMultiple):

@@ -20,10 +20,10 @@ from django.test.client import Client
 from django.utils import timezone
 
 from accounts.utils import get_robot_user
-from annotations.models import Label, Annotation
+from annotations.models import Annotation
 from images.model_utils import PointGen
 from images.models import Source, Point, Image
-from labels.models import LabelGroup
+from labels.models import LabelGroup, Label
 from lib.exceptions import TestfileDirectoryError
 from lib.utils import is_django_str
 from vision_backend.models import Classifier as Robot

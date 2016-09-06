@@ -1,9 +1,10 @@
 import os
 from django.conf import settings
-from images.models import Image, Point
-from annotations.models import Label
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.mail import mail_admins
+from images.models import Image, Point
+from labels.models import Label
+
 
 # TODO: Figure out how to avoid duplicating these filepaths between tasks.py
 # and task_utils.py. Perhaps anything reading the raw filenames should just

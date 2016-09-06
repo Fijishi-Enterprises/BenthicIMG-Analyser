@@ -8,10 +8,10 @@ from django.forms.fields import ChoiceField, BooleanField, DateField, \
 from django.forms.widgets import HiddenInput, MultiWidget
 
 from accounts.utils import get_robot_user
-from annotations.models import Label, Annotation
+from annotations.models import Annotation
 from images.models import Source, Metadata, Image, Point
 from images.utils import get_aux_metadata_form_choices, get_num_aux_fields, get_aux_label, get_aux_field_name
-from labels.models import LabelGroup
+from labels.models import LabelGroup, Label
 from visualization.utils import image_search_kwargs_to_queryset
 
 

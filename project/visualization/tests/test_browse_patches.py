@@ -1,8 +1,8 @@
 from django.core.urlresolvers import reverse
 
-from annotations.models import Label
 from images.model_utils import PointGen
 from images.models import Source
+from labels.models import Label
 from lib.test_utils import ClientTest
 
 

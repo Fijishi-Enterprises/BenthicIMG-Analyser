@@ -1,10 +1,6 @@
 from django.contrib import admin
 from reversion.admin import VersionAdmin
-from .models import Label, LabelSet, Annotation
-
-@admin.register(Label)
-class LabelAdmin(admin.ModelAdmin):
-    list_display = ('name', 'code', 'group', 'create_date')
+from .models import LabelSet, Annotation
 
 @admin.register(LabelSet)
 class LabelSetAdmin(admin.ModelAdmin):

@@ -1,16 +1,16 @@
-- model: annotations.labelgroup
+- model: labels.labelgroup
   pk: null
   fields:
     name: Red colors
     code: Red
 
-- model: annotations.labelgroup
+- model: labels.labelgroup
   pk: null
   fields:
     name: Green colors
     code: Green
 
-- model: annotations.labelgroup
+- model: labels.labelgroup
   pk: null
   fields:
     name: Blue colors

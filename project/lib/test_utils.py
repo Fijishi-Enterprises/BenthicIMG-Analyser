@@ -20,12 +20,13 @@ from django.test.client import Client
 from django.utils import timezone
 
 from accounts.utils import get_robot_user
-from annotations.models import LabelGroup, Label, Annotation
+from annotations.models import Label, Annotation
 from images.model_utils import PointGen
 from images.models import Source, Point, Image
-from vision_backend.models import Classifier as Robot
+from labels.models import LabelGroup
 from lib.exceptions import TestfileDirectoryError
 from lib.utils import is_django_str
+from vision_backend.models import Classifier as Robot
 
 
 # Settings to override in all of our unit tests.

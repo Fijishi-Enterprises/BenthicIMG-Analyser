@@ -10,11 +10,12 @@ from .forms import CheckboxForm, StatisticsSearchForm, ImageSearchForm, \
     PatchSearchOptionsForm, HiddenForm, post_to_image_filter_form
 from .utils import generate_patch_if_doesnt_exist, get_patch_url, paginate
 from accounts.utils import get_robot_user
-from annotations.models import Annotation, Label, LabelSet, LabelGroup
+from annotations.models import Annotation, Label, LabelSet
 from images.forms import MetadataFormForGrid, BaseMetadataFormSet
 from images.models import Source, Image, Metadata
 from images.tasks import *
 from images.utils import delete_images
+from labels.models import LabelGroup
 from lib.decorators import source_visibility_required, source_permission_required
 
 

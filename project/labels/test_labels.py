@@ -216,7 +216,7 @@ class NewLabelsetTest(ClientTest):
         ))
         response = self.client.get(url)
         self.assertStatusOK(response)
-        self.assertTemplateUsed(response, 'annotations/labelset_new.html')
+        self.assertTemplateUsed(response, 'labels/labelset_new.html')
 
     def test_label_creation(self):
         """Successfully create a new label."""
@@ -384,7 +384,7 @@ class EditLabelsetTest(ClientTest):
         ))
         response = self.client.get(url)
         self.assertStatusOK(response)
-        self.assertTemplateUsed(response, 'annotations/labelset_edit.html')
+        self.assertTemplateUsed(response, 'labels/labelset_edit.html')
 
     def test_edit_success(self):
         """

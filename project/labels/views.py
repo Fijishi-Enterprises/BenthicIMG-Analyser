@@ -34,7 +34,7 @@ def label_new(request):
     else:
         form = NewLabelForm()
 
-    return render(request, 'annotations/label_new.html', {
+    return render(request, 'labels/label_new.html', {
         'form': form,
     })
 
@@ -103,7 +103,7 @@ def labelset_new(request, source_id):
     for labelId, label in labelSetForm['labels'].field.choices:
         isInitiallyChecked[labelId] = labelId in initiallyCheckedLabels
 
-    return render(request, 'annotations/labelset_new.html', {
+    return render(request, 'labels/labelset_new.html', {
         'showLabelFormInitially': json.dumps(showLabelForm),    # Convert Python bool to JSON bool
         'labelSetForm': labelSetForm,
         'labelForm': labelForm,
@@ -208,7 +208,7 @@ def labelset_edit(request, source_id):
             isLabelUnchangeable[labelId] = False
 
 
-    return render(request, 'annotations/labelset_edit.html', {
+    return render(request, 'labels/labelset_edit.html', {
         'showLabelFormInitially': json.dumps(showLabelForm),    # Python bool to JSON bool
         'labelSetForm': labelSetForm,
         'labelForm': labelForm,
@@ -271,7 +271,7 @@ def label_main(request, label_id):
         for a in example_annotations
         ]
 
-    return render(request, 'annotations/label_main.html', {
+    return render(request, 'labels/label_main.html', {
         'label': label,
         'visible_sources_with_label': visible_sources_with_label,
         'patches': patches,
@@ -293,7 +293,7 @@ def labelset_main(request, source_id):
     labels = labelset.labels.all().order_by('group__id', 'name')
 
 
-    return render(request, 'annotations/labelset_main.html', {
+    return render(request, 'labels/labelset_main.html', {
         'source': source,
         'labelset': labelset,
         'labels': labels,
@@ -314,7 +314,7 @@ def labelset_list(request):
         (visibility=Source.VisibilityTypes.PUBLIC)
     publicSourcesWithLabelsets = publicSources.exclude(labelset=None)
 
-    return render(request, 'annotations/labelset_list.html', {
+    return render(request, 'labels/labelset_list.html', {
         'publicSourcesWithLabelsets': publicSourcesWithLabelsets,
     })
 
@@ -326,6 +326,6 @@ def label_list(request):
 
     labels = Label.objects.all().order_by('group__id', 'name')
 
-    return render(request, 'annotations/label_list.html', {
+    return render(request, 'labels/label_list.html', {
         'labels': labels,
     })

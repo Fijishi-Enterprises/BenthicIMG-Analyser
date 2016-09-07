@@ -19,7 +19,7 @@
     {# unfortunately, inline display means we need to manually insert linebreaks #}
 
     <div class="tutorial-message">
-        {% include "annotations/help_labels.html" %}
+        {% include "labels/help_labels.html" %}
     </div>
         <br /><br />
     <span class="helptext">
@@ -36,13 +36,13 @@
 
         <hr />
 
-        {% include "annotations/form_new_label.html" with labelForm=labelForm %}
+        {% include "labels/form_new_label.html" with labelForm=labelForm %}
 
         <hr />
 
       </div>
 
-      {% include "annotations/form_new_labelset.html" with form=labelSetForm isEditLabelsetForm=isEditLabelsetForm %}
+      {% include "labels/form_new_labelset.html" with form=labelSetForm isEditLabelsetForm=isEditLabelsetForm %}
 
       <br />
       <input type="submit" name="edit_labelset" value="Edit LabelSet" />

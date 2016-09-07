@@ -8,7 +8,7 @@
 
     <h2 style="text-transform: none;">{{ source.name }} Labelset</h2>
 
-    {% include "annotations/helper_label_list.html" with labels=labels %}
+    {% include "labels/helper_label_list.html" with labels=labels %}
 
     {% get_obj_perms user for source as "source_perms" %}
     {% if "source_admin" in source_perms %}

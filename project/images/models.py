@@ -463,19 +463,23 @@ class Metadata(models.Model):
 
 
 class ImageStatus(models.Model):
-    # Image is preprocessed with the desired parameters (cm height, etc.)
-    preprocessed = models.BooleanField(default=False)
+    
     # Image has annotation points
     hasRandomPoints = models.BooleanField(default=False)
+    
+    # Features are in the process of being extracted
+    featuresSubmitted = models.BooleanField(default =False)
+
     # Features have been extracted for the current annotation points
     featuresExtracted = models.BooleanField(default=False)
+    
     # All of the current points have been annotated by robot at some point
     # (it's OK if the annotations were overwritten by human)
     annotatedByRobot = models.BooleanField(default=False)
+    
     # Image is 100% annotated by human
     annotatedByHuman = models.BooleanField(default=False)
-    # Feature file includes the completed, human-annotated labels
-    featureFileHasHumanLabels = models.BooleanField(default=False)
+    
     # This source's current robot model uses said feature file
     usedInCurrentModel = models.BooleanField(default=False)
 
@@ -538,6 +542,20 @@ class Image(models.Model):
     latest_robot_annotator = models.ForeignKey(
         Robot, on_delete=models.SET_NULL,
         editable=False, null=True)
+
+    def _isvalset(self):
+        return self.pk % 8 == 0
+
+    def _istrainset(self):
+        return not self.valset
+    
+    valset = property(_isvalset)
+    trainset = property(_istrainset)
+
+    def _allpointshavefeatures(self):
+        return not Point.objects.filter(image = self, features_extracted = False).exists()
+
+    features_extracted = property(_allpointshavefeatures)
 
 
     def __unicode__(self):
@@ -671,6 +689,7 @@ class Point(models.Model):
     point_number = models.IntegerField()
     annotation_status = models.CharField(max_length=1, blank=True)
     image = models.ForeignKey(Image, on_delete=models.CASCADE)
+    features_extracted = models.BooleanField(default = False)
 
     def __unicode__(self):
         """

@@ -146,3 +146,9 @@ class LabelSet(models.Model):
             # labelset from early site development, or a labelset of a
             # deleted source which wasn't properly cleaned up)
             return "(Labelset not used in any source) " + self.description
+
+
+class LocalLabel(models.Model):
+    code = models.CharField('Short Code', max_length=10)
+    global_label = models.ForeignKey(Label)
+    labelset = models.ForeignKey(LabelSet)

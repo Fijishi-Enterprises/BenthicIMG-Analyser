@@ -88,9 +88,9 @@ def get_label_probabilities_for_image(image_id):
     img = Image.objects.get(pk=image_id)
 
     points = Point.objects.filter(image=img).values()
-    labels = img.source.labelset.labels.all()
+    labelset = img.source.labelset
     # Prefetch the labels
-    labels_list = list(labels)
+    list(labelset.get_labels())
 
     row_col_dicts = read_row_col_file(image_id)
     all_points_label_ids_and_scores = read_label_score_file(image_id)
@@ -107,14 +107,14 @@ def get_label_probabilities_for_image(image_id):
         label_scores = []
         for d in label_ids_and_scores:
             label_id = d['label']
-            try:
-                label_obj = labels.get(pk=label_id)
-            except ObjectDoesNotExist, e:
-                # if we can't find the label in the labelset we return None. TODO: this seems like sort of a hack.
-                mail_admins('Label match error', 'Error in matching label ' + str(label_id) + ' from image ' + str(image_id) + ' to the labelset. Error message: ' + str(e))
+            label_code = labelset.global_pk_to_code(label_id)
+            if not label_code:
+                # if we can't find the label in the labelset we return None.
+                # TODO: this seems like sort of a hack.
+                mail_admins('Label match error', 'Error in matching label ' + str(label_id) + ' from image ' + str(image_id) + ' to the labelset.')
                 return None
             label_scores.append(
-                dict(label=label_obj.code, score=d['score'])
+                dict(label=label_code, score=d['score'])
             )
         all_points_label_scores.append(label_scores)
 

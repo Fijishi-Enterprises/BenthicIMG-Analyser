@@ -16,7 +16,6 @@ from images import task_utils
 from images.models import Source, Image, Point
 from images.utils import generate_points, get_next_image, \
     get_date_and_aux_metadata_table, get_prev_image, get_image_order_placement
-from labels.models import Label
 from lib.decorators import image_permission_required, image_annotation_area_must_be_editable, image_labelset_required, login_required_ajax
 from visualization.forms import HiddenForm, post_to_image_filter_form
 
@@ -133,12 +132,13 @@ def annotation_tool(request, image_id):
     settings_obj, created = AnnotationToolSettings.objects.get_or_create(user=request.user)
     settings_form = AnnotationToolSettingsForm(instance=settings_obj)
 
-    # Get all labels, ordered first by functional group, then by short code.
-    labels = source.labelset.labels.all().order_by('group', 'code')
     # Get labels in the form
     # {'code': <short code>, 'group': <functional group>, 'name': <full name>}.
-    # Convert from a QuerySet to a list to ensure it's JSON-serializable.
-    labelValues = list(labels.values('code', 'group', 'name'))
+    labels = source.labelset.get_locals_ordered_by_group_and_code()
+    labels = [
+        dict(code=label.code, group=label.group.name, name=label.name)
+        for label in labels
+    ]
 
     error_message = []
     # Get the machine's label probabilities, if applicable.
@@ -155,44 +155,20 @@ def annotation_tool(request, image_id):
         else:
             error_message.append('Woops! Could not read the label probabilities. Manual annotation still works.')
 
-
-    # Get points and annotations.
+    # Form where you enter annotations' label codes
     form = AnnotationForm(
         image=image,
         show_machine_annotations=settings_obj.show_machine_annotations
     )
 
-    pointValues = Point.objects.filter(image=image).values(
-        'point_number', 'row', 'column')
-    annotationValues = Annotation.objects.filter(image=image).values(
-        'point__point_number', 'label__name', 'label__code')
-
-    # annotationsDict
-    # keys: point numbers
-    # values: dicts containing the values in pointValues and
-    #         annotationValues (if the point has an annotation) above
-    annotationsDict = dict()
-    for p in pointValues:
-        annotationsDict[p['point_number']] = p
-    for a in annotationValues:
-        annotationsDict[a['point__point_number']].update(a)
-
-    # Get a list of the annotationsDict values (the keys are discarded)
-    # Sort by point_number
-    annotations = list(annotationsDict.values())
-    annotations.sort(key=lambda x:x['point_number'])
-
-    # Now we've gotten all the relevant points and annotations
-    # from the database, in a list of dicts:
-    # [{'point_number':1, 'row':294, 'column':749, 'label__name':'Porites', 'label__code':'Porit', 'user_is_robot':False},
-    #  {'point_number':2, ...},
-    #  ...]
-    # TODO: Are we even using anything besides row, column, and point_number?  If not, discard the annotation fields to avoid confusion.
-
+    # List of dicts containing point info
+    points = Point.objects.filter(image=image) \
+        .order_by('point_number') \
+        .values('point_number', 'row', 'column')
+    points = list(points)
 
     # Image tools form (brightness, contrast, etc.)
     image_options_form = AnnotationImageOptionsForm()
-
 
     # Image dimensions.
     IMAGE_AREA_WIDTH = 850
@@ -232,18 +208,15 @@ def annotation_tool(request, image_id):
         'filters_used_display': filters_used_display,
         'metadata': metadata,
         'image_meta_table': get_date_and_aux_metadata_table(image),
-        'labels': labelValues,
+        'labels': labels,
         'form': form,
         'settings_form': settings_form,
         'image_options_form': image_options_form,
-        'annotations': annotations,
-        'annotationsJSON': json.dumps(annotations),
+        'points': points,
         'label_probabilities': label_probabilities,
         'IMAGE_AREA_WIDTH': IMAGE_AREA_WIDTH,
         'IMAGE_AREA_HEIGHT': IMAGE_AREA_HEIGHT,
         'source_images': source_images,
-        'num_of_points': len(annotations),
-        'num_of_annotations': len(annotationValues),
         'messages': error_message,
     })
 
@@ -254,64 +227,55 @@ def save_annotations_ajax(request, image_id):
     """
     Called via Ajax from the annotation tool, if the user clicked
     the Save button.
+
+    Takes the annotation form contents, in request.POST.
     Saves annotation changes to the database.
-
-    :param the annotation form contents, in request.POST
-    :returns dict of:
-      all_done (optional): True if the image has all points confirmed
-      error: Error message if there was an error
+    JSON response consists of:
+      all_done: boolean, True if the image has all points confirmed
+      error: error message if there was an error, otherwise not present
     """
-
     if request.method != 'POST':
         return JsonResponse(dict(
-            error="Not a POST request",
-        ))
+            error="Not a POST request"))
 
     image = get_object_or_404(Image, id=image_id)
     source = image.source
-    sourceLabels = source.labelset.labels.all()
 
     # Get stuff from the DB in advance, should save DB querying time
-    pointsList = list(Point.objects.filter(image=image))
-    points = dict([ (p.point_number, p) for p in pointsList ])
+    points_list = list(Point.objects.filter(image=image))
+    points = dict([(p.point_number, p) for p in points_list])
 
-    annotationsList = list(Annotation.objects.filter(image=image, source=source))
-    annotations = dict([ (a.point_id, a) for a in annotationsList ])
+    annotations_list = list(
+        Annotation.objects.filter(image=image, source=source))
+    annotations = dict([(a.point_id, a) for a in annotations_list])
 
-    for pointNum in points.keys():
+    for point_num, point in points.items():
 
-        labelCode = request.POST.get('label_'+str(pointNum), None)
-        if labelCode is None:
+        label_code = request.POST.get('label_'+str(point_num), None)
+        if label_code is None:
             return JsonResponse(
-                dict(error="Missing label field for point %s." % pointNum))
+                dict(error="Missing label field for point %s." % point_num))
 
         # Does the form field have a non-human-confirmed robot annotation?
-        is_unconfirmed_in_form_raw = request.POST.get('robot_'+str(pointNum))
+        is_unconfirmed_in_form_raw = request.POST.get('robot_'+str(point_num))
         if is_unconfirmed_in_form_raw is None:
             return JsonResponse(
-                dict(error="Missing robot field for point %s." % pointNum))
+                dict(error="Missing robot field for point %s." % point_num))
         is_unconfirmed_in_form = json.loads(is_unconfirmed_in_form_raw)
-
-        point = points[pointNum]
 
         # Get the label that the form field value refers to.
         # Anticipate errors, even if we plan to check input with JS.
-        if labelCode == '':
+        if label_code == '':
             label = None
         else:
-            labels = Label.objects.filter(code=labelCode)
-            if len(labels) == 0:
-                return JsonResponse(
-                    dict(error="No label with code %s." % labelCode))
-
-            label = labels[0]
-            if label not in sourceLabels:
-                return JsonResponse(
-                    dict(error="The labelset has no label with code %s." % labelCode))
+            label = source.labelset.get_global_by_code(label_code)
+            if not label:
+                return JsonResponse(dict(error=(
+                    "The labelset has no label with code %s." % label_code)))
 
         # An annotation of this point number exists in the database
-        if annotations.has_key(point.id):
-            anno = annotations[point.id]
+        if point.pk in annotations:
+            anno = annotations[point.pk]
             # Label field is now blank.
             # We're not allowing label deletions,
             # so don't do anything in this case.
@@ -333,8 +297,10 @@ def save_annotations_ajax(request, image_id):
         # No annotation of this point number in the database yet
         else:
             if label is not None:
-                newAnno = Annotation(point=point, user=request.user, image=image, source=source, label=label)
-                newAnno.save()
+                new_anno = Annotation(
+                    point=point, user=request.user,
+                    image=image, source=source, label=label)
+                new_anno.save()
 
     # Are all points human annotated?
     all_done = image_annotation_all_done(image)
@@ -394,33 +360,28 @@ def annotation_history(request, image_id):
     """
     View for an image's annotation history.
     """
-
     image = get_object_or_404(Image, id=image_id)
     source = image.source
 
     # Use values_list() and list() to avoid nested queries.
     # https://docs.djangoproject.com/en/1.3/ref/models/querysets/#in
-    annotation_values = Annotation.objects.filter(image=image, source=source).values('pk', 'point__point_number')
+    annotation_values = Annotation.objects.filter(
+        image=image, source=source).values('pk', 'point__point_number')
     annotation_ids = [v['pk'] for v in annotation_values]
 
-    # Prefetch versions from the DB.
-    versions_queryset = Version.objects.filter(object_id__in=list(annotation_ids))
-    versions = list(versions_queryset)   # list() prefetches.
+    # Prefetch versions from the DB using list().
+    versions_queryset = Version.objects.filter(
+        object_id__in=list(annotation_ids))
+    list(versions_queryset)
 
-    # label_pks_to_codes maps Label pks to the corresponding Label's short code.
-    label_pks = set([v.field_dict['label'] for v in versions])
-    labels = Label.objects.filter(pk__in=label_pks).values_list('pk', 'code')
-    label_pks_to_codes = dict(labels)
-    for pk in label_pks:
-        if pk not in label_pks_to_codes:
-            label_pks_to_codes[pk] = "(Deleted label)"
-
-    revision_pks = versions_queryset.values_list('revision', flat=True).distinct()
+    revision_pks = \
+        versions_queryset.values_list('revision', flat=True).distinct()
     revisions = list(Revision.objects.filter(pk__in=list(revision_pks)))
 
     # anno_pks_to_pointnums maps each Annotation's pk to the corresponding
     # Point's point number.
-    point_number_tuples = [(v['pk'], v['point__point_number']) for v in annotation_values]
+    point_number_tuples = [
+        (v['pk'], v['point__point_number']) for v in annotation_values]
     anno_pks_to_pointnums = dict()
     for tup in point_number_tuples:
         anno_pks_to_pointnums[tup[0]] = tup[1]
@@ -431,26 +392,31 @@ def annotation_history(request, image_id):
         # Get Versions under this Revision
         rev_versions = list(versions_queryset.filter(revision=rev))
         # Sort by the point number of the annotation
-        rev_versions.sort( key=lambda x: anno_pks_to_pointnums[int(x.object_id)] )
+        rev_versions.sort(
+            key=lambda x: anno_pks_to_pointnums[int(x.object_id)])
 
         # Create a log entry for this Revision
-        events = ["Point {num}: {code}".format(
-                num=anno_pks_to_pointnums[int(v.object_id)],
-                code=label_pks_to_codes[v.field_dict['label']],
-            )
-            for v in rev_versions
-        ]
+        events = []
+        for v in rev_versions:
+            point_number = anno_pks_to_pointnums[int(v.object_id)]
+            global_label_pk = v.field_dict['label']
+            label_code = source.labelset.global_pk_to_code(global_label_pk)
+
+            events.append("Point {num}: {code}".format(
+                num=point_number, code=label_code or "(Deleted label)"))
+
         if rev.comment:
             events.append(rev.comment)
         event_log.append(
             dict(
                 date=rev.date_created,
-                user=get_annotation_version_user_display(rev_versions[0]),  # Any Version will do
+                # Any Version will do
+                user=get_annotation_version_user_display(rev_versions[0]),
                 events=events,
             )
         )
 
-    for access in AnnotationToolAccess.objects.filter(image=image, source=source):
+    for access in AnnotationToolAccess.objects.filter(image=image):
         # Create a log entry for each annotation tool access
         event_str = "Accessed annotation tool"
         event_log.append(

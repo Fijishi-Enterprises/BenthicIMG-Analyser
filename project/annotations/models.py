@@ -23,8 +23,17 @@ class Annotation(models.Model):
     source = models.ForeignKey('images.Source', on_delete=models.CASCADE,
         editable=False)
 
+    @property
+    def label_code(self):
+        # After labels.models refactor, change to
+        # local_label = LocalLabel.objects.get(
+        #     global_label=self.label, labelset=self.source.labelset)
+        # return local_label.code
+        return self.label.code
+
     def __unicode__(self):
-        return "%s - %s - %s" % (self.image, self.point.point_number, self.label.code)
+        return "%s - %s - %s" % (
+            self.image, self.point.point_number, self.label_code)
 
 
 class AnnotationToolAccess(models.Model):

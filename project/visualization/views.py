@@ -15,7 +15,7 @@ from images.forms import MetadataFormForGrid, BaseMetadataFormSet
 from images.models import Source, Image, Metadata
 from images.tasks import *
 from images.utils import delete_images
-from labels.models import LabelGroup, Label, LabelSet
+from labels.models import LabelGroup, Label
 from lib.decorators import source_visibility_required, source_permission_required
 
 

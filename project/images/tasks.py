@@ -303,7 +303,7 @@ def classify_image(image_id):
 
         probs_descending_order = sorted(probs, key=operator.itemgetter('score'), reverse=True)
         top_prob_label_code = probs_descending_order[0]['label']
-        label = Label.objects.get(code=top_prob_label_code)
+        label = image.source.labelset.get_global_by_code(top_prob_label_code)
 
         # If there's an existing annotation for this point, get it.
         # Otherwise, create a new annotation.

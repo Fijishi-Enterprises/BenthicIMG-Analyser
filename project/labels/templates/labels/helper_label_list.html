@@ -12,6 +12,7 @@ in the larger template with the "include" template tag.
   {% for label in labels %}
     <tr>
       <td><a href="{% url 'label_main' label.id %}">{{ label.name }}</a></td>
+      {# Change to default code after labels.models refactor #}
       <td>{{ label.code }}</td>
       <td>{{ label.group }}</td>
     </tr>

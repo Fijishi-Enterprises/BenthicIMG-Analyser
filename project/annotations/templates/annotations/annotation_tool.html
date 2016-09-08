@@ -251,7 +251,7 @@
         fullWidth: {{ image.original_width }},
         IMAGE_AREA_WIDTH: {{ IMAGE_AREA_WIDTH }},
         IMAGE_AREA_HEIGHT: {{ IMAGE_AREA_HEIGHT }},
-        imagePoints: {{ annotationsJSON|safe }},
+        imagePoints: {{ points|jsonify }},
         labels: {{ labels|jsonify }},
         machineSuggestions: {{ label_probabilities|jsonify }},
         saveAnnotationsUrl: "{% url 'save_annotations_ajax' image.id %}",

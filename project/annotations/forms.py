@@ -21,6 +21,8 @@ class AnnotationForm(forms.Form):
         show_machine_annotations = kwargs.pop('show_machine_annotations')
         super(AnnotationForm, self).__init__(*args, **kwargs)
 
+        # TODO: Must change Label to LocalLabel
+        # after labels.models refactor
         labelFieldMaxLength = Label._meta.get_field('code').max_length
 
 
@@ -38,7 +40,7 @@ class AnnotationForm(forms.Form):
                 mail_admins('Multiple annotations returned for a point object', 'Multiple annotations returned for query: Annotations.objects.get(point=point) for Imageid:' + str(image.id) + ', pointid:' + str(point.id) + '. Please investigate.')
 
             if existingAnnotation:
-                existingAnnoCode = existingAnnotation.label.code
+                existingAnnoCode = existingAnnotation.label_code
                 isRobotAnnotation = is_robot_user(existingAnnotation.user)
             else:
                 existingAnnoCode = ''

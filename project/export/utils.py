@@ -1,15 +1,14 @@
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse
 
-from accounts.utils import get_robot_user
 from annotations.models import Annotation
 from images.models import Image
 from visualization.forms import post_to_image_filter_form
 
 
 def get_request_images(request, source):
-    image_form = \
-        post_to_image_filter_form(request.POST, source, has_annotation_status=True)
+    image_form = post_to_image_filter_form(
+        request.POST, source, has_annotation_status=True)
     if image_form:
         if image_form.is_valid():
             image_set = image_form.get_images()
@@ -57,7 +56,7 @@ def write_annotations_csv(writer, image_set, full):
             annotation.image.metadata.name,
             annotation.point.row,
             annotation.point.column,
-            annotation.label.code,
+            annotation.label_code,
         ]
         if full:
             row.extend([

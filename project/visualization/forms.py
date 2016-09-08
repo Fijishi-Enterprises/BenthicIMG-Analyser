@@ -276,7 +276,7 @@ class PatchSearchOptionsForm(forms.Form):
         if source.labelset is None:
             label_choices = Label.objects.none()
         else:
-            label_choices = source.labelset.labels.all().order_by('name')
+            label_choices = source.labelset.get_globals().order_by('name')
         self.fields['label'] = forms.ModelChoiceField(
             queryset=label_choices,
             required=False,
@@ -473,7 +473,7 @@ class StatisticsSearchForm(forms.Form):
         if source.labelset is None:
             labels = []
         else:
-            labels = source.labelset.labels.all().order_by('group__id', 'name')
+            labels = source.labelset.get_globals().order_by('group__id', 'name')
         groups = LabelGroup.objects.all().distinct()
 
         # Get the location keys

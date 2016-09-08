@@ -11,7 +11,7 @@ from accounts.utils import is_robot_user, get_robot_user
 from annotations.model_utils import AnnotationAreaUtils
 from annotations.models import Annotation, AnnotationToolSettings
 from images.models import Point, Source, Metadata
-from labels.models import Label
+from labels.models import LocalLabel
 
 
 class AnnotationForm(forms.Form):
@@ -21,9 +21,7 @@ class AnnotationForm(forms.Form):
         show_machine_annotations = kwargs.pop('show_machine_annotations')
         super(AnnotationForm, self).__init__(*args, **kwargs)
 
-        # TODO: Must change Label to LocalLabel
-        # after labels.models refactor
-        labelFieldMaxLength = Label._meta.get_field('code').max_length
+        labelFieldMaxLength = LocalLabel._meta.get_field('code').max_length
 
 
         for point in Point.objects.filter(image=image).order_by('point_number'):

@@ -77,13 +77,6 @@ class Label(models.Model):
         User, on_delete=models.SET_NULL,
         verbose_name='Created by', editable=False, null=True)
 
-    @property
-    def global_label(self):
-        # After labels.models refactor, ensure that all instances of
-        # <Label obj>.global_label become
-        # <LocalLabel obj>.global_label. Then remove this property.
-        return self
-
     def __unicode__(self):
         """
         To-string method.
@@ -101,38 +94,28 @@ class LabelSet(models.Model):
         'Date edited', auto_now=True, editable=False)
 
     def get_labels(self):
-        # After labels.models refactor, replace this with:
-        # return self.locallabel_set.all()
-        return self.labels.all()
+        return self.locallabel_set.all()
 
     def get_locals_ordered_by_group_and_code(self):
-        # Must change 'group' to 'global_label__group'
-        # after the labels.models refactor.
-        return self.get_labels().order_by('group', 'code')
+        return self.get_labels().order_by('global_label__group', 'code')
 
     def get_globals(self):
-        # After labels.models refactor, replace this with:
-        # global_label_ids = self.get_labels().values_list(
-        #     'global_label__pk', flat=True)
-        # return Label.objects.filter(pk__in=global_label_ids)
-        return self.get_labels()
+        global_label_pks = self.get_labels().values_list(
+            'global_label__pk', flat=True)
+        return Label.objects.filter(pk__in=global_label_pks)
 
     def get_global_by_code(self, code):
         try:
             # Codes are case insensitive
             local_label = self.get_labels().get(code__iexact=code)
-        # After labels.models refactor, change Label -> LocalLabel.
-        except Label.DoesNotExist:
+        except LocalLabel.DoesNotExist:
             return None
         return local_label.global_label
 
     def global_pk_to_code(self, global_pk):
         try:
-            # After labels.models refactor,
-            # change pk -> global_label__pk.
-            local_label = self.get_labels().get(pk=global_pk)
-        # After labels.models refactor, change Label -> LocalLabel.
-        except Label.DoesNotExist:
+            local_label = self.get_labels().get(global_label__pk=global_pk)
+        except LocalLabel.DoesNotExist:
             return None
         return local_label.code
 
@@ -152,3 +135,11 @@ class LocalLabel(models.Model):
     code = models.CharField('Short Code', max_length=10)
     global_label = models.ForeignKey(Label)
     labelset = models.ForeignKey(LabelSet)
+
+    @property
+    def name(self):
+        return self.global_label.name
+
+    @property
+    def group(self):
+        return self.global_label.group

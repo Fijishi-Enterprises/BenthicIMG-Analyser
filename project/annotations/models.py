@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
-from labels.models import Label
+from labels.models import Label, LocalLabel
 
 
 class Annotation(models.Model):
@@ -25,11 +25,9 @@ class Annotation(models.Model):
 
     @property
     def label_code(self):
-        # After labels.models refactor, change to
-        # local_label = LocalLabel.objects.get(
-        #     global_label=self.label, labelset=self.source.labelset)
-        # return local_label.code
-        return self.label.code
+        local_label = LocalLabel.objects.get(
+            global_label=self.label, labelset=self.source.labelset)
+        return local_label.code
 
     def __unicode__(self):
         return "%s - %s - %s" % (

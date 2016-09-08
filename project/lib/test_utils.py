@@ -18,9 +18,11 @@ from django.core.urlresolvers import reverse
 from django.test import TestCase, override_settings
 from django.test.client import Client
 from django.utils import timezone
-from annotations.models import LabelGroup, Label
+
+from accounts.utils import get_robot_user
+from annotations.models import LabelGroup, Label, Annotation
 from images.model_utils import PointGen
-from images.models import Source, Point, Image
+from images.models import Source, Point, Image, Robot
 from lib.exceptions import TestfileDirectoryError
 from lib.utils import is_django_str
 
@@ -386,7 +388,7 @@ class ClientTest(BaseTest):
         min_y=0,
         max_y=100,
         point_generation_type=PointGen.Types.SIMPLE,
-        simple_number_of_points=50,
+        simple_number_of_points=5,
         alleviate_threshold=0,
         latitude='0.0',
         longitude='0.0',
@@ -573,6 +575,67 @@ class ClientTest(BaseTest):
             post_dict,
         )
         cls.client.logout()
+
+    @classmethod
+    def create_robot(cls, source):
+        """
+        Add a robot to a source.
+        NOTE: This does not use any standard task or utility function
+        for adding a robot, so standard assumptions might not hold.
+        :param source: Source to add a robot for.
+        :return: The new Robot.
+        """
+        latest_robot = source.get_latest_robot()
+        if latest_robot:
+            version = latest_robot.version + 1
+        else:
+            version = 1
+
+        robot = Robot(
+            source=source,
+            version=version,
+            path_to_model='',
+            time_to_train=100,
+        )
+        robot.save()
+        return robot
+
+    @classmethod
+    def add_robot_annotations(cls, robot, image, annotations):
+        """
+        Add robot annotations to an image.
+        NOTE: This does not use any standard view or utility function
+        for adding robot annotations, so standard assumptions might not hold:
+        overwriting old annotations, setting statuses, etc. Use with caution.
+        :param robot: Robot model object to use for annotation.
+        :param image: Image to add annotations for.
+        :param annotations: Annotations to add, as a dict of point
+            numbers to label codes, e.g.: {1: 'labelA', 2: 'labelB'}
+        :return: None.
+        """
+        num_points = Point.objects.filter(image=image).count()
+
+        # TODO: Speed up with prefetching and/or bulk saving
+        for point_num in range(1, num_points+1):
+            label_code = annotations.get(point_num, '')
+            if not label_code:
+                continue
+
+            point = Point.objects.get(image=image, point_number=point_num)
+            annotation = Annotation(
+                image=image,
+                source=image.source,
+                point=point,
+                label=Label.objects.get(code=label_code),
+                user=get_robot_user(),
+                robot_version=robot,
+            )
+            annotation.save()
+
+        if all([n in annotations for n in range(1, num_points+1)]):
+            # Annotations passed in for all points
+            image.status.annotatedByRobot = True
+            image.status.save()
 
     @staticmethod
     def print_response_messages(response):

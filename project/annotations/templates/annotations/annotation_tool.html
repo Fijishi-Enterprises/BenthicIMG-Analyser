@@ -167,57 +167,53 @@
 
       <div id="image-navigation">
 
-        {% if next_image_to_annotate %}
-          <form action="{% url 'annotation_tool' next_image_to_annotate.id %}"
+        {% if prev_image %}
+          <form action="{% url 'annotation_tool' prev_image.id %}"
                 method="post">
             {% csrf_token %}
-            {% for field in nav_history.form %}{{ field }}{% endfor %}
             {% for field in hidden_image_set_form %}{{ field }}{% endfor %}
 
-            <input type="hidden" name="nav_type" value="next" />
-            <input type="submit" value="Go to next image" id="nav-next-submit"
-              title="Go to next image needing annotation
-                ({{ next_image_to_annotate.get_image_element_title }})" />
+            <input type="submit" value="Prev" id="nav-prev-submit"
+              title="{{ prev_image.get_image_element_title }}" />
           </form>
-        {% else %}
-          <div>No more images need annotation</div>
+        {% endif %}
+
+        {% if next_image %}
+          <form action="{% url 'annotation_tool' next_image.id %}"
+                method="post">
+            {% csrf_token %}
+            {% for field in hidden_image_set_form %}{{ field }}{% endfor %}
+
+            <input type="submit" value="Next" id="nav-next-submit"
+              title="{{ next_image.get_image_element_title }}" />
+          </form>
+        {% endif %}
+
+        {% if not next_image and not prev_image %}
+          <div>No other images in this set</div>
         {% endif %}
 
         <br/>
         <br/>
 
-        <div><i>History</i></div>
-        <div>
-          {% if nav_history.back %}
-            <form action="{% url 'annotation_tool' nav_history.back.id %}"
-                  method="post">
-              {% csrf_token %}
-              {% for field in nav_history.form %}{{ field }}{% endfor %}
-              {% for field in hidden_image_set_form %}{{ field }}{% endfor %}
+        Image {{ image_set_order_placement }} of {{ image_set_size }}
 
-              <input type="hidden" name="nav_type" value="back" />
-              <input type="submit" value="Back" id="nav-back-submit"
-                title="{{ nav_history.back.get_image_element_title }}" />
-            </form>
-          {% else %}
-            Back
-          {% endif %}
-          |
-          {% if nav_history.forward %}
-            <form action="{% url 'annotation_tool' nav_history.forward.id %}"
-                  method="post">
-              {% csrf_token %}
-              {% for field in nav_history.form %}{{ field }}{% endfor %}
-              {% for field in hidden_image_set_form %}{{ field }}{% endfor %}
+        {% if filters_used_display %}
+          <br/>
+          <br/>
 
-              <input type="hidden" name="nav_type" value="forward" />
-              <input type="submit" value="Forward" id="nav-forward-submit"
-                title="{{ nav_history.forward.get_image_element_title }}" />
-            </form>
-          {% else %}
-            Forward
-          {% endif %}
-        </div>
+          Filtering by: {{ filters_used_display }}
+        {% endif %}
+
+        <br/>
+        <br/>
+
+        <form action="{% url 'browse_images' source.id %}" method="post">
+          {% csrf_token %}
+          {% for field in hidden_image_set_form %}{{ field }}{% endfor %}
+
+          <input type="submit" value="Return to Browse" />
+        </form>
       </div>
 
     </div>

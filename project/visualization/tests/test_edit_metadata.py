@@ -1,81 +1,18 @@
-import json
-from urllib import urlencode
 import datetime
+
 from django.core.urlresolvers import reverse
+
+from images.models import Source
 from lib.test_utils import ClientTest
-from images.models import Source, Image
 
 
-class BrowseTest(ClientTest):
+class PermissionTest(ClientTest):
     """
-    Test the browse page.
-    """
-    fixtures = ['test_users.yaml', 'test_labels.yaml', 'test_sources.yaml']
-    source_member_roles = [
-        ('private1', 'user2', Source.PermTypes.EDIT.code),
-        ('private1', 'user3', Source.PermTypes.VIEW.code),
-    ]
-
-    def setUp(self):
-        super(BrowseTest, self).setUp()
-        self.source_id = Source.objects.get(name='private1').pk
-
-        # Upload an image
-        self.client.login(username='user2', password='secret')
-        self.image_id = self.upload_image('001_2012-05-01_color-grid-001.png')[0]
-        self.client.logout()
-
-    def test_load_page_private_anonymous(self):
-        """
-        Load the private source's browse page while logged out ->
-        sorry, don't have permission.
-        """
-        url = reverse('visualize_source', kwargs=dict(source_id=self.source_id))
-
-        response = self.client.get(url)
-        self.assertStatusOK(response)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-
-    def test_load_page_private_as_source_outsider(self):
-        """
-        Load the page as a user outside the private source ->
-        sorry, don't have permission.
-        """
-        self.client.login(username='user4', password='secret')
-        url = reverse('visualize_source', kwargs=dict(source_id=self.source_id))
-
-        response = self.client.get(url)
-        self.assertStatusOK(response)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-
-    def test_load_page_private_as_source_viewer(self):
-        """
-        Load the page as a source member with view permissions -> can load.
-        """
-        self.client.login(username='user3', password='secret')
-        url = reverse('visualize_source', kwargs=dict(source_id=self.source_id))
-
-        response = self.client.get(url)
-        self.assertStatusOK(response)
-        self.assertTemplateUsed(response, 'visualization/visualize_source.html')
-
-        # Should have 1 image
-        self.assertEqual(response.context['num_of_total_results'], 1)
-
-    # TODO: Test filtering of results
-    # TODO: Test indication of image statuses
-    # TODO: Test pagination. An idea here is to reduce the results per page
-    # to speed up testing, but not sure how.
-    # Consider putting these in a separate test class(es).
-
-
-class MetadataEditTest(ClientTest):
-    """
-    Test the metadata edit functionality.
+    Test page permissions.
     """
     @classmethod
     def setUpTestData(cls):
-        super(MetadataEditTest, cls).setUpTestData()
+        super(PermissionTest, cls).setUpTestData()
 
         cls.user = cls.create_user()
 
@@ -87,74 +24,95 @@ class MetadataEditTest(ClientTest):
         cls.user_viewer = cls.create_user()
         cls.add_source_member(
             cls.user, cls.source, cls.user_viewer, Source.PermTypes.VIEW.code)
+        cls.user_outsider = cls.create_user()
 
         cls.img1 = cls.upload_image_new(cls.user, cls.source)
-        cls.img2 = cls.upload_image_new(cls.user, cls.source)
 
-    def test_load_page_private_as_source_viewer(self):
-        """
-        Load the page as a source member with view permissions ->
-        images view, and say invalid search parameters.
-        TODO: Honestly, this is kind of weird. "Don't have permission"
-        makes more sense.
-        Perhaps images, metadata, patches should actually have
-        different URLs, and depending on the radio button value it should
-        redirect to the right URL. This'll also easier permission controls.
-        """
-        url = (
-            reverse('visualize_source', kwargs=dict(source_id=self.source.pk))
-            + '?' + urlencode(dict(page_view='metadata'))
-        )
+        cls.url = reverse('edit_metadata', args=[cls.source.pk])
 
+    def test_load_page_as_anonymous(self):
+        response = self.client.get(self.url)
+        self.assertStatusOK(response)
+        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+
+    def test_load_page_as_source_outsider(self):
+        self.client.force_login(self.user_outsider)
+        response = self.client.get(self.url)
+        self.assertStatusOK(response)
+        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+
+    def test_load_page_as_source_viewer(self):
         self.client.force_login(self.user_viewer)
-        response = self.client.get(url)
-
+        response = self.client.get(self.url)
         self.assertStatusOK(response)
-        self.assertTemplateUsed(response, 'visualization/visualize_source.html')
-        self.assertMessages(response, ["Error: invalid search parameters."])
-        self.assertEqual(response.context['metadata_formset'], None)
+        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
 
-    def test_load_page(self):
-        """
-        Load the page as a source member with edit permissions -> can load.
-        Also ensure the metadata form is there.
-        """
-        url = (
-            reverse('visualize_source', kwargs=dict(source_id=self.source.pk))
-            + '?' + urlencode(dict(page_view='metadata'))
+    def test_load_page_as_source_editor(self):
+        self.client.force_login(self.user_editor)
+        response = self.client.get(self.url)
+        self.assertStatusOK(response)
+        self.assertTemplateUsed(response, 'visualization/edit_metadata.html')
+
+
+class LoadPageTest(ClientTest):
+    """
+    Test the metadata edit functionality.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super(LoadPageTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(cls.user)
+        cls.img1 = cls.upload_image_new(cls.user, cls.source)
+        cls.img2 = cls.upload_image_new(cls.user, cls.source)
+        cls.img3 = cls.upload_image_new(cls.user, cls.source)
+        cls.url = reverse('edit_metadata', args=[cls.source.pk])
+
+        cls.default_search_params = dict(
+            image_form_type='search',
+            aux1='', aux2='', aux3='', aux4='', aux5='',
+            height_in_cm='', latitude='', longitude='', depth='',
+            photographer='', framing='', balance='',
+            date_filter_0='year', date_filter_1='',
+            date_filter_2='', date_filter_3='',
+            annotation_status='',
         )
 
-        self.client.force_login(self.user_editor)
-        response = self.client.get(url)
+    def test_page_landing(self):
+        self.client.force_login(self.user)
+        response = self.client.get(self.url)
+        self.assertEqual(response.context['num_images'], 3)
 
-        self.assertStatusOK(response)
-        self.assertTemplateUsed(response, 'visualization/visualize_source.html')
-        self.assertNotEqual(response.context['metadata_formset'], None)
-
-    def test_load_page_no_images(self):
-        """
-        Load the page with no image results.
-        """
-        # First, assign enough metadata so it's possible to do a valid search
-        # which gets no results.
-        self.img1.metadata.aux1 = "1"
-        self.img1.metadata.aux2 = "A"
+    def test_search(self):
+        self.img1.metadata.aux1 = 'SiteA'
         self.img1.metadata.save()
-        self.img2.metadata.aux1 = "2"
-        self.img2.metadata.aux2 = "B"
-        self.img2.metadata.save()
 
-        # We have one image with "1" "A", and another with "2" "B", so
-        # searching for "1" "B" should get no results.
-        url = (
-            reverse('visualize_source', kwargs=dict(source_id=self.source.pk))
-            + '?' + urlencode(dict(page_view='metadata', aux1="1", aux2="B"))
+        post_data = self.default_search_params.copy()
+        post_data['aux1'] = 'SiteA'
+
+        self.client.force_login(self.user)
+        response = self.client.post(self.url, post_data)
+        self.assertEqual(response.context['num_images'], 1)
+
+    def test_image_ids(self):
+        post_data = dict(
+            image_form_type='ids',
+            ids=','.join([str(self.img2.pk), str(self.img3.pk)])
         )
 
         self.client.force_login(self.user)
-        response = self.client.get(url)
+        response = self.client.post(self.url, post_data)
+        self.assertEqual(response.context['num_images'], 2)
 
-        self.assertStatusOK(response)
+    def test_zero_images(self):
+        post_data = self.default_search_params.copy()
+        post_data['date_filter_0'] = 'date'
+        post_data['date_filter_2'] = datetime.date(2000, 1, 1)
+
+        self.client.force_login(self.user)
+        response = self.client.post(self.url, post_data)
+        self.assertEqual(response.context['num_images'], 0)
         self.assertContains(response, "No image results.")
 
     def test_load_form(self):
@@ -176,13 +134,8 @@ class MetadataEditTest(ClientTest):
         self.img2.metadata.comments = "This, is; a< test/\ncomment."
         self.img2.metadata.save()
 
-        url = (
-            reverse('visualize_source', kwargs=dict(source_id=self.source.pk))
-            + '?' + urlencode(dict(page_view='metadata'))
-        )
-
         self.client.force_login(self.user)
-        response = self.client.get(url)
+        response = self.client.get(self.url)
 
         # The form should have the correct metadata for both images.
         formset = response.context['metadata_formset']
@@ -210,19 +163,28 @@ class MetadataEditTest(ClientTest):
         self.assertEqual(
             img2_form['comments'].value(), "This, is; a< test/\ncomment.")
 
+
+class SubmitEditsTest(ClientTest):
+    """
+    Test the metadata edit functionality.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super(SubmitEditsTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(cls.user)
+        cls.img1 = cls.upload_image_new(cls.user, cls.source)
+        cls.img2 = cls.upload_image_new(cls.user, cls.source)
+        cls.img3 = cls.upload_image_new(cls.user, cls.source)
+        cls.img4 = cls.upload_image_new(cls.user, cls.source)
+        cls.img5 = cls.upload_image_new(cls.user, cls.source)
+        cls.url = reverse('edit_metadata_ajax', args=[cls.source.pk])
+
     def test_submit_edits(self):
         """
         Submit metadata edits and see if they go through.
         """
-        url = (reverse('metadata_edit_ajax', kwargs=dict(
-            source_id=self.source.pk
-        )))
-
-        self.client.force_login(self.user)
-
-        # The ajax view doesn't care about setting up a valid search.
-        # As long as the number-of-forms fields match the actual form data,
-        # it's fine.
         post_data = {
             'form-TOTAL_FORMS': 1,
             'form-INITIAL_FORMS': 1,
@@ -242,7 +204,9 @@ class MetadataEditTest(ClientTest):
             'form-0-balance': "Balance card A",
             'form-0-comments': "These, are; some<\n test/ comments.",
         }
-        response = self.client.post(url, post_data)
+
+        self.client.force_login(self.user)
+        response = self.client.post(self.url, post_data)
 
         # Response should be as expected.
         self.assertStatusOK(response)
@@ -273,12 +237,6 @@ class MetadataEditTest(ClientTest):
         Ensure that valid edits in the same submission don't get saved,
         and ensure the error messages are as expected.
         """
-        url = (reverse('metadata_edit_ajax', kwargs=dict(
-            source_id=self.source.pk
-        )))
-
-        self.client.force_login(self.user)
-
         post_data = {
             'form-TOTAL_FORMS': 2,
             'form-INITIAL_FORMS': 2,
@@ -312,7 +270,9 @@ class MetadataEditTest(ClientTest):
             'form-1-balance': "Balance card A",    # Valid edit
             'form-1-comments': "",
         }
-        response = self.client.post(url, post_data)
+
+        self.client.force_login(self.user)
+        response = self.client.post(self.url, post_data)
 
         # Response should be as expected.
         self.assertStatusOK(response)
@@ -349,16 +309,6 @@ class MetadataEditTest(ClientTest):
         """
         Submit metadata edits with duplicate-image-name errors.
         """
-        self.img3 = self.upload_image_new(self.user, self.source)
-        self.img4 = self.upload_image_new(self.user, self.source)
-        self.img5 = self.upload_image_new(self.user, self.source)
-
-        url = (reverse('metadata_edit_ajax', kwargs=dict(
-            source_id=self.source.pk
-        )))
-
-        self.client.force_login(self.user)
-
         post_data = {
             'form-TOTAL_FORMS': 4,
             'form-INITIAL_FORMS': 4,
@@ -428,7 +378,9 @@ class MetadataEditTest(ClientTest):
             'form-3-balance': "",
             'form-3-comments': "",
         }
-        response = self.client.post(url, post_data)
+
+        self.client.force_login(self.user)
+        response = self.client.post(self.url, post_data)
 
         # Response should be as expected.
         self.assertStatusOK(response)
@@ -465,131 +417,3 @@ class MetadataEditTest(ClientTest):
         # No edits should have gone through.
         self.img4.metadata.refresh_from_db()
         self.assertEqual(self.img4.metadata.photo_date, None)
-
-
-class ImageDeleteTest(ClientTest):
-    """
-    Test the image delete functionality.
-    """
-    fixtures = ['test_users.yaml', 'test_labels.yaml', 'test_sources.yaml']
-    source_member_roles = [
-        ('private1', 'user2', Source.PermTypes.EDIT.code),
-        ('private1', 'user3', Source.PermTypes.VIEW.code),
-    ]
-
-    def setUp(self):
-        super(ImageDeleteTest, self).setUp()
-        self.source_id = Source.objects.get(name='private1').pk
-
-        # Upload images
-        self.client.login(username='user2', password='secret')
-        self.image_id = \
-            self.upload_image('001_2012-05-01_color-grid-001.png')[0]
-        self.image_id_2 = \
-            self.upload_image('002_2012-06-28_color-grid-002.png')[0]
-        self.image_id_3 = \
-            self.upload_image('003_2012-06-28_color-grid-003.png')[0]
-
-        # Change metadata
-        img1 = Image.objects.get(pk=self.image_id)
-        img1.metadata.aux1 = '001'
-        img1.metadata.save()
-        img2 = Image.objects.get(pk=self.image_id_2)
-        img2.metadata.aux1 = '002'
-        img2.metadata.save()
-        img3 = Image.objects.get(pk=self.image_id_3)
-        img3.metadata.aux1 = '003'
-        img3.metadata.save()
-
-        self.client.logout()
-
-    def test_submit_private_as_source_viewer(self):
-        """
-        Submit deletion to private source as a source viewer ->
-        sorry, don't have permission to access this page.
-        Technically not a page, just a view, but still makes enough
-        sense considering that a viewer-level user can only get here
-        by URL typing.
-        """
-        self.client.login(username='user3', password='secret')
-        url = reverse('browse_delete', kwargs=dict(source_id=self.source_id))
-
-        response = self.client.get(url)
-        self.assertStatusOK(response)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-
-    def test_load_page_private_as_source_editor(self):
-        """
-        Submit deletion to private source as a source editor ->
-        deletion processed normally.
-        """
-        self.client.login(username='user2', password='secret')
-        url = reverse('browse_delete', kwargs=dict(source_id=self.source_id))
-
-        response = self.client.post(url)
-        self.assertRedirects(
-            response,
-            reverse('visualize_source', kwargs=dict(source_id=self.source_id)))
-
-    def test_delete_all_images(self):
-        """
-        Delete all images in the source.
-        """
-        self.client.login(username='user2', password='secret')
-        url = reverse('browse_delete', kwargs=dict(source_id=self.source_id))
-
-        # Delete.
-        self.client.post(url, dict(
-            specify_method='search_keys', specify_str=json.dumps(dict())))
-        # Check that the images were deleted.
-        self.assertRaises(
-            Image.DoesNotExist, Image.objects.get, pk=self.image_id)
-        self.assertRaises(
-            Image.DoesNotExist, Image.objects.get, pk=self.image_id_2)
-        self.assertRaises(
-            Image.DoesNotExist, Image.objects.get, pk=self.image_id_3)
-        # TODO: Check another source and ensure its images weren't deleted.
-
-    def test_delete_by_location_value(self):
-        """
-        Delete images by aux. meta.
-        """
-        self.client.login(username='user2', password='secret')
-        url = reverse('browse_delete', kwargs=dict(source_id=self.source_id))
-
-        specify_str_dict = dict()
-        specify_str_dict['aux1'] = '001'
-        self.client.post(url, dict(
-            specify_method='search_keys',
-            specify_str=json.dumps(specify_str_dict),
-        ))
-
-        # Check that we can get image 002 and 003, but not 001,
-        # which we chose to delete.
-        self.assertRaises(
-            Image.DoesNotExist, Image.objects.get, pk=self.image_id)
-        Image.objects.get(pk=self.image_id_2)
-        Image.objects.get(pk=self.image_id_3)
-        # TODO: Test other filters besides aux1.
-
-    def test_delete_by_image_ids(self):
-        """
-        Delete images of particular image ids.
-        """
-        self.client.login(username='user2', password='secret')
-        url = reverse('browse_delete', kwargs=dict(source_id=self.source_id))
-
-        image_ids = \
-            ','.join(str(pk) for pk in [self.image_id, self.image_id_3])
-        self.client.post(url, dict(
-            specify_method='image_ids',
-            specify_str=image_ids,
-        ))
-
-        # Check that we can get image 002, but not 001 and 003,
-        # which we chose to delete.
-        self.assertRaises(
-            Image.DoesNotExist, Image.objects.get, pk=self.image_id)
-        Image.objects.get(pk=self.image_id_2)
-        self.assertRaises(
-            Image.DoesNotExist, Image.objects.get, pk=self.image_id_3)

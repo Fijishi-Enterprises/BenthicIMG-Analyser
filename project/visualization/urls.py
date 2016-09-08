@@ -12,16 +12,8 @@ urlpatterns = [
     url(r'^delete_ajax/$',
         views.browse_delete_ajax, name="browse_delete_ajax"),
     url(r'^edit_metadata_ajax/$',
-        views.metadata_edit_ajax, name="metadata_edit_ajax"),
+        views.edit_metadata_ajax, name="edit_metadata_ajax"),
 
     url(r'^statistics/$',
         views.generate_statistics, name="statistics"),
-    url(r'^export_annotations/$',
-        views.export_annotations, name="export_annotations"),
-    url(r'^export_statistics/$',
-        views.export_statistics, name="export_statistics"),
-    url(r'^csv_abundances/$',
-        views.export_abundance, name="export_abundance"),
-    url(r'^export_menu/$',
-        views.export_menu, name="export_menu"),
 ]

@@ -9,9 +9,10 @@
 {% endblock %}
 
 {% block page-specific-includes %}
-  {% include "static-local-include.html" with type="js" path="js/VisSearchFormHelper.js" %}
+  {% include "static-local-include.html" with type="js" path="js/ImageSearchHelper.js" %}
   {% include "static-local-include.html" with type="js" path="js/ImageMetadataFormHelper.js" %}
-  {% include "static-local-include.html" with type="css" path="css/visualize_source.css" %}
+
+  {% include "static-local-include.html" with type="css" path="css/browse.css" %}
 {% endblock %}
 
 {% block content %}
@@ -56,10 +57,10 @@
 
   {# Script in the body will run on page load. #}
   <script type="text/javascript">
-    BrowseSearchHelper.initSearchForm();
+    ImageSearchHelper.init();
     {% if num_images > 0 %}
       initMetadataForm({
-          metadataSaveAjaxUrl: '{% url 'metadata_edit_ajax' source.id %}'
+          metadataSaveAjaxUrl: '{% url 'edit_metadata_ajax' source.id %}'
       });
     {% endif %}
   </script>

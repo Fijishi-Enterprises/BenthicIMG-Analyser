@@ -210,59 +210,6 @@ class AnnotationToolSettingsForm(ModelForm):
             field.widget.attrs.update({'class': 'color'})
 
 
-class AnnotationToolNavHistoryForm(Form):
-
-    back = forms.fields.CharField(
-        widget=forms.HiddenInput(),
-    )
-    forward = forms.fields.CharField(
-        widget=forms.HiddenInput(),
-    )
-    from_image_id = forms.fields.IntegerField(
-        widget=forms.HiddenInput()
-    )
-
-    def get_new_nav_history(self, nav_type, new_image_id):
-        # Go from strings to int lists.
-        back_submitted_list = json.loads(self.cleaned_data['back'])
-        forward_submitted_list = json.loads(self.cleaned_data['forward'])
-
-        from_image_id = self.cleaned_data['from_image_id']
-
-        # Construct new back and forward lists based on
-        # where we're navigating.
-        if nav_type == 'next':
-            back_list = back_submitted_list + [from_image_id]
-            forward_list = []
-        elif nav_type == 'back':
-            back_list = back_submitted_list[:-1]
-            forward_list = [from_image_id] + forward_submitted_list
-        else:
-            # 'forward'
-            back_list = back_submitted_list + [from_image_id]
-            forward_list = forward_submitted_list[1:]
-
-        limit = 10
-        new_form = AnnotationToolNavHistoryForm(
-            initial=dict(
-                back=json.dumps(back_list[-limit:]),
-                forward=json.dumps(forward_list[:limit]),
-                from_image_id=new_image_id,
-            )
-        )
-
-        if len(back_list) > 0:
-            back = Image.objects.get(pk=back_list[-1])
-        else:
-            back = None
-        if len(forward_list) > 0:
-            forward = Image.objects.get(pk=forward_list[0])
-        else:
-            forward = None
-
-        return new_form, back, forward
-
-
 class AnnotationImageOptionsForm(Form):
 
     class Media:

@@ -11,7 +11,7 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, render
 
 from .forms import CheckboxForm, StatisticsSearchForm, ImageSearchForm, \
-    PatchSearchOptionsForm, HiddenForm, process_image_forms
+    PatchSearchOptionsForm, HiddenForm, post_to_image_filter_form
 from .utils import generate_patch_if_doesnt_exist, get_patch_url, paginate
 from accounts.utils import get_robot_user
 from annotations.models import Annotation, Label, LabelSet, LabelGroup
@@ -36,7 +36,7 @@ def browse_images(request, source_id):
     hidden_image_form = None
 
     image_form = \
-        process_image_forms(request.POST, source, has_annotation_status=True)
+        post_to_image_filter_form(request.POST, source, has_annotation_status=True)
     if image_form:
         if image_form.is_valid():
             image_results = image_form.get_images()
@@ -72,6 +72,13 @@ def browse_images(request, source_id):
                  for pk in page_image_ids],
             browse=reverse('browse_images', args=[source.pk]),
             delete=reverse('browse_delete_ajax', args=[source.pk]),
+            export_metadata=reverse('export_metadata', args=[source.pk]),
+            export_annotations_simple=reverse(
+                'export_annotations_simple', args=[source.pk]),
+            export_annotations_full=reverse(
+                'export_annotations_full', args=[source.pk]),
+            export_image_covers=reverse(
+                'export_image_covers', args=[source.pk]),
         )
     else:
         page_image_ids = None
@@ -101,7 +108,7 @@ def edit_metadata(request, source_id):
         source=source, has_annotation_status=True)
 
     image_form = \
-        process_image_forms(request.POST, source, has_annotation_status=True)
+        post_to_image_filter_form(request.POST, source, has_annotation_status=True)
     if image_form:
         if image_form.is_valid():
             image_results = image_form.get_images()
@@ -182,7 +189,7 @@ def browse_patches(request, source_id):
     hidden_image_and_patch_form = None
 
     image_form = \
-        process_image_forms(request.POST, source, has_annotation_status=False)
+        post_to_image_filter_form(request.POST, source, has_annotation_status=False)
     if request.POST:
         patch_search_form = PatchSearchOptionsForm(request.POST, source=source)
 
@@ -233,7 +240,7 @@ def browse_patches(request, source_id):
 
 @source_permission_required(
     'source_id', perm=Source.PermTypes.EDIT.code, ajax=True)
-def metadata_edit_ajax(request, source_id):
+def edit_metadata_ajax(request, source_id):
     """
     Submitting the metadata-edit form (an Ajax form).
     """
@@ -303,7 +310,7 @@ def browse_delete_ajax(request, source_id):
     source = get_object_or_404(Source, id=source_id)
 
     image_form = \
-        process_image_forms(request.POST, source, has_annotation_status=True)
+        post_to_image_filter_form(request.POST, source, has_annotation_status=True)
     if not image_form:
         # There's nothing invalid about a user wanting to delete all images
         # in the source, but it's somewhat plausible that we'd accidentally
@@ -513,244 +520,4 @@ def generate_statistics(request, source_id):
         'years': years,
         'label_table': label_table,
         'group_table': group_table,
-    })
-
-
-# helper function to format abundance corrected outputs with 4 decimal points
-def myfmt(r):
-    return "%.4f" % (r,)
-
-
-@source_visibility_required('source_id')
-def export_abundance(placeholder, source_id):
-
-    ### SETUP    
-    # get the response object, this can be used as a stream.
-    response = HttpResponse(content_type='text/csv')
-    # force download.
-    response['Content-Disposition'] = 'attachment;filename="abundances.csv"'
-    # the csv writer
-    writer = csv.writer(response)
-    source = get_object_or_404(Source, id=source_id)
-    labelset = get_object_or_404(LabelSet, source=source)
-
-    funcgroups = LabelGroup.objects.filter().order_by('id')
-    nfuncgroups = len(funcgroups)    
-    
-    all_annotations = Annotation.objects.filter(source=source).select_related() #get all annotations
-    images = Image.objects.filter(source=source).select_related() #get all images
-    labels = Label.objects.filter(labelset=labelset).order_by('name')
-            
-    ### GET THE FUNCTIONAL GROUP CONFUSION MATRIX AND MAKE SOME CHECKS.
-    # the second output is a dictionary that maps the group_id to a consecutive number that starts at 0.
-    try:
-        (fullcm, labelIds) = get_current_confusion_matrix(source_id)
-        (cm, fdict, funcIds) = collapse_confusion_matrix(fullcm, labelIds)
-    except:
-        writer.writerow(["Error! Automated annotator is not availible for this source."])
-        return response
-
-    # check if there are classes that never occur in the matrix. 
-    emptyinds = logical_and(sum(cm, axis=0)==0, sum(cm,axis=1)==0)
-
-    # set the diagonal entry of these classes to 1. This means that nothing will happen to them.
-    for funcgroupitt in range(nfuncgroups):
-        if(emptyinds[funcgroupitt]):
-            cm[funcgroupitt, funcgroupitt] = 1
-
-    # row-normalize
-    (cm_normalized, row_sums) = confusion_matrix_normalize(cm)
-
-    # try inverting
-    try:
-        Q = linalg.inv(cm_normalized.transpose()) # Q matrix from Solow.
-    except:
-        writer.writerow(["Error! Confusion matrix is singular, abundance correction is not possible."])
-        return response
-        
-    ### Adds table header which looks something as follows:
-    #locKey1 locKey2 locKey3 locKey4 date label1 label2 label3 label4 .... labelEnd
-    #Note: labe1, label2, etc corresponds to the percent coverage of that label on
-    #a per IMAGE basis, not per source
-    header = []
-    header.extend(get_aux_labels(source))
-    header.append('date_taken')
-    header.append('annotation_status')
-    header.extend(images[0].get_metadata_fields_for_export()) #these are the same for all images. Use first one..
-    for funcgroup in funcgroups:
-        header.append(str(funcgroup.name))
-    writer.writerow(header)
-
-    ### BEGIN EXPORT
-    vecfmt = vectorize(myfmt) # this is a tool that exports the vector to a nice string with three decimal points
-    for image in images:
-        locKeys = get_aux_metadata_str_list_for_image(image, for_export=True)
-
-        image_annotations = all_annotations.filter(image=image)
-        image_annotation_count = image_annotations.count()
-        if image_annotation_count == 0:
-            image_annotation_count = 1.0 #is there is zero annotations, set this to one, to not mess up the normalization below
-
-        coverage = zeros( (nfuncgroups) ) # this stores the coverage for the current image.
-        for label_index, label in enumerate(labels):
-            label_annotations_count = all_annotations.filter(image=image, label=label).count() # for each type of label
-            coverage[fdict[label.group_id]] += label_annotations_count # increment the count of the group of this label using the fdict dictionary
-        coverage /= image_annotation_count #normalize by total count
-        coverage *= 100 #make into percent
-
-        row = []
-        row.extend(locKeys)
-        row.append(str(image.metadata.photo_date))
-    
-        if image.status.annotatedByHuman:
-            row.append('verified_by_human')
-        elif image.status.annotatedByRobot:
-            row.append('not_verified_by_human_(abundance_corrected)')
-            coverage = Q.dot(coverage) #this is the abundance correction. Very simple!
-        else:
-            row.append('not_annotated')
-        row.extend(image.get_metadata_values_for_export())
-        row.extend(vecfmt(coverage)) #vecfmt converts to a string with 3 decimal points
-        writer.writerow(row)
-    
-    return response
-
-@source_visibility_required('source_id')
-# This is a potentially slow view that doesn't modify the database,
-# so don't open a transaction for the view.
-@transaction.non_atomic_requests
-def export_statistics(request, source_id):
-    # get the response object, this can be used as a stream.
-    response = HttpResponse(content_type='text/csv')
-    # force download.
-    response['Content-Disposition'] = 'attachment;filename="statistics.csv"'
-    # the csv writer
-    writer = csv.writer(response)
-
-    source = get_object_or_404(Source, id=source_id)
-    images = Image.objects.filter(source=source).select_related()
-    if request.GET.get('robot', ''):
-        all_annotations = Annotation.objects.filter(source=source).select_related()
-    else:
-        all_annotations = Annotation.objects.filter(source=source).exclude(user=get_robot_user()).select_related()
-
-    if source.labelset is None:
-        labels = []
-    else:
-        labels = source.labelset.labels.all().order_by('name')
-    
-    #Adds table header which looks something as follows:
-    #locKey1 locKey2 locKey3 locKey4 date label1 label2 label3 label4 .... labelEnd
-    #Note: labe1, label2, etc corresponds to the percent coverage of that label on
-    #a per IMAGE basis, not per source
-    header = []
-    header.extend(get_aux_labels(source))
-    header.append('date_taken')
-    header.append('annotation_status')
-    header.extend(images[0].get_metadata_fields_for_export()) #these are the same for all images. Use first one..
-    for label in labels:
-        header.append(str(label.name))
-    writer.writerow(header)
-
-    zeroed_labels_data = [0 for label in labels]
-    #Adds data row which looks something as follows:
-    #lter1 out10m line1-2 qu1 20100427  10.2 12.1 0 0 13.2
-    for image in images:
-        locKeys = get_aux_metadata_str_list_for_image(image, for_export=True)
-
-        photo_date = str(image.metadata.photo_date)
-        image_labels_data = []
-        image_labels_data.extend(zeroed_labels_data)
-        image_annotations = all_annotations.filter(image=image)
-        total_annotations_count = image_annotations.count()
-
-        for label_index, label in enumerate(labels):
-            #Testing out this optimization to see if it's any faster
-            label_annotations_count = all_annotations.filter(image=image, label=label).count()
-            try:
-                label_percent_coverage = (float(label_annotations_count)/total_annotations_count)*100
-            except ZeroDivisionError:
-                label_percent_coverage = 0
-            image_labels_data[label_index] = str(label_percent_coverage)
-
-        row = []
-        row.extend(locKeys)
-        row.append(photo_date)
-        if image.status.annotatedByHuman:
-            row.append('verified_by_human')
-        elif image.status.annotatedByRobot:
-            row.append('not_verified_by_human')
-        else:
-            row.append('not_annotated')
-        row.extend(image.get_metadata_values_for_export())
-        row.extend(image_labels_data)
-        writer.writerow(row)
-
-    return response
-
-@source_visibility_required('source_id')
-# This is a potentially slow view that doesn't modify the database,
-# so don't open a transaction for the view.
-@transaction.non_atomic_requests
-def export_annotations(request, source_id):
-    # get the response object, this can be used as a stream.
-    response = HttpResponse(content_type='text/csv')
-    # force download.
-    response['Content-Disposition'] = 'attachment;filename="annotations.csv"'
-    # the csv writer
-    writer = csv.writer(response)
-
-    source = get_object_or_404(Source, id=source_id)
-    images = Image.objects.filter(source=source).select_related()
-    if request.GET.get('robot', ''):
-        all_annotations = Annotation.objects.filter(source=source)
-    else:
-        all_annotations = Annotation.objects.filter(source=source).exclude(user=get_robot_user())
-
-    #Add table headings: locKey1 locKey2 locKey3 locKey4 photo_date anno_date row col label shortcode fun_group annotator
-    header = []
-    header.extend(get_aux_labels(source))
-    header.extend(['original_file_name', 'date_taken','date_annotated','annotator', 'row', 'col', 'label','shortcode', 'func_group'])
-    writer.writerow(header)
-
-    #Adds the relevant annotation data in a row
-    #Example row: lter1 out10m line1-2 qu1 20100427 20110101 130 230 Porit
-    for image in images:
-        locKeys = get_aux_metadata_str_list_for_image(image, for_export=True)
-        original_file_name = str(image.metadata.name)        
-        photo_date = str(image.metadata.photo_date)
-        annotations = all_annotations.filter(image=image).order_by('point').select_related()
-
-        for annotation in annotations:
-            label_name = str(annotation.label.name)
-            annotation_date = str(annotation.annotation_date)
-            annotator = str(annotation.user)
-            point_row = str(annotation.point.row)
-            point_col = str(annotation.point.column)
-            short_code = str(annotation.label.code)
-            func_group = str(annotation.label.group)
-
-
-            row = []
-            row.extend(locKeys)
-            row.append(original_file_name)
-            row.append(photo_date)
-            row.append(annotation_date)
-            row.append(annotator)
-            row.append(point_row)
-            row.append(point_col)
-            row.append(label_name)
-            row.append(short_code)
-            row.append(func_group)
-            writer.writerow(row)
-
-    return response
-
-
-@source_visibility_required('source_id')
-def export_menu(request, source_id):
-    source = get_object_or_404(Source, id=source_id)
-
-    return render(request, 'visualization/export_menu.html', {
-        'source': source,
     })

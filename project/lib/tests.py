@@ -296,7 +296,7 @@ class GoogleAnalyticsTest(ClientTest):
         """
         source_id = Source.objects.get(name='private1').pk
         self.client.login(username='user2', password='secret')
-        response = self.client.get(reverse('visualize_source', kwargs=dict(source_id = source_id)))
+        response = self.client.get(reverse('browse_images', kwargs=dict(source_id = source_id)))
         self.assertContains(response, 'google-analytics.com/ga.js')
 
 

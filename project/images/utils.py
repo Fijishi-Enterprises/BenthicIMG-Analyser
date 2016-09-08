@@ -44,9 +44,15 @@ def get_next_image(current_image, image_queryset, ordering, wrap=False):
     elif wrap:
         # No matching images after this image,
         # so we wrap around to the first image.
+
+        if not ordered_images:
+            # No matching images at all.
+            return None
+
         target_image = ordered_images[0]
+
         # Don't allow getting the current image as the target image.
-        if target_image is not None and target_image.pk == current_image.pk:
+        if target_image.pk == current_image.pk:
             return None
         else:
             return target_image
@@ -65,6 +71,23 @@ def get_prev_image(current_image, image_queryset, ordering, wrap=False):
     ordering = (ordering[0], ordering[1], not ordering[2])
     return get_next_image(
         current_image, image_queryset, ordering, wrap)
+
+
+def get_image_order_placement(image_queryset, ordering):
+    ordering_key, current_image_ordering_value, descending = ordering
+
+    if descending:
+        # Descending order specified
+        kwargs = {ordering_key + '__gt': current_image_ordering_value}
+        ordered_images = image_queryset.order_by(ordering_key).reverse()
+    else:
+        kwargs = {ordering_key + '__lt': current_image_ordering_value}
+        ordered_images = image_queryset.order_by(ordering_key)
+    prev_images = ordered_images.filter(**kwargs)
+
+    # e.g. if there's 4 images that are ordered before the current image,
+    # then we return 5
+    return prev_images.count() + 1
 
 
 def metadata_field_names_to_labels(source):
@@ -128,14 +151,22 @@ def delete_images(image_queryset):
     metadata_queryset = Metadata.objects.filter(image__in=image_queryset)
     status_queryset = ImageStatus.objects.filter(image__in=image_queryset)
 
-    # We delete the related objects after deleting the image to not trigger
-    # PROTECT-related errors on those ForeignKeys.
-    #
-    # Also, we call delete() on the querysets rather than the individual
+    # Since these querysets are obtained based on their related images,
+    # the querysets will change once the images are deleted!
+    # Force-evaluate these querysets BEFORE image deletion.
+    # https://docs.djangoproject.com/en/dev/ref/models/querysets/#when-querysets-are-evaluated
+    metadata_pks = list(metadata_queryset.values_list('pk', flat=True))
+    metadata_queryset = Metadata.objects.filter(pk__in=metadata_pks)
+    status_pks = list(status_queryset.values_list('pk', flat=True))
+    status_queryset = ImageStatus.objects.filter(pk__in=status_pks)
+
+    # We call delete() on the querysets rather than the individual
     # objects for faster performance.
     _, num_objects_deleted = image_queryset.delete()
     delete_count = num_objects_deleted.get('images.Image', 0)
 
+    # We delete the related objects AFTER deleting the images to not trigger
+    # PROTECT-related errors on those ForeignKeys.
     metadata_queryset.delete()
     status_queryset.delete()
 

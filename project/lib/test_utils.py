@@ -463,30 +463,24 @@ class ClientTest(BaseTest):
         group = LabelGroup(name=group_name, code=group_name[:10])
         group.save()
 
-        # TODO: Use auto-generated simple images rather than relying on
-        # a sample uploadables folder.
-        filepath = os.path.join(settings.SAMPLE_UPLOADABLES_ROOT,
-            'data', '001_2012-05-01_color-grid-001.png')
         cls.client.force_login(user)
         for name in label_names:
-            # Re-opening the file for every label may seem wasteful,
-            # but the upload process seems to close the file, so it's
-            # necessary.
-            with open(filepath, 'rb') as thumbnail:
-                cls.client.post(
-                    reverse('labelset_new', kwargs=dict(source_id=source.id)),
-                    dict(
-                        # create_label triggers the new-label form.
-                        # The key just needs to be there in the POST;
-                        # the value doesn't matter.
-                        create_label='.',
-                        name=name,
-                        code=name[:10],
-                        group=group.id,
-                        description="Description",
-                        thumbnail=thumbnail,
-                    )
+            cls.client.post(
+                reverse('labelset_new', kwargs=dict(source_id=source.id)),
+                dict(
+                    # create_label triggers the new-label form.
+                    # The key just needs to be there in the POST;
+                    # the value doesn't matter.
+                    create_label='.',
+                    name=name,
+                    default_code=name[:10],
+                    group=group.id,
+                    description="Description",
+                    # A new filename will be generated, and the uploaded
+                    # filename will be discarded, so it doesn't matter.
+                    thumbnail=sample_image_as_file('_.png'),
                 )
+            )
         cls.client.logout()
 
         return Label.objects.filter(name__in=label_names)
@@ -509,7 +503,8 @@ class ClientTest(BaseTest):
                 # The key just needs to be there in the POST;
                 # the value doesn't matter.
                 create_labelset='.',
-                labels=labels.values_list('pk', flat=True),
+                label_ids=','.join(
+                    str(pk) for pk in labels.values_list('pk', flat=True)),
             ),
         )
         cls.client.logout()
@@ -621,7 +616,7 @@ class ClientTest(BaseTest):
                 image=image,
                 source=image.source,
                 point=point,
-                label=Label.objects.get(code=label_code),
+                label=image.source.labelset.get_global_by_code(label_code),
                 user=get_robot_user(),
                 robot_version=robot,
             )

@@ -49,7 +49,7 @@ class Label(models.Model):
     objects = LabelManager()
 
     name = models.CharField(max_length=45)
-    code = models.CharField('Short Code', max_length=10)
+    default_code = models.CharField('Default Short Code', max_length=10)
     group = models.ForeignKey(
         LabelGroup, on_delete=models.PROTECT, verbose_name='Functional Group')
     description = models.TextField(null=True)

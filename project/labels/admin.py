@@ -4,7 +4,7 @@ from .models import LabelGroup, Label, LabelSet
 
 @admin.register(Label)
 class LabelAdmin(admin.ModelAdmin):
-    list_display = ('name', 'code', 'group', 'create_date')
+    list_display = ('name', 'default_code', 'group', 'create_date')
 
 
 @admin.register(LabelGroup)

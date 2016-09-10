@@ -1452,7 +1452,7 @@ class UploadMetadataPreviewErrorTest(ClientTest):
 
         self.assertDictEqual(
             preview_response.json(),
-            dict(error=("(1.png - Date) Enter a valid date.")),
+            dict(error="(1.png - Date) Enter a valid date."),
         )
 
 
@@ -1733,7 +1733,7 @@ class UploadAnnotationsTest(ClientTest):
         self.assertDictEqual(upload_response.json(), dict(success=True))
 
         values_set = set(
-            Point.objects.filter(image__in=[self.img1, self.img2]) \
+            Point.objects.filter(image__in=[self.img1, self.img2])
             .values_list('row', 'column', 'point_number', 'image_id'))
         self.assertSetEqual(values_set, {
             (50, 50, 1, self.img1.pk),
@@ -1816,7 +1816,7 @@ class UploadAnnotationsTest(ClientTest):
         self.assertDictEqual(upload_response.json(), dict(success=True))
 
         values_set = set(
-            Point.objects.filter(image__in=[self.img1, self.img2]) \
+            Point.objects.filter(image__in=[self.img1, self.img2])
             .values_list('row', 'column', 'point_number', 'image_id'))
         self.assertSetEqual(values_set, {
             (50, 50, 1, self.img1.pk),
@@ -1828,7 +1828,9 @@ class UploadAnnotationsTest(ClientTest):
         annotations = Annotation.objects.filter(
             image__in=[self.img1, self.img2])
         values_set = set(
-            annotations.values_list('label__code', 'point_id', 'image_id'))
+            (a.label_code, a.point.pk, a.image.pk)
+            for a in annotations
+        )
         self.assertSetEqual(values_set, {
             ('A', Point.objects.get(
                 point_number=1, image=self.img1).pk, self.img1.pk),
@@ -1906,7 +1908,7 @@ class UploadAnnotationsTest(ClientTest):
 
         values_set = set(
             Point.objects.filter(
-                image__in=[self.img1, self.img2, self.img3]) \
+                image__in=[self.img1, self.img2, self.img3])
             .values_list('row', 'column', 'point_number', 'image_id'))
         self.assertSetEqual(values_set, {
             (50, 50, 1, self.img1.pk),
@@ -1920,7 +1922,9 @@ class UploadAnnotationsTest(ClientTest):
         annotations = Annotation.objects.filter(
             image__in=[self.img1, self.img2, self.img3])
         values_set = set(
-            annotations.values_list('label__code', 'point_id', 'image_id'))
+            (a.label_code, a.point.pk, a.image.pk)
+            for a in annotations
+        )
         self.assertSetEqual(values_set, {
             ('A', Point.objects.get(
                 point_number=1, image=self.img1).pk, self.img1.pk),
@@ -2012,7 +2016,7 @@ class UploadAnnotationsTest(ClientTest):
 
         values_set = set(
             Point.objects.filter(
-                image__in=[self.img1, self.img2, self.img3]) \
+                image__in=[self.img1, self.img2, self.img3])
             .values_list('row', 'column', 'point_number', 'image_id'))
         self.assertSetEqual(values_set, {
             (10, 10, 1, self.img1.pk),
@@ -2026,7 +2030,9 @@ class UploadAnnotationsTest(ClientTest):
         annotations = Annotation.objects.filter(
             image__in=[self.img1, self.img2, self.img3])
         values_set = set(
-            annotations.values_list('label__code', 'point_id', 'image_id'))
+            (a.label_code, a.point.pk, a.image.pk)
+            for a in annotations
+        )
         self.assertSetEqual(values_set, {
             ('A', Point.objects.get(
                 point_number=1, image=self.img1).pk, self.img1.pk),
@@ -2047,6 +2053,7 @@ class UploadAnnotationsTest(ClientTest):
 
         # Make a longer-than-1-char label code so we can test that
         # lower() is being used on both the label's code and the CSV value
+        # TODO: Fix this test once the labelset_edit view has been fixed
         labels = self.create_labels(self.user, self.source, ['Abc'], 'Group1')
         self.source.labelset.labels.add(labels[0])
         self.source.labelset.save()
@@ -2085,7 +2092,7 @@ class UploadAnnotationsTest(ClientTest):
         self.assertDictEqual(upload_response.json(), dict(success=True))
 
         values_set = set(
-            Point.objects.filter(image__in=[self.img1]) \
+            Point.objects.filter(image__in=[self.img1])
             .values_list('row', 'column', 'point_number', 'image_id'))
         self.assertSetEqual(values_set, {
             (40, 60, 1, self.img1.pk),
@@ -2093,7 +2100,9 @@ class UploadAnnotationsTest(ClientTest):
 
         annotations = Annotation.objects.filter(image__in=[self.img1])
         values_set = set(
-            annotations.values_list('label__code', 'point_id', 'image_id'))
+            (a.label_code, a.point.pk, a.image.pk)
+            for a in annotations
+        )
         self.assertSetEqual(values_set, {
             ('Abc', Point.objects.get(
                 point_number=1, image=self.img1).pk, self.img1.pk),
@@ -2141,7 +2150,7 @@ class UploadAnnotationsTest(ClientTest):
         self.assertDictEqual(upload_response.json(), dict(success=True))
 
         values_set = set(
-            Point.objects.filter(image__in=[self.img1]) \
+            Point.objects.filter(image__in=[self.img1])
             .values_list('row', 'column', 'point_number', 'image_id'))
         self.assertSetEqual(values_set, {
             (50, 50, 1, self.img1.pk),
@@ -2149,7 +2158,9 @@ class UploadAnnotationsTest(ClientTest):
 
         annotations = Annotation.objects.filter(image__in=[self.img1])
         values_set = set(
-            annotations.values_list('label__code', 'point_id', 'image_id'))
+            (a.label_code, a.point.pk, a.image.pk)
+            for a in annotations
+        )
         self.assertSetEqual(values_set, {
             ('A', Point.objects.get(
                 point_number=1, image=self.img1).pk, self.img1.pk),
@@ -2194,7 +2205,7 @@ class UploadAnnotationsTest(ClientTest):
         )
 
         values_set = set(
-            Point.objects.filter(image__in=[self.img1]) \
+            Point.objects.filter(image__in=[self.img1])
             .values_list('row', 'column', 'point_number', 'image_id'))
         self.assertSetEqual(values_set, {
             (40, 60, 1, self.img1.pk),
@@ -2202,7 +2213,9 @@ class UploadAnnotationsTest(ClientTest):
 
         annotations = Annotation.objects.filter(image__in=[self.img1])
         values_set = set(
-            annotations.values_list('label__code', 'point_id', 'image_id'))
+            (a.label_code, a.point.pk, a.image.pk)
+            for a in annotations
+        )
         self.assertSetEqual(values_set, {
             ('A', Point.objects.get(
                 point_number=1, image=self.img1).pk, self.img1.pk),
@@ -2246,7 +2259,7 @@ class UploadAnnotationsTest(ClientTest):
         )
 
         values_set = set(
-            Point.objects.filter(image__in=[self.img1]) \
+            Point.objects.filter(image__in=[self.img1])
             .values_list('row', 'column', 'point_number', 'image_id'))
         self.assertSetEqual(values_set, {
             (40, 60, 1, self.img1.pk),
@@ -2254,7 +2267,9 @@ class UploadAnnotationsTest(ClientTest):
 
         annotations = Annotation.objects.filter(image__in=[self.img1])
         values_set = set(
-            annotations.values_list('label__code', 'point_id', 'image_id'))
+            (a.label_code, a.point.pk, a.image.pk)
+            for a in annotations
+        )
         self.assertSetEqual(values_set, {
             ('A', Point.objects.get(
                 point_number=1, image=self.img1).pk, self.img1.pk),
@@ -2301,7 +2316,7 @@ class UploadAnnotationsTest(ClientTest):
         self.assertDictEqual(upload_response.json(), dict(success=True))
 
         values_set = set(
-            Point.objects.filter(image__in=[self.img1]) \
+            Point.objects.filter(image__in=[self.img1])
             .values_list('row', 'column', 'point_number', 'image_id'))
         self.assertSetEqual(values_set, {
             (40, 60, 1, self.img1.pk),
@@ -2309,7 +2324,9 @@ class UploadAnnotationsTest(ClientTest):
 
         annotations = Annotation.objects.filter(image__in=[self.img1])
         values_set = set(
-            annotations.values_list('label__code', 'point_id', 'image_id'))
+            (a.label_code, a.point.pk, a.image.pk)
+            for a in annotations
+        )
         self.assertSetEqual(values_set, {
             ('A', Point.objects.get(
                 point_number=1, image=self.img1).pk, self.img1.pk),
@@ -2353,7 +2370,7 @@ class UploadAnnotationsTest(ClientTest):
         self.assertDictEqual(upload_response.json(), dict(success=True))
 
         values_set = set(
-            Point.objects.filter(image__in=[self.img1]) \
+            Point.objects.filter(image__in=[self.img1])
             .values_list('row', 'column', 'point_number', 'image_id'))
         self.assertSetEqual(values_set, {
             (40, 60, 1, self.img1.pk),
@@ -2361,7 +2378,9 @@ class UploadAnnotationsTest(ClientTest):
 
         annotations = Annotation.objects.filter(image__in=[self.img1])
         values_set = set(
-            annotations.values_list('label__code', 'point_id', 'image_id'))
+            (a.label_code, a.point.pk, a.image.pk)
+            for a in annotations
+        )
         self.assertSetEqual(values_set, {
             ('A', Point.objects.get(
                 point_number=1, image=self.img1).pk, self.img1.pk),
@@ -2476,7 +2495,7 @@ class UploadAnnotationsMultipleSourcesTest(ClientTest):
         # Check source 1 objects
 
         values_set = set(
-            Point.objects.filter(image__in=[self.img1_s1]) \
+            Point.objects.filter(image__in=[self.img1_s1])
             .values_list('row', 'column', 'point_number', 'image_id'))
         self.assertSetEqual(values_set, {
             (50, 50, 1, self.img1_s1.pk),
@@ -2484,7 +2503,9 @@ class UploadAnnotationsMultipleSourcesTest(ClientTest):
 
         annotations = Annotation.objects.filter(image__in=[self.img1_s1])
         values_set = set(
-            annotations.values_list('label__code', 'point_id', 'image_id'))
+            (a.label_code, a.point.pk, a.image.pk)
+            for a in annotations
+        )
         self.assertSetEqual(values_set, {
             ('A', Point.objects.get(
                 point_number=1, image=self.img1_s1).pk, self.img1_s1.pk),
@@ -2493,7 +2514,7 @@ class UploadAnnotationsMultipleSourcesTest(ClientTest):
         # Check source 2 objects
 
         values_set = set(
-            Point.objects.filter(image__in=[self.img1_s2, self.img2_s2]) \
+            Point.objects.filter(image__in=[self.img1_s2, self.img2_s2])
             .values_list('row', 'column', 'point_number', 'image_id'))
         self.assertSetEqual(values_set, {
             (10, 10, 1, self.img1_s2.pk),
@@ -2505,7 +2526,9 @@ class UploadAnnotationsMultipleSourcesTest(ClientTest):
         annotations = Annotation.objects.filter(
             image__in=[self.img1_s2, self.img2_s2])
         values_set = set(
-            annotations.values_list('label__code', 'point_id', 'image_id'))
+            (a.label_code, a.point.pk, a.image.pk)
+            for a in annotations
+        )
         self.assertSetEqual(values_set, {
             ('B', Point.objects.get(
                 point_number=1, image=self.img1_s2).pk, self.img1_s2.pk),
@@ -2800,6 +2823,9 @@ class UploadAnnotationsPreviewErrorTest(ClientTest):
         )
 
 
+# TODO: This should just fail to reach the page.
+# Change behavior and fix tests.
+
 class UploadAnnotationsNoLabelsetTest(ClientTest):
     """
     Point/annotation upload attempts with no labelset.
@@ -2868,7 +2894,7 @@ class UploadAnnotationsNoLabelsetTest(ClientTest):
         self.assertDictEqual(upload_response.json(), dict(success=True))
 
         values_set = set(
-            Point.objects.filter(image__in=[self.img1]) \
+            Point.objects.filter(image__in=[self.img1])
             .values_list('row', 'column', 'point_number', 'image_id'))
         self.assertSetEqual(values_set, {
             (50, 50, 1, self.img1.pk),

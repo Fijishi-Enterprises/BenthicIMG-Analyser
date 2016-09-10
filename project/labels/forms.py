@@ -1,12 +1,17 @@
 from itertools import chain
+
+from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
+from django.core.validators import validate_comma_separated_integer_list
+from django.forms import Form
+from django.forms.fields import CharField
 from django.forms.models import ModelForm
 from django.forms.widgets import CheckboxInput, CheckboxSelectMultiple, \
     TextInput
 from django.utils.encoding import force_unicode
 from django.utils.html import conditional_escape
 from django.utils.safestring import mark_safe
-from .models import Label, LabelSet
+from .models import Label, LabelSet, LocalLabel
 
 
 class CustomCheckboxSelectMultiple(CheckboxSelectMultiple):
@@ -48,69 +53,115 @@ class CustomCheckboxSelectMultiple(CheckboxSelectMultiple):
         return mark_safe('\n'.join(output))
 
 
-class NewLabelForm(ModelForm):
+class LabelForm(ModelForm):
     class Meta:
         model = Label
-        fields = ['name', 'code', 'group', 'description', 'thumbnail']
+        fields = ['name', 'default_code', 'group', 'description', 'thumbnail']
         widgets = {
-            'code': TextInput(attrs={'size': 10}),
+            'default_code': TextInput(attrs={'size': 10}),
         }
 
-    def clean(self):
+    def clean_name(self):
         """
-        1. Add an error if the specified name or code matches that of an existing label.
-        2. Call the parent's clean() to finish up with the default behavior.
+        Add an error if the specified name matches that of an existing label.
         """
-        data = self.cleaned_data
+        name = self.cleaned_data['name']
 
-        if data.has_key('name'):
-            labelsOfSameName = Label.objects.filter(name__iexact=data['name'])
-            if len(labelsOfSameName) > 0:
-                # mark_safe(), along with the |safe template filter, allows HTML in the message.
-                msg = mark_safe(
-                    'There is already a label with the name %s: <a href="%s" target="_blank">%s</a>' % (
-                        data['name'],
-                        reverse('label_main', args=[labelsOfSameName[0].id]),
-                        labelsOfSameName[0].name,
-                    ))
-                self.add_error('name', msg)
+        try:
+            # Case-insensitive compare
+            existing_label = Label.objects.get(name__iexact=name)
+        except Label.DoesNotExist:
+            # Name is not taken
+            pass
+        else:
+            # Name is taken
+            #
+            # mark_safe(), along with the |safe template filter,
+            # allows HTML in the message.
+            msg = mark_safe((
+                'There is already a label with the same name:'
+                ' <a href="{url}" target="_blank">'
+                '{existing_name}</a>').format(
+                    url=reverse('label_main', args=[existing_label.pk]),
+                    existing_name=existing_label.name,
+                ))
+            raise ValidationError(msg)
 
-        if data.has_key('code'):
-            labelsOfSameCode = Label.objects.filter(code__iexact=data['code'])
-            if len(labelsOfSameCode) > 0:
-                msg = mark_safe(
-                    'There is already a label with the short code %s: <a href="%s" target="_blank">%s</a>' % (
-                        data['code'],
-                        reverse('label_main', args=[labelsOfSameCode[0].id]),
-                        labelsOfSameCode[0].name,
-                    ))
-                self.add_error('code', msg)
+        return name
 
-        self.cleaned_data = data
-        super(NewLabelForm, self).clean()
+    # No check for Labels with the same default code. We only care about
+    # LabelSets having unique LocalLabel codes.
 
 
-class NewLabelSetForm(ModelForm):
+class LabelSetForm(Form):
+    label_ids = CharField(
+        validators=[validate_comma_separated_integer_list],
+        required=True,
+    )
+
     def __init__(self, *args, **kwargs):
-        super(NewLabelSetForm, self).__init__(*args, **kwargs)
+        self.source = kwargs.pop('source')
+        super(LabelSetForm, self).__init__(*args, **kwargs)
 
-        # Put the label choices in order
-        self.fields['labels'].choices = \
-            [(label.id, label) for label in
-             Label.objects.all().order_by('group__id', 'name')]
+    def clean_label_ids(self):
+        # Run through a set to remove dupes, then get a list again
+        label_id_list = list(set(
+            int(pk) for pk in self.cleaned_data['label_ids'].split(',')))
 
-        # Custom widget for label selection
-        self.fields['labels'].widget = CustomCheckboxSelectMultiple(
-            choices=self.fields['labels'].choices)
-        # Removing "Hold down "Control", or "Command" on a Mac, to select more than one."
-        self.fields['labels'].help_text = ''
+        # Check if labels of these ids exist
+        bad_id_list = []
+        for label_id in label_id_list:
+            try:
+                Label.objects.get(pk=label_id)
+            except Label.DoesNotExist:
+                bad_id_list.append(label_id)
 
-    class Meta:
-        model = LabelSet
-        fields = ['labels']
+        if bad_id_list:
+            msg = (
+                "Could not find labels of ids: {bad_ids}."
+                " Either we messed up, or one of the"
+                " labels you selected just got deleted."
+                " If the problem persists,"
+                " please contact the site admins.").format(
+                    bad_ids=", ".join(str(n) for n in bad_id_list),
+                )
+            raise ValidationError(msg)
 
-    class Media:
-        js = (
-            # From this app's static folder
-            "js/LabelsetFormHelper.js",
-        )
+        # TODO: Check that there's at least 1 valid label id.
+        # TODO: Check if any in-use labels are marked for removal.
+
+        # Return the integer list (rather than its string repr).
+        return label_id_list
+
+    def save_labelset(self):
+        """
+        Call this after validation to save the labelset.
+        """
+        pending_global_ids = set(self.cleaned_data['label_ids'])
+
+        if not self.source.labelset:
+            labelset = LabelSet()
+            labelset.save()
+            self.source.labelset = labelset
+            self.source.save()
+
+        labelset = self.source.labelset
+        existing_global_ids = set(
+            labelset.get_globals().values_list('pk', flat=True))
+
+        global_ids_to_delete = existing_global_ids - pending_global_ids
+        local_labels_to_delete = labelset.get_labels().filter(
+                global_label__pk__in=global_ids_to_delete)
+        local_labels_to_delete.delete()
+
+        global_ids_to_add = pending_global_ids - existing_global_ids
+        local_labels_to_add = []
+        for global_id in global_ids_to_add:
+            global_label = Label.objects.get(pk=global_id)
+            local_label = LocalLabel(
+                code=global_label.default_code,
+                global_label=global_label,
+                labelset=labelset,
+            )
+            local_labels_to_add.append(local_label)
+        LocalLabel.objects.bulk_create(local_labels_to_add)

@@ -5,7 +5,7 @@ from django.core.urlresolvers import reverse
 from django.http import HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404
 
-from .forms import NewLabelForm, NewLabelSetForm
+from .forms import LabelForm, LabelSetForm
 from .models import Label
 from accounts.utils import get_robot_user
 from annotations.models import Annotation
@@ -19,11 +19,9 @@ from visualization.utils import generate_patch_if_doesnt_exist, get_patch_url
 def label_new(request):
     """
     Page to create a new label for CoralNet.
-    NOTE: This view might be obsolete, deferring in favor of
-    having the new-label form only be in the create-labelset page.
     """
     if request.method == 'POST':
-        form = NewLabelForm(request.POST)
+        form = LabelForm(request.POST)
 
         if form.is_valid():
             label = form.save()
@@ -32,7 +30,7 @@ def label_new(request):
         else:
             messages.error(request, 'Please correct the errors below.')
     else:
-        form = NewLabelForm()
+        form = LabelForm()
 
     return render(request, 'labels/label_new.html', {
         'form': form,
@@ -44,18 +42,17 @@ def labelset_new(request, source_id):
     """
     Page to create a labelset for a source.
     """
-
     source = get_object_or_404(Source, id=source_id)
     showLabelForm = False
-    initiallyCheckedLabels = []
+    # initiallyCheckedLabels = []
 
     if request.method == 'POST':
 
-        initiallyCheckedLabels = [int(labelId) for labelId in request.POST.getlist('labels')]
+        # initiallyCheckedLabels = [int(labelId) for labelId in request.POST.getlist('labels')]
 
         if 'create_label' in request.POST:
-            labelForm = NewLabelForm(request.POST, request.FILES)
-            newLabel = None
+            labelForm = LabelForm(request.POST, request.FILES)
+            # newLabel = None
 
             # is_valid() checks for label conflicts in the database (same-name label found, etc.).
             if labelForm.is_valid():
@@ -68,40 +65,39 @@ def labelset_new(request, source_id):
                 showLabelForm = True
 
             # The labelset form should now have the new label.
-            labelSetForm = NewLabelSetForm()
+            labelSetForm = LabelSetForm(source=source)
 
             # If a label was added, the user probably wanted to add it to their
             # labelset, so pre-check that label.
-            if newLabel:
-                initiallyCheckedLabels.append(newLabel.id)
+            # if newLabel:
+            #     initiallyCheckedLabels.append(newLabel.id)
 
         else:  # 'create_labelset' in request.POST
-            labelSetForm = NewLabelSetForm(request.POST)
-            labelForm = NewLabelForm()
+            labelSetForm = LabelSetForm(request.POST, source=source)
+            labelForm = LabelForm()
 
             if labelSetForm.is_valid():
-                labelset = labelSetForm.save()
-                source.labelset = labelset
-                source.save()
+                labelSetForm.save_labelset()
 
                 messages.success(request, 'LabelSet successfully created.')
-                return HttpResponseRedirect \
-                    (reverse('labelset_main', args=[source.id]))
+                return HttpResponseRedirect(
+                    reverse('labelset_main', args=[source.id]))
             else:
                 messages.error(request, 'Please correct the errors below.')
 
     else:
-        labelForm = NewLabelForm()
-        labelSetForm = NewLabelSetForm()
+        labelForm = LabelForm()
+        labelSetForm = LabelSetForm(source=source)
 
-    allLabels = [dict(labelId=str(id), name=label.name,
-                      code=label.code, group=label.group.name)
-                 for id, label in labelSetForm['labels'].field.choices]
+    # allLabels = [dict(labelId=str(id), name=label.name,
+    #                   code=label.code, group=label.group.name)
+    #              for id, label in labelSetForm['labels'].field.choices]
+    allLabels = dict()
 
     # Dict that tells whether a label should be initially checked: {85: True, 86: True, ...}.
     isInitiallyChecked = dict()
-    for labelId, label in labelSetForm['labels'].field.choices:
-        isInitiallyChecked[labelId] = labelId in initiallyCheckedLabels
+    # for labelId, label in labelSetForm['labels'].field.choices:
+    #     isInitiallyChecked[labelId] = labelId in initiallyCheckedLabels
 
     return render(request, 'labels/labelset_new.html', {
         'showLabelFormInitially': json.dumps(showLabelForm),    # Convert Python bool to JSON bool
@@ -283,20 +279,15 @@ def labelset_main(request, source_id):
     """
     Main page for a particular source's labelset
     """
-
     source = get_object_or_404(Source, id=source_id)
 
     if source.labelset is None:
         return HttpResponseRedirect(reverse('labelset_new', args=[source.id]))
 
-    labelset = source.labelset
-    labels = labelset.labels.all().order_by('group__id', 'name')
-
-
     return render(request, 'labels/labelset_main.html', {
         'source': source,
-        'labelset': labelset,
-        'labels': labels,
+        'labelset': source.labelset,
+        'labels': source.labelset.get_locals_ordered_by_group_and_code(),
     })
 
 

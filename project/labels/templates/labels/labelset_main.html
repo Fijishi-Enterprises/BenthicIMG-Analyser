@@ -6,14 +6,28 @@
 
 {% block content %}
 
-    <h2 style="text-transform: none;">{{ source.name }} Labelset</h2>
+  <h2 style="text-transform: none;">{{ source.name }} Labelset</h2>
 
-    {# Must use a different template after labels.models refactor #}
-    {% include "labels/helper_label_list.html" with labels=labels %}
+  <table class="detail_table">
+    <tr>
+      <th>Name</th>
+      <th>Short Code</th>
+      <th>Functional Group</th>
+    </tr>
+    {% for label in labels %}
+      <tr>
+        <td><a href="{% url 'label_main' label.global_label.pk %}">
+          {{ label.name }}</a></td>
+        <td>{{ label.code }}</td>
+        <td>{{ label.group }}</td>
+      </tr>
+    {% endfor %}
+  </table>
 
-    {% get_obj_perms user for source as "source_perms" %}
-    {% if "source_admin" in source_perms %}
-    <br /><a href="{% url 'labelset_edit' source.id %}">{% trans 'Edit LabelSet' %}</a>
-    {% endif %}
+  {% get_obj_perms user for source as "source_perms" %}
+  {% if "source_admin" in source_perms %}
+    <br />
+    <a href="{% url 'labelset_edit' source.id %}">Edit LabelSet</a>
+  {% endif %}
 
 {% endblock %}

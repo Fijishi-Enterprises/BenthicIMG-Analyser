@@ -2,7 +2,6 @@ from django.core.urlresolvers import reverse
 
 from images.model_utils import PointGen
 from images.models import Source
-from labels.models import Label
 from lib.test_utils import ClientTest
 
 
@@ -157,7 +156,7 @@ class SearchTest(ClientTest):
             {1: 'A', 2: 'A', 3: 'A', 4: 'B', 5: 'B'})
 
         post_data = self.default_search_params.copy()
-        post_data['label'] = Label.objects.get(code='A').pk
+        post_data['label'] = self.source.labelset.get_global_by_code('A').pk
 
         self.client.force_login(self.user)
         response = self.client.post(self.url, post_data)
@@ -177,8 +176,8 @@ class SearchTest(ClientTest):
         self.assertListEqual(
             list(field.choices),
             [('', "All"),
-             (Label.objects.get(code='A').pk, "A"),
-             (Label.objects.get(code='B').pk, "B")]
+             (self.source.labelset.get_global_by_code('A').pk, "A"),
+             (self.source.labelset.get_global_by_code('B').pk, "B")]
         )
 
     def test_filter_by_annotator(self):

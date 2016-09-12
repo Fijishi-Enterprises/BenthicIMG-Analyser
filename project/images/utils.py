@@ -9,8 +9,10 @@ from django.core.urlresolvers import reverse
 from accounts.utils import get_robot_user, get_alleviate_user
 from annotations.model_utils import AnnotationAreaUtils
 from annotations.models import Annotation
+from vision_backend.models import Features
 from .model_utils import PointGen
 from .models import Source, Point, Image, Metadata, ImageStatus
+
 
 
 
@@ -151,6 +153,7 @@ def delete_images(image_queryset):
     # these objects and delete them separately.
     metadata_queryset = Metadata.objects.filter(image__in=image_queryset)
     status_queryset = ImageStatus.objects.filter(image__in=image_queryset)
+    features_queryset = Features.objects.filter(image__in=image_queryset)
 
     # Since these querysets are obtained based on their related images,
     # the querysets will change once the images are deleted!
@@ -158,8 +161,12 @@ def delete_images(image_queryset):
     # https://docs.djangoproject.com/en/dev/ref/models/querysets/#when-querysets-are-evaluated
     metadata_pks = list(metadata_queryset.values_list('pk', flat=True))
     metadata_queryset = Metadata.objects.filter(pk__in=metadata_pks)
+    
     status_pks = list(status_queryset.values_list('pk', flat=True))
     status_queryset = ImageStatus.objects.filter(pk__in=status_pks)
+    
+    features_pks = list(features_queryset.values_list('pk', flat=True))
+    features_queryset = Features.objects.filter(pk__in=features_pks)
 
     # We call delete() on the querysets rather than the individual
     # objects for faster performance.
@@ -170,6 +177,7 @@ def delete_images(image_queryset):
     # PROTECT-related errors on those ForeignKeys.
     metadata_queryset.delete()
     status_queryset.delete()
+    features_queryset.delete()
 
     return delete_count
 

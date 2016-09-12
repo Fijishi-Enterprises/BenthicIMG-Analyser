@@ -2053,10 +2053,8 @@ class UploadAnnotationsTest(ClientTest):
 
         # Make a longer-than-1-char label code so we can test that
         # lower() is being used on both the label's code and the CSV value
-        # TODO: Fix this test once the labelset_edit view has been fixed
         labels = self.create_labels(self.user, self.source, ['Abc'], 'Group1')
-        self.source.labelset.labels.add(labels[0])
-        self.source.labelset.save()
+        self.create_labelset(self.user, self.source, labels)
 
         with BytesIO() as stream:
             writer = csv.writer(stream)

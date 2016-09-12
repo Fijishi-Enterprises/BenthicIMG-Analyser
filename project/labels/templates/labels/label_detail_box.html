@@ -1,0 +1,20 @@
+{% load static from staticfiles %}
+
+{% if label.thumbnail %}
+  <img src="{{ label.thumbnail.url }}" style="float: right;" />
+{% else %}
+  <img src="{% static "img/No-image-available.png" %}" style="float: right;" />
+{% endif %}
+
+<div class="line">Name: <strong>{{ label.name }}</strong></div>
+<div class="line">Functional Group: {{ label.group.name }}</div>
+<div class="line">Default Short Code: {{ label.default_code }}</div>
+
+{% if label.description %}
+  <div class="line">Description: {{ label.description }}</div>
+{% else %}
+  <div class="line">Description: (None)</div>
+{% endif %}
+
+<a href="{% url 'label_main' label.pk %}" target="_blank">
+  See more details</a>

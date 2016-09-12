@@ -1,0 +1,7 @@
+{% if type == 'add' %}
+  <span class="add-remove-button add"> + </span>
+{% elif type == 'remove' %}
+  <span class="add-remove-button remove"> - </span>
+{% endif %}
+
+<span class="detail-button" title="View label details">{{ label.name }}</span>

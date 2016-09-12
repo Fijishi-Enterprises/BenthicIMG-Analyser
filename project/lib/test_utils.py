@@ -488,7 +488,7 @@ class ClientTest(BaseTest):
     @classmethod
     def create_labelset(cls, user, source, labels):
         """
-        Create a labelset.
+        Create a labelset (or redefine entries in an existing one).
         :param user: User to create the labelset as.
         :param source: The source which this labelset will belong to
         :param labels: The labels this labelset will have, as a queryset
@@ -496,13 +496,8 @@ class ClientTest(BaseTest):
         """
         cls.client.force_login(user)
         cls.client.post(
-            reverse('labelset_new', kwargs=dict(source_id=source.id)),
+            reverse('labelset_add', kwargs=dict(source_id=source.id)),
             dict(
-                # create_labelset indicates that the new-labelset form should
-                # be used, not the new-label form which is also on the page.
-                # The key just needs to be there in the POST;
-                # the value doesn't matter.
-                create_labelset='.',
                 label_ids=','.join(
                     str(pk) for pk in labels.values_list('pk', flat=True)),
             ),

@@ -1,9 +1,13 @@
 import json
+import re
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.urlresolvers import reverse
 from django.http import HttpResponseRedirect
+from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404
+from django.views.decorators.http import require_POST, require_GET
 
 from .forms import LabelForm, LabelSetForm
 from .models import Label
@@ -18,7 +22,7 @@ from visualization.utils import generate_patch_if_doesnt_exist, get_patch_url
 @login_required
 def label_new(request):
     """
-    Page to create a new label for CoralNet.
+    Create a new global label.
     """
     if request.method == 'POST':
         form = LabelForm(request.POST)
@@ -37,83 +41,105 @@ def label_new(request):
     })
 
 
-@source_permission_required('source_id', perm=Source.PermTypes.ADMIN.code)
-def labelset_new(request, source_id):
+@login_required
+@require_POST
+def label_new_ajax(request):
     """
-    Page to create a labelset for a source.
+    Create a new global label (through Ajax).
     """
-    source = get_object_or_404(Source, id=source_id)
-    showLabelForm = False
-    # initiallyCheckedLabels = []
+    form = LabelForm(request.POST)
 
-    if request.method == 'POST':
+    # is_valid() checks for label conflicts in the database
+    # (same-name label found, etc.).
+    if form.is_valid():
+        label = form.instance
+        label.created_by = request.user
+        label.save()
+        return JsonResponse(dict(success=True, label_id=label.pk))
 
-        # initiallyCheckedLabels = [int(labelId) for labelId in request.POST.getlist('labels')]
+    # Not valid. Find the first error and return it.
+    for field_name, error_messages in form.errors.iteritems():
+        if error_messages:
+            message = "Error for {label}: {error}".format(
+                label=form[field_name].label, error=error_messages[0])
+            return JsonResponse(dict(error=message))
 
-        if 'create_label' in request.POST:
-            labelForm = LabelForm(request.POST, request.FILES)
-            # newLabel = None
+    return JsonResponse(dict(error=(
+        "Unknown error. If the problem persists, please contact the admins.")))
 
-            # is_valid() checks for label conflicts in the database (same-name label found, etc.).
-            if labelForm.is_valid():
-                newLabel = labelForm.instance
-                newLabel.created_by = request.user
-                newLabel.save()
-                messages.success(request, 'Label successfully created.')
-            else:
-                messages.error(request, 'Please correct the errors below.')
-                showLabelForm = True
 
-            # The labelset form should now have the new label.
-            labelSetForm = LabelSetForm(source=source)
+@login_required
+@require_GET
+def label_search_ajax(request):
+    """
+    Use a text search value to get a set of global labels.
+    Return general info for those global labels.
+    """
+    search_value = request.GET.get('search')
+    # Strip whitespace from both ends
+    search_value = search_value.strip()
+    # Replace non-letters/digits with spaces
+    search_value = re.sub(r'[^A-Za-z0-9]', ' ', search_value)
+    # Replace multi-spaces with one space
+    search_value = re.sub(r'\s{2,}', ' ', search_value)
+    # Get space-separated tokens
+    search_tokens = search_value.split(' ')
 
-            # If a label was added, the user probably wanted to add it to their
-            # labelset, so pre-check that label.
-            # if newLabel:
-            #     initiallyCheckedLabels.append(newLabel.id)
+    # Get the labels where the name has ALL of the search tokens.
+    labels = Label.objects
+    for token in search_tokens:
+        labels = labels.filter(name__icontains=token)
+        labels.order_by('name')
 
-        else:  # 'create_labelset' in request.POST
-            labelSetForm = LabelSetForm(request.POST, source=source)
-            labelForm = LabelForm()
-
-            if labelSetForm.is_valid():
-                labelSetForm.save_labelset()
-
-                messages.success(request, 'LabelSet successfully created.')
-                return HttpResponseRedirect(
-                    reverse('labelset_main', args=[source.id]))
-            else:
-                messages.error(request, 'Please correct the errors below.')
-
-    else:
-        labelForm = LabelForm()
-        labelSetForm = LabelSetForm(source=source)
-
-    # allLabels = [dict(labelId=str(id), name=label.name,
-    #                   code=label.code, group=label.group.name)
-    #              for id, label in labelSetForm['labels'].field.choices]
-    allLabels = dict()
-
-    # Dict that tells whether a label should be initially checked: {85: True, 86: True, ...}.
-    isInitiallyChecked = dict()
-    # for labelId, label in labelSetForm['labels'].field.choices:
-    #     isInitiallyChecked[labelId] = labelId in initiallyCheckedLabels
-
-    return render(request, 'labels/labelset_new.html', {
-        'showLabelFormInitially': json.dumps(showLabelForm),    # Convert Python bool to JSON bool
-        'labelSetForm': labelSetForm,
-        'labelForm': labelForm,
-        'source': source,
-        'isEditLabelsetForm': False,
-
-        'allLabels': allLabels,    # label dictionary, for accessing as a template variable
-        'allLabelsJSON': json.dumps(allLabels),    # label dictionary, for JS
-        'isInitiallyChecked': json.dumps(isInitiallyChecked),
+    return render(request, 'labels/label_box_container.html', {
+        'labels': labels,
     })
 
 
 @source_permission_required('source_id', perm=Source.PermTypes.ADMIN.code)
-def labelset_edit(request, source_id):
+def labelset_add(request, source_id):
+    """
+    Add or remove label entries from a labelset
+    (or pick entries for a new labelset).
+    """
+    source = get_object_or_404(Source, id=source_id)
+
+    if request.method == 'POST':
+
+        labelset_form = LabelSetForm(request.POST, source=source)
+
+        if labelset_form.is_valid():
+            labelset_was_created = labelset_form.save_labelset()
+            if labelset_was_created:
+                messages.success(request, "Labelset successfully created.")
+            else:
+                messages.success(request, "Labelset successfully changed.")
+
+            return HttpResponseRedirect(
+                reverse('labelset_main', args=[source.id]))
+        else:
+            messages.error(request, labelset_form.get_error())
+
+    else:
+        labelset_form = LabelSetForm(source=source)
+
+    label_ids_in_annotations = Annotation.objects.filter(source=source) \
+        .values_list('label__pk', flat=True).distinct()
+    label_ids_in_annotations = list(label_ids_in_annotations)
+
+    return render(request, 'labels/labelset_add.html', {
+        'source': source,
+        'labelset_form': labelset_form,
+        'label_ids_in_annotations': label_ids_in_annotations,
+
+        # Include this form on the page, but it'll be processed in a
+        # different view
+        'new_label_form': LabelForm(),
+    })
+
+
+@source_permission_required('source_id', perm=Source.PermTypes.ADMIN.code)
+def labelset_edit_entries(request, source_id):
     """
     Page to edit a source's labelset.
     """
@@ -121,7 +147,7 @@ def labelset_edit(request, source_id):
     source = get_object_or_404(Source, id=source_id)
 
     if source.labelset is None:
-        return HttpResponseRedirect(reverse('labelset_new', args=[source.id]))
+        return HttpResponseRedirect(reverse('labelset_add', args=[source.id]))
 
     labelset = source.labelset
     showLabelForm = False
@@ -282,7 +308,7 @@ def labelset_main(request, source_id):
     source = get_object_or_404(Source, id=source_id)
 
     if source.labelset is None:
-        return HttpResponseRedirect(reverse('labelset_new', args=[source.id]))
+        return HttpResponseRedirect(reverse('labelset_add', args=[source.id]))
 
     return render(request, 'labels/labelset_main.html', {
         'source': source,

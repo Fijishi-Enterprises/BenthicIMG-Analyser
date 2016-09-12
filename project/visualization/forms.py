@@ -498,7 +498,6 @@ class StatisticsSearchForm(forms.Form):
             [(group.id, group.name) for group in groups]
         
         # Custom widget for label selection
-        #self.fields['labels'].widget = CustomCheckboxSelectMultiple(choices=self.fields['labels'].choices)
         self.fields['labels']= forms.MultipleChoiceField(widget=forms.CheckboxSelectMultiple,
                                                          choices=label_choices, required=False)
 

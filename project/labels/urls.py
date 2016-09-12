@@ -5,12 +5,12 @@ urlpatterns = [
     url(r'^labels/$', views.label_list, name="label_list"),
     url(r'^labels/(?P<label_id>\d+)/$', views.label_main, name="label_main"),
     url(r'^labels/new/$', views.label_new, name="label_new"),
-    url(r'^labelsets/$', views.labelset_list, name="labelset_list"),
+    url(r'^labels/new_ajax/$', views.label_new_ajax, name="label_new_ajax"),
+    url(r'^label_search/$', views.label_search_ajax,
+        name="label_search_ajax"),
 
     url(r'^source/(?P<source_id>\d+)/labelset/$', views.labelset_main,
         name="labelset_main"),
-    url(r'^source/(?P<source_id>\d+)/labelset/new/$', views.labelset_new,
-        name="labelset_new"),
-    url(r'^source/(?P<source_id>\d+)/labelset/edit/$', views.labelset_edit,
-        name="labelset_edit"),
+    url(r'^source/(?P<source_id>\d+)/labelset_add/$', views.labelset_add,
+        name="labelset_add"),
 ]

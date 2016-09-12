@@ -4,9 +4,7 @@ from django.contrib.auth.models import User
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from easy_thumbnails.fields import ThumbnailerImageField
-from images.models import Point, Image, Source, Robot
 from lib.utils import rand_string
-
 
 def get_label_thumbnail_upload_path(instance, filename):
     """
@@ -88,7 +86,8 @@ class LabelSet(models.Model):
 
     def __unicode__(self):
         try:
-            source = Source.objects.get(labelset=self)
+            source = self.source_set.first()
+            #source = get_labelset_source(self.pk)
             # Labelset of a source
             return "%s labelset" % source
         except Source.DoesNotExist:
@@ -101,20 +100,20 @@ class LabelSet(models.Model):
 class Annotation(models.Model):
     annotation_date = models.DateTimeField(
         blank=True, auto_now=True, editable=False)
-    point = models.ForeignKey(Point, on_delete=models.CASCADE,
+    point = models.ForeignKey('images.Point', on_delete=models.CASCADE,
         editable=False)
-    image = models.ForeignKey(Image, on_delete=models.CASCADE,
+    image = models.ForeignKey('images.Image', on_delete=models.CASCADE,
         editable=False)
 
     # The user who made this annotation
     user = models.ForeignKey(User, on_delete=models.SET_NULL,
         editable=False, null=True)
     # Only fill this in if the user is the robot user
-    robot_version = models.ForeignKey(Robot, on_delete=models.SET_NULL,
+    robot_version = models.ForeignKey('vision_backend.Classifier', on_delete=models.SET_NULL,
         editable=False, null=True)
 
-    label = models.ForeignKey(Label, on_delete=models.PROTECT)
-    source = models.ForeignKey(Source, on_delete=models.CASCADE,
+    label = models.ForeignKey('annotations.Label', on_delete=models.PROTECT)
+    source = models.ForeignKey('images.Source', on_delete=models.CASCADE,
         editable=False)
 
     def __unicode__(self):
@@ -124,9 +123,9 @@ class Annotation(models.Model):
 class AnnotationToolAccess(models.Model):
     access_date = models.DateTimeField(
         blank=True, auto_now=True, editable=False)
-    image = models.ForeignKey(Image, on_delete=models.CASCADE,
+    image = models.ForeignKey('images.Image', on_delete=models.CASCADE,
         editable=False)
-    source = models.ForeignKey(Source, on_delete=models.CASCADE,
+    source = models.ForeignKey('images.Source', on_delete=models.CASCADE,
         editable=False)
     user = models.ForeignKey(User, on_delete=models.SET_NULL,
         editable=False, null=True)

@@ -123,6 +123,7 @@ INSTALLED_APPS = [
     'requests',
     'upload',
     'visualization',
+    'vision_backend',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -273,7 +274,7 @@ LABEL_THUMBNAIL_FILE_PATTERN = 'labels/{name}{extension}'
 POINT_PATCH_FILE_PATTERN = \
     '{full_image_path}.pointpk{point_pk}.thumbnail.jpg'
 FEATURE_VECTOR_FILE_PATTERN = \
-    '{full_image_path}.pointpk{point_pk}.featurevector'
+    '{full_image_path}.featurevector'
 
 # [Custom settings] Special users
 IMPORTED_USERNAME = "Imported"

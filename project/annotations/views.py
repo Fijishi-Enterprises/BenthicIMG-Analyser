@@ -450,7 +450,7 @@ def annotation_tool(request, image_id):
     # Get the machine's label probabilities, if applicable.
     if not settings_obj.show_machine_annotations:
         label_probabilities = None
-    elif not image.status.annotatedByRobot:
+    elif not image.features.classified:
         label_probabilities = None
     else:
         label_probabilities = task_utils.get_label_probabilities_for_image(image_id)

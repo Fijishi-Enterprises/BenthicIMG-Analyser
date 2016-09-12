@@ -13,6 +13,7 @@ from .model_utils import PointGen
 from .models import Source, Point, Image, Metadata, ImageStatus
 
 
+
 def get_next_image(current_image, image_queryset, ordering, wrap=False):
     """
     Get the next image in the image_queryset, relative to current_image.
@@ -356,12 +357,13 @@ def source_robot_status(source_id):
     status['id'] = source.id
     status['has_robot'] = source.get_latest_robot() is not None
     status['nbr_total_images'] = Image.objects.filter(source=source).count()
-    status['nbr_images_needs_features'] = Image.objects.filter(source=source, status__featuresExtracted=False).count()
-    status['nbr_unclassified_images'] = Image.objects.filter(source=source, status__annotatedByRobot=False, status__annotatedByHuman=False).count()
+    status['nbr_images_needs_features'] = Image.objects.filter(source=source, features__extracted=False).count()
+    status['nbr_unclassified_images'] = Image.objects.filter(source=source, features__classified=False, status__annotatedByHuman=False).count()
     
     
     status['nbr_human_annotated_images'] = Image.objects.filter(source=source, status__annotatedByHuman = True).count()
-    status['nbr_in_current_model'] = Image.objects.filter(source=source, status__usedInCurrentModel = True).count()
+
+    status['nbr_in_current_model'] = source.get_latest_robot().nbr_train_images if status['has_robot'] else 0
     if source.has_robot():
         status['nbr_images_until_next_robot'] = status['nbr_in_current_model'] * settings.NEW_MODEL_THRESHOLD - status['nbr_human_annotated_images']
     else:

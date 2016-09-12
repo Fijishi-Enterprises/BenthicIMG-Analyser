@@ -10,6 +10,7 @@ from images.forms import MetadataForm
 from images.models import Metadata, ImageStatus, Image
 from images.utils import generate_points, aux_label_name_collisions, \
     metadata_field_names_to_labels
+from vision_backend.models import Features
 from lib.exceptions import FileProcessError
 
 
@@ -400,6 +401,9 @@ def upload_image_process(imageFile, source, currentUser):
     image_status = ImageStatus()
     image_status.save()
 
+    image_features = Features()
+    image_features.save()
+
     # Save the image into the DB
     img = Image(
         original_file=imageFile,
@@ -408,6 +412,7 @@ def upload_image_process(imageFile, source, currentUser):
         metadata=metadata_obj,
         source=source,
         status=image_status,
+        features=image_features
     )
     img.save()
 

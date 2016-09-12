@@ -11,8 +11,12 @@ from easy_thumbnails.fields import ThumbnailerImageField
 from guardian.shortcuts import get_objects_for_user, get_users_with_perms, get_perms, assign, remove_perm
 
 from annotations.model_utils import AnnotationAreaUtils
-from images.model_utils import PointGen
+from .model_utils import PointGen
 from lib.utils import rand_string
+
+#Unfortunate import b/c risk of circular reference, but wasn't sure how to get rid of it.
+from vision_backend.models import Classifier as Robot 
+
 
 
 class ImageModelConstants():
@@ -295,6 +299,7 @@ class Source(models.Model):
         	return None
 
     def get_valid_robots(self):
+
         """
         returns a list of all robots that have valid metadata
         """
@@ -317,17 +322,20 @@ class Source(models.Model):
         Check whether there are sufficient number of newly annotated images to train a new robot version. Needs to be settings.NEW_MODEL_THRESHOLD more than used in the previous model and > settings.MIN_NBR_ANNOTATED_IMAGES
         """
         
-        return Image.objects.filter(source=self, status__annotatedByHuman = True).count() > settings.NEW_MODEL_THRESHOLD * Image.objects.filter(source=self, status__usedInCurrentModel = True).count() and Image.objects.filter(source=self, status__annotatedByHuman = True).count() >= settings.MIN_NBR_ANNOTATED_IMAGES and self.enable_robot_classifier
+        return Image.objects.filter(source=self, status__annotatedByHuman = True).count() > settings.NEW_MODEL_THRESHOLD * self.nbr_images_in_current_robot() and Image.objects.filter(source=self, status__annotatedByHuman = True).count() >= settings.MIN_NBR_ANNOTATED_IMAGES and self.enable_robot_classifier
+
+    def nbr_images_in_current_robot(self):
+        if self.has_robot():
+            return self.get_latest_robot().nbr_train_images
+        else:
+            return 0
 
     def has_robot(self):
         """
         Returns true if source has a robot.
         """
-        if Robot.objects.filter(source=self).count() == 0:
-            return False
-        else:
-            return True
-
+        return len(self.get_valid_robots()) > 0
+        
     def all_image_names_are_unique(self):
         """
         Return true if all images in the source have unique names. NOTE: this will be enforced during import moving forward, but it wasn't originally.
@@ -373,34 +381,6 @@ class SourceInvite(models.Model):
                          Source.PermTypes.VIEW]:
             if self.source_perm == permType.code:
                 return permType.verbose
-
-
-class Robot(models.Model):
-    # Later, may tie robots to labelsets instead of sources
-    source = models.ForeignKey(Source, on_delete=models.CASCADE)
-    
-    version = models.IntegerField(unique=True)
-    path_to_model = models.CharField(max_length=500)
-    time_to_train = models.BigIntegerField()
-
-    # Automatically set to the date and time of creation.
-    create_date = models.DateTimeField('Date created', auto_now_add=True, editable=False)
-    
-    def get_process_date_short_str(self):
-        """
-        Return the image's (pre)process date in YYYY-MM-DD format.
-
-        Advantage over YYYY-(M)M-(D)D: alphabetized = sorted by date
-        Advantage over YYYY(M)M(D)D: date is unambiguous
-        """
-        return "{0}-{1:02}-{2:02}".format(self.create_date.year, self.create_date.month, self.create_date.day)
-
-
-    def __unicode__(self):
-        """
-        To-string method.
-        """
-        return "Version %s for %s" % (self.version, self.source.name)
 
 
 class Metadata(models.Model):
@@ -464,25 +444,9 @@ class Metadata(models.Model):
 
 class ImageStatus(models.Model):
     
-    # Image has annotation points
-    hasRandomPoints = models.BooleanField(default=False)
-    
-    # Features are in the process of being extracted
-    featuresSubmitted = models.BooleanField(default =False)
-
-    # Features have been extracted for the current annotation points
-    featuresExtracted = models.BooleanField(default=False)
-    
-    # All of the current points have been annotated by robot at some point
-    # (it's OK if the annotations were overwritten by human)
-    annotatedByRobot = models.BooleanField(default=False)
-    
     # Image is 100% annotated by human
     annotatedByHuman = models.BooleanField(default=False)
     
-    # This source's current robot model uses said feature file
-    usedInCurrentModel = models.BooleanField(default=False)
-
 
 def get_original_image_upload_path(instance, filename):
     """
@@ -519,6 +483,8 @@ class Image(models.Model):
     status = models.ForeignKey(ImageStatus, on_delete=models.PROTECT,
         editable=False)
 
+    features = models.ForeignKey('vision_backend.Features', on_delete = models.PROTECT, editable = False)
+
     POINT_GENERATION_CHOICES = (
         (PointGen.Types.SIMPLE, PointGen.Types.SIMPLE_VERBOSE),
         (PointGen.Types.STRATIFIED, PointGen.Types.STRATIFIED_VERBOSE),
@@ -535,13 +501,6 @@ class Image(models.Model):
 
     source = models.ForeignKey(Source, on_delete=models.CASCADE)
 
-    # To be set by the preprocessing task
-    process_date = models.DateTimeField("Date processed",
-        editable=False, null=True)
-    # To be set by the classification task
-    latest_robot_annotator = models.ForeignKey(
-        Robot, on_delete=models.SET_NULL,
-        editable=False, null=True)
 
     def _isvalset(self):
         return self.pk % 8 == 0
@@ -551,12 +510,6 @@ class Image(models.Model):
     
     valset = property(_isvalset)
     trainset = property(_istrainset)
-
-    def _allpointshavefeatures(self):
-        return not Point.objects.filter(image = self, features_extracted = False).exists()
-
-    features_extracted = property(_allpointshavefeatures)
-
 
     def __unicode__(self):
         return self.metadata.name
@@ -576,7 +529,7 @@ class Image(models.Model):
         if self.source.enable_robot_classifier:
             if self.status.annotatedByHuman:
                 return "confirmed"
-            elif self.status.annotatedByRobot:
+            elif self.features.classified:
                 return "unconfirmed"
             else:
                 return "needs_annotation"
@@ -633,20 +586,12 @@ class Image(models.Model):
         return imheight
 
     def after_height_cm_change(self):
-        status = self.status
-        status.preprocessed = False
-        status.featuresExtracted = False
-        status.annotatedByRobot = False
-        status.featureFileHasHumanLabels = False
-        status.usedInCurrentModel = False
-        status.save()
+        pass
 
     def after_deleting_annotations(self):
         status = self.status
-        status.featureFileHasHumanLabels = False
         status.annotatedByHuman = False
-        status.annotatedByRobot = False
-        status.usedInCurrentModel = False
+        features.classified = False
         status.save()
 
     def annotation_area_display(self):
@@ -658,10 +603,8 @@ class Image(models.Model):
 
     def after_annotation_area_change(self):
         status = self.status
-        status.featuresExtracted = False
-        status.annotatedByRobot = False
-        status.featureFileHasHumanLabels = False
-        status.usedInCurrentModel = False
+        features.extracted = False
+        features.classified = False
         status.save()
 
     def after_completed_annotations_change(self):
@@ -669,11 +612,8 @@ class Image(models.Model):
         Only necessary to run this if human annotations are complete,
         to begin with, and then an annotation is changed.
         """
-        status = self.status
-        status.featureFileHasHumanLabels = False
-        status.usedInCurrentModel = False
-        status.save()
-
+        pass
+        
     def get_process_date_short_str(self):
         """
         Return the image's (pre)process date in YYYY-MM-DD format.
@@ -689,7 +629,6 @@ class Point(models.Model):
     point_number = models.IntegerField()
     annotation_status = models.CharField(max_length=1, blank=True)
     image = models.ForeignKey(Image, on_delete=models.CASCADE)
-    features_extracted = models.BooleanField(default = False)
 
     def __unicode__(self):
         """

@@ -8,8 +8,7 @@ from django.http import HttpResponseRedirect, HttpResponseServerError
 from django.shortcuts import render, get_object_or_404
 from django.template import loader, TemplateDoesNotExist, Context
 
-from annotations.models import Point
-from images.models import Image, Source
+from images.models import Image, Source, Point
 from images.utils import get_map_sources, get_random_public_images
 from lib.forms import ContactForm
 from lib import msg_consts, str_consts
@@ -95,7 +94,7 @@ def index(request):
     total_sources = Source.objects.all().count()
     total_images = Image.objects.all().count()
     human_annotations = Point.objects.filter(image__status__annotatedByHuman=True).count()
-    robot_annotations = Point.objects.filter(image__status__annotatedByRobot=True).count()
+    robot_annotations = Point.objects.filter(image__features__classified=True).count()
     total_annotations = human_annotations + robot_annotations
 
     return render(request, 'lib/index.html', {

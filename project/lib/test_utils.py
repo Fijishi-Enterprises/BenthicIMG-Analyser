@@ -22,7 +22,8 @@ from django.utils import timezone
 from accounts.utils import get_robot_user
 from annotations.models import LabelGroup, Label, Annotation
 from images.model_utils import PointGen
-from images.models import Source, Point, Image, Robot
+from images.models import Source, Point, Image
+from vision_backend import Classifier as Robot
 from lib.exceptions import TestfileDirectoryError
 from lib.utils import is_django_str
 
@@ -585,17 +586,10 @@ class ClientTest(BaseTest):
         :param source: Source to add a robot for.
         :return: The new Robot.
         """
-        latest_robot = source.get_latest_robot()
-        if latest_robot:
-            version = latest_robot.version + 1
-        else:
-            version = 1
-
         robot = Robot(
             source=source,
-            version=version,
-            path_to_model='',
-            time_to_train=100,
+            nbr_train_images=50,
+            runtime_train=100,
         )
         robot.save()
         return robot

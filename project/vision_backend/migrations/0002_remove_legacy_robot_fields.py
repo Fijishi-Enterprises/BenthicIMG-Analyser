@@ -16,4 +16,9 @@ class Migration(migrations.Migration):
             model_name='classifier',
             name='version',
         ),
+
+        migrations.RemoveField(
+            model_name='classifier',
+            name='path_to_model',
+        ),
     ]

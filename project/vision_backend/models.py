@@ -13,8 +13,6 @@ class Classifier(models.Model):
 
     valid = models.BooleanField(default=False)
 
-    path_to_model = models.CharField(max_length=500)
-
     runtime_train = models.BigIntegerField(default = 0)
 
     nbr_train_images = models.IntegerField(null = True)

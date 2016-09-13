@@ -646,8 +646,6 @@ def save_annotations_ajax(request, image_id):
     all_done = image_annotation_all_done(image)
 
     # Update image status, if needed
-    if image.status.annotatedByHuman:
-        image.after_completed_annotations_change()
     if image.status.annotatedByHuman != all_done:
         image.status.annotatedByHuman = all_done
         image.status.save()

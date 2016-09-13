@@ -15,7 +15,7 @@ from .model_utils import PointGen
 from lib.utils import rand_string
 
 #Unfortunate import b/c risk of circular reference, but wasn't sure how to get rid of it.
-from vision_backend.models import Classifier as Robot 
+from vision_backend.models import Classifier as Robot, Features
 
 
 
@@ -303,19 +303,7 @@ class Source(models.Model):
         """
         returns a list of all robots that have valid metadata
         """
-        allRobots = Robot.objects.filter(source = self).order_by('version')
-        validRobots = []
-        for thisRobot in allRobots:
-            # check that the meta-data exists and that the actual model file exists.
-            if os.path.exists(thisRobot.path_to_model + '.meta.json'):
-                try: # check that we can actually read the meta data
-                    f = open(thisRobot.path_to_model + '.meta.json')
-                    meta = json.loads(f.read())
-                    f.close()
-                    validRobots.append(thisRobot)
-                except:
-                    continue
-        return validRobots
+        return Robot.objects.filter(source = self, valid = True).order_by('id')
 
     def need_new_robot(self):
         """
@@ -585,14 +573,14 @@ class Image(models.Model):
 
         return imheight
 
-    def after_height_cm_change(self):
-        pass
-
     def after_deleting_annotations(self):
         status = self.status
         status.annotatedByHuman = False
-        features.classified = False
         status.save()
+
+        features = self.features
+        features.classified = False
+        features.save()
 
     def annotation_area_display(self):
         """
@@ -602,18 +590,11 @@ class Image(models.Model):
         return AnnotationAreaUtils.db_format_to_display(self.metadata.annotation_area)
 
     def after_annotation_area_change(self):
-        status = self.status
+        features = self.features
         features.extracted = False
         features.classified = False
-        status.save()
+        features.save()
 
-    def after_completed_annotations_change(self):
-        """
-        Only necessary to run this if human annotations are complete,
-        to begin with, and then an annotation is changed.
-        """
-        pass
-        
     def get_process_date_short_str(self):
         """
         Return the image's (pre)process date in YYYY-MM-DD format.

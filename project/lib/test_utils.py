@@ -761,7 +761,7 @@ class StorageChecker(object):
     def _clean_directory_post_test(self, storage, directory):
         # If we found enough unexpected files, just abort.
         # No need to burn resources listing all the unexpected files.
-        print directory
+
         if len(self.unexpected_filenames) > 10:
             return
 

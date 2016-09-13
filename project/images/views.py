@@ -596,10 +596,6 @@ def image_detail_edit(request, image_id):
         if metadata_form.is_valid():
             editedMetadata = metadata_form.instance
             editedMetadata.save()
-
-            if editedMetadata.height_in_cm != old_height_in_cm:
-                image.after_height_cm_change()
-
             messages.success(request, 'Image successfully edited.')
             return HttpResponseRedirect(reverse('image_detail', args=[image.id]))
         else:
@@ -747,9 +743,6 @@ def make_robot_stats(source_id, nbr_robots):
     labelObjects = Label.objects.filter()
     validRobots = source.get_valid_robots()
 
-    if nbr_robots > 0:
-        validRobots = validRobots[-nbr_robots:]
-    
     robotlist = []
     for robot in validRobots:
         (fullcm, labelIds) = get_confusion_matrix(robot)

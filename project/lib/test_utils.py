@@ -23,7 +23,7 @@ from accounts.utils import get_robot_user
 from annotations.models import LabelGroup, Label, Annotation
 from images.model_utils import PointGen
 from images.models import Source, Point, Image
-from vision_backend import Classifier as Robot
+from vision_backend.models import Classifier as Robot
 from lib.exceptions import TestfileDirectoryError
 from lib.utils import is_django_str
 
@@ -629,7 +629,7 @@ class ClientTest(BaseTest):
         if all([n in annotations for n in range(1, num_points+1)]):
             # Annotations passed in for all points
             image.features.classified = True
-            image.status.save()
+            image.features.save()
 
     @staticmethod
     def print_response_messages(response):

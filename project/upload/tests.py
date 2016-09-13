@@ -1655,7 +1655,7 @@ class UploadAnnotationsTest(ClientTest):
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
-        labels = cls.create_labels(cls.user, cls.source, ['A', 'B'], 'Group1')
+        labels = cls.create_labels(cls.user, ['A', 'B'], 'Group1')
         cls.create_labelset(cls.user, cls.source, labels)
 
         cls.img1 = cls.upload_image_new(
@@ -2053,7 +2053,7 @@ class UploadAnnotationsTest(ClientTest):
 
         # Make a longer-than-1-char label code so we can test that
         # lower() is being used on both the label's code and the CSV value
-        labels = self.create_labels(self.user, self.source, ['Abc'], 'Group1')
+        labels = self.create_labels(self.user, ['Abc'], 'Group1')
         self.create_labelset(self.user, self.source, labels)
 
         with BytesIO() as stream:
@@ -2397,7 +2397,7 @@ class UploadAnnotationsMultipleSourcesTest(ClientTest):
         cls.source = cls.create_source(cls.user)
         cls.source2 = cls.create_source(cls.user)
 
-        labels = cls.create_labels(cls.user, cls.source, ['A', 'B'], 'Group1')
+        labels = cls.create_labels(cls.user, ['A', 'B'], 'Group1')
         cls.create_labelset(cls.user, cls.source, labels)
         cls.create_labelset(cls.user, cls.source2, labels)
 
@@ -2550,10 +2550,10 @@ class UploadAnnotationsPreviewErrorTest(ClientTest):
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
         # Labels in labelset
-        labels = cls.create_labels(cls.user, cls.source, ['A', 'B'], 'Group1')
+        labels = cls.create_labels(cls.user, ['A', 'B'], 'Group1')
         cls.create_labelset(cls.user, cls.source, labels)
         # Label not in labelset
-        cls.create_labels(cls.user, cls.source, ['C'], 'Group1')
+        cls.create_labels(cls.user, ['C'], 'Group1')
 
         cls.img1 = cls.upload_image_new(
             cls.user, cls.source,

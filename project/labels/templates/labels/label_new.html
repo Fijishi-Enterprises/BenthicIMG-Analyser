@@ -1,21 +1,16 @@
-{% extends "base.html" %}
-
-{% block title %}New Label | CoralNet{% endblock %}
-
-{% block page-specific-includes %}
-  {{ form.media }}
-{% endblock %}
-
 {% block content %}
 
-    <h2>Create a new Label</h2>
+  <div class="line" id="label-form-status" style="font-weight: bold;"></div>
 
-    {# This form submits to the same URL as this page. #}
-    {# The view function redirects to the success page if the form is valid. #}
+  <form id="label-form" action="{% url 'label_new_ajax' %}"
+    method="post" enctype="multipart/form-data">
+    {% csrf_token %}
 
-    <form action="{% url 'label_new' %}" method="post">{% csrf_token %}
-      {{ form.as_p }}
-      <input type="submit" value="Create Label" />
-    </form>
+    {% for field in form %}
+      <div class="line">{{ field.label }}: {{ field }}</div>
+    {% endfor %}
+
+    <input type="submit" value="Create Label" />
+  </form>
 
 {% endblock %}

@@ -20,34 +20,12 @@ from visualization.utils import generate_patch_if_doesnt_exist, get_patch_url
 
 
 @login_required
-def label_new(request):
-    """
-    Create a new global label.
-    """
-    if request.method == 'POST':
-        form = LabelForm(request.POST)
-
-        if form.is_valid():
-            label = form.save()
-            messages.success(request, 'Label successfully created.')
-            return HttpResponseRedirect(reverse('label_main', args=[label.id]))
-        else:
-            messages.error(request, 'Please correct the errors below.')
-    else:
-        form = LabelForm()
-
-    return render(request, 'labels/label_new.html', {
-        'form': form,
-    })
-
-
-@login_required
 @require_POST
 def label_new_ajax(request):
     """
     Create a new global label (through Ajax).
     """
-    form = LabelForm(request.POST)
+    form = LabelForm(request.POST, request.FILES)
 
     # is_valid() checks for label conflicts in the database
     # (same-name label found, etc.).
@@ -55,7 +33,9 @@ def label_new_ajax(request):
         label = form.instance
         label.created_by = request.user
         label.save()
-        return JsonResponse(dict(success=True, label_id=label.pk))
+        return render(request, 'labels/label_box_container.html', {
+            'labels': [label],
+        })
 
     # Not valid. Find the first error and return it.
     for field_name, error_messages in form.errors.iteritems():

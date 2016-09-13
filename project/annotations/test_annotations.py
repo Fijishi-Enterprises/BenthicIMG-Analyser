@@ -18,7 +18,7 @@ class AnnotationAreaEditTest(ClientTest):
 
         cls.source = cls.create_source(
             cls.user, visibility=Source.VisibilityTypes.PRIVATE)
-        labels = cls.create_labels(cls.user, cls.source, ['A', 'B'], 'GroupA')
+        labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
         cls.create_labelset(cls.user, cls.source, labels)
 
         cls.user_outsider = cls.create_user()
@@ -86,7 +86,7 @@ class AnnotationHistoryTest(ClientTest):
             point_generation_type=PointGen.Types.SIMPLE,
             simple_number_of_points=3,
         )
-        labels = cls.create_labels(cls.user, cls.source, ['A', 'B'], 'GroupA')
+        labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
         cls.create_labelset(cls.user, cls.source, labels)
 
         cls.user_outsider = cls.create_user()

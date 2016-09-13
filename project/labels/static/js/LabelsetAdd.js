@@ -244,7 +244,7 @@ var LabelsetAdd = (function() {
      * These are the only methods that need to be referred to as
      * <SingletonClassName>.<methodName>. */
     return {
-        init: function(params){
+        init: function(params) {
             labelIdsInAnnotations = params['labelIdsInAnnotations'];
 
             $labelsetLabelIdsField = $('#id_label_ids');
@@ -254,6 +254,14 @@ var LabelsetAdd = (function() {
             $('#initial-label-container').children().each(function() {
                 var labelId = addResponseLabelToPage($(this));
                 addLabelToSelected(labelId);
+            });
+
+            $('#new-label-form-show-button').click(function() {
+                $('#new-label-form-popup').dialog({
+                    width: 600,
+                    height: 400,
+                    modal: false
+                });
             });
 
             $searchStatus = $('#label-search-status');
@@ -271,6 +279,13 @@ var LabelsetAdd = (function() {
                 // Don't let the form do a non-Ajax submit.
                 return false;
             });
+        },
+
+        afterLabelCreated: function(htmlResponse) {
+            // The response here should only have one top-level node,
+            // corresponding to the one label that was created.
+            var labelId = addResponseLabelToPage($(htmlResponse));
+            addLabelToSelected(labelId);
         }
     }
 })();

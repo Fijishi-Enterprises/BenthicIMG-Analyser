@@ -5,7 +5,7 @@ from django.forms import Form
 from django.forms.fields import CharField
 from django.forms.models import ModelForm
 from django.forms.widgets import TextInput, HiddenInput
-from django.utils.safestring import mark_safe
+from django.utils.html import escape
 from .models import Label, LabelSet, LocalLabel
 
 
@@ -31,16 +31,15 @@ class LabelForm(ModelForm):
             pass
         else:
             # Name is taken
-            #
-            # mark_safe(), along with the |safe template filter,
-            # allows HTML in the message.
-            msg = mark_safe((
+            msg = (
                 'There is already a label with the same name:'
                 ' <a href="{url}" target="_blank">'
                 '{existing_name}</a>').format(
                     url=reverse('label_main', args=[existing_label.pk]),
-                    existing_name=existing_label.name,
-                ))
+                    # Use escape to prevent XSS, since label names are in
+                    # general user defined
+                    existing_name=escape(existing_label.name),
+                )
             raise ValidationError(msg)
 
         return name

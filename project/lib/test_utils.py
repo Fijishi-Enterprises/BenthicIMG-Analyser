@@ -449,12 +449,10 @@ class ClientTest(BaseTest):
         cls.client.logout()
 
     @classmethod
-    def create_labels(cls, user, source, label_names, group_name):
+    def create_labels(cls, user, label_names, group_name):
         """
         Create labels.
         :param user: User who is creating these labels.
-        :param source: Source whose labelset page to use
-            while creating these labels.
         :param label_names: Names for the new labels.
         :param group_name: Name for the label group to put the labels in;
             this label group is assumed to not exist yet.
@@ -466,12 +464,8 @@ class ClientTest(BaseTest):
         cls.client.force_login(user)
         for name in label_names:
             cls.client.post(
-                reverse('labelset_new', kwargs=dict(source_id=source.id)),
+                reverse('label_new_ajax'),
                 dict(
-                    # create_label triggers the new-label form.
-                    # The key just needs to be there in the POST;
-                    # the value doesn't matter.
-                    create_label='.',
                     name=name,
                     default_code=name[:10],
                     group=group.id,
@@ -515,7 +509,6 @@ class ClientTest(BaseTest):
         :param source: Source to upload to.
         :param image_options: Dict of options for the image file.
             Accepted keys: filetype, and whatever create_sample_image() takes.
-        :param options: Other params to POST into the image upload form.
         :return: The new image.
         """
         cls.image_count += 1

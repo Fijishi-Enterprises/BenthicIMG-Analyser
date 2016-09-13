@@ -1,12 +1,8 @@
-import os
-
-from django.conf import settings
 from django.core.urlresolvers import reverse
-from django.db.models import Count
 
 from images.model_utils import PointGen
 from images.models import Source
-from labels.models import LabelGroup, Label, LabelSet
+from labels.models import LabelGroup, Label
 from lib.test_utils import ClientTest, sample_image_as_file
 
 
@@ -26,7 +22,7 @@ class LabelListTest(ClientTest):
 
         # Create labels
         cls.labels = cls.create_labels(
-            cls.user, cls.source, ['A', 'B'], "Group1")
+            cls.user, ['A', 'B'], "Group1")
 
     def test_load_page(self):
         """Load the page."""
@@ -50,7 +46,7 @@ class LabelDetailTest(ClientTest):
 
         # Create labels
         cls.labels = cls.create_labels(
-            cls.user, cls.source, ['A', 'B'], "Group1")
+            cls.user, ['A', 'B'], "Group1")
 
     def test_load_page(self):
         """Load the page."""
@@ -89,7 +85,7 @@ class LabelDetailPatchesTest(ClientTest):
 
         # Create labels
         cls.labels = cls.create_labels(
-            cls.user, cls.public_source, ['A', 'B'], "Group1")
+            cls.user, ['A', 'B'], "Group1")
 
         # Add all labels to each source's labelset
         cls.create_labelset(cls.user, cls.public_source, cls.labels)
@@ -163,94 +159,30 @@ class LabelDetailPatchesTest(ClientTest):
         self.assertEqual(len(response.context['patches']), 3)
 
 
-# class NewLabelTest(ClientTest):
-#     """
-#     As long as the new label page still exists, at least check that it
-#     doesn't let in anonymous users.
-#     """
-#     fixtures = ['test_labels.yaml']
-#
-#     def test_load_page_anonymous(self):
-#         """Load the page while logged out -> sign-in prompt."""
-#         response = self.client.get(reverse('label_new'))
-#         self.assertRedirects(
-#             response,
-#             reverse('signin')+'?next='+reverse('label_new'),
-#         )
-
-
-class NewLabelsetTest(ClientTest):
+class NewLabelTest(ClientTest):
     """
-    Test the new labelset page.
+    Test label creation.
     """
     @classmethod
     def setUpTestData(cls):
         # Call the parent's setup (while still using this class as cls)
-        super(NewLabelsetTest, cls).setUpTestData()
+        super(NewLabelTest, cls).setUpTestData()
 
         cls.user = cls.create_user()
 
-        # Create source (required to reach new-label form)
-        cls.source = cls.create_source(cls.user)
-
         # Create labels and group
         cls.create_labels(
-            cls.user, cls.source, ['A', 'B'], "Group1")
+            cls.user, ['A', 'B'], "Group1")
 
-        cls.url = reverse('labelset_new', args=[cls.source.pk])
+        cls.url = reverse('label_new_ajax')
 
-#     def test_load_page_anonymous(self):
-#         """
-#         Load the page while logged out ->
-#         sorry, don't have permission.
-#         """
-#         url = reverse('labelset_new', kwargs=dict(
-#             source_id=Source.objects.get(name='public1').pk
-#         ))
-#         response = self.client.get(url)
-#         self.assertStatusOK(response)
-#         self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-#
-#     def test_load_page_as_source_outsider(self):
-#         """
-#         Load the page as a user outside the source ->
-#         sorry, don't have permission.
-#         """
-#         self.client.login(username='user2', password='secret')
-#
-#         url = reverse('labelset_new', kwargs=dict(
-#             source_id=Source.objects.get(name='public1').pk
-#         ))
-#         response = self.client.get(url)
-#         self.assertStatusOK(response)
-#         self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-#
-#     def test_load_page_as_source_editor(self):
-#         """
-#         Load the page as a source editor ->
-#         sorry, don't have permission.
-#         """
-#         self.client.login(username='user3', password='secret')
-#
-#         url = reverse('labelset_new', kwargs=dict(
-#             source_id=Source.objects.get(name='public1').pk
-#         ))
-#         response = self.client.get(url)
-#         self.assertStatusOK(response)
-#         self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-#
-#     def test_load_page_as_source_admin(self):
-#         """
-#         Load the page as a source admin -> page loads normally.
-#         """
-#         self.client.login(username='user4', password='secret')
-#
-#         url = reverse('labelset_new', kwargs=dict(
-#             source_id=Source.objects.get(name='public1').pk
-#         ))
-#         response = self.client.get(url)
-#         self.assertStatusOK(response)
-#         self.assertTemplateUsed(response, 'labels/labelset_new.html')
+    def test_load_page_anonymous(self):
+        """Redirect to signin page."""
+        response = self.client.get(self.url)
+        self.assertRedirects(
+            response,
+            reverse('signin') + '?next=' + self.url,
+        )
 
     def test_label_creation(self):
         """Successfully create a new label."""
@@ -258,10 +190,6 @@ class NewLabelsetTest(ClientTest):
         response = self.client.post(
             self.url,
             dict(
-                # create_label triggers the new-label form.
-                # The key just needs to be there in the POST;
-                # the value doesn't matter.
-                create_label='.',
                 name="CCC",
                 default_code='C',
                 group=LabelGroup.objects.get(code='Group1').pk,
@@ -279,10 +207,110 @@ class NewLabelsetTest(ClientTest):
         self.assertEqual(label.group.code, 'Group1')
         self.assertEqual(label.description, "Species C.")
         self.assertIsNotNone(label.thumbnail)
+        self.assertEqual(label.created_by_id, self.user.pk)
+
+    def test_label_name_taken(self):
+        """Name taken -> error."""
+        self.client.force_login(self.user)
+        response = self.client.post(
+            self.url,
+            dict(
+                name="B",
+                default_code='B2',
+                group=LabelGroup.objects.get(code='Group1').pk,
+                description="Species B.",
+                # A new filename will be generated, and the uploaded
+                # filename will be discarded, so it doesn't matter.
+                thumbnail=sample_image_as_file('_.png'),
+            ),
+        )
+
+        self.assertEqual(response.json(), dict(error=(
+            'Error for Name: There is already a label with the same name:'
+            ' <a href="{url}" target="_blank">B</a>').format(
+                url=reverse(
+                    'label_main', args=[Label.objects.get(name="B").pk]))
+        ))
 
     # TODO: Test thumbnail resizing.
 
-    def test_labelset_creation(self):
+
+class LabelsetAddPermissionTest(ClientTest):
+    """
+    Test the new labelset page.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        # Call the parent's setup (while still using this class as cls)
+        super(LabelsetAddPermissionTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+
+        # Create source (required to reach new-label form)
+        cls.source = cls.create_source(cls.user)
+
+        cls.user_viewer = cls.create_user()
+        cls.add_source_member(
+            cls.user, cls.source, cls.user_viewer, Source.PermTypes.VIEW.code)
+        cls.user_editor = cls.create_user()
+        cls.add_source_member(
+            cls.user, cls.source, cls.user_editor, Source.PermTypes.EDIT.code)
+
+        # Create labels and group
+        cls.create_labels(
+            cls.user, ['A', 'B', 'C'], "Group1")
+
+        cls.url = reverse('labelset_add', args=[cls.source.pk])
+
+    def test_load_page_anonymous(self):
+        """Don't have permission."""
+        response = self.client.get(self.url)
+        self.assertStatusOK(response)
+        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+
+    def test_load_page_as_source_viewer(self):
+        """Don't have permission."""
+        self.client.force_login(self.user_viewer)
+        response = self.client.get(self.url)
+        self.assertStatusOK(response)
+        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+
+    def test_load_page_as_source_editor(self):
+        """Don't have permission."""
+        self.client.force_login(self.user_editor)
+        response = self.client.get(self.url)
+        self.assertStatusOK(response)
+        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+
+    def test_load_page_as_source_admin(self):
+        """Page loads normally."""
+        self.client.force_login(self.user)
+        response = self.client.get(self.url)
+        self.assertStatusOK(response)
+        self.assertTemplateUsed(response, 'labels/labelset_add.html')
+
+
+class LabelsetCreateTest(ClientTest):
+    """
+    Test the new labelset page.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        # Call the parent's setup (while still using this class as cls)
+        super(LabelsetCreateTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+
+        # Create source (required to reach new-label form)
+        cls.source = cls.create_source(cls.user)
+
+        # Create labels and group
+        cls.create_labels(
+            cls.user, ['A', 'B', 'C'], "Group1")
+
+        cls.url = reverse('labelset_add', args=[cls.source.pk])
+
+    def test_success(self):
         """Successfully create a new labelset."""
 
         # These are the labels we'll try putting into the labelset.
@@ -294,36 +322,48 @@ class NewLabelsetTest(ClientTest):
         self.client.force_login(self.user)
         response = self.client.post(
             self.url,
-            dict(
-                # create_labelset indicates that the new-labelset form should
-                # be used, not the new-label form which is also on the page.
-                # The key just needs to be there in the POST;
-                # the value doesn't matter.
-                create_labelset='.',
-                label_ids=','.join(str(pk) for pk in label_pks),
-            ),
+            dict(label_ids=','.join(str(pk) for pk in label_pks)),
             follow=True,
         )
+        self.assertContains(response, "Labelset successfully created.")
 
         url = reverse('labelset_main', args=[self.source.pk])
         self.assertRedirects(response, url)
 
         # Check the new labelset for the expected labels.
         self.source.refresh_from_db()
+        # Check codes.
         self.assertSetEqual(
             {label.code for label in self.source.labelset.get_labels()},
             {'A', 'B'},
         )
+        # Check foreign keys to globals.
+        self.assertSetEqual(
+            {label.pk for label in self.source.labelset.get_globals()},
+            set(label_pks),
+        )
+
+    def test_no_labels(self):
+        """No labels -> error."""
+        self.client.force_login(self.user)
+        response = self.client.post(
+            self.url,
+            dict(label_ids=''),
+        )
+        self.assertContains(response, "You must select one or more labels.")
+
+        self.source.refresh_from_db()
+        self.assertIsNone(self.source.labelset)
 
 
-class EditLabelsetTest(ClientTest):
+class LabelsetAddRemoveTest(ClientTest):
     """
-    Test the edit labelset page.
+    Test adding/removing labels from a labelset.
     """
     @classmethod
     def setUpTestData(cls):
         # Call the parent's setup (while still using this class as cls)
-        super(EditLabelsetTest, cls).setUpTestData()
+        super(LabelsetAddRemoveTest, cls).setUpTestData()
 
         cls.user = cls.create_user()
 
@@ -331,128 +371,81 @@ class EditLabelsetTest(ClientTest):
         cls.source = cls.create_source(cls.user)
 
         # Create labels and group
-        cls.create_labels(
-            cls.user, cls.source, ['A', 'B', 'C'], "Group1")
+        labels = cls.create_labels(
+            cls.user, ['A', 'B', 'C', 'D', 'E'], "Group1")
+        cls.create_labelset(cls.user, cls.source, labels.filter(
+            name__in=['A', 'B', 'C']))
 
-        cls.url = reverse('labelset_edit', args=[cls.source.pk])
+        cls.url = reverse('labelset_add', args=[cls.source.pk])
 
-#     def test_load_page_anonymous(self):
-#         """
-#         Load the page while logged out ->
-#         sorry, don't have permission.
-#         """
-#         url = reverse('labelset_edit', kwargs=dict(
-#             source_id=Source.objects.get(name='public1').pk
-#         ))
-#         response = self.client.get(url)
-#         self.assertStatusOK(response)
-#         self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-#
-#     def test_load_page_as_source_outsider(self):
-#         """
-#         Load the page as a user outside the source ->
-#         sorry, don't have permission.
-#         """
-#         self.client.login(username='user2', password='secret')
-#
-#         url = reverse('labelset_edit', kwargs=dict(
-#             source_id=Source.objects.get(name='public1').pk
-#         ))
-#         response = self.client.get(url)
-#         self.assertStatusOK(response)
-#         self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-#
-#     def test_load_page_as_source_editor(self):
-#         """
-#         Load the page as a source editor ->
-#         sorry, don't have permission.
-#         """
-#         self.client.login(username='user3', password='secret')
-#
-#         url = reverse('labelset_edit', kwargs=dict(
-#             source_id=Source.objects.get(name='public1').pk
-#         ))
-#         response = self.client.get(url)
-#         self.assertStatusOK(response)
-#         self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-#
-#     def test_load_page_with_no_labelset(self):
-#         """
-#         Load the page as a source admin, but with no labelset on the source ->
-#         redirect to new labelset page.
-#         """
-#         self.client.login(username='user4', password='secret')
-#
-#         edit_url = reverse('labelset_edit', kwargs=dict(
-#             source_id=Source.objects.get(name='public1').pk
-#         ))
-#         new_url = reverse('labelset_new', kwargs=dict(
-#             source_id=Source.objects.get(name='public1').pk
-#         ))
-#         response = self.client.get(edit_url)
-#         self.assertRedirects(response, new_url)
-#
-#     def test_load_page_with_labelset(self):
-#         """
-#         Load the page as a source admin, with a labelset on the source ->
-#         page loads normally.
-#         """
-#         # Ensure our source has a non-empty labelset.
-#         # Here we query for labelsets with more than 0 labels.
-#         # Source: http://stackoverflow.com/a/5080597/
-#         labelsets = LabelSet.objects.annotate(num_labels=Count('labels'))
-#         a_non_empty_labelset = labelsets.filter(num_labels__gt=0)[0]
-#         source = Source.objects.get(name='public1')
-#         source.labelset = a_non_empty_labelset
-#         source.save()
-#
-#         self.client.login(username='user4', password='secret')
-#
-#         url = reverse('labelset_edit', kwargs=dict(
-#             source_id=Source.objects.get(name='public1').pk
-#         ))
-#         response = self.client.get(url)
-#         self.assertStatusOK(response)
-#         self.assertTemplateUsed(response, 'labels/labelset_edit.html')
-
-    def test_edit_success(self):
+    def test_add(self):
         """
-        Edit the labelset successfully.
+        Add labels.
         """
-        # Create labelset
-        labels = Label.objects.filter(name__in=["A", "B"])
-        self.create_labelset(
-            self.user, self.source, labels)
-
-        detail_url = reverse('labelset_main', args=[self.source.pk])
-
-        # Edit labelset
         label_pks = [
             Label.objects.get(name=name).pk
-            for name in ["B", "C"]
+            for name in ['A', 'B', 'C', 'D', 'E']
         ]
         self.client.force_login(self.user)
         response = self.client.post(
             self.url,
-            # edit_labelset indicates that the edit-labelset form should
-            # be used, not the new-label form which is also on the page.
-            # The key just needs to be there in the POST;
-            # the value doesn't matter.
-            dict(
-                edit_labelset='.',
-                label_ids=','.join(str(pk) for pk in label_pks),
-            ),
+            dict(label_ids=','.join(str(pk) for pk in label_pks)),
+            follow=True,
         )
-
-        # Should redirect to the labelset viewing page.
-        self.assertRedirects(response, detail_url)
+        self.assertContains(response, "Labelset successfully changed.")
 
         # Check the edited labelset for the expected labels.
         self.source.labelset.refresh_from_db()
         self.assertSetEqual(
-            set(self.source.labelset.get_labels().values('code', flat=True)),
-            {'B', 'C'},
+            set(self.source.labelset.get_labels().values_list(
+                'code', flat=True)),
+            {'A', 'B', 'C', 'D', 'E'},
         )
 
-    # TODO: Check that the new label form works.
-    # TODO: Check that the cancel button works.
+    def test_remove(self):
+        """
+        Remove labels.
+        """
+        label_pks = [
+            Label.objects.get(name=name).pk
+            for name in ['A']
+        ]
+        self.client.force_login(self.user)
+        response = self.client.post(
+            self.url,
+            dict(label_ids=','.join(str(pk) for pk in label_pks)),
+            follow=True,
+        )
+        self.assertContains(response, "Labelset successfully changed.")
+
+        # Check the edited labelset for the expected labels.
+        self.source.labelset.refresh_from_db()
+        self.assertSetEqual(
+            set(self.source.labelset.get_labels().values_list(
+                'code', flat=True)),
+            {'A'},
+        )
+
+    def test_add_and_remove(self):
+        """
+        Add some labels, remove others.
+        """
+        label_pks = [
+            Label.objects.get(name=name).pk
+            for name in ['C', 'D', 'E']
+        ]
+        self.client.force_login(self.user)
+        response = self.client.post(
+            self.url,
+            dict(label_ids=','.join(str(pk) for pk in label_pks)),
+            follow=True,
+        )
+        self.assertContains(response, "Labelset successfully changed.")
+
+        # Check the edited labelset for the expected labels.
+        self.source.labelset.refresh_from_db()
+        self.assertSetEqual(
+            set(self.source.labelset.get_labels().values_list(
+                'code', flat=True)),
+            {'C', 'D', 'E'},
+        )

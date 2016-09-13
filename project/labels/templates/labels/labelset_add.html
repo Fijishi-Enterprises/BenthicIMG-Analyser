@@ -9,6 +9,7 @@
 
 {% block page-specific-includes %}
   {% include "static-local-include.html" with type="js" path="js/LabelsetAdd.js" %}
+  {% include "static-local-include.html" with type="js" path="js/LabelNew.js" %}
 
   {% include "static-local-include.html" with type="css" path="css/labels.css" %}
 {% endblock %}
@@ -78,12 +79,7 @@
     </div>
 
     <div id="new-label-form-popup">
-      <form action="{% url 'label_new_ajax' %}" method="post">{% csrf_token %}
-        {% for field in new_label_form %}
-          {{ field.label }}: {{ field }}
-        {% endfor %}
-        <button type="button" id="new-label-submit-button">Create Label</button>
-      </form>
+      {% include 'labels/label_new.html' with form=new_label_form %}
     </div>
 
   </div>
@@ -93,6 +89,9 @@
   <script type="text/javascript">
     LabelsetAdd.init({
       'labelIdsInAnnotations': {{ label_ids_in_annotations|jsonify }}
+    });
+    LabelNew.init({
+      'afterLabelCreated': LabelsetAdd.afterLabelCreated
     });
   </script>
 

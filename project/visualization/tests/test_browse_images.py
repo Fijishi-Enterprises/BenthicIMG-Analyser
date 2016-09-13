@@ -75,7 +75,7 @@ class SearchTest(ClientTest):
             simple_number_of_points=2,
             image_height_in_cm=50,
         )
-        labels = cls.create_labels(cls.user, cls.source, ['A', 'B'], 'GroupA')
+        labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
         cls.create_labelset(cls.user, cls.source, labels)
 
         cls.url = reverse('browse_images', args=[cls.source.pk])

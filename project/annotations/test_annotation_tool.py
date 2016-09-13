@@ -16,7 +16,7 @@ class PermissionTest(ClientTest):
         cls.user = cls.create_user()
 
         cls.source = cls.create_source(cls.user)
-        labels = cls.create_labels(cls.user, cls.source, ['A', 'B'], 'GroupA')
+        labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
         cls.create_labelset(cls.user, cls.source, labels)
 
         cls.user_viewer = cls.create_user()
@@ -130,7 +130,7 @@ class LoadImageTest(ClientTest):
         cls.user = cls.create_user()
 
         cls.source = cls.create_source(cls.user)
-        labels = cls.create_labels(cls.user, cls.source, ['A', 'B'], 'GroupA')
+        labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
         cls.create_labelset(cls.user, cls.source, labels)
 
     def test_small_image(self):
@@ -175,7 +175,7 @@ class NavigationTest(ClientTest):
         cls.user = cls.create_user()
 
         cls.source = cls.create_source(cls.user)
-        labels = cls.create_labels(cls.user, cls.source, ['A', 'B'], 'GroupA')
+        labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
         cls.create_labelset(cls.user, cls.source, labels)
 
         cls.img1 = cls.upload_image_new(
@@ -260,7 +260,7 @@ class SaveAnnotationsTest(ClientTest):
             point_generation_type=PointGen.Types.SIMPLE,
             simple_number_of_points=3,
         )
-        labels = cls.create_labels(cls.user, cls.source, ['A', 'B'], 'GroupA')
+        labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
         cls.create_labelset(cls.user, cls.source, labels)
 
         cls.user_editor = cls.create_user()
@@ -367,7 +367,7 @@ class IsAnnotationAllDoneTest(ClientTest):
             point_generation_type=PointGen.Types.SIMPLE,
             simple_number_of_points=3,
         )
-        labels = cls.create_labels(cls.user, cls.source, ['A', 'B'], 'GroupA')
+        labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
         cls.create_labelset(cls.user, cls.source, labels)
 
         cls.img = cls.upload_image_new(cls.user, cls.source)
@@ -416,7 +416,7 @@ class SettingsTest(ClientTest):
         cls.user = cls.create_user()
 
         cls.source = cls.create_source(cls.user)
-        labels = cls.create_labels(cls.user, cls.source, ['A', 'B'], 'GroupA')
+        labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
         cls.create_labelset(cls.user, cls.source, labels)
 
         cls.img = cls.upload_image_new(cls.user, cls.source)

@@ -28,3 +28,38 @@ class ContactForm(forms.Form):
         super(ContactForm, self).__init__(*args, **kwargs)
         if user.is_authenticated():
             del self.fields['email']
+
+
+def get_one_form_error(form):
+    """
+    Use this if form validation failed and you just want to get the string for
+    one error.
+    """
+    for field_name, error_messages in form.errors.iteritems():
+        if error_messages:
+            if len(form.fields) == 1:
+                return "Error: {error}".format(
+                    error=error_messages[0])
+            else:
+                return "Error: {field}: {error}".format(
+                    field=form[field_name].label,
+                    error=error_messages[0])
+
+    return "Unknown error. If the problem persists, please contact the admins."
+
+
+def get_one_formset_error(formset, get_form_name):
+    for form in formset:
+        for field_name, error_messages in form.errors.iteritems():
+            if error_messages:
+                if len(form.fields) == 1:
+                    return "Error: {form} - {field}: {error}".format(
+                        form=get_form_name(form),
+                        field=form[field_name].label,
+                        error=error_messages[0])
+                else:
+                    return "Error: {form}: {error}".format(
+                        form=get_form_name(form),
+                        error=error_messages[0])
+
+    return "Unknown error. If the problem persists, please contact the admins."

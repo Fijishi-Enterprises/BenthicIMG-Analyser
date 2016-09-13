@@ -26,8 +26,12 @@
 
   {% get_obj_perms user for source as "source_perms" %}
   {% if "source_admin" in source_perms %}
-    <br />
-    <a href="{% url 'labelset_add' source.id %}">Add/Remove Labels</a>
+    <div class="line">
+      <a href="{% url 'labelset_add' source.id %}">Add/Remove Labels</a>
+    </div>
+    <div class="line">
+      <a href="{% url 'labelset_edit' source.id %}">Edit Label Entries</a>
+    </div>
   {% endif %}
 
 {% endblock %}

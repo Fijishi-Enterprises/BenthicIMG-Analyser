@@ -54,10 +54,6 @@ form {
     width: auto;
 }
 
-div.line {
-    margin: 0.5em 0;  /* top/bottom left/right */
-}
-
 
 /* jQuery-UI stuff like dialogs */
 .ui-widget {

@@ -3,7 +3,7 @@ from django.core.urlresolvers import reverse
 from django.core.validators import validate_comma_separated_integer_list
 from django.forms import Form
 from django.forms.fields import CharField
-from django.forms.models import ModelForm
+from django.forms.models import ModelForm, BaseModelFormSet
 from django.forms.widgets import TextInput, HiddenInput
 from django.utils.html import escape
 from .models import Label, LabelSet, LocalLabel
@@ -98,16 +98,6 @@ class LabelSetForm(Form):
         # Return the integer list (rather than its string repr).
         return label_id_list
 
-    def get_error(self):
-        # Find the first error and return it.
-        # Since this form has only one field, we won't specify
-        # the field in the message.
-        message = None
-        for _, error_messages in self.errors.iteritems():
-            if error_messages:
-                message = error_messages[0]
-        return message
-
     def save_labelset(self):
         """
         Call this after validation to save the labelset.
@@ -147,3 +137,47 @@ class LabelSetForm(Form):
         LocalLabel.objects.bulk_create(local_labels_to_add)
 
         return labelset_was_created
+
+
+class LocalLabelForm(ModelForm):
+    class Meta:
+        model = LocalLabel
+        fields = ['code']
+        widgets = {
+            'code': TextInput(attrs={'size': 10}),
+        }
+
+
+class BaseLocalLabelFormSet(BaseModelFormSet):
+    def clean(self):
+        """
+        Checks that no two labels in the formset have the same short code
+        (case-insensitive).
+        """
+        if any(self.errors):
+            # Don't bother validating the formset
+            # unless each form is valid on its own
+            return
+
+        # Find dupe image names in the source, taking together the
+        # existing names of images not in the forms, and the new names
+        # of images in the forms
+        codes_in_forms = [f.cleaned_data['code'].lower() for f in self.forms]
+        dupe_codes = [
+            code for code in codes_in_forms
+            if codes_in_forms.count(code) > 1
+        ]
+
+        for form in self.forms:
+            code = form.cleaned_data['code'].lower()
+            if code in dupe_codes:
+                form.add_error(
+                    'code',
+                    ValidationError(
+                        "More than one label with the code '{code}'".format(
+                            code=code),
+                        # The following is a validation-error code used by
+                        # Django for error IDing, not a label code!
+                        code='dupe_code',
+                    )
+                )

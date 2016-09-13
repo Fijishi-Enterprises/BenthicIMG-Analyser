@@ -1,21 +1,23 @@
-import json
 import re
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.urlresolvers import reverse
+from django.forms import modelformset_factory
 from django.http import HttpResponseRedirect
 from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404
 from django.views.decorators.http import require_POST, require_GET
 
-from .forms import LabelForm, LabelSetForm
-from .models import Label
+from lib.forms import get_one_formset_error, get_one_form_error
+from .forms import LabelForm, LabelSetForm, LocalLabelForm, \
+    BaseLocalLabelFormSet
+from .models import Label, LocalLabel
 from accounts.utils import get_robot_user
 from annotations.models import Annotation
 from images.models import Source
 from lib.decorators import source_permission_required, \
-    source_visibility_required
+    source_visibility_required, source_labelset_required
 from visualization.utils import generate_patch_if_doesnt_exist, get_patch_url
 
 
@@ -38,14 +40,7 @@ def label_new_ajax(request):
         })
 
     # Not valid. Find the first error and return it.
-    for field_name, error_messages in form.errors.iteritems():
-        if error_messages:
-            message = "Error for {label}: {error}".format(
-                label=form[field_name].label, error=error_messages[0])
-            return JsonResponse(dict(error=message))
-
-    return JsonResponse(dict(error=(
-        "Unknown error. If the problem persists, please contact the admins.")))
+    return JsonResponse(dict(error=get_one_form_error(form)))
 
 
 @login_required
@@ -69,6 +64,8 @@ def label_search_ajax(request):
     labels = Label.objects
     for token in search_tokens:
         labels = labels.filter(name__icontains=token)
+        # TODO: This doesn't seem to make the search results ordered
+        # on the page
         labels.order_by('name')
 
     return render(request, 'labels/label_box_container.html', {
@@ -98,7 +95,7 @@ def labelset_add(request, source_id):
             return HttpResponseRedirect(
                 reverse('labelset_main', args=[source.id]))
         else:
-            messages.error(request, labelset_form.get_error())
+            messages.error(request, get_one_form_error(labelset_form))
 
     else:
         labelset_form = LabelSetForm(source=source)
@@ -119,109 +116,39 @@ def labelset_add(request, source_id):
 
 
 @source_permission_required('source_id', perm=Source.PermTypes.ADMIN.code)
-def labelset_edit_entries(request, source_id):
+@source_labelset_required('source_id', message=(
+    "This source doesn't have a labelset yet."))
+def labelset_edit(request, source_id):
     """
-    Page to edit a source's labelset.
+    Edit entries of a labelset: label code, custom groups, etc.
     """
-
     source = get_object_or_404(Source, id=source_id)
 
-    if source.labelset is None:
-        return HttpResponseRedirect(reverse('labelset_add', args=[source.id]))
+    LocalLabelFormSet = modelformset_factory(
+        LocalLabel, form=LocalLabelForm,
+        formset=BaseLocalLabelFormSet, extra=0)
 
-    labelset = source.labelset
-    showLabelForm = False
-    labelsInLabelset = [label.id for label in labelset.labels.all()]
-    initiallyCheckedLabels = labelsInLabelset
+    if request.POST:
+        formset = LocalLabelFormSet(request.POST)
 
-    if request.method == 'POST':
+        if formset.is_valid():
+            formset.save()
 
-        initiallyCheckedLabels = [int(labelId) for labelId in request.POST.getlist('labels')]
-
-        if 'create_label' in request.POST:
-            labelForm = NewLabelForm(request.POST, request.FILES)
-            newLabel = None
-
-            # is_valid() checks for label conflicts in the database (same-name label found, etc.).
-            if labelForm.is_valid():
-                newLabel = labelForm.instance
-                newLabel.created_by = request.user
-                newLabel.save()
-                messages.success(request, 'Label successfully created.')
-            else:
-                messages.error(request, 'Please correct the errors below.')
-                showLabelForm = True
-
-            # The labelset form should now have the new label.
-            labelSetForm = NewLabelSetForm()
-
-            # If a label was added, the user probably wanted to add it to their
-            # labelset, so pre-check that label.
-            if newLabel:
-                initiallyCheckedLabels.append(newLabel.id)
-
-        elif 'edit_labelset' in request.POST:
-            labelSetForm = NewLabelSetForm(request.POST, instance=labelset)
-            labelForm = NewLabelForm()
-
-            if labelSetForm.is_valid():
-                labelSetForm.save()
-
-                messages.success(request, 'LabelSet successfully edited.')
-                return HttpResponseRedirect \
-                    (reverse('labelset_main', args=[source.id]))
-            else:
-                messages.error(request, 'Please correct the errors below.')
-
-        else: # Cancel
-            messages.success(request, 'Edit cancelled.')
-            return HttpResponseRedirect \
-                (reverse('labelset_main', args=[source_id]))
-
-    else:
-        labelForm = NewLabelForm()
-        labelSetForm = NewLabelSetForm(instance=labelset)
-
-    # Dictionary of info for each label in the labelset form.
-    allLabels = [dict(labelId=str(id), name=label.name,
-                      code=label.code, group=label.group.name)
-                 for id, label in labelSetForm['labels'].field.choices]
-
-    # Dict that tells whether a label is already in the labelset: {85: True, 86: True, ...}.
-    # This is basically a workaround around JavaScript's lack of a widely supported "is element in list" function.
-    isInLabelset = dict()
-    for labelId, label in labelSetForm['labels'].field.choices:
-        isInLabelset[labelId] = labelId in labelsInLabelset
-
-    # Dict that tells whether a label should be initially checked: {85: True, 86: True, ...}.
-    isInitiallyChecked = dict()
-    for labelId, label in labelSetForm['labels'].field.choices:
-        isInitiallyChecked[labelId] = labelId in initiallyCheckedLabels
-
-    # Dict that tells whether an initially-checked label's status is changeable: {85: True, 86: False, ...}.
-    # A label is unchangeable if it's being used by any annotations in this source.
-    isLabelUnchangeable = dict()
-    for labelId, label in labelSetForm['labels'].field.choices:
-        if labelId in initiallyCheckedLabels:
-            annotationsForLabel = Annotation.objects.filter \
-                (image__source=source, label__id=labelId)
-            isLabelUnchangeable[labelId] = len(annotationsForLabel) > 0
+            messages.success(request, "Label entries successfully edited.")
+            return HttpResponseRedirect(
+                reverse('labelset_main', args=[source.id]))
         else:
-            isLabelUnchangeable[labelId] = False
-
+            messages.error(
+                request,
+                get_one_formset_error(
+                    formset, lambda f: f.instance.name))
+    else:
+        formset = LocalLabelFormSet(
+            queryset=source.labelset.get_locals_ordered_by_group_and_code())
 
     return render(request, 'labels/labelset_edit.html', {
-        'showLabelFormInitially': json.dumps(showLabelForm),    # Python bool to JSON bool
-        'labelSetForm': labelSetForm,
-        'labelForm': labelForm,
         'source': source,
-        'isEditLabelsetForm': True,
-
-        'allLabels': allLabels,    # label dictionary, for accessing as a template variable
-        'allLabelsJSON': json.dumps(allLabels),    # label dictionary, for JS
-        'isInLabelset': json.dumps(isInLabelset),
-        'isInitiallyChecked': json.dumps(isInitiallyChecked),
-        'isLabelUnchangeable': json.dumps(isLabelUnchangeable),
+        'formset': formset,
     })
 
 

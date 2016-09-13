@@ -12,4 +12,6 @@ urlpatterns = [
         name="labelset_main"),
     url(r'^source/(?P<source_id>\d+)/labelset/add/$', views.labelset_add,
         name="labelset_add"),
+    url(r'^source/(?P<source_id>\d+)/labelset/edit/$', views.labelset_edit,
+        name="labelset_edit"),
 ]

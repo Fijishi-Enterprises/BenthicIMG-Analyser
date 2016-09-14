@@ -156,12 +156,14 @@ def label_main(request, label_id):
     """
     Main page for a particular label
     """
-
     label = get_object_or_404(Label, id=label_id)
 
-    sources_with_label = Source.objects.filter(labelset__labels=label).order_by \
-        ('name')
-    visible_sources_with_label = [s for s in sources_with_label if s.visible_to_user(request.user)]
+    labelsets_with_label = LocalLabel.objects.filter(
+        global_label_id=label_id).values_list('labelset', flat=True)
+    sources_with_label = Source.objects.filter(
+        labelset__in=labelsets_with_label).order_by('name')
+    visible_sources_with_label = [
+        s for s in sources_with_label if s.visible_to_user(request.user)]
 
     # Differentiate between the sources that the user is part of
     # and the other public sources.  Sort the source list accordingly, too.

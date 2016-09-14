@@ -89,7 +89,6 @@ class LabelSet(models.Model):
     # correspondence between labelsets and sources.
     description = models.TextField(blank=True)
     location = models.CharField(max_length=45, blank=True)
-    labels = models.ManyToManyField(Label)
     edit_date = models.DateTimeField(
         'Date edited', auto_now=True, editable=False)
 

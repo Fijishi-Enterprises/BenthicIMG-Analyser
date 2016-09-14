@@ -1,26 +1,28 @@
 from django.contrib.auth.models import User
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from images.models import Image, Point, Source
 from labels.models import Label, LocalLabel
+from vision_backend.models import Classifier
 
 
 class Annotation(models.Model):
     annotation_date = models.DateTimeField(
         blank=True, auto_now=True, editable=False)
-    point = models.ForeignKey('images.Point', on_delete=models.CASCADE,
+    point = models.ForeignKey(Point, on_delete=models.CASCADE,
         editable=False)
-    image = models.ForeignKey('images.Image', on_delete=models.CASCADE,
+    image = models.ForeignKey(Image, on_delete=models.CASCADE,
         editable=False)
 
     # The user who made this annotation
     user = models.ForeignKey(User, on_delete=models.SET_NULL,
         editable=False, null=True)
     # Only fill this in if the user is the robot user
-    robot_version = models.ForeignKey('vision_backend.Classifier', on_delete=models.SET_NULL,
+    robot_version = models.ForeignKey(Classifier, on_delete=models.SET_NULL,
         editable=False, null=True)
 
     label = models.ForeignKey(Label, on_delete=models.PROTECT)
-    source = models.ForeignKey('images.Source', on_delete=models.CASCADE,
+    source = models.ForeignKey(Source, on_delete=models.CASCADE,
         editable=False)
 
     @property
@@ -37,9 +39,9 @@ class Annotation(models.Model):
 class AnnotationToolAccess(models.Model):
     access_date = models.DateTimeField(
         blank=True, auto_now=True, editable=False)
-    image = models.ForeignKey('images.Image', on_delete=models.CASCADE,
+    image = models.ForeignKey(Image, on_delete=models.CASCADE,
         editable=False)
-    source = models.ForeignKey('images.Source', on_delete=models.CASCADE,
+    source = models.ForeignKey(Source, on_delete=models.CASCADE,
         editable=False)
     user = models.ForeignKey(User, on_delete=models.SET_NULL,
         editable=False, null=True)

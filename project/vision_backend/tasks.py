@@ -1,15 +1,26 @@
 import boto
 import os
 import json
+import pickle
+
+import numpy as np
+
+from sklearn import linear_model
 
 from boto.s3.key import Key
 from boto.sqs.message import Message
 
+
+
 from django.conf import settings
 from django.utils import timezone
+
+from .models import Classifier, Score
+
 from images.models import Source, Image, Point
-from annotations.models import Annotation, LabelSet
-from .models import Classifier
+from annotations.models import Annotation
+from labels.models import LabelSet, Label
+from accounts.utils import get_robot_user, is_robot_user
 
 
 def features_submit(image_id):
@@ -71,7 +82,7 @@ def classifier_submit(source_id):
     _write_dataset(classifier, 'valset', settings.ROBOT_MODEL_VALDATA_PATTERN)
     
     # Prepare information for the message payload
-    classes = [l.id for l in LabelSet.objects.get(source = source).labels.all()] # Needed for the classifier.
+    classes = [l.id for l in LabelSet.objects.get(source = source).get_labels()] # Needed for the classifier.
     previous_classifiers = Classifier.objects.filter(source = source, valid = True) # This will not include the current.
     pc_models = [settings.ROBOT_MODEL_FILE_PATTERN.format(pk = pc.pk, media = settings.AWS_S3_MEDIA_SUBDIR) for pc in previous_classifiers]
     pc_pks = [pc.pk for pc in previous_classifiers] # Primary keys needed for collect task.
@@ -104,8 +115,144 @@ def classifier_submit(source_id):
     m = Message()
     m.set_body(json.dumps(messagebody))
     queue.write(m)
-    
+ 
 
+def classify_image(image_id):
+    try:
+        img = Image.objects.get(pk = image_id)
+    except:
+        print "Image removed. Returning."
+        return
+    
+    # Do some checks
+    if not img.features.extracted:
+        return
+    classifier = img.source.get_latest_robot()
+    if not classifier:
+        return 0
+
+    # Connect to S3
+    conn = boto.connect_s3(
+        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
+    )
+    bucket = conn.get_bucket(settings.AWS_STORAGE_BUCKET_NAME)
+    
+    # Load model
+    k = Key(bucket)
+    k.key = settings.ROBOT_MODEL_FILE_PATTERN.format(pk = classifier.pk, media = settings.AWS_S3_MEDIA_SUBDIR)
+    classifier_model = pickle.loads(k.get_contents_as_string())
+    
+    # Load features
+    k.key = settings.FEATURE_VECTOR_FILE_PATTERN.format(full_image_path = os.path.join(settings.AWS_S3_MEDIA_SUBDIR, img.original_file.name))
+    feats = json.loads(k.get_contents_as_string())
+
+    # Classify (very easy!)
+    print 'feats', len(feats), len(feats[0])
+    print 'classifier_model', classifier_model
+    scores = classifier_model.predict_proba(feats)
+
+    # Add annotations if image isn't already confirmed
+    if not img.confirmed:
+        _add_labels(image_id, scores, classifier_model.classes_, classifier)
+    
+    # Always add scores
+    _add_scores(image_id, scores, classifier_model.classes_, classifier)
+
+
+
+def _add_labels(image_id, scores, classes, classifier):
+    print scores, classes, type(classes)
+    user = get_robot_user()
+    img = Image.objects.get(pk = image_id)
+    points = Point.objects.filter(image = img).order_by('id')
+    estlabels = [np.argmax(score) for score in scores]
+    for pt, estlabel in zip(points, estlabels):
+        
+        label = Label.objects.get(pk = classes[estlabel])
+
+        # If there's an existing annotation for this point, get it.
+        # Otherwise, create a new annotation.
+        try:
+            anno = Annotation.objects.get(image=img, point=pt)
+
+        except Annotation.DoesNotExist:
+            # No existing annotation. Create a new one.
+            new_anno = Annotation(
+                image=img, label=label, point=pt,
+                user=user, robot_version=classifier, source=img.source
+            )
+            #new_anno.save()
+
+        else:
+            # Got an existing annotation.
+            if is_robot_user(anno.user):
+                # It's an existing robot annotation. Update it as necessary.
+                if anno.label.id != label.id:
+                    anno.label = label
+                    anno.robot_version = classifier
+                    #anno.save()
+
+            # Else, it's an existing confirmed annotation, and we don't want
+            # to overwrite it. So do nothing in this case.
+
+def _add_scores(image_id, scores, classes, classifier):
+    """
+
+    """
+    img = Image.objects.get(pk = image_id)
+
+    # First, delete all scores associated with this image.
+    for score_obj in Score.objects.filter(image = img):
+        score_obj.delete()
+
+    points = Point.objects.filter(image = img).order_by('id')
+    # Now, go through and create new ones.
+
+    # Figure out how many of the (top) scores to store.
+    n = np.min(NBR_SCORES_SCORED_PER_ANNOTATION, len(scores[0])
+    for point, score in zip(points, scores):
+        inds = np.argsort(score)[::-1][:nbr_scores] # grab the index of the n highest index
+        for ind in inds:
+            score_obj = Score(
+                source = img.source, 
+                image = img, 
+                label = Label.objects.get(pk = classes[ind]), 
+                point = point, 
+                score = int(round(score[ind]*100))
+            )
+            score_obj.save()
+
+def collectjob():
+    """
+    main task for collecting jobs from AWS SQS.
+    """
+    
+    # Grab a message
+    message = _read_message('spacer_results')
+    if message is None:
+        print "No messages in queue."
+        return
+    messagebody = json.loads(message.get_body())
+
+    # Check that the message pertains to this server
+    if not messagebody['original_job']['payload']['bucketname'] == settings.AWS_STORAGE_BUCKET_NAME:
+        return
+
+    jobcollectors = {
+        'extract_features': _featurecollector,
+        'train_classifier': _classifiercollector
+    }
+
+
+    # Collect the job
+    if jobcollectors[messagebody['original_job']['task']](messagebody):
+        print "job {}, pk: {} collected successfully".format(messagebody['original_job']['task'], messagebody['original_job']['payload']['pk'])
+    else:
+        print "some error occurred" #replace with logging.
+
+    # Remove from queue        
+    message.delete()
 
 def _write_dataset(classifier, split, keypattern):
     """
@@ -143,37 +290,6 @@ def _make_dataset(classifier, split):
 
     return gtdict
 
-
-def collectjob():
-    """
-    main task for collecting jobs from AWS SQS.
-    """
-    
-    # Grab a message
-    message = _read_message('spacer_results')
-    if message is None:
-        print "No messages in queue."
-        return
-    messagebody = json.loads(message.get_body())
-
-    # Check that the message pertains to this server
-    if not messagebody['original_job']['payload']['bucketname'] == settings.AWS_STORAGE_BUCKET_NAME:
-        return
-
-    jobcollectors = {
-        'extract_features': _featurecollector,
-        'train_classifier': _classifiercollector
-    }
-
-
-    # Collect the job
-    if jobcollectors[messagebody['original_job']['task']](messagebody):
-        print "job {}, pk: {} collected successfully".format(messagebody['original_job']['task'], messagebody['original_job']['payload']['pk'])
-    else:
-        print "some error occurred" #replace with logging.
-
-    # Remove from queue        
-    message.delete()
 
 def _read_message(queue_name):
     """

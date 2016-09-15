@@ -16,3 +16,5 @@ ROBOT_MODEL_TRAINDATA_PATTERN = '{media}/classifiers/{pk}.traindata'
 ROBOT_MODEL_VALDATA_PATTERN = '{media}/classifiers/{pk}.valdata'
 
 ROBOT_MODEL_VALRESULT_PATTERN = '{media}/classifiers/{pk}.valresult'
+
+NBR_SCORES_SCORED_PER_ANNOTATION = 5

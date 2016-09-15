@@ -1,18 +1,6 @@
-from images.models import Point, Image, Source, Robot
-from annotations.models import Annotation
 import os
-import numpy as np
-from django.conf import settings
-from datetime import datetime
-from images.tasks import *
-from images.scripts_helper import RobotStats
-from django.core.exceptions import ValidationError, MultipleObjectsReturned
-join_processing_root = lambda *p: os.path.join(settings.PROCESSING_ROOT, *p)
-PREPROCESS_DIR = join_processing_root("images/preprocess/")
-FEATURES_DIR = join_processing_root("images/features/")
 
-
-
+from images.models import Source
 
 
 """

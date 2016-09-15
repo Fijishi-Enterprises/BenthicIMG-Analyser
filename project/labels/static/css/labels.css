@@ -33,8 +33,11 @@
 }
 
 .detail-button {
-    /* TODO: How to deal with long label names? */
+    /* On long label names, the button might get stretched beyond this width.
+    This shouldn't be a big deal though; it just means the row that
+    button is on won't line up nicely with the other rows. */
     width: 120px;
+
     text-align: center;
     border-top-right-radius: 10px;
     border-bottom-right-radius: 10px;

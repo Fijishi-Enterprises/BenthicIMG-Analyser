@@ -64,9 +64,7 @@ def label_search_ajax(request):
     labels = Label.objects
     for token in search_tokens:
         labels = labels.filter(name__icontains=token)
-        # TODO: This doesn't seem to make the search results ordered
-        # on the page
-        labels.order_by('name')
+        labels = labels.order_by('name')
 
     return render(request, 'labels/label_box_container.html', {
         'labels': labels,

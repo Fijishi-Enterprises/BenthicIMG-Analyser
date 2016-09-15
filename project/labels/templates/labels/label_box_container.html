@@ -4,7 +4,8 @@
       {% include 'labels/label_box.html' with label=label type='add' %}
     </div>
 
-    <div class="label-remove-box" data-label-id="{{ label.pk }}">
+    <div class="label-remove-box" data-label-id="{{ label.pk }}"
+      data-label-name="{{ label.name }}">
       {% include 'labels/label_box.html' with label=label type='remove' %}
     </div>
 

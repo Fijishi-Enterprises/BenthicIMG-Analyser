@@ -184,11 +184,33 @@ var LabelsetAdd = (function() {
     function addLabelToSelected(labelId) {
         if (isSelected(labelId)) { return; }
 
-        /* TODO: Maintain an ordering to the labels based on their names.
-         * May involve using insertAfter(). */
+        // Add label-remove box to selected;
+        // maintain ordering based on label names
+        var $removeBox = get$removeBox(labelId);
+        var labelName = $removeBox.attr('data-label-name');
+        var $selectedContainer = $('#selected-label-container');
 
-        // Add label-remove box to selected
-        $('#selected-label-container').append(get$removeBox(labelId));
+        if ($selectedContainer.children().length === 0) {
+            // Only box so far
+            $removeBox.appendTo($selectedContainer);
+        }
+        else if (
+            $selectedContainer.children().last().attr('data-label-name')
+            <= labelName) {
+            // Comes after the last box
+            $removeBox.insertAfter($selectedContainer.children().last());
+        }
+        else {
+            $selectedContainer.children().each(function() {
+                var $thisRemoveBox = $(this);
+                if (labelName < $thisRemoveBox.attr('data-label-name')) {
+                    // Comes before this box
+                    $removeBox.insertBefore($thisRemoveBox);
+                    // Break from the each 'loop'
+                    return false;
+                }
+            });
+        }
 
         // Hide label-add box
         $('#unused-label-elements-container').append(get$addBox(labelId));

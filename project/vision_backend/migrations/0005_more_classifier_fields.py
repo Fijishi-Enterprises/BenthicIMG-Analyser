@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('vision_backend', '0003_features_model_was_cashed'),
+        ('vision_backend', '0004_features_model_was_cashed'),
     ]
 
     operations = [

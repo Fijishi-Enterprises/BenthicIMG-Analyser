@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('vision_backend', '0002_remove_legacy_robot_fields'),
+        ('vision_backend', '0003_alter_score_label_foreignkey'),
     ]
 
     operations = [

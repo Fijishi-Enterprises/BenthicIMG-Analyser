@@ -6,6 +6,7 @@ from unipath import Path
 # into your settings, but ImproperlyConfigured is an exception.
 from django.core.exceptions import ImproperlyConfigured
 
+from .vision_backend import *
 
 
 # Directory with settings files.
@@ -273,8 +274,6 @@ IMAGE_FILE_PATTERN = 'images/{name}{extension}'
 LABEL_THUMBNAIL_FILE_PATTERN = 'labels/{name}{extension}'
 POINT_PATCH_FILE_PATTERN = \
     '{full_image_path}.pointpk{point_pk}.thumbnail.jpg'
-FEATURE_VECTOR_FILE_PATTERN = \
-    '{full_image_path}.featurevector'
 
 # [Custom settings] Special users
 IMPORTED_USERNAME = "Imported"
@@ -305,10 +304,3 @@ CAPTCHA_PUBLIC_KEY = get_secret("CAPTCHA_PUBLIC_KEY")
 
 # [Custom settings]
 GOOGLE_ANALYTICS_CODE = get_secret("GOOGLE_ANALYTICS_CODE", required=False)
-
-
-# VISION BACKEND SETTINGS
-# TODO: move to separate settings file.
-NEW_MODEL_THRESHOLD = 1.5
-MIN_NBR_ANNOTATED_IMAGES = 5
-NBR_IMAGES_PER_LOOP = 100

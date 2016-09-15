@@ -2,7 +2,7 @@
 This module contains scripts for manual testing.
 """
 
-from .models import Image, Source, ImageStatus, Metadata
+from .models import Image, Source, Metadata
 from vision_backend.models import Features
 
 
@@ -10,8 +10,6 @@ def create_image(source_name):
 	source = Source()
 	source.name = source_name
 	source.save()
-	status = ImageStatus()
-	status.save()
 	m = Metadata()
 	m.name = 'a name goes here'
 	m.save()

@@ -495,7 +495,7 @@ def image_detail_helper(image_id):
         ('metadata__name', image.metadata.name, False), wrap=False)
 
     # Annotation status
-    if image.status.annotatedByHuman:
+    if image.confirmed:
         annotation_status = "Complete"
     elif image_has_any_human_annotations(image):
         annotation_status = "Partially annotated"

@@ -1,6 +1,7 @@
 from django.core.urlresolvers import reverse
 
-from images.models import Source, Image, Metadata, ImageStatus
+from images.models import Source, Image, Metadata
+from vision_backend.models import Features
 from lib.test_utils import ClientTest
 
 
@@ -171,9 +172,9 @@ class SuccessTest(ClientTest):
         metadata_1_pk = self.img1.metadata.pk
         metadata_2_pk = self.img2.metadata.pk
         metadata_3_pk = self.img3.metadata.pk
-        status_1_pk = self.img1.status.pk
-        status_2_pk = self.img2.status.pk
-        status_3_pk = self.img3.status.pk
+        features_1_pk = self.img1.features.pk
+        features_2_pk = self.img2.features.pk
+        features_3_pk = self.img3.features.pk
 
         self.client.force_login(self.user)
         response = self.client.post(self.url, post_data)
@@ -183,13 +184,12 @@ class SuccessTest(ClientTest):
             Metadata.DoesNotExist, Metadata.objects.get, pk=metadata_1_pk)
         Metadata.objects.get(pk=metadata_2_pk)
         self.assertRaises(
-            Metadata.DoesNotExist, Metadata.objects.get, pk=metadata_3_pk)
+            Metadata.DoesNotExist, Metadata.objects.get, pk=metadata_3_pk)    
 
-        self.assertRaises(
-            ImageStatus.DoesNotExist, ImageStatus.objects.get, pk=status_1_pk)
-        ImageStatus.objects.get(pk=status_2_pk)
-        self.assertRaises(
-            ImageStatus.DoesNotExist, ImageStatus.objects.get, pk=status_3_pk)
+        self.assertRaises(Features.DoesNotExist, Features.objects.get, pk=features_1_pk)
+        Features.objects.get(pk=features_2_pk)
+        self.assertRaises(Features.DoesNotExist, Features.objects.get, pk=features_3_pk)    
+
 
     def test_do_not_delete_images_of_other_sources(self):
         """

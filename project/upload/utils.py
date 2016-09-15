@@ -7,7 +7,7 @@ from django.core.urlresolvers import reverse
 from accounts.utils import get_robot_user
 from annotations.models import Annotation
 from images.forms import MetadataForm
-from images.models import Metadata, ImageStatus, Image
+from images.models import Metadata, Image
 from images.utils import generate_points, aux_label_name_collisions, \
     metadata_field_names_to_labels
 from vision_backend.models import Features
@@ -392,9 +392,6 @@ def upload_image_process(imageFile, source, currentUser):
     )
     metadata_obj.save()
 
-    image_status = ImageStatus()
-    image_status.save()
-
     image_features = Features()
     image_features.save()
 
@@ -405,7 +402,6 @@ def upload_image_process(imageFile, source, currentUser):
         point_generation_method=source.default_point_generation_method,
         metadata=metadata_obj,
         source=source,
-        status=image_status,
         features=image_features
     )
     img.save()

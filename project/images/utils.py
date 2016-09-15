@@ -11,7 +11,7 @@ from annotations.model_utils import AnnotationAreaUtils
 from annotations.models import Annotation
 from vision_backend.models import Features
 from .model_utils import PointGen
-from .models import Source, Point, Image, Metadata, ImageStatus
+from .models import Source, Point, Image, Metadata
 
 
 
@@ -152,7 +152,6 @@ def delete_images(image_queryset):
     # can't trigger a cascade delete on these objects. So we have to get
     # these objects and delete them separately.
     metadata_queryset = Metadata.objects.filter(image__in=image_queryset)
-    status_queryset = ImageStatus.objects.filter(image__in=image_queryset)
     features_queryset = Features.objects.filter(image__in=image_queryset)
 
     # Since these querysets are obtained based on their related images,
@@ -161,10 +160,7 @@ def delete_images(image_queryset):
     # https://docs.djangoproject.com/en/dev/ref/models/querysets/#when-querysets-are-evaluated
     metadata_pks = list(metadata_queryset.values_list('pk', flat=True))
     metadata_queryset = Metadata.objects.filter(pk__in=metadata_pks)
-    
-    status_pks = list(status_queryset.values_list('pk', flat=True))
-    status_queryset = ImageStatus.objects.filter(pk__in=status_pks)
-    
+        
     features_pks = list(features_queryset.values_list('pk', flat=True))
     features_queryset = Features.objects.filter(pk__in=features_pks)
 
@@ -176,7 +172,6 @@ def delete_images(image_queryset):
     # We delete the related objects AFTER deleting the images to not trigger
     # PROTECT-related errors on those ForeignKeys.
     metadata_queryset.delete()
-    status_queryset.delete()
     features_queryset.delete()
 
     return delete_count
@@ -342,12 +337,6 @@ def generate_points(img, usesourcemethod=True):
               image=img,
         ).save()
 
-    # Update image status.
-    # Make sure the image goes through the feature-making step again.
-    status = img.status
-    status.hasRandomPoints = True
-    status.save()
-
 
 def source_robot_status(source_id):
     """
@@ -366,10 +355,10 @@ def source_robot_status(source_id):
     status['has_robot'] = source.get_latest_robot() is not None
     status['nbr_total_images'] = Image.objects.filter(source=source).count()
     status['nbr_images_needs_features'] = Image.objects.filter(source=source, features__extracted=False).count()
-    status['nbr_unclassified_images'] = Image.objects.filter(source=source, features__classified=False, status__annotatedByHuman=False).count()
+    status['nbr_unclassified_images'] = Image.objects.filter(source=source, features__classified=False, confirmed=False).count()
     
     
-    status['nbr_human_annotated_images'] = Image.objects.filter(source=source, status__annotatedByHuman = True).count()
+    status['nbr_human_annotated_images'] = Image.objects.filter(source=source, confirmed = True).count()
 
     status['nbr_in_current_model'] = source.get_latest_robot().nbr_train_images if status['has_robot'] else 0
     if source.has_robot():

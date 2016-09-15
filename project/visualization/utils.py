@@ -44,12 +44,12 @@ def image_search_kwargs_to_queryset(search_kwargs, source):
         # Don't filter
         pass
     elif annotation_status == 'confirmed':
-        queryset_kwargs['status__annotatedByHuman'] = True
+        queryset_kwargs['confirmed'] = True
     elif annotation_status == 'unconfirmed':
-        queryset_kwargs['status__annotatedByHuman'] = False
+        queryset_kwargs['confirmed'] = False
         queryset_kwargs['features__classified'] = True
     elif annotation_status == 'unclassified':
-        queryset_kwargs['status__annotatedByHuman'] = False
+        queryset_kwargs['confirmed'] = False
         queryset_kwargs['features__classified'] = False
 
     image_results = Image.objects.filter(source=source, **queryset_kwargs)

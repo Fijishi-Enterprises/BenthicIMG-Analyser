@@ -395,8 +395,8 @@ def upload_annotations_ajax(request, source_id):
         img.metadata.save()
 
         # Update relevant image status fields.
-        img.status.annotatedByHuman = (len(new_points) == len(new_annotations))
-        img.status.save()
+        img.confirmed = (len(new_points) == len(new_annotations))
+        img.save()
         img.after_annotation_area_change()
 
     return JsonResponse(dict(

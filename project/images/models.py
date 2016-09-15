@@ -318,7 +318,7 @@ class Source(models.Model):
         Needs to be settings.NEW_MODEL_THRESHOLD more than used in the previous model and > settings.MIN_NBR_ANNOTATED_IMAGES
         """
         
-        nbr_verified_images_with_features = Image.objects.filter(source=self, status__annotatedByHuman = True, features__extracted = True).count()
+        nbr_verified_images_with_features = Image.objects.filter(source=self, confirmed = True, features__extracted = True).count()
         return nbr_verified_images_with_features > settings.NEW_CLASSIFIER_TRAIN_TH * self.nbr_images_in_latest_robot() and nbr_verified_images_with_features >= settings.MIN_NBR_ANNOTATED_IMAGES and self.enable_robot_classifier
 
     def has_robot(self):
@@ -432,13 +432,6 @@ class Metadata(models.Model):
     def __unicode__(self):
         return "Metadata of " + self.name
 
-
-class ImageStatus(models.Model):
-    
-    # Image is 100% annotated by human
-    annotatedByHuman = models.BooleanField(default=False)
-    
-
 def get_original_image_upload_path(instance, filename):
     """
     Generate a destination path (on the server filesystem) for
@@ -471,10 +464,9 @@ class Image(models.Model):
     uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL,
         editable=False, null=True)
 
-    status = models.ForeignKey(ImageStatus, on_delete=models.PROTECT,
-        editable=False)
-
     features = models.ForeignKey('vision_backend.Features', on_delete = models.PROTECT, editable = False)
+
+    confirmed = models.BooleanField(default = False)
 
     POINT_GENERATION_CHOICES = (
         (PointGen.Types.SIMPLE, PointGen.Types.SIMPLE_VERBOSE),
@@ -518,14 +510,14 @@ class Image(models.Model):
         Returns a code for the annotation status of this image.
         """
         if self.source.enable_robot_classifier:
-            if self.status.annotatedByHuman:
+            if self.confirmed:
                 return "confirmed"
             elif self.features.classified:
                 return "unconfirmed"
             else:
                 return "needs_annotation"
         else:
-            if self.status.annotatedByHuman:
+            if self.confirmed:
                 return "annotated"
             else:
                 return "needs_annotation"
@@ -577,9 +569,9 @@ class Image(models.Model):
         return imheight
 
     def after_deleting_annotations(self):
-        status = self.status
-        status.annotatedByHuman = False
-        status.save()
+    
+        self.confirmed = False
+        self.save()
 
         features = self.features
         features.classified = False

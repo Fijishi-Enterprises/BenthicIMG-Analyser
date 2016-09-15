@@ -61,7 +61,7 @@ def classifier_submit(source_id):
         return
 
     # Create new classifier model
-    images = Image.objects.filter(source = source, status__annotatedByHuman = True, features__extracted = True)
+    images = Image.objects.filter(source = source, confirmed = True, features__extracted = True)
     train_images = [image for image in images if image.trainset]
     classifier = Classifier(source = source, nbr_train_images = len(images))
     classifier.save()
@@ -130,7 +130,7 @@ def _make_dataset(classifier, split):
     for training and evaluation of the robot classifier.
     """
 
-    images = Image.objects.filter(source = classifier.source, status__annotatedByHuman = True)
+    images = Image.objects.filter(source = classifier.source, confirmed = True)
     train_images = [image for image in images if getattr(image, split)]
 
     gtdict = {}

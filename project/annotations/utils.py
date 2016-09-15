@@ -11,7 +11,7 @@ def image_annotation_all_done(image):
     """
     Return True if all of the image's annotation points are human annotated.
     Return False otherwise.
-    Don't use the status field annotatedByHuman.  That field depends
+    Don't use image.confirmed.  That field depends
     on this function, not the other way around!
     """
     annotations = Annotation.objects.filter(image=image)
@@ -136,7 +136,7 @@ def apply_alleviate(image_id, label_probabilities):
         all_done = image_annotation_all_done(img)
         # Update image status, if needed
         if all_done:
-            img.status.annotatedByHuman = True
-            img.status.save()
+            img.confirmed = True
+            img.save()
 
 

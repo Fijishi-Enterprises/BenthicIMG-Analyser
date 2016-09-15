@@ -93,7 +93,7 @@ def index(request):
     # Gather some stats
     total_sources = Source.objects.all().count()
     total_images = Image.objects.all().count()
-    human_annotations = Point.objects.filter(image__status__annotatedByHuman=True).count()
+    human_annotations = Point.objects.filter(image__confirmed=True).count()
     robot_annotations = Point.objects.filter(image__features__classified=True).count()
     total_annotations = human_annotations + robot_annotations
 

@@ -1,131 +1,47 @@
-import posixpath
-from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
-from easy_thumbnails.fields import ThumbnailerImageField
-from lib.utils import rand_string
-
-def get_label_thumbnail_upload_path(instance, filename):
-    """
-    Generate a destination path (on the server filesystem) for
-    an upload of a label's representative thumbnail image.
-    """
-    return settings.LABEL_THUMBNAIL_FILE_PATTERN.format(
-        name=rand_string(10),
-        extension=posixpath.splitext(filename)[-1])
+from images.models import Image, Point, Source
+from labels.models import Label, LocalLabel
+from vision_backend.models import Classifier
 
 
-class LabelGroupManager(models.Manager):
-    def get_by_natural_key(self, code):
-        """
-        Allow fixtures to refer to Label Groups by short code instead of by id.
-        """
-        return self.get(code=code)
-
-class LabelGroup(models.Model):
-    objects = LabelGroupManager()
-
-    name = models.CharField(max_length=45, blank=True)
-    code = models.CharField(max_length=10, blank=True)
-
-    def __unicode__(self):
-        """
-        To-string method.
-        """
-        return self.name
-
-
-class LabelManager(models.Manager):
-    def get_by_natural_key(self, code):
-        """
-        Allow fixtures to refer to Labels by short code instead of by id.
-        """
-        return self.get(code=code)
-
-class Label(models.Model):
-    objects = LabelManager()
-
-    name = models.CharField(max_length=45)
-    code = models.CharField('Short Code', max_length=10)
-    group = models.ForeignKey(LabelGroup, on_delete=models.PROTECT,
-        verbose_name='Functional Group')
-    description = models.TextField(null=True)
-    
-    # easy_thumbnails reference:
-    # http://packages.python.org/easy-thumbnails/ref/processors.html
-    THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT = 150, 150
-    thumbnail = ThumbnailerImageField(
-        'Example image (thumbnail)',
-        upload_to=get_label_thumbnail_upload_path,
-        resize_source=dict(
-            size=(THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT), crop='smart'),
-        help_text="For best results, please use an image that's close to %d x %d pixels.\n" % (THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT) + \
-                  "Otherwise, we'll resize and crop your image to make sure it's that size.",
-        null=True,
-    )
-    
-    create_date = models.DateTimeField('Date created',
-        auto_now_add=True, editable=False, null=True)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL,
-        verbose_name='Created by', editable=False, null=True)
-    
-    def __unicode__(self):
-        """
-        To-string method.
-        """
-        return self.name
-
-class LabelSet(models.Model):
-    # description and location are obsolete if we're staying with a 1-to-1
-    # correspondence between labelsets and sources.
-    description = models.TextField(blank=True)
-    location = models.CharField(max_length=45, blank=True)
-    labels = models.ManyToManyField(Label)
-    edit_date = models.DateTimeField('Date edited', auto_now=True, editable=False)
-
-    def __unicode__(self):
-        try:
-            source = self.source_set.first()
-            #source = get_labelset_source(self.pk)
-            # Labelset of a source
-            return "%s labelset" % source
-        except Source.DoesNotExist:
-            # Labelset that's not in any source (either a really old
-            # labelset from early site development, or a labelset of a
-            # deleted source)
-            return "(Labelset not used in any source) " + self.description
-
-    
 class Annotation(models.Model):
     annotation_date = models.DateTimeField(
         blank=True, auto_now=True, editable=False)
-    point = models.ForeignKey('images.Point', on_delete=models.CASCADE,
+    point = models.ForeignKey(Point, on_delete=models.CASCADE,
         editable=False)
-    image = models.ForeignKey('images.Image', on_delete=models.CASCADE,
+    image = models.ForeignKey(Image, on_delete=models.CASCADE,
         editable=False)
 
     # The user who made this annotation
     user = models.ForeignKey(User, on_delete=models.SET_NULL,
         editable=False, null=True)
     # Only fill this in if the user is the robot user
-    robot_version = models.ForeignKey('vision_backend.Classifier', on_delete=models.SET_NULL,
+    robot_version = models.ForeignKey(Classifier, on_delete=models.SET_NULL,
         editable=False, null=True)
 
-    label = models.ForeignKey('annotations.Label', on_delete=models.PROTECT)
-    source = models.ForeignKey('images.Source', on_delete=models.CASCADE,
+    label = models.ForeignKey(Label, on_delete=models.PROTECT)
+    source = models.ForeignKey(Source, on_delete=models.CASCADE,
         editable=False)
 
+    @property
+    def label_code(self):
+        local_label = LocalLabel.objects.get(
+            global_label=self.label, labelset=self.source.labelset)
+        return local_label.code
+
     def __unicode__(self):
-        return "%s - %s - %s" % (self.image, self.point.point_number, self.label.code)
+        return "%s - %s - %s" % (
+            self.image, self.point.point_number, self.label_code)
 
 
 class AnnotationToolAccess(models.Model):
     access_date = models.DateTimeField(
         blank=True, auto_now=True, editable=False)
-    image = models.ForeignKey('images.Image', on_delete=models.CASCADE,
+    image = models.ForeignKey(Image, on_delete=models.CASCADE,
         editable=False)
-    source = models.ForeignKey('images.Source', on_delete=models.CASCADE,
+    source = models.ForeignKey(Source, on_delete=models.CASCADE,
         editable=False)
     user = models.ForeignKey(User, on_delete=models.SET_NULL,
         editable=False, null=True)
@@ -172,3 +88,10 @@ class AnnotationToolSettings(models.Model):
     selected_point_color = models.CharField(max_length=6, default='00FF00')
 
     show_machine_annotations = models.BooleanField(default=True)
+
+
+# TODO: Delete this function once migrations have been reset.
+# Until then, this function must be kept so that old migrations
+# don't trigger an error.
+def get_label_thumbnail_upload_path(instance, filename):
+    pass

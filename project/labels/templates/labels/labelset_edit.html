@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% load common_tags %}
+
+{% block title %}Edit labelset entries - {{ source.name }} - CoralNet{% endblock %}
+
+{% block js-includes %}
+  {% include "javascript-includes.html" %}
+{% endblock %}
+
+{% block page-specific-includes %}
+  {% include "static-local-include.html" with type="css" path="css/labels.css" %}
+{% endblock %}
+
+
+{% block content %}
+
+  <legend>Edit labelset entries</legend>
+
+  <form id="labelset-form" action="" method="post">
+    {% csrf_token %}
+    {{ formset.management_form }}
+
+    <table class="detail_table">
+      <tr>
+        <th>Name</th>
+        <th>Functional Group</th>
+        {# Use an arbitrary form to get the field labels of editable fields #}
+        {% for field in formset.forms.0 %}
+          {% if field.name != 'id' %}
+            <th>{{ field.label }}</th>
+          {% endif %}
+        {% endfor %}
+      </tr>
+
+      {% for form in formset.forms %}
+        {% with form.instance as label %}
+          <tr>
+            {# Label name AND hidden id field of the form instance. #}
+            {# This id has to go somewhere, and it's not a tr or td element #}
+            {# so it shouldn't be an immediate child of table or tr. #}
+            <td>{{ label.name }}{{ form.id }}</td>
+
+            {# Functional group #}
+            <td>{{ label.group.name }}</td>
+
+            {# Editable fields #}
+            {% for field in form %}
+              {% if field.name != 'id' %}
+                <td>{{ field }}</td>
+              {% endif %}
+            {% endfor %}
+          </tr>
+        {% endwith %}
+      {% endfor %}
+    </table>
+
+    <div class="line">
+      <input type="submit" value="Save Labelset" />
+    </div>
+  </form>
+
+{% endblock %}

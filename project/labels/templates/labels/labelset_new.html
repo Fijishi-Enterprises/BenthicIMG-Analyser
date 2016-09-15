@@ -25,13 +25,13 @@
 
         <hr />
           
-        {% include "annotations/form_new_label.html" with labelForm=labelForm %}
+        {% include "labels/form_new_label.html" with labelForm=labelForm %}
           
         <hr />
 
       </div>
 
-      {% include "annotations/form_new_labelset.html" with form=labelSetForm isEditLabelsetForm=isEditLabelsetForm %}
+      {% include "labels/form_new_labelset.html" with form=labelSetForm isEditLabelsetForm=isEditLabelsetForm %}
 
       <br />
       <input type="submit" name="create_labelset" value="Create LabelSet" />

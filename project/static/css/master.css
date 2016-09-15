@@ -248,6 +248,13 @@ p{
     text-shadow: #ffffff 1px 1px 0;
 }
 
+/* This is kind of like <p> in that it stylistically functions to add
+  some top/bottom margins. But it's more semantically flexible; div is
+  generic, while not everything is a paragraph. */
+div.line {
+    margin: 0.5em 0;  /* top/bottom left/right */
+}
+
 .white-box p{
     margin: 0 12px 5px;
     color: #000;

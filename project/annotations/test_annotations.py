@@ -1,9 +1,6 @@
-import json
-import random
 from django.conf import settings
 from django.core.urlresolvers import reverse
 from annotations.model_utils import AnnotationAreaUtils
-from annotations.models import Label
 from images.model_utils import PointGen
 from images.models import Source, Image, Point
 from lib.test_utils import ClientTest
@@ -13,28 +10,34 @@ class AnnotationAreaEditTest(ClientTest):
     """
     Test the annotation area edit page.
     """
-    fixtures = ['test_users.yaml', 'test_labels.yaml',
-                'test_labelsets.yaml', 'test_sources_with_labelsets.yaml']
-    source_member_roles = [
-        ('Labelset 1key', 'user2', Source.PermTypes.EDIT.code),
-    ]
+    @classmethod
+    def setUpTestData(cls):
+        super(AnnotationAreaEditTest, cls).setUpTestData()
 
-    def setUp(self):
-        super(AnnotationAreaEditTest, self).setUp()
-        self.source_id = Source.objects.get(name='Labelset 1key').pk
+        cls.user = cls.create_user()
+
+        cls.source = cls.create_source(
+            cls.user, visibility=Source.VisibilityTypes.PRIVATE)
+        labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
+        cls.create_labelset(cls.user, cls.source, labels)
+
+        cls.user_outsider = cls.create_user()
+        cls.user_viewer = cls.create_user()
+        cls.add_source_member(
+            cls.user, cls.source, cls.user_viewer, Source.PermTypes.VIEW.code)
+        cls.user_editor = cls.create_user()
+        cls.add_source_member(
+            cls.user, cls.source, cls.user_editor, Source.PermTypes.EDIT.code)
+
+        cls.img = cls.upload_image_new(cls.user, cls.source)
+        cls.url = reverse('annotation_area_edit', args=[cls.img.pk])
 
     def test_load_page_anonymous(self):
         """
         Load the page while logged out ->
         sorry, don't have permission.
         """
-        self.client.login(username='user2', password='secret')
-        image_id = self.upload_image('001_2012-05-01_color-grid-001.png')[0]
-        self.client.logout()
-
-        url = reverse('annotation_area_edit', kwargs=dict(image_id=image_id))
-
-        response = self.client.get(url)
+        response = self.client.get(self.url)
         self.assertStatusOK(response)
         self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
 
@@ -43,25 +46,27 @@ class AnnotationAreaEditTest(ClientTest):
         Load the page as a user outside the source ->
         sorry, don't have permission.
         """
-        self.client.login(username='user2', password='secret')
-        image_id = self.upload_image('001_2012-05-01_color-grid-001.png')[0]
-        self.client.logout()
+        self.client.force_login(self.user_outsider)
+        response = self.client.get(self.url)
+        self.assertStatusOK(response)
+        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
 
-        self.client.login(username='user3', password='secret')
-        url = reverse('annotation_area_edit', kwargs=dict(image_id=image_id))
-
-        response = self.client.get(url)
+    def test_load_page_as_source_viewer(self):
+        """
+        Load the page as a source viewer ->
+        sorry, don't have permission.
+        """
+        self.client.force_login(self.user_viewer)
+        response = self.client.get(self.url)
         self.assertStatusOK(response)
         self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
 
     def test_load_page(self):
-        self.client.login(username='user2', password='secret')
-        image_id = self.upload_image('001_2012-05-01_color-grid-001.png')[0]
-        url = reverse('annotation_area_edit', kwargs=dict(image_id=image_id))
-
-        response = self.client.get(url)
+        self.client.force_login(self.user_editor)
+        response = self.client.get(self.url)
         self.assertStatusOK(response)
-        self.assertTemplateUsed(response, 'annotations/annotation_area_edit.html')
+        self.assertTemplateUsed(
+            response, 'annotations/annotation_area_edit.html')
 
     # TODO: Test submitting a new annotation area
 
@@ -70,30 +75,40 @@ class AnnotationHistoryTest(ClientTest):
     """
     Test the annotation history page.
     """
-    fixtures = ['test_users.yaml', 'test_labels.yaml',
-                'test_labelsets.yaml', 'test_sources_with_labelsets.yaml']
-    source_member_roles = [
-        ('Labelset 1key', 'user2', Source.PermTypes.EDIT.code),
-        ]
+    @classmethod
+    def setUpTestData(cls):
+        super(AnnotationHistoryTest, cls).setUpTestData()
 
-    def setUp(self):
-        super(AnnotationHistoryTest, self).setUp()
-        self.source_id = Source.objects.get(name='Labelset 1key').pk
+        cls.user = cls.create_user()
 
-        # Upload an image
-        self.client.login(username='user2', password='secret')
-        self.image_id = self.upload_image('001_2012-05-01_color-grid-001.png')[0]
-        self.client.logout()
+        cls.source = cls.create_source(
+            cls.user, visibility=Source.VisibilityTypes.PRIVATE,
+            point_generation_type=PointGen.Types.SIMPLE,
+            simple_number_of_points=3,
+        )
+        labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
+        cls.create_labelset(cls.user, cls.source, labels)
+
+        cls.user_outsider = cls.create_user()
+        cls.user_viewer = cls.create_user()
+        cls.add_source_member(
+            cls.user, cls.source, cls.user_viewer, Source.PermTypes.VIEW.code)
+        cls.user_editor = cls.create_user()
+        cls.add_source_member(
+            cls.user, cls.source, cls.user_editor, Source.PermTypes.EDIT.code)
+        cls.user_editor2 = cls.create_user()
+        cls.add_source_member(
+            cls.user, cls.source, cls.user_editor2, Source.PermTypes.EDIT.code)
+
+        cls.img = cls.upload_image_new(cls.user, cls.source)
+        cls.url = reverse('annotation_history', args=[cls.img.pk])
 
     def test_load_page_anonymous(self):
         """
         Load the page while logged out ->
         sorry, don't have permission.
         """
-
-        url = reverse('annotation_history', kwargs=dict(image_id=self.image_id))
-
-        response = self.client.get(url)
+        response = self.client.get(self.url)
         self.assertStatusOK(response)
         self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
 
@@ -102,126 +117,110 @@ class AnnotationHistoryTest(ClientTest):
         Load the page as a user outside the source ->
         sorry, don't have permission.
         """
-        self.client.login(username='user3', password='secret')
-        url = reverse('annotation_history', kwargs=dict(image_id=self.image_id))
+        self.client.force_login(self.user_outsider)
+        response = self.client.get(self.url)
+        self.assertStatusOK(response)
+        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
 
-        response = self.client.get(url)
+    def test_load_page_as_source_viewer(self):
+        """
+        Load the page as a source viewer ->
+        sorry, don't have permission.
+        """
+        self.client.force_login(self.user_viewer)
+        response = self.client.get(self.url)
         self.assertStatusOK(response)
         self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
 
     def test_load_page(self):
-        self.client.login(username='user2', password='secret')
-        url = reverse('annotation_history', kwargs=dict(image_id=self.image_id))
-
-        response = self.client.get(url)
+        self.client.force_login(self.user_editor)
+        response = self.client.get(self.url)
         self.assertStatusOK(response)
-        self.assertTemplateUsed(response, 'annotations/annotation_history.html')
+        self.assertTemplateUsed(
+            response, 'annotations/annotation_history.html')
 
     def test_access_event(self):
-        self.client.login(username='user2', password='secret')
-
         # Access the annotation tool
-        url = reverse('annotation_tool', kwargs=dict(image_id=self.image_id))
-        self.client.get(url)
+        self.client.force_login(self.user)
+        self.client.get(reverse('annotation_tool', args=[self.img.pk]))
 
-        # Check the history - as another user, so we can count the instances
-        # of the annotating user
+        # Check the history - as another user, so that other page elements
+        # (such as the user profile link) don't throw off our count
+        # of the annotator's username
         self.client.logout()
-        self.client.login(username='superuser_user', password='secret')
-        url = reverse('annotation_history', kwargs=dict(image_id=self.image_id))
-        response = self.client.get(url)
-        # Should have 1 table entry saying user2 accessed.
+        self.client.force_login(self.user_editor)
+        response = self.client.get(self.url)
+        # Should have 1 table entry saying user_editor accessed.
         self.assertContains(response, "Accessed annotation tool", count=1)
-        self.assertContains(response, "user2", count=1)
+        self.assertContains(response, self.user.username, count=1)
 
     def test_annotation_event(self):
-        self.client.login(username='user2', password='secret')
+        data = dict(
+            label_1='A', label_2='', label_3='B',
+            robot_1='false', robot_2='false', robot_3='false',
+        )
+        self.client.force_login(self.user)
+        self.client.post(
+            reverse('save_annotations_ajax', args=[self.img.pk]), data)
 
-        # Save annotations
-        url = reverse(
-            'save_annotations_ajax', kwargs=dict(image_id=self.image_id))
-
-        data = dict()
-        image = Image.objects.get(pk=self.image_id)
-        labels = Label.objects.filter(labelset=image.source.labelset)
-        label_codes = labels.values_list('code', flat=True)
-        num_points = Point.objects.filter(image=image).count()
-
-        for point_num in range(1, num_points+1):
-            # Assign a random label
-            data['label_'+str(point_num)] = random.choice(label_codes)
-            data['robot_'+str(point_num)] = json.dumps(False)
-        self.client.post(url, data)
-
-        # Check the history - as another user, so we can count the instances
-        # of the annotating user
+        # Check the history - as another user, so that other page elements
+        # (such as the user profile link) don't throw off our count
+        # of the annotator's username
         self.client.logout()
-        self.client.login(username='superuser_user', password='secret')
-        url = reverse('annotation_history', kwargs=dict(image_id=self.image_id))
-        response = self.client.get(url)
+        self.client.force_login(self.user_editor)
+        response = self.client.get(self.url)
         # Should have 1 table entry showing all the points that were changed.
-        self.assertContains(response, "Point", count=num_points)
-        self.assertContains(response, "user2", count=1)
+        self.assertContains(response, "Point", count=2)
+        self.assertContains(response, self.user.username, count=1)
 
     def test_annotation_overwrite(self):
-        self.client.login(username='user2', password='secret')
+        # Annotate as user: 2 new (2 history points)
+        data = dict(
+            label_1='A', label_2='', label_3='B',
+            robot_1='false', robot_2='false', robot_3='false',
+        )
+        self.client.force_login(self.user)
+        self.client.post(
+            reverse('save_annotations_ajax', args=[self.img.pk]), data)
 
-        # Save annotations as user2
-        url = reverse(
-            'save_annotations_ajax', kwargs=dict(image_id=self.image_id))
-
-        data = dict()
-        image = Image.objects.get(pk=self.image_id)
-        labels = Label.objects.filter(labelset=image.source.labelset)
-        label_codes = labels.values_list('code', flat=True)
-        num_points = Point.objects.filter(image=image).count()
-
-        for point_num in range(1, num_points+1):
-            if 1 <= point_num and point_num <= 2:
-                # Assign a fixed label for points 1 and 2
-                data['label_'+str(point_num)] = label_codes[1]
-            else:
-                # Assign a random label
-                data['label_'+str(point_num)] = random.choice(label_codes)
-            data['robot_'+str(point_num)] = json.dumps(False)
-        self.client.post(url, data)
-
-        # Save annotations as superuser_user, changing just 2 labels
+        # Annotate as user_editor: 1 replaced, 1 new, 1 same (2 history points)
+        data = dict(
+            label_1='B', label_2='A', label_3='B',
+            robot_1='false', robot_2='false', robot_3='false',
+        )
         self.client.logout()
-        self.client.login(username='superuser_user', password='secret')
-        data['label_1'] = label_codes[0]
-        data['label_2'] = label_codes[0]
-        self.client.post(url, data)
+        self.client.force_login(self.user_editor)
+        self.client.post(
+            reverse('save_annotations_ajax', args=[self.img.pk]), data)
 
-        # Check the history - as user2, so we can count the instances
-        # of superuser_user
+        # Check the history - as another user, so that other page elements
+        # (such as the user profile link) don't throw off our count
+        # of the annotator's username
         self.client.logout()
-        self.client.login(username='user2', password='secret')
-        url = reverse('annotation_history', kwargs=dict(image_id=self.image_id))
-        response = self.client.get(url)
-        # superuser_user should be on the second history entry.
-        # The two history entries should have num_points+2 instances of "Point"
-        # combined: num_points in user2's entry, 2 in superuser_user's entry.
-        self.assertContains(response, "Point", count=num_points+2)
-        self.assertContains(response, "superuser_user", count=1)
+        self.client.force_login(self.user_editor2)
+        response = self.client.get(self.url)
+        # The two history entries should have 4 instances of "Point"
+        # combined: 2 in user's entry, 2 in user_editor's entry.
+        self.assertContains(response, "Point", count=4)
+        self.assertContains(response, self.user.username, count=1)
+        self.assertContains(response, self.user_editor.username, count=1)
 
 
 class PointGenTest(ClientTest):
     """
     Test generation of annotation points.
     """
-    fixtures = [
-        'test_users.yaml',
-        'test_sources_with_different_pointgen_params.yaml'
-    ]
-    source_member_roles = [
-        ('Pointgen simple 1', 'user2', Source.PermTypes.ADMIN.code),
-        ('Pointgen simple 2', 'user2', Source.PermTypes.ADMIN.code),
-    ]
+    @classmethod
+    def setUpTestData(cls):
+        super(PointGenTest, cls).setUpTestData()
 
-    def setUp(self):
-        super(PointGenTest, self).setUp()
-        self.client.login(username='user2', password='secret')
+        cls.user = cls.create_user()
+
+        cls.source = cls.create_source(
+            cls.user, visibility=Source.VisibilityTypes.PRIVATE,
+            point_generation_type=PointGen.Types.SIMPLE,
+            simple_number_of_points=20,
+        )
 
     def pointgen_check(self, image_id):
         """
@@ -236,13 +235,16 @@ class PointGenTest(ClientTest):
         pointgen_args = PointGen.db_to_args_format(img.point_generation_method)
 
         points = Point.objects.filter(image=img)
-        self.assertEqual(points.count(), pointgen_args['simple_number_of_points'])
+        self.assertEqual(
+            points.count(), pointgen_args['simple_number_of_points'])
 
         # Find the expected annotation area, expressed in pixels.
-        d = AnnotationAreaUtils.db_format_to_numbers(img.metadata.annotation_area)
+        d = AnnotationAreaUtils.db_format_to_numbers(
+            img.metadata.annotation_area)
         annoarea_type = d.pop('type')
         if annoarea_type == AnnotationAreaUtils.TYPE_PERCENTAGES:
-            area = AnnotationAreaUtils.percentages_to_pixels(width=img_width, height=img_height, **d)
+            area = AnnotationAreaUtils.percentages_to_pixels(
+                width=img_width, height=img_height, **d)
         elif annoarea_type == AnnotationAreaUtils.TYPE_PIXELS:
             area = d
         elif annoarea_type == AnnotationAreaUtils.TYPE_IMPORTED:
@@ -260,9 +262,11 @@ class PointGenTest(ClientTest):
             print "Image dimensions: {width} x {height} pixels".format(
                 width=img_width, height=img_height,
             )
-            print "X bounds: ({min_x}, {max_x}) Y bounds: ({min_y}, {max_y})".format(
-                **area
-            )
+            print (
+                "X bounds: ({min_x}, {max_x})"
+                " Y bounds: ({min_y}, {max_y})").format(
+                    **area
+                )
 
         for pt in points:
             self.assertTrue(area['min_x'] <= pt.column)
@@ -277,24 +281,12 @@ class PointGenTest(ClientTest):
         """
         Test that annotation points are generated correctly upon an
         image upload.
-
-        Test two different sources (with different pointgen parameters) and
-        two different images (of different width/height) for each source.
         """
-        image_ids = []
+        img = self.upload_image_new(
+            self.user, self.source, dict(width=10, height=20))
+        self.pointgen_check(img.pk)
 
-        self.source_id = Source.objects.get(name='Pointgen simple 1').id
-
-        image_ids.append(self.upload_image('001_2012-10-14_small-rect.png')[0])
-        image_ids.append(self.upload_image('002_2012-10-14_tiny-rect.png')[0])
-
-        self.source_id = Source.objects.get(name='Pointgen simple 2').id
-
-        image_ids.append(self.upload_image('001_2012-10-14_small-rect.png')[0])
-        image_ids.append(self.upload_image('002_2012-10-14_tiny-rect.png')[0])
-
-        for image_id in image_ids:
-            self.pointgen_check(image_id)
-
-    # TODO: Test stratified random and uniform grid as well, not just simple random.
-    # TODO: Test unusual annotation areas: min and max very close or the same, and decimal percentages.
+    # TODO: Test stratified random and uniform grid as well,
+    # not just simple random.
+    # TODO: Test unusual annotation areas: min and max very close or the same,
+    # and decimal percentages.

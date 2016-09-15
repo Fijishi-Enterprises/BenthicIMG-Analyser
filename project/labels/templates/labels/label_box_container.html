@@ -1,0 +1,15 @@
+{% for label in labels %}
+  <div>
+    <div class="label-add-box" data-label-id="{{ label.pk }}">
+      {% include 'labels/label_box.html' with label=label type='add' %}
+    </div>
+
+    <div class="label-remove-box" data-label-id="{{ label.pk }}">
+      {% include 'labels/label_box.html' with label=label type='remove' %}
+    </div>
+
+    <div class="label-detail-box" data-label-id="{{ label.pk }}">
+      {% include 'labels/label_detail_box.html' with label=label %}
+    </div>
+  </div>
+{% endfor %}

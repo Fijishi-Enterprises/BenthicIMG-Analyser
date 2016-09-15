@@ -16,7 +16,7 @@ class PermissionTest(ClientTest):
         cls.user = cls.create_user()
 
         cls.source = cls.create_source(cls.user)
-        labels = cls.create_labels(cls.user, cls.source, ['A', 'B'], 'GroupA')
+        labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
         cls.create_labelset(cls.user, cls.source, labels)
 
         cls.user_viewer = cls.create_user()
@@ -130,7 +130,7 @@ class LoadImageTest(ClientTest):
         cls.user = cls.create_user()
 
         cls.source = cls.create_source(cls.user)
-        labels = cls.create_labels(cls.user, cls.source, ['A', 'B'], 'GroupA')
+        labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
         cls.create_labelset(cls.user, cls.source, labels)
 
     def test_small_image(self):
@@ -175,7 +175,7 @@ class NavigationTest(ClientTest):
         cls.user = cls.create_user()
 
         cls.source = cls.create_source(cls.user)
-        labels = cls.create_labels(cls.user, cls.source, ['A', 'B'], 'GroupA')
+        labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
         cls.create_labelset(cls.user, cls.source, labels)
 
         cls.img1 = cls.upload_image_new(
@@ -260,7 +260,7 @@ class SaveAnnotationsTest(ClientTest):
             point_generation_type=PointGen.Types.SIMPLE,
             simple_number_of_points=3,
         )
-        labels = cls.create_labels(cls.user, cls.source, ['A', 'B'], 'GroupA')
+        labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
         cls.create_labelset(cls.user, cls.source, labels)
 
         cls.user_editor = cls.create_user()
@@ -296,7 +296,7 @@ class SaveAnnotationsTest(ClientTest):
         # Check that point 3's annotation is what we expect
         annotation_3 = Annotation.objects.get(
             image__pk=self.img.pk, point__point_number=3)
-        self.assertEqual(annotation_3.label.code, 'B')
+        self.assertEqual(annotation_3.label_code, 'B')
 
     def test_save_annotations_all_points(self):
         """
@@ -316,11 +316,11 @@ class SaveAnnotationsTest(ClientTest):
         # Check that point 2's annotation is what we expect
         annotation_2 = Annotation.objects.get(
             image__pk=self.img.pk, point__point_number=2)
-        self.assertEqual(annotation_2.label.code, 'A')
+        self.assertEqual(annotation_2.label_code, 'A')
         # Check that point 3's annotation is what we expect
         annotation_3 = Annotation.objects.get(
             image__pk=self.img.pk, point__point_number=3)
-        self.assertEqual(annotation_3.label.code, 'B')
+        self.assertEqual(annotation_3.label_code, 'B')
 
     def test_save_annotations_overwrite(self):
         """
@@ -343,12 +343,12 @@ class SaveAnnotationsTest(ClientTest):
         # Point 2's annotation: changed by the second user
         annotation_2 = Annotation.objects.get(
             image__pk=self.img.pk, point__point_number=2)
-        self.assertEqual(annotation_2.label.code, 'B')
+        self.assertEqual(annotation_2.label_code, 'B')
         self.assertEqual(annotation_2.user.username, self.user_editor.username)
         # Point 3's annotation: not changed by the second user
         annotation_3 = Annotation.objects.get(
             image__pk=self.img.pk, point__point_number=3)
-        self.assertEqual(annotation_3.label.code, 'B')
+        self.assertEqual(annotation_3.label_code, 'B')
         self.assertEqual(annotation_3.user.username, self.user.username)
 
     # TODO: Test loading the annotation form on the annotation tool page,
@@ -367,7 +367,7 @@ class IsAnnotationAllDoneTest(ClientTest):
             point_generation_type=PointGen.Types.SIMPLE,
             simple_number_of_points=3,
         )
-        labels = cls.create_labels(cls.user, cls.source, ['A', 'B'], 'GroupA')
+        labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
         cls.create_labelset(cls.user, cls.source, labels)
 
         cls.img = cls.upload_image_new(cls.user, cls.source)
@@ -416,7 +416,7 @@ class SettingsTest(ClientTest):
         cls.user = cls.create_user()
 
         cls.source = cls.create_source(cls.user)
-        labels = cls.create_labels(cls.user, cls.source, ['A', 'B'], 'GroupA')
+        labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
         cls.create_labelset(cls.user, cls.source, labels)
 
         cls.img = cls.upload_image_new(cls.user, cls.source)

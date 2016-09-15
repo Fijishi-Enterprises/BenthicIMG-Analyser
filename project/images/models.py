@@ -10,8 +10,9 @@ from django.db import models
 from easy_thumbnails.fields import ThumbnailerImageField
 from guardian.shortcuts import get_objects_for_user, get_users_with_perms, get_perms, assign, remove_perm
 
-from annotations.model_utils import AnnotationAreaUtils
 from .model_utils import PointGen
+from annotations.model_utils import AnnotationAreaUtils
+from labels.models import LabelSet
 from lib.utils import rand_string
 
 #Unfortunate import b/c risk of circular reference, but wasn't sure how to get rid of it.
@@ -63,7 +64,7 @@ class Source(models.Model):
     affiliation = models.CharField(max_length=200)
 
     labelset = models.ForeignKey(
-        'annotations.LabelSet', on_delete=models.PROTECT,
+        LabelSet, on_delete=models.PROTECT,
         null=True)
     
     # Names for auxiliary metadata fields.

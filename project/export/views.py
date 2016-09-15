@@ -106,11 +106,11 @@ def export_image_covers(request, source_id):
     response = create_csv_stream_response('annotations_full.csv')
     writer = csv.writer(response)
 
-    labels = source.labelset.labels.all().order_by('group', 'code')
+    local_labels = source.labelset.get_locals_ordered_by_group_and_code()
 
     # Header row
     row = ["Name", "Annotation status", "Annotation area"]
-    row.extend(labels.values_list('code', flat=True))
+    row.extend(local_labels.values_list('code', flat=True))
     writer.writerow(row)
 
     # One row per image
@@ -123,12 +123,13 @@ def export_image_covers(request, source_id):
 
         image_annotations = Annotation.objects.filter(image=image)
         image_annotation_count = image_annotations.count()
-        for label in labels:
+        for local_label in local_labels:
             if image_annotation_count == 0:
                 coverage_fraction = 0
             else:
+                global_label = local_label.global_label
                 coverage_fraction = (
-                    image_annotations.filter(label=label).count()
+                    image_annotations.filter(label=global_label).count()
                     / float(image_annotation_count)
                 )
             coverage_percent_str = format(coverage_fraction * 100.0, '.1f')

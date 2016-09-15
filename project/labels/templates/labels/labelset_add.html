@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% load common_tags %}
+
+{% block title %}Add or remove labelset entries - {{ source.name }} - CoralNet{% endblock %}
+
+{% block js-includes %}
+  {% include "javascript-includes.html" with jquery_ui="yes" %}
+{% endblock %}
+
+{% block page-specific-includes %}
+  {% include "static-local-include.html" with type="js" path="js/LabelsetAdd.js" %}
+  {% include "static-local-include.html" with type="js" path="js/LabelNew.js" %}
+
+  {% include "static-local-include.html" with type="css" path="css/labels.css" %}
+{% endblock %}
+
+
+{% block content %}
+
+  <legend>
+    {% if source.labelset %}
+      Add or remove labelset entries
+    {% else %}
+      Create labelset
+    {% endif %}
+  </legend>
+
+  <form id="label-search-form" action="{% url 'label_search_ajax' %}"
+    method="post">
+    {% csrf_token %}
+
+    <label for="label-search-field">Search labels by name: </label>
+    <input type="text" id="label-search-field" name="search" />
+    <input type="submit" value="Search" />
+  </form>
+
+  <div id="label-search-status" class="line"></div>
+  <div id="label-search-result-container">
+  </div>
+  <div style="clear: both;"></div>
+
+  <button id="new-label-form-show-button">Create a new label</button>
+
+  <hr/>
+
+  <div class="line">
+    <span id="selected-label-count">0</span> selected labels:
+  </div>
+
+  <div id="selected-label-container">
+  </div>
+  <div style="clear: both;"></div>
+
+  <form id="labelset-form" action="" method="post">
+    {% csrf_token %}
+
+    {{ labelset_form.label_ids }}
+
+    <div class="line">
+      {% if source.labelset %}
+        <input type="submit" value="Save Labelset" />
+      {% else %}
+        <input type="submit" value="Create Labelset" />
+      {% endif %}
+    </div>
+  </form>
+
+
+  {# Hidden elements - may be moved/copied for display upon certain events #}
+  <div style="display: none;">
+
+    <div id="initial-label-container">
+      {% if source.labelset %}
+        {% include 'labels/label_box_container.html' with labels=source.labelset.get_globals %}
+      {% endif %}
+    </div>
+
+    <div id="unused-label-elements-container">
+    </div>
+
+    <div id="new-label-form-popup">
+      {% include 'labels/label_new.html' with form=new_label_form %}
+    </div>
+
+  </div>
+
+
+  {# Script in the body will run on page load. #}
+  <script type="text/javascript">
+    LabelsetAdd.init({
+      'labelIdsInAnnotations': {{ label_ids_in_annotations|jsonify }}
+    });
+    LabelNew.init({
+      'afterLabelCreated': LabelsetAdd.afterLabelCreated
+    });
+  </script>
+
+{% endblock %}

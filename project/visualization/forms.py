@@ -8,9 +8,10 @@ from django.forms.fields import ChoiceField, BooleanField, DateField, \
 from django.forms.widgets import HiddenInput, MultiWidget
 
 from accounts.utils import get_robot_user
-from annotations.models import LabelGroup, Label, Annotation
+from annotations.models import Annotation
 from images.models import Source, Metadata, Image, Point
 from images.utils import get_aux_metadata_form_choices, get_num_aux_fields, get_aux_label, get_aux_field_name
+from labels.models import LabelGroup, Label
 from visualization.utils import image_search_kwargs_to_queryset
 
 
@@ -275,7 +276,7 @@ class PatchSearchOptionsForm(forms.Form):
         if source.labelset is None:
             label_choices = Label.objects.none()
         else:
-            label_choices = source.labelset.labels.all().order_by('name')
+            label_choices = source.labelset.get_globals().order_by('name')
         self.fields['label'] = forms.ModelChoiceField(
             queryset=label_choices,
             required=False,
@@ -472,7 +473,7 @@ class StatisticsSearchForm(forms.Form):
         if source.labelset is None:
             labels = []
         else:
-            labels = source.labelset.labels.all().order_by('group__id', 'name')
+            labels = source.labelset.get_globals().order_by('group__id', 'name')
         groups = LabelGroup.objects.all().distinct()
 
         # Get the location keys
@@ -497,7 +498,6 @@ class StatisticsSearchForm(forms.Form):
             [(group.id, group.name) for group in groups]
         
         # Custom widget for label selection
-        #self.fields['labels'].widget = CustomCheckboxSelectMultiple(choices=self.fields['labels'].choices)
         self.fields['labels']= forms.MultipleChoiceField(widget=forms.CheckboxSelectMultiple,
                                                          choices=label_choices, required=False)
 

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <h2>All Labels</h2>
+
+  <table class="detail_table">
+    <tr>
+      <th>Name</th>
+      <th>Functional Group</th>
+      <th>Default Short Code</th>
+    </tr>
+    {% for label in labels %}
+      <tr>
+        <td><a href="{% url 'label_main' label.id %}">{{ label.name }}</a></td>
+        <td>{{ label.group }}</td>
+        <td>{{ label.default_code }}</td>
+      </tr>
+    {% endfor %}
+  </table>
+{% endblock %}

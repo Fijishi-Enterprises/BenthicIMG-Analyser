@@ -1,4 +1,4 @@
-- model: annotations.labelset
+- model: labels.labelset
   pk: 1
   fields:
     description: A small labelset.

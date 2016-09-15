@@ -20,12 +20,13 @@ from django.test.client import Client
 from django.utils import timezone
 
 from accounts.utils import get_robot_user
-from annotations.models import LabelGroup, Label, Annotation
+from annotations.models import Annotation
 from images.model_utils import PointGen
 from images.models import Source, Point, Image
-from vision_backend.models import Classifier as Robot
+from labels.models import LabelGroup, Label
 from lib.exceptions import TestfileDirectoryError
 from lib.utils import is_django_str
+from vision_backend.models import Classifier as Robot
 
 
 # Settings to override in all of our unit tests.
@@ -448,12 +449,10 @@ class ClientTest(BaseTest):
         cls.client.logout()
 
     @classmethod
-    def create_labels(cls, user, source, label_names, group_name):
+    def create_labels(cls, user, label_names, group_name):
         """
         Create labels.
         :param user: User who is creating these labels.
-        :param source: Source whose labelset page to use
-            while creating these labels.
         :param label_names: Names for the new labels.
         :param group_name: Name for the label group to put the labels in;
             this label group is assumed to not exist yet.
@@ -462,30 +461,20 @@ class ClientTest(BaseTest):
         group = LabelGroup(name=group_name, code=group_name[:10])
         group.save()
 
-        # TODO: Use auto-generated simple images rather than relying on
-        # a sample uploadables folder.
-        filepath = os.path.join(settings.SAMPLE_UPLOADABLES_ROOT,
-            'data', '001_2012-05-01_color-grid-001.png')
         cls.client.force_login(user)
         for name in label_names:
-            # Re-opening the file for every label may seem wasteful,
-            # but the upload process seems to close the file, so it's
-            # necessary.
-            with open(filepath, 'rb') as thumbnail:
-                cls.client.post(
-                    reverse('labelset_new', kwargs=dict(source_id=source.id)),
-                    dict(
-                        # create_label triggers the new-label form.
-                        # The key just needs to be there in the POST;
-                        # the value doesn't matter.
-                        create_label='.',
-                        name=name,
-                        code=name[:10],
-                        group=group.id,
-                        description="Description",
-                        thumbnail=thumbnail,
-                    )
+            cls.client.post(
+                reverse('label_new_ajax'),
+                dict(
+                    name=name,
+                    default_code=name[:10],
+                    group=group.id,
+                    description="Description",
+                    # A new filename will be generated, and the uploaded
+                    # filename will be discarded, so it doesn't matter.
+                    thumbnail=sample_image_as_file('_.png'),
                 )
+            )
         cls.client.logout()
 
         return Label.objects.filter(name__in=label_names)
@@ -493,7 +482,7 @@ class ClientTest(BaseTest):
     @classmethod
     def create_labelset(cls, user, source, labels):
         """
-        Create a labelset.
+        Create a labelset (or redefine entries in an existing one).
         :param user: User to create the labelset as.
         :param source: The source which this labelset will belong to
         :param labels: The labels this labelset will have, as a queryset
@@ -501,14 +490,10 @@ class ClientTest(BaseTest):
         """
         cls.client.force_login(user)
         cls.client.post(
-            reverse('labelset_new', kwargs=dict(source_id=source.id)),
+            reverse('labelset_add', kwargs=dict(source_id=source.id)),
             dict(
-                # create_labelset indicates that the new-labelset form should
-                # be used, not the new-label form which is also on the page.
-                # The key just needs to be there in the POST;
-                # the value doesn't matter.
-                create_labelset='.',
-                labels=labels.values_list('pk', flat=True),
+                label_ids=','.join(
+                    str(pk) for pk in labels.values_list('pk', flat=True)),
             ),
         )
         cls.client.logout()
@@ -524,7 +509,6 @@ class ClientTest(BaseTest):
         :param source: Source to upload to.
         :param image_options: Dict of options for the image file.
             Accepted keys: filetype, and whatever create_sample_image() takes.
-        :param options: Other params to POST into the image upload form.
         :return: The new image.
         """
         cls.image_count += 1
@@ -620,7 +604,7 @@ class ClientTest(BaseTest):
                 image=image,
                 source=image.source,
                 point=point,
-                label=Label.objects.get(code=label_code),
+                label=image.source.labelset.get_global_by_code(label_code),
                 user=get_robot_user(),
                 robot_version=robot,
             )

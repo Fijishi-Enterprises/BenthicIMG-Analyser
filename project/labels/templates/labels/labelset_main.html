@@ -1,0 +1,37 @@
+{% extends "images/base_source.html" %}
+{% load i18n %}
+{% load guardian_tags %}
+
+{% block title %}Labelset for {{ source.name }} | CoralNet{% endblock %}
+
+{% block content %}
+
+  <h2 style="text-transform: none;">{{ source.name }} Labelset</h2>
+
+  <table class="detail_table">
+    <tr>
+      <th>Name</th>
+      <th>Short Code</th>
+      <th>Functional Group</th>
+    </tr>
+    {% for label in labels %}
+      <tr>
+        <td><a href="{% url 'label_main' label.global_label.pk %}">
+          {{ label.name }}</a></td>
+        <td>{{ label.code }}</td>
+        <td>{{ label.group }}</td>
+      </tr>
+    {% endfor %}
+  </table>
+
+  {% get_obj_perms user for source as "source_perms" %}
+  {% if "source_admin" in source_perms %}
+    <div class="line">
+      <a href="{% url 'labelset_add' source.id %}">Add/Remove Labels</a>
+    </div>
+    <div class="line">
+      <a href="{% url 'labelset_edit' source.id %}">Edit Label Entries</a>
+    </div>
+  {% endif %}
+
+{% endblock %}

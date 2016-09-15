@@ -1,0 +1,63 @@
+.label-add-box, .label-remove-box {
+    float: left;
+    margin: 3px;
+}
+
+.add-remove-button, .detail-button {
+    /* table-cell instead of inline-block prevents HTML whitespace from
+     displaying as a gap between the two elements. */
+    display: table-cell;
+
+    padding: 3px;
+    border: 2px solid black;
+
+    background-color: hsl(0, 0%, 85%);
+    cursor: pointer;
+}
+
+.add-remove-button {
+    width: 40px;
+    text-align: center;
+    border-top-left-radius: 10px;
+    border-bottom-left-radius: 10px;
+    /* There seems to be no way to collapse the side borders of the
+    two buttons, so we'll just remove one of those borders... */
+    border-right: none;
+}
+.add-remove-button:hover {
+    background-color: hsl(0, 0%, 95%);
+}
+.add-remove-button.disabled {
+    background-color: hsl(0, 0%, 70%);
+    cursor: default;
+}
+
+.detail-button {
+    /* TODO: How to deal with long label names? */
+    width: 120px;
+    text-align: center;
+    border-top-right-radius: 10px;
+    border-bottom-right-radius: 10px;
+}
+.detail-button:hover {
+    background-color: hsl(0, 0%, 95%);
+}
+
+
+/* Some rules to make styling a bit cleaner compared to
+ using master.css. */
+/* TODO: Merge some of these rules into master.css? */
+
+form {
+    margin: 0;
+    padding: 0;
+    width: auto;
+}
+
+
+/* jQuery-UI stuff like dialogs */
+.ui-widget {
+    /* Override jQuery UI defaults */
+    font-family: inherit;
+    font-size: 0.9em;
+}

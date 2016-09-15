@@ -133,8 +133,8 @@ def get_source_stats():
         sp['lat'] = s.latitude
         sp['long'] = s.longitude
         sp['id'] = s.id
-        sp['labelids'] = [l.id for l in s.labelset.labels.all()]
-        sp['nlabels'] = s.labelset.labels.count()
+        sp['labelids'] = [l.id for l in s.labelset.get_globals()]
+        sp['nlabels'] = s.labelset.get_labels().count()
         sp['nimgs'] = s.get_all_images().filter(status__annotatedByHuman=True).count()
         sp['nanns'] = len(annlist)
         sp['anncount'] = np.bincount(annlist, minlength = nlabels)

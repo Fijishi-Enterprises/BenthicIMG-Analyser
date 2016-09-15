@@ -1,24 +1,21 @@
-import csv
-from django.forms import modelformset_factory
-
-from numpy import zeros, sum, linalg, logical_and, vectorize
-
 from django.contrib import messages
 from django.core.urlresolvers import reverse
 from django.db import transaction
+from django.forms import modelformset_factory
 from django.forms.formsets import formset_factory
-from django.http import HttpResponse, JsonResponse
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 
 from .forms import CheckboxForm, StatisticsSearchForm, ImageSearchForm, \
     PatchSearchOptionsForm, HiddenForm, post_to_image_filter_form
 from .utils import generate_patch_if_doesnt_exist, get_patch_url, paginate
 from accounts.utils import get_robot_user
-from annotations.models import Annotation, Label, LabelSet, LabelGroup
+from annotations.models import Annotation
 from images.forms import MetadataFormForGrid, BaseMetadataFormSet
 from images.models import Source, Image, Metadata
 from images.tasks import *
-from images.utils import delete_images, get_aux_metadata_str_list_for_image, get_aux_labels
+from images.utils import delete_images
+from labels.models import LabelGroup, Label
 from lib.decorators import source_visibility_required, source_permission_required
 
 

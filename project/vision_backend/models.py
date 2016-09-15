@@ -9,14 +9,25 @@ class Classifier(models.Model):
     Computer vision classifier.
     """
 
+    # pointer to the source
     source = models.ForeignKey('images.Source', on_delete=models.CASCADE)
 
+    # An instance is valid if 1) it has been trained and 2) it performed better than previous models
     valid = models.BooleanField(default=False)
 
+    # Training runtime in secondsd
     runtime_train = models.BigIntegerField(default = 0)
 
+    # Accuracy as evaluated on the validation set
+    accuracy = models.FloatField(null = True)
+
+    # Epoch reference set accuracy (for bookkeeping mostly)
+    epoch_ref_accuracy = models.CharField(max_length = 512, null = True)
+
+    # Number of image (val + train) that were used to train this classifier
     nbr_train_images = models.IntegerField(null = True)
 
+    # Create date
     create_date = models.DateTimeField('Date created', auto_now_add=True, editable=False)
     
     def get_process_date_short_str(self):
@@ -33,20 +44,29 @@ class Classifier(models.Model):
         """
         To-string method.
         """
-        return "Version %s for %s" % (self.version, self.source.name)
+        return "Version %s for source %s" % (self.id, self.source.name)
 
 
 class Features(models.Model):
     """
     This class manages the bookkeeping of features for each image.
     """
-
+    # Indicates whether the features are extracted. Set when jobs are colected
     extracted = models.BooleanField(default = False)
+
+    # Indicates whether the features are classified (by any version of the robot).
     classified = models.BooleanField(default = False)
 
+    # total runtime for job
     runtime_total = models.IntegerField(null = True)
+
+    # runtime for the call to caffe
     runtime_core = models.IntegerField(null = True)
 
+    # whether the model needed to be downloaded from S3
+    model_was_cashed = models.NullBooleanField(null = True)
+
+    # When were the features extracted
     extracted_date = models.DateTimeField(null = True)
 
 

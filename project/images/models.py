@@ -291,38 +291,40 @@ class Source(models.Model):
         return the latest robot associated with this source.
         if no robots, return None
         """
-        validRobots = self.get_valid_robots()
-        
-        if len(validRobots) > 0:
-        	return validRobots[-1]
+        robots = self.get_valid_robots()
+        if robots.count() > 0:
+            return robots[0]
         else:
-        	return None
+            return None
 
     def get_valid_robots(self):
-
         """
         returns a list of all robots that have valid metadata
         """
-        return Robot.objects.filter(source = self, valid = True).order_by('id')
+        return Robot.objects.filter(source = self, valid = True).order_by('-id')
+
+    def nbr_images_in_latest_robot(self):
+        # NOTE: Here we include also those not valid.
+        robots = Robot.objects.filter(source = self).order_by('-id')
+        if robots.count() > 0:
+            return robots[0].nbr_train_images
+        else:
+            return 0
 
     def need_new_robot(self):
         """
-        Check whether there are sufficient number of newly annotated images to train a new robot version. Needs to be settings.NEW_MODEL_THRESHOLD more than used in the previous model and > settings.MIN_NBR_ANNOTATED_IMAGES
+        Check whether there are sufficient number of newly annotated images to train a new robot version. 
+        Needs to be settings.NEW_MODEL_THRESHOLD more than used in the previous model and > settings.MIN_NBR_ANNOTATED_IMAGES
         """
         
-        return Image.objects.filter(source=self, status__annotatedByHuman = True).count() > settings.NEW_MODEL_THRESHOLD * self.nbr_images_in_current_robot() and Image.objects.filter(source=self, status__annotatedByHuman = True).count() >= settings.MIN_NBR_ANNOTATED_IMAGES and self.enable_robot_classifier
-
-    def nbr_images_in_current_robot(self):
-        if self.has_robot():
-            return self.get_latest_robot().nbr_train_images
-        else:
-            return 0
+        nbr_verified_images_with_features = Image.objects.filter(source=self, status__annotatedByHuman = True, features__extracted = True).count()
+        return nbr_verified_images_with_features > settings.NEW_CLASSIFIER_TRAIN_TH * self.nbr_images_in_latest_robot() and nbr_verified_images_with_features >= settings.MIN_NBR_ANNOTATED_IMAGES and self.enable_robot_classifier
 
     def has_robot(self):
         """
         Returns true if source has a robot.
         """
-        return len(self.get_valid_robots()) > 0
+        return self.get_valid_robots().count() > 0
         
     def all_image_names_are_unique(self):
         """

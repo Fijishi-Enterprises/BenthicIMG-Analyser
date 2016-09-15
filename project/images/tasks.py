@@ -14,458 +14,443 @@ import numpy as np
 from numpy import zeros, sum, float32, newaxis
 from reversion import revisions as reversion
 
-logging.basicConfig(filename=os.path.join(settings.PROCESSING_ROOT, 'logs/tasks.log'), level=logging.INFO, format='[%(asctime)s] %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+# logging.basicConfig(filename=os.path.join(settings.PROCESSING_ROOT, 'logs/tasks.log'), level=logging.INFO, format='[%(asctime)s] %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 
-PREPROCESS_ERROR_LOG = os.path.join(settings.PROCESSING_ROOT, "logs/preprocess_error.txt")
-FEATURE_ERROR_LOG = os.path.join(settings.PROCESSING_ROOT, "logs/features_error.txt")
-CLASSIFY_ERROR_LOG = os.path.join(settings.PROCESSING_ROOT, "logs/classify_error.txt")
-TRAIN_ERROR_LOG = os.path.join(settings.PROCESSING_ROOT, "logs/train_error.txt")
-CV_LOG = os.path.join(settings.PROCESSING_ROOT, "logs/cvlog.txt")
 
 # TODO: Don't use MEDIA_ROOT, since it won't work with remote
 # files like Amazon S3. Use open() of the storage backend class.
 # Direct use of MEDIA_URL might be suspect as well. Better to use the url()
 # method of the storage backend class.
-ALLEVIATE_IMAGE_DIR = os.path.join(settings.MEDIA_ROOT, "vision_backend/alleviate_plots")
-ALLEVIATE_IMAGE_URL = os.path.join(settings.MEDIA_URL, "vision_backend/alleviate_plots")
-PREPROCESS_DIR = os.path.join(settings.PROCESSING_ROOT, "images/preprocess/")
-FEATURES_DIR = os.path.join(settings.PROCESSING_ROOT, "images/features/")
-CLASSIFY_DIR = os.path.join(settings.PROCESSING_ROOT, "images/classify/")
-MODEL_DIR = os.path.join(settings.PROCESSING_ROOT, "images/models/")
-PREPROCESS_PARAM_FILE = os.path.join(settings.PROCESSING_ROOT, "images/preprocess/preProcessParameters.mat")
-
-TARGET_PIXEL_CM_RATIO = 17.2
 
 
+# def dummy_task():
+#     print("This is a dummy task console output")
+#     return 1
 
-def dummy_task():
-    print("This is a dummy task console output")
-    return 1
-
-def dummy_task_sleep(s):
-    print("This is a dummy task that can sleep")
-    time.sleep(s)
+# def dummy_task_sleep(s):
+#     print("This is a dummy task that can sleep")
+#     time.sleep(s)
 
 
 
-# This is the new master function
-def nrs_main_wrapper():
+# # This is the new master function
+# def nrs_main_wrapper():
 
-    # check if thread is already running
-    keyfilepath = os.path.join(settings.PROCESSING_ROOT, "logs/nrs_running_flag")
-    if os.path.exists(keyfilepath):
-        logging.info("==== NRS MAIN WRAPPER aborting. Another process is running. ====")
-        return 1
+#     # check if thread is already running
+#     keyfilepath = os.path.join(settings.PROCESSING_ROOT, "logs/nrs_running_flag")
+#     if os.path.exists(keyfilepath):
+#         logging.info("==== NRS MAIN WRAPPER aborting. Another process is running. ====")
+#         return 1
 
-    # no other thread running. let's go!
-    open(keyfilepath, 'w')
+#     # no other thread running. let's go!
+#     open(keyfilepath, 'w')
 
-    # make laundry list for the sources
-    laundry_list = []
-    for source in Source.objects.filter():
-        laundry_list.append(source_robot_status(source.id))
-    laundry_list = [l for l in laundry_list if l['need_attention']]
-    logging.info("==== NRS MAIN WRAPPER start processing {} sources ====".format(len(laundry_list)))
-    pickle.dump(laundry_list, open(os.path.join(settings.PROCESSING_ROOT, "logs/laundry_list.pkl"), "wb"))
+#     # make laundry list for the sources
+#     laundry_list = []
+#     for source in Source.objects.filter():
+#         laundry_list.append(source_robot_status(source.id))
+#     laundry_list = [l for l in laundry_list if l['need_attention']]
+#     logging.info("==== NRS MAIN WRAPPER start processing {} sources ====".format(len(laundry_list)))
+#     pickle.dump(laundry_list, open(os.path.join(settings.PROCESSING_ROOT, "logs/laundry_list.pkl"), "wb"))
 
-    for item in laundry_list:
-        # check break flag:
-        if os.path.exists(os.path.join(settings.PROCESSING_ROOT, "logs/break_flag")):
-            logging.info("==== NRS MAIN WRAPPER Aborting due to break flag raised ====")
-            os.remove(keyfilepath)
-            return 1
-        if item['need_robot']:
-            nrs_train_wrapper(item['id'])
-        if item['need_features']:
-            nrs_feature_wrapper(item['id'])
-        if item['need_classification']:
-            nrs_classify_wrapper(item['id'])
-    logging.info("==== NRS MAIN WRAPPER done processing {} sources ====".format(len(laundry_list)))
+#     for item in laundry_list:
+#         # check break flag:
+#         if os.path.exists(os.path.join(settings.PROCESSING_ROOT, "logs/break_flag")):
+#             logging.info("==== NRS MAIN WRAPPER Aborting due to break flag raised ====")
+#             os.remove(keyfilepath)
+#             return 1
+#         if item['need_robot']:
+#             nrs_train_wrapper(item['id'])
+#         if item['need_features']:
+#             nrs_feature_wrapper(item['id'])
+#         if item['need_classification']:
+#             nrs_classify_wrapper(item['id'])
+#     logging.info("==== NRS MAIN WRAPPER done processing {} sources ====".format(len(laundry_list)))
 
-    os.remove(keyfilepath)
+#     os.remove(keyfilepath)
         
 
 
-def nrs_train_wrapper(source_id, force_train = False):
+# def nrs_train_wrapper(source_id, force_train = False):
 
-    # we begin by extracting features for all verified images (up to settings.NBR_IMAGES_PER_LOOP)
-    source = Source.objects.get(id = source_id)
-    imglist = Image.objects.filter(source=source, status__annotatedByHuman=True, status__featuresExtracted=False)
-    if imglist.count() > settings.NBR_IMAGES_PER_LOOP: #in this case, just extract some features and try again in the next loop.
-        logging.info("==== NRS Making features for {nbr} images, but deferring robot training for source{sid}: {sname} ====".format(nbr = settings.NBR_IMAGES_PER_LOOP, sid = source.id, sname = source.name))
-        for img in imglist[:settings.NBR_IMAGES_PER_LOOP]:
-            preprocess_image(img.id)
-            make_features(img.id)
-        return 1
+#     # we begin by extracting features for all verified images (up to settings.NBR_IMAGES_PER_LOOP)
+#     source = Source.objects.get(id = source_id)
+#     imglist = Image.objects.filter(source=source, status__annotatedByHuman=True, status__featuresExtracted=False)
+#     if imglist.count() > settings.NBR_IMAGES_PER_LOOP: #in this case, just extract some features and try again in the next loop.
+#         logging.info("==== NRS Making features for {nbr} images, but deferring robot training for source{sid}: {sname} ====".format(nbr = settings.NBR_IMAGES_PER_LOOP, sid = source.id, sname = source.name))
+#         for img in imglist[:settings.NBR_IMAGES_PER_LOOP]:
+#             preprocess_image(img.id)
+#             make_features(img.id)
+#         return 1
 
-    # else, there are less than settings.NBR_IMAGES_PER_LOOP left to make features for. Then we do that and start making the robot!
-    logging.info("==== NRS Making features for {nbr} images in preparation for robot training of source{sid}: {sname} ====".format(nbr = len(imglist), sid = source.id, sname = source.name))
-    for img in imglist:
-        preprocess_image(img.id)
-        make_features(img.id)
+#     # else, there are less than settings.NBR_IMAGES_PER_LOOP left to make features for. Then we do that and start making the robot!
+#     logging.info("==== NRS Making features for {nbr} images in preparation for robot training of source{sid}: {sname} ====".format(nbr = len(imglist), sid = source.id, sname = source.name))
+#     for img in imglist:
+#         preprocess_image(img.id)
+#         make_features(img.id)
 
-    # add features
-    imglist = Image.objects.filter(source=source, status__annotatedByHuman=True, status__featuresExtracted=True)
-    logging.info("==== NRS Adding labels for {nbr} images in preparation for robot training of source{sid}: {sname} ====".format(nbr = len(imglist), sid = source.id, sname = source.name))
-    for img in imglist:
-        add_labels_to_features(img.id)
+#     # add features
+#     imglist = Image.objects.filter(source=source, status__annotatedByHuman=True, status__featuresExtracted=True)
+#     logging.info("==== NRS Adding labels for {nbr} images in preparation for robot training of source{sid}: {sname} ====".format(nbr = len(imglist), sid = source.id, sname = source.name))
+#     for img in imglist:
+#         add_labels_to_features(img.id)
 
-    # then we train a new robot
-    logging.info("==== NRS training robot for source{sid}: {sname} ====".format(sid = source.id, sname = source.name))
-    train_robot(source_id, force_train = force_train)
+#     # then we train a new robot
+#     logging.info("==== NRS training robot for source{sid}: {sname} ====".format(sid = source.id, sname = source.name))
+#     train_robot(source_id, force_train = force_train)
 
-    # now we re-classify all images that were classified by an older version of the robot.
-    imglist = Image.objects.filter(source=source, status__annotatedByRobot=True, status__annotatedByHuman=False)
-    logging.info("==== NRS Re-classifier {nbr} images after robot training of source{sid}: {sname}".format(nbr = len(imglist), sid = source.id, sname = source.name))
-    for img in imglist:
-        classify_image(img.id)
-    logging.info("==== NRS Done train wrapper for source{sid}: {sname}".format(sid = source.id, sname = source.name))
+#     # now we re-classify all images that were classified by an older version of the robot.
+#     imglist = Image.objects.filter(source=source, status__annotatedByRobot=True, status__annotatedByHuman=False)
+#     logging.info("==== NRS Re-classifier {nbr} images after robot training of source{sid}: {sname}".format(nbr = len(imglist), sid = source.id, sname = source.name))
+#     for img in imglist:
+#         classify_image(img.id)
+#     logging.info("==== NRS Done train wrapper for source{sid}: {sname}".format(sid = source.id, sname = source.name))
 
-def nrs_feature_wrapper(source_id):
+# def nrs_feature_wrapper(source_id):
 
-    source = Source.objects.get(id = source_id)
-    imglist = Image.objects.filter(source = source, status__featuresExtracted=False)[:settings.NBR_IMAGES_PER_LOOP]
-    logging.info("==== NRS Extracting features for {nbr} images from source{sid}: {sname} ====".format(nbr = len(imglist), sid = source.id, sname = source.name))
-    for img in imglist:
-        preprocess_image(img.id)
-        make_features(img.id)
-    logging.info("==== NRS Done extracting features for {nbr} images from source{sid}: {sname} ====".format(nbr = len(imglist), sid = source.id, sname = source.name))
+#     source = Source.objects.get(id = source_id)
+#     imglist = Image.objects.filter(source = source, status__featuresExtracted=False)[:settings.NBR_IMAGES_PER_LOOP]
+#     logging.info("==== NRS Extracting features for {nbr} images from source{sid}: {sname} ====".format(nbr = len(imglist), sid = source.id, sname = source.name))
+#     for img in imglist:
+#         preprocess_image(img.id)
+#         make_features(img.id)
+#     logging.info("==== NRS Done extracting features for {nbr} images from source{sid}: {sname} ====".format(nbr = len(imglist), sid = source.id, sname = source.name))
 
-def nrs_classify_wrapper(source_id):
+# def nrs_classify_wrapper(source_id):
 
-    source = Source.objects.get(id = source_id)
+#     source = Source.objects.get(id = source_id)
     
-    imglist = Image.objects.filter(source = source, status__annotatedByRobot=False, status__annotatedByHuman=False, status__featuresExtracted=True)[:settings.NBR_IMAGES_PER_LOOP]
-    logging.info("==== NRS Classifying {nbr} images from source{sid}: {sname} ====".format(nbr = len(imglist), sid = source.id, sname = source.name))
-    for img in imglist:
-        classify_image(img.id)
-    logging.info("==== NRS Done classifying {nbr} images from source{sid}: {sname} ====".format(nbr = len(imglist), sid = source.id, sname = source.name))
+#     imglist = Image.objects.filter(source = source, status__annotatedByRobot=False, status__annotatedByHuman=False, status__featuresExtracted=True)[:settings.NBR_IMAGES_PER_LOOP]
+#     logging.info("==== NRS Classifying {nbr} images from source{sid}: {sname} ====".format(nbr = len(imglist), sid = source.id, sname = source.name))
+#     for img in imglist:
+#         classify_image(img.id)
+#     logging.info("==== NRS Done classifying {nbr} images from source{sid}: {sname} ====".format(nbr = len(imglist), sid = source.id, sname = source.name))
 
 
 
-def preprocess_image(image_id):
-    image = Image.objects.get(pk=image_id)
+# def preprocess_image(image_id):
+#     image = Image.objects.get(pk=image_id)
 
-    if image.status.preprocessed:
-        return 1
+#     if image.status.preprocessed:
+#         return 1
 
-    if not (image.metadata.height_in_cm or image.source.image_height_in_cm): #missing critical info. return.
-        return 1
+#     if not (image.metadata.height_in_cm or image.source.image_height_in_cm): #missing critical info. return.
+#         return 1
 
-    ####### EVERYTHING OK: START THE IMAGE PREPROCESSING ##########
-    image.status.preprocessed = True # Update database
-    image.status.save()
-    logging.info('Pre-processing image{id} from source{sid}: {sname}'.format(id = image_id, sid = image.source_id, sname = image.source.name))
+#     ####### EVERYTHING OK: START THE IMAGE PREPROCESSING ##########
+#     image.status.preprocessed = True # Update database
+#     image.status.save()
+#     logging.info('Pre-processing image{id} from source{sid}: {sname}'.format(id = image_id, sid = image.source_id, sname = image.source.name))
 
-    thisPixelCmRatio = image.original_height / float(image.height_cm())
-    subSampleRate = thisPixelCmRatio / TARGET_PIXEL_CM_RATIO
-    if(subSampleRate < 1):
-        logging.info('Changed ssrate from {ssold} to 1 for image{id}'.format(ssold = subSampleRate, id = image_id))
-        subSampleRate = 1
+#     thisPixelCmRatio = image.original_height / float(image.height_cm())
+#     subSampleRate = thisPixelCmRatio / TARGET_PIXEL_CM_RATIO
+#     if(subSampleRate < 1):
+#         logging.info('Changed ssrate from {ssold} to 1 for image{id}'.format(ssold = subSampleRate, id = image_id))
+#         subSampleRate = 1
 
-    #creates ssRate file
-    ssFile = os.path.join(PREPROCESS_DIR, str(image_id) + "_ssRate.txt")
-    file = open(ssFile, 'w')
-    file.write(str(subSampleRate) + "\n");
-    file.close()
+#     #creates ssRate file
+#     ssFile = os.path.join(PREPROCESS_DIR, str(image_id) + "_ssRate.txt")
+#     file = open(ssFile, 'w')
+#     file.write(str(subSampleRate) + "\n");
+#     file.close()
 
-    # set the process_date to todays date
-    image.process_date = datetime.now()
-    image.save()
+#     # set the process_date to todays date
+#     image.process_date = datetime.now()
+#     image.save()
 
-    #matlab will output image.id_YearMonthDay.mat file
-    preprocessedImageFile = os.path.join(PREPROCESS_DIR, str(image_id) + "_" + image.get_process_date_short_str() + ".mat")
+#     #matlab will output image.id_YearMonthDay.mat file
+#     preprocessedImageFile = os.path.join(PREPROCESS_DIR, str(image_id) + "_" + image.get_process_date_short_str() + ".mat")
 
-    # TODO: Don't use MEDIA_ROOT, since it won't work with remote
-    # files like Amazon S3. Use open() of the storage backend class.
-    task_helpers.coralnet_preprocessImage(
-        imageFile=os.path.join(settings.MEDIA_ROOT, str(image.original_file)),
-        preprocessedImageFile=preprocessedImageFile,
-        preprocessParameterFile=PREPROCESS_PARAM_FILE,
-        ssFile = ssFile,
-        logFile = CV_LOG,
-        errorLogfile=PREPROCESS_ERROR_LOG,
-    )
+#     # TODO: Don't use MEDIA_ROOT, since it won't work with remote
+#     # files like Amazon S3. Use open() of the storage backend class.
+#     task_helpers.coralnet_preprocessImage(
+#         imageFile=os.path.join(settings.MEDIA_ROOT, str(image.original_file)),
+#         preprocessedImageFile=preprocessedImageFile,
+#         preprocessParameterFile=PREPROCESS_PARAM_FILE,
+#         ssFile = ssFile,
+#         logFile = CV_LOG,
+#         errorLogfile=PREPROCESS_ERROR_LOG,
+#     )
 
-    #error occurred in matlab
-    if os.path.isfile(PREPROCESS_ERROR_LOG):
-        image.status.preprocessed = False # roll back data base changes
-        image.status.save()
-        logging.info('ERROR pre-processing [image {id}] from [source{sid}: {sname}]'.format(id = image_id, sid = image.source_id, sname = image.source.name))
-        mail_admins('CoralNet Backend Error', 'in PreprocessImages')
-        return 0
+#     #error occurred in matlab
+#     if os.path.isfile(PREPROCESS_ERROR_LOG):
+#         image.status.preprocessed = False # roll back data base changes
+#         image.status.save()
+#         logging.info('ERROR pre-processing [image {id}] from [source{sid}: {sname}]'.format(id = image_id, sid = image.source_id, sname = image.source.name))
+#         mail_admins('CoralNet Backend Error', 'in PreprocessImages')
+#         return 0
     
-    return 1
+#     return 1
 
-def make_features(image_id):
-    image = Image.objects.get(pk=image_id)
+# def make_features(image_id):
+#     image = Image.objects.get(pk=image_id)
 
-    # Do some checks
-    if os.path.isfile(PREPROCESS_ERROR_LOG) or not image.status.preprocessed or not image.status.hasRandomPoints or image.status.featuresExtracted:
-        return 1
+#     # Do some checks
+#     if os.path.isfile(PREPROCESS_ERROR_LOG) or not image.status.preprocessed or not image.status.hasRandomPoints or image.status.featuresExtracted:
+#         return 1
     
-    ####### EVERYTHING OK: START THE FEATURE EXTRACTION ##########
-    logging.info('Extracting features image{id} from source{sid}: {sname}'.format(id = image_id, sid = image.source_id, sname = image.source.name))
-    image.status.featuresExtracted = True;
-    image.status.save()
+#     ####### EVERYTHING OK: START THE FEATURE EXTRACTION ##########
+#     logging.info('Extracting features image{id} from source{sid}: {sname}'.format(id = image_id, sid = image.source_id, sname = image.source.name))
+#     image.status.featuresExtracted = True;
+#     image.status.save()
 
-    #builds args for matlab script
-    preprocessedImageFile = os.path.join(PREPROCESS_DIR, str(image_id) + "_" + image.get_process_date_short_str() + ".mat")
-    featureFile = os.path.join(FEATURES_DIR, str(image_id) + "_" + image.get_process_date_short_str() + ".dat")
-    #creates rowColFile
-    rowColFile = os.path.join(FEATURES_DIR, str(image_id) + "_rowCol.txt")
-    file = open(rowColFile, 'w')
-    points = Point.objects.filter(image=image)
-    for point in points:
-        #points get stored in the file in this format, one of these per line: row,column\n
-        file.write(str(point.row) + "," + str(point.column) + "\n")
-    file.close()
+#     #builds args for matlab script
+#     preprocessedImageFile = os.path.join(PREPROCESS_DIR, str(image_id) + "_" + image.get_process_date_short_str() + ".mat")
+#     featureFile = os.path.join(FEATURES_DIR, str(image_id) + "_" + image.get_process_date_short_str() + ".dat")
+#     #creates rowColFile
+#     rowColFile = os.path.join(FEATURES_DIR, str(image_id) + "_rowCol.txt")
+#     file = open(rowColFile, 'w')
+#     points = Point.objects.filter(image=image)
+#     for point in points:
+#         #points get stored in the file in this format, one of these per line: row,column\n
+#         file.write(str(point.row) + "," + str(point.column) + "\n")
+#     file.close()
 
-    ssFile = os.path.join(PREPROCESS_DIR, str(image_id) + "_ssRate.txt")
-    task_helpers.coralnet_makeFeatures(
-        preprocessedImageFile=preprocessedImageFile,
-        featureFile=featureFile,
-        rowColFile=rowColFile,
-        ssFile = ssFile,
-        featureExtractionParameterFile=PREPROCESS_PARAM_FILE,
-        logFile = CV_LOG,
-        errorLogfile=FEATURE_ERROR_LOG,
-    )
+#     ssFile = os.path.join(PREPROCESS_DIR, str(image_id) + "_ssRate.txt")
+#     task_helpers.coralnet_makeFeatures(
+#         preprocessedImageFile=preprocessedImageFile,
+#         featureFile=featureFile,
+#         rowColFile=rowColFile,
+#         ssFile = ssFile,
+#         featureExtractionParameterFile=PREPROCESS_PARAM_FILE,
+#         logFile = CV_LOG,
+#         errorLogfile=FEATURE_ERROR_LOG,
+#     )
 
-    if os.path.isfile(FEATURE_ERROR_LOG):
-        image.status.featuresExtracted = False;
-        image.status.save()
-        logging.info('ERROR extracting features image{id} from source{sid}: {sname}'.format(id = image_id, sid = image.source_id, sname = image.source.name))
-        mail_admins('CoralNet Backend Error', 'in MakeFeatures')
-        return 0
+#     if os.path.isfile(FEATURE_ERROR_LOG):
+#         image.status.featuresExtracted = False;
+#         image.status.save()
+#         logging.info('ERROR extracting features image{id} from source{sid}: {sname}'.format(id = image_id, sid = image.source_id, sname = image.source.name))
+#         mail_admins('CoralNet Backend Error', 'in MakeFeatures')
+#         return 0
 
-    return 1
+#     return 1
 
-@reversion.create_revision()
-def classify_image(image_id):
-    image = Image.objects.get(pk=image_id)
+# @reversion.create_revision()
+# def classify_image(image_id):
+#     image = Image.objects.get(pk=image_id)
 
-    # if annotated by Human, or if the previous step is not complete
-    if image.status.annotatedByHuman or not image.status.featuresExtracted:
-        return 1
+#     # if annotated by Human, or if the previous step is not complete
+#     if image.status.annotatedByHuman or not image.status.featuresExtracted:
+#         return 1
 
-    # Get last robot for this source
-    latestRobot = image.source.get_latest_robot()
+#     # Get last robot for this source
+#     latestRobot = image.source.get_latest_robot()
 
-    if latestRobot == None:
-        return 1
+#     if latestRobot == None:
+#         return 1
 
-    # Check if this image has been previously annotated by a robot.
-    if image.status.annotatedByRobot:
-        # now, compare this version number to the latest_robot_annotator field for image.
-        if (not (latestRobot.version > image.latest_robot_annotator.version)):
-            return 1
+#     # Check if this image has been previously annotated by a robot.
+#     if image.status.annotatedByRobot:
+#         # now, compare this version number to the latest_robot_annotator field for image.
+#         if (not (latestRobot.version > image.latest_robot_annotator.version)):
+#             return 1
 
-    ####### EVERYTHING OK: START THE CLASSIFICATION ##########
-    logging.info('Classifying image{id} from source{sid}: {sname}'.format(id = image_id, sid = image.source_id, sname = image.source.name))
+#     ####### EVERYTHING OK: START THE CLASSIFICATION ##########
+#     logging.info('Classifying image{id} from source{sid}: {sname}'.format(id = image_id, sid = image.source_id, sname = image.source.name))
     
-    #builds args for matlab script
-    featureFile = os.path.join(FEATURES_DIR, str(image_id) + "_" + image.get_process_date_short_str() + ".dat")
-    labelFile = os.path.join(CLASSIFY_DIR, str(image_id) + "_" + image.get_process_date_short_str() + ".txt")
+#     #builds args for matlab script
+#     featureFile = os.path.join(FEATURES_DIR, str(image_id) + "_" + image.get_process_date_short_str() + ".dat")
+#     labelFile = os.path.join(CLASSIFY_DIR, str(image_id) + "_" + image.get_process_date_short_str() + ".txt")
 
-    task_helpers.coralnet_classify(
-        featureFile=featureFile,
-        modelFile=latestRobot.path_to_model,
-        labelFile=labelFile,
-        logFile=CV_LOG,
-        errorLogfile=CLASSIFY_ERROR_LOG,
-    )
+#     task_helpers.coralnet_classify(
+#         featureFile=featureFile,
+#         modelFile=latestRobot.path_to_model,
+#         labelFile=labelFile,
+#         logFile=CV_LOG,
+#         errorLogfile=CLASSIFY_ERROR_LOG,
+#     )
 
-    if os.path.isfile(CLASSIFY_ERROR_LOG):
-        logging.info('ERROR classifying image{id} from source{sid}: {sname}'.format(id = image_id, sid = image.source_id, sname = image.source.name))
-        mail_admins('CoralNet Backend Error', 'in Classify')
-        return 0
-    else:
-        #update image status
-        image.status.annotatedByRobot = True
-        image.status.save()
-        image.latest_robot_annotator = latestRobot
-        image.save()
+#     if os.path.isfile(CLASSIFY_ERROR_LOG):
+#         logging.info('ERROR classifying image{id} from source{sid}: {sname}'.format(id = image_id, sid = image.source_id, sname = image.source.name))
+#         mail_admins('CoralNet Backend Error', 'in Classify')
+#         return 0
+#     else:
+#         #update image status
+#         image.status.annotatedByRobot = True
+#         image.status.save()
+#         image.latest_robot_annotator = latestRobot
+#         image.save()
 
-    ####### IMPORT CLASSIFICATION RESULT TO DATABASE ##########
-    user = get_robot_user()
+#     ####### IMPORT CLASSIFICATION RESULT TO DATABASE ##########
+#     user = get_robot_user()
 
-    # Get the label probabilities that we just generated
-    label_probabilities = task_utils.get_label_probabilities_for_image(image_id)
+#     # Get the label probabilities that we just generated
+#     label_probabilities = task_utils.get_label_probabilities_for_image(image_id)
 
-    if len(label_probabilities) == 0:
-        mail_admins('Classify error', 'Classification output for image{id} from source{sid}: {sname} was empty.'.format(id = image_id, sid = image.source_id, sname = image.source.name))
+#     if len(label_probabilities) == 0:
+#         mail_admins('Classify error', 'Classification output for image{id} from source{sid}: {sname} was empty.'.format(id = image_id, sid = image.source_id, sname = image.source.name))
 
-    # Go through each point and update/create the annotation as appropriate
-    for point_number, probs in label_probabilities.iteritems():
-        pt = Point.objects.get(image=image, point_number=point_number)
+#     # Go through each point and update/create the annotation as appropriate
+#     for point_number, probs in label_probabilities.iteritems():
+#         pt = Point.objects.get(image=image, point_number=point_number)
 
-        probs_descending_order = sorted(probs, key=operator.itemgetter('score'), reverse=True)
-        top_prob_label_code = probs_descending_order[0]['label']
-        label = Label.objects.get(code=top_prob_label_code)
+#         probs_descending_order = sorted(probs, key=operator.itemgetter('score'), reverse=True)
+#         top_prob_label_code = probs_descending_order[0]['label']
+#         label = Label.objects.get(code=top_prob_label_code)
 
-        # If there's an existing annotation for this point, get it.
-        # Otherwise, create a new annotation.
-        #
-        # (Assumption: there's at most 1 Annotation per Point, never multiple.
-        # If there are multiple, we'll get a MultipleObjectsReturned exception.)
-        try:
-            anno = Annotation.objects.get(image=image, point=pt)
+#         # If there's an existing annotation for this point, get it.
+#         # Otherwise, create a new annotation.
+#         #
+#         # (Assumption: there's at most 1 Annotation per Point, never multiple.
+#         # If there are multiple, we'll get a MultipleObjectsReturned exception.)
+#         try:
+#             anno = Annotation.objects.get(image=image, point=pt)
 
-        except Annotation.DoesNotExist:
-            # No existing annotation. Create a new one.
-            new_anno = Annotation(
-                image=image, label=label, point=pt,
-                user=user, robot_version=latestRobot, source=image.source
-            )
-            new_anno.save()
+#         except Annotation.DoesNotExist:
+#             # No existing annotation. Create a new one.
+#             new_anno = Annotation(
+#                 image=image, label=label, point=pt,
+#                 user=user, robot_version=latestRobot, source=image.source
+#             )
+#             new_anno.save()
 
-        else:
-            # Got an existing annotation.
-            if is_robot_user(anno.user):
-                # It's an existing robot annotation. Update it as necessary.
-                if anno.label.id != label.id:
-                    anno.label = label
-                    anno.robot_version = latestRobot
-                    anno.save()
+#         else:
+#             # Got an existing annotation.
+#             if is_robot_user(anno.user):
+#                 # It's an existing robot annotation. Update it as necessary.
+#                 if anno.label.id != label.id:
+#                     anno.label = label
+#                     anno.robot_version = latestRobot
+#                     anno.save()
 
-            # Else, it's an existing confirmed annotation, and we don't want
-            # to overwrite it. So do nothing in this case.
+#             # Else, it's an existing confirmed annotation, and we don't want
+#             # to overwrite it. So do nothing in this case.
 
-    logging.info('Classified {npts} points in image{id} from source{sid}: {sname}'.format(npts = len(label_probabilities), id = image_id, sid = image.source_id, sname = image.source.name))
-    return 1
+#     logging.info('Classified {npts} points in image{id} from source{sid}: {sname}'.format(npts = len(label_probabilities), id = image_id, sid = image.source_id, sname = image.source.name))
+#     return 1
 
 
-# This task modifies the feature file so that is contains the correct labels, as provided by the human operator.
-def add_labels_to_features(image_id):
+# # This task modifies the feature file so that is contains the correct labels, as provided by the human operator.
+# def add_labels_to_features(image_id):
 
-    image = Image.objects.get(pk=image_id)
-    if not image.status.annotatedByHuman or not image.status.featuresExtracted:
-        return 1
+#     image = Image.objects.get(pk=image_id)
+#     if not image.status.annotatedByHuman or not image.status.featuresExtracted:
+#         return 1
 
-    ############### EVERYTHING OK, START THE PROCEDURE ###########
-    featureFileIn = os.path.join(FEATURES_DIR, str(image_id) + "_" + image.get_process_date_short_str() + ".dat")
-    featureFileOut = os.path.join(FEATURES_DIR, str(image_id) + "_temp_" + image.get_process_date_short_str() + ".dat") #temp file
-    inputFF = open(featureFileIn, 'r')
-    outputFF = open(featureFileOut, 'w')
+#     ############### EVERYTHING OK, START THE PROCEDURE ###########
+#     featureFileIn = os.path.join(FEATURES_DIR, str(image_id) + "_" + image.get_process_date_short_str() + ".dat")
+#     featureFileOut = os.path.join(FEATURES_DIR, str(image_id) + "_temp_" + image.get_process_date_short_str() + ".dat") #temp file
+#     inputFF = open(featureFileIn, 'r')
+#     outputFF = open(featureFileOut, 'w')
 
-    points = Point.objects.filter(image=image)
-    itt = -1;
-    for line in inputFF:
-        itt = itt + 1
-        label = line.split(None, 1)
-        # find the annotation associated with this point, and then write the label.id
-        # associated with this annotaiton
-        Ann = Annotation.objects.filter(point=points[itt], image=image)
-        outputFF.write(str(Ann[0].label.id) + " " + label[1]) #label[1] contains the rest of the row, excluding the first number (the old dummy label)
+#     points = Point.objects.filter(image=image)
+#     itt = -1;
+#     for line in inputFF:
+#         itt = itt + 1
+#         label = line.split(None, 1)
+#         # find the annotation associated with this point, and then write the label.id
+#         # associated with this annotaiton
+#         Ann = Annotation.objects.filter(point=points[itt], image=image)
+#         outputFF.write(str(Ann[0].label.id) + " " + label[1]) #label[1] contains the rest of the row, excluding the first number (the old dummy label)
 
-    outputFF.close()
-    inputFF.close()
+#     outputFF.close()
+#     inputFF.close()
 
-    copyfile(featureFileOut, featureFileIn)
-    os.remove(featureFileOut)
-    return 1
+#     copyfile(featureFileOut, featureFileIn)
+#     os.remove(featureFileOut)
+#     return 1
 
-def train_robot(source_id, force_train = False):
+# def train_robot(source_id, force_train = False):
 
-    source = Source.objects.get(id = source_id)
-    if not source.need_new_robot() and not force_train:
-        return 1
+#     source = Source.objects.get(id = source_id)
+#     if not source.need_new_robot() and not force_train:
+#         return 1
     
-    allImages = Image.objects.filter(source = source, status__annotatedByHuman = True, status__featuresExtracted = True)
+#     allImages = Image.objects.filter(source = source, status__annotatedByHuman = True, status__featuresExtracted = True)
 
-    ################### EVERYTHING OK, START TRAINING NEW MODEL ################
+#     ################### EVERYTHING OK, START TRAINING NEW MODEL ################
 
-    # create the new Robot object
-    if Robot.objects.all().count() == 0:
-        version = 1
-    else:
-        version = Robot.objects.all().order_by('-version')[0].version + 1
+#     # create the new Robot object
+#     if Robot.objects.all().count() == 0:
+#         version = 1
+#     else:
+#         version = Robot.objects.all().order_by('-version')[0].version + 1
 
-    newRobot = Robot(source = source, version = version, time_to_train = 1)
-    newRobot.path_to_model = os.path.join(MODEL_DIR, "robot" + str(newRobot.version))
-    newRobot.save();
+#     newRobot = Robot(source = source, version = version, time_to_train = 1)
+#     newRobot.path_to_model = os.path.join(MODEL_DIR, "robot" + str(newRobot.version))
+#     newRobot.save();
     
-    # update the data base.
-    for image in allImages: # mark that these images are used in the current model.
-        if not image.status.usedInCurrentModel:
-            image.status.usedInCurrentModel = True;
-            image.status.save()
+#     # update the data base.
+#     for image in allImages: # mark that these images are used in the current model.
+#         if not image.status.usedInCurrentModel:
+#             image.status.usedInCurrentModel = True;
+#             image.status.save()
 
-    # grab the last robot
-    previousRobot = source.get_latest_robot()
-    if previousRobot == None:
-        oldModelPath = '';
-        logging.info('Training first robot{id} for source{sid}: {sname}'.format(id = newRobot.version, sid = image.source_id, sname = image.source.name))
-    else:
-        oldModelPath = previousRobot.path_to_model
-        logging.info('Training robot{id} for source{sid}: {sname}. Previous was robot{pid}'.format(id = newRobot.version, sid = image.source_id, sname = image.source.name, pid = previousRobot.version))
+#     # grab the last robot
+#     previousRobot = source.get_latest_robot()
+#     if previousRobot == None:
+#         oldModelPath = '';
+#         logging.info('Training first robot{id} for source{sid}: {sname}'.format(id = newRobot.version, sid = image.source_id, sname = image.source.name))
+#     else:
+#         oldModelPath = previousRobot.path_to_model
+#         logging.info('Training robot{id} for source{sid}: {sname}. Previous was robot{pid}'.format(id = newRobot.version, sid = image.source_id, sname = image.source.name, pid = previousRobot.version))
 
-    # now, loop through the images and create some meta data files that MATLAB needs
-    workingDir = newRobot.path_to_model + '.workdir/'
-    pointInfoPath = os.path.join(workingDir + 'points')
-    fileNamesPath = os.path.join(workingDir + 'fileNames')
+#     # now, loop through the images and create some meta data files that MATLAB needs
+#     workingDir = newRobot.path_to_model + '.workdir/'
+#     pointInfoPath = os.path.join(workingDir + 'points')
+#     fileNamesPath = os.path.join(workingDir + 'fileNames')
 
-    try:
-        os.mkdir(workingDir)
-    except OSError as e:
-        logging.info("Error creating workingDir: {error}".format(error=e.strerror))
-        raise
+#     try:
+#         os.mkdir(workingDir)
+#     except OSError as e:
+#         logging.info("Error creating workingDir: {error}".format(error=e.strerror))
+#         raise
 
-    fItt = 0 #image iterator
-    pointFile = open(pointInfoPath, 'w')
-    fileNameFile = open(fileNamesPath, 'w')
-    for image in allImages:
-        fItt = fItt + 1 #note that we start at 1, MATLAB style
-        featureFile = os.path.join(FEATURES_DIR, str(image.id) + "_" + image.get_process_date_short_str() + ".dat")
-        fileNameFile.write(featureFile + "\n") # write all file names in a file, so that MATLAB can find them
-        points = Point.objects.filter(image=image)
-        pItt = 0
-        for point in points:
-            pItt = pItt + 1 #note that we start at 1, MATLAB style
-            Ann = Annotation.objects.filter(point=point, image=image)
-            pointFile.write(str(fItt) + ', ' + str(pItt) + ', ' + str(Ann[0].label.id) + '\n')
+#     fItt = 0 #image iterator
+#     pointFile = open(pointInfoPath, 'w')
+#     fileNameFile = open(fileNamesPath, 'w')
+#     for image in allImages:
+#         fItt = fItt + 1 #note that we start at 1, MATLAB style
+#         featureFile = os.path.join(FEATURES_DIR, str(image.id) + "_" + image.get_process_date_short_str() + ".dat")
+#         fileNameFile.write(featureFile + "\n") # write all file names in a file, so that MATLAB can find them
+#         points = Point.objects.filter(image=image)
+#         pItt = 0
+#         for point in points:
+#             pItt = pItt + 1 #note that we start at 1, MATLAB style
+#             Ann = Annotation.objects.filter(point=point, image=image)
+#             pointFile.write(str(fItt) + ', ' + str(pItt) + ', ' + str(Ann[0].label.id) + '\n')
 
-    pointFile.close()
-    fileNameFile.close()
+#     pointFile.close()
+#     fileNameFile.close()
 
-    # write the label map function
-    labelMapPath = os.path.join(workingDir + 'labelmap')
-    mapFile = open(labelMapPath, 'w')
-    for labelgroup in LabelGroup.objects.filter():
-        mapFile.write(str(labelgroup.name) + ',' + str(labelgroup.id) + '\n')
-    mapFile.write('===\n')
-    for label in Label.objects.filter():
-        mapFile.write(str(label.id) + ',' + str(label.group_id) + '\n')    
-    mapFile.close()
+#     # write the label map function
+#     labelMapPath = os.path.join(workingDir + 'labelmap')
+#     mapFile = open(labelMapPath, 'w')
+#     for labelgroup in LabelGroup.objects.filter():
+#         mapFile.write(str(labelgroup.name) + ',' + str(labelgroup.id) + '\n')
+#     mapFile.write('===\n')
+#     for label in Label.objects.filter():
+#         mapFile.write(str(label.id) + ',' + str(label.group_id) + '\n')    
+#     mapFile.close()
 
-    # call the matlab function
-    task_helpers.coralnet_trainRobot(
-        modelPath = newRobot.path_to_model,
-        oldModelPath = oldModelPath,
-        pointInfoPath = pointInfoPath,
-        fileNamesPath = fileNamesPath,
-        workDir = workingDir,
-        logFile = CV_LOG,
-        errorLogfile = TRAIN_ERROR_LOG,
-    )
+#     # call the matlab function
+#     task_helpers.coralnet_trainRobot(
+#         modelPath = newRobot.path_to_model,
+#         oldModelPath = oldModelPath,
+#         pointInfoPath = pointInfoPath,
+#         fileNamesPath = fileNamesPath,
+#         workDir = workingDir,
+#         logFile = CV_LOG,
+#         errorLogfile = TRAIN_ERROR_LOG,
+#     )
   
-    if os.path.isfile(TRAIN_ERROR_LOG):
-        for image in allImages: # roll back changes.
-            image.status.usedInCurrentModel = False
-            image.status.save()
-        logging.info('ERROR training robot{id} for source{sid}: {sname}'.format(id = newRobot.version, sid = image.source_id, sname = image.source.name))
-        mail_admins('CoralNet Backend Error', 'in trainRobot')
-        os.rename(TRAIN_ERROR_LOG, TRAIN_ERROR_LOG + '.' + str(source_id)) # change the name so it won't interfere with other sources.
-        # newRobot.delete() Don't delete the model. It won't bother us anyays since it lacks the needed metadata.
-        return 0
-    else:
-        copyfile(newRobot.path_to_model + '.meta_all.png', os.path.join(ALLEVIATE_IMAGE_DIR, str(newRobot.version) + '.png')) #copy to the media folder where it can be viewed
-        if not (previousRobot == None):
-            os.remove(oldModelPath) # remove old model, but keep the meta data files.
-        shutil.rmtree(workingDir) # only remove temp files if everything worked. Else keep it for debugging purposes.
-        logging.info('Done training robot{id} for source{sid}: {sname}'.format(id = newRobot.version, sid = image.source_id, sname = image.source.name))
-        return 1
+#     if os.path.isfile(TRAIN_ERROR_LOG):
+#         for image in allImages: # roll back changes.
+#             image.status.usedInCurrentModel = False
+#             image.status.save()
+#         logging.info('ERROR training robot{id} for source{sid}: {sname}'.format(id = newRobot.version, sid = image.source_id, sname = image.source.name))
+#         mail_admins('CoralNet Backend Error', 'in trainRobot')
+#         os.rename(TRAIN_ERROR_LOG, TRAIN_ERROR_LOG + '.' + str(source_id)) # change the name so it won't interfere with other sources.
+#         # newRobot.delete() Don't delete the model. It won't bother us anyays since it lacks the needed metadata.
+#         return 0
+#     else:
+#         copyfile(newRobot.path_to_model + '.meta_all.png', os.path.join(ALLEVIATE_IMAGE_DIR, str(newRobot.version) + '.png')) #copy to the media folder where it can be viewed
+#         if not (previousRobot == None):
+#             os.remove(oldModelPath) # remove old model, but keep the meta data files.
+#         shutil.rmtree(workingDir) # only remove temp files if everything worked. Else keep it for debugging purposes.
+#         logging.info('Done training robot{id} for source{sid}: {sname}'.format(id = newRobot.version, sid = image.source_id, sname = image.source.name))
+#         return 1
 
 
 def custom_listdir(path):

@@ -6,7 +6,6 @@ from django.core.mail import mail_admins
 from accounts.utils import get_robot_user
 from accounts.utils import is_robot_user
 from annotations.models import Annotation
-from images import task_helpers, task_utils
 from images.models import Point, Image, Source, Robot
 from images.utils import source_robot_status
 from labels.models import LabelGroup, Label

@@ -12,7 +12,6 @@ from .model_utils import AnnotationAreaUtils
 from .models import Annotation, AnnotationToolAccess, AnnotationToolSettings
 from .utils import get_annotation_version_user_display, image_annotation_all_done, apply_alleviate
 from accounts.utils import is_robot_user
-from images import task_utils
 from images.models import Source, Image, Point
 from images.utils import generate_points, get_next_image, \
     get_date_and_aux_metadata_table, get_prev_image, get_image_order_placement
@@ -147,7 +146,7 @@ def annotation_tool(request, image_id):
     elif not image.features.classified:
         label_probabilities = None
     else:
-        label_probabilities = task_utils.get_label_probabilities_for_image(image_id)
+        label_probabilities = None #task_utils.get_label_probabilities_for_image(image_id)
         # label_probabilities can still be None here if something goes wrong.
         # But if not None, apply Alleviate.
         if label_probabilities:

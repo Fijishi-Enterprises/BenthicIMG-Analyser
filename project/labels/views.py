@@ -19,7 +19,7 @@ from images.models import Source
 from lib.decorators import source_permission_required, \
     source_visibility_required, source_labelset_required
 from visualization.utils import generate_patch_if_doesnt_exist, get_patch_url
-
+from vision_backend import tasks
 
 @login_required
 @require_POST
@@ -91,7 +91,9 @@ def labelset_add(request, source_id):
                 messages.success(request, "Labelset successfully created.")
             else:
                 messages.success(request, "Labelset successfully changed.")
-
+            
+            # After changing or adding labelset, reset vision backend.
+            tasks.reset_after_labelset_change(source_id)
             return HttpResponseRedirect(
                 reverse('labelset_main', args=[source.id]))
         else:

@@ -9,7 +9,7 @@ from django.core.mail import mail_admins
 from accounts.utils import get_robot_user
 from accounts.utils import is_robot_user
 from annotations.models import Annotation
-from images.models import Point, Image, Source, Robot
+from images.models import Point, Image, Source
 from images.utils import source_robot_status
 from labels.models import LabelGroup, Label, LabelSet
 from lib.utils import explicit_s3_load

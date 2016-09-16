@@ -28,6 +28,9 @@ def submit_features(image_id):
     """
     Submits a job to SQS for extracting features for an image.
     """
+    if not hasattr(settings, 'AWS_S3_MEDIA_SUBDIR'):
+        # This means that we are using a local DB and the backend won't work
+        return
 
     img = Image.objects.get(pk = image_id)
 
@@ -64,6 +67,10 @@ def submit_features(image_id):
 
 
 def submit_classifier(source_id):
+
+    if not hasattr(settings, 'AWS_S3_MEDIA_SUBDIR'):
+        # This means that we are using a local DB and the backend won't work
+        return
 
     source = Source.objects.get(pk = source_id)
     
@@ -120,6 +127,11 @@ def submit_classifier(source_id):
  
 
 def classify_image(image_id):
+
+    if not hasattr(settings, 'AWS_S3_MEDIA_SUBDIR'):
+        # This means that we are using a local DB and the backend won't work
+        return
+
     try:
         img = Image.objects.get(pk = image_id)
     except:
@@ -210,7 +222,7 @@ def reset_after_labelset_change(source_id):
     # Finally, let's try to train a new classifier.
     submit_classifier(source_id)
 
-def reset_featured(image_id):
+def reset_features(image_id):
 
     img = Image.objects.get(pk = image_id)
     features = img.features

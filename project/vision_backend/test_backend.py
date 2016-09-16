@@ -8,7 +8,7 @@ from django.contrib.auth.models import User
 from accounts.utils import get_robot_user, get_imported_user
 
 from annotations.models import Annotation
-from images.models import Source, Image, Point, Robot
+from images.models import Source, Image, Point
 #from images.tasks import preprocess_image, make_features, add_labels_to_features, train_robot, classify_image
 from lib.test_utils import ClientTest
 

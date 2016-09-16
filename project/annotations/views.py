@@ -312,7 +312,7 @@ def save_annotations_ajax(request, image_id):
     # Finally, with a new image confirmed, let's try to train a new robot.
     # It will simply exit if there is not enough new images or if one is 
     # already being trained.
-    backend_tasks.submit_classifier()
+    backend_tasks.submit_classifier(source.id)
 
     return JsonResponse(dict(all_done=all_done))
 

@@ -289,7 +289,7 @@ def myfmt(r):
 @source_visibility_required('source_id')
 def cm_download(request, source_id, robot_version, namestr):
     vecfmt = vectorize(myfmt)
-    (fullcm, labelIds) = get_confusion_matrix(Robot.objects.get(version = robot_version))
+    (fullcm, labelIds) = get_confusion_matrix(Robot.objects.get(id = robot_version))
     if namestr == "full":
         cm = fullcm
         labelObjects = Label.objects.filter()
@@ -760,7 +760,7 @@ def make_robot_stats(source_id, nbr_robots):
             cm_str = cm_str,
             ncols = len(labelIds) + 2,
             ndiags = len(labelIds) + 3,
-            idstr = 'dialog' + str(robot.version) + 'full',
+            idstr = 'dialog' + str(robot.id) + 'full',
             namestr = 'full',
             acc = '%.1f' % (100*fullacc[0]),
             kappa = '%.1f' % (100*fullacc[1]),
@@ -769,27 +769,19 @@ def make_robot_stats(source_id, nbr_robots):
             cm_str = cm_func_str,
             ncols = len(groupIds) + 2,
             ndiags = len(groupIds) + 3,
-            idstr = 'dialog' + str(robot.version) + 'func',
+            idstr = 'dialog' + str(robot.id) + 'func',
             namestr = 'func',
             acc = '%.1f' % (100*funcacc[0]),
             kappa = '%.1f' % (100*funcacc[1]),
         ))
 
-        f = open(robot.path_to_model + '.meta.json')
-        jsonstring = f.read()
-        f.close()
-        meta = json.loads(jsonstring)
-
         robotlist.append(dict(
             cmlist = cmlist,
             alleviate_meta = get_alleviate_meta(robot),
-            version = robot.version,
-            nsamples = sum(meta['final']['trainData']['labelhist']['org']),
-            train_time = str(int(round(meta['totalRuntime']))),
-            # TODO: Get an aware datetime by changing the fromtimestamp call to
-            # timezone.make_aware(datetime.datetime.utcfromtimestamp(os.path.getctime(...)), tz=pytz.utc)
-            # I would do it myself, but I can't test robots right now. -Stephen
-            date = '%s' %  datetime.datetime.fromtimestamp(os.path.getctime(robot.path_to_model + '.meta.json')).date()
+            version = robot.id,
+            nsamples = robot.nbr_train_images,
+            train_time = robot.runtime_train,
+            date = robot.create_date
         ))
     
     if not validRobots:
@@ -804,7 +796,7 @@ def make_robot_stats(source_id, nbr_robots):
             # TODO: Get an aware datetime by changing the time.ctime call to
             # timezone.make_aware(datetime.datetime.utcfromtimestamp(os.path.getmtime(...)), tz=pytz.utc)
             # I would do it myself, but I can't test robots right now. -Stephen
-            most_recent_run_date = '%s' %  time.ctime(os.path.getmtime(validRobots[-1].path_to_model + '.meta.json')),
+            most_recent_run_date = validRobots[0].runtime_train,
         )
 
     return robot_stats

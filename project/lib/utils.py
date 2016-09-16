@@ -3,8 +3,29 @@
 import math
 import random
 import string
+import boto
+import json
+import pickle
 
+from django.conf import settings
 from django.utils import functional
+
+encoding_map = {
+        'json': json.loads,
+        'pickle': pickle.loads
+    }
+
+def explicit_s3_load(key, encoding):
+
+    conn = boto.connect_s3(
+        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
+    )
+    bucket = conn.get_bucket(settings.AWS_STORAGE_BUCKET_NAME)
+    k = boto.s3.key.Key(bucket)
+    k.key = key
+    
+    return encoding_map[encoding](k.get_contents_as_string())
 
 
 def filesize_display(num_bytes):

@@ -362,7 +362,7 @@ def source_robot_status(source_id):
 
     status['nbr_in_current_model'] = source.get_latest_robot().nbr_train_images if status['has_robot'] else 0
     if source.has_robot():
-        status['nbr_images_until_next_robot'] = status['nbr_in_current_model'] * settings.NEW_MODEL_THRESHOLD - status['nbr_human_annotated_images']
+        status['nbr_images_until_next_robot'] = status['nbr_in_current_model'] * settings.NEW_CLASSIFIER_TRAIN_TH - status['nbr_human_annotated_images']
     else:
         status['nbr_images_until_next_robot'] = settings.MIN_NBR_ANNOTATED_IMAGES - status['nbr_human_annotated_images']
     status['nbr_images_until_next_robot'] = int(math.ceil(status['nbr_images_until_next_robot']))

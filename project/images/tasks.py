@@ -1,4 +1,7 @@
-import time, os, copy, pickle, shutil, operator, json, logging
+import time
+import os
+import copy
+import pickle, shutil, operator, json, logging
 from shutil import copyfile
 from datetime import datetime
 from django.conf import settings
@@ -8,7 +11,8 @@ from accounts.utils import is_robot_user
 from annotations.models import Annotation
 from images.models import Point, Image, Source, Robot
 from images.utils import source_robot_status
-from labels.models import LabelGroup, Label
+from labels.models import LabelGroup, Label, LabelSet
+from lib.utils import explicit_s3_load
 
 import numpy as np
 from numpy import zeros, sum, float32, newaxis
@@ -491,29 +495,19 @@ def get_current_confusion_matrix(source_id):
     (cm, labelIds) = get_confusion_matrix(latestRobot)
     return (cm, labelIds)
 
-def get_confusion_matrix(robot):
+def get_confusion_matrix(classifier):
+    
 
-    f = open(robot.path_to_model + '.meta.json')
-    meta=json.loads(f.read())
-    f.close()
-        
-    # get raw confusion matrix from json file
-    if 'cmOpt' in meta['hp']['gridStats']:
-        cmraw = meta['hp']['gridStats']['cmOpt']
-    else:
-        cmraw = meta['hp']['gridStats'][-1]['cmOpt']
+    valres = explicit_s3_load(settings.ROBOT_MODEL_VALRESULT_PATTERN.format(pk = classifier.pk, media = settings.AWS_S3_MEDIA_SUBDIR), 'json')
 
-    # read labelId's from the metadata
-    labelIds = meta['labelMap'] # this lists the labelIds in order.
+    classes = [l.id for l in LabelSet.objects.get(source = classifier.source).get_labels()]
 
+    cm = np.zeros((len(classes), len(classes)), dtype = int)
 
-    # convert to numpy matrix.
-    nlabels = len(labelIds)
-    cm = zeros( ( nlabels, nlabels ), dtype = int )
-    for x in range(len(cmraw)):
-        cm[x/nlabels, x%nlabels] = cmraw[x]
-
-    return (cm, labelIds)
+    for gt, est in zip(valres['gt'], valres['est']):
+        cm[gt - 1, est] = cm[gt, est] + 1
+    
+    return (cm, classes)
 
 #
 # (cm_func, fdict, funcIds) = collapse_confusion_matrix(cm, labelIds)
@@ -630,8 +624,8 @@ def accuracy_from_cm(cm):
 # Reads the alleviate stats
 #
 def get_alleviate_meta(robot):
-    alleviate_meta_file  = robot.path_to_model + '.meta_all.json'
-    if not os.path.exists(alleviate_meta_file):
+    
+    if True:
         ok = 0
     else:
         f = open(alleviate_meta_file)

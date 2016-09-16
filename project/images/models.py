@@ -567,27 +567,12 @@ class Image(models.Model):
 
         return imheight
 
-    def after_deleting_annotations(self):
-    
-        self.confirmed = False
-        self.save()
-
-        features = self.features
-        features.classified = False
-        features.save()
-
     def annotation_area_display(self):
         """
         Display the annotation area parameters in templates.
         Usage: {{ myimage.annotation_area_display }}
         """
         return AnnotationAreaUtils.db_format_to_display(self.metadata.annotation_area)
-
-    def after_annotation_area_change(self):
-        features = self.features
-        features.extracted = False
-        features.classified = False
-        features.save()
 
     def get_process_date_short_str(self):
         """

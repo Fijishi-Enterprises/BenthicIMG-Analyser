@@ -69,9 +69,9 @@ DATABASES = {
         # 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
         'ENGINE': 'django.db.backends.postgresql',
         # Or path to database file if using sqlite3.
-        'NAME': 'coralnet',
+        'NAME': get_secret("DATABASES_NAME"),
         # Not used with sqlite3.
-        'USER': 'django',
+        'USER': get_secret("DATABASES_USER"),
         # Not used with sqlite3.
         'PASSWORD': get_secret("DATABASES_PASSWORD"),
         # Set to empty string for localhost. Not used with sqlite3.

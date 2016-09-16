@@ -14,7 +14,7 @@ DEBUG = True
 # and could have different test results. It's happened before.
 # So, comment this out to run in PostgreSQL every so often.
 DATABASES['default']['ENGINE'] = 'django.db.backends.sqlite3'
-DATABASES['default']['NAME'] = 'coralnet_sqlite_database'
+DATABASES['default']['NAME'] = 'staging_coralnet'
 
 AWS_ACCESS_KEY_ID = get_secret('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = get_secret('AWS_SECRET_ACCESS_KEY')

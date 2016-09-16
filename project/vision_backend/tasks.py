@@ -24,7 +24,7 @@ from accounts.utils import get_robot_user, is_robot_user
 
 from . import task_helpers as th
 
-def features_submit(image_id):
+def submit_features(image_id):
     """
     Submits a job to SQS for extracting features for an image.
     """
@@ -63,7 +63,7 @@ def features_submit(image_id):
     queue.write(m)
 
 
-def classifier_submit(source_id):
+def submit_classifier(source_id):
 
     source = Source.objects.get(pk = source_id)
     
@@ -208,7 +208,18 @@ def reset_after_labelset_change(source_id):
         image.features.save()
 
     # Finally, let's try to train a new classifier.
-    classifier_submit(source_id)
+    submit_classifier(source_id)
+
+def reset_featured(image_id):
+
+    img = Image.objects.get(pk = image_id)
+    features = img.features
+    features.extracted = False
+    features.classified = False
+    features.save()
+
+    # Re-submit feature extraction.
+    submit_features(image_id)
 
 
 

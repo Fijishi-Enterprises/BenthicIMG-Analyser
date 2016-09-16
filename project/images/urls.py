@@ -3,7 +3,6 @@ from . import views
 
 urlpatterns = [
     url(r'^source/$', views.source_list, name="source_list"),
-    url(r'^robot/laundry_list/$', views.source_laundry_list, name="source_laundry_list"),
     url(r'^source/about/$', views.source_about, name="source_about"),
     url(r'^source/new/$', views.source_new, name="source_new"),
     url(r'^source/(?P<source_id>\d+)/$', views.source_main, name="source_main"),

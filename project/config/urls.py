@@ -12,6 +12,7 @@ urlpatterns = [
     url(r'^images/', include('images.urls')),
     url(r'^labels/', include('labels.urls')),
     url(r'^requests/', include('requests.urls')),
+    url(r'^vision_backend/', include('vision_backend.urls')),
 
     url(r'^source/(?P<source_id>\d+)/browse/', include('visualization.urls')),
     url(r'^source/(?P<source_id>\d+)/export/', include('export.urls')),

@@ -9,7 +9,7 @@ from django.core.urlresolvers import reverse
 from accounts.utils import get_robot_user, get_alleviate_user
 from annotations.model_utils import AnnotationAreaUtils
 from annotations.models import Annotation
-from vision_backend.models import Features
+from vision_backend.models import Features, Classifier
 from .model_utils import PointGen
 from .models import Source, Point, Image, Metadata
 
@@ -353,11 +353,12 @@ def source_robot_status(source_id):
     status['name_short'] = source.name[:40]
     status['id'] = source.id
     status['has_robot'] = source.get_latest_robot() is not None
+    status['nbr_robots'] = Classifier.objects.filter(source_id = source_id).count()
+    status['nbr_valid_robots'] = Classifier.objects.filter(source_id = source_id, valid = True).count()
+
     status['nbr_total_images'] = Image.objects.filter(source=source).count()
     status['nbr_images_needs_features'] = Image.objects.filter(source=source, features__extracted=False).count()
     status['nbr_unclassified_images'] = Image.objects.filter(source=source, features__classified=False, confirmed=False).count()
-    
-    
     status['nbr_human_annotated_images'] = Image.objects.filter(source=source, confirmed = True).count()
 
     status['nbr_in_current_model'] = source.get_latest_robot().nbr_train_images if status['has_robot'] else 0

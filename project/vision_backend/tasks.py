@@ -96,6 +96,7 @@ def classifier_submit(source_id):
         'valresult': settings.ROBOT_MODEL_VALRESULT_PATTERN.format(pk = classifier.pk, media = settings.AWS_S3_MEDIA_SUBDIR),
         'pk': classifier.pk,
         'classes': classes,
+        'nbr_epochs': settings.NBR_TRAINING_EPOCHS,
         'pc_models': pc_models,
         'pc_pks': pc_pks
     }
@@ -210,7 +211,7 @@ def _add_scores(image_id, scores, classes, classifier):
     # Now, go through and create new ones.
 
     # Figure out how many of the (top) scores to store.
-    n = np.min(NBR_SCORES_SCORED_PER_ANNOTATION, len(scores[0])
+    n = np.min(NBR_SCORES_SCORED_PER_ANNOTATION, len(scores[0]))
     for point, score in zip(points, scores):
         inds = np.argsort(score)[::-1][:nbr_scores] # grab the index of the n highest index
         for ind in inds:

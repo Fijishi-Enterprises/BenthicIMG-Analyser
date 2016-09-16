@@ -289,6 +289,7 @@ IMAGE_UPLOAD_ACCEPTED_CONTENT_TYPES = [
     'image/jpeg',
     'image/pjpeg',  # Progressive JPEG
     'image/png',
+    'image/mpo',
 ]
 CSV_UPLOAD_MAX_FILE_SIZE = 30*1024*1024  # 30 MB
 

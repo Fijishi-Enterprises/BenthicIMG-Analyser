@@ -12,10 +12,10 @@
     <tr>
         <th>id</th>
         <th>name</th>
-        <th># imgs</th>
         <th># ver rbts</th>
         <th># rbts</th>
         <th>need new</th>
+        <th># imgs</th>
         <th># ver.</th>
         <th># in curr.</th>
         <th># need feats</th>
@@ -33,10 +33,10 @@
         {% endif %}
         <td> <a href="{% url 'source_main' source.id %}">{{source.id}}</a></td>
         <td> {{source.name_short}} </td>
-        <td> {{source.nbr_total_images}} </td>
         <td> {{source.nbr_valid_robots}} </td>
         <td> {{source.nbr_robots}} </td>
         <td> {{source.need_robot}} </td>
+        <td> {{source.nbr_total_images}} </td>
         <td> {{source.nbr_human_annotated_images}} </td>
         <td> {{source.nbr_in_current_model}} </td>
         <td> {{source.nbr_images_needs_features}} </td>

@@ -25,6 +25,7 @@ from annotations.utils import image_annotation_area_is_editable, image_has_any_h
 from labels.models import LabelGroup, Label, LabelSet
 from lib.decorators import source_permission_required, image_visibility_required, image_permission_required, source_visibility_required
 from visualization.utils import image_search_kwargs_to_queryset
+import vision_backend.tasks as backend_tasks
 
 
 def source_list(request):
@@ -511,13 +512,14 @@ def image_detail(request, image_id):
         if(request.POST.get('delete_annotations', None)):
             for ann in Annotation.objects.filter(image=image):
                 ann.delete()
-            image.after_deleting_annotations()
+            image.confirmed = False
+            image.save()
             messages.success(request, 'Successfully removed all annotations from this image.')
             return HttpResponseRedirect(reverse('image_detail', args=[image_id]))
 
         elif(request.POST.get('regenerate_point_locations', None)):
             utils.generate_points(image, usesourcemethod=False)
-            image.after_annotation_area_change()
+            backend_tasks.reset_features(image_id)
             messages.success(request, 'Successfully regenerated point locations.')
             return HttpResponseRedirect(reverse('image_detail', args=[image_id]))
     
@@ -525,7 +527,7 @@ def image_detail(request, image_id):
             image.point_generation_method = image.source.default_point_generation_method
             image.save()
             utils.generate_points(image, usesourcemethod=False)
-            image.after_annotation_area_change()
+            backend_tasks.reset_features(image_id)
             messages.success(request, 'Reset image point generation method to source default.')
             return HttpResponseRedirect(reverse('image_detail', args=[image_id]))
 
@@ -533,7 +535,7 @@ def image_detail(request, image_id):
             image.metadata.annotation_area = image.source.image_annotation_area
             image.metadata.save()
             utils.generate_points(image, usesourcemethod=False)
-            image.after_annotation_area_change()
+            backend_tasks.reset_features(image_id)
             messages.success(request, 'Reset annotation area to source default.')
             return HttpResponseRedirect(reverse('image_detail', args=[image_id]))
 

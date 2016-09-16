@@ -21,6 +21,7 @@ from .forms import MultiImageUploadForm, ImageUploadForm, CSVImportForm
 from .utils import upload_image_process, find_dupe_image,\
     metadata_csv_to_dict, annotations_csv_to_dict, \
     annotations_preview, metadata_preview
+import vision_backend.tasks as backend_tasks
 
 
 @source_permission_required('source_id', perm=Source.PermTypes.EDIT.code)
@@ -397,7 +398,7 @@ def upload_annotations_ajax(request, source_id):
         # Update relevant image status fields.
         img.confirmed = (len(new_points) == len(new_annotations))
         img.save()
-        img.after_annotation_area_change()
+        backend_tasks.reset_features(image_id)
 
     return JsonResponse(dict(
         success=True,

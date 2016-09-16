@@ -17,7 +17,7 @@ from images.utils import generate_points, get_next_image, \
     get_date_and_aux_metadata_table, get_prev_image, get_image_order_placement
 from lib.decorators import image_permission_required, image_annotation_area_must_be_editable, image_labelset_required, login_required_ajax
 from visualization.forms import HiddenForm, post_to_image_filter_form
-
+import vision_backend.tasks as backend_tasks
 
 @image_permission_required('image_id', perm=Source.PermTypes.EDIT.code)
 @image_annotation_area_must_be_editable('image_id')
@@ -49,7 +49,7 @@ def annotation_area_edit(request, image_id):
 
             if metadata.annotation_area != old_annotation_area:
                 generate_points(image, usesourcemethod=False)
-                image.after_annotation_area_change()
+                backend_tasks.reset_features(image_id)
 
             messages.success(request, 'Annotation area successfully edited.')
             return HttpResponseRedirect(reverse('image_detail', args=[image.id]))
@@ -308,6 +308,11 @@ def save_annotations_ajax(request, image_id):
     if image.confirmed != all_done:
         image.confirmed = all_done
         image.save()
+
+    # Finally, with a new image confirmed, let's try to train a new robot.
+    # It will simply exit if there is not enough new images or if one is 
+    # already being trained.
+    backend_tasks.submit_classifier()
 
     return JsonResponse(dict(all_done=all_done))
 

@@ -10,12 +10,13 @@ import pickle
 from django.conf import settings
 from django.utils import functional
 
-encoding_map = {
+
+def direct_s3_read(key, encoding):
+
+    encoding_map = {
         'json': json.loads,
         'pickle': pickle.loads
     }
-
-def explicit_s3_load(key, encoding):
 
     conn = boto.connect_s3(
         aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
@@ -26,6 +27,22 @@ def explicit_s3_load(key, encoding):
     k.key = key
     
     return encoding_map[encoding](k.get_contents_as_string())
+
+def direct_s3_write(key, encoding, data):
+
+    encoding_map = {
+        'json': json.dumps,
+        'pickle': pickle.dumps
+    }
+
+    conn = boto.connect_s3(
+        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
+    )
+    bucket = conn.get_bucket(settings.AWS_STORAGE_BUCKET_NAME)
+    k = boto.s3.key.Key(bucket)
+    k.key = key
+    k.set_contents_from_string(encoding_map[encoding](data))
 
 
 def filesize_display(num_bytes):

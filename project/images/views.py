@@ -17,8 +17,6 @@ from . import utils
 from .forms import ImageSourceForm, LabelImportForm, MetadataForm, PointGenForm, SourceChangePermissionForm, SourceInviteForm, SourceRemoveUserForm
 from .model_utils import PointGen
 from .models import Source, Image, SourceInvite, Metadata
-from .tasks import *
-from .utils import get_date_and_aux_metadata_table, get_next_image, get_prev_image
 from annotations.forms import AnnotationAreaPercentsForm
 from annotations.model_utils import AnnotationAreaUtils
 from annotations.utils import image_annotation_area_is_editable, image_has_any_human_annotations
@@ -26,6 +24,7 @@ from labels.models import LabelGroup, Label, LabelSet
 from lib.decorators import source_permission_required, image_visibility_required, image_permission_required, source_visibility_required
 from visualization.utils import image_search_kwargs_to_queryset
 import vision_backend.tasks as backend_tasks
+from vision_backend.utils import get_confusion_matrix, collapse_confusion_matrix, confusion_matrix_normalize
 
 
 def source_list(request):
@@ -194,7 +193,7 @@ def source_main(request, source_id):
     robot_stats = make_robot_stats(source_id, 3)
     source.latitude = source.latitude[:8]
     source.longitude = source.longitude[:8]
-    backend_status = source_robot_status(source_id)
+    backend_status = utils.source_robot_status(source_id)
 
     return render(request, 'images/source_main.html', {
         'source': source,
@@ -468,10 +467,10 @@ def image_detail_helper(image_id):
 
     # Next and previous image links
     source_images = Image.objects.filter(source=source)
-    next_image = get_next_image(
+    next_image = utils.get_next_image(
         image, source_images,
         ('metadata__name', image.metadata.name, False), wrap=False)
-    prev_image = get_prev_image(
+    prev_image = utils.get_prev_image(
         image, source_images,
         ('metadata__name', image.metadata.name, False), wrap=False)
 
@@ -489,7 +488,7 @@ def image_detail_helper(image_id):
             'next_image': next_image,
             'prev_image': prev_image,
             'metadata': metadata,
-            'image_meta_table': get_date_and_aux_metadata_table(image),
+            'image_meta_table': utils.get_date_and_aux_metadata_table(image),
             'other_fields': other_fields,
             'has_thumbnail': bool(thumbnail_dimensions),
             'thumbnail_dimensions': thumbnail_dimensions,

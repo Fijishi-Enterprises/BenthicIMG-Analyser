@@ -1,4 +1,4 @@
-import json, sys
+import json, sys, os
 
 from unipath import Path
 
@@ -308,5 +308,36 @@ CAPTCHA_PUBLIC_KEY = get_secret("CAPTCHA_PUBLIC_KEY")
 GOOGLE_ANALYTICS_CODE = get_secret("GOOGLE_ANALYTICS_CODE", required=False)
 
 # Celery
-BROKER_URL = 'redis://127.0.0.1:6379/0'
+BROKER_URL = 'redis://localhost:6379'
 BROKER_TRANSPORT = 'redis'
+CELERYD_CONCURRENCY = 1
+
+
+# LOG
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'standard': {
+            'format': '%(asctime)s %(message)s'
+        },
+        'simple': {
+            'format': '%(levelname)s %(message)s'
+        },
+    },
+    'handlers': {
+        'backend': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(PROJECT_DIR, 'logs', 'vision_backend.log') ,
+            'formatter': 'standard'
+        },
+    },
+    'loggers': {
+        'vision_backend': {
+            'handlers': ['backend'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+    },
+}

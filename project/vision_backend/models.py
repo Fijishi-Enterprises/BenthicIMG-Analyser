@@ -4,7 +4,7 @@ from django.db import models
 
 from datetime import datetime
 
-from labels.models import Label
+from labels.models import Label, LocalLabel
 
 
 class Classifier(models.Model):
@@ -83,6 +83,12 @@ class Score(models.Model):
     source = models.ForeignKey('images.Source', on_delete = models.CASCADE)
     image = models.ForeignKey('images.Image', on_delete = models.CASCADE)
     score = models.IntegerField(default = 0)
+
+    @property
+    def label_code(self):
+        local_label = LocalLabel.objects.get(
+            global_label=self.label, labelset=self.source.labelset)
+        return local_label.code
 
 
     

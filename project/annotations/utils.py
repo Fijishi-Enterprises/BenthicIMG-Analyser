@@ -5,7 +5,7 @@ from accounts.utils import get_robot_user, is_robot_user, get_alleviate_user
 from annotations.models import Annotation
 from images.model_utils import PointGen
 from images.models import Image, Point
-from images.tasks import get_alleviate_meta
+from vision_backend.utils import get_alleviate_meta
 
 def image_annotation_all_done(image):
     """

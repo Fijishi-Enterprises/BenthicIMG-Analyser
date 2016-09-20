@@ -5,6 +5,7 @@ from django.forms import modelformset_factory
 from django.forms.formsets import formset_factory
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
+from django.conf import settings
 
 from .forms import CheckboxForm, StatisticsSearchForm, ImageSearchForm, \
     PatchSearchOptionsForm, HiddenForm, post_to_image_filter_form
@@ -12,8 +13,7 @@ from .utils import generate_patch_if_doesnt_exist, get_patch_url, paginate
 from accounts.utils import get_robot_user
 from annotations.models import Annotation
 from images.forms import MetadataFormForGrid, BaseMetadataFormSet
-from images.models import Source, Image, Metadata
-from images.tasks import *
+from images.models import Source, Image, Metadata, Point
 from images.utils import delete_images
 from labels.models import LabelGroup, Label
 from lib.decorators import source_visibility_required, source_permission_required

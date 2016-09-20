@@ -17,7 +17,9 @@ from images.utils import generate_points, get_next_image, \
     get_date_and_aux_metadata_table, get_prev_image, get_image_order_placement
 from lib.decorators import image_permission_required, image_annotation_area_must_be_editable, image_labelset_required, login_required_ajax
 from visualization.forms import HiddenForm, post_to_image_filter_form
+from vision_backend.utils import get_label_probabilities_for_image
 import vision_backend.tasks as backend_tasks
+
 
 @image_permission_required('image_id', perm=Source.PermTypes.EDIT.code)
 @image_annotation_area_must_be_editable('image_id')
@@ -146,7 +148,7 @@ def annotation_tool(request, image_id):
     elif not image.features.classified:
         label_probabilities = None
     else:
-        label_probabilities = None #task_utils.get_label_probabilities_for_image(image_id)
+        label_probabilities = get_label_probabilities_for_image(image_id)
         # label_probabilities can still be None here if something goes wrong.
         # But if not None, apply Alleviate.
         if label_probabilities:

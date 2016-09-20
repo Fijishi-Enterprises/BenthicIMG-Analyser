@@ -1,41 +1,33 @@
-import boto
 import os
-import json
-import pickle
+import logging
 
 import numpy as np
 
+from celery.decorators import task, periodic_task
 from sklearn import linear_model
+from datetime import timedelta
 
-from boto.s3.key import Key
-from boto.sqs.message import Message
-
-
-from django.conf import settings
-from django.utils import timezone
+import task_helpers as th
 
 from .models import Classifier, Score
-
 from images.models import Source, Image, Point
-from annotations.models import Annotation
-from labels.models import LabelSet, Label
-from accounts.utils import get_robot_user, is_robot_user
+from labels.models import LabelSet
 
-from . import task_helpers as th
+from lib.utils import direct_s3_read, direct_s3_write
 
-from celery.decorators import task, periodic_task
+from django.conf import settings
 
-from datetime import timedelta
+
+logger = logging.getLogger(__name__)
 
 
 """
 Dummy tasks for debugging
 """
 
-@task(name="one-time hello")
+@task(name="one hello")
 def one_hello_world():
     print "This is a one time hello world"
-
 
 @periodic_task(run_every=timedelta(seconds = 10), name='periodic hello', ignore_result=True)
 def hello_world():
@@ -45,27 +37,28 @@ def hello_world():
 def hello_world():
     print "There are {} images in the DB".format(Image.objects.filter().count())
 
-@periodic_task(run_every=timedelta(seconds = 12), name='DB write', ignore_result=True)
-def hello_world():
-    img = Image.objects.filter()[0]
-    img.features.extracted = False
-    img.features.save()
-    print "Set img.features.extracted = False for image {}.".format(img.pk)
-
 """
 End dummy tasks for debugging
 """
 
-
-def submit_features(image_id):
+@task(name = "submit_features")
+def submit_features(image_id, force = False):
     """
     Submits a job to SQS for extracting features for an image.
     """
+    # Do some initial checks
     if not hasattr(settings, 'AWS_S3_MEDIA_SUBDIR'):
-        # This means that we are using a local DB and the backend won't work
+        logger.info("Can't use vision backend if media is stored locally.")
         return
 
-    img = Image.objects.get(pk = image_id)
+    try:
+        img = Image.objects.get(pk = image_id)
+    except:
+        logger.info("Image {} does not exist.".format(image_id))
+
+    if img.features.extracted and not force:
+        logger.info("Image {} already has features".format(image_id))
+        return
 
     # Assemble row column information
     rowcols = []
@@ -83,47 +76,58 @@ def submit_features(image_id):
         'pk': image_id
     }
 
-    # Assbmeble the message body.
+    # Assemble message body.
     messagebody = {
         'task': 'extract_features',
         'payload': payload
     }
 
     # Submit.
-    conn = boto.sqs.connect_to_region("us-west-2",
-        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY)
-    queue = conn.get_queue('spacer_jobs')
-    m = Message()
-    m.set_body(json.dumps(messagebody))
-    queue.write(m)
+    th._submit_job(messagebody)
+
+    logger.info("Submitted feature extraction for image {} [source: {}]".format(image_id, img.source_id))
 
 
-def submit_classifier(source_id):
+@task(name = "submit_classifier")
+def submit_classifier(source_id, nbr_images = 1e5, force = False):
 
+    # Do some intial checks
     if not hasattr(settings, 'AWS_S3_MEDIA_SUBDIR'):
-        # This means that we are using a local DB and the backend won't work
+        logger.info("Can't use vision backend if media is stored locally.")
         return
 
-    source = Source.objects.get(pk = source_id)
+    try:
+        source = Source.objects.get(pk = source_id)
+    except:
+        logger.info("Can't find source [{}]".format(source_id))
     
-    # Check if we really should try to train a new robot.
-    if not source.need_new_robot():
-        print "Source {} [{}] don't need a robot right now".format(source.name, source.pk)
+    if not source.need_new_robot() and not force:
+        logger.info("Source {} [{}] don't need new classifier.".format(source.name, source.pk))
         return
 
+    logger.info("Preparing new classifier for {} [{}].".format(source.name, source.pk))    
+    
     # Create new classifier model
-    images = Image.objects.filter(source = source, confirmed = True, features__extracted = True)
-    train_images = [image for image in images if image.trainset]
+    images = Image.objects.filter(source = source, confirmed = True, features__extracted = True)[:nbr_images]
     classifier = Classifier(source = source, nbr_train_images = len(images))
     classifier.save()
 
-    # Store ground truth annotations and feature points in dictionary
-    th._write_dataset(classifier, 'trainset', settings.ROBOT_MODEL_TRAINDATA_PATTERN)
-    th._write_dataset(classifier, 'valset', settings.ROBOT_MODEL_VALDATA_PATTERN)
-    
+    # Write traindict to S3
+    direct_s3_write(
+        settings.ROBOT_MODEL_TRAINDATA_PATTERN.format(pk = classifier.pk, media = settings.AWS_S3_MEDIA_SUBDIR),
+        'json',
+        th._make_dataset([image for image in images if image.trainset])
+    )
+
+    # Write valdict to S3
+    direct_s3_write(
+        settings.ROBOT_MODEL_VALDATA_PATTERN.format(pk = classifier.pk, media = settings.AWS_S3_MEDIA_SUBDIR),
+        'json',
+        th._make_dataset([image for image in images if image.valset])
+    )
+        
     # Prepare information for the message payload
-    classes = [l.id for l in LabelSet.objects.get(source = source).get_labels()] # Needed for the classifier.
+    classes = [l.global_label_id for l in LabelSet.objects.get(source = source).get_labels()] # Needed for the classifier.
     previous_classifiers = Classifier.objects.filter(source = source, valid = True) # This will not include the current.
     pc_models = [settings.ROBOT_MODEL_FILE_PATTERN.format(pk = pc.pk, media = settings.AWS_S3_MEDIA_SUBDIR) for pc in previous_classifiers]
     pc_pks = [pc.pk for pc in previous_classifiers] # Primary keys needed for collect task.
@@ -148,55 +152,40 @@ def submit_classifier(source_id):
         'payload': payload
     }
 
-    print messagebody
     # Submit.
-    conn = boto.sqs.connect_to_region("us-west-2",
-        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY)
-    queue = conn.get_queue('spacer_jobs')
-    m = Message()
-    m.set_body(json.dumps(messagebody))
-    queue.write(m)
+    th._submit_job(messagebody)
+
+    logger.info("Submitted classifier for source {} [{}] with {} images. Message: {}".format(source.name, source.id, len(images), messagebody))
  
 
+@task(name = "classify_image")
 def classify_image(image_id):
 
+
+    # Do some initial checks
     if not hasattr(settings, 'AWS_S3_MEDIA_SUBDIR'):
-        # This means that we are using a local DB and the backend won't work
+        logger.info("Can't use vision backend if media is stored locally.")
         return
 
     try:
         img = Image.objects.get(pk = image_id)
     except:
-        print "Image removed. Returning."
-        return
-    
-    # Do some checks
-    if not img.features.extracted:
-        return
+        logger.info("Image {} does not exist.".format(image_id))
+
     classifier = img.source.get_latest_robot()
     if not classifier:
-        return 0
+        logger.info("No classifier exists for image {} [source {}]".format(img.id, img.source_id))
 
-    # Connect to S3
-    conn = boto.connect_s3(
-        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
-    )
-    bucket = conn.get_bucket(settings.AWS_STORAGE_BUCKET_NAME)
-    
     # Load model
-    k = Key(bucket)
-    k.key = settings.ROBOT_MODEL_FILE_PATTERN.format(pk = classifier.pk, media = settings.AWS_S3_MEDIA_SUBDIR)
-    classifier_model = pickle.loads(k.get_contents_as_string())
+    classifier_model = direct_s3_read(
+        settings.ROBOT_MODEL_FILE_PATTERN.format(pk = classifier.pk, media = settings.AWS_S3_MEDIA_SUBDIR),
+        'pickle' )
     
-    # Load features
-    k.key = settings.FEATURE_VECTOR_FILE_PATTERN.format(full_image_path = os.path.join(settings.AWS_S3_MEDIA_SUBDIR, img.original_file.name))
-    feats = json.loads(k.get_contents_as_string())
+    feats = direct_s3_read(
+        settings.FEATURE_VECTOR_FILE_PATTERN.format(full_image_path = os.path.join(settings.AWS_S3_MEDIA_SUBDIR, img.original_file.name)),
+        'json' )
 
-    # Classify (very easy!)
-    print 'feats', len(feats), len(feats[0])
-    print 'classifier_model', classifier_model
+    # Classify
     scores = classifier_model.predict_proba(feats)
 
     # Add annotations if image isn't already confirmed
@@ -205,7 +194,21 @@ def classify_image(image_id):
     
     # Always add scores
     th._add_scores(image_id, scores, classifier_model.classes_, classifier)
+    
+    img.features.classified = True
+    img.features.save()
 
+    logger.info("Classified image {} [source {}] with classifier {}".format(img.id, img.source_id, classifier.id))
+
+
+def collect_all_jobs():
+    """
+    Runs collectjob until queue is empty.
+    """
+    logger.info('Collecting all jobs in result queue.')
+    while collectjob():
+        pass
+    logger.info('Done collecting all jobs in result queue.')
 
 
 def collectjob():
@@ -214,10 +217,9 @@ def collectjob():
     """
     
     # Grab a message
-    message = _read_message('spacer_results')
+    message = th._read_message('spacer_results')
     if message is None:
-        print "No messages in queue."
-        return
+        return 0
     messagebody = json.loads(message.get_body())
 
     # Check that the message pertains to this server
@@ -231,12 +233,11 @@ def collectjob():
 
     # Collect the job
     if jobcollectors[messagebody['original_job']['task']](messagebody):
-        print "job {}, pk: {} collected successfully".format(messagebody['original_job']['task'], messagebody['original_job']['payload']['pk'])
-    else:
-        print "some error occurred" #replace with logging.
+        logger.info("job {}, pk: {} collected successfully".format(messagebody['original_job']['task'], messagebody['original_job']['payload']['pk']))
 
     # Remove from queue        
     message.delete()
+    return 1
 
 
 def reset_after_labelset_change(source_id):
@@ -256,6 +257,13 @@ def reset_after_labelset_change(source_id):
     submit_classifier(source_id)
 
 def reset_features(image_id):
+    """
+    Resets features for image. Call this after any change that affects the image 
+    point locations. E.g:
+    Re-generate point locations.
+    Change annotation area.
+    Add new poits.
+    """
 
     img = Image.objects.get(pk = image_id)
     features = img.features

@@ -17,6 +17,7 @@ from boto.sqs.message import Message
 
 from django.conf import settings
 from django.utils import timezone
+from django.db.models import F
 
 from .models import Classifier, Score
 
@@ -29,15 +30,28 @@ from .models import Classifier, Score
 from images.models import Source, Image, Point
 
 
+def _submit_job(messagebody):
+    """
+    Submits message to the SQS spacer_jobs
+    """
+    conn = boto.sqs.connect_to_region("us-west-2",
+        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY)
+    queue = conn.get_queue('spacer_jobs')
+    m = Message()
+    m.set_body(json.dumps(messagebody))
+    queue.write(m)
+
+
 def _add_labels(image_id, scores, classes, classifier):
-    print scores, classes, type(classes)
+    print scores, len(scores), len(scores[0]), classes, type(classes)
     user = get_robot_user()
     img = Image.objects.get(pk = image_id)
     points = Point.objects.filter(image = img).order_by('id')
     estlabels = [np.argmax(score) for score in scores]
     for pt, estlabel in zip(points, estlabels):
         
-        label = Label.objects.get(pk = classes[estlabel])
+        label = LocalLabel.objects.get(pk = classes[estlabel])
 
         # If there's an existing annotation for this point, get it.
         # Otherwise, create a new annotation.
@@ -78,7 +92,7 @@ def _add_scores(image_id, scores, classes, classifier):
     # Now, go through and create new ones.
 
     # Figure out how many of the (top) scores to store.
-    n = np.min(NBR_SCORES_SCORED_PER_ANNOTATION, len(scores[0]))
+    nbr_scores = min(settings.NBR_SCORES_PER_ANNOTATION, len(scores[0]))
     for point, score in zip(points, scores):
         inds = np.argsort(score)[::-1][:nbr_scores] # grab the index of the n highest index
         for ind in inds:
@@ -91,40 +105,19 @@ def _add_scores(image_id, scores, classes, classifier):
             )
             score_obj.save()
 
-def _write_dataset(classifier, split, keypattern):
-    """
-    helper function for classifier_submit. Calls _make_dataset and then 
-    writes the result to S3.
-    """
-    
-    gtdict = _make_dataset(classifier, split)
-    conn = boto.connect_s3(
-        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
-    )
-    bucket = conn.get_bucket(settings.AWS_STORAGE_BUCKET_NAME)
-    k = Key(bucket)
-    k.key = keypattern.format(pk = classifier.pk, media = settings.AWS_S3_MEDIA_SUBDIR)
-    k.set_contents_from_string(json.dumps(gtdict))
 
-
-def _make_dataset(classifier, split):
+def _make_dataset(images):
     """
     Helper funtion for classifier_submit. Assemples all features and ground truth annotations
     for training and evaluation of the robot classifier.
     """
-
-    images = Image.objects.filter(source = classifier.source, confirmed = True)
-    train_images = [image for image in images if getattr(image, split)]
-
     gtdict = {}
-    for img in train_images:
+    for img in images:
         full_image_path = os.path.join(settings.AWS_S3_MEDIA_SUBDIR, img.original_file.name)
         feature_key = settings.FEATURE_VECTOR_FILE_PATTERN.format(full_image_path = full_image_path)
-        anns = Annotation.objects.filter(image = img).order_by('point__id')
-        gtlabels = [ann.label.id for ann in anns]
+        anns = Annotation.objects.filter(image = img).order_by('point__id').annotate(gt = F('label__id'))
+        gtlabels = [int(ann.gt) for ann in anns]
         gtdict[feature_key] = gtlabels
-
     return gtdict
 
 

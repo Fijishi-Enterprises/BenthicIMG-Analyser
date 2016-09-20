@@ -4,7 +4,7 @@ from django.db import models
 
 from datetime import datetime
 
-from labels.models import Label
+from labels.models import LocalLabel
 
 
 class Classifier(models.Model):
@@ -78,7 +78,7 @@ class Score(models.Model):
     """
     Tracks scores for each point in each image.
     """
-    label = models.ForeignKey(Label, on_delete = models.CASCADE)
+    label = models.ForeignKey(LocalLabel, on_delete = models.CASCADE)
     point = models.ForeignKey('images.Point', on_delete = models.CASCADE)
     source = models.ForeignKey('images.Source', on_delete = models.CASCADE)
     image = models.ForeignKey('images.Image', on_delete = models.CASCADE)

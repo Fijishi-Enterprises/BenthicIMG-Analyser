@@ -63,3 +63,11 @@ billiard==3.3.0.23
 celery==3.1.23
 kombu==3.0.35
 redis==2.10.5
+
+# Task monitor "flower". Not required but a nice monitor.
+ckports.ssl-match-hostname==3.5.0.1
+certifi==2016.8.31
+flower==0.9.1
+futures==3.0.5
+tornado==4.2
+

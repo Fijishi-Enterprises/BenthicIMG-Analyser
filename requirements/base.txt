@@ -51,3 +51,15 @@ PyYAML==3.10
 
 # More elegant filepath calculations
 unipath==1.1
+
+# Machine Learning tools
+scikit-learn==0.17.1
+scipy==0.18.1
+
+# Async job tools
+amqp==1.4.9
+anyjson==0.3.3
+billiard==3.3.0.23
+celery==3.1.23
+kombu==3.0.35
+redis==2.10.5

@@ -306,3 +306,7 @@ CAPTCHA_PUBLIC_KEY = get_secret("CAPTCHA_PUBLIC_KEY")
 
 # [Custom settings]
 GOOGLE_ANALYTICS_CODE = get_secret("GOOGLE_ANALYTICS_CODE", required=False)
+
+# Celery
+BROKER_URL = 'redis://127.0.0.1:6379/0'
+BROKER_TRANSPORT = 'redis'

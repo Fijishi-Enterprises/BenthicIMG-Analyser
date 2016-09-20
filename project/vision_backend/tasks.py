@@ -11,7 +11,6 @@ from boto.s3.key import Key
 from boto.sqs.message import Message
 
 
-
 from django.conf import settings
 from django.utils import timezone
 
@@ -23,6 +22,40 @@ from labels.models import LabelSet, Label
 from accounts.utils import get_robot_user, is_robot_user
 
 from . import task_helpers as th
+
+from celery.decorators import task, periodic_task
+
+from datetime import timedelta
+
+
+"""
+Dummy tasks for debugging
+"""
+
+@task(name="one-time hello")
+def one_hello_world():
+    print "This is a one time hello world"
+
+
+@periodic_task(run_every=timedelta(seconds = 10), name='periodic hello', ignore_result=True)
+def hello_world():
+    print "This is a periodic hello world"
+
+@periodic_task(run_every=timedelta(seconds = 12), name='DB read', ignore_result=True)
+def hello_world():
+    print "There are {} images in the DB".format(Image.objects.filter().count())
+
+@periodic_task(run_every=timedelta(seconds = 12), name='DB write', ignore_result=True)
+def hello_world():
+    img = Image.objects.filter()[0]
+    img.features.extracted = False
+    img.features.save()
+    print "Set img.features.extracted = False for image {}.".format(img.pk)
+
+"""
+End dummy tasks for debugging
+"""
+
 
 def submit_features(image_id):
     """

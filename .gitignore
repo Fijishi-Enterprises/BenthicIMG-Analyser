@@ -3,6 +3,9 @@ secrets.json
 project/images/task_helpers.py
 project/templates/maintenance_notice.html
 coralnet_sqlite_database
+*.log
+*.db
+*.rdb
 
 # Compiled Python
 *.pyc

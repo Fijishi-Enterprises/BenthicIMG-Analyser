@@ -10,7 +10,7 @@ def backend_overview(request):
         laundry_list.append(source_robot_status(source.id))
     timestr = ""
 
-    laundry_list = sorted(laundry_list, key=lambda k: k['need_attention'])[::-1]
+    laundry_list = sorted(laundry_list, key=lambda k: k['need_attention']*k['id'])[::-1]
     
     return render(request, 'vision_backend/overview.html', {
         'laundry_list': laundry_list,

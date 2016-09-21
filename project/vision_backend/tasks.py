@@ -11,12 +11,13 @@ import task_helpers as th
 
 from .models import Classifier, Score
 from images.models import Source, Image, Point
-from labels.models import LabelSet
+from labels.models import LabelSet, Label
 
 from lib.utils import direct_s3_read, direct_s3_write
 
 from django.conf import settings
 
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +56,7 @@ def submit_features(image_id, force = False):
         img = Image.objects.get(pk = image_id)
     except:
         logger.info("Image {} does not exist.".format(image_id))
+        return
 
     if img.features.extracted and not force:
         logger.info("Image {} already has features".format(image_id))
@@ -100,6 +102,7 @@ def submit_classifier(source_id, nbr_images = 1e5, force = False):
         source = Source.objects.get(pk = source_id)
     except:
         logger.info("Can't find source [{}]".format(source_id))
+        return
     
     if not source.need_new_robot() and not force:
         logger.info("Source {} [{}] don't need new classifier.".format(source.name, source.pk))
@@ -171,10 +174,12 @@ def classify_image(image_id):
         img = Image.objects.get(pk = image_id)
     except:
         logger.info("Image {} does not exist.".format(image_id))
+        return
 
     classifier = img.source.get_latest_robot()
     if not classifier:
         logger.info("No classifier exists for image {} [source {}]".format(img.id, img.source_id))
+        return
 
     # Load model
     classifier_model = direct_s3_read(
@@ -188,12 +193,17 @@ def classify_image(image_id):
     # Classify
     scores = classifier_model.predict_proba(feats)
 
-    # Add annotations if image isn't already confirmed
+    # Pre-fetch label objects
+    label_objs = []
+    for _class in classifier_model.classes_:
+        label_objs.append(Label.objects.get(pk = _class))
+
+    # Add annotations if image isn't already confirmed    
     if not img.confirmed:
-        th._add_labels(image_id, scores, classifier_model.classes_, classifier)
+        th._add_annotations(image_id, scores, label_objs, classifier)
     
     # Always add scores
-    th._add_scores(image_id, scores, classifier_model.classes_, classifier)
+    th._add_scores(image_id, scores, label_objs)
     
     img.features.classified = True
     img.features.save()
@@ -224,7 +234,8 @@ def collectjob():
 
     # Check that the message pertains to this server
     if not messagebody['original_job']['payload']['bucketname'] == settings.AWS_STORAGE_BUCKET_NAME:
-        return
+        logger.info("Job pertains to wrong bucket [%]".format(messagebody['original_job']['payload']['bucketname']))
+        return 1
 
     jobcollectors = {
         'extract_features': th._featurecollector,
@@ -254,7 +265,7 @@ def reset_after_labelset_change(source_id):
         image.features.save()
 
     # Finally, let's try to train a new classifier.
-    submit_classifier(source_id)
+    submit_classifier.delay(source_id)
 
 def reset_features(image_id):
     """
@@ -272,7 +283,7 @@ def reset_features(image_id):
     features.save()
 
     # Re-submit feature extraction.
-    submit_features(image_id)
+    submit_features.delay(image_id)
 
 
 

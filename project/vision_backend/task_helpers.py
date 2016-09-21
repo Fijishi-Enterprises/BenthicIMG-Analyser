@@ -1,7 +1,7 @@
 """
 This file contains helper functions to vision_backend.tasks.
 """
-import boto
+import boto.sqs
 import os
 import json
 import logging
@@ -31,7 +31,7 @@ def _submit_job(messagebody):
         aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
         aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY)
     queue = conn.get_queue('spacer_jobs')
-    m = Message()
+    m = boto.sqs.message.Message()
     m.set_body(json.dumps(messagebody))
     queue.write(m)
 
@@ -148,7 +148,7 @@ def _featurecollector(messagebody):
     try:
         img = Image.objects.get(pk = image_id)
     except:
-        logger.info("Image {} was deleted. Aborting".format(image_id)
+        logger.info("Image {} was deleted. Aborting".format(image_id))
         return 1
 
     # Double-check that the row-col information is still correct.
@@ -157,7 +157,7 @@ def _featurecollector(messagebody):
         rowcols.append([point.row, point.column])
 
     if not rowcols == messagebody['original_job']['payload']['rowcols']:
-        logger.info("Row-col for image {} have changed. Aborting.".format(image_id)
+        logger.info("Row-col for image {} have changed. Aborting.".format(image_id))
         return 1
     
     # If all is ok store meta-data.
@@ -180,7 +180,7 @@ def _classifiercollector(messagebody):
     try:
         classifier = Classifier.objects.get(pk = payload['pk'])
     except:
-        logger.info("Classifier {} was deleted. Aborting".format(payload['pk'])
+        logger.info("Classifier {} was deleted. Aborting".format(payload['pk']))
         return 1
 
     # Check that the accuracy is higher than the previous classifiers

@@ -21,10 +21,11 @@ from annotations.forms import AnnotationAreaPercentsForm
 from annotations.model_utils import AnnotationAreaUtils
 from annotations.utils import image_annotation_area_is_editable, image_has_any_human_annotations
 from labels.models import LabelGroup, Label, LabelSet
+from annotations.models import Annotation
 from lib.decorators import source_permission_required, image_visibility_required, image_permission_required, source_visibility_required
 from visualization.utils import image_search_kwargs_to_queryset
 import vision_backend.tasks as backend_tasks
-from vision_backend.utils import get_confusion_matrix, collapse_confusion_matrix, confusion_matrix_normalize
+from vision_backend.utils import get_confusion_matrix, collapse_confusion_matrix, confusion_matrix_normalize, format_cm_for_display, accuracy_from_cm, get_alleviate_meta
 
 
 def source_list(request):

@@ -1,5 +1,16 @@
-from .models import Classifier, Score
+import numpy as np
+
+from django.conf import settings
+
+from lib.utils import direct_s3_read, direct_s3_write
 from images.models import Source, Point
+from labels.models import LabelSet, Label, LabelGroup
+
+from .models import Classifier, Score
+
+
+
+
 
 def get_label_probabilities_for_image(image_id):
     """
@@ -67,14 +78,14 @@ def collapse_confusion_matrix(cm, labelIds):
         funcIds.append(int(group.id))
 
     # create a map from labelid to the functional group consecutive id. Needed for the matrix collapse.
-    funcMap = zeros( (nlabels, 1), dtype = int )
+    funcMap = np.zeros( (nlabels, 1), dtype = int )
     for labelItt in range(nlabels):
         funcMap[labelItt] = fdict[Label.objects.get(id=labelIds[labelItt]).group_id]
 
     ## collapse columns
     
     # create an intermediate confusion matrix to facilitate the collapse
-    cm_int = zeros( ( nlabels, nfuncgroups ), dtype = int )
+    cm_int = np.zeros( ( nlabels, nfuncgroups ), dtype = int )
         
     # do the collapse
     for rowlabelitt in range(nlabels):
@@ -83,7 +94,7 @@ def collapse_confusion_matrix(cm, labelIds):
     
     ## collapse rows
     # create the final confusion matrix for functional groups
-    cm_func = zeros( ( nfuncgroups, nfuncgroups ), dtype = int )
+    cm_func = np.zeros( ( nfuncgroups, nfuncgroups ), dtype = int )
         
     # do the collapse
     for rowlabelitt in range(nlabels):
@@ -100,9 +111,9 @@ def confusion_matrix_normalize(cm):
     OUTPUT row_sums is the row sums of the input cm
     """
     row_sums = cm.sum(axis=1)
-    cm = float32(cm)
+    cm = np.float32(cm)
     row_sums[row_sums == 0] = 1
-    cm_normalized = cm / row_sums[:, newaxis]
+    cm_normalized = cm / row_sums[:, np.newaxis]
 
     return (cm_normalized, row_sums)
 
@@ -131,14 +142,14 @@ def accuracy_from_cm(cm):
     """
     Calculates accuracy and kappa from confusion matrix.
     """
-    cm = float32(cm)
-    acc = sum(np.diagonal(cm))/sum(cm)
+    cm = np.float32(cm)
+    acc = np.sum(np.diagonal(cm))/np.sum(cm)
 
-    pgt = cm.sum(axis=1) / sum(cm) #probability of the ground truth to predict each class
+    pgt = cm.sum(axis=1) / np.sum(cm) #probability of the ground truth to predict each class
 
-    pest = cm.sum(axis=0) / sum(cm) #probability of the estimates to predict each class
+    pest = cm.sum(axis=0) / np.sum(cm) #probability of the estimates to predict each class
 
-    pe = sum(pgt * pest) #probaility of randomly guessing the same thing!
+    pe = np.sum(pgt * pest) #probaility of randomly guessing the same thing!
 
     if (pe == 1):
         cok = 1

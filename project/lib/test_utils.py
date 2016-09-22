@@ -638,7 +638,14 @@ class StorageChecker(object):
     before tests, and (2) clean up test file storage after tests.
     """
     # Filenames we can safely ignore during setup and teardown.
-    ignorable_filenames = ['tasks.log']
+    ignorable_filenames = [
+        'vision_backend.log',
+        # It seems S3 is silly, and will sometimes think there's a file with
+        # an empty filename in a directory. These 'files' can be deleted but
+        # it may be tricky. Best to just ignore these files, as it shouldn't
+        # hurt to leave them in between tests.
+        '',
+    ]
 
     def __init__(self):
         self.timestamp_before_tests = None

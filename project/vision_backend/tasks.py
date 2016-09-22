@@ -15,6 +15,7 @@ from images.models import Source, Image, Point
 from labels.models import LabelSet, Label
 
 from lib.utils import direct_s3_read, direct_s3_write
+from accounts.utils import get_robot_user
 
 from django.conf import settings
 
@@ -88,7 +89,7 @@ def submit_features(image_id, force = False):
     # Submit.
     th._submit_job(messagebody)
 
-    logger.info("Submitted feature extraction for image {} [source: {}]".format(image_id, img.source_id))
+    logger.info("Submitted feature extraction for image {} [source: {}]. Message: {}".format(image_id, img.source_id, messagebody))
 
 
 @task(name = "submit_classifier")
@@ -212,6 +213,7 @@ def classify_image(image_id):
     logger.info("Classified image {} [source {}] with classifier {}".format(img.id, img.source_id, classifier.id))
 
 
+#@periodic_task(run_every=timedelta(seconds = 60), name='Collect all jobs', ignore_result=True)
 def collect_all_jobs():
     """
     Runs collectjob until queue is empty.
@@ -221,7 +223,7 @@ def collect_all_jobs():
         pass
     logger.info('Done collecting all jobs in result queue.')
 
-
+@task(name = "collectjob")
 def collectjob():
     """
     main task for collecting jobs from AWS SQS.
@@ -238,17 +240,29 @@ def collectjob():
         logger.info("Job pertains to wrong bucket [%]".format(messagebody['original_job']['payload']['bucketname']))
         return 1
 
-    jobcollectors = {
-        'extract_features': th._featurecollector,
-        'train_classifier': th._classifiercollector
-    }
-
-    # Collect the job
-    if jobcollectors[messagebody['original_job']['task']](messagebody):
-        logger.info("job {}, pk: {} collected successfully".format(messagebody['original_job']['task'], messagebody['original_job']['payload']['pk']))
-
-    # Remove from queue        
+    # Delete message (at this point, if it is not handeled correctly, we still want to delete it from queue.)
     message.delete()
+
+    # Handle message
+    pk = messagebody['original_job']['payload']['pk']
+    task = messagebody['original_job']['task']
+    
+    if task == 'extract_features':
+        if th._featurecollector(messagebody): 
+            # If job was entered into DB, submit a classify job.
+            classify_image.delay(pk)
+            submit_classifier.delay(Image.objects.get(id = pk).source_id)
+    elif task == 'train_classifier':
+        if th._classifiercollector(messagebody):
+            # If job was entered into DB, submit a classify job for all images in source.
+            for image in Image.objects.filter(source_id = pk):
+                classify_image.delay(image.id)
+
+    else:
+        logger.error('Job task type {} not recognized'.format(task))
+    
+    # Conclude
+    logger.info("job {}, pk: {} collected successfully".format(task, pk))
     return 1
 
 
@@ -261,6 +275,7 @@ def reset_after_labelset_change(source_id):
     """
     Score.objects.filter(source_id = source_id).delete()
     Classifier.objects.filter(source_id = source_id).delete()
+    Annotation.objects.filter(source_id = source_id, user = get_robot_user()).delete()
     for image in Image.objects.filter(source_id = source_id):
         image.features.classified = False
         image.features.save()

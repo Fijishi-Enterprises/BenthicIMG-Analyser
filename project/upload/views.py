@@ -152,6 +152,8 @@ def upload_images_ajax(request, source_id):
         currentUser=request.user,
     )
 
+    backend_tasks.submit_features.delay(img.id)
+
     return JsonResponse(dict(
         success=True,
         link=reverse('image_detail', args=[img.id]),

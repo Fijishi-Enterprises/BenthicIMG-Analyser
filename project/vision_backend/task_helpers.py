@@ -149,7 +149,7 @@ def _featurecollector(messagebody):
         img = Image.objects.get(pk = image_id)
     except:
         logger.info("Image {} was deleted. Aborting".format(image_id))
-        return 1
+        return 0
 
     # Double-check that the row-col information is still correct.
     rowcols = []
@@ -158,7 +158,7 @@ def _featurecollector(messagebody):
 
     if not rowcols == messagebody['original_job']['payload']['rowcols']:
         logger.info("Row-col for image {} have changed. Aborting.".format(image_id))
-        return 1
+        return 0
     
     # If all is ok store meta-data.
     img.features.extracted = True
@@ -181,13 +181,13 @@ def _classifiercollector(messagebody):
         classifier = Classifier.objects.get(pk = payload['pk'])
     except:
         logger.info("Classifier {} was deleted. Aborting".format(payload['pk']))
-        return 1
+        return 0
 
     # Check that the accuracy is higher than the previous classifiers
     if 'pc_models' in payload and len(payload['pc_models']) > 0:
         if max(result['pc_accs']) * settings.NEW_CLASSIFIER_IMPROVEMENT_TH > result['acc']:
             print "New model worse than previous. Classifier not validated."
-            return 1
+            return 0
         
         # Update accuracy for previous models
         for pc_pk, pc_acc in zip(payload['pc_pks'], result['pc_accs']):

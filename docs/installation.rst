@@ -88,17 +88,29 @@ Look under ``requirements`` in the coralnet repository.
 
 With your virtualenv activated, run ``pip install -r requirements/<name>.txt``.
 
-- When installing ``psycopg2``, if you're on Linux and you get ``Error: pg_config executable not found``, you may have to install a Linux package first: ``postgresql95-devel`` on Red Hat/CentOS, ``libpq-dev`` on Debian/Ubuntu, ``libpq-devel`` on Cygwin/Babun. (`Source <http://stackoverflow.com/questions/11618898/pg-config-executable-not-found>`__)
+A few package/OS combinations may need additional steps:
+
+- ``scipy`` on Windows
+
+  - Installing SciPy with the requirements file will fail for two reasons. First, NumPy needs to be installed as NumPy+MKL, and the binary for that isn't on PyPI. Second, even after getting the NumPy install right, installing SciPy with pip fails for some reason (the first problem is ``libraries openblas not found in [ ... ] NOT AVAILABLE``).
+
+  - What to do: First install NumPy+MKL and then SciPy manually using the .whl files here: http://www.lfd.uci.edu/~gohlke/pythonlibs/ Then run the requirements file to install the rest of the packages.
+
+- ``psycopg2`` on Linux
+
+  - If you get ``Error: pg_config executable not found``, you may have to install a Linux package first: ``postgresql95-devel`` on Red Hat/CentOS, ``libpq-dev`` on Debian/Ubuntu, ``libpq-devel`` on Cygwin/Babun. (`Source <http://stackoverflow.com/questions/11618898/pg-config-executable-not-found>`__)
 
   - The package may not be in your package directory by default. See PostgreSQL's `Downloads <http://www.postgresql.org/download/>`__ page and follow instructions to get binary packages for your Linux distro.
+
+- ``Pillow`` on Linux
   
-- When installing ``Pillow``, if you're on Linux, you'll get errors if you don't have certain packages:
+  - You'll get errors if you don't have certain packages:
 
-  - ``ValueError: jpeg is required unless explicitly disabled using --disable-jpeg, aborting``: You need to install libjpeg (jpeg development support). For supported versions of libjpeg, see the `Pillow docs <https://pillow.readthedocs.io/en/latest/installation.html>`__. For example, to use libjpeg version 8 in Ubuntu, install ``libjpeg8-dev``.
+    - ``ValueError: jpeg is required unless explicitly disabled using --disable-jpeg, aborting``: You need to install libjpeg (jpeg development support). For supported versions of libjpeg, see the `Pillow docs <https://pillow.readthedocs.io/en/latest/installation.html>`__. For example, to use libjpeg version 8 in Ubuntu, install ``libjpeg8-dev``.
 
-  - ``fatal error: Python.h: No such file or directory``: You need to install Python compile headers. In Ubuntu, this is ``python-dev``.
+    - ``fatal error: Python.h: No such file or directory``: You need to install Python compile headers. In Ubuntu, this is ``python-dev``.
 
-  - PNG related errors are also possible. In Ubuntu, this is ``zlib1g-dev``.
+    - PNG related errors are also possible. In Ubuntu, this is ``zlib1g-dev``.
 
   - There are also other packages that support optional functionality in Pillow. See the `Pillow docs <https://pillow.readthedocs.io/en/latest/installation.html>`__.
 

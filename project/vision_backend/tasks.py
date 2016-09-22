@@ -11,6 +11,7 @@ from datetime import timedelta
 import task_helpers as th
 
 from .models import Classifier, Score
+from annotations.models import Annotation
 from images.models import Source, Image, Point
 from labels.models import LabelSet, Label
 

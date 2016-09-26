@@ -25,14 +25,9 @@
     {% endif %}
   </legend>
 
-  <form id="label-search-form" action="{% url 'label_search_ajax' %}"
-    method="post">
-    {% csrf_token %}
-
-    <label for="label-search-field">Search labels by name: </label>
-    <input type="text" id="label-search-field" name="search" />
-    <input type="submit" value="Search" />
-  </form>
+  <label for="label-search-field">Search labels by name: </label>
+  <input type="text" id="label-search-field" name="search"
+    data-url="{% url 'label_search_ajax' %}"/>
 
   <div id="label-search-status" class="line"></div>
   <div id="label-search-result-container">

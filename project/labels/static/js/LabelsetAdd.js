@@ -8,7 +8,8 @@ var LabelsetAdd = (function() {
     var $labelsetLabelIdsField = null;
     var $unusedLabelElementsContainer = null;
     var $searchStatus = null;
-    var $searchForm = null;
+    var $searchField = null;
+    var searchFieldTypingTimer = null;
 
 
     function get$addBox(labelId) {
@@ -76,17 +77,20 @@ var LabelsetAdd = (function() {
     }
 
 
-    function submitSearch() {
-        var searchValue = $searchForm.find('input[name="search"]').val();
-        if (searchValue === '') { return; }
-
+    function submitSearch(searchValue) {
         removeAllLabelsFromSearch();
 
+        if (searchValue.length < 3) {
+            $searchStatus.text("Enter 3 or more characters.");
+            return;
+        }
+
         $.get(
-            $searchForm.attr('action'),
+            $searchField.attr('data-url'),
             {'search': searchValue},
             handleSearchResponse
         ).fail(util.handleServerError);
+        $searchStatus.text("Searching...");
     }
 
 
@@ -303,19 +307,13 @@ var LabelsetAdd = (function() {
             });
 
             $searchStatus = $('#label-search-status');
-            $searchForm = $('#label-search-form');
-            $searchForm.submit(function() {
-                try {
-                    submitSearch();
-                }
-                catch (e) {
-                    // Don't crash on an error so that we can
-                    // return from this function as planned.
-                    // This makes error logging a bit less nice though.
-                    console.log(e);
-                }
-                // Don't let the form do a non-Ajax submit.
-                return false;
+            $searchField = $('#label-search-field');
+
+            // Update search results 0.75s after typing in the field
+            $searchField.keyup(function() {
+                clearTimeout(searchFieldTypingTimer);
+                searchFieldTypingTimer = setTimeout(
+                    submitSearch.curry($searchField.val()), 750);
             });
         },
 

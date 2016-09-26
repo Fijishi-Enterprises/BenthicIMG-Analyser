@@ -251,6 +251,16 @@ var LabelsetAdd = (function() {
     }
 
 
+    function loadLabelDetailImages($detailBox) {
+        var $lazyLoadingImages = $detailBox.find('img.lazy-load');
+        $lazyLoadingImages.each(function() {
+            var $this = $(this);
+            // src = data-src
+            $this.attr('src', $this.attr('data-src'));
+        });
+    }
+
+
     function showLabelDetail(labelId, event) {
         var $detailBox = get$detailBox(labelId);
         $detailBox.dialog({
@@ -259,6 +269,12 @@ var LabelsetAdd = (function() {
             height: 300,
             modal: false
         });
+
+        // Most of the label-detail content is loaded along with the label
+        // button, except for the image(s) in the label detail box.
+        // We load those only when the label detail box is actually shown
+        // (i.e. now).
+        loadLabelDetailImages($detailBox);
     }
 
 

@@ -1,7 +1,12 @@
 {% load static from staticfiles %}
 
 {% if label.thumbnail %}
-  <img src="{{ label.thumbnail.url }}" style="float: right;" />
+  {# Placeholder src to delay loading the actual image until it is shown. #}
+  {# Actual image is in the data-src attribute. #}
+  {# Placeholder's data URI is from: http://png-pixel.com/ #}
+  <img
+    src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+    class="lazy-load" data-src="{{ label.thumbnail.url }}" style="float: right;" />
 {% else %}
   <img src="{% static "img/No-image-available.png" %}" style="float: right;" />
 {% endif %}

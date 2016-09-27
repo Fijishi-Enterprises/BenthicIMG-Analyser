@@ -25,16 +25,47 @@
     {% endif %}
   </legend>
 
-  <label for="label-search-field">Search labels by name: </label>
-  <input type="text" id="label-search-field" name="search"
-    data-url="{% url 'label_search_ajax' %}"/>
+  <select id="label-select-type" title="Label selection method">
+    <option value="labels">Add labels</option>
+    <option value="labelset">Copy from another labelset</option>
+  </select>
 
-  <div id="label-search-status" class="line"></div>
-  <div id="label-search-result-container">
+  <div id="add-labels-section">
+    <label for="label-search-field">Search labels by name: </label>
+    <input type="text" id="label-search-field" name="search"
+      data-url="{% url 'label_search_ajax' %}"/>
+
+    <div id="label-search-status" class="line"></div>
+    <div id="label-search-result-container">
+      {# Dynamic element containing labels searched by name #}
+    </div>
+    <div style="clear: both;"></div>
+
+    <div class="line">
+      <button id="new-label-form-show-button">Create a new label</button>
+    </div>
   </div>
-  <div style="clear: both;"></div>
 
-  <button id="new-label-form-show-button">Create a new label</button>
+  <div id="copy-labelset-section">
+    <label for="labelset-search-field">Search labelsets by source name: </label>
+    <input type="text" id="labelset-search-field" name="search"
+      data-url="{% url 'labelset_search_ajax' %}"/>
+
+    <div id="labelset-search-status" class="line"></div>
+    <div id="labelset-search-result-container">
+      {# Dynamic element containing labelsets searched by name #}
+    </div>
+    <div style="clear: both;"></div>
+
+    <div id="labelset-contents-container">
+      {# Dynamic element containing labels of the currently selected labelset #}
+    </div>
+    <div style="clear: both;"></div>
+
+    <div class="line">
+      <button id="copy-labelset-button">Use this labelset's labels</button>
+    </div>
+  </div>
 
   <hr/>
 
@@ -73,6 +104,9 @@
     <div id="unused-label-elements-container">
     </div>
 
+    <div id="unused-labelset-elements-container">
+    </div>
+
     <div id="new-label-form-popup">
       {% include 'labels/label_new.html' with form=new_label_form %}
     </div>
@@ -85,6 +119,7 @@
     LabelsetAdd.init({
       'labelIdsInAnnotations': {{ label_ids_in_annotations|jsonify }}
     });
+    LabelsetCopy.init();
     LabelNew.init({
       'afterLabelCreated': LabelsetAdd.afterLabelCreated
     });

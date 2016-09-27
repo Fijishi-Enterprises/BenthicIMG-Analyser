@@ -282,6 +282,19 @@ var LabelsetAdd = (function() {
     }
 
 
+    function onLabelSelectTypeChange() {
+        var $field = $('#label-select-type');
+        if ($field.val() == 'labels') {
+            $('#add-labels-section').show();
+            $('#copy-labelset-section').hide();
+        }
+        else if ($field.val() == 'labelset') {
+            $('#add-labels-section').hide();
+            $('#copy-labelset-section').show();
+        }
+    }
+
+
     /* Public methods.
      * These are the only methods that need to be referred to as
      * <SingletonClassName>.<methodName>. */
@@ -297,6 +310,9 @@ var LabelsetAdd = (function() {
                 var labelId = addResponseLabelToPage($(this));
                 addLabelToSelected(labelId);
             });
+
+            $('#label-select-type').change(onLabelSelectTypeChange);
+            onLabelSelectTypeChange();
 
             $('#new-label-form-show-button').click(function() {
                 $('#new-label-form-popup').dialog({
@@ -322,6 +338,189 @@ var LabelsetAdd = (function() {
             // corresponding to the one label that was created.
             var labelId = addResponseLabelToPage($(htmlResponse));
             addLabelToSelected(labelId);
+        },
+
+        addResponseLabelToPage: function($labelContainer) {
+            return addResponseLabelToPage($labelContainer);
+        },
+
+        addLabelToSelected: function(labelId) {
+            addLabelToSelected(labelId);
+        }
+    }
+})();
+
+
+var LabelsetCopy = (function() {
+
+    var $searchResultContainer = null;
+    var $unusedElementsContainer = null;
+    var $copyLabelsetButton = null;
+
+    var $searchStatus = null;
+    var $searchField = null;
+    var searchFieldTypingTimer = null;
+
+
+    function get$selectBox(labelsetId) {
+        return $('.labelset-select-box[data-labelset-id="{0}"]'.format(labelsetId));
+    }
+    function get$labelNamesBox(labelsetId) {
+        return $('.labelset-label-names-box[data-labelset-id="{0}"]'.format(labelsetId));
+    }
+    function getSelectedId() {
+        var $selectedBox = $searchResultContainer.find('.selected');
+        if ($selectedBox.length >= 1) {
+            return $selectedBox.attr('data-labelset-id');
+        }
+        return null;
+    }
+
+
+    function addResponseLabelsetToPage($labelsetContainer) {
+        var $selectBox = $labelsetContainer.find('.labelset-select-box');
+        var $namesBox = $labelsetContainer.find('.labelset-label-names-box');
+
+        var labelsetId = Number($selectBox.attr('data-labelset-id'));
+
+        $searchResultContainer.append($selectBox);
+        $unusedElementsContainer.append($namesBox);
+
+        // Select-button click handler
+        $selectBox.find('.select-button').click(
+            selectLabelset.curry(labelsetId)
+        );
+
+        // We've moved or used all the container elements, so no use for the
+        // container anymore
+        $labelsetContainer.remove();
+    }
+
+
+    function removeLabelsetFromPage(labelsetId) {
+        get$selectBox(labelsetId).remove();
+        get$labelNamesBox(labelsetId).remove();
+    }
+
+
+    function clearSearchResults() {
+        unselectLabelset();
+        $searchResultContainer.children().each(function() {
+            var labelsetId = Number($(this).attr('data-labelset-id'));
+            removeLabelsetFromPage(labelsetId);
+        });
+    }
+
+
+    function submitSearch(searchValue) {
+        clearSearchResults();
+
+        if (searchValue.length < 3) {
+            $searchStatus.text("Enter 3 or more characters.");
+            return;
+        }
+
+        $.get(
+            $searchField.attr('data-url'),
+            {'search': searchValue},
+            handleSearchResponse
+        ).fail(util.handleServerError);
+        $searchStatus.text("Searching...");
+    }
+
+
+    function handleSearchResponse(htmlResponse) {
+        // The response here doesn't have a root node.
+        // Fix that for easier jQuery parsing.
+        var $htmlResponse = $('<div>' + htmlResponse + '</div>');
+        var children = $htmlResponse.children();
+
+        if (children.length > 0) {
+            $searchStatus.text("{0} results found:".format(children.length));
+            children.each(function () {
+                addResponseLabelsetToPage($(this));
+            });
+        }
+        else {
+            $searchStatus.text("No results.");
+        }
+    }
+
+
+    function unselectLabelset() {
+        // Unselect currently selected labelset, if any
+        var selectedId = getSelectedId();
+        if (selectedId !== null) {
+            get$selectBox(selectedId).removeClass('selected');
+            $unusedElementsContainer.append(get$labelNamesBox(selectedId));
+        }
+
+        $copyLabelsetButton.hide();
+    }
+
+
+    function selectLabelset(labelsetId) {
+        unselectLabelset();
+
+        // Select this labelset
+        get$selectBox(labelsetId).addClass('selected');
+        $('#labelset-contents-container').append(
+            get$labelNamesBox(labelsetId));
+
+        $copyLabelsetButton.show();
+    }
+
+
+    function copySelectedLabelset() {
+        var selectedId = getSelectedId();
+        if (selectedId === null) { return; }
+
+        $.get(
+            get$labelNamesBox(selectedId).attr('data-labelset-labels-url'),
+            {},
+            finishCopyingLabelset
+        ).fail(util.handleServerError);
+    }
+
+
+    function finishCopyingLabelset(htmlResponse) {
+        // The response here doesn't have a root node.
+        // Fix that for easier jQuery parsing.
+        var $htmlResponse = $('<div>' + htmlResponse + '</div>');
+        var children = $htmlResponse.children();
+
+        children.each(function () {
+            var labelId = LabelsetAdd.addResponseLabelToPage($(this));
+            LabelsetAdd.addLabelToSelected(labelId);
+        });
+
+        unselectLabelset();
+    }
+
+
+    /* Public methods.
+     * These are the only methods that need to be referred to as
+     * <SingletonClassName>.<methodName>. */
+    return {
+        init: function() {
+            $searchResultContainer = $('#labelset-search-result-container');
+            $unusedElementsContainer =
+                $('#unused-labelset-elements-container');
+
+            $searchStatus = $('#labelset-search-status');
+            $searchField = $('#labelset-search-field');
+
+            // Update search results 0.75s after typing in the field
+            $searchField.keyup(function() {
+                clearTimeout(searchFieldTypingTimer);
+                searchFieldTypingTimer = setTimeout(
+                    submitSearch.curry($searchField.val()), 750);
+            });
+
+            $copyLabelsetButton = $('#copy-labelset-button');
+            $copyLabelsetButton.click(copySelectedLabelset);
+            // Only show this when a labelset is selected
+            $copyLabelsetButton.hide();
         }
     }
 })();

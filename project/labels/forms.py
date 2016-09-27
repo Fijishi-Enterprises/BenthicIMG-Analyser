@@ -125,11 +125,55 @@ class LabelSetForm(Form):
         # Return the integer list (rather than its string repr).
         return label_id_list
 
+    def clean(self):
+        """
+        Detect label code conflicts in the labelset.
+
+        Also, for convenience, set some info about the label changes
+        since we have to figure it out here anyway.
+        """
+        if any(self.errors):
+            # Don't bother with these checks unless the other fields
+            # are valid so far.
+            return
+
+        pending_global_ids = set(self.cleaned_data['label_ids'])
+
+        if not self.source.labelset:
+            self.global_ids_to_delete = set()
+            self.global_ids_to_add = pending_global_ids
+            return
+
+        existing_global_ids = set(
+            self.source.labelset.get_globals().values_list('pk', flat=True))
+        self.global_ids_to_delete = existing_global_ids - pending_global_ids
+        self.global_ids_to_add = pending_global_ids - existing_global_ids
+
+        global_ids_to_keep = existing_global_ids - self.global_ids_to_delete
+        codes_to_keep = list(
+            self.source.labelset.get_labels()
+            .filter(global_label__pk__in=global_ids_to_keep)
+            .values_list('code', flat=True))
+        codes_to_add = list(
+            Label.objects
+            .filter(pk__in=self.global_ids_to_add)
+            .values_list('default_code', flat=True))
+        pending_codes = codes_to_keep + codes_to_add
+
+        # Detect code conflicts case-insensitively.
+        pending_codes = [c.lower() for c in pending_codes]
+        dupe_codes = [c for c in pending_codes if pending_codes.count(c) > 1]
+        if len(dupe_codes) > 0:
+            raise ValidationError(
+                "If this operation were completed,"
+                " there would be multiple entries in your labelset"
+                " with the label code \"{code}\"."
+                " This is not allowed.".format(code=dupe_codes[0]))
+
     def save_labelset(self):
         """
         Call this after validation to save the labelset.
         """
-        pending_global_ids = set(self.cleaned_data['label_ids'])
         labelset_was_created = False
 
         if not self.source.labelset:
@@ -140,21 +184,14 @@ class LabelSetForm(Form):
             labelset_was_created = True
 
         labelset = self.source.labelset
-        existing_global_ids = set(
-            labelset.get_globals().values_list('pk', flat=True))
 
-        global_ids_to_delete = existing_global_ids - pending_global_ids
         local_labels_to_delete = labelset.get_labels().filter(
-                global_label__pk__in=global_ids_to_delete)
+                global_label__pk__in=self.global_ids_to_delete)
         local_labels_to_delete.delete()
 
-        global_ids_to_add = pending_global_ids - existing_global_ids
         local_labels_to_add = []
-        for global_id in global_ids_to_add:
+        for global_id in self.global_ids_to_add:
             global_label = Label.objects.get(pk=global_id)
-            # TODO: Detect label code conflicts with others in the labelset,
-            # and adapt.
-            # e.g. 'Soft' -> 'Soft2', 'Bare_Subst' -> 'Bare_Subs2', etc.
             local_label = LocalLabel(
                 code=global_label.default_code,
                 global_label=global_label,

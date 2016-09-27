@@ -77,6 +77,13 @@
   </div>
   <div style="clear: both;"></div>
 
+
+  {% if source.labelset %}
+    <div class="line">
+      Since the automated classifiers are tailored to your labelset, the classifiers and annotation suggestions for this source will be regenerated if you change the labelset. This may take a while to complete.
+    </div>
+  {% endif %}
+
   <form id="labelset-form" action="" method="post">
     {% csrf_token %}
 

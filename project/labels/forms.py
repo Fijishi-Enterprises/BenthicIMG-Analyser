@@ -44,8 +44,33 @@ class LabelForm(ModelForm):
 
         return name
 
-    # No check for Labels with the same default code. We only care about
-    # LabelSets having unique LocalLabel codes.
+    def clean_default_code(self):
+        """
+        Add an error if the specified name matches that of an existing label.
+        """
+        default_code = self.cleaned_data['default_code']
+
+        try:
+            # Case-insensitive compare
+            existing_label = Label.objects.get(
+                default_code__iexact=default_code)
+        except Label.DoesNotExist:
+            # Default code is not taken
+            pass
+        else:
+            # Default code is taken
+            msg = (
+                'There is already a label with the same default code:'
+                ' <a href="{url}" target="_blank">'
+                '{existing_code}</a>').format(
+                    url=reverse('label_main', args=[existing_label.pk]),
+                    # Use escape to prevent XSS, since label codes are in
+                    # general user defined
+                    existing_code=escape(existing_label.default_code),
+                )
+            raise ValidationError(msg)
+
+        return default_code
 
 
 class LabelSetForm(Form):
@@ -94,6 +119,8 @@ class LabelSetForm(Form):
 
         # TODO: Check that there's at least 1 valid label id.
         # TODO: Check if any in-use labels are marked for removal.
+        # These things won't happen in the absence of Javascript mistakes,
+        # race conditions, and forged POST data; but defensive coding is good.
 
         # Return the integer list (rather than its string repr).
         return label_id_list

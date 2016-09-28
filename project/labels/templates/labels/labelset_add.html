@@ -88,6 +88,7 @@
     {% csrf_token %}
 
     {{ labelset_form.label_ids }}
+    {{ labelset_form.labelset_ids }}
 
     <div class="line">
       {% if source.labelset %}
@@ -103,9 +104,7 @@
   <div style="display: none;">
 
     <div id="initial-label-container">
-      {% if source.labelset %}
-        {% include 'labels/label_box_container.html' with labels=source.labelset.get_globals %}
-      {% endif %}
+      {% include 'labels/label_box_container.html' with labels=initial_labels %}
     </div>
 
     <div id="unused-label-elements-container">

@@ -162,6 +162,11 @@ def labelset_add(request, source_id):
     else:
         labelset_form = LabelSetForm(source=source)
 
+    initial_label_ids_str = labelset_form['label_ids'].value()
+    initial_label_ids = initial_label_ids_str.split(',') \
+        if initial_label_ids_str != '' else []
+    initial_labels = Label.objects.filter(pk__in=initial_label_ids)
+
     label_ids_in_annotations = Annotation.objects.filter(source=source) \
         .values_list('label__pk', flat=True).distinct()
     label_ids_in_annotations = list(label_ids_in_annotations)
@@ -169,10 +174,11 @@ def labelset_add(request, source_id):
     return render(request, 'labels/labelset_add.html', {
         'source': source,
         'labelset_form': labelset_form,
+        'initial_labels': initial_labels,
         'label_ids_in_annotations': label_ids_in_annotations,
 
-        # Include this form on the page, but it'll be processed in a
-        # different view
+        # Include a new-label form on the page. It'll be submitted to
+        # another view though.
         'new_label_form': LabelForm(),
     })
 

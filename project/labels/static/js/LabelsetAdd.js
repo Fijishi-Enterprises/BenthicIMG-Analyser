@@ -353,6 +353,8 @@ var LabelsetAdd = (function() {
 
 var LabelsetCopy = (function() {
 
+    var $copiedLabelsetIdsField = null;
+
     var $searchResultContainer = null;
     var $unusedElementsContainer = null;
     var $copyLabelsetButton = null;
@@ -371,7 +373,7 @@ var LabelsetCopy = (function() {
     function getSelectedId() {
         var $selectedBox = $searchResultContainer.find('.selected');
         if ($selectedBox.length >= 1) {
-            return $selectedBox.attr('data-labelset-id');
+            return Number($selectedBox.attr('data-labelset-id'));
         }
         return null;
     }
@@ -483,16 +485,44 @@ var LabelsetCopy = (function() {
     }
 
 
+    function getCopiedLabelsetIds() {
+        // This is a comma separated integer field.
+        // We want an integer-list representation.
+        var s = $copiedLabelsetIdsField.val();
+        if (s === '') {
+            return [];
+        }
+
+        var idStrs = s.split(',');
+        var ids = [];
+        var i;
+        for (i = 0; i < idStrs.length; i++) {
+            ids.push(Number(idStrs[i]));
+        }
+        return ids;
+    }
+
+
     function finishCopyingLabelset(htmlResponse) {
         // The response here doesn't have a root node.
         // Fix that for easier jQuery parsing.
         var $htmlResponse = $('<div>' + htmlResponse + '</div>');
         var children = $htmlResponse.children();
 
+        // Add the labels to the selected labels.
         children.each(function () {
             var labelId = LabelsetAdd.addResponseLabelToPage($(this));
             LabelsetAdd.addLabelToSelected(labelId);
         });
+
+        // Update the copied-labelsets field as needed.
+        var labelsetId = getSelectedId();
+        var copiedLabelsetIds = getCopiedLabelsetIds();
+        if (copiedLabelsetIds.indexOf(labelsetId) === -1) {
+            // This labelset isn't in the copied labelsets; add it.
+            copiedLabelsetIds.push(labelsetId);
+            $copiedLabelsetIdsField.val(copiedLabelsetIds.join(','));
+        }
 
         unselectLabelset();
     }
@@ -503,6 +533,8 @@ var LabelsetCopy = (function() {
      * <SingletonClassName>.<methodName>. */
     return {
         init: function() {
+            $copiedLabelsetIdsField = $('#id_labelset_ids');
+
             $searchResultContainer = $('#labelset-search-result-container');
             $unusedElementsContainer =
                 $('#unused-labelset-elements-container');

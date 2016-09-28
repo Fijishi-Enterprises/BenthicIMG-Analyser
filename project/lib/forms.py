@@ -40,7 +40,13 @@ def get_one_form_error(form):
             if len(form.fields) == 1:
                 return "Error: {error}".format(
                     error=error_messages[0])
+            elif field_name == '__all__':
+                # Non-field error
+                return "Error: {error}".format(
+                    error=error_messages[0])
             else:
+                # The form has multiple fields; let's specify which field
+                # this error is for
                 return "Error: {field}: {error}".format(
                     field=form[field_name].label,
                     error=error_messages[0])
@@ -53,13 +59,20 @@ def get_one_formset_error(formset, get_form_name):
         for field_name, error_messages in form.errors.iteritems():
             if error_messages:
                 if len(form.fields) == 1:
+                    return "Error: {form}: {error}".format(
+                        form=get_form_name(form),
+                        error=error_messages[0])
+                elif field_name == '__all__':
+                    # Non-field error
+                    return "Error: {form}: {error}".format(
+                        form=get_form_name(form),
+                        error=error_messages[0])
+                else:
+                    # The form has multiple fields; let's specify which field
+                    # this error is for
                     return "Error: {form} - {field}: {error}".format(
                         form=get_form_name(form),
                         field=form[field_name].label,
-                        error=error_messages[0])
-                else:
-                    return "Error: {form}: {error}".format(
-                        form=get_form_name(form),
                         error=error_messages[0])
 
     return "Unknown error. If the problem persists, please contact the admins."

@@ -27,6 +27,7 @@ from labels.models import LabelGroup, Label
 from lib.exceptions import TestfileDirectoryError
 from lib.utils import is_django_str
 from vision_backend.models import Classifier as Robot
+import boto.sqs
 
 
 # Settings to override in all of our unit tests.
@@ -44,10 +45,29 @@ if hasattr(settings, 'AWS_LOCATION'):
 test_settings['MEDIA_URL'] = urlparse.urljoin(
     settings.MEDIA_URL, 'unittests/')
 
+# Bypass the .delay() call to make the tasks run synchronously. 
+# This is needed since the celery agent runs in a different 
+# context (e.g. Database)
+test_settings['CELERY_ALWAYS_EAGER'] = True
+
+# Make sure backedn tasks do not run.
+test_settings['FORCE_NO_BACKEND_SUBMIT'] = True
+
 # Store processing files in a 'unittests' subdir of the usual location.
 if hasattr(settings, 'PROCESSING_ROOT'):
     test_settings['PROCESSING_ROOT'] = os.path.join(
         settings.PROCESSING_ROOT, 'unittests')
+
+
+def get_total_messages_in_jobs_queue():
+    """
+    Returns number of jobs in the spacer jobs queue.
+    If there are, for some tests, it means we have to wait.
+    """
+    c = boto.sqs.connect_to_region('us-west-2')
+    queue = c.lookup('spacer_jobs')
+    attr = queue.get_attributes()
+    return int(attr['ApproximateNumberOfMessages']) + int(attr['ApproximateNumberOfMessagesNotVisible'])
 
 
 @override_settings(**test_settings)
@@ -88,6 +108,9 @@ class BaseTest(TestCase):
         # Read here for example:
         # http://stackoverflow.com/questions/4283933/
         cls.storage_checker.clean_storage_post_test()
+        
+        # Reset so that only tests that explicitly need the backend calls it.
+        test_settings['FORCE_NO_BACKEND_SUBMIT'] = True
 
         super(BaseTest, cls).tearDownClass()
 

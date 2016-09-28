@@ -2821,12 +2821,10 @@ class UploadAnnotationsPreviewErrorTest(ClientTest):
         )
 
 
-# TODO: This should just fail to reach the page.
-# Change behavior and fix tests.
-
 class UploadAnnotationsNoLabelsetTest(ClientTest):
     """
     Point/annotation upload attempts with no labelset.
+    This should just fail to reach the page.
     """
     @classmethod
     def setUpTestData(cls):
@@ -2835,91 +2833,32 @@ class UploadAnnotationsNoLabelsetTest(ClientTest):
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
 
-        cls.img1 = cls.upload_image_new(
-            cls.user, cls.source,
-            image_options=dict(filename='1.png', width=100, height=100))
-
-    def preview(self, csv_file):
-        return self.client.post(
-            reverse('upload_annotations_preview_ajax', args=[self.source.pk]),
-            {'csv_file': csv_file},
+    def test_page(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse('upload_annotations', args=[self.source.pk]),
         )
+        self.assertContains(
+            response,
+            "You must create a labelset before uploading annotations.")
+        self.assertTemplateUsed(response, 'labels/labelset_required.html')
 
-    def upload(self):
-        return self.client.post(
+    def test_preview(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse('upload_annotations_preview_ajax', args=[self.source.pk]),
+        )
+        self.assertContains(
+            response,
+            "You must create a labelset before uploading annotations.")
+        self.assertTemplateUsed(response, 'labels/labelset_required.html')
+
+    def test_upload(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
             reverse('upload_annotations_ajax', args=[self.source.pk]),
         )
-
-    def test_points_only(self):
-        """
-        No annotations on specified points. Should work.
-        """
-        self.client.force_login(self.user)
-
-        with BytesIO() as stream:
-            writer = csv.writer(stream)
-            writer.writerow(['Name', 'Row', 'Column'])
-            writer.writerow(['1.png', 50, 50])
-            writer.writerow(['1.png', 40, 60])
-            writer.writerow(['1.png', 30, 70])
-
-            f = ContentFile(stream.getvalue(), name='A.csv')
-            preview_response = self.preview(f)
-            upload_response = self.upload()
-
-        self.assertDictEqual(
-            preview_response.json(),
-            dict(
-                success=True,
-                previewTable=[
-                    dict(
-                        name=self.img1.metadata.name,
-                        link=reverse(
-                            'annotation_tool',
-                            kwargs=dict(image_id=self.img1.pk)),
-                        createInfo="Will create 3 points, 0 annotations",
-                    ),
-                ],
-                previewDetails=dict(
-                    numImages=1,
-                    totalPoints=3,
-                    totalAnnotations=0,
-                    numImagesWithExistingAnnotations=0,
-                ),
-            ),
-        )
-
-        self.assertDictEqual(upload_response.json(), dict(success=True))
-
-        values_set = set(
-            Point.objects.filter(image__in=[self.img1])
-            .values_list('row', 'column', 'point_number', 'image_id'))
-        self.assertSetEqual(values_set, {
-            (50, 50, 1, self.img1.pk),
-            (40, 60, 2, self.img1.pk),
-            (30, 70, 3, self.img1.pk),
-        })
-
-    def test_with_annotations(self):
-        """
-        With annotations. Should fail at the preview.
-        """
-        self.client.force_login(self.user)
-
-        with BytesIO() as stream:
-            writer = csv.writer(stream)
-            writer.writerow(['Name', 'Row', 'Column', 'Label'])
-            writer.writerow(['1.png', 50, 50, 'A'])
-            writer.writerow(['1.png', 40, 60, 'B'])
-            writer.writerow(['2.png', 30, 70, 'A'])
-            writer.writerow(['2.png', 20, 80, 'A'])
-
-            f = ContentFile(stream.getvalue(), name='A.csv')
-            preview_response = self.preview(f)
-
-        self.assertDictEqual(
-            preview_response.json(),
-            dict(
-                error="No label of code A found in this source's labelset",
-            ),
-        )
+        self.assertContains(
+            response,
+            "You must create a labelset before uploading annotations.")
+        self.assertTemplateUsed(response, 'labels/labelset_required.html')

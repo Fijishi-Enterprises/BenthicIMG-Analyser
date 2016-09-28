@@ -13,7 +13,7 @@ from images.model_utils import PointGen
 from images.models import Source, Metadata, Image, Point
 from images.utils import metadata_obj_to_dict, get_aux_labels, \
     metadata_field_names_to_labels
-from lib.decorators import source_permission_required
+from lib.decorators import source_permission_required, source_labelset_required
 from lib.exceptions import FileProcessError
 from lib.utils import filesize_display
 from visualization.forms import ImageSpecifyByIdForm
@@ -269,6 +269,8 @@ def upload_metadata_ajax(request, source_id):
 
 
 @source_permission_required('source_id', perm=Source.PermTypes.EDIT.code)
+@source_labelset_required('source_id', message=(
+    "You must create a labelset before uploading annotations."))
 def upload_annotations(request, source_id):
     source = get_object_or_404(Source, id=source_id)
 
@@ -282,6 +284,8 @@ def upload_annotations(request, source_id):
 
 @source_permission_required(
     'source_id', perm=Source.PermTypes.EDIT.code, ajax=True)
+@source_labelset_required('source_id', message=(
+    "You must create a labelset before uploading annotations."))
 def upload_annotations_preview_ajax(request, source_id):
     """
     Add points/annotations to images by uploading a CSV file.
@@ -324,6 +328,8 @@ def upload_annotations_preview_ajax(request, source_id):
 
 @source_permission_required(
     'source_id', perm=Source.PermTypes.EDIT.code, ajax=True)
+@source_labelset_required('source_id', message=(
+    "You must create a labelset before uploading annotations."))
 def upload_annotations_ajax(request, source_id):
     """
     Add points/annotations to images by uploading a CSV file.

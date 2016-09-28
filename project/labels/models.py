@@ -103,6 +103,9 @@ class LabelSet(models.Model):
             'global_label__pk', flat=True)
         return Label.objects.filter(pk__in=global_label_pks)
 
+    def get_globals_ordered_by_name(self):
+        return self.get_globals().order_by('name')
+
     def get_global_by_code(self, code):
         try:
             # Codes are case insensitive

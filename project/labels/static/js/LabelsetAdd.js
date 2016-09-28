@@ -8,7 +8,8 @@ var LabelsetAdd = (function() {
     var $labelsetLabelIdsField = null;
     var $unusedLabelElementsContainer = null;
     var $searchStatus = null;
-    var $searchForm = null;
+    var $searchField = null;
+    var searchFieldTypingTimer = null;
 
 
     function get$addBox(labelId) {
@@ -76,17 +77,20 @@ var LabelsetAdd = (function() {
     }
 
 
-    function submitSearch() {
-        var searchValue = $searchForm.find('input[name="search"]').val();
-        if (searchValue === '') { return; }
-
+    function submitSearch(searchValue) {
         removeAllLabelsFromSearch();
 
+        if (searchValue.length < 3) {
+            $searchStatus.text("Enter 3 or more characters.");
+            return;
+        }
+
         $.get(
-            $searchForm.attr('action'),
+            $searchField.attr('data-url'),
             {'search': searchValue},
             handleSearchResponse
         ).fail(util.handleServerError);
+        $searchStatus.text("Searching...");
     }
 
 
@@ -251,6 +255,16 @@ var LabelsetAdd = (function() {
     }
 
 
+    function loadLabelDetailImages($detailBox) {
+        var $lazyLoadingImages = $detailBox.find('img.lazy-load');
+        $lazyLoadingImages.each(function() {
+            var $this = $(this);
+            // src = data-src
+            $this.attr('src', $this.attr('data-src'));
+        });
+    }
+
+
     function showLabelDetail(labelId, event) {
         var $detailBox = get$detailBox(labelId);
         $detailBox.dialog({
@@ -259,6 +273,25 @@ var LabelsetAdd = (function() {
             height: 300,
             modal: false
         });
+
+        // Most of the label-detail content is loaded along with the label
+        // button, except for the image(s) in the label detail box.
+        // We load those only when the label detail box is actually shown
+        // (i.e. now).
+        loadLabelDetailImages($detailBox);
+    }
+
+
+    function onLabelSelectTypeChange() {
+        var $field = $('#label-select-type');
+        if ($field.val() == 'labels') {
+            $('#add-labels-section').show();
+            $('#copy-labelset-section').hide();
+        }
+        else if ($field.val() == 'labelset') {
+            $('#add-labels-section').hide();
+            $('#copy-labelset-section').show();
+        }
     }
 
 
@@ -278,6 +311,9 @@ var LabelsetAdd = (function() {
                 addLabelToSelected(labelId);
             });
 
+            $('#label-select-type').change(onLabelSelectTypeChange);
+            onLabelSelectTypeChange();
+
             $('#new-label-form-show-button').click(function() {
                 $('#new-label-form-popup').dialog({
                     width: 600,
@@ -287,19 +323,13 @@ var LabelsetAdd = (function() {
             });
 
             $searchStatus = $('#label-search-status');
-            $searchForm = $('#label-search-form');
-            $searchForm.submit(function() {
-                try {
-                    submitSearch();
-                }
-                catch (e) {
-                    // Don't crash on an error so that we can
-                    // return from this function as planned.
-                    // This makes error logging a bit less nice though.
-                    console.log(e);
-                }
-                // Don't let the form do a non-Ajax submit.
-                return false;
+            $searchField = $('#label-search-field');
+
+            // Update search results 0.75s after typing in the field
+            $searchField.keyup(function() {
+                clearTimeout(searchFieldTypingTimer);
+                searchFieldTypingTimer = setTimeout(
+                    submitSearch.curry($searchField.val()), 750);
             });
         },
 
@@ -308,6 +338,221 @@ var LabelsetAdd = (function() {
             // corresponding to the one label that was created.
             var labelId = addResponseLabelToPage($(htmlResponse));
             addLabelToSelected(labelId);
+        },
+
+        addResponseLabelToPage: function($labelContainer) {
+            return addResponseLabelToPage($labelContainer);
+        },
+
+        addLabelToSelected: function(labelId) {
+            addLabelToSelected(labelId);
+        }
+    }
+})();
+
+
+var LabelsetCopy = (function() {
+
+    var $copiedLabelsetIdsField = null;
+
+    var $searchResultContainer = null;
+    var $unusedElementsContainer = null;
+    var $copyLabelsetButton = null;
+
+    var $searchStatus = null;
+    var $searchField = null;
+    var searchFieldTypingTimer = null;
+
+
+    function get$selectBox(labelsetId) {
+        return $('.labelset-select-box[data-labelset-id="{0}"]'.format(labelsetId));
+    }
+    function get$labelNamesBox(labelsetId) {
+        return $('.labelset-label-names-box[data-labelset-id="{0}"]'.format(labelsetId));
+    }
+    function getSelectedId() {
+        var $selectedBox = $searchResultContainer.find('.selected');
+        if ($selectedBox.length >= 1) {
+            return Number($selectedBox.attr('data-labelset-id'));
+        }
+        return null;
+    }
+
+
+    function addResponseLabelsetToPage($labelsetContainer) {
+        var $selectBox = $labelsetContainer.find('.labelset-select-box');
+        var $namesBox = $labelsetContainer.find('.labelset-label-names-box');
+
+        var labelsetId = Number($selectBox.attr('data-labelset-id'));
+
+        $searchResultContainer.append($selectBox);
+        $unusedElementsContainer.append($namesBox);
+
+        // Select-button click handler
+        $selectBox.find('.select-button').click(
+            selectLabelset.curry(labelsetId)
+        );
+
+        // We've moved or used all the container elements, so no use for the
+        // container anymore
+        $labelsetContainer.remove();
+    }
+
+
+    function removeLabelsetFromPage(labelsetId) {
+        get$selectBox(labelsetId).remove();
+        get$labelNamesBox(labelsetId).remove();
+    }
+
+
+    function clearSearchResults() {
+        unselectLabelset();
+        $searchResultContainer.children().each(function() {
+            var labelsetId = Number($(this).attr('data-labelset-id'));
+            removeLabelsetFromPage(labelsetId);
+        });
+    }
+
+
+    function submitSearch(searchValue) {
+        clearSearchResults();
+
+        if (searchValue.length < 3) {
+            $searchStatus.text("Enter 3 or more characters.");
+            return;
+        }
+
+        $.get(
+            $searchField.attr('data-url'),
+            {'search': searchValue},
+            handleSearchResponse
+        ).fail(util.handleServerError);
+        $searchStatus.text("Searching...");
+    }
+
+
+    function handleSearchResponse(htmlResponse) {
+        // The response here doesn't have a root node.
+        // Fix that for easier jQuery parsing.
+        var $htmlResponse = $('<div>' + htmlResponse + '</div>');
+        var children = $htmlResponse.children();
+
+        if (children.length > 0) {
+            $searchStatus.text("{0} results found:".format(children.length));
+            children.each(function () {
+                addResponseLabelsetToPage($(this));
+            });
+        }
+        else {
+            $searchStatus.text("No results.");
+        }
+    }
+
+
+    function unselectLabelset() {
+        // Unselect currently selected labelset, if any
+        var selectedId = getSelectedId();
+        if (selectedId !== null) {
+            get$selectBox(selectedId).removeClass('selected');
+            $unusedElementsContainer.append(get$labelNamesBox(selectedId));
+        }
+
+        $copyLabelsetButton.hide();
+    }
+
+
+    function selectLabelset(labelsetId) {
+        unselectLabelset();
+
+        // Select this labelset
+        get$selectBox(labelsetId).addClass('selected');
+        $('#labelset-contents-container').append(
+            get$labelNamesBox(labelsetId));
+
+        $copyLabelsetButton.show();
+    }
+
+
+    function copySelectedLabelset() {
+        var selectedId = getSelectedId();
+        if (selectedId === null) { return; }
+
+        $.get(
+            get$labelNamesBox(selectedId).attr('data-labelset-labels-url'),
+            {},
+            finishCopyingLabelset
+        ).fail(util.handleServerError);
+    }
+
+
+    function getCopiedLabelsetIds() {
+        // This is a comma separated integer field.
+        // We want an integer-list representation.
+        var s = $copiedLabelsetIdsField.val();
+        if (s === '') {
+            return [];
+        }
+
+        var idStrs = s.split(',');
+        var ids = [];
+        var i;
+        for (i = 0; i < idStrs.length; i++) {
+            ids.push(Number(idStrs[i]));
+        }
+        return ids;
+    }
+
+
+    function finishCopyingLabelset(htmlResponse) {
+        // The response here doesn't have a root node.
+        // Fix that for easier jQuery parsing.
+        var $htmlResponse = $('<div>' + htmlResponse + '</div>');
+        var children = $htmlResponse.children();
+
+        // Add the labels to the selected labels.
+        children.each(function () {
+            var labelId = LabelsetAdd.addResponseLabelToPage($(this));
+            LabelsetAdd.addLabelToSelected(labelId);
+        });
+
+        // Update the copied-labelsets field as needed.
+        var labelsetId = getSelectedId();
+        var copiedLabelsetIds = getCopiedLabelsetIds();
+        if (copiedLabelsetIds.indexOf(labelsetId) === -1) {
+            // This labelset isn't in the copied labelsets; add it.
+            copiedLabelsetIds.push(labelsetId);
+            $copiedLabelsetIdsField.val(copiedLabelsetIds.join(','));
+        }
+
+        unselectLabelset();
+    }
+
+
+    /* Public methods.
+     * These are the only methods that need to be referred to as
+     * <SingletonClassName>.<methodName>. */
+    return {
+        init: function() {
+            $copiedLabelsetIdsField = $('#id_labelset_ids');
+
+            $searchResultContainer = $('#labelset-search-result-container');
+            $unusedElementsContainer =
+                $('#unused-labelset-elements-container');
+
+            $searchStatus = $('#labelset-search-status');
+            $searchField = $('#labelset-search-field');
+
+            // Update search results 0.75s after typing in the field
+            $searchField.keyup(function() {
+                clearTimeout(searchFieldTypingTimer);
+                searchFieldTypingTimer = setTimeout(
+                    submitSearch.curry($searchField.val()), 750);
+            });
+
+            $copyLabelsetButton = $('#copy-labelset-button');
+            $copyLabelsetButton.click(copySelectedLabelset);
+            // Only show this when a labelset is selected
+            $copyLabelsetButton.hide();
         }
     }
 })();

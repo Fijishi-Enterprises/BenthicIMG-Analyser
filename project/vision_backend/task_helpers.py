@@ -114,7 +114,7 @@ def _make_dataset(images):
     """
     gtdict = {}
     for img in images:
-        full_image_path = os.path.join(settings.AWS_S3_MEDIA_SUBDIR, img.original_file.name)
+        full_image_path = os.path.join(settings.AWS_LOCATION, img.original_file.name)
         feature_key = settings.FEATURE_VECTOR_FILE_PATTERN.format(full_image_path = full_image_path)
         anns = Annotation.objects.filter(image = img).order_by('point__id').annotate(gt = F('label__id'))
         gtlabels = [int(ann.gt) for ann in anns]

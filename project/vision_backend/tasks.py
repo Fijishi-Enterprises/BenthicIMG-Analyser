@@ -51,7 +51,7 @@ def submit_features(image_id, force = False):
     Submits a job to SQS for extracting features for an image.
     """
     # Do some initial checks
-    if not hasattr(settings, 'AWS_S3_MEDIA_SUBDIR'):
+    if not settings.DEFAULT_FILE_STORAGE == 'lib.storage_backends.MediaStorageS3' or settings.FORCE_NO_BACKEND_SUBMIT:
         logger.info("Can't use vision backend if media is stored locally.")
         return
 
@@ -71,7 +71,7 @@ def submit_features(image_id, force = False):
         rowcols.append([point.row, point.column])
     
     # Setup the job payload.
-    full_image_path = os.path.join(settings.AWS_S3_MEDIA_SUBDIR, img.original_file.name)
+    full_image_path = os.path.join(settings.AWS_LOCATION, img.original_file.name)
     payload = {
         'bucketname': settings.AWS_STORAGE_BUCKET_NAME,
         'imkey': full_image_path,
@@ -97,7 +97,7 @@ def submit_features(image_id, force = False):
 def submit_classifier(source_id, nbr_images = 1e5, force = False):
 
     # Do some intial checks
-    if not hasattr(settings, 'AWS_S3_MEDIA_SUBDIR'):
+    if not settings.DEFAULT_FILE_STORAGE == 'lib.storage_backends.MediaStorageS3' or settings.FORCE_NO_BACKEND_SUBMIT:
         logger.info("Can't use vision backend if media is stored locally.")
         return
 
@@ -120,14 +120,14 @@ def submit_classifier(source_id, nbr_images = 1e5, force = False):
 
     # Write traindict to S3
     direct_s3_write(
-        settings.ROBOT_MODEL_TRAINDATA_PATTERN.format(pk = classifier.pk, media = settings.AWS_S3_MEDIA_SUBDIR),
+        settings.ROBOT_MODEL_TRAINDATA_PATTERN.format(pk = classifier.pk, media = settings.AWS_LOCATION),
         'json',
         th._make_dataset([image for image in images if image.trainset])
     )
 
     # Write valdict to S3
     direct_s3_write(
-        settings.ROBOT_MODEL_VALDATA_PATTERN.format(pk = classifier.pk, media = settings.AWS_S3_MEDIA_SUBDIR),
+        settings.ROBOT_MODEL_VALDATA_PATTERN.format(pk = classifier.pk, media = settings.AWS_LOCATION),
         'json',
         th._make_dataset([image for image in images if image.valset])
     )
@@ -135,16 +135,16 @@ def submit_classifier(source_id, nbr_images = 1e5, force = False):
     # Prepare information for the message payload
     classes = [l.global_label_id for l in LabelSet.objects.get(source = source).get_labels()] # Needed for the classifier.
     previous_classifiers = Classifier.objects.filter(source = source, valid = True) # This will not include the current.
-    pc_models = [settings.ROBOT_MODEL_FILE_PATTERN.format(pk = pc.pk, media = settings.AWS_S3_MEDIA_SUBDIR) for pc in previous_classifiers]
+    pc_models = [settings.ROBOT_MODEL_FILE_PATTERN.format(pk = pc.pk, media = settings.AWS_LOCATION) for pc in previous_classifiers]
     pc_pks = [pc.pk for pc in previous_classifiers] # Primary keys needed for collect task.
 
     # Create payload
     payload = {
         'bucketname': settings.AWS_STORAGE_BUCKET_NAME,
-        'model': settings.ROBOT_MODEL_FILE_PATTERN.format(pk = classifier.pk, media = settings.AWS_S3_MEDIA_SUBDIR),
-        'traindata': settings.ROBOT_MODEL_TRAINDATA_PATTERN.format(pk = classifier.pk, media = settings.AWS_S3_MEDIA_SUBDIR),
-        'valdata': settings.ROBOT_MODEL_VALDATA_PATTERN.format(pk = classifier.pk, media = settings.AWS_S3_MEDIA_SUBDIR),
-        'valresult': settings.ROBOT_MODEL_VALRESULT_PATTERN.format(pk = classifier.pk, media = settings.AWS_S3_MEDIA_SUBDIR),
+        'model': settings.ROBOT_MODEL_FILE_PATTERN.format(pk = classifier.pk, media = settings.AWS_LOCATION),
+        'traindata': settings.ROBOT_MODEL_TRAINDATA_PATTERN.format(pk = classifier.pk, media = settings.AWS_LOCATION),
+        'valdata': settings.ROBOT_MODEL_VALDATA_PATTERN.format(pk = classifier.pk, media = settings.AWS_LOCATION),
+        'valresult': settings.ROBOT_MODEL_VALRESULT_PATTERN.format(pk = classifier.pk, media = settings.AWS_LOCATION),
         'pk': classifier.pk,
         'classes': classes,
         'nbr_epochs': settings.NBR_TRAINING_EPOCHS,
@@ -167,12 +167,6 @@ def submit_classifier(source_id, nbr_images = 1e5, force = False):
 @task(name = "classify_image")
 def classify_image(image_id):
 
-
-    # Do some initial checks
-    if not hasattr(settings, 'AWS_S3_MEDIA_SUBDIR'):
-        logger.info("Can't use vision backend if media is stored locally.")
-        return
-
     try:
         img = Image.objects.get(pk = image_id)
     except:
@@ -186,11 +180,11 @@ def classify_image(image_id):
 
     # Load model
     classifier_model = direct_s3_read(
-        settings.ROBOT_MODEL_FILE_PATTERN.format(pk = classifier.pk, media = settings.AWS_S3_MEDIA_SUBDIR),
+        settings.ROBOT_MODEL_FILE_PATTERN.format(pk = classifier.pk, media = settings.AWS_LOCATION),
         'pickle' )
     
     feats = direct_s3_read(
-        settings.FEATURE_VECTOR_FILE_PATTERN.format(full_image_path = os.path.join(settings.AWS_S3_MEDIA_SUBDIR, img.original_file.name)),
+        settings.FEATURE_VECTOR_FILE_PATTERN.format(full_image_path = os.path.join(settings.AWS_LOCATION, img.original_file.name)),
         'json' )
 
     # Classify
@@ -214,7 +208,7 @@ def classify_image(image_id):
     logger.info("Classified image {} [source {}] with classifier {}".format(img.id, img.source_id, classifier.id))
 
 
-#@periodic_task(run_every=timedelta(seconds = 60), name='Collect all jobs', ignore_result=True)
+@periodic_task(run_every=timedelta(seconds = 60), name='Collect all jobs', ignore_result=True)
 def collect_all_jobs():
     """
     Runs collectjob until queue is empty.
@@ -224,7 +218,6 @@ def collect_all_jobs():
         pass
     logger.info('Done collecting all jobs in result queue.')
 
-@task(name = "collectjob")
 def collectjob():
     """
     main task for collecting jobs from AWS SQS.

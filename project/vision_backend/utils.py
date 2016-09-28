@@ -42,7 +42,7 @@ def get_confusion_matrix(classifier):
     Returns confusion matrix for classifier object.
     """
     
-    valres = direct_s3_read(settings.ROBOT_MODEL_VALRESULT_PATTERN.format(pk = classifier.pk, media = settings.AWS_S3_MEDIA_SUBDIR), 'json')
+    valres = direct_s3_read(settings.ROBOT_MODEL_VALRESULT_PATTERN.format(pk = classifier.pk, media = settings.AWS_LOCATION), 'json')
 
     classes = [l.global_label_id for l in LabelSet.objects.get(source = classifier.source).get_labels()]
 

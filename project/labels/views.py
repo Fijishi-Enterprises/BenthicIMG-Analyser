@@ -73,10 +73,13 @@ def label_search_ajax(request):
 
     # Get the labels where the name has ALL of the search tokens.
     labels = Label.objects
-    limit = 50
     for token in search_tokens:
         labels = labels.filter(name__icontains=token)
-        labels = labels.order_by('name')[:limit]
+
+    # Sort by: verified first, highest popularity first.
+    limit = 50
+    sort_key = lambda x: (1 if x.verified else 0, x.popularity)
+    labels = sorted(labels, key=sort_key, reverse=True)[:limit]
 
     return render(request, 'labels/label_box_container.html', {
         'labels': labels,

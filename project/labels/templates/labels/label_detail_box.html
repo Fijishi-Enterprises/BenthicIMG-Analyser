@@ -1,9 +1,11 @@
 {% load static from staticfiles %}
+{% load truncate_float from common_tags %}
+{% load labels %}
 
 {% if label.thumbnail %}
   {# Placeholder src to delay loading the actual image until it is shown. #}
   {# Actual image is in the data-src attribute. #}
-  {# Placeholder's data URI is from: http://png-pixel.com/ #}
+  {# Placeholder is 1x1 transparent, from: http://png-pixel.com/ #}
   <img
     src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
     class="lazy-load" data-src="{{ label.thumbnail.url }}" style="float: right;" />
@@ -14,6 +16,22 @@
 <div class="line">Name: <strong>{{ label.name }}</strong></div>
 <div class="line">Functional Group: {{ label.group.name }}</div>
 <div class="line">Default Short Code: {{ label.default_code }}</div>
+
+<div class="line">Verified:
+  {{ label.verified|yesno|title }}
+
+  {% if label.verified %}
+    <img class="verified-image"
+      src="{% static 'img/verified__16x16.png' %}" />
+  {% else %}
+    <img class="verified-image"
+      src="{% static 'img/not-verified__16x16.png' %}" />
+  {% endif %}
+</div>
+<div class="line">Popularity:
+  {{ label.popularity|truncate_float }}%
+  {% popularity_bar label %}
+</div>
 
 {% if label.description %}
   <div class="line">Description: {{ label.description }}</div>

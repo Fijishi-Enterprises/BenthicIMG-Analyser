@@ -9,7 +9,7 @@
      displaying as a gap between the two elements. */
     display: table-cell;
 
-    padding: 3px;
+    padding: 3px 5px;
     border: 2px solid black;
 
     background-color: hsl(0, 0%, 85%);
@@ -34,19 +34,21 @@
 }
 
 .detail-button {
-    text-align: center;
-    /* On long label names, the button might get stretched beyond this width.
-    This shouldn't be a big deal though; it just means the row that
-    button is on won't line up nicely with the other rows. */
-    min-width: 120px;
-    /* Just don't let it go multiline. */
-    white-space: nowrap;
-
     border-top-right-radius: 10px;
     border-bottom-right-radius: 10px;
 }
 .detail-button:hover {
     background-color: hsl(0, 0%, 95%);
+}
+.detail-button .label-name {
+    display: inline-block;
+    text-align: center;
+    /* On long label names, the button might get stretched beyond this width.
+    This shouldn't be a big deal though; it just means the row that
+    button is on won't line up nicely with the other rows. */
+    min-width: 110px;
+    /* Just don't let it go multiline. */
+    white-space: nowrap;
 }
 
 
@@ -83,13 +85,24 @@
 }
 
 
+.verified-image {
+    /* Align better with text on the same line */
+    vertical-align: middle;
+}
+
+
 /* Popularity bars. */
 .meter {
     display: inline-block;
     width: 50px;
     height: 12px;
-    padding: 2px;
-    background-color: hsl(0, 0%, 85%);
+    border: 2px solid hsl(0, 0%, 40%);
+
+    /* Align better with text on the same line */
+    vertical-align: middle;
+}
+.meter.short {
+    width: 25px;
 }
 .meter > span {
     /* Width will be set inline, e.g. 25% popularity = 25% width. */

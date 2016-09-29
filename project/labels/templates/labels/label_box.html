@@ -1,7 +1,20 @@
+{% load static from staticfiles %}
+{% load labels %}
+
 {% if type == 'add' %}
   <span class="add-remove-button add"> + </span>
 {% elif type == 'remove' %}
   <span class="add-remove-button remove"> - </span>
 {% endif %}
 
-<span class="detail-button" title="View label details">{{ label.name }}</span>
+<span class="detail-button" title="View label details">
+  <span class="label-name">{{ label.name }}</span>
+
+  {% if label.verified %}
+    <img class="verified-image" src="{% static 'img/verified__16x16.png' %}" />
+  {% else %}
+    <img class="verified-image" src="{% static 'img/not-verified__16x16.png' %}" />
+  {% endif %}
+
+  {% popularity_bar label short=True %}
+</span>

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% load static from staticfiles %}
-{% load common_tags %}
+{% load truncate_float from common_tags %}
 {% load labels %}
 
 {% block title %}{{ label.name }} (Label) | CoralNet{% endblock %}
@@ -26,15 +26,17 @@
     <p>Functional Group: {{ label.group.name }}</p>
     <p>Default Short Code: {{ label.default_code }}</p>
 
-    <p>Verified:
+    <div class="line">Verified:
       {{ label.verified|yesno|title }}
 
       {% if label.verified %}
-        <img src="{% static 'img/verified__16x16.png' %}" />
+        <img class="verified-image"
+          src="{% static 'img/verified__16x16.png' %}" />
       {% else %}
-        <img src="{% static 'img/not-verified__16x16.png' %}" />
+        <img class="verified-image"
+          src="{% static 'img/not-verified__16x16.png' %}" />
       {% endif %}
-    </p>
+    </div>
     <div class="line">Popularity:
       {{ label.popularity|truncate_float }}%
       {% popularity_bar label %}

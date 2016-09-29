@@ -2,6 +2,7 @@ import math
 import posixpath
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.db import models
 from easy_thumbnails.fields import ThumbnailerImageField
 from lib.utils import rand_string
@@ -89,9 +90,15 @@ class Label(models.Model):
     def verified(self):
         return self.pk % 2 == 0
 
-    # TODO: Cache this somehow, or make it an actual model field
     @property
     def popularity(self):
+        cache_key = 'label_popularity_{pk}'.format(pk=self.pk)
+        cached_value = cache.get(cache_key)
+        if cached_value is not None:
+            return cached_value
+        return self._compute_popularity()
+
+    def _compute_popularity(self):
         # TODO: This formula is most likely garbage; make a better one
         raw_score = (
             # Labelset count
@@ -99,11 +106,20 @@ class Label(models.Model):
             # Square root of annotation count
             * math.sqrt(self.annotation_set.count())
         )
-        if raw_score == 0:
-            return 0
 
-        # Map to a 0-100 scale.
-        return 100 * (1 - raw_score**(-0.15))
+        if raw_score == 0:
+            popularity = 0
+        else:
+            # Map to a 0-100 scale.
+            popularity = 100 * (1 - raw_score**(-0.15))
+
+        # Cache the value for this number of seconds.
+        POPULARITY_CACHE_DURATION = 60*60*24
+        cache_key = 'label_popularity_{pk}'.format(pk=self.pk)
+        cache.set(cache_key, popularity, POPULARITY_CACHE_DURATION)
+
+        return popularity
+
 
 
 class LabelSet(models.Model):

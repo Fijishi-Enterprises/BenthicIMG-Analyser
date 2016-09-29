@@ -1,3 +1,4 @@
+import math
 import posixpath
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -82,6 +83,27 @@ class Label(models.Model):
         To-string method.
         """
         return self.name
+
+    # Placeholder, should be an actual model field that defaults to False
+    @property
+    def verified(self):
+        return self.pk % 2 == 0
+
+    # TODO: Cache this somehow, or make it an actual model field
+    @property
+    def popularity(self):
+        # TODO: This formula is most likely garbage; make a better one
+        raw_score = (
+            # Labelset count
+            self.locallabel_set.count()
+            # Square root of annotation count
+            * math.sqrt(self.annotation_set.count())
+        )
+        if raw_score == 0:
+            return 0
+
+        # Map to a 0-100 scale.
+        return 100 * (1 - raw_score**(-0.15))
 
 
 class LabelSet(models.Model):

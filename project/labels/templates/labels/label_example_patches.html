@@ -1,0 +1,15 @@
+{% for patch in patches %}
+  <span class="thumb_wrapper">
+    {% if patch.dest_url %}
+      <a href="{{ patch.dest_url }}">
+        <img class="thumb"
+          src="{{ patch.thumbnail_url }}"
+          title="{{ patch.source.name }}"/>
+      </a>
+    {% else %}
+      <img class="thumb"
+        src="{{ patch.thumbnail_url }}"
+        title="(Private source)"/>
+    {% endif %}
+  </span>
+{% endfor %}

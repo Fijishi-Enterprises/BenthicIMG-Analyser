@@ -2,11 +2,13 @@ import re
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator, EmptyPage, InvalidPage
 from django.core.urlresolvers import reverse
 from django.forms import modelformset_factory
 from django.http import HttpResponseRedirect
 from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404
+from django.template.loader import render_to_string
 from django.views.decorators.http import require_POST, require_GET
 
 from lib.forms import get_one_formset_error, get_one_form_error
@@ -226,54 +228,84 @@ def label_main(request, label_id):
     """
     label = get_object_or_404(Label, id=label_id)
 
+    # Sources with the label
     labelsets_with_label = LocalLabel.objects.filter(
-        global_label_id=label_id).values_list('labelset', flat=True)
-    sources_with_label = Source.objects.filter(
-        labelset__in=labelsets_with_label).order_by('name')
-    visible_sources_with_label = [
-        s for s in sources_with_label if s.visible_to_user(request.user)]
+        global_label=label).values_list('labelset', flat=True)
+    all_sources_with_label = Source.objects.filter(
+        labelset__in=labelsets_with_label)
 
-    # Differentiate between the sources that the user is part of
-    # and the other public sources.  Sort the source list accordingly, too.
-    sources_of_user = Source.get_sources_of_user(request.user)
+    users_sources = Source.get_sources_of_user(request.user) \
+        .filter(pk__in=all_sources_with_label) \
+        .order_by('name')
+    other_public_sources = Source.get_other_public_sources(request.user) \
+        .filter(pk__in=all_sources_with_label) \
+        .order_by('name')
+    other_private_sources = all_sources_with_label \
+        .exclude(pk__in=users_sources) \
+        .exclude(pk__in=other_public_sources) \
+        .order_by('name')
 
-    source_types = []
-    for s in visible_sources_with_label:
-        if s in sources_of_user:
-            source_types.append('mine')
-        else:
-            source_types.append('public')
-
-    visible_sources_with_label = zip(source_types, visible_sources_with_label)
-    visible_sources_with_label.sort \
-        (key=lambda x: x[0])  # Mine first, then public
-
-    # Example patches.
-    example_annotations = Annotation.objects \
-        .filter(label=label, image__source__visibility=Source.VisibilityTypes.PUBLIC) \
-        .exclude(user=get_robot_user()) \
-        .order_by('?')[:5]
-
-    for anno in example_annotations:
-        generate_patch_if_doesnt_exist(anno.point)
-
-    patches = [
-        dict(
-            annotation=a,
-            fullImage=a.image,
-            source=a.image.source,
-            url=get_patch_url(a.point.pk),
-            row=a.point.row,
-            col=a.point.column,
-            pointNum=a.point.point_number,
-        )
-        for a in example_annotations
-        ]
+    # Stats
+    source_count = all_sources_with_label.count()
+    annotation_count = Annotation.objects.filter(label=label).count()
 
     return render(request, 'labels/label_main.html', {
         'label': label,
-        'visible_sources_with_label': visible_sources_with_label,
-        'patches': patches,
+        'users_sources': users_sources,
+        'other_public_sources': other_public_sources,
+        'other_private_sources': other_private_sources,
+        'source_count': source_count,
+        'annotation_count': annotation_count,
+    })
+
+
+@require_GET
+def label_example_patches_ajax(request, label_id):
+    """
+    Example patches for a label.
+    """
+    label = get_object_or_404(Label, id=label_id)
+
+    all_annotations = Annotation.objects \
+        .filter(label=label) \
+        .exclude(user=get_robot_user()) \
+        .order_by('?')
+
+    ITEMS_PER_PAGE = 50
+    try:
+        page = int(request.GET.get('page', '1'))
+    except ValueError:
+        page = 1
+    paginator = Paginator(all_annotations, ITEMS_PER_PAGE)
+    try:
+        page_annotations = paginator.page(page)
+    except (EmptyPage, InvalidPage):
+        page_annotations = paginator.page(paginator.num_pages)
+
+    patches = []
+    for index, annotation in enumerate(page_annotations.object_list):
+        point = annotation.point
+        image = point.image
+        source = image.source
+
+        generate_patch_if_doesnt_exist(point)
+
+        if source.visible_to_user(request.user):
+            dest_url = reverse('image_detail', args=[image.pk])
+        else:
+            dest_url = None
+
+        patches.append(dict(
+            source=source,
+            dest_url=dest_url,
+            thumbnail_url=get_patch_url(point.id),
+        ))
+
+    return JsonResponse({
+        'patchesHtml': render_to_string('labels/label_example_patches.html', {
+            'patches': patches,
+        }),
+        'isLastPage': page >= paginator.num_pages,
     })
 
 

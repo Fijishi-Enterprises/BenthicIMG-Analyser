@@ -162,12 +162,12 @@ class Source(models.Model):
         if user.is_authenticated():
             return get_objects_for_user(user, Source.PermTypes.VIEW.fullCode).order_by('name')
         else:
-            return []
+            return Source.objects.none()
 
     @staticmethod
     def get_other_public_sources(user):
-        return [source for source in Source.get_public_sources()
-                if source not in Source.get_sources_of_user(user)]
+        return Source.get_public_sources() \
+            .exclude(pk__in=Source.get_sources_of_user(user))
 
     def has_member(self, user):
         return user in self.get_members()

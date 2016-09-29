@@ -83,6 +83,27 @@
 }
 
 
+/* Popularity bars. */
+.meter {
+    display: inline-block;
+    width: 50px;
+    height: 12px;
+    padding: 2px;
+    background-color: hsl(0, 0%, 85%);
+}
+.meter > span {
+    /* Width will be set inline, e.g. 25% popularity = 25% width. */
+    display: block;
+    height: 100%;
+}
+.meter > span.green {
+    background-color: hsl(120, 60%, 50%);
+}
+.meter > span.red {
+    background-color: hsl(0, 60%, 60%);
+}
+
+
 /* Some rules to make styling a bit cleaner compared to
  using master.css. */
 /* TODO: Merge some of these rules into master.css? */
@@ -91,6 +112,10 @@ form {
     margin: 0;
     padding: 0;
     width: auto;
+}
+p {
+    margin: 0.5em 0;  /* top/bottom left/right */
+    line-height: 1.0em;
 }
 
 

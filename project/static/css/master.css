@@ -249,8 +249,8 @@ p{
 }
 
 /* This is kind of like <p> in that it stylistically functions to add
-  some top/bottom margins. But it's more semantically flexible; div is
-  generic, while not everything is a paragraph. */
+  some top/bottom margins. But this is more flexible than p; for example,
+  p cannot contain div, but div can contain almost anything. */
 div.line {
     margin: 0.5em 0;  /* top/bottom left/right */
 }

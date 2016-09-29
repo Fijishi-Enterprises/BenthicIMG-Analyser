@@ -104,6 +104,20 @@ def time_is_past(datetime_obj):
     return datetime_obj < timezone.now()
 
 
+@register.filter
+def truncate_float(f):
+    """
+    Truncate a float to an int.
+
+    This filter is useful because:
+    1. The default `floatformat` template filter only does rounding,
+    not truncation
+    2. f.__int__ in the template gets a TemplateSyntaxError:
+    "Variables and attributes may not begin with underscores"
+    """
+    return int(f)
+
+
 # versioned_static
 #
 # Prevent undesired browser caching of static files (CSS, JS, etc.)

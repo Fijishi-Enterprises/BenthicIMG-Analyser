@@ -60,7 +60,7 @@ class LabelDetailTest(ClientTest):
 
 class LabelDetailPatchesTest(ClientTest):
     """
-    Test the annotation patches of the label detail page.
+    Test the example annotation patches used by the label detail page.
     """
     @classmethod
     def setUpTestData(cls):
@@ -68,19 +68,98 @@ class LabelDetailPatchesTest(ClientTest):
         super(LabelDetailPatchesTest, cls).setUpTestData()
 
         cls.user = cls.create_user()
-
-        # Create 1 public and 1 private source
-        cls.public_source = cls.create_source(
+        cls.source = cls.create_source(
             cls.user,
-            visibility=Source.VisibilityTypes.PUBLIC,
             point_generation_type=PointGen.Types.SIMPLE,
-            simple_number_of_points=10,
+            simple_number_of_points=100,
         )
-        cls.private_source = cls.create_source(
+
+        cls.labels = cls.create_labels(
+            cls.user, ['A', 'B'], "Group1")
+        cls.create_labelset(cls.user, cls.source, cls.labels)
+        cls.source.refresh_from_db()
+
+        cls.img = cls.upload_image_new(cls.user, cls.source)
+
+    def test_one_page_of_patches(self):
+        annotations = {1: 'A', 2: 'A', 3: 'A', 4: 'B', 5: 'B'}
+        self.add_annotations(self.user, self.img, annotations)
+
+        response = self.client.get(reverse(
+            'label_example_patches_ajax',
+            args=[Label.objects.get(name='A').id])).json()
+
+        # 3 patch images
+        self.assertEqual(response['patchesHtml'].count('<img'), 3)
+        # Is the last page of patches
+        self.assertEqual(response['isLastPage'], True)
+
+    def test_multiple_pages_of_patches(self):
+        annotations = dict()
+        for n in range(1, 10+1):
+            annotations[n] = 'B'
+        for n in range(11, 63+1):
+            annotations[n] = 'A'
+        self.add_annotations(self.user, self.img, annotations)
+
+        # Page 1: 50 patch images
+        response = self.client.get(reverse(
+            'label_example_patches_ajax',
+            args=[Label.objects.get(name='A').id])).json()
+        self.assertEqual(response['patchesHtml'].count('<img'), 50)
+        self.assertEqual(response['isLastPage'], False)
+
+        # Page 2: 3 patch images
+        response = self.client.get(
+            reverse(
+                'label_example_patches_ajax',
+                args=[Label.objects.get(name='A').id]),
+            dict(page=2),
+        ).json()
+        self.assertEqual(response['patchesHtml'].count('<img'), 3)
+        self.assertEqual(response['isLastPage'], True)
+
+    def test_zero_patches(self):
+        annotations = {1: 'B', 2: 'B'}
+        self.add_annotations(self.user, self.img, annotations)
+
+        response = self.client.get(reverse(
+            'label_example_patches_ajax',
+            args=[Label.objects.get(name='A').id])).json()
+
+        self.assertEqual(response['patchesHtml'].count('<img'), 0)
+        self.assertEqual(response['isLastPage'], True)
+
+
+class LabelDetailPatchLinksTest(ClientTest):
+    """
+    Test the links on the annotation patches.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        # Call the parent's setup (while still using this class as cls)
+        super(LabelDetailPatchLinksTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.users_private_source = cls.create_source(
             cls.user,
             visibility=Source.VisibilityTypes.PRIVATE,
             point_generation_type=PointGen.Types.SIMPLE,
-            simple_number_of_points=10,
+            simple_number_of_points=5,
+        )
+
+        cls.user2 = cls.create_user()
+        cls.public_source = cls.create_source(
+            cls.user2,
+            visibility=Source.VisibilityTypes.PUBLIC,
+            point_generation_type=PointGen.Types.SIMPLE,
+            simple_number_of_points=5,
+        )
+        cls.other_private_source = cls.create_source(
+            cls.user2,
+            visibility=Source.VisibilityTypes.PRIVATE,
+            point_generation_type=PointGen.Types.SIMPLE,
+            simple_number_of_points=5,
         )
 
         # Create labels
@@ -88,75 +167,37 @@ class LabelDetailPatchesTest(ClientTest):
             cls.user, ['A', 'B'], "Group1")
 
         # Add all labels to each source's labelset
-        cls.create_labelset(cls.user, cls.public_source, cls.labels)
+        cls.create_labelset(cls.user2, cls.public_source, cls.labels)
         cls.public_source.refresh_from_db()
-        cls.create_labelset(cls.user, cls.private_source, cls.labels)
-        cls.private_source.refresh_from_db()
+        cls.create_labelset(cls.user, cls.users_private_source, cls.labels)
+        cls.users_private_source.refresh_from_db()
+        cls.create_labelset(cls.user2, cls.other_private_source, cls.labels)
+        cls.other_private_source.refresh_from_db()
 
         # Upload an image to each source
-        cls.public_image = cls.upload_image_new(cls.user, cls.public_source)
-        cls.private_image = cls.upload_image_new(cls.user, cls.private_source)
+        cls.public_img = cls.upload_image_new(cls.user2, cls.public_source)
+        cls.users_private_img = cls.upload_image_new(
+            cls.user, cls.users_private_source)
+        cls.other_private_img = cls.upload_image_new(
+            cls.user2, cls.other_private_source)
 
-    def test_five_patches(self):
-        """
-        Over 5 annotations in public sources. Display only 5 patches.
-        """
-        annotations = {1: 'A', 2: 'A', 3: 'A', 4: 'A', 5: 'A', 6: 'A'}
-        self.add_annotations(self.user, self.public_image, annotations)
-
-        response = self.client.get(
-            reverse('label_main', kwargs=dict(
-                label_id=Label.objects.get(name='A').id
-            ))
-        )
-        self.assertStatusOK(response)
-        self.assertEqual(len(response.context['patches']), 5)
-
-    def test_less_than_five_patches(self):
-        """
-        Under 5 annotations in public sources. Display that many patches.
-        """
-        annotations = {1: 'A', 2: 'A', 3: 'A', 4: 'B', 5: 'B'}
-        self.add_annotations(self.user, self.public_image, annotations)
-
-        response = self.client.get(
-            reverse('label_main', kwargs=dict(
-                label_id=Label.objects.get(name='A').id
-            ))
-        )
-        self.assertStatusOK(response)
-        self.assertEqual(len(response.context['patches']), 3)
-
-    def test_zero_patches(self):
-        """
-        0 annotations in public sources. Display 0 patches.
-        """
-        annotations = {}
-        self.add_annotations(self.user, self.public_image, annotations)
-
-        response = self.client.get(
-            reverse('label_main', kwargs=dict(
-                label_id=Label.objects.get(name='A').id
-            ))
-        )
-        self.assertStatusOK(response)
-        self.assertEqual(len(response.context['patches']), 0)
-
-    def test_dont_include_private_sources(self):
-        """
-        3 public, 2 private. Display 3 patches.
-        """
-        annotations = {1: 'A', 2: 'A', 3: 'A'}
-        self.add_annotations(self.user, self.public_image, annotations)
+    def test_dont_link_to_others_private_images(self):
+        annotations = {1: 'A', 2: 'A', 3: 'A', 4: 'A'}
+        self.add_annotations(self.user2, self.public_img, annotations)
         annotations = {1: 'A', 2: 'A'}
-        self.add_annotations(self.user, self.private_image, annotations)
+        self.add_annotations(self.user, self.users_private_img, annotations)
+        annotations = {1: 'A'}
+        self.add_annotations(self.user2, self.other_private_img, annotations)
 
-        response = self.client.get(
-            reverse('label_main', kwargs=dict(
-                label_id=Label.objects.get(name='A').id
-            ))
-        )
-        self.assertEqual(len(response.context['patches']), 3)
+        self.client.force_login(self.user)
+        response = self.client.get(reverse(
+            'label_example_patches_ajax',
+            args=[Label.objects.get(name='A').id])).json()
+
+        # Patches shown: 4 + 2 + 1
+        self.assertEqual(response['patchesHtml'].count('<img'), 7)
+        # Patches with links: 4 + 2
+        self.assertEqual(response['patchesHtml'].count('<a'), 6)
 
 
 class NewLabelTest(ClientTest):

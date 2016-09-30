@@ -169,7 +169,7 @@ def labelset_add(request, source_id):
 
     initial_label_ids_str = labelset_form['label_ids'].value()
     initial_label_ids = initial_label_ids_str.split(',') \
-        if initial_label_ids_str != '' else []
+        if initial_label_ids_str not in ['', None] else []
     initial_labels = Label.objects.filter(pk__in=initial_label_ids)
 
     label_ids_in_annotations = Annotation.objects.filter(source=source) \

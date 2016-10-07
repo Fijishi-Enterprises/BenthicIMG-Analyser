@@ -267,7 +267,7 @@ class NewLabelTest(ClientTest):
         )
 
         self.assertEqual(response.json(), dict(error=(
-            'Error: Name: There is already a label with the same name:'
+            'Name: There is already a label with the same name:'
             ' <a href="{url}" target="_blank">B</a>').format(
                 url=reverse(
                     'label_main', args=[Label.objects.get(name="B").pk]))

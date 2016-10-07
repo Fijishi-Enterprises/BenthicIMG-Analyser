@@ -122,6 +122,7 @@ class ImageUploadForm(Form):
 class CSVImportForm(Form):
     csv_file = FileField(
         label='CSV file',
+        error_messages=dict(required="Please select a CSV file."),
     )
 
     def clean_csv_file(self):
@@ -140,6 +141,6 @@ class CSVImportForm(Form):
         elif csv_file.name.endswith('.csv'):
             pass
         else:
-            raise ValidationError("This file is not a CSV file.")
+            raise ValidationError("The selected file is not a CSV file.")
 
         return self.cleaned_data['csv_file']

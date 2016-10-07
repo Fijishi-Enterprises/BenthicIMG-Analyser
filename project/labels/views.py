@@ -2,6 +2,7 @@ import re
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core import serializers
 from django.core.paginator import Paginator, EmptyPage, InvalidPage
 from django.core.urlresolvers import reverse
 from django.forms import modelformset_factory
@@ -11,17 +12,19 @@ from django.shortcuts import render, get_object_or_404
 from django.template.loader import render_to_string
 from django.views.decorators.http import require_POST, require_GET
 
-from lib.forms import get_one_formset_error, get_one_form_error
-from .forms import LabelForm, LabelSetForm, LocalLabelForm, \
-    BaseLocalLabelFormSet
-from .models import Label, LocalLabel, LabelSet
 from accounts.utils import get_robot_user
 from annotations.models import Annotation
 from images.models import Source
 from lib.decorators import source_permission_required, \
     source_visibility_required, source_labelset_required
+from lib.exceptions import FileProcessError
+from lib.forms import get_one_formset_error, get_one_form_error
+from upload.forms import CSVImportForm
 from visualization.utils import generate_patch_if_doesnt_exist, get_patch_url
 from vision_backend import tasks
+from .forms import LabelForm, LabelSetForm, LocalLabelForm, \
+    BaseLocalLabelFormSet, labels_csv_process
+from .models import Label, LocalLabel, LabelSet
 
 
 @login_required
@@ -162,7 +165,8 @@ def labelset_add(request, source_id):
             return HttpResponseRedirect(
                 reverse('labelset_main', args=[source.id]))
         else:
-            messages.error(request, get_one_form_error(labelset_form))
+            messages.error(request, get_one_form_error(
+                labelset_form, include_field_name=False))
 
     else:
         labelset_form = LabelSetForm(source=source)
@@ -223,6 +227,91 @@ def labelset_edit(request, source_id):
         'source': source,
         'formset': formset,
     })
+
+
+@source_permission_required('source_id', perm=Source.PermTypes.ADMIN.code)
+def labelset_import(request, source_id):
+    source = get_object_or_404(Source, id=source_id)
+
+    csv_import_form = CSVImportForm()
+
+    return render(request, 'labels/labelset_import.html', {
+        'source': source,
+        'csv_import_form': csv_import_form,
+    })
+
+
+@require_POST
+@source_permission_required('source_id', perm=Source.PermTypes.ADMIN.code)
+def labelset_import_preview_ajax(request, source_id):
+    source = get_object_or_404(Source, id=source_id)
+
+    csv_import_form = CSVImportForm(request.POST, request.FILES)
+    if not csv_import_form.is_valid():
+        error_message = get_one_form_error(
+            csv_import_form, include_field_name=False)
+        error_html = '<br>'.join(error_message.splitlines())
+        return JsonResponse(dict(error=error_html))
+
+    try:
+        csv_labels = labels_csv_process(
+            csv_import_form.cleaned_data['csv_file'], source)
+    except FileProcessError as error:
+        error_html = '<br>'.join(error.message.splitlines())
+        return JsonResponse(dict(error=error_html))
+
+    csv_labels.sort(key=lambda x: x.global_label.name)
+    request.session['csv_labels'] = serializers.serialize('json', csv_labels)
+
+    return JsonResponse(dict(
+        success=True,
+        previewTable=render_to_string(
+            'labels/labelset_import_preview_table.html', {
+                'labels': csv_labels,
+            }
+        ),
+        previewDetail="",
+    ))
+
+
+@require_POST
+@source_permission_required(
+    'source_id', perm=Source.PermTypes.ADMIN.code, ajax=True)
+def labelset_import_ajax(request, source_id):
+    source = get_object_or_404(Source, id=source_id)
+
+    csv_labels = serializers.deserialize(
+        'json', request.session.pop('csv_labels'))
+    if not csv_labels:
+        return JsonResponse(dict(
+            error=(
+                "We couldn't find the expected data in your session."
+                " Please try loading this page again. If the problem persists,"
+                " contact a site admin."
+            ),
+        ))
+
+    if not source.labelset:
+        labelset = LabelSet()
+        labelset.save()
+        source.labelset = labelset
+        source.save()
+
+    labels_to_add = []
+    for deserialized_object in csv_labels:
+        label = deserialized_object.object
+        if label.pk:
+            # Updating an existing local label
+            label.save()
+        else:
+            # Adding a new local label
+            label.labelset = source.labelset
+            labels_to_add.append(label)
+    LocalLabel.objects.bulk_create(labels_to_add)
+
+    return JsonResponse(dict(
+        success=True,
+    ))
 
 
 def label_main(request, label_id):
@@ -320,7 +409,10 @@ def labelset_main(request, source_id):
     source = get_object_or_404(Source, id=source_id)
 
     if source.labelset is None:
-        return HttpResponseRedirect(reverse('labelset_add', args=[source.id]))
+        return render(request, 'labels/labelset_required.html', {
+            'source': source,
+            'message': "This source doesn't have a labelset yet.",
+        })
 
     return render(request, 'labels/labelset_main.html', {
         'source': source,

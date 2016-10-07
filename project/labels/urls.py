@@ -20,4 +20,13 @@ urlpatterns = [
         name="labelset_add"),
     url(r'^source/(?P<source_id>\d+)/labelset/edit/$', views.labelset_edit,
         name="labelset_edit"),
+
+    url(r'^source/(?P<source_id>\d+)/labelset/import/$', views.labelset_import,
+        name="labelset_import"),
+    url(r'^source/(?P<source_id>\d+)/labelset/import_preview_ajax/$',
+        views.labelset_import_preview_ajax,
+        name="labelset_import_preview_ajax"),
+    url(r'^source/(?P<source_id>\d+)/labelset/import_ajax/$',
+        views.labelset_import_ajax,
+        name="labelset_import_ajax"),
 ]

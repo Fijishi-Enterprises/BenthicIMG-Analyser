@@ -1640,7 +1640,7 @@ class UploadMetadataPreviewFormatTest(ClientTest):
         self.assertDictEqual(
             preview_response.json(),
             dict(
-                error="This file is not a CSV file.",
+                error="The selected file is not a CSV file.",
             ),
         )
 

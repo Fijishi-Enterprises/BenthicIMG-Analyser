@@ -27,10 +27,13 @@
   {% get_obj_perms user for source as "source_perms" %}
   {% if "source_admin" in source_perms %}
     <div class="line">
-      <a href="{% url 'labelset_add' source.id %}">Add/Remove Labels</a>
+      <a href="{% url 'labelset_edit' source.id %}">Edit label entries</a>
     </div>
     <div class="line">
-      <a href="{% url 'labelset_edit' source.id %}">Edit Label Entries</a>
+      <a href="{% url 'labelset_add' source.id %}">Add/Remove labels</a>
+    </div>
+    <div class="line">
+      <a href="{% url 'labelset_import' source.id %}">Import label entries from CSV</a>
     </div>
   {% endif %}
 

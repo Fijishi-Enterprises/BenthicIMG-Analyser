@@ -1,4 +1,7 @@
-from collections import defaultdict
+import codecs
+from collections import defaultdict, OrderedDict
+import csv
+
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.core.validators import validate_comma_separated_integer_list
@@ -8,7 +11,168 @@ from django.forms.models import ModelForm, BaseModelFormSet
 from django.forms.widgets import TextInput, HiddenInput
 from django.utils.html import escape
 
+from lib.exceptions import FileProcessError
+from lib.forms import get_one_form_error
 from .models import Label, LabelSet, LocalLabel
+
+
+def csv_to_dict(
+        csv_file, required_columns, optional_columns,
+        key_column, multiple_rows_per_key):
+    # splitlines() is to do system-agnostic handling of newline characters.
+    # The csv module can't do that by default (fails on CR only).
+    reader = csv.reader(csv_file.read().splitlines(), dialect='excel')
+
+    # Read the first row, which should have column headers.
+    column_headers = next(reader)
+    # There could be a UTF-8 BOM character at the start of the file.
+    # Strip it in that case.
+    column_headers[0] = column_headers[0].lstrip(codecs.BOM_UTF8)
+    # Strip whitespace in general.
+    column_headers = [h.strip() for h in column_headers]
+
+    # Ensure column header recognition is case insensitive.
+    column_headers = [h.lower() for h in column_headers]
+    required_column_headers = [h.lower() for key, h in required_columns]
+    # Map column text headers to string keys we want in the result dict.
+    # Ignore columns we don't recognize. We'll indicate this by making the
+    # column key None.
+    recognized_columns = required_columns + optional_columns
+    column_headers_to_keys = dict(
+        (h.lower(), key) for key, h in recognized_columns)
+    column_keys = [
+        column_headers_to_keys.get(h, None)
+        for h in column_headers
+    ]
+
+    # Use these later.
+    required_column_keys = [key for key, header in required_columns]
+    column_keys_to_headers = dict(
+        (k, h) for k, h in recognized_columns)
+
+    # Enforce required column headers.
+    for h in required_column_headers:
+        if h not in column_headers:
+            raise FileProcessError(
+                "CSV must have a column called {h}".format(h=h))
+
+    csv_data = OrderedDict()
+
+    # Read the data rows.
+    for row_number, row in enumerate(reader, start=2):
+        # strip() removes leading/trailing whitespace from the CSV value.
+        # A column key of None indicates that we're ignoring that column.
+        row_data = OrderedDict(
+            (k, value.strip())
+            for (k, value) in zip(column_keys, row)
+            if k is not None
+        )
+
+        # Enforce presence of a value for each required column.
+        for k in required_column_keys:
+            if row_data[k] == '':
+                raise FileProcessError(
+                    "CSV row {n}: Must have a value for {h}".format(
+                        n=row_number, h=column_keys_to_headers[k]))
+
+        data_key = row_data[key_column]
+
+        if multiple_rows_per_key:
+            # A defaultdict could make this a bit cleaner, but there's no
+            # ordered AND default dict built into Python.
+            if data_key not in csv_data:
+                csv_data[data_key] = []
+            csv_data[data_key].append(row_data)
+        else:
+            # Only one data value allowed per key.
+            if data_key in csv_data:
+                raise FileProcessError(
+                    "More than one row with the same {key_header}:"
+                    " {value}".format(
+                        key_header=column_keys_to_headers[key_column],
+                        value=data_key))
+            csv_data[data_key] = row_data
+
+    return csv_data
+
+
+def labels_csv_process(csv_file, source):
+    csv_data = csv_to_dict(
+        csv_file=csv_file,
+        required_columns=[
+            ('global_label_id', "Label ID"),
+            ('code', "Short code"),
+        ],
+        optional_columns=[],
+        key_column='global_label_id',
+        multiple_rows_per_key=False,
+    )
+
+    local_labels = OrderedDict()
+
+    if source.labelset:
+        # Fill local_labels with the currently existing labels.
+        for local_label in source.labelset.get_labels():
+            local_labels[local_label.global_label.pk] = local_label
+
+    for global_pk_str, label_data in csv_data.items():
+        try:
+            global_pk = int(global_pk_str)
+            Label.objects.get(pk=global_pk)
+        except (ValueError, Label.DoesNotExist):
+            raise FileProcessError(
+                "CSV has non-existent label id: {pk}".format(pk=global_pk_str))
+
+        if global_pk in local_labels:
+            # Exists in labelset; we'll use the same local label object
+            # but update the fields
+            form = LocalLabelForm(label_data, instance=local_labels[global_pk])
+        else:
+            # New to labelset
+            form = LocalLabelForm(label_data)
+
+        if not form.is_valid():
+            raise FileProcessError("Row with id {pk} - {error}".format(
+                pk=global_pk, error=get_one_form_error(form)))
+
+        # Replace existing local_labels entries with new ones.
+        # This gets us the set of local labels we'd have if we decided to
+        # save the user's input.
+        local_labels[global_pk] = form.instance
+        # The form doesn't have the global label info, so set that.
+        local_labels[global_pk].global_label_id = label_data['global_label_id']
+
+    # Dict -> flat iterable.
+    local_labels = local_labels.values()
+
+    try:
+        detect_dupe_label_codes(local_labels)
+    except ValidationError as e:
+        raise FileProcessError(e.message)
+
+    # Remember to set the local labels' labelset fields later.
+    # Other than that, they should be ready for saving.
+    return local_labels
+
+
+def detect_dupe_label_codes(local_labels):
+    codes = [local_label.code.lower() for local_label in local_labels]
+    dupe_codes = [
+        code for code in codes
+        if codes.count(code) > 1
+    ]
+
+    if not dupe_codes:
+        return
+
+    raise ValidationError(
+        "The resulting labelset would have multiple labels with the code"
+        " '{code}' (non case sensitive). This is not allowed.".format(
+            code=dupe_codes[0]),
+        # The following is a validation-error code used by
+        # Django for error IDing, not a label code!
+        code='dupe_code',
+    )
 
 
 class LabelForm(ModelForm):
@@ -262,9 +426,6 @@ class BaseLocalLabelFormSet(BaseModelFormSet):
             # unless each form is valid on its own
             return
 
-        # Find dupe image names in the source, taking together the
-        # existing names of images not in the forms, and the new names
-        # of images in the forms
         codes_in_forms = [f.cleaned_data['code'].lower() for f in self.forms]
         dupe_codes = [
             code for code in codes_in_forms

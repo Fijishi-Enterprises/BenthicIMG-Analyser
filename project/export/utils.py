@@ -65,3 +65,24 @@ def write_annotations_csv(writer, image_set, full):
                 annotation.annotation_date.replace(microsecond=0),
             ])
         writer.writerow(row)
+
+
+def write_labelset_csv(writer, source):
+    # Header row
+    row = ["Label ID", "Short Code"]
+    writer.writerow(row)
+
+    if not source.labelset:
+        # This shouldn't happen unless the user does URL crafting to get here
+        # for some reason. Not a big deal though, we'll just return a CSV
+        # with no data rows.
+        return
+
+    labels = source.labelset.get_labels().order_by('code')
+
+    for label in labels:
+        row = [
+            label.global_label_id,
+            label.code,
+        ]
+        writer.writerow(row)

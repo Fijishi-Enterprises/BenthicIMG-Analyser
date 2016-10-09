@@ -212,7 +212,7 @@ def labelset_import_preview_ajax(request, source_id):
         error_html = '<br>'.join(error.message.splitlines())
         return JsonResponse(dict(error=error_html))
 
-    csv_labels.sort(key=lambda x: x.global_label.name)
+    csv_labels.sort(key=lambda x: x.code)
     request.session['csv_labels'] = serializers.serialize('json', csv_labels)
 
     return JsonResponse(dict(

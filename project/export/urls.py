@@ -10,4 +10,6 @@ urlpatterns = [
         views.export_annotations_full, name="export_annotations_full"),
     url(r'^image_covers/$',
         views.export_image_covers, name="export_image_covers"),
+    url(r'^labelset/$',
+        views.export_labelset, name="export_labelset"),
 ]

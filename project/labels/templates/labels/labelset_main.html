@@ -4,6 +4,25 @@
 
 {% block title %}Labelset for {{ source.name }} | CoralNet{% endblock %}
 
+{% block css-code %}
+  <style type="text/css">
+    /* Some form/field rules to make styling a bit cleaner compared to
+      using master.css. */
+    /* TODO: Merge into master.css? */
+    div.page_section {
+        margin: 20px 0;  /* top/bottom left/right */
+        padding: 0;
+
+        width: auto;
+    }
+    form {
+        margin: 0;
+        padding: 0;
+        width: auto;
+    }
+  </style>
+{% endblock %}
+
 {% block content %}
 
   <h2 style="text-transform: none;">{{ source.name }} Labelset</h2>
@@ -25,6 +44,7 @@
   </table>
 
   {% get_obj_perms user for source as "source_perms" %}
+
   {% if "source_admin" in source_perms %}
     <div class="line">
       <a href="{% url 'labelset_edit' source.id %}">Edit label entries</a>
@@ -32,9 +52,20 @@
     <div class="line">
       <a href="{% url 'labelset_add' source.id %}">Add/Remove labels</a>
     </div>
-    <div class="line">
-      <a href="{% url 'labelset_import' source.id %}">Import label entries from CSV</a>
-    </div>
   {% endif %}
+
+  <div class="page_section">
+    {% if "source_admin" in source_perms %}
+      <div class="line">
+        <a href="{% url 'labelset_import' source.id %}">Import label entries from CSV</a>
+      </div>
+    {% endif %}
+
+    <div class="line">
+      <form method="GET" action="{% url 'export_labelset' source.id %}">
+        <input type="submit" value="Export label entries to CSV"/>
+      </form>
+    </div>
+  </div>
 
 {% endblock %}

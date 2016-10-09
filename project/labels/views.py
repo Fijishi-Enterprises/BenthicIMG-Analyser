@@ -193,7 +193,8 @@ def labelset_import(request, source_id):
 
 
 @require_POST
-@source_permission_required('source_id', perm=Source.PermTypes.ADMIN.code)
+@source_permission_required(
+    'source_id', perm=Source.PermTypes.ADMIN.code, ajax=True)
 def labelset_import_preview_ajax(request, source_id):
     source = get_object_or_404(Source, id=source_id)
 
@@ -231,9 +232,8 @@ def labelset_import_preview_ajax(request, source_id):
 def labelset_import_ajax(request, source_id):
     source = get_object_or_404(Source, id=source_id)
 
-    csv_labels = serializers.deserialize(
-        'json', request.session.pop('csv_labels'))
-    if not csv_labels:
+    serialized_labels = request.session.pop('csv_labels')
+    if not serialized_labels:
         return JsonResponse(dict(
             error=(
                 "We couldn't find the expected data in your session."
@@ -241,6 +241,7 @@ def labelset_import_ajax(request, source_id):
                 " contact a site admin."
             ),
         ))
+    csv_labels = serializers.deserialize('json', serialized_labels)
 
     if not source.labelset:
         labelset = LabelSet()

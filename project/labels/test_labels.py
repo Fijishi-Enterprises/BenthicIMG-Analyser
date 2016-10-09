@@ -31,8 +31,97 @@ class LabelSearchTest(ClientTest):
     """
     Test the label search Ajax view.
     """
-    # TODO
-    pass
+    @classmethod
+    def setUpTestData(cls):
+        # Call the parent's setup (while still using this class as cls)
+        super(LabelSearchTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.url = reverse('label_search_ajax')
+
+    def assertLabels(self, response, label_names):
+        for name in label_names:
+            self.assertContains(
+                response,
+                '<div class="label-add-box" data-label-id="{pk}">'.format(
+                    pk=Label.objects.get(name=name).pk))
+        self.assertContains(
+            response, 'div class="label-add-box"', count=len(label_names))
+
+    def test_match_full_name(self):
+        self.create_labels(self.user, ["Red", "Blue"], "Group1")
+
+        self.client.force_login(self.user)
+        response = self.client.get(self.url, dict(search="Red"))
+        self.assertLabels(response, ["Red"])
+
+    def test_match_part_of_name(self):
+        self.create_labels(self.user, ["Red", "Blue"], "Group1")
+
+        self.client.force_login(self.user)
+        response = self.client.get(self.url, dict(search="Blu"))
+        self.assertLabels(response, ["Blue"])
+
+    def test_match_case_insensitive(self):
+        self.create_labels(self.user, ["Red", "Blue"], "Group1")
+
+        self.client.force_login(self.user)
+        response = self.client.get(self.url, dict(search="BLUE"))
+        self.assertLabels(response, ["Blue"])
+
+    def test_match_multiple_labels(self):
+        self.create_labels(
+            self.user, ["Red", "Light Blue", "Dark Blue"], "Group1")
+
+        self.client.force_login(self.user)
+        response = self.client.get(self.url, dict(search="Blue"))
+        self.assertLabels(response, ["Light Blue", "Dark Blue"])
+
+    def test_multiple_words(self):
+        self.create_labels(
+            self.user, ["Light Blue", "Dark Blue", "Dark Red"], "Group1")
+
+        self.client.force_login(self.user)
+        response = self.client.get(self.url, dict(search="Dark Blue"))
+        self.assertLabels(response, ["Dark Blue"])
+
+    def test_no_match(self):
+        self.create_labels(self.user, ["Red", "Blue"], "Group1")
+
+        self.client.force_login(self.user)
+        response = self.client.get(self.url, dict(search="Green"))
+        self.assertLabels(response, [])
+
+    def test_strip_whitespace(self):
+        self.create_labels(self.user, ["Blue", "Red"], "Group1")
+
+        self.client.force_login(self.user)
+        response = self.client.get(self.url, dict(search="  Blue "))
+        self.assertLabels(response, ["Blue"])
+
+    def test_normalize_multiple_spaces(self):
+        self.create_labels(
+            self.user, ["Light Blue", "Dark Blue", "Dark Red"], "Group1")
+
+        self.client.force_login(self.user)
+        response = self.client.get(self.url, dict(search="Dark   Blue"))
+        self.assertLabels(response, ["Dark Blue"])
+
+    def test_treat_punctuation_as_spaces(self):
+        self.create_labels(
+            self.user, ["Light Blue", "Dark Blue", "Dark Red"], "Group1")
+
+        self.client.force_login(self.user)
+        response = self.client.get(self.url, dict(search=";'Dark_/Blue=-"))
+        self.assertLabels(response, ["Dark Blue"])
+
+    def test_no_tokens(self):
+        self.create_labels(
+            self.user, ["Light Blue", "Dark Blue", "Dark Red"], "Group1")
+
+        self.client.force_login(self.user)
+        response = self.client.get(self.url, dict(search=";'_/=-"))
+        self.assertLabels(response, [])
 
 
 class LabelDetailTest(ClientTest):

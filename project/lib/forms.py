@@ -56,12 +56,15 @@ def get_one_form_error(form, include_field_name=True):
 
 def get_one_formset_error(formset, get_form_name, include_field_name=True):
     for form in formset:
-        error = get_one_form_error(form, include_field_name)
+        error_message = get_one_form_error(form, include_field_name)
 
-        if not error.startswith("Unknown error"):
+        if not error_message.startswith("Unknown error"):
             # Found an error in this form
             return "{form}: {error}".format(
                 form=get_form_name(form),
-                error=error)
+                error=error_message)
+
+    for error_message in formset.non_form_errors():
+        return error_message
 
     return "Unknown error. If the problem persists, please contact the admins."

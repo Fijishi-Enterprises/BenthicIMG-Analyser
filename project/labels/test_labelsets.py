@@ -38,14 +38,14 @@ class LabelsetTest(ClientTest):
         return Label.objects.get(name=name)
 
 
-class LabelsetAddPermissionTest(LabelsetTest):
+class LabelsetPermissionTest(LabelsetTest):
     """
-    Test the new labelset page.
+    Test all labelset views for permissions.
     """
     @classmethod
     def setUpTestData(cls):
         # Call the parent's setup (while still using this class as cls)
-        super(LabelsetAddPermissionTest, cls).setUpTestData()
+        super(LabelsetPermissionTest, cls).setUpTestData()
 
         cls.user = cls.create_user()
 
@@ -62,31 +62,143 @@ class LabelsetAddPermissionTest(LabelsetTest):
         # Create labels and group
         cls.create_labels(
             cls.user, ['A', 'B', 'C'], "Group1")
+        # Create labelset
+        cls.create_labelset(cls.user, cls.source, Label.objects.filter(
+            default_code__in=['A', 'B', 'C']))
 
-        cls.url = reverse('labelset_add', args=[cls.source.pk])
+        cls.add_url = reverse('labelset_add', args=[cls.source.pk])
+        cls.edit_url = reverse('labelset_edit', args=[cls.source.pk])
+        cls.import_url = reverse('labelset_import', args=[cls.source.pk])
+        cls.import_ajax_url = reverse(
+            'labelset_import_ajax', args=[cls.source.pk])
+        cls.import_preview_ajax_url = reverse(
+            'labelset_import_preview_ajax', args=[cls.source.pk])
 
-    def test_load_page_anonymous(self):
+    def test_add_anonymous(self):
         """Don't have permission."""
-        response = self.client.get(self.url)
+        response = self.client.get(self.add_url)
         self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
 
-    def test_load_page_as_source_viewer(self):
+    def test_add_as_viewer(self):
         """Don't have permission."""
         self.client.force_login(self.user_viewer)
-        response = self.client.get(self.url)
+        response = self.client.get(self.add_url)
         self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
 
-    def test_load_page_as_source_editor(self):
+    def test_add_as_editor(self):
         """Don't have permission."""
         self.client.force_login(self.user_editor)
-        response = self.client.get(self.url)
+        response = self.client.get(self.add_url)
         self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
 
-    def test_load_page_as_source_admin(self):
+    def test_add_as_admin(self):
         """Page loads normally."""
         self.client.force_login(self.user)
-        response = self.client.get(self.url)
+        response = self.client.get(self.add_url)
         self.assertTemplateUsed(response, 'labels/labelset_add.html')
+
+    def test_edit_anonymous(self):
+        """Don't have permission."""
+        response = self.client.get(self.edit_url)
+        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+
+    def test_edit_as_viewer(self):
+        """Don't have permission."""
+        self.client.force_login(self.user_viewer)
+        response = self.client.get(self.edit_url)
+        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+
+    def test_edit_as_editor(self):
+        """Don't have permission."""
+        self.client.force_login(self.user_editor)
+        response = self.client.get(self.edit_url)
+        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+
+    def test_edit_as_admin(self):
+        """Page loads normally."""
+        self.client.force_login(self.user)
+        response = self.client.get(self.edit_url)
+        self.assertTemplateUsed(response, 'labels/labelset_edit.html')
+
+    def test_import_anonymous(self):
+        """Don't have permission."""
+        response = self.client.get(self.import_url)
+        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+
+    def test_import_as_viewer(self):
+        """Don't have permission."""
+        self.client.force_login(self.user_viewer)
+        response = self.client.get(self.import_url)
+        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+
+    def test_import_as_editor(self):
+        """Don't have permission."""
+        self.client.force_login(self.user_editor)
+        response = self.client.get(self.import_url)
+        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+
+    def test_import_as_admin(self):
+        """Page loads normally."""
+        self.client.force_login(self.user)
+        response = self.client.get(self.import_url)
+        self.assertTemplateUsed(response, 'labels/labelset_import.html')
+
+    def test_import_preview_ajax_anonymous(self):
+        """Don't have permission."""
+        response = self.client.post(self.import_preview_ajax_url).json()
+        # Response should include an error that contains the word "permission"
+        self.assertIn('error', response)
+        self.assertIn("permission", response['error'])
+
+    def test_import_preview_ajax_as_viewer(self):
+        """Don't have permission."""
+        self.client.force_login(self.user_viewer)
+        response = self.client.post(self.import_preview_ajax_url).json()
+        self.assertIn('error', response)
+        self.assertIn("permission", response['error'])
+
+    def test_import_preview_ajax_as_editor(self):
+        """Don't have permission."""
+        self.client.force_login(self.user_editor)
+        response = self.client.post(self.import_preview_ajax_url).json()
+        self.assertIn('error', response)
+        self.assertIn("permission", response['error'])
+
+    def test_import_preview_ajax_as_admin(self):
+        """Maybe post without arguments gets an error, but if so, the error
+        shouldn't be about permissions."""
+        self.client.force_login(self.user)
+        response = self.client.post(self.import_preview_ajax_url).json()
+        self.assertFalse(
+            'error' in response and "permission" in response['error'])
+
+    def test_import_ajax_anonymous(self):
+        """Don't have permission."""
+        response = self.client.post(self.import_ajax_url).json()
+        self.assertIn('error', response)
+        self.assertIn("permission", response['error'])
+
+    def test_import_ajax_as_viewer(self):
+        """Don't have permission."""
+        self.client.force_login(self.user_viewer)
+        response = self.client.post(self.import_ajax_url).json()
+        self.assertIn('error', response)
+        self.assertIn("permission", response['error'])
+
+    def test_import_ajax_as_editor(self):
+        """Don't have permission."""
+        self.client.force_login(self.user_editor)
+        response = self.client.post(self.import_ajax_url).json()
+        self.assertIn('error', response)
+        self.assertIn("permission", response['error'])
+
+    def test_import_ajax_as_admin(self):
+        """Maybe post without arguments gets an error, but if so, the error
+        shouldn't be about permissions."""
+        self.client.force_login(self.user)
+        response = self.client.post(self.import_ajax_url).json()
+        self.assertFalse(
+            'error' in response and "permission" in response['error'])
 
 
 class LabelsetCreateTest(LabelsetTest):
@@ -372,6 +484,14 @@ class LabelsetImportCreateTest(LabelsetImportBaseTest):
         label_B = labels.get(global_label_id=self.labels['B'].pk)
         self.assertEqual(label_B.code, 'codeForB')
 
+    def test_missing_session_data(self):
+        response = self.upload()
+        self.assertError(
+            response,
+            "We couldn't find the expected data in your session."
+            " Please try loading this page again. If the problem persists,"
+            " contact a site admin.")
+
     def test_empty_file(self):
         csv_rows = []
         response = self.preview(csv_rows)
@@ -624,7 +744,7 @@ class LabelsetImportModifyTest(LabelsetImportBaseTest):
 
 class LabelsetEditTest(LabelsetTest):
     """
-    Test adding/removing labels from a labelset.
+    General tests for the view where you edit labelset entries (code etc.).
     """
     @classmethod
     def setUpTestData(cls):
@@ -635,23 +755,97 @@ class LabelsetEditTest(LabelsetTest):
 
         # Create labels and group
         cls.group = cls.create_label_group("Group1")
-        cls.create_label(cls.user, "Label A", 'A', cls.group)
-        cls.create_label(cls.user, "Label B", 'B', cls.group)
-        cls.create_label(cls.user, "Label C", 'C', cls.group)
-        cls.create_label(cls.user, "Label D", 'D', cls.group)
-        cls.create_label(cls.user, "Label E", 'E', cls.group)
+        cls.labels = dict(
+            A=cls.create_label(cls.user, "Label A", 'A', cls.group),
+            B=cls.create_label(cls.user, "Label B", 'B', cls.group),
+            C=cls.create_label(cls.user, "Label C", 'C', cls.group),
+            D=cls.create_label(cls.user, "Label D", 'D', cls.group),
+            E=cls.create_label(cls.user, "Label E", 'E', cls.group),
+        )
 
         # Create source and labelset
         cls.source = cls.create_source(cls.user)
         cls.create_labelset(cls.user, cls.source, Label.objects.filter(
-            default_code__in=['A', 'B', 'C']))
+            default_code__in=['A', 'B']))
 
-        cls.url = reverse('labelset_add', args=[cls.source.pk])
+        cls.url = reverse('labelset_edit', args=[cls.source.pk])
 
     def test_success(self):
-        # TODO
-        pass
+        labels = self.source.labelset.get_labels()
+        post_data = {
+            'form-TOTAL_FORMS': 2,
+            'form-INITIAL_FORMS': 2,
+            'form-MAX_NUM_FORMS': '',
+            'form-0-id': labels.get(global_label_id=self.labels['A'].pk).pk,
+            'form-0-code': 'newCodeA',
+            'form-1-id': labels.get(global_label_id=self.labels['B'].pk).pk,
+            'form-1-code': 'newCodeB',
+        }
+
+        self.client.force_login(self.user)
+        self.client.post(self.url, post_data)
+
+        self.source.labelset.refresh_from_db()
+        labels = self.source.labelset.get_labels()
+        label_A = labels.get(global_label_id=self.labels['A'].pk)
+        self.assertEqual(label_A.code, 'newCodeA')
+        label_B = labels.get(global_label_id=self.labels['B'].pk)
+        self.assertEqual(label_B.code, 'newCodeB')
+
+    def test_code_missing(self):
+        labels = self.source.labelset.get_labels()
+        post_data = {
+            'form-TOTAL_FORMS': 2,
+            'form-INITIAL_FORMS': 2,
+            'form-MAX_NUM_FORMS': '',
+            'form-0-id': labels.get(global_label_id=self.labels['A'].pk).pk,
+            'form-0-code': 'newCodeA',
+            'form-1-id': labels.get(global_label_id=self.labels['B'].pk).pk,
+            'form-1-code': '',
+        }
+
+        self.client.force_login(self.user)
+        response = self.client.post(self.url, post_data)
+
+        self.assertContains(
+            response,
+            "Label B: Short Code: This field is required.")
+
+    def test_code_error(self):
+        labels = self.source.labelset.get_labels()
+        post_data = {
+            'form-TOTAL_FORMS': 2,
+            'form-INITIAL_FORMS': 2,
+            'form-MAX_NUM_FORMS': '',
+            'form-0-id': labels.get(global_label_id=self.labels['A'].pk).pk,
+            'form-0-code': 'newCodeATooLong',
+            'form-1-id': labels.get(global_label_id=self.labels['B'].pk).pk,
+            'form-1-code': 'newCodeA',
+        }
+
+        self.client.force_login(self.user)
+        response = self.client.post(self.url, post_data)
+
+        self.assertContains(
+            response,
+            "Label A: Short Code: Ensure this value has"
+            " at most 10 characters (it has 15).")
 
     def test_code_conflict(self):
-        # TODO
-        pass
+        labels = self.source.labelset.get_labels()
+        post_data = {
+            'form-TOTAL_FORMS': 2,
+            'form-INITIAL_FORMS': 2,
+            'form-MAX_NUM_FORMS': '',
+            'form-0-id': labels.get(global_label_id=self.labels['A'].pk).pk,
+            'form-0-code': 'newCodeA',
+            'form-1-id': labels.get(global_label_id=self.labels['B'].pk).pk,
+            'form-1-code': 'NEWCODEA',
+        }
+
+        self.client.force_login(self.user)
+        response = self.client.post(self.url, post_data)
+
+        self.assertContains(response, escape(
+            "The resulting labelset would have multiple labels with the code"
+            " 'newcodea' (non case sensitive). This is not allowed."))

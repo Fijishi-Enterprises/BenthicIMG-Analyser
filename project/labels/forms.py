@@ -264,6 +264,9 @@ class LabelSetForm(Form):
                 self.initial['label_ids'] = ','.join(
                     str(pk) for pk in global_ids)
 
+        self.global_ids_to_delete = None
+        self.locals_to_add = None
+
     def clean_label_ids(self):
         # Run through a set to remove dupes, then get a list again
         label_id_list = list(set(
@@ -392,27 +395,5 @@ class BaseLocalLabelFormSet(BaseModelFormSet):
             # unless each form is valid on its own
             return
 
-        # TODO: Check if this works
         pending_local_labels = [form.instance for form in self.forms]
         detect_dupe_label_codes(pending_local_labels)
-
-        # TODO: Check if needed
-        # codes_in_forms = [f.cleaned_data['code'].lower() for f in self.forms]
-        # dupe_codes = [
-        #     code for code in codes_in_forms
-        #     if codes_in_forms.count(code) > 1
-        # ]
-        #
-        # for form in self.forms:
-        #     code = form.cleaned_data['code'].lower()
-        #     if code in dupe_codes:
-        #         form.add_error(
-        #             'code',
-        #             ValidationError(
-        #                 "More than one label with the code '{code}'".format(
-        #                     code=code),
-        #                 # The following is a validation-error code used by
-        #                 # Django for error IDing, not a label code!
-        #                 code='dupe_code',
-        #             )
-        #         )

@@ -14,6 +14,7 @@ from django.views.decorators.http import require_POST, require_GET
 
 from accounts.utils import get_robot_user
 from annotations.models import Annotation
+from annotations.utils import get_labels_with_annotations_in_source
 from images.models import Source
 from lib.decorators import source_permission_required, \
     source_visibility_required, source_labelset_required
@@ -89,58 +90,6 @@ def label_search_ajax(request):
     })
 
 
-@login_required
-@require_GET
-def labelset_search_ajax(request):
-    """
-    Use a text search value to get a set of labelsets.
-    Return info for those labelsets.
-    """
-    search_value = request.GET.get('search')
-    # Replace non-letters/digits with spaces
-    search_value = re.sub(r'[^A-Za-z0-9]', ' ', search_value)
-    # Strip whitespace from both ends
-    search_value = search_value.strip()
-    # Replace multi-spaces with one space
-    search_value = re.sub(r'\s{2,}', ' ', search_value)
-    # Get space-separated tokens
-    search_tokens = search_value.split(' ')
-    # Discard blank tokens
-    search_tokens = [t for t in search_tokens if t != '']
-
-    if len(search_tokens) == 0:
-        # No tokens of letters/digits. Return no results.
-        return render(request, 'labels/labelset_box_container.html', {
-            'labelsets': [],
-        })
-
-    # Get labelsets where the source's name has ALL of the search tokens.
-    sources = Source.objects
-    limit = 20
-    for token in search_tokens:
-        sources = sources.filter(name__icontains=token)
-        sources = sources.order_by('name')[:limit]
-    labelset_pks = sources.values_list('labelset', flat=True)
-    labelsets = LabelSet.objects.filter(pk__in=labelset_pks)
-
-    return render(request, 'labels/labelset_box_container.html', {
-        'labelsets': labelsets,
-    })
-
-
-@login_required
-@require_GET
-def labelset_labels_ajax(request, labelset_id):
-    """
-    Get the labels for a labelset.
-    """
-    labelset = get_object_or_404(LabelSet, id=labelset_id)
-
-    return render(request, 'labels/label_box_container.html', {
-        'labels': labelset.get_globals(),
-    })
-
-
 @source_permission_required('source_id', perm=Source.PermTypes.ADMIN.code)
 def labelset_add(request, source_id):
     """
@@ -172,13 +121,15 @@ def labelset_add(request, source_id):
         labelset_form = LabelSetForm(source=source)
 
     initial_label_ids_str = labelset_form['label_ids'].value()
-    initial_label_ids = initial_label_ids_str.split(',') \
-        if initial_label_ids_str not in ['', None] else []
+    if initial_label_ids_str in ['', None]:
+        initial_label_ids = []
+    else:
+        initial_label_ids = initial_label_ids_str.split(',')
     initial_labels = Label.objects.filter(pk__in=initial_label_ids)
 
-    label_ids_in_annotations = Annotation.objects.filter(source=source) \
-        .values_list('label__pk', flat=True).distinct()
-    label_ids_in_annotations = list(label_ids_in_annotations)
+    label_ids_in_annotations = list(
+        get_labels_with_annotations_in_source(source)
+        .values_list('pk', flat=True))
 
     return render(request, 'labels/labelset_add.html', {
         'source': source,

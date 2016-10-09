@@ -5,6 +5,7 @@ from accounts.utils import get_robot_user, is_robot_user, get_alleviate_user
 from annotations.models import Annotation
 from images.model_utils import PointGen
 from images.models import Image, Point
+from labels.models import Label
 from vision_backend.utils import get_alleviate_meta
 
 def image_annotation_all_done(image):
@@ -38,6 +39,11 @@ def image_annotation_area_is_editable(image):
     """
     return (not image_has_any_human_annotations(image))\
     and (PointGen.db_to_args_format(image.point_generation_method)['point_generation_type'] != PointGen.Types.IMPORTED)
+
+
+def get_labels_with_annotations_in_source(source):
+    return Label.objects.filter(annotation__source=source).distinct()
+
 
 def get_annotation_user_display(anno):
     """

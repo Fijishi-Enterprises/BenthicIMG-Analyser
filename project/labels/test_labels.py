@@ -17,9 +17,6 @@ class LabelListTest(ClientTest):
 
         cls.user = cls.create_user()
 
-        # Create source (required to reach new-label form)
-        cls.source = cls.create_source(cls.user)
-
         # Create labels
         cls.labels = cls.create_labels(
             cls.user, ['A', 'B'], "Group1")
@@ -28,6 +25,14 @@ class LabelListTest(ClientTest):
         """Load the page."""
         response = self.client.get(reverse('label_list'))
         self.assertStatusOK(response)
+
+
+class LabelSearchTest(ClientTest):
+    """
+    Test the label search Ajax view.
+    """
+    # TODO
+    pass
 
 
 class LabelDetailTest(ClientTest):
@@ -40,9 +45,6 @@ class LabelDetailTest(ClientTest):
         super(LabelDetailTest, cls).setUpTestData()
 
         cls.user = cls.create_user()
-
-        # Create source (required to reach new-label form)
-        cls.source = cls.create_source(cls.user)
 
         # Create labels
         cls.labels = cls.create_labels(
@@ -274,219 +276,3 @@ class NewLabelTest(ClientTest):
         ))
 
     # TODO: Test thumbnail resizing.
-
-
-class LabelsetAddPermissionTest(ClientTest):
-    """
-    Test the new labelset page.
-    """
-    @classmethod
-    def setUpTestData(cls):
-        # Call the parent's setup (while still using this class as cls)
-        super(LabelsetAddPermissionTest, cls).setUpTestData()
-
-        cls.user = cls.create_user()
-
-        # Create source (required to reach new-label form)
-        cls.source = cls.create_source(cls.user)
-
-        cls.user_viewer = cls.create_user()
-        cls.add_source_member(
-            cls.user, cls.source, cls.user_viewer, Source.PermTypes.VIEW.code)
-        cls.user_editor = cls.create_user()
-        cls.add_source_member(
-            cls.user, cls.source, cls.user_editor, Source.PermTypes.EDIT.code)
-
-        # Create labels and group
-        cls.create_labels(
-            cls.user, ['A', 'B', 'C'], "Group1")
-
-        cls.url = reverse('labelset_add', args=[cls.source.pk])
-
-    def test_load_page_anonymous(self):
-        """Don't have permission."""
-        response = self.client.get(self.url)
-        self.assertStatusOK(response)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-
-    def test_load_page_as_source_viewer(self):
-        """Don't have permission."""
-        self.client.force_login(self.user_viewer)
-        response = self.client.get(self.url)
-        self.assertStatusOK(response)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-
-    def test_load_page_as_source_editor(self):
-        """Don't have permission."""
-        self.client.force_login(self.user_editor)
-        response = self.client.get(self.url)
-        self.assertStatusOK(response)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-
-    def test_load_page_as_source_admin(self):
-        """Page loads normally."""
-        self.client.force_login(self.user)
-        response = self.client.get(self.url)
-        self.assertStatusOK(response)
-        self.assertTemplateUsed(response, 'labels/labelset_add.html')
-
-
-class LabelsetCreateTest(ClientTest):
-    """
-    Test the new labelset page.
-    """
-    @classmethod
-    def setUpTestData(cls):
-        # Call the parent's setup (while still using this class as cls)
-        super(LabelsetCreateTest, cls).setUpTestData()
-
-        cls.user = cls.create_user()
-
-        # Create source (required to reach new-label form)
-        cls.source = cls.create_source(cls.user)
-
-        # Create labels and group
-        cls.create_labels(
-            cls.user, ['A', 'B', 'C'], "Group1")
-
-        cls.url = reverse('labelset_add', args=[cls.source.pk])
-
-    def test_success(self):
-        """Successfully create a new labelset."""
-
-        # These are the labels we'll try putting into the labelset.
-        label_pks = [
-            Label.objects.get(name=name).pk
-            for name in ["A", "B"]
-        ]
-
-        self.client.force_login(self.user)
-        response = self.client.post(
-            self.url,
-            dict(label_ids=','.join(str(pk) for pk in label_pks)),
-            follow=True,
-        )
-        self.assertContains(response, "Labelset successfully created.")
-
-        url = reverse('labelset_main', args=[self.source.pk])
-        self.assertRedirects(response, url)
-
-        # Check the new labelset for the expected labels.
-        self.source.refresh_from_db()
-        # Check codes.
-        self.assertSetEqual(
-            {label.code for label in self.source.labelset.get_labels()},
-            {'A', 'B'},
-        )
-        # Check foreign keys to globals.
-        self.assertSetEqual(
-            {label.pk for label in self.source.labelset.get_globals()},
-            set(label_pks),
-        )
-
-    def test_no_labels(self):
-        """No labels -> error."""
-        self.client.force_login(self.user)
-        response = self.client.post(
-            self.url,
-            dict(label_ids=''),
-        )
-        self.assertContains(response, "You must select one or more labels.")
-
-        self.source.refresh_from_db()
-        self.assertIsNone(self.source.labelset)
-
-
-class LabelsetAddRemoveTest(ClientTest):
-    """
-    Test adding/removing labels from a labelset.
-    """
-    @classmethod
-    def setUpTestData(cls):
-        # Call the parent's setup (while still using this class as cls)
-        super(LabelsetAddRemoveTest, cls).setUpTestData()
-
-        cls.user = cls.create_user()
-
-        # Create source (required to reach new-label form)
-        cls.source = cls.create_source(cls.user)
-
-        # Create labels and group
-        labels = cls.create_labels(
-            cls.user, ['A', 'B', 'C', 'D', 'E'], "Group1")
-        cls.create_labelset(cls.user, cls.source, labels.filter(
-            name__in=['A', 'B', 'C']))
-
-        cls.url = reverse('labelset_add', args=[cls.source.pk])
-
-    def test_add(self):
-        """
-        Add labels.
-        """
-        label_pks = [
-            Label.objects.get(name=name).pk
-            for name in ['A', 'B', 'C', 'D', 'E']
-        ]
-        self.client.force_login(self.user)
-        response = self.client.post(
-            self.url,
-            dict(label_ids=','.join(str(pk) for pk in label_pks)),
-            follow=True,
-        )
-        self.assertContains(response, "Labelset successfully changed.")
-
-        # Check the edited labelset for the expected labels.
-        self.source.labelset.refresh_from_db()
-        self.assertSetEqual(
-            set(self.source.labelset.get_labels().values_list(
-                'code', flat=True)),
-            {'A', 'B', 'C', 'D', 'E'},
-        )
-
-    def test_remove(self):
-        """
-        Remove labels.
-        """
-        label_pks = [
-            Label.objects.get(name=name).pk
-            for name in ['A']
-        ]
-        self.client.force_login(self.user)
-        response = self.client.post(
-            self.url,
-            dict(label_ids=','.join(str(pk) for pk in label_pks)),
-            follow=True,
-        )
-        self.assertContains(response, "Labelset successfully changed.")
-
-        # Check the edited labelset for the expected labels.
-        self.source.labelset.refresh_from_db()
-        self.assertSetEqual(
-            set(self.source.labelset.get_labels().values_list(
-                'code', flat=True)),
-            {'A'},
-        )
-
-    def test_add_and_remove(self):
-        """
-        Add some labels, remove others.
-        """
-        label_pks = [
-            Label.objects.get(name=name).pk
-            for name in ['C', 'D', 'E']
-        ]
-        self.client.force_login(self.user)
-        response = self.client.post(
-            self.url,
-            dict(label_ids=','.join(str(pk) for pk in label_pks)),
-            follow=True,
-        )
-        self.assertContains(response, "Labelset successfully changed.")
-
-        # Check the edited labelset for the expected labels.
-        self.source.labelset.refresh_from_db()
-        self.assertSetEqual(
-            set(self.source.labelset.get_labels().values_list(
-                'code', flat=True)),
-            {'C', 'D', 'E'},
-        )

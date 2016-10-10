@@ -1,5 +1,4 @@
-{# This extends a different base, because the nav is eliminated on this page #}
-{% extends "base_index.html" %}
+{% extends "base.html" %}
 
 {% load jsonify from common_tags %}
 {% load thumbnail %}
@@ -15,6 +14,9 @@
     {% include "static-local-include.html" with type="css" path="css/bootstrap.css" %}
 
 {% endblock %}
+
+{# Empty the nav area #}
+{% block nav %}{% endblock %}
 
 {% block content %}
 

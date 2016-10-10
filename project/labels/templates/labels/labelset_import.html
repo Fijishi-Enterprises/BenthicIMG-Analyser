@@ -1,0 +1,81 @@
+{% extends "images/base_source.html" %}
+{% load thumbnail %}
+{% load common_tags %}
+
+{% block title %}Import Labelset Entries | CoralNet{% endblock %}
+
+{% block js-includes %}
+    {% include "javascript-includes.html" with jquery_ui="yes" %}
+{% endblock %}
+
+{% block page-specific-includes %}
+    {% include "static-local-include.html" with type="css" path="css/uploadForm.css" %}
+    {% include "static-local-include.html" with type="js" path="js/LabelsetImport.js" %}
+{% endblock %}
+
+{% block content %}
+
+  <legend>Import Labelset Entries</legend>
+
+  <div class="narrow_column">
+
+    <div class="page_section">
+
+      The CSV file should contain columns for Label ID and Short code. For example:
+      <table class="generic">
+        <tr><th>Label ID</th><th>Short code</th></tr>
+        <tr><td>15</td><td>Acrop</td></tr>
+        <tr><td>28</td><td>Porit</td></tr>
+        <tr><td>...</td><td>...</td></tr>
+      </table>
+      This is the same format that you get when you export a labelset. The label ID is the number you see in the URL on a label's information page. We use label IDs instead of label names because the labelset committee may edit the names sometimes.
+
+    </div>
+
+    <div class="page_section">
+
+      <form id="csv_form" action="" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        {% with csv_import_form.csv_file as field %}
+          {{ field.label }}: {{ field }}
+        {% endwith %}
+      </form>
+
+      <button type="button" class="submit" id="csv_refresh_button">
+        Refresh file</button>
+
+    </div>
+
+    <div class="page_section">
+
+      <div id="upload_summary_section">
+
+        <span id="status_display"></span>
+        <hr>
+        <span id="status_detail"></span>
+
+        <div id="preview_table_container">
+          <table id="preview_table"></table>
+        </div>
+      </div>
+
+      <div id="upload_and_proceed_buttons">
+
+        <button type="button" class="submit" id="id_upload_submit" disabled="disabled">Save labelset</button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Script in the body will run on page load. -->
+  <script type="text/javascript">
+    LabelsetImport.initForm({
+        uploadPreviewUrl: "{% url 'labelset_import_preview_ajax' source.id %}",
+        uploadStartUrl: "{% url 'labelset_import_ajax' source.id %}"
+    });
+  </script>
+
+{% endblock %}

@@ -1,4 +1,7 @@
-from collections import defaultdict
+import codecs
+from collections import OrderedDict
+import csv
+
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.core.validators import validate_comma_separated_integer_list
@@ -8,7 +11,173 @@ from django.forms.models import ModelForm, BaseModelFormSet
 from django.forms.widgets import TextInput, HiddenInput
 from django.utils.html import escape
 
+from annotations.utils import get_labels_with_annotations_in_source
+from lib.exceptions import FileProcessError
+from lib.forms import get_one_form_error
 from .models import Label, LabelSet, LocalLabel
+
+
+def csv_to_dict(
+        csv_file, required_columns, optional_columns,
+        key_column, multiple_rows_per_key):
+    # splitlines() is to do system-agnostic handling of newline characters.
+    # The csv module can't do that by default (fails on CR only).
+    reader = csv.reader(csv_file.read().splitlines(), dialect='excel')
+
+    # Read the first row, which should have column headers.
+    column_headers = next(reader)
+    # There could be a UTF-8 BOM character at the start of the file.
+    # Strip it in that case.
+    column_headers[0] = column_headers[0].lstrip(codecs.BOM_UTF8)
+    # Strip whitespace in general.
+    column_headers = [h.strip() for h in column_headers]
+
+    # Ensure column header recognition is case insensitive.
+    column_headers = [h.lower() for h in column_headers]
+
+    # Enforce required column headers.
+    required_column_headers = [h for key, h in required_columns]
+    for h in required_column_headers:
+        if h.lower() not in column_headers:
+            raise FileProcessError(
+                "CSV must have a column called {h}".format(h=h))
+
+    # Map column text headers to string keys we want in the result dict.
+    # Ignore columns we don't recognize. We'll indicate this by making the
+    # column key None.
+    recognized_columns = required_columns + optional_columns
+    column_headers_to_keys = dict(
+        (h.lower(), key) for key, h in recognized_columns)
+    column_keys = [
+        column_headers_to_keys.get(h, None)
+        for h in column_headers
+    ]
+
+    # Use these later.
+    required_column_keys = [key for key, header in required_columns]
+    column_keys_to_headers = dict(
+        (k, h) for k, h in recognized_columns)
+
+    csv_data = OrderedDict()
+
+    # Read the data rows.
+    for row_number, row in enumerate(reader, start=2):
+        # strip() removes leading/trailing whitespace from the CSV value.
+        # A column key of None indicates that we're ignoring that column.
+        row_data = OrderedDict(
+            (k, value.strip())
+            for (k, value) in zip(column_keys, row)
+            if k is not None
+        )
+
+        # Enforce presence of a value for each required column.
+        for k in required_column_keys:
+            if row_data[k] == '':
+                raise FileProcessError(
+                    "CSV row {n}: Must have a value for {h}".format(
+                        n=row_number, h=column_keys_to_headers[k]))
+
+        data_key = row_data[key_column]
+
+        if multiple_rows_per_key:
+            # A defaultdict could make this a bit cleaner, but there's no
+            # ordered AND default dict built into Python.
+            if data_key not in csv_data:
+                csv_data[data_key] = []
+            csv_data[data_key].append(row_data)
+        else:
+            # Only one data value allowed per key.
+            if data_key in csv_data:
+                raise FileProcessError(
+                    "More than one row with the same {key_header}:"
+                    " {value}".format(
+                        key_header=column_keys_to_headers[key_column],
+                        value=data_key))
+            csv_data[data_key] = row_data
+
+    if len(csv_data) == 0:
+        raise FileProcessError("No data rows found in the CSV.")
+
+    return csv_data
+
+
+def labels_csv_process(csv_file, source):
+    csv_data = csv_to_dict(
+        csv_file=csv_file,
+        required_columns=[
+            ('global_label_id', "Label ID"),
+            ('code', "Short code"),
+        ],
+        optional_columns=[],
+        key_column='global_label_id',
+        multiple_rows_per_key=False,
+    )
+
+    local_labels = OrderedDict()
+
+    if source.labelset:
+        # Fill local_labels with the currently existing labels.
+        for local_label in source.labelset.get_labels():
+            local_labels[local_label.global_label.pk] = local_label
+
+    for global_pk_str, label_data in csv_data.items():
+        try:
+            global_pk = int(global_pk_str)
+            Label.objects.get(pk=global_pk)
+        except (ValueError, Label.DoesNotExist):
+            raise FileProcessError(
+                "CSV has non-existent label id: {pk}".format(pk=global_pk_str))
+
+        if global_pk in local_labels:
+            # Exists in labelset; we'll use the same local label object
+            # but update the fields
+            form = LocalLabelForm(label_data, instance=local_labels[global_pk])
+        else:
+            # New to labelset
+            form = LocalLabelForm(label_data)
+
+        if not form.is_valid():
+            raise FileProcessError("Row with id {pk} - {error}".format(
+                pk=global_pk, error=get_one_form_error(form)))
+
+        # Replace existing local_labels entries with new ones.
+        # This gets us the set of local labels we'd have if we decided to
+        # save the user's input.
+        local_labels[global_pk] = form.instance
+        # The form doesn't have the global label info, so set that.
+        local_labels[global_pk].global_label_id = label_data['global_label_id']
+
+    # Dict -> flat iterable.
+    local_labels = local_labels.values()
+
+    try:
+        detect_dupe_label_codes(local_labels)
+    except ValidationError as e:
+        raise FileProcessError(e.message)
+
+    # Remember to set the local labels' labelset fields later.
+    # Other than that, they should be ready for saving.
+    return local_labels
+
+
+def detect_dupe_label_codes(local_labels):
+    codes = [local_label.code.lower() for local_label in local_labels]
+    dupe_codes = [
+        code for code in codes
+        if codes.count(code) > 1
+    ]
+
+    if not dupe_codes:
+        return
+
+    raise ValidationError(
+        "The resulting labelset would have multiple labels with the code"
+        " '{code}' (non case sensitive). This is not allowed.".format(
+            code=dupe_codes[0]),
+        # The following is a validation-error code used by
+        # Django for error IDing, not a label code!
+        code='dupe_code',
+    )
 
 
 class LabelForm(ModelForm):
@@ -83,12 +252,6 @@ class LabelSetForm(Form):
         error_messages=dict(required="You must select one or more labels."),
     )
 
-    labelset_ids = CharField(
-        validators=[validate_comma_separated_integer_list],
-        required=False,
-        widget=HiddenInput(),
-    )
-
     def __init__(self, *args, **kwargs):
         self.source = kwargs.pop('source')
         super(LabelSetForm, self).__init__(*args, **kwargs)
@@ -101,34 +264,47 @@ class LabelSetForm(Form):
                 self.initial['label_ids'] = ','.join(
                     str(pk) for pk in global_ids)
 
+        self.global_ids_to_delete = None
+        self.locals_to_add = None
+
     def clean_label_ids(self):
         # Run through a set to remove dupes, then get a list again
         label_id_list = list(set(
             int(pk) for pk in self.cleaned_data['label_ids'].split(',')))
 
         # Check if labels of these ids exist
-        bad_id_list = []
         for label_id in label_id_list:
             try:
                 Label.objects.get(pk=label_id)
             except Label.DoesNotExist:
-                bad_id_list.append(label_id)
+                msg = (
+                    "Could not find labels of id: {bad_id}."
+                    " Either we messed up, or one of the"
+                    " labels you selected just got deleted."
+                    " If the problem persists,"
+                    " please contact the site admins.").format(
+                        bad_id=label_id,
+                    )
+                raise ValidationError(msg, code='bad_label_id')
 
-        if bad_id_list:
-            msg = (
-                "Could not find labels of ids: {bad_ids}."
-                " Either we messed up, or one of the"
-                " labels you selected just got deleted."
-                " If the problem persists,"
-                " please contact the site admins.").format(
-                    bad_ids=", ".join(str(n) for n in bad_id_list),
-                )
-            raise ValidationError(msg)
-
-        # TODO: Check that there's at least 1 valid label id.
-        # TODO: Check if any in-use labels are marked for removal.
-        # These things won't happen in the absence of Javascript mistakes,
-        # race conditions, and forged POST data; but defensive coding is good.
+        # Check if any in-use labels are marked for removal
+        label_ids_in_annotations = list(
+            get_labels_with_annotations_in_source(self.source)
+            .values_list('pk', flat=True))
+        for label_id in label_ids_in_annotations:
+            if label_id not in label_id_list:
+                label = Label.objects.get(pk=label_id)
+                msg = (
+                    "The label '{name}' is marked for removal from the"
+                    " labelset, but we can't remove it because the source"
+                    " still has annotations with this label."
+                    " Either we messed up, or some annotations have"
+                    " changed since you reached this page."
+                    " If the problem persists,"
+                    " please contact the site admins.").format(
+                        name=label.name,
+                    )
+                raise ValidationError(msg, code='deleting_in_use_label')
 
         # Return the integer list (rather than its string repr).
         return label_id_list
@@ -162,59 +338,16 @@ class LabelSetForm(Form):
 
         self.locals_to_add = []
 
-        # If a single labelset was chosen to copy from, copy that labelset's
-        # local labels.
-        # If multiple labelsets were chosen, then don't bother; the user
-        # probably just wanted to grab some labels without following one
-        # particular labelset's details too closely.
-        #
-        # Existing local labels in the target labelset take priority. The
-        # copied labelset's entries are only used for newly added labels.
-        if len(self.cleaned_data['labelset_ids']) == 1:
-            copied_labelset = \
-                LabelSet.objects.get(pk=self.cleaned_data['labelset_ids'][0])
-            labels = copied_labelset.get_labels()
-            global_ids = set(labels.values_list('global_label_id', flat=True))
-
-            global_ids_to_copy = global_ids_to_add & global_ids
-            global_ids_to_add_from_scratch = \
-                global_ids_to_add - global_ids
-
-            for global_id in global_ids_to_copy:
-                # Grab the local label from the copied labelset.
-                local_label = labels.get(global_label_id=global_id)
-                # Ensure we are making a copy.
-                local_label.pk = None
-                # We'll be setting the labelset field later in save_labelset().
-                self.locals_to_add.append(local_label)
-        else:
-            global_ids_to_add_from_scratch = global_ids_to_add.copy()
-
-        for global_id in global_ids_to_add_from_scratch:
+        for global_id in global_ids_to_add:
             local_label = LocalLabel(
                 global_label_id=global_id,
                 code=Label.objects.get(pk=global_id).default_code
             )
             self.locals_to_add.append(local_label)
 
-        # Detect dupe codes (case-insensitively) in the pending labelset.
-        codes_to_names = defaultdict(list)
-        # Add entries for labels that will be added.
-        for local_label in self.locals_to_add:
-            codes_to_names[local_label.code.lower()].append(local_label.name)
-        # Add entries for labels that will be kept.
-        for global_id in global_ids_to_keep:
-            local_label = existing_locals.get(global_label_id=global_id)
-            codes_to_names[local_label.code.lower()].append(local_label.name)
-
-        for code, names in codes_to_names.items():
-            if len(names) >= 2:
-                raise ValidationError(
-                    "If this operation were completed,"
-                    " the label code \"{code}\" would be used by"
-                    " multiple labels in your labelset: {names}"
-                    "\nThis is not allowed.".format(
-                        code=code, names=', '.join(names)))
+        locals_to_keep = existing_locals.filter(
+            global_label_id__in=global_ids_to_keep)
+        detect_dupe_label_codes(locals_to_keep)
 
     def save_labelset(self):
         """
@@ -262,25 +395,5 @@ class BaseLocalLabelFormSet(BaseModelFormSet):
             # unless each form is valid on its own
             return
 
-        # Find dupe image names in the source, taking together the
-        # existing names of images not in the forms, and the new names
-        # of images in the forms
-        codes_in_forms = [f.cleaned_data['code'].lower() for f in self.forms]
-        dupe_codes = [
-            code for code in codes_in_forms
-            if codes_in_forms.count(code) > 1
-        ]
-
-        for form in self.forms:
-            code = form.cleaned_data['code'].lower()
-            if code in dupe_codes:
-                form.add_error(
-                    'code',
-                    ValidationError(
-                        "More than one label with the code '{code}'".format(
-                            code=code),
-                        # The following is a validation-error code used by
-                        # Django for error IDing, not a label code!
-                        code='dupe_code',
-                    )
-                )
+        pending_local_labels = [form.instance for form in self.forms]
+        detect_dupe_label_codes(pending_local_labels)

@@ -43,7 +43,8 @@ var LabelNew = (function() {
         if (response['error']) {
             // Response is JSON which contains the error
             // (which can be just text, or can contain safe HTML)
-            $formStatus.append($('<span>' + response['error'] + '</span>'));
+            $formStatus.append(
+                $('<span>Error: ' + response['error'] + '</span>'));
             return;
         }
 

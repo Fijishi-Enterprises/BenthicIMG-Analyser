@@ -1,0 +1,15 @@
+<table id="preview_table"><tbody>
+  <tr>
+    <th>Label ID</th>
+    <th>Name</th>
+    <th>Short code</th>
+  </tr>
+
+  {% for label in labels %}
+    <tr>
+      <td>{{ label.global_label.pk }}</td>
+      <td>{{ label.global_label.name }}</td>
+      <td>{{ label.code }}</td>
+    </tr>
+  {% endfor %}
+</tbody></table>

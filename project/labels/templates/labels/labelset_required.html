@@ -1,11 +1,13 @@
 {% extends "images/base_source.html" %}
 {% load i18n %}
 
-{% block title %}Labelset required | CoralNet{% endblock %}
+{% block title %}No labelset | CoralNet{% endblock %}
 
 {% block content %}
 
-    <p>{{ message }}</p>
-    <p><a href="{% url 'labelset_add' source.id %}">Create a labelset</a></p>
+  <p>{{ message }}</p>
+
+  <p><a href="{% url 'labelset_add' source.id %}">Choose labels for your labelset</a></p>
+  <p><a href="{% url 'labelset_import' source.id %}">Import a labelset from a CSV file</a></p>
 
 {% endblock %}

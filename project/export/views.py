@@ -9,7 +9,7 @@ from django.shortcuts import get_object_or_404
 
 from annotations.models import Annotation
 from .utils import create_csv_stream_response, get_request_images, \
-    write_annotations_csv
+    write_annotations_csv, write_labelset_csv
 from images.models import Source
 from images.utils import metadata_field_names_to_labels
 from lib.decorators import source_visibility_required
@@ -135,5 +135,17 @@ def export_image_covers(request, source_id):
             coverage_percent_str = format(coverage_fraction * 100.0, '.1f')
             row.append(coverage_percent_str)
         writer.writerow(row)
+
+    return response
+
+
+@source_visibility_required('source_id')
+@transaction.non_atomic_requests
+def export_labelset(request, source_id):
+    source = get_object_or_404(Source, id=source_id)
+
+    response = create_csv_stream_response('labelset.csv')
+    writer = csv.writer(response)
+    write_labelset_csv(writer, source)
 
     return response

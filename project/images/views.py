@@ -17,6 +17,7 @@ from . import utils
 from .forms import ImageSourceForm, LabelImportForm, MetadataForm, PointGenForm, SourceChangePermissionForm, SourceInviteForm, SourceRemoveUserForm
 from .model_utils import PointGen
 from .models import Source, Image, SourceInvite, Metadata
+from .utils import get_map_sources
 from annotations.forms import AnnotationAreaPercentsForm
 from annotations.model_utils import AnnotationAreaUtils
 from annotations.utils import image_annotation_area_is_editable, image_has_any_human_annotations
@@ -31,39 +32,26 @@ from vision_backend.utils import get_confusion_matrix, collapse_confusion_matrix
 def source_list(request):
     """
     Page with a list of the user's Sources.
-    Redirect to the About page if the user isn't logged in or doesn't have any Sources.
     """
+    your_sources = Source.get_sources_of_user(request.user)
 
-    if request.user.is_authenticated():
-        your_sources = Source.get_sources_of_user(request.user)
-        your_sources_dicts = [dict(id=s.id,
-                                   name=s.name,
-                                   your_role=s.get_member_role(request.user),)
-                              for s in your_sources]
-        other_public_sources = Source.get_other_public_sources(request.user)
+    # Redirect to the About page if the user doesn't have any Sources.
+    # This includes the not-logged-in case.
+    if not your_sources:
+        return HttpResponseRedirect(reverse('source_about'))
 
-        # Here we get the map sources
-        map_sources = utils.get_map_sources()
+    your_sources_dicts = [dict(id=s.id,
+                               name=s.name,
+                               your_role=s.get_member_role(request.user),)
+                          for s in your_sources]
+    other_public_sources = Source.get_other_public_sources(request.user)
 
-        list_thumbnails = []
-        # Here we get a list of a list of images, these will be displayed
-        # within each of the description windows.
-        # the latest images source will not be passed into the javascript functions
-        for source in map_sources:
-            list_thumbnails.append((source["latest_images"],source["id"]))
-            del source["latest_images"]
-        
-        if your_sources:
-            return render(request, 'images/source_list.html', {
-                'your_sources': your_sources_dicts,
-                'map_sources': map_sources,
-                'google_maps_api_key': settings.GOOGLE_MAPS_API_KEY,
-                'other_public_sources': other_public_sources,
-                'list_thumbnails': list_thumbnails,
-            })
-
-    # Not-authenticated case
-    return HttpResponseRedirect(reverse('source_about'))
+    return render(request, 'images/source_list.html', {
+        'your_sources': your_sources_dicts,
+        'map_sources': get_map_sources(),
+        'google_maps_api_key': settings.GOOGLE_MAPS_API_KEY,
+        'other_public_sources': other_public_sources,
+    })
 
 
 def source_about(request):
@@ -257,6 +245,17 @@ def source_edit(request, source_id):
         'editSourceForm': sourceForm,
         'pointGenForm': pointGenForm,
         'annotationAreaForm': annotationAreaForm,
+    })
+
+
+def source_detail_box(request, source_id):
+    source = get_object_or_404(Source, id=source_id)
+
+    example_images = source.image_set.all().order_by('-upload_date')[:6]
+
+    return render(request, 'images/source_detail_box.html', {
+        'source': source,
+        'example_images': example_images,
     })
 
 

@@ -257,6 +257,9 @@ class Source(models.Model):
         remove_perm(Source.PermTypes.EDIT.code, user, self)
         remove_perm(Source.PermTypes.VIEW.code, user, self)
 
+    def is_public(self):
+        """Can be a pain to check this in templates otherwise."""
+        return self.visibility == Source.VisibilityTypes.PUBLIC
 
     def visible_to_user(self, user):
         return (self.visibility == Source.VisibilityTypes.PUBLIC) or \

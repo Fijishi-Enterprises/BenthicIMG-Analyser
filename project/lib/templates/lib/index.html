@@ -1,7 +1,7 @@
 {# This extends a different base, because the nav is eliminated on this page #}
 {% extends "base_index.html" %}
 
-{% load common_tags %}
+{% load jsonify from common_tags %}
 {% load thumbnail %}
 
 {% block js-includes %}
@@ -24,99 +24,62 @@
         <!-- Carousel items -->
         <div class="carousel-inner">
             {% for image in images %}
-                {% if forloop.first %}
-                    <div class="item active">
-                {% else %}
-                    <div class="item">
-                {% endif %}
-                <span class="thumb_front_wrapper">
-                <a href="{% url 'image_detail' image.id %}">
-                    <img class="thumb_small"
-                         style="margin: 0 auto; vertical-align: middle"
-                         title="From: {{ image.source.name }}"
-                         src="{% thumbnail image.original_file 450x450 %}"
-                         title="{{ image.get_image_element_title }}"/>
-                </a>
-                </span>
+                <div
+                    {% if forloop.first %}
+                        class="item active"
+                    {% else %}
+                        class="item"
+                    {% endif %}
+                >
+                    <span class="thumb_front_wrapper">
+                    <a href="{% url 'image_detail' image.id %}">
+                        <img class="thumb_small"
+                             style="margin: 0 auto; vertical-align: middle"
+                             title="From: {{ image.source.name }}"
+                             src="{% thumbnail image.original_file 450x450 %}"/>
+                    </a>
+                    </span>
                 </div>
             {% endfor %}
         </div>
     </div>
 
-        <h1>CoralNet <span class="alpha">ALPHA</span></h1>
-        <h2>A Web solution for coral reef analysis</h2>
+    <h1>CoralNet <span class="beta">BETA</span></h1>
+    <h2>A Web solution for coral reef analysis</h2>
 
-        <p>Upload coral reef images, organize and annotate images, and view annotation statistics.</p>
+    <p>Upload coral reef images, organize and annotate images, and view annotation statistics.</p>
 
-        <a class="signin" href="{% url 'userena_signin' %}">Sign In</a>
-        <a class="signup" href="{% url 'request_account' %}">Sign Up</a>
-        <a class="about" href="{% url 'about' %}">What is CoralNet?</a>
+    <a class="signin" href="{% url 'userena_signin' %}">Sign In</a>
+    <a class="signup" href="{% url 'request_account' %}">Sign Up</a>
+    <a class="about" href="{% url 'about' %}">What is CoralNet?</a>
 
 
 </div><!-- /intro-->
 
-<br /><br>
-
-<div style="width:100%;margin:0 auto">
-
-    <div id="map-canvas"></div>
-
-
-    <div id="marker-info-initial-container">
-        <div id="marker-info" style="overflow:auto">
-
-            <div class="name"><strong>Source name goes here.</strong></div>
-
-            <div class="affiliation">Affiliation goes here.</div>
-
-            {# TODO: Ensure that the description looks good even when it's multilined. #}
-            <div class="description">Description goes here.</div>
-
-            <div class="num-of-images">Number of images goes here.</div>
-
-            <div class="images">
-                {# These divs will later go into each initial container per source via javascript#}
-                {% for thumbnails, id in list_thumbnails %}
-                    <div id="thumbnails-{{ id }}" class="thumbnails">
-                    {% for thumb in thumbnails %}
-                        <span class="thumbnail_container">
-                        <img class="thumb_small"
-                             style="margin: 0 auto; vertical-align: middle"
-                             src="{% thumbnail thumb.original_file 100x100 %}"
-                             title="{{ thumb.get_image_element_title }}"/>
-                        </span>
-                    {% endfor %}
-                    </div>
-                {% endfor %}
-
-        </div>
-    </div>
+<br>
 <br>
 
+{% include 'lib/map.html' %}
 
-    <div id="map-legend">
-    </div>
+<br>
 
+<div id="site-stats">
+    <p>Visit data sources from around the world by clicking on public sources
+        to explore images, labels, and coverage statistics.</p>
+    <p>There are currently {{ total_sources }} sources on CoralNet, with a combined total of {{ total_images }} images.
+        Out of all the annotations on the site, {{ human_annotations }} are human annotated, {{ robot_annotations }}
+        are machine annotated, with a total of {{ total_annotations }} annotations.
+    </p>
 </div>
-    
-<br>
-    <div id="site-stats">
-        <p>Visit data sources from around the world by clicking on public sources
-            to explore images, labels, and coverage statistics.<p></p>
-        <p>There are currently {{ total_sources }} sources on CoralNet, with a combined total of {{ total_images }} images.
-            Out of all the annotations on the site, {{ human_annotations }} are human annotated, {{ robot_annotations }}
-            are machine annotated, with a total of {{ total_annotations }} annotations.
-        </p>
-    </div>
 
-    <script type="text/javascript">
-        CNMap.init({
-            'mapSources': {{ map_sources|jsonify }}
-        });
-        $(document).ready(function(){
-            $('.carousel').carousel({ interval:3500 });
-        });
-    </script>
+<script type="text/javascript">
+    CNMap.init({
+        'mapSources': {{ map_sources|jsonify }}
+    });
+    $(document).ready(function(){
+        $('.carousel').carousel({ interval:3500 });
+    });
+</script>
 
 {% endblock %}
 

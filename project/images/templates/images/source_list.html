@@ -1,80 +1,46 @@
 {% extends "base.html" %}
 
-{% load common_tags %}
-{% load thumbnail %}
+{% load jsonify from common_tags %}
 
 {% block js-includes %}
-    {% include "javascript-includes.html" with map="yes" %}
+  {% include "javascript-includes.html" with map="yes" %}
 {% endblock %}
 
 {% block content %}
-    <h2>Your Sources</h2>
-    <table class="detail_table">
-      <tr>
-        <th>Source</th>
-        <th>Your Role</th>
-      </tr>
-        {% for source in your_sources %}
-          <tr>
-            <td><a href="{% url 'source_main' source.id %}">{{ source.name }}</a></td>
-            <td>{{ source.your_role }}</td>
-          </tr>
-        {% endfor %}
-    </table>
-    <br />
-    <p><a href="{% url 'source_new' %}">+ Create a new Source</a></p>
-    
-    <hr />
-    <h2>Other Public Sources</h2>
 
-    <div id="map-canvas"></div>
+  <h2>Your Sources</h2>
+  <table class="detail_table">
+    <tr>
+      <th>Source</th>
+      <th>Your Role</th>
+    </tr>
+      {% for source in your_sources %}
+        <tr>
+          <td><a href="{% url 'source_main' source.id %}">
+            {{ source.name }}</a></td>
+          <td>{{ source.your_role }}</td>
+        </tr>
+      {% endfor %}
+  </table>
+  <br />
+  <p><a href="{% url 'source_new' %}">+ Create a new Source</a></p>
 
-    <ul class="object_list">
-        {% for source in other_public_sources %}
-            <li><a href="{% url 'source_main' source.id %}">{{ source.name }}</a></li>
-        {% endfor %}
-    </ul>
+  <hr />
+  <h2>Other Public Sources</h2>
 
-    <div id="marker-info-initial-container">
-        <div id="marker-info" style="overflow:auto">
+  {% include 'lib/map.html' %}
 
-            <div class="name"><strong>Source name goes here.</strong></div>
+  <ul class="object_list">
+    {% for source in other_public_sources %}
+      <li><a href="{% url 'source_main' source.id %}">
+        {{ source.name }}</a></li>
+    {% endfor %}
+  </ul>
 
-            <div class="affiliation">Affiliation goes here.</div>
-
-            {# TODO: Ensure that the description looks good even when it's multilined. #}
-            <div class="description">Description goes here.</div>
-
-            <div class="num-of-images">Number of images goes here.</div>
-
-            <div class="images">
-                {# These divs will later go into each initial container per source via javascript#}
-                {% for thumbnails, id in list_thumbnails %}
-                    <div id="thumbnails-{{ id }}" class="thumbnails">
-                    {% for thumb in thumbnails %}
-                        <span class="thumbnail_container">
-                        <img class="thumb_small"
-                             style="margin: 0 auto; vertical-align: middle"
-                             src="{% thumbnail thumb.original_file 100x100 %}"
-                             title="{{ thumb.get_image_element_title }}"/>
-                        </span>
-                    {% endfor %}
-                    </div>
-                {% endfor %}
-            </div>
-
-        </div>
-    </div>
-
-    <div id="map-legend">
-    </div>
-
-    <div style="clear:both;"></div>
-
-    <script type="text/javascript">
-        CNMap.init({
-            'mapSources': {{ map_sources|jsonify }}
-        });
-    </script>
+  <script type="text/javascript">
+      CNMap.init({
+          'mapSources': {{ map_sources|jsonify }}
+      });
+  </script>
 
 {% endblock %}

@@ -68,33 +68,25 @@ def contact(request):
         'contact_form': contact_form,
     })
 
+
 def index(request):
     """
     This view renders the front page.
     """
-
     if request.user.is_authenticated():
         return HttpResponseRedirect(reverse('source_list'))
 
-    # Here we get the map sources
     map_sources = get_map_sources()
 
-    list_thumbnails = []
-    # Here we get a list of a list of images, these will be displayed
-    # within each of the description windows.
-    # the latest images source will not be passed into the javascript functions
-    for source in map_sources:
-        list_thumbnails.append((source["latest_images"],source["id"]))
-        del source["latest_images"]
-
-    # and here we get 5 random public images
+    # Images for the carousel
     images = get_random_public_images()
 
     # Gather some stats
     total_sources = Source.objects.all().count()
     total_images = Image.objects.all().count()
     human_annotations = Point.objects.filter(image__confirmed=True).count()
-    robot_annotations = Point.objects.filter(image__features__classified=True).count()
+    robot_annotations = Point.objects.filter(
+        image__features__classified=True).count()
     total_annotations = human_annotations + robot_annotations
 
     return render(request, 'lib/index.html', {
@@ -104,10 +96,10 @@ def index(request):
         'total_images': total_images,
         'total_annotations': total_annotations,
         'human_annotations': human_annotations,
-        'robot_annotations' : robot_annotations,
+        'robot_annotations': robot_annotations,
         'images': images,
-        'list_thumbnails': list_thumbnails,
     })
+
 
 def handler500(request, template_name='500.html'):
     try:

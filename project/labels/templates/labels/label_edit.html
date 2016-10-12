@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Label: {{ label.name }} | CoralNet{% endblock %}
+
+{% block js-includes %}
+  {% include "javascript-includes.html" with jquery_ui="yes" %}
+{% endblock %}
+
+{% block content %}
+
+  <legend>Edit Label</legend>
+
+  <form id="label-form" action="" method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+
+    {% for field in form %}
+      <div class="errorlist_wrapper">{{ field.errors }}</div>
+
+      <div class="line">{{ field.label }}: {{ field }}</div>
+
+      {% if field.help_text %}
+        <div class="helptext_small">
+          {{ field.help_text|safe|linebreaksbr }}</div>
+      {% endif %}
+    {% endfor %}
+
+    <input type="submit" value="Save Changes" />
+    <input name="cancel" type="submit" value="Cancel Changes" />
+  </form>
+
+{% endblock %}

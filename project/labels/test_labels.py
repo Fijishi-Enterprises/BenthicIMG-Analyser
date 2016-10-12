@@ -2,8 +2,36 @@ from django.core.urlresolvers import reverse
 
 from images.model_utils import PointGen
 from images.models import Source
-from labels.models import LabelGroup, Label
 from lib.test_utils import ClientTest, sample_image_as_file
+from .models import LabelGroup, Label
+
+
+class LabelTest(ClientTest):
+
+    @classmethod
+    def create_label_group(cls, group_name):
+        group = LabelGroup(name=group_name, code=group_name[:10])
+        group.save()
+        return group
+
+    @classmethod
+    def create_label(cls, user, name, default_code, group):
+        cls.client.force_login(user)
+        cls.client.post(
+            reverse('label_new_ajax'),
+            dict(
+                name=name,
+                default_code=default_code,
+                group=group.pk,
+                description="Description",
+                # A new filename will be generated, and the uploaded
+                # filename will be discarded, so it doesn't matter.
+                thumbnail=sample_image_as_file('_.png'),
+            )
+        )
+        cls.client.logout()
+
+        return Label.objects.get(name=name)
 
 
 class LabelListTest(ClientTest):
@@ -365,3 +393,157 @@ class NewLabelTest(ClientTest):
         ))
 
     # TODO: Test thumbnail resizing.
+
+
+class EditLabelPermissionTest(ClientTest):
+
+    @classmethod
+    def setUpTestData(cls):
+        # Call the parent's setup (while still using this class as cls)
+        super(EditLabelPermissionTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+
+        # Create labels and group
+        labels = cls.create_labels(cls.user, ['A', 'B'], "Group1")
+
+        cls.source1 = cls.create_source(cls.user)
+        cls.create_labelset(
+            cls.user, cls.source1, labels.filter(name__in=['A']))
+        cls.source2 = cls.create_source(cls.user)
+        cls.create_labelset(
+            cls.user, cls.source1, labels.filter(name__in=['A', 'B']))
+        cls.source3 = cls.create_source(cls.user)
+        cls.create_labelset(
+            cls.user, cls.source1, labels.filter(name__in=['B']))
+
+        cls.user_admin_both = cls.create_user()
+        cls.add_source_member(
+            cls.user, cls.source1, cls.user_admin_both, 'admin')
+        cls.add_source_member(
+            cls.user, cls.source2, cls.user_admin_both, 'admin')
+
+        cls.user_admin_one = cls.create_user()
+        cls.add_source_member(
+            cls.user, cls.source1, cls.user_admin_one, 'admin')
+
+        cls.user_editor_both = cls.create_user()
+        cls.add_source_member(
+            cls.user, cls.source1, cls.user_editor_both, 'edit')
+        cls.add_source_member(
+            cls.user, cls.source2, cls.user_editor_both, 'edit')
+
+        cls.user_committee_member = cls.create_user()
+        # TODO: Add to committee
+
+        # TODO: Mark B as verified and not A
+        cls.url = reverse('label_edit', args=[labels.get(name='A').pk])
+        cls.url_verified = reverse(
+            'label_edit', args=[labels.get(name='B').pk])
+
+    def test_anonymous(self):
+        response = self.client.get(self.url)
+        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+
+    def test_admin_of_one_source_using_the_label(self):
+        self.client.force_login(self.user_admin_one)
+        response = self.client.get(self.url)
+        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+
+    def test_editor_of_all_sources_using_the_label(self):
+        self.client.force_login(self.user_editor_both)
+        response = self.client.get(self.url)
+        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+
+    def test_admin_of_all_sources_using_the_label(self):
+        self.client.force_login(self.user_admin_both)
+        response = self.client.get(self.url)
+        self.assertTemplateUsed(response, 'labels/label_edit.html')
+
+    def test_admin_of_all_sources_using_verified_label(self):
+        self.client.force_login(self.user_editor_both)
+        response = self.client.get(self.url_verified)
+        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+
+    def test_labelset_committee_member(self):
+        self.client.force_login(self.user_committee_member)
+        response = self.client.get(self.url)
+        self.assertTemplateUsed(response, 'labels/label_edit.html')
+
+    def test_superuser(self):
+        self.client.force_login(self.user)
+        response = self.client.get(self.url)
+        self.assertTemplateUsed(response, 'labels/label_edit.html')
+
+
+class EditLabelTest(LabelTest):
+    """
+    Test label editing.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        # Call the parent's setup (while still using this class as cls)
+        super(EditLabelTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+        # TODO: Add to committee
+
+        # Create labels and group
+        cls.group = cls.create_label_group("Group1")
+        cls.labels = dict(
+            A=cls.create_label(cls.user, "Label A", 'A', cls.group),
+            B=cls.create_label(cls.user, "Label B", 'B', cls.group),
+            C=cls.create_label(cls.user, "Label C", 'C', cls.group),
+        )
+
+        cls.url = reverse('label_edit', args=[cls.labels['A'].pk])
+
+    def test_name_same(self):
+        self.client.force_login(self.user)
+        response = self.client.post(self.url, follow=True, data=dict(
+            name="Label A",
+            default_code='A',
+            group=self.labels['A'].group.pk,
+            description=self.labels['A'].description,
+        ))
+        self.assertContains(response, "Label successfully edited.")
+
+    def test_name_change_case_only(self):
+        # TODO
+        pass
+
+    def test_name_change(self):
+        # TODO
+        pass
+
+    def test_name_conflict(self):
+        # TODO
+        pass
+
+    def test_default_code_same(self):
+        # TODO
+        pass
+
+    def test_default_code_change_case_only(self):
+        # TODO
+        pass
+
+    def test_default_code_change(self):
+        # TODO
+        pass
+
+    def test_default_code_conflict(self):
+        # TODO
+        pass
+
+    def test_group_change(self):
+        # TODO
+        pass
+
+    def test_description_change(self):
+        # TODO
+        pass
+
+    def test_thumbnail_change(self):
+        # TODO
+        pass

@@ -10,6 +10,7 @@ from django.forms.fields import CharField
 from django.forms.models import ModelForm, BaseModelFormSet
 from django.forms.widgets import TextInput, HiddenInput
 from django.utils.html import escape
+from django.utils.safestring import mark_safe
 
 from annotations.utils import get_labels_with_annotations_in_source
 from lib.exceptions import FileProcessError
@@ -191,57 +192,67 @@ class LabelForm(ModelForm):
     def clean_name(self):
         """
         Add an error if the specified name matches that of an existing label.
+
+        Two reasons why we check here instead of specifying uniqueness on the
+        model field level:
+        (1) Specifying case insensitive uniqueness on that level is a pain.
+        http://stackoverflow.com/questions/7773341/
+        (2) On that level, the error message would only be minimally
+        customizable; it would not be simple to link to the conflicting label.
         """
         name = self.cleaned_data['name']
 
+        if self.instance.name.lower() == name.lower():
+            # We're editing an existing label and the name is unchanged
+            # (case insensitively); no error.
+            # We check this before checking for uniqueness,
+            # because the uniqueness check would include a comparison of
+            # this label versus itself, which would yield a false positive.
+            return name
         try:
-            # Case-insensitive compare
-            existing_label = Label.objects.get(name__iexact=name)
+            # Case-insensitive uniqueness check
+            conflicting_label = Label.objects.get(name__iexact=name)
         except Label.DoesNotExist:
-            # Name is not taken
-            pass
-        else:
-            # Name is taken
-            msg = (
-                'There is already a label with the same name:'
-                ' <a href="{url}" target="_blank">'
-                '{existing_name}</a>').format(
-                    url=reverse('label_main', args=[existing_label.pk]),
-                    # Use escape to prevent XSS, since label names are in
-                    # general user defined
-                    existing_name=escape(existing_label.name),
-                )
-            raise ValidationError(msg)
+            # Name is not taken; no error
+            return name
 
-        return name
+        # Name is taken; raise error
+        # Use mark_safe() to ensure the HTML a tag is not escaped
+        msg = mark_safe(
+            'There is already a label with the same name:'
+            ' <a href="{url}" target="_blank">'
+            '{conflicting_name}</a>'.format(
+                url=reverse('label_main', args=[conflicting_label.pk]),
+                # Label names are in general user defined, so use
+                # escape to prevent XSS
+                conflicting_name=escape(conflicting_label.name),
+            ))
+        raise ValidationError(msg, code='unique')
 
     def clean_default_code(self):
         """
-        Add an error if the specified name matches that of an existing label.
+        Add an error if the specified default code matches that
+        of an existing label.
+        Similar to checking for name conflicts.
         """
         default_code = self.cleaned_data['default_code']
 
+        if self.instance.default_code.lower() == default_code.lower():
+            return default_code
         try:
-            # Case-insensitive compare
-            existing_label = Label.objects.get(
+            conflicting_label = Label.objects.get(
                 default_code__iexact=default_code)
         except Label.DoesNotExist:
-            # Default code is not taken
-            pass
-        else:
-            # Default code is taken
-            msg = (
-                'There is already a label with the same default code:'
-                ' <a href="{url}" target="_blank">'
-                '{existing_code}</a>').format(
-                    url=reverse('label_main', args=[existing_label.pk]),
-                    # Use escape to prevent XSS, since label codes are in
-                    # general user defined
-                    existing_code=escape(existing_label.default_code),
-                )
-            raise ValidationError(msg)
+            return default_code
 
-        return default_code
+        msg = mark_safe(
+            'There is already a label with the same default code:'
+            ' <a href="{url}" target="_blank">'
+            '{conflicting_code}</a>'.format(
+                url=reverse('label_main', args=[conflicting_label.pk]),
+                conflicting_code=escape(conflicting_label.default_code),
+            ))
+        raise ValidationError(msg, code='unique')
 
 
 class LabelSetForm(Form):

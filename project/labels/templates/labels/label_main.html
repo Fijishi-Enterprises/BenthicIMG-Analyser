@@ -18,6 +18,13 @@
 {% block content %}
 
   <h1>{{ label.name }}</h1>
+
+  {% if can_edit_label %}
+    <a href="{% url 'label_edit' label.id %}"
+      title="Regular users can edit unverified labels if they're the admin of every source that uses the label.">
+      Edit this label</a>
+  {% endif %}
+
   <hr />
 
   {# Column #}

@@ -23,9 +23,11 @@ from lib.forms import get_one_formset_error, get_one_form_error
 from upload.forms import CSVImportForm
 from visualization.utils import generate_patch_if_doesnt_exist, get_patch_url
 from vision_backend import tasks as backend_tasks
+from .decorators import label_edit_permission_required
 from .forms import LabelForm, LabelSetForm, LocalLabelForm, \
     BaseLocalLabelFormSet, labels_csv_process
 from .models import Label, LocalLabel, LabelSet
+from .utils import is_label_editable_by_user
 
 
 @login_required
@@ -48,6 +50,41 @@ def label_new_ajax(request):
 
     # Not valid. Find the first error and return it.
     return JsonResponse(dict(error=get_one_form_error(form)))
+
+
+@label_edit_permission_required('label_id')
+def label_edit(request, label_id):
+    """
+    Edit a global label.
+    """
+    label = get_object_or_404(Label, id=label_id)
+
+    if request.method == 'POST':
+
+        # Cancel
+        cancel = request.POST.get('cancel', None)
+        if cancel:
+            messages.success(request, 'Edit cancelled.')
+            return HttpResponseRedirect(reverse('label_main', args=[label_id]))
+
+        # Submit
+        form = LabelForm(request.POST, request.FILES, instance=label)
+
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Label successfully edited.')
+            return HttpResponseRedirect(reverse('label_main', args=[label_id]))
+        else:
+            messages.error(request, 'Please correct the errors below.')
+
+    else:
+        # Just reached the page
+        form = LabelForm(instance=label)
+
+    return render(request, 'labels/label_edit.html', {
+        'label': label,
+        'form': form,
+    })
 
 
 @login_required
@@ -295,6 +332,7 @@ def label_main(request, label_id):
 
     return render(request, 'labels/label_main.html', {
         'label': label,
+        'can_edit_label': is_label_editable_by_user(label, request.user),
         'users_sources': users_sources,
         'other_public_sources': other_public_sources,
         'other_private_sources': other_private_sources,

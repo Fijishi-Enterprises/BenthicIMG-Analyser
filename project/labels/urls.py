@@ -7,6 +7,8 @@ urlpatterns = [
     url(r'^labels/(?P<label_id>\d+)/example_patches_ajax/$',
         views.label_example_patches_ajax, name="label_example_patches_ajax"),
     url(r'^labels/new_ajax/$', views.label_new_ajax, name="label_new_ajax"),
+    url(r'^labels/(?P<label_id>\d+)/edit/$', views.label_edit,
+        name="label_edit"),
     url(r'^labels/search/$', views.label_search_ajax,
         name="label_search_ajax"),
 

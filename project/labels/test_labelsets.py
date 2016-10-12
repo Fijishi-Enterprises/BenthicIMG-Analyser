@@ -6,39 +6,11 @@ from django.core.urlresolvers import reverse
 from django.utils.html import escape
 
 from images.models import Source
-from labels.models import Label, LabelGroup
-from lib.test_utils import ClientTest, sample_image_as_file
+from .models import Label
+from .test_labels import LabelTest
 
 
-class LabelsetTest(ClientTest):
-
-    @classmethod
-    def create_label_group(cls, group_name):
-        group = LabelGroup(name=group_name, code=group_name[:10])
-        group.save()
-        return group
-
-    @classmethod
-    def create_label(cls, user, name, default_code, group):
-        cls.client.force_login(user)
-        cls.client.post(
-            reverse('label_new_ajax'),
-            dict(
-                name=name,
-                default_code=default_code,
-                group=group.pk,
-                description="Description",
-                # A new filename will be generated, and the uploaded
-                # filename will be discarded, so it doesn't matter.
-                thumbnail=sample_image_as_file('_.png'),
-            )
-        )
-        cls.client.logout()
-
-        return Label.objects.get(name=name)
-
-
-class LabelsetPermissionTest(LabelsetTest):
+class LabelsetPermissionTest(LabelTest):
     """
     Test all labelset views for permissions.
     """
@@ -201,7 +173,7 @@ class LabelsetPermissionTest(LabelsetTest):
             'error' in response and "permission" in response['error'])
 
 
-class LabelsetCreateTest(LabelsetTest):
+class LabelsetCreateTest(LabelTest):
     """
     Test the new labelset page.
     """
@@ -269,7 +241,7 @@ class LabelsetCreateTest(LabelsetTest):
         self.assertIsNone(self.source.labelset)
 
 
-class LabelsetAddRemoveTest(LabelsetTest):
+class LabelsetAddRemoveTest(LabelTest):
     """
     Test adding/removing labels from a labelset.
     """
@@ -393,7 +365,7 @@ class LabelsetAddRemoveTest(LabelsetTest):
         )
 
 
-class LabelsetImportBaseTest(LabelsetTest):
+class LabelsetImportBaseTest(LabelTest):
 
     def preview(self, csv_rows):
         self.client.force_login(self.user)
@@ -742,7 +714,7 @@ class LabelsetImportModifyTest(LabelsetImportBaseTest):
             " 'b' (non case sensitive). This is not allowed.")
 
 
-class LabelsetEditTest(LabelsetTest):
+class LabelsetEditTest(LabelTest):
     """
     General tests for the view where you edit labelset entries (code etc.).
     """

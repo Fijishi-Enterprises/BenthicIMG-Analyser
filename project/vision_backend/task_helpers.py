@@ -186,7 +186,7 @@ def _classifiercollector(messagebody):
     # Check that the accuracy is higher than the previous classifiers
     if 'pc_models' in payload and len(payload['pc_models']) > 0:
         if max(result['pc_accs']) * settings.NEW_CLASSIFIER_IMPROVEMENT_TH > result['acc']:
-            print "New model worse than previous. Classifier not validated."
+            logger.info("Classifier {} worse than previous. Not validated.".format(classifier.pk))
             return 0
         
         # Update accuracy for previous models
@@ -200,6 +200,7 @@ def _classifiercollector(messagebody):
     classifier.accuracy = result['acc']
     classifier.epoch_ref_accuracy = str([int(round(100 * ra)) for ra in result['refacc']])
     classifier.save()
+    logger.info("Classifier {} collected successfully.".format(classifier.pk))
     return 1
 
 

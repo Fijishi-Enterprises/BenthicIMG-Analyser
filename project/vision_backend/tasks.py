@@ -1,6 +1,7 @@
 import os
 import logging
 import json
+import warnings
 
 import numpy as np
 
@@ -90,7 +91,8 @@ def submit_features(image_id, force = False):
     # Submit.
     th._submit_job(messagebody)
 
-    logger.info("Submitted feature extraction for image {} [source: {}]. Message: {}".format(image_id, img.source_id, messagebody))
+    logger.info("Submitted feature extraction for image {} [source: {}]".format(image_id, img.source_id))
+    logger.debug("Submitted feature extraction for image {} [source: {}]. Message: {}".format(image_id, img.source_id, messagebody))
 
 
 @task(name = "submit_classifier")
@@ -161,7 +163,8 @@ def submit_classifier(source_id, nbr_images = 1e5, force = False):
     # Submit.
     th._submit_job(messagebody)
 
-    logger.info("Submitted classifier for source {} [{}] with {} images. Message: {}".format(source.name, source.id, len(images), messagebody))
+    logger.info("Submitted classifier for source {} [{}] with {} images.".format(source.name, source.id, len(images)))
+    logger.debug("Submitted classifier for source {} [{}] with {} images. Message: {}".format(source.name, source.id, len(images), messagebody))
  
 
 @task(name = "classify_image")
@@ -173,9 +176,11 @@ def classify_image(image_id):
         logger.info("Image {} does not exist.".format(image_id))
         return
 
+    if not img.features.extracted:
+        return    
+
     classifier = img.source.get_latest_robot()
     if not classifier:
-        logger.info("No classifier exists for image {} [source {}]".format(img.id, img.source_id))
         return
 
     # Load model
@@ -187,8 +192,10 @@ def classify_image(image_id):
         settings.FEATURE_VECTOR_FILE_PATTERN.format(full_image_path = os.path.join(settings.AWS_LOCATION, img.original_file.name)),
         'json' )
 
-    # Classify
-    scores = classifier_model.predict_proba(feats)
+    # Classify. Supress numpy overflow warning.
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        scores = classifier_model.predict_proba(feats)
 
     # Pre-fetch label objects
     label_objs = []
@@ -249,8 +256,11 @@ def collectjob():
     elif task == 'train_classifier':
         if th._classifiercollector(messagebody):
             # If job was entered into DB, submit a classify job for all images in source.
-            for image in Image.objects.filter(source_id = pk):
+            classifier = Classifier.objects.get(pk = pk)
+            for image in Image.objects.filter(source = classifier.source):
                 classify_image.delay(image.id)
+        else:
+            logger.debug("Error occured when collecting classifier")
 
     else:
         logger.error('Job task type {} not recognized'.format(task))
@@ -274,7 +284,7 @@ def reset_after_labelset_change(source_id):
         image.features.classified = False
         image.features.save()
 
-    # Finally, let's try to train a new classifier.
+    # Finally, let's train a new classifier.
     submit_classifier.delay(source_id)
 
 def reset_features(image_id):

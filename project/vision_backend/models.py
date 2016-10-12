@@ -90,5 +90,9 @@ class Score(models.Model):
             global_label=self.label, labelset=self.source.labelset)
         return local_label.code
 
+    def __unicode__(self):
+        return "%s - %s - %s - %s" % (
+            self.image, self.point.point_number, self.label_code, self.score)
+
 
     

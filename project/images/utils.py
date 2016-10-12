@@ -380,7 +380,8 @@ def source_robot_status(source_id):
 def get_map_sources():
     # Get all sources that have both latitude and longitude specified.
     # (In other words, leave out the sources that have either of them blank.)
-    map_sources_queryset = Source.objects.exclude(latitude='').exclude(longitude='')
+    map_sources_queryset = \
+        Source.objects.exclude(latitude='').exclude(longitude='')
 
     map_sources = []
 
@@ -388,45 +389,35 @@ def get_map_sources():
 
         num_of_images = Image.objects.filter(source=source).count()
 
-        # Make some check to remove small sources and test sources
-        is_test_source = False
+        # Skip small sources
         if num_of_images < 100:
             continue
-        possible_test_sources_substrings = ['test', 'sandbox', 'dummy', 'tmp', 'temp', 'check']
+        # Skip test sources
+        possible_test_sources_substrings = [
+            'test', 'sandbox', 'dummy', 'tmp', 'temp', 'check']
         for str_ in possible_test_sources_substrings:
             if str_ in source.name.lower():
                 continue
 
-        # If the source is public, include a link to the source main page.
-        # Otherwise, don't include a link.
-        if source.visibility == Source.VisibilityTypes.PUBLIC:
-            source_url = reverse('source_main', args=[source.id])
-            color = '00FF00'
+        if source.is_public():
+            source_type = 'public'
         else:
-            source_url = ''
-            color = 'FF0000'
+            source_type = 'private'
 
-        try:
-            latitude = str(source.latitude)
-            longitude = str(source.longitude)
-        except:
-            latitude = 'invalid'
-            longitude = 'invalid'
-
-        all_images = source.get_all_images()
-        latest_images = all_images.order_by('-upload_date')[:6]
+        if num_of_images < 500:
+            size = 1
+        elif num_of_images < 1500:
+            size = 2
+        else:
+            size = 3
 
         map_sources.append(dict(
-            description=source.description,
-            affiliation=source.affiliation,
-            latitude=latitude,
-            longitude=longitude,
-            name=source.name,
-            color = color,
-            num_of_images=str( num_of_images ),
-            url=source_url,
-            latest_images=latest_images,
-            id=source.id
+            sourceId=source.id,
+            latitude=source.latitude,
+            longitude=source.longitude,
+            type=source_type,
+            size=size,
+            detailBoxUrl=reverse('source_detail_box', args=[source.id]),
         ))
 
     return map_sources

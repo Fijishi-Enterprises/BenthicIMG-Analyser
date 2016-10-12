@@ -1,63 +1,33 @@
 #map-canvas {
-
     /* The map will always take its size from that of its containing element,
     so you must always set a size on that <div> explicitly.
     https://developers.google.com/maps/documentation/javascript/tutorial#Map_DOM_Elements */
-
     width: 100%;
     height: 500px;
 }
 
-#marker-info-initial-container {
-    /* Keep the marker-info element here, hidden from view,
-    until we need it. */
-    display: none;
-}
 
-#marker-info div.name {
-    font-size: 1.4em;
-    padding-bottom: 5px;
-}
-
-#marker-info div.affiliation {
-    padding: 5px 0px 5px 0px;
-}
-
-#marker-info div.description {
-    padding: 5px 0px 5px 0px;
-}
-
-#marker-info div.num-of-images {
-    padding: 5px 0px 5px 0px;
-}
-
-#marker-info span.thumbnail_container
-{
-    display: inline-block;
-    text-align: center;
-
-    width: 100px;
-    padding: 0px 2.5px 0px 2.5px;
-}
-
-#marker-info div.thumbnails
-{
-    padding: 5px 0px 5px 0px;
-    white-space: nowrap;
-    display: none;
-}
-
-/*
-    Stylings for the map legend
-*/
 #map-legend {
     background: white;
-    opacity:0.5;
-    padding:10px;
+    opacity: 0.5;
+    padding: 10px;
+}
+/* Vertically center elements on each row of the legend */
+#map-legend > div {
+    display: flex;
+    align-items: center;
+}
+/* Horizontally center the icon within a space of 40px */
+#map-legend .icon-container {
+    width: 40px;
+    display: inline-block;
+    text-align: center;
+}
+#map-legend .icon-container img {
+    max-width: 40px;
 }
 
-#map-legend.div
-{
-    display: table-cell;
-    vertical-align:middle;
+
+img.source-example-image {
+    padding: 0 3px;  /* top/bottom left/right */
 }

@@ -2,83 +2,46 @@ var CNMap = (function() {
 
     var map = null;
     var markers = [];
-    var sources = [];
-
-    var markerInfoElmt = null;
-
-    var $markerInfoName = null;
-    var $markerInfoAffiliation = null;
-    var $markerInfoDescription = null;
-    var $markerInfoNumOfImages = null;
-    var $markerInfoImages = null;
 
     var infoWindow = null;
 
-    function showMarkerDialog(source, sourceLatLon) {
-
+    function getAndShowSourceDetail(detailBoxUrl, sourceLatLng) {
         if (infoWindow === null) {
             infoWindow = new google.maps.InfoWindow();
         }
 
-        infoWindow.setPosition(sourceLatLon);
-
-        // Source name, with a link to the source if provided
-        $markerInfoName.empty();
-        var $boldName = $('<strong>');
-
-        // clear whatever is being displayed first:
-        $markerInfoImages.css("display", "none");
-
-        if (source.url) { // marker is public
-            $boldName.text("Click to explore the " + source.name + " data source.");
-
-            var $sourceLink = $('<a>');
-            $sourceLink.append($boldName);
-            $sourceLink.attr('href', source.url);
-
-            $markerInfoName.append($sourceLink);
-
-            // selects the correct set of thumbnails to display
-            var $markerInfoImagesSource = $("#thumbnails-{0}".format(source.id));
-            $markerInfoImagesSource.css("display","inline");
-        }
-        else { // marker is private
-            $boldName.text(source.name);
-            $markerInfoName.append($boldName);
-        }
-
-        $markerInfoDescription.text(source.description);
-        $markerInfoNumOfImages.text("Number of images: {0}".format(source.num_of_images));
-
-        // Source affiliation
-        $markerInfoAffiliation.text(source.affiliation);
-
-        infoWindow.setContent(markerInfoElmt);
-
+        infoWindow.setPosition(sourceLatLng);
+        infoWindow.setContent(
+            document.createTextNode("Getting source info..."));
         infoWindow.open(map);
 
-        // This is a TEMPORARY fix to a graphical issue, will fix this later
-        if (source.url)
-        {
-            $markerInfoImagesSource = $("#thumbnails-{0}".format(source.id));
-            $markerInfoImagesSource.css("display","inline");
-        }
+        $.get(
+            detailBoxUrl,
+            {},
+            showSourceDetail.curry(infoWindow)
+        ).fail(util.handleServerError);
+    }
+
+    function showSourceDetail(infoWindow, responseHtml) {
+        // Parse the HTML and ensure it's in a root node
+        var $detailBox = $('<div>' + responseHtml + '</div>');
+        // Add the source-detail HTML to the map's info popup
+        infoWindow.setContent($detailBox[0]);
     }
 
     return {
 
         init: function(params) {
 
-            console.log(params.mapSources.length);
-
             if (!google) {
                 console.log("Couldn't load the Google API.");
                 return;
             }
 
+            // Map
+
             // https://developers.google.com/maps/documentation/javascript/tutorial#MapOptions
             var mapOptions = {
-
                 center: new google.maps.LatLng(-10.5, -127.5),
 
                 zoom: 2,
@@ -93,82 +56,63 @@ var CNMap = (function() {
                 mapOptions
             );
 
+            // Legend
+
             var legend = document.getElementById('map-legend');
 
             map.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(legend);
 
-
-            var icons = {
-                public: {
-                    name: "Public sources",
-                    icon: staticmapimgs + "green.png"
-                },
-                private: {
-                    name: "Private sources",
-                    icon: staticmapimgs + "red.png"
-                },
-                multipleSources: {
-                    name: "Multiple sources",
-                    icon: staticmapimgs + "m0.png"
-                }
-            };
-
-            for (var key in icons) {
-                var type = icons[key];
-                var name = type.name;
-                var icon = type.icon;
-                var div = document.createElement('div');
-                div.innerHTML = '<img style="width:40px" src="' + icon + '"> ' + name;
-                legend.appendChild(div);
-            }
-
-
-            var markerInfoElmtId = 'marker-info';
-            markerInfoElmt = document.getElementById(markerInfoElmtId);
-
-            $markerInfoName = $('#{0} .name'.format(markerInfoElmtId));
-            $markerInfoAffiliation = $('#{0} .affiliation'.format(markerInfoElmtId));
-            $markerInfoDescription = $('#{0} .description'.format(markerInfoElmtId));
-            $markerInfoNumOfImages = $('#{0} .num-of-images'.format(markerInfoElmtId));
-            $markerInfoImages = $('#{0} div.thumbnails'.format(markerInfoElmtId));
+            // Markers
 
             var i;
 
-            for (i = 0; i < params.mapSources.length; i++) {
+            for (i = 0; i < params['mapSources'].length; i++) {
 
-                var source = params.mapSources[i];
-                var sourceLatLon = new google.maps.LatLng(source.latitude, source.longitude);
-                var markerColor = source.color;
-		var markerSize = null
-		
-		if(source.num_of_images < 500){
-		    markerSize = new google.maps.Size(20, 32);
-		}
-		else if(source.num_of_images < 1500){
-		    markerSize = new google.maps.Size(25, 40);		
-		}
-		else {
-		    markerSize = new google.maps.Size(30, 48);
-		}
+                var source = params['mapSources'][i];
+                var sourceLatLng = new google.maps.LatLng(
+                    source['latitude'], source['longitude']);
+
+                var markerSize = null;
+                if (source['size'] === 1) {
+                    markerSize = new google.maps.Size(20, 32);
+                }
+                else if (source['size'] === 2) {
+                    markerSize = new google.maps.Size(25, 40);
+                }
+                else {  // 3
+                    markerSize = new google.maps.Size(30, 48);
+                }
+
+                var markerIcon = null;
+                if (source['type'] === 'public') {
+                    markerIcon = staticmapimgs + "green.png";
+                }
+                else {  // 'private'
+                    markerIcon = staticmapimgs + "red.png";
+                }
 
                 var marker = new google.maps.Marker({
-                    position: sourceLatLon,
-		    draggable:true,
-		    icon: new google.maps.MarkerImage(
-                        'http://chart.apis.google.com/chart?chst=d_map_pin_letter&chld=%E2%80%A2|' + markerColor, 
+                    position: sourceLatLng,
+                    // This seems weird, but dragging does help to get at
+                    // sources whose markers are hiding behind other markers.
+                    draggable: true,
+                    icon: new google.maps.MarkerImage(
+                        markerIcon,
                         null,
-		        null,
-		        null,
-		        markerSize
+                        null,
+                        null,
+                        markerSize
                     )
                 });
 
-                google.maps.event.addListener(marker, 'click', showMarkerDialog.curry(source, sourceLatLon));
-                sources.push(source);
+                google.maps.event.addListener(
+                    marker, 'click', getAndShowSourceDetail.curry(
+                        source['detailBoxUrl'], sourceLatLng));
                 markers.push(marker);
             }
-            var markerCluster = new MarkerClusterer(map, markers,{maxZoom : 14});
 
+            var markerCluster = new MarkerClusterer(
+                map, markers, {maxZoom : 14});
         }
     }
 })();

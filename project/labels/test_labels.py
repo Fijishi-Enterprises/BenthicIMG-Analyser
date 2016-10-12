@@ -513,6 +513,10 @@ class EditLabelTest(LabelTest):
             B=cls.create_label(cls.user, "Label B", 'B', cls.group1),
             C=cls.create_label(cls.user, "Label C", 'C', cls.group1),
         )
+        # Ensure cls.user 'owns' the labels
+        cls.source = cls.create_source(cls.user)
+        cls.create_labelset(
+            cls.user, cls.source, Label.objects.all())
 
         cls.url = reverse('label_edit', args=[cls.labels['A'].pk])
 
@@ -677,3 +681,18 @@ class EditLabelTest(LabelTest):
 
         self.labels['A'].refresh_from_db()
         self.assertEqual(self.labels['A'].verified, True)
+
+    def test_verified_requires_permission(self):
+        # Non committee member
+        self.client.force_login(self.user)
+        self.client.post(self.url, follow=True, data=dict(
+            name="Label A",
+            default_code='A',
+            group=self.labels['A'].group.pk,
+            description=self.labels['A'].description,
+            verified=True,
+        ))
+
+        self.labels['A'].refresh_from_db()
+        # Not changed
+        self.assertEqual(self.labels['A'].verified, False)

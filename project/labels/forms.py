@@ -185,9 +185,12 @@ class LabelForm(ModelForm):
     class Meta:
         model = Label
         fields = ['name', 'default_code', 'group', 'description', 'thumbnail']
-        widgets = {
-            'default_code': TextInput(attrs={'size': 10}),
-        }
+
+    def __init__(self, *args, **kwargs):
+        super(LabelForm, self).__init__(*args, **kwargs)
+
+        self.fields['default_code'].widget.attrs['size'] = \
+            Label._meta.get_field('default_code').max_length
 
     def clean_name(self):
         """
@@ -253,6 +256,15 @@ class LabelForm(ModelForm):
                 conflicting_code=escape(conflicting_label.default_code),
             ))
         raise ValidationError(msg, code='unique')
+
+
+class LabelFormWithVerified(LabelForm):
+    class Meta:
+        model = Label
+        fields = [
+            'name', 'default_code', 'group', 'description', 'thumbnail',
+            'verified'
+        ]
 
 
 class LabelSetForm(Form):

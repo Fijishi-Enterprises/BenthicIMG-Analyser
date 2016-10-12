@@ -329,6 +329,12 @@ LOGGING = {
             'filename': os.path.join(PROJECT_DIR, 'logs', 'vision_backend.log') ,
             'formatter': 'standard'
         },
+        'backend_debug': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(PROJECT_DIR, 'logs', 'vision_backend_debug.log') ,
+            'formatter': 'standard'
+        },
     },
     'loggers': {
         'vision_backend': {
@@ -336,5 +342,11 @@ LOGGING = {
             'level': 'INFO',
             'propagate': True,
         },
+        'vision_backend': {
+            'handlers': ['backend_debug'],
+            'level': 'DEBUG',
+            'propagate': True,
+        }
     },
+
 }

@@ -2,7 +2,7 @@ from images.models import Source
 
 
 def is_label_editable_by_user(label, user):
-    if user.has_perm('labels.edit_label'):
+    if user.has_perm('labels.change_label'):
         # Labelset committee members and superusers can edit all labels
         return True
 

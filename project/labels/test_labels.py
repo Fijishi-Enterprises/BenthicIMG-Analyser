@@ -1,3 +1,6 @@
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
+from django.core.files.storage import get_storage_class
 from django.core.urlresolvers import reverse
 
 from images.model_utils import PointGen
@@ -412,31 +415,41 @@ class EditLabelPermissionTest(ClientTest):
             cls.user, cls.source1, labels.filter(name__in=['A']))
         cls.source2 = cls.create_source(cls.user)
         cls.create_labelset(
-            cls.user, cls.source1, labels.filter(name__in=['A', 'B']))
+            cls.user, cls.source2, labels.filter(name__in=['A', 'B']))
         cls.source3 = cls.create_source(cls.user)
         cls.create_labelset(
-            cls.user, cls.source1, labels.filter(name__in=['B']))
+            cls.user, cls.source3, labels.filter(name__in=['B']))
 
         cls.user_admin_both = cls.create_user()
         cls.add_source_member(
-            cls.user, cls.source1, cls.user_admin_both, 'admin')
+            cls.user, cls.source1,
+            cls.user_admin_both, Source.PermTypes.ADMIN.code)
         cls.add_source_member(
-            cls.user, cls.source2, cls.user_admin_both, 'admin')
+            cls.user, cls.source2,
+            cls.user_admin_both, Source.PermTypes.ADMIN.code)
 
         cls.user_admin_one = cls.create_user()
         cls.add_source_member(
-            cls.user, cls.source1, cls.user_admin_one, 'admin')
+            cls.user, cls.source1,
+            cls.user_admin_one, Source.PermTypes.ADMIN.code)
 
         cls.user_editor_both = cls.create_user()
         cls.add_source_member(
-            cls.user, cls.source1, cls.user_editor_both, 'edit')
+            cls.user, cls.source1,
+            cls.user_editor_both, Source.PermTypes.EDIT.code)
         cls.add_source_member(
-            cls.user, cls.source2, cls.user_editor_both, 'edit')
+            cls.user, cls.source2,
+            cls.user_editor_both, Source.PermTypes.EDIT.code)
 
         cls.user_committee_member = cls.create_user()
-        # TODO: Add to committee
+        cls.user_committee_member.groups.add(
+            Group.objects.get(name="Labelset Committee"))
 
-        # TODO: Mark B as verified and not A
+        # Verify label B
+        label_B = labels.get(name='B')
+        label_B.verified = True
+        label_B.save()
+
         cls.url = reverse('label_edit', args=[labels.get(name='A').pk])
         cls.url_verified = reverse(
             'label_edit', args=[labels.get(name='B').pk])
@@ -467,12 +480,13 @@ class EditLabelPermissionTest(ClientTest):
 
     def test_labelset_committee_member(self):
         self.client.force_login(self.user_committee_member)
-        response = self.client.get(self.url)
+        response = self.client.get(self.url_verified)
         self.assertTemplateUsed(response, 'labels/label_edit.html')
 
     def test_superuser(self):
-        self.client.force_login(self.user)
-        response = self.client.get(self.url)
+        User = get_user_model()
+        self.client.force_login(User.objects.get(username='superuser'))
+        response = self.client.get(self.url_verified)
         self.assertTemplateUsed(response, 'labels/label_edit.html')
 
 
@@ -486,14 +500,18 @@ class EditLabelTest(LabelTest):
         super(EditLabelTest, cls).setUpTestData()
 
         cls.user = cls.create_user()
-        # TODO: Add to committee
 
-        # Create labels and group
-        cls.group = cls.create_label_group("Group1")
+        cls.user_committee_member = cls.create_user()
+        cls.user_committee_member.groups.add(
+            Group.objects.get(name="Labelset Committee"))
+
+        # Create labels and groups
+        cls.group1 = cls.create_label_group("Group1")
+        cls.group2 = cls.create_label_group("Group2")
         cls.labels = dict(
-            A=cls.create_label(cls.user, "Label A", 'A', cls.group),
-            B=cls.create_label(cls.user, "Label B", 'B', cls.group),
-            C=cls.create_label(cls.user, "Label C", 'C', cls.group),
+            A=cls.create_label(cls.user, "Label A", 'A', cls.group1),
+            B=cls.create_label(cls.user, "Label B", 'B', cls.group1),
+            C=cls.create_label(cls.user, "Label C", 'C', cls.group1),
         )
 
         cls.url = reverse('label_edit', args=[cls.labels['A'].pk])
@@ -509,41 +527,153 @@ class EditLabelTest(LabelTest):
         self.assertContains(response, "Label successfully edited.")
 
     def test_name_change_case_only(self):
-        # TODO
-        pass
+        self.client.force_login(self.user)
+        self.client.post(self.url, follow=True, data=dict(
+            name="LABEL a",
+            default_code='A',
+            group=self.labels['A'].group.pk,
+            description=self.labels['A'].description,
+        ))
+
+        self.labels['A'].refresh_from_db()
+        self.assertEqual(self.labels['A'].name, "LABEL a")
 
     def test_name_change(self):
-        # TODO
-        pass
+        self.client.force_login(self.user)
+        self.client.post(self.url, follow=True, data=dict(
+            name="Label Alpha",
+            default_code='A',
+            group=self.labels['A'].group.pk,
+            description=self.labels['A'].description,
+        ))
+
+        self.labels['A'].refresh_from_db()
+        self.assertEqual(self.labels['A'].name, "Label Alpha")
 
     def test_name_conflict(self):
-        # TODO
-        pass
+        self.client.force_login(self.user)
+        response = self.client.post(self.url, follow=True, data=dict(
+            name="LABEL B",
+            default_code='A',
+            group=self.labels['A'].group.pk,
+            description=self.labels['A'].description,
+        ))
+        self.assertContains(
+            response,
+            'There is already a label with the same name:'
+            ' <a href="{url}" target="_blank">'
+            '{conflicting_name}</a>'.format(
+                url=reverse('label_main', args=[self.labels['B'].pk]),
+                conflicting_name="Label B"))
+        # Check for no change
+        self.labels['A'].refresh_from_db()
+        self.assertEqual(self.labels['A'].name, "Label A")
 
     def test_default_code_same(self):
-        # TODO
-        pass
+        self.client.force_login(self.user)
+        response = self.client.post(self.url, follow=True, data=dict(
+            name="Label A",
+            default_code='A',
+            group=self.labels['A'].group.pk,
+            description=self.labels['A'].description,
+        ))
+        self.assertContains(response, "Label successfully edited.")
 
     def test_default_code_change_case_only(self):
-        # TODO
-        pass
+        self.client.force_login(self.user)
+        self.client.post(self.url, follow=True, data=dict(
+            name="Label A",
+            default_code='a',
+            group=self.labels['A'].group.pk,
+            description=self.labels['A'].description,
+        ))
+
+        self.labels['A'].refresh_from_db()
+        self.assertEqual(self.labels['A'].default_code, 'a')
 
     def test_default_code_change(self):
-        # TODO
-        pass
+        self.client.force_login(self.user)
+        self.client.post(self.url, follow=True, data=dict(
+            name="Label A",
+            default_code='Alpha',
+            group=self.labels['A'].group.pk,
+            description=self.labels['A'].description,
+        ))
+
+        self.labels['A'].refresh_from_db()
+        self.assertEqual(self.labels['A'].default_code, 'Alpha')
 
     def test_default_code_conflict(self):
-        # TODO
-        pass
+        self.client.force_login(self.user)
+        response = self.client.post(self.url, follow=True, data=dict(
+            name="Label A",
+            default_code='b',
+            group=self.labels['A'].group.pk,
+            description=self.labels['A'].description,
+        ))
+        self.assertContains(
+            response,
+            'There is already a label with the same default code:'
+            ' <a href="{url}" target="_blank">'
+            '{conflicting_code}</a>'.format(
+                url=reverse('label_main', args=[self.labels['B'].pk]),
+                conflicting_code="B"))
+        # Check for no change
+        self.labels['A'].refresh_from_db()
+        self.assertEqual(self.labels['A'].default_code, 'A')
 
     def test_group_change(self):
-        # TODO
-        pass
+        self.client.force_login(self.user)
+        self.client.post(self.url, follow=True, data=dict(
+            name="Label A",
+            default_code='A',
+            group=self.group2.pk,
+            description=self.labels['A'].description,
+        ))
+
+        self.labels['A'].refresh_from_db()
+        self.assertEqual(self.labels['A'].group.pk, self.group2.pk)
 
     def test_description_change(self):
-        # TODO
-        pass
+        self.client.force_login(self.user)
+        self.client.post(self.url, follow=True, data=dict(
+            name="Label A",
+            default_code='A',
+            group=self.labels['A'].group.pk,
+            description="Another\ndescription",
+        ))
+
+        self.labels['A'].refresh_from_db()
+        self.assertEqual(self.labels['A'].description, "Another\ndescription")
 
     def test_thumbnail_change(self):
-        # TODO
-        pass
+        # Get original thumbnail file's time
+        storage = get_storage_class()()
+        original_time = storage.modified_time(self.labels['A'].thumbnail.path)
+
+        self.client.force_login(self.user)
+        self.client.post(self.url, follow=True, data=dict(
+            name="Label A",
+            default_code='A',
+            group=self.labels['A'].group.pk,
+            description=self.labels['A'].description,
+            thumbnail=sample_image_as_file('_.png'),
+        ))
+
+        # Check for a different thumbnail file by checking the modified time
+        self.labels['A'].refresh_from_db()
+        new_time = storage.modified_time(self.labels['A'].thumbnail.path)
+        self.assertNotEqual(original_time, new_time)
+
+    def test_verified_change(self):
+        self.client.force_login(self.user_committee_member)
+        self.client.post(self.url, follow=True, data=dict(
+            name="Label A",
+            default_code='A',
+            group=self.labels['A'].group.pk,
+            description=self.labels['A'].description,
+            verified=True,
+        ))
+
+        self.labels['A'].refresh_from_db()
+        self.assertEqual(self.labels['A'].verified, True)

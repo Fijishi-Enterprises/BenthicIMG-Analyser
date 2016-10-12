@@ -48,6 +48,11 @@ class LabelManager(models.Manager):
 
 
 class Label(models.Model):
+    class Meta:
+        permissions = (
+            ('verify_label', "Can change verified field"),
+        )
+
     objects = LabelManager()
 
     name = models.CharField(max_length=45)
@@ -55,6 +60,7 @@ class Label(models.Model):
     group = models.ForeignKey(
         LabelGroup, on_delete=models.PROTECT, verbose_name='Functional Group')
     description = models.TextField(null=True)
+    verified = models.BooleanField(default=False)
 
     # easy_thumbnails reference:
     # http://packages.python.org/easy-thumbnails/ref/processors.html
@@ -84,11 +90,6 @@ class Label(models.Model):
         To-string method.
         """
         return self.name
-
-    # Placeholder, should be an actual model field that defaults to False
-    @property
-    def verified(self):
-        return self.pk % 2 == 0
 
     @property
     def popularity(self):

@@ -9,5 +9,5 @@ label_edit_permission_required = ModelViewDecorator(
     meets_requirements=(
         lambda label, request: is_label_editable_by_user(label, request.user)),
     template='permission_denied.html',
-    default_message="Sorry, you don't have permission to view this page."
+    default_message="You don't have permission to edit this label."
 )

@@ -209,6 +209,14 @@ def labelset_edit(request, source_id):
         formset=BaseLocalLabelFormSet, extra=0)
 
     if request.POST:
+        # Cancel
+        cancel = request.POST.get('cancel', None)
+        if cancel:
+            messages.success(request, 'Edit cancelled.')
+            return HttpResponseRedirect(
+                reverse('labelset_main', args=[source_id]))
+
+        # Submit
         formset = LocalLabelFormSet(request.POST)
 
         if formset.is_valid():

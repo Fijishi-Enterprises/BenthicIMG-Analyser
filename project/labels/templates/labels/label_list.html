@@ -3,6 +3,12 @@
 {% block content %}
   <h2>All Labels</h2>
 
+  {% if can_edit_labels %}
+    <div class="line">
+      <a href="{% url 'label_new' %}">Create a new label</a>
+    </div>
+  {% endif %}
+
   <table class="detail_table">
     <tr>
       <th>Name</th>

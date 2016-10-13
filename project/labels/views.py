@@ -31,6 +31,29 @@ from .utils import is_label_editable_by_user
 
 
 @login_required
+def label_new(request):
+    """
+    Create a new global label.
+    """
+    if request.method == 'POST':
+        form = LabelForm(request.POST, request.FILES)
+
+        if form.is_valid():
+            form.save_new_label(request.user)
+            messages.success(request, 'Label successfully created.')
+            return HttpResponseRedirect(
+                reverse('label_main', args=[form.instance.pk]))
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = LabelForm()
+
+    return render(request, 'labels/label_new.html', {
+        'form': form,
+    })
+
+
+@login_required
 @require_POST
 def label_new_ajax(request):
     """
@@ -38,12 +61,8 @@ def label_new_ajax(request):
     """
     form = LabelForm(request.POST, request.FILES)
 
-    # is_valid() checks for label conflicts in the database
-    # (same-name label found, etc.).
     if form.is_valid():
-        label = form.instance
-        label.created_by = request.user
-        label.save()
+        label = form.save_new_label(request.user)
         return render(request, 'labels/label_box_container.html', {
             'labels': [label],
         })
@@ -439,9 +458,9 @@ def label_list(request):
     """
     Page with a list of all the labels
     """
-
     labels = Label.objects.all().order_by('group__id', 'name')
 
     return render(request, 'labels/label_list.html', {
         'labels': labels,
+        'can_edit_labels': request.user.has_perm('labels.change_label'),
     })

@@ -1,0 +1,16 @@
+{% block content %}
+
+  <div class="line" id="label-form-status" style="font-weight: bold;"></div>
+
+  <form id="label-form" action="{% url 'label_new_ajax' %}"
+    method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+
+    {% for field in form %}
+      <div class="line">{{ field.label }}: {{ field }}</div>
+    {% endfor %}
+
+    <input type="submit" value="Create Label" />
+  </form>
+
+{% endblock %}

@@ -1,13 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}New Label | CoralNet{% endblock %}
+
+{% block js-includes %}
+  {% include "javascript-includes.html" with jquery_ui="yes" %}
+{% endblock %}
+
 {% block content %}
 
-  <div class="line" id="label-form-status" style="font-weight: bold;"></div>
+  <legend>New Label</legend>
 
-  <form id="label-form" action="{% url 'label_new_ajax' %}"
-    method="post" enctype="multipart/form-data">
+  <form id="label-form" action="" method="post" enctype="multipart/form-data">
     {% csrf_token %}
 
     {% for field in form %}
+      <div class="errorlist_wrapper">{{ field.errors }}</div>
+
       <div class="line">{{ field.label }}: {{ field }}</div>
+
+      {% if field.help_text %}
+        <div class="helptext_small">
+          {{ field.help_text|safe|linebreaksbr }}</div>
+      {% endif %}
     {% endfor %}
 
     <input type="submit" value="Create Label" />

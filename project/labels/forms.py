@@ -257,6 +257,13 @@ class LabelForm(ModelForm):
             ))
         raise ValidationError(msg, code='unique')
 
+    def save_new_label(self, creator_user):
+        label = self.instance
+        label.created_by = creator_user
+        label.save()
+
+        return label
+
 
 class LabelFormWithVerified(LabelForm):
     class Meta:

@@ -3,9 +3,13 @@
  */
 var LabelsetAdd = (function() {
 
-    var labelIdsInAnnotations = null;
+    var initialLabelIdsLookup = null;
+    var initialLabelIdsCount = null;
+    var labelIdsInAnnotationsLookup = null;
+    var hasClassifier = null;
 
     var $labelsetLabelIdsField = null;
+    var $saveLabelsetButton = null;
     var $unusedLabelElementsContainer = null;
     var $searchStatus = null;
     var $searchField = null;
@@ -33,8 +37,11 @@ var LabelsetAdd = (function() {
     function isInUse(labelId) {
         return isSelected(labelId) || isInSearch(labelId);
     }
+    function isInInitialLabels(labelId) {
+        return labelId in initialLabelIdsLookup;
+    }
     function isInAnnotations(labelId) {
-        return labelIdsInAnnotations.indexOf(labelId) !== -1;
+        return labelId in labelIdsInAnnotationsLookup;
     }
 
     function getSelectedIds() {
@@ -49,6 +56,29 @@ var LabelsetAdd = (function() {
     function getNumSelected() {
         var $container = $('#selected-label-container');
         return $container.children().length;
+    }
+    function afterSelectionChange() {
+        // Disable/enable save button based on whether the label ids
+        // have changed from the initial ones.
+        var ids = getSelectedIds();
+        var i;
+        var changedFromInitial = false;
+        for (i = 0; i < ids.length; i++) {
+            if (!isInInitialLabels(ids[i])) {
+                changedFromInitial = true;
+                break;
+            }
+        }
+        if (ids.length !== initialLabelIdsCount) {
+            changedFromInitial = true;
+        }
+
+        if (changedFromInitial) {
+            $saveLabelsetButton.enable();
+        }
+        else {
+            $saveLabelsetButton.disable();
+        }
     }
 
     function enableAddButton(labelId) {
@@ -231,6 +261,8 @@ var LabelsetAdd = (function() {
         if (isInAnnotations(labelId)) {
             disableRemoveButton(labelId);
         }
+
+        afterSelectionChange();
     }
 
 
@@ -252,6 +284,8 @@ var LabelsetAdd = (function() {
         if (!isInUse(labelId)) {
             removeLabelFromPage(labelId);
         }
+
+        afterSelectionChange();
     }
 
 
@@ -287,16 +321,28 @@ var LabelsetAdd = (function() {
      * <SingletonClassName>.<methodName>. */
     return {
         init: function(params) {
-            labelIdsInAnnotations = params['labelIdsInAnnotations'];
+            labelIdsInAnnotationsLookup = {};
+            var idsList = params['labelIdsInAnnotations'];
+            var i;
+            for (i = 0; i < idsList.length; i++) {
+                labelIdsInAnnotationsLookup[idsList[i]] = true;
+            }
 
             $labelsetLabelIdsField = $('#id_label_ids');
             $unusedLabelElementsContainer =
                 $('#unused-label-elements-container');
+            var $labelsetForm = $('#labelset-form');
+            $saveLabelsetButton = $labelsetForm.find('.save-button');
 
+            initialLabelIdsLookup = {};
+            initialLabelIdsCount = 0;
             $('#initial-label-container').children().each(function() {
                 var labelId = addResponseLabelToPage($(this));
+                initialLabelIdsLookup[labelId] = true;
+                initialLabelIdsCount++;
                 addLabelToSelected(labelId);
             });
+            afterSelectionChange();
 
             $('#new-label-form-show-button').click(function() {
                 $('#new-label-form-popup').dialog({
@@ -309,10 +355,28 @@ var LabelsetAdd = (function() {
             $searchStatus = $('#label-search-status');
             $searchField = $('#label-search-field');
 
+            hasClassifier = params['hasClassifier'];
+            $labelsetForm.submit(function() {
+                if ($saveLabelsetButton.is(':disabled')) {
+                    // Even with the button disabled, the user might submit
+                    // the form another way, so catch that case.
+                    window.alert("No labelset changes detected.");
+                    return false;
+                }
+
+                if (hasClassifier) {
+                    return window.confirm(
+                        "This will regenerate the source's classifiers." +
+                        " Is this OK?");
+                }
+
+                return true;
+            });
+
             // Update search results 0.75s after typing in the field
             $searchField.keyup(function() {
-                clearTimeout(searchFieldTypingTimer);
-                searchFieldTypingTimer = setTimeout(
+                window.clearTimeout(searchFieldTypingTimer);
+                searchFieldTypingTimer = window.setTimeout(
                     submitSearch.curry($searchField.val()), 750);
             });
         },

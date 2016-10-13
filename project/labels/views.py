@@ -119,6 +119,14 @@ def labelset_add(request, source_id):
 
     if request.method == 'POST':
 
+        # Cancel (available for edit only)
+        cancel = request.POST.get('cancel', None)
+        if cancel:
+            messages.success(request, 'Edit cancelled.')
+            return HttpResponseRedirect(
+                reverse('labelset_main', args=[source_id]))
+
+        # Submit
         labelset_form = LabelSetForm(request.POST, source=source)
 
         if labelset_form.is_valid():
@@ -155,6 +163,7 @@ def labelset_add(request, source_id):
         'labelset_form': labelset_form,
         'initial_labels': initial_labels,
         'label_ids_in_annotations': label_ids_in_annotations,
+        'has_classifier': source.classifier_set.exists(),
 
         # Include a new-label form on the page. It'll be submitted to
         # another view though.

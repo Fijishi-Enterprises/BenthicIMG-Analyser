@@ -50,9 +50,9 @@
   <div style="clear: both;"></div>
 
 
-  {% if source.labelset %}
+  {% if has_classifier %}
     <div class="line">
-      Since the automated classifiers are tailored to your labelset, the classifiers and annotation suggestions for this source will be regenerated if you change the labelset. This may take a while to complete.
+      This source has at least one automated classifier. Since the source's classifiers are tailored to the labelset, the classifiers and annotation suggestions for this source must be regenerated if you change the labelset. This may take a while to complete. As a very rough estimate, there is a base task that may take around 5 hours, followed by up to 2 seconds of processing per image.
     </div>
   {% endif %}
 
@@ -63,12 +63,21 @@
 
     <div class="line">
       {% if source.labelset %}
-        <input type="submit" value="Save Labelset" />
+        <input type="submit" class="save-button" value="Save Changes" />
       {% else %}
-        <input type="submit" value="Create Labelset" />
+        <input type="submit" class="save-button" value="Create Labelset" />
       {% endif %}
     </div>
   </form>
+
+  {% if source.labelset %}
+    {# Provide a cancel button. This must be separate from the main form, #}
+    {# because the main form has custom submit behavior. #}
+    <form action="" method="post">
+      {% csrf_token %}
+      <input type="submit" name="cancel" value="Cancel Changes" />
+    </form>
+  {% endif %}
 
 
   {# Hidden elements - may be moved/copied for display upon certain events #}
@@ -91,7 +100,8 @@
   {# Script in the body will run on page load. #}
   <script type="text/javascript">
     LabelsetAdd.init({
-      'labelIdsInAnnotations': {{ label_ids_in_annotations|jsonify }}
+      'labelIdsInAnnotations': {{ label_ids_in_annotations|jsonify }},
+      'hasClassifier': {{ has_classifier|jsonify }}
     });
     LabelNew.init({
       'afterLabelCreated': LabelsetAdd.afterLabelCreated

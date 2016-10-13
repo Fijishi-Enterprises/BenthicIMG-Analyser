@@ -1,5 +1,3 @@
-import re
-
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core import serializers
@@ -27,7 +25,7 @@ from .decorators import label_edit_permission_required
 from .forms import LabelForm, LabelSetForm, LocalLabelForm, \
     BaseLocalLabelFormSet, labels_csv_process, LabelFormWithVerified
 from .models import Label, LocalLabel, LabelSet
-from .utils import is_label_editable_by_user
+from .utils import search_labels_by_text, is_label_editable_by_user
 
 
 @login_required
@@ -111,46 +109,6 @@ def label_edit(request, label_id):
     })
 
 
-@login_required
-@require_GET
-def label_search_ajax(request):
-    """
-    Use a text search value to get a set of global labels.
-    Return general info for those global labels.
-    """
-    search_value = request.GET.get('search')
-    # Replace non-letters/digits with spaces
-    search_value = re.sub(r'[^A-Za-z0-9]', ' ', search_value)
-    # Strip whitespace from both ends
-    search_value = search_value.strip()
-    # Replace multi-spaces with one space
-    search_value = re.sub(r'\s{2,}', ' ', search_value)
-    # Get space-separated tokens
-    search_tokens = search_value.split(' ')
-    # Discard blank tokens
-    search_tokens = [t for t in search_tokens if t != '']
-
-    if len(search_tokens) == 0:
-        # No tokens of letters/digits. Return no results.
-        return render(request, 'labels/label_box_container.html', {
-            'labels': [],
-        })
-
-    # Get the labels where the name has ALL of the search tokens.
-    labels = Label.objects
-    for token in search_tokens:
-        labels = labels.filter(name__icontains=token)
-
-    # Sort by: verified first, highest popularity first.
-    limit = 50
-    sort_key = lambda x: (1 if x.verified else 0, x.popularity)
-    labels = sorted(labels, key=sort_key, reverse=True)[:limit]
-
-    return render(request, 'labels/label_box_container.html', {
-        'labels': labels,
-    })
-
-
 @source_permission_required('source_id', perm=Source.PermTypes.ADMIN.code)
 def labelset_add(request, source_id):
     """
@@ -201,6 +159,30 @@ def labelset_add(request, source_id):
         # Include a new-label form on the page. It'll be submitted to
         # another view though.
         'new_label_form': LabelForm(),
+    })
+
+
+@login_required
+@require_GET
+def labelset_add_search_ajax(request):
+    """
+    Use a text search value to get a set of global labels.
+    Return general info for those global labels.
+    """
+    search_value = request.GET.get('search')
+
+    labels = search_labels_by_text(search_value)
+
+    # Sort by: verified over non-verified, then by highest popularity.
+    def sort_key(label):
+        key_1 = 1 if label.verified else 0
+        key_2 = label.popularity
+        return key_1, key_2
+    limit = 50
+    labels = sorted(labels, key=sort_key, reverse=True)[:limit]
+
+    return render(request, 'labels/label_box_container.html', {
+        'labels': labels,
     })
 
 
@@ -464,3 +446,16 @@ def label_list(request):
         'labels': labels,
         'can_edit_labels': request.user.has_perm('labels.change_label'),
     })
+
+
+@require_GET
+def label_list_search_ajax(request):
+    """
+    Use a text search value to get a filter of labels (a list of label ids).
+    """
+    search_value = request.GET.get('search')
+
+    labels = search_labels_by_text(search_value)
+
+    return JsonResponse(dict(
+        label_ids=list(labels.values_list('pk', flat=True))))

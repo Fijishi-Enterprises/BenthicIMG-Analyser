@@ -19,14 +19,7 @@
 
 <div class="line">Verified:
   {{ label.verified|yesno|title }}
-
-  {% if label.verified %}
-    <img class="verified-image"
-      src="{% static 'img/verified__16x16.png' %}" />
-  {% else %}
-    <img class="verified-image"
-      src="{% static 'img/not-verified__16x16.png' %}" />
-  {% endif %}
+  {% verified_icon label %}
 </div>
 <div class="line">Popularity:
   {{ label.popularity|truncate_float }}%

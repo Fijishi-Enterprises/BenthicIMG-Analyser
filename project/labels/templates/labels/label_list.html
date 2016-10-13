@@ -1,4 +1,17 @@
 {% extends "base.html" %}
+{% load popularity_bar verified_icon from labels %}
+
+{% block title %}Label list - CoralNet{% endblock %}
+
+{% block js-includes %}
+  {% include "javascript-includes.html" with jquery_ui="yes" %}
+{% endblock %}
+
+{% block page-specific-includes %}
+  {% include "static-local-include.html" with type="js" path="js/LabelList.js" %}
+
+  {% include "static-local-include.html" with type="css" path="css/labels.css" %}
+{% endblock %}
 
 {% block content %}
   <h2>All Labels</h2>
@@ -9,18 +22,32 @@
     </div>
   {% endif %}
 
-  <table class="detail_table">
+  <label for="label-search-field">Search labels by name: </label>
+  <input type="text" id="label-search-field" name="search"
+    data-url="{% url 'label_list_search_ajax' %}"/>
+  <div id="label-search-status" class="line"></div>
+
+  <table id="label-table" class="detail_table">
     <tr>
       <th>Name</th>
       <th>Functional Group</th>
-      <th>Default Short Code</th>
+      <th>Popularity</th>
+      <th>Verified</th>
+      <th>Default<br/>Short Code</th>
     </tr>
     {% for label in labels %}
-      <tr>
-        <td><a href="{% url 'label_main' label.id %}">{{ label.name }}</a></td>
+      <tr data-label-id="{{ label.id }}">
+        <td class="name"><a href="{% url 'label_main' label.id %}">{{ label.name }}</a></td>
         <td>{{ label.group }}</td>
+        <td>{% popularity_bar label %}</td>
+        <td>{% verified_icon label %}</td>
         <td>{{ label.default_code }}</td>
       </tr>
     {% endfor %}
   </table>
+
+  {# Script in the body will run on page load. #}
+  <script type="text/javascript">
+    LabelList.init();
+  </script>
 {% endblock %}

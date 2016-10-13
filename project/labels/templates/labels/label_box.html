@@ -1,5 +1,4 @@
-{% load static from staticfiles %}
-{% load labels %}
+{% load popularity_bar verified_icon from labels %}
 
 {% if type == 'add' %}
   <span class="add-remove-button add"> + </span>
@@ -10,11 +9,6 @@
 <span class="detail-button" title="View label details">
   <span class="label-name">{{ label.name }}</span>
 
-  {% if label.verified %}
-    <img class="verified-image" src="{% static 'img/verified__16x16.png' %}" />
-  {% else %}
-    <img class="verified-image" src="{% static 'img/not-verified__16x16.png' %}" />
-  {% endif %}
-
+  {% verified_icon label %}
   {% popularity_bar label short=True %}
 </span>

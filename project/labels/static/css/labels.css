@@ -1,3 +1,9 @@
+#label-table td.name {
+    /* Some names are long due to multiple words. Let these word wrap
+     instead of stretching the table really wide. */
+    max-width: 200px;
+}
+
 .label-add-box, .label-remove-box,
 .labelset-select-box, .labelset-label-name-box {
     float: left;
@@ -121,6 +127,12 @@
  using master.css. */
 /* TODO: Merge some of these rules into master.css? */
 
+div.page_section {
+    margin: 20px 0;  /* top/bottom left/right */
+    padding: 0;
+
+    width: auto;
+}
 form {
     margin: 0;
     padding: 0;

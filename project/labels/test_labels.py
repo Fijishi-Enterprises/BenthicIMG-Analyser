@@ -73,7 +73,7 @@ class LabelListTest(ClientTest):
 
 class LabelSearchTest(ClientTest):
     """
-    Test the label search Ajax view.
+    Test label search by Ajax.
     """
     @classmethod
     def setUpTestData(cls):
@@ -81,16 +81,13 @@ class LabelSearchTest(ClientTest):
         super(LabelSearchTest, cls).setUpTestData()
 
         cls.user = cls.create_user()
-        cls.url = reverse('label_search_ajax')
+        cls.url = reverse('label_list_search_ajax')
 
     def assertLabels(self, response, label_names):
-        for name in label_names:
-            self.assertContains(
-                response,
-                '<div class="label-add-box" data-label-id="{pk}">'.format(
-                    pk=Label.objects.get(name=name).pk))
-        self.assertContains(
-            response, 'div class="label-add-box"', count=len(label_names))
+        response_pk_set = set(response.json()['label_ids'])
+        expected_pk_set = set(Label.objects.filter(
+            name__in=label_names).values_list('pk', flat=True))
+        self.assertSetEqual(response_pk_set, expected_pk_set)
 
     def test_match_full_name(self):
         self.create_labels(self.user, ["Red", "Blue"], "Group1")

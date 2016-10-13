@@ -1,4 +1,29 @@
+import re
 from images.models import Source
+from .models import Label
+
+
+def search_labels_by_text(search_value):
+    # Replace non-letters/digits with spaces
+    search_value = re.sub(r'[^A-Za-z0-9]', ' ', search_value)
+    # Strip whitespace from both ends
+    search_value = search_value.strip()
+    # Replace multi-spaces with one space
+    search_value = re.sub(r'\s{2,}', ' ', search_value)
+    # Get space-separated tokens
+    search_tokens = search_value.split(' ')
+    # Discard blank tokens
+    search_tokens = [t for t in search_tokens if t != '']
+
+    if len(search_tokens) == 0:
+        # No tokens of letters/digits. Return no results.
+        return Label.objects.none()
+
+    # Get the labels where the name has ALL of the search tokens.
+    labels = Label.objects
+    for token in search_tokens:
+        labels = labels.filter(name__icontains=token)
+    return labels
 
 
 def is_label_editable_by_user(label, user):

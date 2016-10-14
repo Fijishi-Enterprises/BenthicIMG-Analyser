@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.core import serializers
 from django.core.paginator import Paginator, EmptyPage, InvalidPage
 from django.core.urlresolvers import reverse
+from django.db.models import Count
 from django.forms import modelformset_factory
 from django.http import HttpResponseRedirect
 from django.http import JsonResponse
@@ -14,6 +15,7 @@ from accounts.utils import get_robot_user
 from annotations.models import Annotation
 from annotations.utils import get_labels_with_annotations_in_source
 from images.models import Source
+from images.utils import filter_out_test_sources
 from lib.decorators import source_permission_required, \
     source_visibility_required, source_labelset_required
 from lib.exceptions import FileProcessError
@@ -341,13 +343,20 @@ def label_main(request, label_id):
     users_sources = Source.get_sources_of_user(request.user) \
         .filter(pk__in=all_sources_with_label) \
         .order_by('name')
-    other_public_sources = Source.get_other_public_sources(request.user) \
+
+    other_public = Source.get_other_public_sources(request.user) \
         .filter(pk__in=all_sources_with_label) \
         .order_by('name')
-    other_private_sources = all_sources_with_label \
+
+    other_private = all_sources_with_label \
         .exclude(pk__in=users_sources) \
-        .exclude(pk__in=other_public_sources) \
+        .exclude(pk__in=other_public) \
         .order_by('name')
+    # Exclude test sources.
+    other_private = filter_out_test_sources(other_private)
+    # Exclude small sources.
+    other_private = other_private.annotate(image_count=Count('image'))
+    other_private = other_private.exclude(image_count__lt=100)
 
     # Stats
     source_count = all_sources_with_label.count()
@@ -357,8 +366,8 @@ def label_main(request, label_id):
         'label': label,
         'can_edit_label': is_label_editable_by_user(label, request.user),
         'users_sources': users_sources,
-        'other_public_sources': other_public_sources,
-        'other_private_sources': other_private_sources,
+        'other_public_sources': other_public,
+        'other_private_sources': other_private,
         'source_count': source_count,
         'annotation_count': annotation_count,
     })

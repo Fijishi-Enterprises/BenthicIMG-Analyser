@@ -5,6 +5,7 @@ import random
 
 from django.conf import settings
 from django.core.urlresolvers import reverse
+from django.db.models import Count
 
 from accounts.utils import get_robot_user, get_alleviate_user
 from annotations.model_utils import AnnotationAreaUtils
@@ -377,36 +378,32 @@ def source_robot_status(source_id):
     return status
 
 
+def filter_out_test_sources(source_queryset):
+    return source_queryset.exclude(
+        name__icontains=['test', 'sandbox', 'dummy', 'tmp', 'temp', 'check'])
+
+
 def get_map_sources():
     # Get all sources that have both latitude and longitude specified.
     # (In other words, leave out the sources that have either of them blank.)
-    map_sources_queryset = \
-        Source.objects.exclude(latitude='').exclude(longitude='')
+    map_sources_qs = Source.objects.exclude(latitude='').exclude(longitude='')
+    # Skip test sources.
+    map_sources_qs = filter_out_test_sources(map_sources_qs)
+    # Skip small sources.
+    map_sources_qs = map_sources_qs.annotate(image_count=Count('image'))
+    map_sources_qs = map_sources_qs.exclude(image_count__lt=100)
 
     map_sources = []
 
-    for source in map_sources_queryset:
-
-        num_of_images = Image.objects.filter(source=source).count()
-
-        # Skip small sources
-        if num_of_images < 100:
-            continue
-        # Skip test sources
-        possible_test_sources_substrings = [
-            'test', 'sandbox', 'dummy', 'tmp', 'temp', 'check']
-        for str_ in possible_test_sources_substrings:
-            if str_ in source.name.lower():
-                continue
-
+    for source in map_sources_qs:
         if source.is_public():
             source_type = 'public'
         else:
             source_type = 'private'
 
-        if num_of_images < 500:
+        if source.image_count < 500:
             size = 1
-        elif num_of_images < 1500:
+        elif source.image_count < 1500:
             size = 2
         else:
             size = 3

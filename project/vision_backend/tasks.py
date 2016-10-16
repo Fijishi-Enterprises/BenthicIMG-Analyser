@@ -20,15 +20,15 @@ from lib.utils import direct_s3_read, direct_s3_write
 from accounts.utils import get_robot_user
 
 from django.conf import settings
+from django.utils.timezone import now
 
 import time
 
 logger = logging.getLogger(__name__)
 
-
 """
 Dummy tasks for debugging
-"""
+
 
 @task(name="one hello")
 def one_hello_world():
@@ -42,7 +42,7 @@ def hello_world():
 def hello_world():
     print "There are {} images in the DB".format(Image.objects.filter().count())
 
-"""
+
 End dummy tasks for debugging
 """
 
@@ -61,9 +61,10 @@ def submit_features(image_id, force = False):
     except:
         logger.info("Image {} does not exist.".format(image_id))
         return
+    logstr = "Image {} [Source: {} [{}]]".format(image_id, img.source, img.source_id)
 
     if img.features.extracted and not force:
-        logger.info("Image {} already has features".format(image_id))
+        logger.info("{} already has features".format(logstr))
         return
 
     # Assemble row column information
@@ -91,8 +92,8 @@ def submit_features(image_id, force = False):
     # Submit.
     th._submit_job(messagebody)
 
-    logger.info("Submitted feature extraction for image {} [source: {}]".format(image_id, img.source_id))
-    logger.debug("Submitted feature extraction for image {} [source: {}]. Message: {}".format(image_id, img.source_id, messagebody))
+    logger.info("Submitted feature extraction for {}".format(logstr))
+    logger.debug("Submitted feature extraction for {}. Message: {}".format(logstr, messagebody))
 
 
 @task(name = "submit_classifier")
@@ -196,6 +197,9 @@ def classify_image(image_id):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         scores = classifier_model.predict_proba(feats)
+        # replace nans with equal probabilities for all classes.
+        scores[np.isnan(scores)] = 1.0 / len(classifier_model.classes_)
+        
 
     # Pre-fetch label objects
     label_objs = []
@@ -212,8 +216,7 @@ def classify_image(image_id):
     img.features.classified = True
     img.features.save()
 
-    logger.info("Classified image {} [source {}] with classifier {}".format(img.id, img.source_id, classifier.id))
-
+    logger.info("Classified Image {} [Source: {} [{}]] with classifier {}".format(img.id, img.source, img.source_id, classifier.id))
 
 @periodic_task(run_every=timedelta(seconds = 60), name='Collect all jobs', ignore_result=True)
 def collect_all_jobs():
@@ -251,14 +254,14 @@ def collectjob():
     if task == 'extract_features':
         if th._featurecollector(messagebody): 
             # If job was entered into DB, submit a classify job.
-            classify_image.delay(pk)
-            submit_classifier.delay(Image.objects.get(id = pk).source_id)
+            classify_image.apply_async(args = [pk], eta = now() + timedelta(seconds = 10))
+            submit_classifier.apply_async(args = [Image.objects.get(id = pk).source_id], eta = now() + timedelta(seconds = 10))
     elif task == 'train_classifier':
         if th._classifiercollector(messagebody):
             # If job was entered into DB, submit a classify job for all images in source.
             classifier = Classifier.objects.get(pk = pk)
             for image in Image.objects.filter(source = classifier.source):
-                classify_image.delay(image.id)
+                classify_image.apply_async(args = [image.id], eta = now() + timedelta(seconds = 10))
         else:
             logger.debug("Error occured when collecting classifier")
 
@@ -270,6 +273,7 @@ def collectjob():
     return 1
 
 
+@task(name = "reset_source")
 def reset_after_labelset_change(source_id):
     """
     The removes ALL TRACES of the vision backend for this source, including:
@@ -285,8 +289,9 @@ def reset_after_labelset_change(source_id):
         image.features.save()
 
     # Finally, let's train a new classifier.
-    submit_classifier.delay(source_id)
+    submit_classifier.apply_async(args = [source_id], eta = now() + timedelta(seconds = 10))
 
+@task(name = "reset_features")
 def reset_features(image_id):
     """
     Resets features for image. Call this after any change that affects the image 
@@ -303,7 +308,7 @@ def reset_features(image_id):
     features.save()
 
     # Re-submit feature extraction.
-    submit_features.delay(image_id)
+    submit_features.apply_async(args = [img.id], eta = now() + timedelta(seconds = 10))
 
 
 

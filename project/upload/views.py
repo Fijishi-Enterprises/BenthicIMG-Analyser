@@ -1,9 +1,11 @@
 import json
+from datetime import timedelta
 
 from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, render
+from django.utils.timezone import now
 
 from accounts.utils import get_imported_user
 from annotations.model_utils import AnnotationAreaUtils
@@ -152,7 +154,7 @@ def upload_images_ajax(request, source_id):
         currentUser=request.user,
     )
 
-    backend_tasks.submit_features.delay(img.id)
+    backend_tasks.submit_features.apply_async(args = [img.id], eta = now() + timedelta(seconds = 10))
 
     return JsonResponse(dict(
         success=True,
@@ -406,7 +408,7 @@ def upload_annotations_ajax(request, source_id):
         # Update relevant image status fields.
         img.confirmed = (len(new_points) == len(new_annotations))
         img.save()
-        backend_tasks.reset_features(image_id)
+        backend_tasks.reset_features.apply_async(args = [img.id], eta = now() + timedelta(seconds = 10))
 
     return JsonResponse(dict(
         success=True,

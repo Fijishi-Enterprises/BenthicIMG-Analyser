@@ -518,7 +518,7 @@ def image_detail(request, image_id):
 
         elif(request.POST.get('regenerate_point_locations', None)):
             utils.generate_points(image, usesourcemethod=False)
-            backend_tasks.reset_features(image_id)
+            backend_tasks.reset_features.apply_async(args = [image_id], eta = now() + timedelta(seconds = 10))
             messages.success(request, 'Successfully regenerated point locations.')
             return HttpResponseRedirect(reverse('image_detail', args=[image_id]))
     
@@ -526,7 +526,7 @@ def image_detail(request, image_id):
             image.point_generation_method = image.source.default_point_generation_method
             image.save()
             utils.generate_points(image, usesourcemethod=False)
-            backend_tasks.reset_features(image_id)
+            backend_tasks.reset_features.apply_async(args = [image_id], eta = now() + timedelta(seconds = 10))
             messages.success(request, 'Reset image point generation method to source default.')
             return HttpResponseRedirect(reverse('image_detail', args=[image_id]))
 
@@ -534,7 +534,7 @@ def image_detail(request, image_id):
             image.metadata.annotation_area = image.source.image_annotation_area
             image.metadata.save()
             utils.generate_points(image, usesourcemethod=False)
-            backend_tasks.reset_features(image_id)
+            backend_tasks.reset_features.apply_async(args = [image_id], eta = now() + timedelta(seconds = 10))
             messages.success(request, 'Reset annotation area to source default.')
             return HttpResponseRedirect(reverse('image_detail', args=[image_id]))
 

@@ -51,7 +51,7 @@ def annotation_area_edit(request, image_id):
 
             if metadata.annotation_area != old_annotation_area:
                 generate_points(image, usesourcemethod=False)
-                backend_tasks.reset_features(image_id)
+                backend_tasks.reset_features.apply_async(args = [image_id], eta = now() + timedelta(seconds = 10))
 
             messages.success(request, 'Annotation area successfully edited.')
             return HttpResponseRedirect(reverse('image_detail', args=[image.id]))
@@ -314,7 +314,7 @@ def save_annotations_ajax(request, image_id):
     # Finally, with a new image confirmed, let's try to train a new robot.
     # It will simply exit if there is not enough new images or if one is 
     # already being trained.
-    backend_tasks.submit_classifier.delay(source.id)
+    backend_tasks.submit_classifier.apply_async(args = [source.id], eta = now() + timedelta(seconds = 10))
 
     return JsonResponse(dict(all_done=all_done))
 

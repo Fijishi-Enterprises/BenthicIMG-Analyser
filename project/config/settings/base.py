@@ -338,12 +338,7 @@ LOGGING = {
     },
     'loggers': {
         'vision_backend': {
-            'handlers': ['backend'],
-            'level': 'INFO',
-            'propagate': True,
-        },
-        'vision_backend': {
-            'handlers': ['backend_debug'],
+            'handlers': ['backend', 'backend_debug'],
             'level': 'DEBUG',
             'propagate': True,
         }

@@ -13,8 +13,30 @@ DEBUG = True
 # The obvious drawback is that different databases have different behavior,
 # and could have different test results. It's happened before.
 # So, comment this out to run in PostgreSQL every so often.
-DATABASES['default']['ENGINE'] = 'django.db.backends.sqlite3'
-DATABASES['default']['NAME'] = 'coralnet_sqlite_database'
+# DATABASES['default']['ENGINE'] = 'django.db.backends.sqlite3'
+# DATABASES['default']['NAME'] = 'coralnet_sqlite_database'
+
+DATABASES = {
+    'default': {
+        # 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
+        'ENGINE': 'django.db.backends.postgresql',
+        # Or path to database file if using sqlite3.
+        'NAME': 'coralnet',
+        # Not used with sqlite3.
+        'USER': 'django',
+        # Not used with sqlite3.
+        'PASSWORD': '',
+        # Set to empty string for localhost. Not used with sqlite3.
+        'HOST': '',
+        # Set to empty string for default. Not used with sqlite3.
+        'PORT': '',
+        # If True, wraps each request (view function) in a transaction by
+        # default. Individual view functions can override this behavior with
+        # the non_atomic_requests decorator.
+        'ATOMIC_REQUESTS': True,
+    }
+}
+
 
 AWS_ACCESS_KEY_ID = get_secret('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = get_secret('AWS_SECRET_ACCESS_KEY')

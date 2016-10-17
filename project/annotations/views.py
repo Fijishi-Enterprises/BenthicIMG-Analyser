@@ -1,9 +1,14 @@
 import json
+
+from datetime import timedelta
+
 from django.contrib import messages
 from django.core.urlresolvers import reverse
 from django.db import transaction
 from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import render, get_object_or_404
+from django.utils.timezone import now
+
 from easy_thumbnails.files import get_thumbnailer
 from reversion.models import Version, Revision
 

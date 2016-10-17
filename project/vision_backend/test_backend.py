@@ -118,7 +118,7 @@ class BackendTestWithClassifier(BackendTest):
         # Make sure classifier is trained.                
         cls.wait_for_classifier_trained(cls.source, 1)
 
-
+@skip
 @skipIf(not settings.DEFAULT_FILE_STORAGE == 'lib.storage_backends.MediaStorageS3', "Can't run backend tests locally")
 @skipIf(get_total_messages_in_jobs_queue() > 10, "Too many messages in backend queue. Skipping this test.")
 class RaiseErrorTest(BackendTest):
@@ -288,6 +288,11 @@ class ResetLabelSetTest(BackendTestWithClassifier):
 @skipIf(not settings.DEFAULT_FILE_STORAGE == 'lib.storage_backends.MediaStorageS3', "Can't run backend tests locally")
 @skipIf(get_total_messages_in_jobs_queue() > 10, "Too many messages in backend queue. Skipping this test.")
 class ImageClassification(BackendTestWithClassifier):
+    """
+    Tests various aspects of classifying images. 
+    NOTE: some of these tests tend to fail irradically due to race conditions.
+    My assessment is that it is specific to the tests, not the actual server.
+    """
 
     @classmethod
     def setUpTestData(cls):

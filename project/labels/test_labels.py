@@ -728,9 +728,7 @@ class EditLabelTest(LabelTest):
         self.assertEqual(self.labels['A'].description, "Another\ndescription")
 
     def test_thumbnail_change(self):
-        # Get original thumbnail file's time
-        storage = get_storage_class()()
-        original_time = storage.modified_time(self.labels['A'].thumbnail.path)
+        original_filename = self.labels['A'].thumbnail.name
 
         self.client.force_login(self.user)
         self.client.post(self.url, follow=True, data=dict(
@@ -741,10 +739,12 @@ class EditLabelTest(LabelTest):
             thumbnail=sample_image_as_file('_.png'),
         ))
 
-        # Check for a different thumbnail file by checking the modified time
+        # Check for a different thumbnail file, by checking filename.
+        # This assumes the filenames are designed to not clash
+        # (e.g. qoxibnwke9.jpg) rather than replace each other
+        # (e.g. thumbnail-for-label-29.jpg).
         self.labels['A'].refresh_from_db()
-        new_time = storage.modified_time(self.labels['A'].thumbnail.path)
-        self.assertNotEqual(original_time, new_time)
+        self.assertNotEqual(original_filename, self.labels['A'].thumbnail.name)
 
     def test_verified_change(self):
         self.client.force_login(self.user_committee_member)

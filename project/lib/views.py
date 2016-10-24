@@ -6,12 +6,14 @@ from django.core.mail.message import BadHeaderError
 from django.core.urlresolvers import reverse
 from django.http import HttpResponseRedirect, HttpResponseServerError
 from django.shortcuts import render, get_object_or_404
-from django.template import loader, TemplateDoesNotExist, Context
+from django.template import loader, TemplateDoesNotExist
 
-from images.models import Image, Source, Point
+from annotations.models import Annotation
+from images.models import Image, Source
 from images.utils import get_map_sources, get_random_public_images
 from lib.forms import ContactForm
 from lib import msg_consts, str_consts
+
 
 def contact(request):
     """
@@ -84,10 +86,7 @@ def index(request):
     # Gather some stats
     total_sources = Source.objects.all().count()
     total_images = Image.objects.all().count()
-    human_annotations = Point.objects.filter(image__confirmed=True).count()
-    robot_annotations = Point.objects.filter(
-        image__features__classified=True).count()
-    total_annotations = human_annotations + robot_annotations
+    total_annotations = Annotation.objects.all().count()
 
     return render(request, 'lib/index.html', {
         'google_maps_api_key': settings.GOOGLE_MAPS_API_KEY,
@@ -95,8 +94,6 @@ def index(request):
         'total_sources': total_sources,
         'total_images': total_images,
         'total_annotations': total_annotations,
-        'human_annotations': human_annotations,
-        'robot_annotations': robot_annotations,
         'images': images,
     })
 

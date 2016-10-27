@@ -156,6 +156,8 @@ class ClientTest(BaseTest):
         management.call_command('createsuperuser',
             '--noinput', username='superuser',
             email='superuser@example.com', verbosity=0)
+        User = get_user_model()
+        cls.superuser = User.objects.get(username='superuser')
 
     def setUp(self):
         BaseTest.setUp(self)
@@ -290,7 +292,7 @@ class ClientTest(BaseTest):
         # (1) urlencode() unfortunately escapes the '/' in its arguments, and
         # (2) str concatenation should be safe when there's no possibility of
         # malicious input.
-        url_signin_with_protected_page_next = reverse('signin') + '?next=' + protected_url
+        url_signin_with_protected_page_next = reverse(settings.LOGIN_URL) + '?next=' + protected_url
         self.assertRedirects(response, url_signin_with_protected_page_next)
 
         response = self.client.post(url_signin_with_protected_page_next, dict(
@@ -369,24 +371,26 @@ class ClientTest(BaseTest):
 
     user_count = 0
     @classmethod
-    def create_user(cls, username=None):
+    def create_user(cls, username=None, password='SamplePassword', email=None):
         """
         Create a user.
-        :param username: New user's username. "user<number>" if not given.
+        :param username: New user's username. 'user<number>' if not given.
+        :param password: New user's password.
+        :param email: New user's email. '<username>@example.com' if not given.
         :return: The new user.
         """
         cls.user_count += 1
         if not username:
             username = 'user{n}'.format(n=cls.user_count)
+        if not email:
+            email = '{username}@example.com'.format(username=username)
 
-        User = get_user_model()
-        post_dict = dict(
+        cls.client.post(reverse('registration_register'), dict(
             username=username,
-            email='{username}@example.com'.format(username=username),
-        )
-        cls.client.force_login(User.objects.get(username='superuser'))
-        cls.client.post(reverse('signup'), post_dict)
-        cls.client.logout()
+            email=email,
+            password1=password,
+            password2=password,
+        ))
 
         activation_email = mail.outbox[-1]
         activation_link = None
@@ -396,6 +400,7 @@ class ClientTest(BaseTest):
                 break
         cls.client.get(activation_link)
 
+        User = get_user_model()
         return User.objects.get(username=username)
 
     source_count = 0

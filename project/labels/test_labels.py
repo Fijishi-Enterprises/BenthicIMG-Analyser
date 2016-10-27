@@ -1,6 +1,6 @@
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
-from django.core.files.storage import get_storage_class
 from django.core.urlresolvers import reverse
 
 from images.model_utils import PointGen
@@ -350,11 +350,11 @@ class NewLabelAjaxTest(ClientTest):
         cls.url = reverse('label_new_ajax')
 
     def test_load_page_anonymous(self):
-        """Redirect to signin page."""
+        """Redirect to sign-in page."""
         response = self.client.get(self.url)
         self.assertRedirects(
             response,
-            reverse('signin') + '?next=' + self.url,
+            reverse(settings.LOGIN_URL) + '?next=' + self.url,
         )
 
     def test_label_creation(self):
@@ -445,11 +445,11 @@ class NewLabelNonAjaxTest(ClientTest):
         cls.url = reverse('label_new')
 
     def test_load_page_anonymous(self):
-        """Redirect to signin page."""
+        """Redirect to sign-in page."""
         response = self.client.get(self.url)
         self.assertRedirects(
             response,
-            reverse('signin') + '?next=' + self.url,
+            reverse(settings.LOGIN_URL) + '?next=' + self.url,
         )
 
     def test_label_creation(self):

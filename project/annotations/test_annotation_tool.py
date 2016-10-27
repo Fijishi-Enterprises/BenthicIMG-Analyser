@@ -117,9 +117,9 @@ class PermissionTest(ClientTest):
         """
         url = reverse('annotation_tool_settings_save')
         response = self.client.post(url, dict()).json()
-        # Response should include an error that contains the words "logged in"
+        # Response should include an error that contains the words "signed in"
         self.assertTrue(
-            'error' in response and "logged in" in response['error'])
+            'error' in response and "signed in" in response['error'])
 
 
 class LoadImageTest(ClientTest):

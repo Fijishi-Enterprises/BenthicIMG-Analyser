@@ -1,9 +1,7 @@
 from django.conf import settings
-from django.contrib.auth.models import User
-from django.core.mail import send_mail
-from django.template.loader import render_to_string
-from userena import settings as userena_settings
-from userena.utils import get_protocol
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 def get_imported_user():
     return User.objects.get(username=settings.IMPORTED_USERNAME)
@@ -18,30 +16,3 @@ def is_robot_user(user):
     return user.username == settings.ROBOT_USERNAME
 def is_alleviate_user(user):
     return user.username == settings.ALLEVIATE_USERNAME
-
-def send_activation_email_with_password(request_host, userena_signup_obj, password):
-    """
-    Sends a activation email to the user, along with an
-    automatically generated password that they need to log in.
-
-    This function only exists because userena/models.py's
-    UserenaSignup.send_activation_email() doesn't have a way to
-    add custom context.
-    """
-    context= {'user': userena_signup_obj.user,
-              'protocol': get_protocol(),
-              'activation_days': userena_settings.USERENA_ACTIVATION_DAYS,
-              'activation_key': userena_signup_obj.activation_key,
-              'request_host': request_host,
-              'password': password}
-
-    subject = render_to_string('userena/emails/activation_email_subject.txt',
-        context)
-    subject = ''.join(subject.splitlines())
-
-    message = render_to_string('userena/emails/activation_email_message.txt',
-        context)
-    send_mail(subject,
-        message,
-        settings.DEFAULT_FROM_EMAIL,
-        [userena_signup_obj.user.email,])

@@ -90,12 +90,6 @@ With your virtualenv activated, run ``pip install -r requirements/<name>.txt``.
 
 A few package/OS combinations may need additional steps:
 
-- ``scipy`` on Windows
-
-  - Installing SciPy with the requirements file will fail for two reasons. First, NumPy needs to be installed as NumPy+MKL, and the binary for that isn't on PyPI. Second, even after getting the NumPy install right, installing SciPy with pip fails for some reason (the first problem is ``libraries openblas not found in [ ... ] NOT AVAILABLE``).
-
-  - What to do: First install NumPy+MKL and then SciPy manually using the .whl files here: http://www.lfd.uci.edu/~gohlke/pythonlibs/ Then run the requirements file to install the rest of the packages.
-
 - ``psycopg2`` on Linux
 
   - If you get ``Error: pg_config executable not found``, you may have to install a Linux package first: ``postgresql95-devel`` on Red Hat/CentOS, ``libpq-dev`` on Debian/Ubuntu, ``libpq-devel`` on Cygwin/Babun. (`Source <http://stackoverflow.com/questions/11618898/pg-config-executable-not-found>`__)
@@ -113,6 +107,16 @@ A few package/OS combinations may need additional steps:
     - PNG related errors are also possible. In Ubuntu, this is ``zlib1g-dev``.
 
   - There are also other packages that support optional functionality in Pillow. See the `Pillow docs <https://pillow.readthedocs.io/en/latest/installation.html>`__.
+
+- ``scipy`` on Windows
+
+  - Installing SciPy with the requirements file will fail for two reasons. First, NumPy needs to be installed as NumPy+MKL, and the binary for that isn't on PyPI. Second, even after getting the NumPy install right, installing SciPy with pip fails for some reason (the first problem is ``libraries openblas not found in [ ... ] NOT AVAILABLE``).
+
+  - What to do: First install NumPy+MKL and then SciPy manually using the .whl files here: http://www.lfd.uci.edu/~gohlke/pythonlibs/ Be sure to pick the appropriate .whl depending on whether your Python is 32 or 64 bit. To install a .whl, run ``pip install <path to .whl>``. Then run the requirements file to install the rest of the packages.
+
+- ``Twisted`` on Windows
+
+  - Similarly to SciPy, this should be installed manually using the .whl files at the aforementioned link.
 
 
 Django settings module
@@ -204,6 +208,17 @@ Try running the server (dev only)
 Run ``python manage.py runserver``. Navigate to your localhost web server, e.g. ``http://127.0.0.1:8000/``, in your browser.
 
 If you created a superuser, log in as that superuser. Try creating a source, uploading images, making annotations, and generally checking various pages. Try checking out the admin interface at ``http://127.0.0.1:8000/admin/``.
+
+
+Try the fake email server (dev only)
+------------------------------------
+Run this in a separate terminal tab or console window, with your virtualenv activated: ``fakeemail <SMTP port> <web interface port> 0.0.0.0``
+
+An example ``<SMTP port>`` is 2025; the standard SMTP port, 25, would probably require running as root/admin. An example ``<web interface port>`` would be 8080 if you're already running the Django site at 8000.
+
+Set your ``EMAIL_PORT`` Django setting to ``<SMTP port>``. Then run the Django server and try sending an email through the site, such as by registering a user account (this sends an activation email). Note that this fake email server does not actually route out any emails, so the destination email address doesn't even have to exist. After "sending", you should see this in the ``fakeemail`` terminal output: ``Message stored for: <destination email address>``.
+
+Navigate to your localhost web server at ``<web interface port>``, e.g. ``http://127.0.0.1:8080/``, in your browser. You should be able to see the content and details of the sent email there.
 
 
 Sphinx docs (dev only)

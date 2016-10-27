@@ -221,10 +221,6 @@
           <span>Contact Us</span>
         </a></li>
 
-        <li><a href="{% url 'userena_signup' %}">
-          <span>Add User</span>
-        </a></li>
-
         <li><a href="{% url 'emailall' %}">
           <span>Email All</span>
         </a></li>
@@ -245,11 +241,12 @@
           <span>Source Invites</span>
         </a></li>
 
-        <li><a href="{% url 'userena_profile_detail' user.username %}">
-          <span>Manage Account</span>
-        </a></li>
+{# TODO: Re-implement #}
+{#        <li><a href="{% url 'userena_profile_detail' user.username %}">#}
+{#          <span>Manage Account</span>#}
+{#        </a></li>#}
 
-        <li><a href="{% url 'userena_signout' %}">
+        <li><a href="{% url 'auth_logout' %}">
           <span>Sign out</span>
         </a></li>
 

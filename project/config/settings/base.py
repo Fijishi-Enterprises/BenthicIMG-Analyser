@@ -91,15 +91,33 @@ DATABASES = {
 # When several applications provide different versions of the same resource
 # (template, static file, management command, translation), the application
 # listed first in INSTALLED_APPS has precedence.
+# We do have cases where we want to override default templates with our own
+# (e.g. auth and registration pages), so we'll put our apps first.
 #
 # If an app has an application configuration class, specify the dotted path
 # to that class here, rather than just specifying the app package.
 INSTALLED_APPS = [
-    # Uncomment the next line to enable the admin:
+    'accounts',
+    'annotations',
+    'bug_reporting',
+    'errorlogs.apps.ErrorlogsConfig',
+    'export',
+    'images',
+    'labels',
+    'lib',
+    'requests',
+    'upload',
+    'visualization',
+    'vision_backend',
+
+    # Admin site (<domain>/admin)
     'django.contrib.admin',
-    # Uncomment the next line to enable admin documentation:
+    # Admin documentation
     'django.contrib.admindocs',
+    # User authentication framework
+    # https://docs.djangoproject.com/en/dev/topics/auth/
     'django.contrib.auth',
+    # Allows permissions to be associated with models you create
     'django.contrib.contenttypes',
     'django.contrib.messages',
     'django.contrib.sessions',
@@ -113,19 +131,6 @@ INSTALLED_APPS = [
     'storages',
     'userena',
     'userena.contrib.umessages',
-
-    'accounts',
-    'annotations',
-    'bug_reporting',
-    'errorlogs.apps.ErrorlogsConfig',
-    'export',
-    'images',
-    'labels',
-    'lib',
-    'requests',
-    'upload',
-    'visualization',
-    'vision_backend',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -192,8 +197,6 @@ MIDDLEWARE_CLASSES = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
 
-    # django-userena
-    'userena.middleware.UserenaLocaleMiddleware',
     # django-reversion
     'reversion.middleware.RevisionMiddleware',
 ]
@@ -201,13 +204,13 @@ MIDDLEWARE_CLASSES = [
 AUTHENTICATION_BACKENDS = [
     'userena.backends.UserenaAuthenticationBackend',
     'guardian.backends.ObjectPermissionBackend',
-    # This one is in Django's default setting
+    # Django's default backend
     'django.contrib.auth.backends.ModelBackend',
 ]
 
-LOGIN_URL = '/accounts/signin/'
-LOGOUT_URL = '/accounts/signout/'
-LOGIN_REDIRECT_URL = '/images/source/'
+LOGIN_URL = 'auth_login'
+LOGOUT_URL = 'auth_logout'
+LOGIN_REDIRECT_URL = 'source_list'
 
 # Custom setting.
 MINIMUM_PASSWORD_LENGTH = 10
@@ -262,6 +265,16 @@ AUTH_PROFILE_MODULE = 'accounts.Profile'
 USERENA_SIGNIN_REDIRECT_URL = LOGIN_REDIRECT_URL
 USERENA_USE_MESSAGES = False
 USERENA_LANGUAGE_FIELD = 'en'
+
+
+
+# django-registration settings
+
+# The number of days users will have to activate their accounts after
+# registering. If a user does not activate within that period,
+# the account will remain permanently inactive
+# unless a site administrator manually activates it.
+ACCOUNT_ACTIVATION_DAYS = 7
 
 
 

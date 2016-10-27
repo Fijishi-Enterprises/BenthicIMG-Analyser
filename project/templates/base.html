@@ -80,13 +80,13 @@
               {% endwith %}
               {% if user.is_superuser %}
 	        <li><a href="{% url 'emailall' %}"><span>{% trans 'Email All' %}</span></a></li>
-                <li><a href="{% url 'userena_signup' %}"><span>{% trans 'Add User' %}</span></a></li>
               {% endif %}
-              <li><a href="{% url 'userena_profile_detail' user.username %}"><span>{% trans 'Account' %} ({{ user.username }})</span></a></li>
-              <li><a href="{% url 'userena_signout' %}"><span>{% trans 'Signout' %}</span></a></li>
+              {# TODO: Re-implement #}
+{#              <li><a href="{% url 'userena_profile_detail' user.username %}"><span>{% trans 'Account' %} ({{ user.username }})</span></a></li>#}
+              <li><a href="{% url 'auth_logout' %}"><span>Sign out</span></a></li>
             {% else %}
-              <li><a href="{% url 'userena_signin' %}"><span>{% trans 'Signin' %}</span></a></li>
-              <li><a href="{% url 'request_account' %}"><span>{% trans 'Signup' %}</span></a></li>
+              <li><a href="{% url 'auth_login' %}"><span>Sign in</span></a></li>
+              <li><a href="{% url 'registration_register' %}"><span>Register</span></a></li>
             {% endif %}
           </ul>
         </div>

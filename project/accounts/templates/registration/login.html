@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block title %}Sign in - CoralNet{% endblock %}
+
+{% block content %}
+
+<form action="" method="post">
+  {% csrf_token %}
+
+  <legend>Sign in</legend>
+
+  {{ form.non_field_errors }}
+  {% for field in form %}
+    {# TODO: Ensure this exists - call it "Keep me signed in for 30 days" #}
+    {% if field.name == 'remember_me' %}
+      {% include "form_generic_one_field.html" with field=field checkbox="yes" %}
+    {% else %}
+      {% include "form_generic_one_field.html" with field=field %}
+    {% endif %}
+  {% endfor %}
+
+  <div class="submit_button_wrapper_column_form">
+    <input type="submit" value="Sign in" />
+  </div>
+
+  <div class="line">
+    <a href="{% url 'auth_password_reset' %}">Forgot your password?</a>
+  </div>
+</form>
+
+{% endblock %}

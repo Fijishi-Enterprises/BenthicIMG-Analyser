@@ -138,9 +138,9 @@ source_permission_required = ModelViewDecorator(
 def login_required_ajax(view_func):
     def wrapper_func(request, *args, **kwargs):
         if not request.user.is_authenticated():
-            # If not logged in, return error response
+            # If not signed in, return error response
             return JsonResponse(
-                dict(error="You must be logged in to access this function."))
+                dict(error="You must be signed in to access this function."))
         else:
             # Else, same behavior as calling the view directly
             return view_func(request, *args, **kwargs)

@@ -20,6 +20,10 @@ easy-thumbnails==2.3
 # Requires easy-thumbnails, django-guardian, html2text
 django-userena==2.0.1
 
+# Add email activation to user registration process;
+# unlike in userena, this is implemented without additional models
+django-registration==2.1.2
+
 # Versioning of database objects
 # Has a fine-grained Django compatibility table; 1.10.1 is for Django 1.7+
 # Requires django

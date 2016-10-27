@@ -1,4 +1,5 @@
 from django import forms
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
 from django.utils import timezone
@@ -174,7 +175,7 @@ class SourceNewTest(ClientTest):
         response = self.client.get(reverse('source_new'))
         self.assertRedirects(
             response,
-            reverse('signin')+'?next='+reverse('source_new'),
+            reverse(settings.LOGIN_URL)+'?next='+reverse('source_new'),
         )
 
     def test_access_page(self):

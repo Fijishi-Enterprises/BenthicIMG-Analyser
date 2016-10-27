@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block title %}Register a new account - CoralNet{% endblock %}
+
+{% block content %}
+
+<form action="" method="post">
+  {% csrf_token %}
+
+  <legend>Register a new account</legend>
+
+  {{ form.non_field_errors }}
+  {% for field in form %}
+    {# TODO: Ensure this exists #}
+    {% if field.name == 'agree' %}
+      {% include "form_generic_one_field.html" with field=field checkbox="yes" %}
+      Our data policy can be found on the <a href="{% url 'about' %}">About page</a>.
+    {% else %}
+      {% include "form_generic_one_field.html" with field=field %}
+    {% endif %}
+  {% endfor %}
+
+  <div class="submit_button_wrapper_column_form">
+    <input type="submit" value="Register" />
+  </div>
+
+  <div class="line">
+    Problems with registration or activation? You can reach us with our <a href="{% url 'contact' %}">Contact form</a>.
+  </div>
+</form>
+
+{% endblock %}

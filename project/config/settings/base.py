@@ -268,13 +268,18 @@ USERENA_LANGUAGE_FIELD = 'en'
 
 
 
-# django-registration settings
-
+# django-registration setting
 # The number of days users will have to activate their accounts after
 # registering. If a user does not activate within that period,
 # the account will remain permanently inactive
 # unless a site administrator manually activates it.
 ACCOUNT_ACTIVATION_DAYS = 7
+
+# [Custom setting]
+# The number of hours users will have to confirm an email change after
+# requesting one.
+EMAIL_CHANGE_CONFIRMATION_HOURS = 24
+
 
 
 

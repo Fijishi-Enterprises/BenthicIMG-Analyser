@@ -1,0 +1,13 @@
+{% autoescape off %}
+Click this link to confirm usage of this email address for your CoralNet account (username {{ username }}):
+http://{{ site.domain }}{% url 'email_change_confirm' confirmation_key %}
+
+Note that if you're not already signed in to CoralNet, you will have to sign in again to complete the process.
+
+This confirmation link will be valid for {{ expiration_hours }} hours.
+
+If you didn't request an email change at CoralNet, and you don't own a CoralNet account of username {{ username }}, you may safely ignore this email. Someone might have typed in your email address by mistake. If you keep getting these emails without having requested them, we can look into it if you let us know here: http://{{ site.domain }}{% url 'contact' %}
+
+Sincerely,
+The CoralNet team
+{% endautoescape %}

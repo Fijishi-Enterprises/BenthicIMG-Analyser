@@ -1,0 +1,14 @@
+{% autoescape off %}
+Someone - hopefully you - requested an email address change for your CoralNet account (username {{ username }}). The existing email address is this one, and the pending new email address is {{ pending_email_address }}.
+
+If you own the new email address, check that email account for your confirmation link. Use that confirmation link to complete the email address change.
+
+
+If you think you accidentally entered the wrong email address in your email change request, don't worry - the confirmation link requires logging in as {{ username }} in order to work. In addition, the confirmation link expires in {{ expiration_hours }} hours.
+
+On the other hand, if you didn't request an email change at CoralNet, someone else might be trying to get into your account. Don't hesitate to contact us if you need any assistance: http://{{ site.domain }}{% url 'contact' %}
+
+
+Sincerely,
+The CoralNet team
+{% endautoescape %}

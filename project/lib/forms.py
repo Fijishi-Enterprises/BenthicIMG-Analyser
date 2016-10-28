@@ -1,4 +1,5 @@
 from django import forms
+from django.contrib.auth.decorators import login_required
 
 
 class ContactForm(forms.Form):
@@ -28,6 +29,14 @@ class ContactForm(forms.Form):
         super(ContactForm, self).__init__(*args, **kwargs)
         if user.is_authenticated():
             del self.fields['email']
+
+
+# login_required for class-based views.
+# From: https://code.djangoproject.com/ticket/16626
+class LoginRequiredMixin(object):
+    @classmethod
+    def as_view(cls):
+        return login_required(super(LoginRequiredMixin, cls).as_view())
 
 
 def get_one_form_error(form, include_field_name=True):

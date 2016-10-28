@@ -1,4 +1,13 @@
-from django.forms import Form, CharField, Textarea, TextInput
+from django.forms import Form
+from django.forms.fields import CharField, EmailField
+from django.forms.widgets import Textarea, TextInput
+
+
+class EmailChangeForm(Form):
+    email = EmailField(
+        label="New email address",
+        required=True,
+    )
 
 
 class EmailAllForm(Form):

@@ -28,6 +28,10 @@ TIME_ZONE = 'America/Los_Angeles'
 # notifications and other various emails.
 MANAGERS = ADMINS
 
+# Instead of routing emails through a mail server,
+# just print emails to the console.
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
 # Default file storage mechanism that holds media.
 DEFAULT_FILE_STORAGE = 'lib.storage_backends.MediaStorageLocal'
 

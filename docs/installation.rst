@@ -209,16 +209,7 @@ Run ``python manage.py runserver``. Navigate to your localhost web server, e.g. 
 
 If you created a superuser, log in as that superuser. Try creating a source, uploading images, making annotations, and generally checking various pages. Try checking out the admin interface at ``http://127.0.0.1:8000/admin/``.
 
-
-Try the fake email server (dev only)
-------------------------------------
-Run this in a separate terminal tab or console window, with your virtualenv activated: ``fakeemail <SMTP port> <web interface port> 0.0.0.0``
-
-An example ``<SMTP port>`` is 2025; the standard SMTP port, 25, would probably require running as root/admin. An example ``<web interface port>`` would be 8080 if you're already running the Django site at 8000.
-
-Set your ``EMAIL_PORT`` Django setting to ``<SMTP port>``. Then run the Django server and try sending an email through the site, such as by registering a user account (this sends an activation email). Note that this fake email server does not actually route out any emails, so the destination email address doesn't even have to exist. After "sending", you should see this in the ``fakeemail`` terminal output: ``Message stored for: <destination email address>``.
-
-Navigate to your localhost web server at ``<web interface port>``, e.g. ``http://127.0.0.1:8080/``, in your browser. You should be able to see the content and details of the sent email there.
+Try doing something that sends email, such as creating a user or using the "Email All" page. You should see the email in the Django-running console, since development servers use the console email backend.
 
 
 Sphinx docs (dev only)

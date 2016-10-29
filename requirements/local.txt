@@ -5,10 +5,3 @@
 # The version shouldn't really matter here, as it's not part of the running
 # Django project
 Sphinx
-
-# Fake email server: So when Django wants to send an email from a development
-# server, it doesn't error, and the email isn't actually routed out
-Jinja2==2.8
-zope.interface==4.3.2
-Twisted==16.4.1
-fakeemail==0.10.1

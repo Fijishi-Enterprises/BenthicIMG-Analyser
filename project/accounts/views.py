@@ -56,8 +56,13 @@ class EmailChangeView(LoginRequiredMixin, FormView):
     template_name = 'accounts/email_change_form.html'
 
     def form_valid(self, form):
-        self.send_confirmation_email(form.cleaned_data['email'])
-        self.send_notice_email_to_old_address(form.cleaned_data['email'])
+        email = form.cleaned_data['email']
+        if User.objects.filter(email=email).exists():
+            existing_user = User.objects.get(email=email)
+            self.send_already_exists_email(existing_user, email)
+        else:
+            self.send_confirmation_email(email)
+            self.send_notice_email_to_old_address(email)
         return redirect(self.success_url)
 
     def send_confirmation_email(self, pending_email_address):
@@ -113,6 +118,23 @@ class EmailChangeView(LoginRequiredMixin, FormView):
             to=[self.request.user.email],
         )
         confirmation_email.send()
+
+    def send_already_exists_email(self, existing_user, email_address):
+        context = dict(other_username=existing_user.username)
+
+        subject = render_to_string(
+            'accounts/email_change_exists_subject.txt', context)
+        # Force subject to a single line to avoid header-injection issues.
+        subject = ''.join(subject.splitlines())
+        message = render_to_string(
+            'accounts/email_change_exists_email.txt', context)
+
+        already_exists_email = EmailMessage(
+            subject=subject,
+            body=message,
+            to=[email_address],
+        )
+        already_exists_email.send()
 
 
 class EmailChangeConfirmView(LoginRequiredMixin, TemplateView):

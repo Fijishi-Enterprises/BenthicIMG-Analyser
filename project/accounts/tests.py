@@ -170,9 +170,13 @@ class RegisterTest(ClientTest):
                 password2='GBRAustralia',
             ),
             follow=True)
-        # Should say registration is complete.
+        # Should not get an error.
         self.assertTemplateUsed(
             response, 'registration/registration_complete.html')
+
+        # 2 emails should've been sent: 1 for first registration and
+        # 1 for second registration attempt.
+        self.assertEqual(len(mail.outbox), 2)
 
         # Check that no new user exists.
         self.assertFalse(User.objects.filter(username='alice123').exists())
@@ -323,6 +327,26 @@ class EmailChangeTest(ClientTest):
             email='not.an.email.address*AT*example.com'))
         self.assertTemplateUsed(response, 'accounts/email_change_form.html')
         self.assertContains(response, "Enter a valid email address.")
+
+    def test_submit_email_already_exists(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse('email_change'),
+            dict(email=self.user2.email), follow=True)
+        # Should not get an error.
+        self.assertTemplateUsed(response, 'accounts/email_change_done.html')
+
+        # Only 1 email should've been sent, to the new address.
+        self.assertEqual(len(mail.outbox), 1)
+
+        already_exists_email = mail.outbox[-1]
+        # Check that the intended recipient is the only recipient.
+        self.assertEqual(len(already_exists_email.to), 1)
+        self.assertEqual(already_exists_email.to[0], self.user2.email)
+        # Should mention the existing username somewhere in the email.
+        self.assertIn(self.user2.username, already_exists_email.body)
+        # Sanity check that this is the correct email template.
+        self.assertIn("already", already_exists_email.body)
 
     def test_confirm_signed_out(self):
         confirmation_link = self.submit_and_get_confirmation_link()

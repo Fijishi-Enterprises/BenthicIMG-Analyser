@@ -10,10 +10,44 @@ from django.template.loader import render_to_string
 from django.views.generic.base import TemplateView
 from django.views.generic.edit import FormView
 
+from registration.backends.hmac.views \
+    import RegistrationView as BaseRegistrationView
+
 from lib.forms import LoginRequiredMixin
 from .forms import EmailChangeForm, EmailAllForm
 
 User = get_user_model()
+
+
+class RegistrationView(BaseRegistrationView):
+    success_url = 'registration_complete'
+
+    def form_valid(self, form):
+        email = form.cleaned_data['email']
+        if User.objects.filter(email=email).exists():
+            existing_user = User.objects.get(email=email)
+            self.send_already_exists_email(existing_user, email)
+        else:
+            self.register(form)
+
+        return redirect(self.success_url)
+
+    def send_already_exists_email(self, existing_user, email_address):
+        context = dict(username=existing_user.username)
+
+        subject = render_to_string(
+            'registration/registration_email_exists_subject.txt', context)
+        # Force subject to a single line to avoid header-injection issues.
+        subject = ''.join(subject.splitlines())
+        message = render_to_string(
+            'registration/registration_email_exists_email.txt', context)
+
+        already_exists_email = EmailMessage(
+            subject=subject,
+            body=message,
+            to=[email_address],
+        )
+        already_exists_email.send()
 
 
 class EmailChangeView(LoginRequiredMixin, FormView):

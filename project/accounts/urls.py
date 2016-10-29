@@ -4,6 +4,19 @@ from . import views
 
 
 urlpatterns = [
+    # Customizations of django-registration and django.contrib.auth views.
+    # These come before the django-registration URL include, because
+    # in urlpatterns, URLs that come first take precedence.
+    url(r'^register/$',
+        views.RegistrationView.as_view(),
+        name='registration_register'),
+
+    # django-registration URLs.
+    # Includes django.contrib.auth pages (e.g. login, password reset)
+    # and django-registration pages (e.g. account activation).
+    url(r'', include('registration.backends.hmac.urls')),
+
+    # Email-change views.
     url(r'^email/change/$',
         views.EmailChangeView.as_view(),
         name='email_change'),
@@ -21,14 +34,10 @@ urlpatterns = [
         ),
         name='email_change_complete'),
 
+    # Other accounts related views.
     url(r'^emailall/$',
         views.email_all,
         name='emailall'),
-
-    # django-registration URLs.
-    # Includes django.contrib.auth pages (e.g. login, password reset)
-    # and django-registration pages (e.g. account activation).
-    url(r'', include('registration.backends.hmac.urls')),
 
     # TODO: Check if needed for user profile support
     # Include userena urls after our urls, so ours take precedence

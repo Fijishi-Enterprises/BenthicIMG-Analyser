@@ -14,7 +14,7 @@ from registration.backends.hmac.views \
     import RegistrationView as BaseRegistrationView
 
 from lib.forms import LoginRequiredMixin
-from .forms import EmailChangeForm, EmailAllForm
+from .forms import ActivationResendForm, EmailChangeForm, EmailAllForm
 
 User = get_user_model()
 
@@ -48,6 +48,22 @@ class RegistrationView(BaseRegistrationView):
             to=[email_address],
         )
         already_exists_email.send()
+
+
+class ActivationResendView(RegistrationView):
+    form_class = ActivationResendForm
+    success_url = 'activation_resend_complete'
+    template_name = 'registration/activation_resend_form.html'
+
+    def form_valid(self, form):
+        email = form.cleaned_data['email']
+        if User.objects.filter(email=email).exists():
+            user = User.objects.get(email=email)
+            self.send_activation_email(user)
+        # TODO: Send a different email if the email address doesn't have
+        # a corresponding user.
+        # This shouldn't be common, so it's not urgent, but would be nice.
+        return redirect(self.success_url)
 
 
 class EmailChangeView(LoginRequiredMixin, FormView):

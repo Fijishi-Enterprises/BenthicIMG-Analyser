@@ -3,6 +3,6 @@
 from .local import *
 # from .staging import *
 
-# Easier to run fakeemail here than on the default SMTP port of 25
-# (which would require root privileges)
-EMAIL_PORT = 2025
+# Instead of routing emails through a mail server,
+# just print emails to the console
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'

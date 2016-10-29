@@ -3,6 +3,13 @@ from django.forms.fields import CharField, EmailField
 from django.forms.widgets import Textarea, TextInput
 
 
+class ActivationResendForm(Form):
+    email = EmailField(
+        label="Email address",
+        required=True,
+    )
+
+
 class EmailChangeForm(Form):
     email = EmailField(
         label="New email address",

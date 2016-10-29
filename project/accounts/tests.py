@@ -47,13 +47,32 @@ class SignInTest(ClientTest):
         self.assertEqual(
             int(self.client.session['_auth_user_id']), self.user.pk)
 
+    def test_sign_in_fail_if_user_inactive(self):
+        # Register but don't activate.
+        self.client.post(reverse('registration_register'), dict(
+            username='alice',
+            email='alice123@example.com',
+            password1='GreatBarrier',
+            password2='GreatBarrier',
+        ))
+
+        # Attempt to sign in as the new user.
+        response = self.client.post(reverse('auth_login'), dict(
+            username='alice',
+            password='GreatBarrier',
+        ))
+        # Should not work (we should still be at the login page with an error).
+        self.assertTemplateUsed(response, 'registration/login.html')
+        self.assertContains(response, "This account is inactive.")
+
+    # TODO: Add more form error cases.
+
     # TODO: Add tests for getting redirected to the expected page
     # (about sources, source list, or whatever was in the 'next' URL
     # parameter).
-    # TODO: Add tests that submit the sign-in form with errors.
 
 
-class RegisterTest(ClientTest):
+class BaseRegisterTest(ClientTest):
 
     default_post = dict(
         username='alice',
@@ -65,9 +84,28 @@ class RegisterTest(ClientTest):
     @classmethod
     def setUpTestData(cls):
         # Call the parent's setup (while still using this class as cls)
-        super(RegisterTest, cls).setUpTestData()
+        super(BaseRegisterTest, cls).setUpTestData()
 
         cls.user = cls.create_user()
+
+    def register_and_get_activation_link(self):
+        """Shortcut function for tests focusing on the activation step."""
+        self.client.post(reverse('registration_register'), self.default_post)
+
+        activation_email = mail.outbox[-1]
+        # Activation link: should be the first link (first "word" with '://')
+        # in the activation email.
+        activation_link = None
+        for word in activation_email.body.split():
+            if '://' in word:
+                activation_link = word
+                break
+        self.assertIsNotNone(activation_link)
+
+        return activation_link
+
+
+class RegisterTest(BaseRegisterTest):
 
     def test_load_page(self):
         response = self.client.get(reverse('registration_register'))
@@ -100,46 +138,16 @@ class RegisterTest(ClientTest):
         self.assertFalse(user.is_active)
 
     def test_activate_success(self):
-        self.client.post(reverse('registration_register'), self.default_post)
-
-        activation_email = mail.outbox[-1]
-        # Activation link: should be the first link (first "word" with '://')
-        # in the activation email.
-        activation_link = None
-        for word in activation_email.body.split():
-            if '://' in word:
-                activation_link = word
-                break
-        self.assertIsNotNone(activation_link)
+        activation_link = self.register_and_get_activation_link()
 
         # Navigate to the activation link.
-        response = self.client.get(activation_link)
-        self.assertRedirects(
-            response, reverse('registration_activation_complete'))
+        response = self.client.get(activation_link, follow=True)
+        self.assertTemplateUsed(
+            response, 'registration/activation_complete.html')
 
-        # Attempt to sign in as the new user.
-        response = self.client.post(reverse('auth_login'), dict(
-            username='alice',
-            password='GreatBarrier',
-        ))
-        # Should work (we should be past the login page now).
-        self.assertTemplateNotUsed(response, 'registration/login.html')
-
-    def test_sign_in_fail_if_user_inactive(self):
-        self.client.post(reverse('registration_register'), self.default_post)
-
-        # Check that the new user exists, but is inactive.
-        user = User.objects.get(username='alice', email='alice123@example.com')
-        self.assertFalse(user.is_active)
-
-        # Attempt to sign in as the new user.
-        response = self.client.post(reverse('auth_login'), dict(
-            username='alice',
-            password='GreatBarrier',
-        ))
-        # Should not work (we should still be at the login page with an error).
-        self.assertTemplateUsed(response, 'registration/login.html')
-        self.assertContains(response, "This account is inactive.")
+        # The user should be active.
+        user = User.objects.get(username='alice')
+        self.assertTrue(user.is_active)
 
     def test_register_username_taken(self):
         # Register once.
@@ -229,6 +237,87 @@ class RegisterTest(ClientTest):
         self.assertTemplateUsed(response, 'registration/registration_form.html')
         self.assertContains(
             response, "This password is too short.")
+
+    def test_activate_bad_key(self):
+        activation_link = self.register_and_get_activation_link()
+
+        # Chop characters off of the end of the URL to get an invalid key.
+        # (Note that the last char is a slash, so must chop at least 2.)
+        response = self.client.get(activation_link[:-3], follow=True)
+        # Should get the activation failure template.
+        self.assertTemplateUsed(response, 'registration/activate.html')
+
+        # The user should still be inactive.
+        user = User.objects.get(username='alice')
+        self.assertFalse(user.is_active)
+
+    def test_activate_expired_key(self):
+        # Have an activation-key expiration time of 0.5 seconds
+        with self.settings(ACCOUNT_ACTIVATION_DAYS=(0.5 / 86400.0)):
+            activation_link = self.register_and_get_activation_link()
+
+            # Wait 1 second before using the confirmation link
+            time.sleep(1)
+            response = self.client.get(activation_link, follow=True)
+            self.assertTemplateUsed(response, 'registration/activate.html')
+
+        # The user should still be inactive.
+        user = User.objects.get(username='alice')
+        self.assertFalse(user.is_active)
+
+    def test_activate_already_activated(self):
+        activation_link = self.register_and_get_activation_link()
+
+        # Activate.
+        self.client.get(activation_link, follow=True)
+
+        # The user should now be active.
+        user = User.objects.get(username='alice')
+        self.assertTrue(user.is_active)
+
+        # Attempt to activate again. Should get the failure template because
+        # the user is already active. (This is django-registration's behavior.)
+        response = self.client.get(activation_link, follow=True)
+        self.assertTemplateUsed(response, 'registration/activate.html')
+
+
+class ActivationResendTest(BaseRegisterTest):
+
+    def test_load_page(self):
+        response = self.client.get(reverse('activation_resend'))
+        self.assertTemplateUsed(
+            response, 'registration/activation_resend_form.html')
+
+    def test_activation_resend_success(self):
+        # Register. This sends an email.
+        self.client.post(reverse('registration_register'), self.default_post)
+
+        # Re-send activation email.
+        response = self.client.post(
+            reverse('activation_resend'),
+            dict(email=self.default_post['email']), follow=True)
+        self.assertTemplateUsed(
+            response, 'registration/activation_resend_complete.html')
+
+        # Should have 2 emails now.
+        self.assertEqual(len(mail.outbox), 2)
+        # Check the latest email.
+        latest_activation_email = mail.outbox[-1]
+        # Check that the intended recipient is the only recipient.
+        self.assertEqual(len(latest_activation_email.to), 1)
+        self.assertEqual(latest_activation_email.to[0], 'alice123@example.com')
+
+        # Activate with this email's activation link.
+        activation_link = None
+        for word in latest_activation_email.body.split():
+            if '://' in word:
+                activation_link = word
+                break
+        self.assertIsNotNone(activation_link)
+        self.client.get(activation_link)
+        # The user should be active.
+        user = User.objects.get(username='alice')
+        self.assertTrue(user.is_active)
 
 
 class EmailChangeTest(ClientTest):
@@ -391,7 +480,7 @@ class EmailChangeTest(ClientTest):
 
     def test_confirm_expired_key(self):
         # Have a confirmation-key expiration time of 0.5 seconds
-        with self.settings(EMAIL_CHANGE_CONFIRMATION_HOURS=(1.0 / 7200.0)):
+        with self.settings(EMAIL_CHANGE_CONFIRMATION_HOURS=(0.5 / 3600.0)):
             confirmation_link = self.submit_and_get_confirmation_link()
 
             # Wait 1 second before using the confirmation link

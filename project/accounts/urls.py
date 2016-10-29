@@ -16,6 +16,16 @@ urlpatterns = [
     # and django-registration pages (e.g. account activation).
     url(r'', include('registration.backends.hmac.urls')),
 
+    # Views for re-sending an activation email, in case it expired or got lost.
+    url(r'^activation/resend/$',
+        views.ActivationResendView.as_view(),
+        name='activation_resend'),
+    url(r'^activation/resend/complete/$',
+        TemplateView.as_view(
+            template_name='registration/activation_resend_complete.html'
+        ),
+        name='activation_resend_complete'),
+
     # Email-change views.
     url(r'^email/change/$',
         views.EmailChangeView.as_view(),

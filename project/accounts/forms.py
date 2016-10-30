@@ -3,7 +3,7 @@ from django.contrib.auth.forms \
     import AuthenticationForm as DefaultAuthenticationForm
 from django.core.validators import validate_email, ValidationError
 from django.forms import Form
-from django.forms.fields import CharField, EmailField
+from django.forms.fields import BooleanField, CharField, EmailField
 from django.forms.widgets import Textarea, TextInput
 from registration.forms import RegistrationForm as DefaultRegistrationForm
 
@@ -14,7 +14,12 @@ class AuthenticationForm(DefaultAuthenticationForm):
     since we've set our own auth backend in the Django settings.
     However, our auth backend accepts username OR email in the first field,
     so we need to change some text accordingly.
+
+    Also, we'll add a stay_signed_in field which is handled in our
+    custom sign-in view.
     """
+    stay_signed_in = BooleanField(required=False, label="Stay signed in")
+
     error_messages = dict(
         invalid_login="The credentials you entered did not match our records."
                       " Note that both fields may be case-sensitive.",

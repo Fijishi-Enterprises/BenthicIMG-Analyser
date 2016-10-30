@@ -211,6 +211,12 @@ AUTHENTICATION_BACKENDS = [
     'guardian.backends.ObjectPermissionBackend',
 ]
 
+# Don't expire the sign-in session when the user closes their browser
+# (Unless set_expiry(0) is explicitly called on the session).
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+# The age of session cookies, in seconds.
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 30
+
 LOGIN_URL = 'auth_login'
 LOGOUT_URL = 'auth_logout'
 LOGIN_REDIRECT_URL = 'source_list'

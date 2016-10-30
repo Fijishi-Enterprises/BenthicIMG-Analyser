@@ -1,7 +1,8 @@
 from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth.decorators import permission_required
 from django.contrib.auth import get_user_model
+from django.contrib.auth.decorators import permission_required
+from django.contrib.auth.views import login as default_login_view
 from django.contrib.sites.shortcuts import get_current_site
 from django.core import signing
 from django.core.mail import EmailMessage
@@ -18,6 +19,21 @@ from .forms import (ActivationResendForm, EmailAllForm, EmailChangeForm,
     RegistrationForm)
 
 User = get_user_model()
+
+
+def login(request, *args, **kwargs):
+    """
+    If the stay_signed_in checkbox is NOT checked, make the session
+    expire on browser close.
+    Otherwise, the session's duration is defined by SESSION_COOKIE_AGE.
+
+    https://docs.djangoproject.com/en/dev/topics/http/sessions/#django.contrib.sessions.backends.base.SessionBase.set_expiry
+    http://stackoverflow.com/questions/15100400/
+    """
+    if request.method == 'POST':
+        if not request.POST.get('stay_signed_in', None):
+            request.session.set_expiry(0)
+    return default_login_view(request, *args, **kwargs)
 
 
 class RegistrationView(BaseRegistrationView):

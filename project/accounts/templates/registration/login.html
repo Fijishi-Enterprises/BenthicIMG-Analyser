@@ -11,8 +11,7 @@
 
   {{ form.non_field_errors }}
   {% for field in form %}
-    {# TODO: Ensure this exists - call it "Keep me signed in for 30 days" #}
-    {% if field.name == 'remember_me' %}
+    {% if field.name == 'stay_signed_in' %}
       {% include "form_generic_one_field.html" with field=field checkbox="yes" %}
     {% else %}
       {% include "form_generic_one_field.html" with field=field %}

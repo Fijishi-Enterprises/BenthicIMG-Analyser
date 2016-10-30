@@ -1,5 +1,4 @@
 from django.conf.urls import include, url
-from django.contrib.auth import views as auth_views
 from django.views.generic.base import TemplateView
 from . import views
 from .forms import AuthenticationForm
@@ -10,7 +9,7 @@ urlpatterns = [
     # These come before the django-registration URL include, because
     # in urlpatterns, URLs that come first take precedence.
     url(r'^login/$',
-        auth_views.login,
+        views.login,
         {'template_name': 'registration/login.html',
          'authentication_form': AuthenticationForm},
         name='auth_login'),

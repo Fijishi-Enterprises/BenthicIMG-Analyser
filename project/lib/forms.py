@@ -31,14 +31,6 @@ class ContactForm(forms.Form):
             del self.fields['email']
 
 
-# login_required for class-based views.
-# From: https://code.djangoproject.com/ticket/16626
-class LoginRequiredMixin(object):
-    @classmethod
-    def as_view(cls):
-        return login_required(super(LoginRequiredMixin, cls).as_view())
-
-
 def get_one_form_error(form, include_field_name=True):
     """
     Use this if form validation failed and you just want to get the string for

@@ -2,39 +2,54 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import permission_required
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import login as default_login_view
 from django.contrib.sites.shortcuts import get_current_site
 from django.core import signing
 from django.core.mail import EmailMessage
 from django.shortcuts import redirect, render
 from django.template.loader import render_to_string
+from django.views.decorators.cache import never_cache
+from django.views.decorators.csrf import csrf_protect
+from django.views.decorators.debug import sensitive_post_parameters
 from django.views.generic.base import TemplateView
 from django.views.generic.edit import FormView
 
 from registration.backends.hmac.views \
     import RegistrationView as BaseRegistrationView
 
-from lib.forms import LoginRequiredMixin
 from .forms import (ActivationResendForm, EmailAllForm, EmailChangeForm,
     RegistrationForm)
 
 User = get_user_model()
 
 
+@sensitive_post_parameters()
+@csrf_protect
+@never_cache
 def login(request, *args, **kwargs):
     """
     If the stay_signed_in checkbox is NOT checked, make the session
     expire on browser close.
     Otherwise, the session's duration is defined by SESSION_COOKIE_AGE.
-
     https://docs.djangoproject.com/en/dev/topics/http/sessions/#django.contrib.sessions.backends.base.SessionBase.set_expiry
     http://stackoverflow.com/questions/15100400/
+
+    The rest of the logic is taken care of by Django's default login view.
+    The only things we duplicate from Django's login view are
+    the decorators. This ensures that, if we got an error before
+    even reaching Django's login view, we would still get the effects
+    of those decorators.
     """
     if request.method == 'POST':
         if not request.POST.get('stay_signed_in', None):
             request.session.set_expiry(0)
     return default_login_view(request, *args, **kwargs)
 
+
+@sensitive_post_parameters()
+def register(request, *args, **kwargs):
+    return RegistrationView.as_view()(request, *args, **kwargs)
 
 class RegistrationView(BaseRegistrationView):
     form_class = RegistrationForm

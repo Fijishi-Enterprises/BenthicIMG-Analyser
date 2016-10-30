@@ -14,7 +14,7 @@ urlpatterns = [
          'authentication_form': AuthenticationForm},
         name='auth_login'),
     url(r'^register/$',
-        views.RegistrationView.as_view(),
+        views.register,
         name='registration_register'),
 
     # django-registration URLs.

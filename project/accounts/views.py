@@ -14,15 +14,24 @@ from registration.backends.hmac.views \
     import RegistrationView as BaseRegistrationView
 
 from lib.forms import LoginRequiredMixin
-from .forms import ActivationResendForm, EmailChangeForm, EmailAllForm
+from .forms import (ActivationResendForm, EmailAllForm, EmailChangeForm,
+    RegistrationForm)
 
 User = get_user_model()
 
 
 class RegistrationView(BaseRegistrationView):
+    form_class = RegistrationForm
     success_url = 'registration_complete'
 
     def form_valid(self, form):
+        # Check for unique email. This doesn't invalidate the form
+        # because we don't want to make it obvious on-site that the
+        # email is taken. We'll only tell the email owner.
+        #
+        # Our registration allows case-sensitive email distinction
+        # because some email domains support that (unfortunately).
+        # http://stackoverflow.com/questions/9807909/
         email = form.cleaned_data['email']
         if User.objects.filter(email=email).exists():
             existing_user = User.objects.get(email=email)

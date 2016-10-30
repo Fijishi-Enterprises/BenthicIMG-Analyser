@@ -47,6 +47,71 @@ class SignInTest(ClientTest):
         self.assertEqual(
             int(self.client.session['_auth_user_id']), self.user.pk)
 
+    def test_sign_in_by_email(self):
+        response = self.client.post(reverse('auth_login'), dict(
+            username='tester@example.org', password='testPassword',
+        ))
+
+        # We should be past the sign-in page now.
+        self.assertTemplateNotUsed(response, 'registration/login.html')
+
+        # Check that we're signed in as the expected user.
+        self.assertIn('_auth_user_id', self.client.session)
+        self.assertEqual(
+            int(self.client.session['_auth_user_id']), self.user.pk)
+
+    def test_nonexistent_username(self):
+        response = self.client.post(reverse('auth_login'), dict(
+            username='notAUsername', password='testPassword',
+        ))
+        self.assertTemplateUsed(response, 'registration/login.html')
+        self.assertContains(
+            response,
+            "The credentials you entered did not match our records."
+            " Note that both fields may be case-sensitive.")
+
+    def test_username_case_insensitive(self):
+        # Different case on username = still succeeds.
+        response = self.client.post(reverse('auth_login'), dict(
+            username='TESTUSERNAME', password='testPassword',
+        ))
+        self.assertTemplateNotUsed(response, 'registration/login.html')
+
+        self.assertIn('_auth_user_id', self.client.session)
+        self.assertEqual(
+            int(self.client.session['_auth_user_id']), self.user.pk)
+
+    def test_nonexistent_email(self):
+        response = self.client.post(reverse('auth_login'), dict(
+            username='notanemail@example.org', password='testPassword',
+        ))
+        self.assertTemplateUsed(response, 'registration/login.html')
+        self.assertContains(
+            response,
+            "The credentials you entered did not match our records."
+            " Note that both fields may be case-sensitive.")
+
+    def test_email_case_sensitive(self):
+        # Different case on email = failure.
+        response = self.client.post(reverse('auth_login'), dict(
+            username='TESTER@example.org', password='testPassword',
+        ))
+        self.assertTemplateUsed(response, 'registration/login.html')
+        self.assertContains(
+            response,
+            "The credentials you entered did not match our records."
+            " Note that both fields may be case-sensitive.")
+
+    def test_wrong_password(self):
+        response = self.client.post(reverse('auth_login'), dict(
+            username='testUsername', password='testPassWORD',
+        ))
+        self.assertTemplateUsed(response, 'registration/login.html')
+        self.assertContains(
+            response,
+            "The credentials you entered did not match our records."
+            " Note that both fields may be case-sensitive.")
+
     def test_sign_in_fail_if_user_inactive(self):
         # Register but don't activate.
         self.client.post(reverse('registration_register'), dict(
@@ -64,8 +129,6 @@ class SignInTest(ClientTest):
         # Should not work (we should still be at the login page with an error).
         self.assertTemplateUsed(response, 'registration/login.html')
         self.assertContains(response, "This account is inactive.")
-
-    # TODO: Add more form error cases.
 
     # TODO: Add tests for getting redirected to the expected page
     # (about sources, source list, or whatever was in the 'next' URL
@@ -120,7 +183,7 @@ class RegisterTest(BaseRegisterTest):
         response = self.client.get(reverse('registration_register'))
         self.assertTemplateUsed(response, 'registration/registration_form.html')
 
-    def test_register_success(self):
+    def test_success(self):
         response = self.client.post(
             reverse('registration_register'), self.default_post, follow=True)
         self.assertTemplateUsed(
@@ -137,19 +200,7 @@ class RegisterTest(BaseRegisterTest):
         user = User.objects.get(username='alice', email='alice123@example.com')
         self.assertFalse(user.is_active)
 
-    def test_activate_success(self):
-        activation_link = self.register_and_get_activation_link()
-
-        # Navigate to the activation link.
-        response = self.client.get(activation_link, follow=True)
-        self.assertTemplateUsed(
-            response, 'registration/activation_complete.html')
-
-        # The user should be active.
-        user = User.objects.get(username='alice')
-        self.assertTrue(user.is_active)
-
-    def test_register_username_taken(self):
+    def test_username_already_exists(self):
         # Register once.
         self.client.post(reverse('registration_register'), self.default_post)
         # Register again with the same username, but different other fields.
@@ -165,7 +216,39 @@ class RegisterTest(BaseRegisterTest):
         self.assertContains(
             response, "A user with that username already exists.")
 
-    def test_register_email_already_exists(self):
+    def test_username_existence_case_insensitive(self):
+        self.client.post(reverse('registration_register'), self.default_post)
+        # 'Alice' still matches 'alice'.
+        response = self.client.post(reverse('registration_register'), dict(
+            username='Alice',
+            email='alice456@example.com',
+            password1='GBRAustralia',
+            password2='GBRAustralia',
+        ))
+
+        # We should still be at the registration page with an error.
+        self.assertTemplateUsed(response, 'registration/registration_form.html')
+        self.assertContains(
+            response, "A user with that username already exists.")
+
+    def test_username_must_not_validate_as_email_address(self):
+        self.client.post(reverse('registration_register'), self.default_post)
+        response = self.client.post(reverse('registration_register'), dict(
+            username='alice@ucsd.edu',
+            email='alice456@example.com',
+            password1='GBRAustralia',
+            password2='GBRAustralia',
+        ))
+
+        # We should still be at the registration page with an error.
+        self.assertTemplateUsed(response, 'registration/registration_form.html')
+        self.assertContains(
+            response, escape(
+                "Your username can't be an email address."
+                " Note that once you've registered, you'll be able to"
+                " sign in with your username or your email address."))
+
+    def test_email_already_exists(self):
         # Register once.
         self.client.post(reverse('registration_register'), self.default_post)
         # Register again with the same email, but different other fields.
@@ -189,7 +272,39 @@ class RegisterTest(BaseRegisterTest):
         # Check that no new user exists.
         self.assertFalse(User.objects.filter(username='alice123').exists())
 
-    def test_register_email_already_exists_email_details(self):
+    def test_email_existence_case_sensitive(self):
+        self.client.post(reverse('registration_register'), self.default_post)
+        # Capitalizing the A in the email makes it register as different.
+        # There do exist email systems that register accounts differing only
+        # by capitalization (unfortunately).
+        response = self.client.post(
+            reverse('registration_register'),
+            dict(
+                username='alice123',
+                email='Alice123@example.com',
+                password1='GBRAustralia',
+                password2='GBRAustralia',
+            ),
+            follow=True)
+        # Should not get an error.
+        self.assertTemplateUsed(
+            response, 'registration/registration_complete.html')
+
+        # 2 emails, 1 for each registration (notably, the 2nd registration
+        # went through).
+        self.assertEqual(len(mail.outbox), 2)
+        # For the latest registration, check that the intended recipient
+        # is the only recipient.
+        activation_email = mail.outbox[-1]
+        self.assertEqual(len(activation_email.to), 1)
+        self.assertEqual(activation_email.to[0], 'Alice123@example.com')
+
+        # Check that the new user exists, but is inactive.
+        user = User.objects.get(
+            username='alice123', email='Alice123@example.com')
+        self.assertFalse(user.is_active)
+
+    def test_email_already_exists_email_details(self):
         self.client.post(reverse('registration_register'), self.default_post)
         self.client.post(reverse('registration_register'), dict(
             username='alice123',
@@ -208,7 +323,7 @@ class RegisterTest(BaseRegisterTest):
         # Sanity check that this is the correct email template.
         self.assertIn("already", already_exists_email.body)
 
-    def test_register_password_fields_do_not_match(self):
+    def test_password_fields_do_not_match(self):
         response = self.client.post(reverse('registration_register'), dict(
             username='alice',
             email='alice123@example.com',
@@ -221,7 +336,7 @@ class RegisterTest(BaseRegisterTest):
         self.assertContains(
             response, escape("The two password fields didn't match."))
 
-    def test_register_password_too_short(self):
+    def test_password_too_short(self):
         """
         There are other password related errors too. For now we'll just
         check that at least one is working.
@@ -238,7 +353,22 @@ class RegisterTest(BaseRegisterTest):
         self.assertContains(
             response, "This password is too short.")
 
-    def test_activate_bad_key(self):
+
+class ActivateTest(BaseRegisterTest):
+
+    def test_success(self):
+        activation_link = self.register_and_get_activation_link()
+
+        # Navigate to the activation link.
+        response = self.client.get(activation_link, follow=True)
+        self.assertTemplateUsed(
+            response, 'registration/activation_complete.html')
+
+        # The user should be active.
+        user = User.objects.get(username='alice')
+        self.assertTrue(user.is_active)
+
+    def test_bad_key(self):
         activation_link = self.register_and_get_activation_link()
 
         # Chop characters off of the end of the URL to get an invalid key.
@@ -251,7 +381,7 @@ class RegisterTest(BaseRegisterTest):
         user = User.objects.get(username='alice')
         self.assertFalse(user.is_active)
 
-    def test_activate_expired_key(self):
+    def test_expired_key(self):
         # Have an activation-key expiration time of 0.5 seconds
         with self.settings(ACCOUNT_ACTIVATION_DAYS=(0.5 / 86400.0)):
             activation_link = self.register_and_get_activation_link()
@@ -265,7 +395,7 @@ class RegisterTest(BaseRegisterTest):
         user = User.objects.get(username='alice')
         self.assertFalse(user.is_active)
 
-    def test_activate_already_activated(self):
+    def test_already_activated(self):
         activation_link = self.register_and_get_activation_link()
 
         # Activate.
@@ -288,7 +418,7 @@ class ActivationResendTest(BaseRegisterTest):
         self.assertTemplateUsed(
             response, 'registration/activation_resend_form.html')
 
-    def test_activation_resend_success(self):
+    def test_success(self):
         # Register. This sends an email.
         self.client.post(reverse('registration_register'), self.default_post)
 

@@ -202,10 +202,13 @@ MIDDLEWARE_CLASSES = [
 ]
 
 AUTHENTICATION_BACKENDS = [
-    'userena.backends.UserenaAuthenticationBackend',
+    # Our subclass of Django's default backend.
+    # Allows sign-in by username or email.
+    'accounts.auth_backends.UsernameOrEmailModelBackend',
+    # django-guardian's backend for per-object permissions.
+    # Should be fine to put either before or after the main backend.
+    # https://django-guardian.readthedocs.io/en/stable/configuration.html
     'guardian.backends.ObjectPermissionBackend',
-    # Django's default backend
-    'django.contrib.auth.backends.ModelBackend',
 ]
 
 LOGIN_URL = 'auth_login'

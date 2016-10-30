@@ -38,6 +38,9 @@ class AuthenticationForm(DefaultAuthenticationForm):
 
 class RegistrationForm(DefaultRegistrationForm):
 
+    agree_to_data_policy = BooleanField(
+        required=True, label="I agree to the data policy")
+
     def clean_username(self):
         username = self.cleaned_data.get('username')
         User = get_user_model()

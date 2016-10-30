@@ -9,15 +9,14 @@
 
   <legend>Register a new account</legend>
 
+  <div class="line">
+    Please read our data policy on the
+    <a href="{% url 'about' %}" target="_blank">About page</a>.
+  </div>
+
   {{ form.non_field_errors }}
   {% for field in form %}
-    {# TODO: Ensure this exists #}
-    {% if field.name == 'agree' %}
-      {% include "form_generic_one_field.html" with field=field checkbox="yes" %}
-      Our data policy can be found on the <a href="{% url 'about' %}">About page</a>.
-    {% else %}
-      {% include "form_generic_one_field.html" with field=field %}
-    {% endif %}
+    {% include "form_generic_one_field.html" with field=field %}
   {% endfor %}
 
   <div class="submit_button_wrapper_column_form">

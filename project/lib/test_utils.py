@@ -390,6 +390,7 @@ class ClientTest(BaseTest):
             email=email,
             password1=password,
             password2=password,
+            agree_to_data_policy=True,
         ))
 
         activation_email = mail.outbox[-1]

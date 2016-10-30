@@ -119,6 +119,7 @@ class SignInTest(ClientTest):
             email='alice123@example.com',
             password1='GreatBarrier',
             password2='GreatBarrier',
+            agree_to_data_policy=True,
         ))
 
         # Attempt to sign in as the new user.
@@ -137,13 +138,6 @@ class SignInTest(ClientTest):
 
 class BaseRegisterTest(ClientTest):
 
-    default_post = dict(
-        username='alice',
-        email='alice123@example.com',
-        password1='GreatBarrier',
-        password2='GreatBarrier',
-    )
-
     @classmethod
     def setUpTestData(cls):
         # Call the parent's setup (while still using this class as cls)
@@ -151,9 +145,19 @@ class BaseRegisterTest(ClientTest):
 
         cls.user = cls.create_user()
 
+    def register(self, username='alice', email='alice123@example.com',
+                 password1='GreatBarrier', password2='GreatBarrier',
+                 agree_to_data_policy=True):
+        data = dict(
+            username=username, email=email, password1=password1,
+            password2=password2, agree_to_data_policy=agree_to_data_policy)
+        response = self.client.post(
+            reverse('registration_register'), data, follow=True)
+        return response
+
     def register_and_get_activation_link(self):
         """Shortcut function for tests focusing on the activation step."""
-        self.client.post(reverse('registration_register'), self.default_post)
+        self.register()
 
         activation_email = mail.outbox[-1]
         # Activation link: should be the first link (first "word" with '://')
@@ -184,8 +188,7 @@ class RegisterTest(BaseRegisterTest):
         self.assertTemplateUsed(response, 'registration/registration_form.html')
 
     def test_success(self):
-        response = self.client.post(
-            reverse('registration_register'), self.default_post, follow=True)
+        response = self.register()
         self.assertTemplateUsed(
             response, 'registration/registration_complete.html')
 
@@ -202,46 +205,43 @@ class RegisterTest(BaseRegisterTest):
 
     def test_username_already_exists(self):
         # Register once.
-        self.client.post(reverse('registration_register'), self.default_post)
+        self.register()
         # Register again with the same username, but different other fields.
-        response = self.client.post(reverse('registration_register'), dict(
+        response = self.register(
             username='alice',
             email='alice456@example.com',
             password1='GBRAustralia',
             password2='GBRAustralia',
-        ))
+        )
 
         # We should still be at the registration page with an error.
-        self.assertTemplateUsed(response, 'registration/registration_form.html')
+        self.assertTemplateUsed(
+            response, 'registration/registration_form.html')
         self.assertContains(
             response, "A user with that username already exists.")
 
     def test_username_existence_case_insensitive(self):
-        self.client.post(reverse('registration_register'), self.default_post)
+        self.register()
         # 'Alice' still matches 'alice'.
-        response = self.client.post(reverse('registration_register'), dict(
+        response = self.register(
             username='Alice',
             email='alice456@example.com',
-            password1='GBRAustralia',
-            password2='GBRAustralia',
-        ))
+        )
 
         # We should still be at the registration page with an error.
-        self.assertTemplateUsed(response, 'registration/registration_form.html')
+        self.assertTemplateUsed(
+            response, 'registration/registration_form.html')
         self.assertContains(
             response, "A user with that username already exists.")
 
     def test_username_must_not_validate_as_email_address(self):
-        self.client.post(reverse('registration_register'), self.default_post)
-        response = self.client.post(reverse('registration_register'), dict(
+        response = self.register(
             username='alice@ucsd.edu',
-            email='alice456@example.com',
-            password1='GBRAustralia',
-            password2='GBRAustralia',
-        ))
+        )
 
         # We should still be at the registration page with an error.
-        self.assertTemplateUsed(response, 'registration/registration_form.html')
+        self.assertTemplateUsed(
+            response, 'registration/registration_form.html')
         self.assertContains(
             response, escape(
                 "Your username can't be an email address."
@@ -250,17 +250,14 @@ class RegisterTest(BaseRegisterTest):
 
     def test_email_already_exists(self):
         # Register once.
-        self.client.post(reverse('registration_register'), self.default_post)
+        self.register()
         # Register again with the same email, but different other fields.
-        response = self.client.post(
-            reverse('registration_register'),
-            dict(
-                username='alice123',
-                email='alice123@example.com',
-                password1='GBRAustralia',
-                password2='GBRAustralia',
-            ),
-            follow=True)
+        response = self.register(
+            username='alice123',
+            email='alice123@example.com',
+            password1='GBRAustralia',
+            password2='GBRAustralia',
+        )
         # Should not get an error.
         self.assertTemplateUsed(
             response, 'registration/registration_complete.html')
@@ -273,19 +270,14 @@ class RegisterTest(BaseRegisterTest):
         self.assertFalse(User.objects.filter(username='alice123').exists())
 
     def test_email_existence_case_sensitive(self):
-        self.client.post(reverse('registration_register'), self.default_post)
+        self.register()
         # Capitalizing the A in the email makes it register as different.
         # There do exist email systems that register accounts differing only
         # by capitalization (unfortunately).
-        response = self.client.post(
-            reverse('registration_register'),
-            dict(
-                username='alice123',
-                email='Alice123@example.com',
-                password1='GBRAustralia',
-                password2='GBRAustralia',
-            ),
-            follow=True)
+        response = self.register(
+            username='alice123',
+            email='Alice123@example.com',
+        )
         # Should not get an error.
         self.assertTemplateUsed(
             response, 'registration/registration_complete.html')
@@ -305,13 +297,11 @@ class RegisterTest(BaseRegisterTest):
         self.assertFalse(user.is_active)
 
     def test_email_already_exists_email_details(self):
-        self.client.post(reverse('registration_register'), self.default_post)
-        self.client.post(reverse('registration_register'), dict(
+        self.register()
+        self.register(
             username='alice123',
             email='alice123@example.com',
-            password1='GBRAustralia',
-            password2='GBRAustralia',
-        ))
+        )
 
         already_exists_email = mail.outbox[-1]
         # Check that the intended recipient is the only recipient.
@@ -324,15 +314,14 @@ class RegisterTest(BaseRegisterTest):
         self.assertIn("already", already_exists_email.body)
 
     def test_password_fields_do_not_match(self):
-        response = self.client.post(reverse('registration_register'), dict(
-            username='alice',
-            email='alice123@example.com',
+        response = self.register(
             password1='GreatBarrier',
             password2='greatBarrier',
-        ))
+        )
 
         # We should still be at the registration page with an error.
-        self.assertTemplateUsed(response, 'registration/registration_form.html')
+        self.assertTemplateUsed(
+            response, 'registration/registration_form.html')
         self.assertContains(
             response, escape("The two password fields didn't match."))
 
@@ -341,17 +330,27 @@ class RegisterTest(BaseRegisterTest):
         There are other password related errors too. For now we'll just
         check that at least one is working.
         """
-        response = self.client.post(reverse('registration_register'), dict(
-            username='alice',
-            email='alice123@example.com',
+        response = self.register(
             password1='GBR',
             password2='GBR',
-        ))
+        )
 
         # We should still be at the registration page with an error.
-        self.assertTemplateUsed(response, 'registration/registration_form.html')
+        self.assertTemplateUsed(
+            response, 'registration/registration_form.html')
         self.assertContains(
             response, "This password is too short.")
+
+    def test_did_not_agree_to_policy(self):
+        response = self.register(
+            agree_to_data_policy=False,
+        )
+
+        # We should still be at the registration page with an error.
+        self.assertTemplateUsed(
+            response, 'registration/registration_form.html')
+        self.assertContains(
+            response, "This field is required.")
 
 
 class ActivateTest(BaseRegisterTest):
@@ -420,12 +419,12 @@ class ActivationResendTest(BaseRegisterTest):
 
     def test_success(self):
         # Register. This sends an email.
-        self.client.post(reverse('registration_register'), self.default_post)
+        self.register(email='alice123@example.com')
 
         # Re-send activation email.
         response = self.client.post(
             reverse('activation_resend'),
-            dict(email=self.default_post['email']), follow=True)
+            dict(email='alice123@example.com'), follow=True)
         self.assertTemplateUsed(
             response, 'registration/activation_resend_complete.html')
 

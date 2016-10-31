@@ -65,7 +65,7 @@
     {% endfor %}
 
     {# Pagination info and links #}
-    {% include 'visualization/browse_pagination_info.html' with hidden_form=hidden_image_form page_results=page_results %}
+    {% include 'pagination_links.html' with use_post_form=True hidden_form=hidden_image_form page_results=page_results %}
 
     {# The image-filter parameters that led us to this browse page. #}
     {# May be used when submitting the action form. #}

@@ -1,7 +1,6 @@
 from io import BytesIO
 from django.conf import settings
 from django.core.files.storage import get_storage_class
-from django.core.paginator import Paginator, EmptyPage, InvalidPage
 import django.db.models.fields as model_fields
 from PIL import Image as PILImage
 from images.models import Point, Image, Metadata
@@ -55,25 +54,6 @@ def image_search_kwargs_to_queryset(search_kwargs, source):
     image_results = Image.objects.filter(source=source, **queryset_kwargs)
 
     return image_results
-
-
-def paginate(results, items_per_page, request_args):
-    paginator = Paginator(results, items_per_page)
-    request_args = request_args or dict()
-
-    # Make sure page request is an int. If not, deliver first page.
-    try:
-        page = int(request_args.get('page', '1'))
-    except ValueError:
-        page = 1
-
-    # If page request is out of range, deliver last page of results.
-    try:
-        page_results = paginator.page(page)
-    except (EmptyPage, InvalidPage):
-        page_results = paginator.page(paginator.num_pages)
-
-    return page_results
 
 
 def get_patch_path(point_id):

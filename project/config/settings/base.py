@@ -302,6 +302,7 @@ IMAGE_FILE_PATTERN = 'images/{name}{extension}'
 LABEL_THUMBNAIL_FILE_PATTERN = 'labels/{name}{extension}'
 POINT_PATCH_FILE_PATTERN = \
     '{full_image_path}.pointpk{point_pk}.thumbnail.jpg'
+PROFILE_AVATAR_FILE_PATTERN = 'mugshots/{name}{extension}'
 
 # [Custom settings] Special users
 IMPORTED_USERNAME = "Imported"

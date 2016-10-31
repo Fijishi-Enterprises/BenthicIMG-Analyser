@@ -8,6 +8,7 @@ import json
 import pickle
 
 from django.conf import settings
+from django.core.paginator import Paginator, EmptyPage, InvalidPage
 from django.utils import functional
 
 
@@ -60,6 +61,29 @@ def filesize_display(num_bytes):
     if num_bytes < GIGA:
         return "{n:.2f} MB".format(n=math.floor(num_bytes / MEGA))
     return "{n:.2f} GB".format(n=math.floor(num_bytes / GIGA))
+
+
+def paginate(results, items_per_page, request_args):
+    """
+    Helper for paginated views.
+    Assumes the page number is in the GET parameter 'page'.
+    """
+    paginator = Paginator(results, items_per_page)
+    request_args = request_args or dict()
+
+    # Make sure page request is an int. If not, deliver first page.
+    try:
+        page = int(request_args.get('page', '1'))
+    except ValueError:
+        page = 1
+
+    # If page request is out of range, deliver last page of results.
+    try:
+        page_results = paginator.page(page)
+    except (EmptyPage, InvalidPage):
+        page_results = paginator.page(paginator.num_pages)
+
+    return page_results
 
 
 def rand_string(num_of_chars):

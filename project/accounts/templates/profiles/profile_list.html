@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% load get_media_prefix from static %}
+
+{% block title %}Profile list - CoralNet{% endblock %}
+
+{% block css-code %}
+<style type="text/css">
+#account_list{
+    margin: 0 0 0 -12px;
+    overflow: auto;
+}
+
+#account_list li{
+    width: 142px;
+    margin: 0 0 12px 12px;
+    float: left;
+    background-color: #fffeff;
+    padding: 6px;
+    text-align: center;
+    border-radius: 7px;
+    box-shadow: 0 0 3px #999;
+}
+
+#account_list li img{
+    width: 142px;
+    height: 142px;
+    border-radius: 7px;
+}
+
+#account_list li a{
+    font-size: 0.9em;
+    font-weight: bold;
+    text-decoration: none;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<legend>Profile list</legend>
+
+{% if page_results.paginator.count == 0 %}
+
+  No profiles to display.
+
+{% else %}
+
+  <ul id="account_list">
+    {% for profile in page_results.object_list %}
+    <li>
+      <a href="{% url 'profile_detail' profile.user.pk %}"><img src="{% get_media_prefix %}{{ profile.avatar.name }}" /></a>
+      <a href="{% url 'profile_detail' profile.user.pk %}">{{ profile.user.username }}</a>
+    </li>
+    {% endfor %}
+  </ul>
+
+  {% include 'pagination_links.html' with page_results=page_results %}
+
+{% endif %}
+
+{% endblock %}

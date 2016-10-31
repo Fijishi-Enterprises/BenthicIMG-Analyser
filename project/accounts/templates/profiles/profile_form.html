@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block title %}Edit profile - CoralNet{% endblock %}
+
+{% block css-code %}
+<style type="text/css">
+input#id_website {
+    width: 300px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<legend>Edit profile</legend>
+
+<form action="" enctype="multipart/form-data" method="post">
+  {% csrf_token %}
+
+  {% for field in form %}
+    <div class="line">
+      {% include "form_generic_one_field.html" with field=field %}
+    </div>
+  {% endfor %}
+
+  <div class="submit_button_wrapper_column_form">
+    <input type="submit" value="Save changes" />
+  </div>
+</form>
+    
+{% endblock %}

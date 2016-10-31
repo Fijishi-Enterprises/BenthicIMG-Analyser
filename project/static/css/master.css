@@ -217,25 +217,6 @@ border-bottom-left-radius: 8px;
     overflow: auto;
 }
 
-#details{
-    width: 140px;
-    margin: 0 0;
-    background-color: #fffeff;
-    padding: 6px;
-    text-align: left;
-    -webkit-border-radius: 7px; 
-    -moz-border-radius: 7px; 
-    border-radius: 7px;
-    -moz-box-shadow: 0 0 3px #999;
-    -webkit-box-shadow: 0 0 3px #999;
-    box-shadow: 0 0 3px #999;
-    overflow: hidden;
-}
-
-#details img{
-	margin: 0 0 10px;
-}
-
 /*	Type
 ................................... */
 
@@ -439,6 +420,14 @@ form p, .form_item_wrapper {
     overflow: auto;  /* This allows the element to expand for multi-line labels and such */
 }
 
+/* Forms with less page presence. */
+form.inline {
+    display: inline-block;
+    margin: 0;
+    padding: 0;
+    width: auto;
+}
+
 label {
     font-size: 1.0em;
     color: #444;
@@ -596,6 +585,29 @@ input[type=submit][disabled], button.submit[disabled] {
     cursor: default;
 }
 /* Don't define a [disabled]:active style, so the disabled submit button doesn't change appearance when you click it */
+
+
+input[type=submit].gray {
+    /* Make these input elements look roughly like normal buttons. */
+    /* TODO: Instead of doing THIS much style resetting, perhaps the
+       'standard' submit button should have its own class, instead
+       of just taking over input type=submit in general. */
+    background: hsl(0, 0%, 80%);
+    color: inherit;
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    line-height: inherit;
+    letter-spacing: inherit;
+    text-shadow: none;
+
+    min-width: inherit;
+    height: inherit;
+    border: none;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+}
 
 
 /* Wrap one or multiple submit buttons of a form. */
@@ -996,45 +1008,6 @@ min-height: 52px;
 	background-color: #dadada;
 	
 }
-
-
-
-/*	account list
-................................... */    
-
-#account_list{
-    margin: 0 0 0 -12px;
-    overflow: auto;
-}
-
-#account_list li{
-    width: 142px;
-    margin: 0 0 12px 12px;
-    float: left;
-    background-color: #fffeff;
-    padding: 6px;
-    text-align: center;
-    -webkit-border-radius: 7px; 
-    -moz-border-radius: 7px; 
-    border-radius: 7px;
-    -moz-box-shadow: 0 0 3px #999;
-    -webkit-box-shadow: 0 0 3px #999;
-    box-shadow: 0 0 3px #999;
-}
-
-#account_list li img{
-    width: 142px;
-    height: 142px;
-    -webkit-border-radius: 7px; 
-    -moz-border-radius: 7px; 
-    border-radius: 7px;
-} 
-
-#account_list li a{
-    font-size: 0.9em;
-    font-weight: bold;
-    text-decoration: none;
-}   
 
 
 

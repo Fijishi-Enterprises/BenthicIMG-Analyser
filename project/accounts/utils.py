@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
+
 def get_imported_user():
     return User.objects.get(username=settings.IMPORTED_USERNAME)
 def get_robot_user():
@@ -16,3 +17,19 @@ def is_robot_user(user):
     return user.username == settings.ROBOT_USERNAME
 def is_alleviate_user(user):
     return user.username == settings.ALLEVIATE_USERNAME
+
+
+def can_view_profile(request, profile):
+    if request.user.is_superuser:
+        return True
+    if profile.user == request.user:
+        # Can view your own profile.
+        return True
+    if profile.privacy == 'open':
+        # Anyone can view a public profile.
+        return True
+    if profile.privacy == 'registered':
+        return request.user.is_authenticated()
+
+    # profile.privacy == 'closed'
+    return False

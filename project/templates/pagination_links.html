@@ -1,0 +1,63 @@
+<div class="pagination">
+  <div class="line">
+    Showing {{ page_results.start_index }}-{{ page_results.end_index }}
+    of {{ page_results.paginator.count }}
+  </div>
+
+  <div class="line">
+
+    {% if page_results.has_previous %}
+
+      {% if use_post_form %}
+
+        <form action="" method="post" class="inline">
+          {% csrf_token %}
+          {% for field in hidden_form %}
+            {{ field }}
+          {% endfor %}
+
+      {% else %}
+
+        <form action="" method="get" class="inline">
+
+      {% endif %}
+
+          <input type="hidden" name="page"
+            value="{{ page_results.previous_page_number }}" />
+          <input type="submit" class="gray"
+            value="<" title="Previous page" />
+        </form>
+
+    {% endif %}
+
+    <span>
+      Page {{ page_results.number }}
+      of {{ page_results.paginator.num_pages }}
+    </span>
+
+    {% if page_results.has_next %}
+
+      {% if use_post_form %}
+
+        <form action="" method="post" class="inline">
+          {% csrf_token %}
+          {% for field in hidden_form %}
+            {{ field }}
+          {% endfor %}
+
+      {% else %}
+
+        <form action="" method="get" class="inline">
+
+      {% endif %}
+
+          <input type="hidden" name="page"
+            value="{{ page_results.next_page_number }}" />
+          <input type="submit" class="gray"
+            value=">" title="Next page" />
+        </form>
+
+    {% endif %}
+
+  </div>
+</div>

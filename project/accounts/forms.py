@@ -2,10 +2,12 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.forms \
     import AuthenticationForm as DefaultAuthenticationForm
 from django.core.validators import validate_email, ValidationError
-from django.forms import Form
+from django.forms import Form, ModelForm
 from django.forms.fields import BooleanField, CharField, EmailField
 from django.forms.widgets import Textarea, TextInput
 from registration.forms import RegistrationForm as DefaultRegistrationForm
+
+from .models import Profile
 
 
 class AuthenticationForm(DefaultAuthenticationForm):
@@ -90,6 +92,15 @@ class EmailChangeForm(Form):
         label="New email address",
         required=True,
     )
+
+
+class ProfileEditForm(ModelForm):
+    class Meta:
+        model = Profile
+        fields = ['privacy', 'mugshot', 'website', 'location', 'about_me']
+        widgets = {
+            'about_me': Textarea(),
+        }
 
 
 class EmailAllForm(Form):

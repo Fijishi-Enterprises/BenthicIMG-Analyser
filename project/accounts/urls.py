@@ -50,12 +50,19 @@ urlpatterns = [
         ),
         name='email_change_complete'),
 
+    # Profile views.
+    url(r'^profile/list/$',
+       views.profile_list,
+       name='profile_list'),
+    url(r'^profile/detail/(?P<user_id>\d+)/$',
+       views.profile_detail,
+       name='profile_detail'),
+    url(r'^profile/edit/$',
+        views.ProfileEditView.as_view(),
+       name='profile_edit'),
+
     # Other accounts related views.
     url(r'^emailall/$',
         views.email_all,
         name='emailall'),
-
-    # TODO: Check if needed for user profile support
-    # Include userena urls after our urls, so ours take precedence
-    #url(r'', include('userena.urls')),
 ]

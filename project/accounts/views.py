@@ -7,7 +7,7 @@ from django.contrib.auth.views import login as default_login_view
 from django.contrib.sites.shortcuts import get_current_site
 from django.core import signing
 from django.core.mail import EmailMessage
-from django.shortcuts import redirect, render
+from django.shortcuts import redirect, render, get_object_or_404
 from django.template.loader import render_to_string
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_protect
@@ -18,8 +18,12 @@ from django.views.generic.edit import FormView
 from registration.backends.hmac.views \
     import RegistrationView as BaseRegistrationView
 
-from .forms import (ActivationResendForm, EmailAllForm, EmailChangeForm,
-    RegistrationForm)
+from lib.utils import paginate
+from .forms import (
+    ActivationResendForm, EmailAllForm, EmailChangeForm,
+    ProfileEditForm, RegistrationForm)
+from .models import Profile
+from .utils import can_view_profile
 
 User = get_user_model()
 
@@ -231,6 +235,51 @@ class EmailChangeConfirmView(LoginRequiredMixin, TemplateView):
         # Return the new email address (which we got by un-signing the
         # confirmation key).
         return obj['email']
+
+
+def profile_list(request):
+    all_profiles = Profile.objects.all().order_by('user__username')
+    all_results = [p for p in all_profiles if can_view_profile(request, p)]
+    page_results = paginate(
+        results=all_results,
+        items_per_page=50,
+        request_args=request.GET,
+    )
+
+    return render(request, 'profiles/profile_list.html', {
+        'page_results': page_results,
+    })
+
+
+def profile_detail(request, user_id):
+    profile_user = get_object_or_404(get_user_model(), pk=user_id)
+    profile = profile_user.profile
+
+    can_view = can_view_profile(request, profile)
+
+    if can_view:
+        return render(request, 'profiles/profile_detail.html', {
+            'profile': profile,
+        })
+    else:
+        return render(request, 'permission_denied.html', {
+            'message': "You don't have permission to view this profile.",
+        })
+
+
+class ProfileEditView(LoginRequiredMixin, FormView):
+    form_class = ProfileEditForm
+    template_name = 'profiles/profile_form.html'
+
+    def get_form_kwargs(self):
+        kwargs = super(ProfileEditView, self).get_form_kwargs()
+        kwargs['instance'] = self.request.user.profile
+        return kwargs
+
+    def form_valid(self, form):
+        form.save()
+        messages.success(self.request, "Profile edited successfully.")
+        return redirect('profile_detail', self.request.user.pk)
 
 
 @permission_required('is_superuser')

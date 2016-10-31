@@ -9,14 +9,11 @@ Welcome to CoralNet's documentation!
 Contents:
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
 
-   installation
-   production_server_setup
-   backend
-   terminology
-   2016_database_migration
-   alpha_production_server
+   setup_of_current_systems
+   setup_of_old_systems
+   design_decisions
 
 
 

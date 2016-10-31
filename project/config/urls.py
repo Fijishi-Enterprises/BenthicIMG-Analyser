@@ -25,7 +25,6 @@ urlpatterns = [
     url(r'^admin/', include(admin.site.urls)),
 
     url(r'^accounts/', include('accounts.urls')),
-    url(r'^messages/', include('userena.contrib.umessages.urls')),
 
     url(r'^$', lib_views.index, name='index'),
 

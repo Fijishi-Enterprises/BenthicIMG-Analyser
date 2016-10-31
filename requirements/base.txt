@@ -16,10 +16,6 @@ Pillow==3.2.0
 # Requires django, Pillow
 easy-thumbnails==2.3
 
-# User management system (going beyond Django's built-in facilities)
-# Requires easy-thumbnails, django-guardian, html2text
-django-userena==2.0.1
-
 # Add email activation to user registration process;
 # unlike in userena, this is implemented without additional models
 django-registration==2.1.2

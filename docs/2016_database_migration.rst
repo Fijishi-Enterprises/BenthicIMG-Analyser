@@ -183,9 +183,6 @@ Run these in order:
 - auth: fake 0001, run 0002-0007
 - admin: fake 0001, run 0002
 - sessions: fake 0001
-- sites: fake 0001, run 0002
-- userena: fake 0001
-- umessages: fake 0001
 - guardian: fake 0001
 - easy_thumbnails: fake 0001, run 0002 (OR run South's 0016, then fake new 0001-0002)
 - accounts: fake 0001-0002, run the rest

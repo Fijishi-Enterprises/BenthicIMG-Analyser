@@ -49,9 +49,6 @@ USE_TZ = True
 # http://www.i18nguy.com/unicode/language-identifiers.html
 LANGUAGE_CODE = 'en-us'
 
-# Required if the django.contrib.sites framework is used.
-SITE_ID = 1
-
 # If you set this to False, Django will make some optimizations so as not
 # to load the internationalization machinery.
 USE_I18N = True
@@ -121,16 +118,12 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.messages',
     'django.contrib.sessions',
-    # Required by userena as of 2.0.1, otherwise an import fails...
-    'django.contrib.sites',
     'django.contrib.staticfiles',
 
     'easy_thumbnails',
     'guardian',
     'reversion',
     'storages',
-    'userena',
-    'userena.contrib.umessages',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -266,14 +259,6 @@ ANONYMOUS_USER_ID = -1
 # this ID is 0 or negative.
 if 'test' in sys.argv:
     ANONYMOUS_USER_ID = 99999999
-
-
-
-# django-userena settings
-AUTH_PROFILE_MODULE = 'accounts.Profile'
-USERENA_SIGNIN_REDIRECT_URL = LOGIN_REDIRECT_URL
-USERENA_USE_MESSAGES = False
-USERENA_LANGUAGE_FIELD = 'en'
 
 
 

@@ -94,7 +94,6 @@ class BaseTest(TestCase):
         cls.storage_checker.check_storage_pre_test()
 
     def setUp(self):
-        self.setAccountPerms()
         self.setTestSpecificPerms()
 
     @classmethod
@@ -115,15 +114,6 @@ class BaseTest(TestCase):
         test_settings['FORCE_NO_BACKEND_SUBMIT'] = True
 
         super(BaseTest, cls).tearDownClass()
-
-    def setAccountPerms(self):
-        # TODO: is the below necessary, or is adding these permissions done by magic anyway?
-        #
-        # Give account and profile permissions to each user.
-        # It's less annoying to do this dynamically than it is to include
-        # the permissions in the fixtures for every user.
-        #UserenaManager().check_permissions()
-        pass
 
     def setTestSpecificPerms(self):
         """

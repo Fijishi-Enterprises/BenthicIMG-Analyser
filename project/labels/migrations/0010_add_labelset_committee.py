@@ -54,10 +54,10 @@ class Migration(migrations.Migration):
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
         ('labels', '0009_add_verified_field_and_permission'),
         # The manual call of the post-migration signal may fail
-        # unless the contenttypes and sites migrations run first.
+        # unless the contenttypes migrations and sites migrations
+        # (if that app is used) run first.
         # https://code.djangoproject.com/ticket/23422#comment:25
         ('contenttypes', '__latest__'),
-        ('sites', '__latest__'),
     ]
 
     operations = [

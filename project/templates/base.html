@@ -71,6 +71,7 @@
           </ul>
           <ul class="nav nav_right" id="nav_user">
             {% if user.is_authenticated %}
+
               {% with num_invites_received=user.invites_received.count %}
                 {% if num_invites_received > 0 %}
                 <li class="button_prominent"><a href="{% url 'invites_manage' %}"><span>{% trans 'Invites' %} ({{ num_invites_received }})</span></a></li>
@@ -78,15 +79,19 @@
                 <li><a href="{% url 'invites_manage' %}"><span>{% trans 'Invites' %}</span></a></li>
                 {% endif %}
               {% endwith %}
+
               {% if user.is_superuser %}
-	        <li><a href="{% url 'emailall' %}"><span>{% trans 'Email All' %}</span></a></li>
+	              <li><a href="{% url 'emailall' %}"><span>Email All</span></a></li>
               {% endif %}
-              {# TODO: Re-implement #}
-{#              <li><a href="{% url 'userena_profile_detail' user.username %}"><span>{% trans 'Account' %} ({{ user.username }})</span></a></li>#}
+
+              <li><a href="{% url 'profile_detail' user.pk %}"><span>Account ({{ user.username }})</span></a></li>
               <li><a href="{% url 'auth_logout' %}"><span>Sign out</span></a></li>
+
             {% else %}
+
               <li><a href="{% url 'auth_login' %}"><span>Sign in</span></a></li>
               <li><a href="{% url 'registration_register' %}"><span>Register</span></a></li>
+
             {% endif %}
           </ul>
         </div>

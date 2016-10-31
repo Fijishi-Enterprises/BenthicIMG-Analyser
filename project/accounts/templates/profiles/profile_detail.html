@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends 'accounts/base_accounts.html' %}
 {% load get_media_prefix from static %}
 
 {% block title %}{{ profile.user.username }}'s profile - CoralNet{% endblock %}
@@ -24,17 +24,15 @@
 </style>
 {% endblock %}
 
-{# Don't show the profile menu if you're viewing someone else's profile #}
-{# TODO: Make this relevant again by adding the profile menu #}
-{#{% block nav_profile %}#}
-{#  {% if profile.user.username == user.username %}#}
-{#    {{ block.super }}#}
-{#  {% endif %}#}
-{#{% endblock %}#}
-
 {% block content %}
 
 <legend>{{ profile.user.username }}'s profile</legend>
+
+{% if profile.user == user %}
+  <div class="line">
+    <a href="{% url 'profile_edit' %}">Edit your profile</a>
+  </div>
+{% endif %}
 
 <div id="details">
   <img src="{% get_media_prefix %}{{ profile.avatar.name }}"

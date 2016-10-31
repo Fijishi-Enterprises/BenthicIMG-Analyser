@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block nav %}
+  {{ block.super }}
+
+  {% if user.username %}
+    <div class="nav_container" id="nav_second_container">
+      <ul class="nav nav_right" id="nav_profile">
+
+        <li>
+            <a href="{% url 'profile_list' %}">
+              <span>List of profiles</span></a>
+        </li>
+        <li>
+            <a href="{% url 'profile_detail' user.pk %}">
+              <span>Your profile</span></a>
+        </li>
+        <li>
+            <a href="{% url 'auth_password_change' %}">
+              <span>Change password</span></a>
+        </li>
+        <li>
+            <a href="{% url 'email_change' %}">
+              <span>Change email</span></a>
+        </li>
+
+      </ul>
+    </div>
+  {% endif %}
+
+{% endblock %}

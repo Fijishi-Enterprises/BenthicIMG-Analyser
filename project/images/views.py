@@ -146,7 +146,8 @@ def source_main(request, source_id):
 
     # Users who are members of the source
     members = source.get_members_ordered_by_role()
-    memberDicts = [dict(username=member.username,
+    memberDicts = [dict(pk=member.pk,
+                        username=member.username,
                         role=source.get_member_role(member))
                    for member in members]
 

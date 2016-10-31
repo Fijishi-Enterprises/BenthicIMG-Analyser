@@ -241,10 +241,9 @@
           <span>Source Invites</span>
         </a></li>
 
-{# TODO: Re-implement #}
-{#        <li><a href="{% url 'userena_profile_detail' user.username %}">#}
-{#          <span>Manage Account</span>#}
-{#        </a></li>#}
+        <li><a href="{% url 'profile_detail' user.pk %}">
+          <span>Your Profile</span>
+        </a></li>
 
         <li><a href="{% url 'auth_logout' %}">
           <span>Sign out</span>

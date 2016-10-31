@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model
-from django.contrib.auth.decorators import permission_required
+from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import login as default_login_view
 from django.contrib.sites.shortcuts import get_current_site
@@ -280,6 +280,12 @@ class ProfileEditView(LoginRequiredMixin, FormView):
         form.save()
         messages.success(self.request, "Profile edited successfully.")
         return redirect('profile_detail', self.request.user.pk)
+
+
+@login_required
+def profile_edit_cancel(request):
+    messages.success(request, "Edit cancelled.")
+    return redirect('profile_detail', request.user.pk)
 
 
 @permission_required('is_superuser')

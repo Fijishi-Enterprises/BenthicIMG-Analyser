@@ -14,7 +14,7 @@ input#id_website {
 
 <legend>Edit profile</legend>
 
-<form action="" enctype="multipart/form-data" method="post">
+<form action="" enctype="multipart/form-data" method="post" class="inline">
   {% csrf_token %}
 
   {% for field in form %}
@@ -24,10 +24,14 @@ input#id_website {
   {% endfor %}
 
   <div class="submit_button_wrapper_column_form">
-    <input type="submit" value="Save changes" />
+    <input type="submit" value="Save Changes" />
   </div>
 </form>
 
-{# TODO: Add Cancel button #}
-    
+<form action="{% url 'profile_edit_cancel' %}" method="get" class="inline">
+  <div class="submit_button_wrapper_column_form">
+    <input type="submit" value="Cancel Changes" />
+  </div>
+</form>
+
 {% endblock %}

@@ -52,14 +52,17 @@ urlpatterns = [
 
     # Profile views.
     url(r'^profile/list/$',
-       views.profile_list,
-       name='profile_list'),
+        views.profile_list,
+        name='profile_list'),
     url(r'^profile/detail/(?P<user_id>\d+)/$',
-       views.profile_detail,
-       name='profile_detail'),
+        views.profile_detail,
+        name='profile_detail'),
     url(r'^profile/edit/$',
         views.ProfileEditView.as_view(),
-       name='profile_edit'),
+        name='profile_edit'),
+    url(r'^profile/edit/cancel/$',
+        views.profile_edit_cancel,
+        name='profile_edit_cancel'),
 
     # Other accounts related views.
     url(r'^emailall/$',

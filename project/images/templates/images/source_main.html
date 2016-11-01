@@ -148,9 +148,6 @@ $(document).ready(function() {
 
     <div style="float:left; width:55%; margin-left:20px;height:350px">
     <h3 style="text-align:center">Automated Annotation</h3>
-    <div class="tutorial-message">
-        {% include "images/help_robot.html" %}
-    </div>
     {% if source.enable_robot_classifier %}
         {% if not source.has_robot %}
             <p> This source does not have a classifier yet. {{min_nbr_annotated_images}} images requred to trigger training the first one. </p>

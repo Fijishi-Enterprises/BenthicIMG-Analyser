@@ -1,5 +1,9 @@
 {% extends "images/base_source.html" %}
 
+{% block js-includes %}
+  {% include "javascript-includes.html" with jquery_ui="yes" %}
+{% endblock %}
+
 {% block page-specific-includes %}
     {% include "static-local-include.html" with type="js" path="js/highcharts.js" %}
     {% include "static-local-include.html" with type="js" path="js/heatmap.js" %}
@@ -116,7 +120,11 @@ $(document).ready(function() {
 
 {% block content %}
 
-<legend>Vision backend</legend>
+    <legend>Vision backend</legend>
+    <div class="tutorial-message">
+        {% include "vision_backend/help_backend.html" %}
+    </div>
+    
     <p>Diagnostics tools for the CoralNet computer vision backend. </p>
     
     <hr/>

@@ -37,17 +37,26 @@ def get_alleviate(estlabels, gtlabels, scores):
     """
     calculates accuracy for (up to) 250 different score thresholds.
     """
+    if not len(estlabels) == len(gtlabels) or not len(estlabels) == len(scores):
+        raise ValueError('all inputs must have the same length')
+
+    if len(estlabels) == 0:
+        raise ValueError('inputs must have length > 0')
     
     # convert to numpy for easy indexing
     scores, gtlabels, estlabels = np.asarray(scores), np.asarray(gtlabels, dtype=np.int), np.asarray(estlabels, dtype=np.int)
     
     # figureout appropritate thresholds to use
     ths = sorted(scores)
-    if len(ths) > 250:
-        ths = ths[np.linspace(0, len(ths) - 1, 250, dtype = np.int)] # max 250!
+
     # append something slightly lower and higher to ensure we include ratio = 0 and 100%
     ths.insert(0, max(min(ths) - 0.01, 0))
     ths.append(min(max(ths) + 0.01, 1.00))
+    
+    ths = np.asarray(ths) # convert back to numpy.
+    # cap at 250
+    if len(ths) > 250:
+        ths = ths[np.linspace(0, len(ths) - 1, 250, dtype = np.int)] # max 250!
     
     # do the actual sweep.
     accs, ratios = [], []
@@ -65,7 +74,7 @@ def map_labels(labellist, classmap):
     Helper function to map integer labels to new labels.
     """
     labellist = np.asarray(labellist, dtype = np.int)
-    newlist = np.zeros(len(labellist), dtype = np.int)
+    newlist = -1 * np.ones(len(labellist), dtype = np.int)
     for key in classmap.keys():
         newlist[labellist == key] = classmap[key]
     return list(newlist)
@@ -77,7 +86,7 @@ def labelset_mapper(labelmode, classids, source):
     if labelmode == 'full':
         
         # The label names are the abbreviated full names with code in parethesis.
-        classnames = [LocalLabel.objects.get(global_label__id = classid, labelset = source.labelset).global_label.name for classid in classids]
+        classnames = [Label.objects.get(id = classid).name for classid in classids]
         codes = [LocalLabel.objects.get(global_label__id = classid, labelset = source.labelset).code for classid in classids]
         classmap = dict()
         for i in range(len(classnames)):

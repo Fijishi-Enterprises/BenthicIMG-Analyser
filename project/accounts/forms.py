@@ -9,6 +9,8 @@ from registration.forms import RegistrationForm as DefaultRegistrationForm
 
 from .models import Profile
 
+User = get_user_model()
+
 
 class AuthenticationForm(DefaultAuthenticationForm):
     """
@@ -43,9 +45,45 @@ class RegistrationForm(DefaultRegistrationForm):
     agree_to_data_policy = BooleanField(
         required=True, label="I agree to the data policy")
 
+    class Meta(DefaultRegistrationForm.Meta):
+        # Include first_name and last_name.
+        fields = [
+            User.USERNAME_FIELD,
+            'email',
+            'password1',
+            'password2',
+            'first_name',
+            'last_name',
+        ]
+
+    def __init__(self, *args, **kwargs):
+        super(RegistrationForm, self).__init__(*args, **kwargs)
+
+        # The default help text has a few minor issues:
+        # - The word "Required" which seems redundant considering everything
+        # in the form is required.
+        # - Mentioning the (quite generous) max length is not necessary, and
+        # might encourage users into making usernames that are longer than
+        # needed.
+        # - The way they enumerate the special characters is not the clearest.
+        self.fields[User.USERNAME_FIELD].help_text = (
+            "Allowed characters: Letters, numbers, _ - . + @")
+
+        # django-registration's email field has the un-helpful help text
+        # 'email address' (in lowercase) - looks like it should've been
+        # the label instead.
+        self.fields['email'].required = True
+        self.fields['email'].label = "Email address"
+        self.fields['email'].help_text = (
+            "For account activation, password recovery, and site announcements")
+
+        # These aren't required on the User model, but we want them to be
+        # required on the form.
+        self.fields['first_name'].required = True
+        self.fields['last_name'].required = True
+
     def clean_username(self):
         username = self.cleaned_data.get('username')
-        User = get_user_model()
 
         # Ensure the username is unique case-insensitively.
         # Django model-fields specified as unique can only do this
@@ -80,6 +118,28 @@ class RegistrationForm(DefaultRegistrationForm):
         return username
 
 
+class RegistrationProfileForm(ModelForm):
+    """Profile model fields on the user registration page."""
+    class Meta:
+        model = Profile
+        fields = ['affiliation', 'reason_for_registering',
+                  'project_description', 'how_did_you_hear_about_us']
+        widgets = {
+            'reason_for_registering': Textarea(),
+            'project_description': Textarea(),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super(RegistrationProfileForm, self).__init__(*args, **kwargs)
+
+        # These aren't required on the Profile model so that old profiles
+        # aren't broken, but we want it to be required for new profiles.
+        self.fields['affiliation'].required = True
+        self.fields['reason_for_registering'].required = True
+        self.fields['project_description'].required = True
+        self.fields['how_did_you_hear_about_us'].required = True
+
+
 class ActivationResendForm(Form):
     email = EmailField(
         label="Email address",
@@ -97,10 +157,20 @@ class EmailChangeForm(Form):
 class ProfileEditForm(ModelForm):
     class Meta:
         model = Profile
-        fields = ['privacy', 'mugshot', 'website', 'location', 'about_me']
+        fields = ['privacy',
+                  'affiliation',
+                  'website', 'location', 'about_me',
+                  'mugshot', 'use_email_gravatar']
         widgets = {
             'about_me': Textarea(),
         }
+
+    def __init__(self, *args, **kwargs):
+        super(ProfileEditForm, self).__init__(*args, **kwargs)
+
+        # This isn't required on the Profile model so that old profiles aren't
+        # broken, but we want it to be required for new/updated profiles.
+        self.fields['affiliation'].required = True
 
 
 class EmailAllForm(Form):

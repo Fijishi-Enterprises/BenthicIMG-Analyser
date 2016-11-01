@@ -35,13 +35,13 @@
 {% endif %}
 
 <div id="details">
-  <img src="{% get_media_prefix %}{{ profile.avatar.name }}"
+  <img src="{{ profile.get_avatar_url }}"
        title="{{ profile.user.username }}'s avatar" />
   {% if profile.user.get_full_name %}
   <p><strong>Name</strong><br /> {{ profile.user.get_full_name }}</p>
   {% endif %}
-  {% if profile.age %}
-  <p><strong>Age</strong><br /> {{ profile.age }}</p>
+  {% if profile.affiliation %}
+  <p><strong>Affiliation</strong><br /> {{ profile.affiliation }}</p>
   {% endif %}
   {% if profile.website %}
   <p><strong>Website</strong><br /> <a href="{{ profile.website }}">{{ profile.website }}</a></p>

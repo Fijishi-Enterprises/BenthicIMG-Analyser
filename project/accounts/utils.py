@@ -25,11 +25,14 @@ def can_view_profile(request, profile):
     if profile.user == request.user:
         # Can view your own profile.
         return True
+    if not profile.user.is_active:
+        # Most people can't view inactive users' profiles.
+        return False
+
     if profile.privacy == 'open':
         # Anyone can view a public profile.
         return True
     if profile.privacy == 'registered':
         return request.user.is_authenticated()
-
     # profile.privacy == 'closed'
     return False

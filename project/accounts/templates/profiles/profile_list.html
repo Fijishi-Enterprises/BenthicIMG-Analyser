@@ -48,7 +48,7 @@
   <ul id="account_list">
     {% for profile in page_results.object_list %}
     <li>
-      <a href="{% url 'profile_detail' profile.user.pk %}"><img src="{% get_media_prefix %}{{ profile.avatar.name }}" /></a>
+      <a href="{% url 'profile_detail' profile.user.pk %}"><img src="{{ profile.get_avatar_url }}" /></a>
       <a href="{% url 'profile_detail' profile.user.pk %}">{{ profile.user.username }}</a>
     </li>
     {% endfor %}

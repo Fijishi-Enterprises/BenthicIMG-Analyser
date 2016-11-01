@@ -19,7 +19,11 @@ input#id_website {
 
   {% for field in form %}
     <div class="line">
-      {% include "form_generic_one_field.html" with field=field %}
+      {% if field.name == 'use_email_gravatar' %}
+        {% include "form_generic_one_field.html" with field=field checkbox="yes" %}
+      {% else %}
+        {% include "form_generic_one_field.html" with field=field %}
+      {% endif %}
     </div>
   {% endfor %}
 

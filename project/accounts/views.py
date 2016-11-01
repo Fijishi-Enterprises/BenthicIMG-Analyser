@@ -21,7 +21,7 @@ from registration.backends.hmac.views \
 from lib.utils import paginate
 from .forms import (
     ActivationResendForm, EmailAllForm, EmailChangeForm,
-    ProfileEditForm, RegistrationForm)
+    ProfileEditForm, RegistrationForm, RegistrationProfileForm)
 from .models import Profile
 from .utils import can_view_profile
 
@@ -56,25 +56,51 @@ def register(request, *args, **kwargs):
     return RegistrationView.as_view()(request, *args, **kwargs)
 
 class RegistrationView(BaseRegistrationView):
-    form_class = RegistrationForm
     success_url = 'registration_complete'
 
-    def form_valid(self, form):
-        # Check for unique email. This doesn't invalidate the form
-        # because we don't want to make it obvious on-site that the
-        # email is taken. We'll only tell the email owner.
-        #
-        # Our registration allows case-sensitive email distinction
-        # because some email domains support that (unfortunately).
-        # http://stackoverflow.com/questions/9807909/
-        email = form.cleaned_data['email']
-        if User.objects.filter(email=email).exists():
-            existing_user = User.objects.get(email=email)
-            self.send_already_exists_email(existing_user, email)
-        else:
-            self.register(form)
+    def get_context_data(self, **kwargs):
+        if 'main_form' not in kwargs:
+            kwargs['main_form'] = RegistrationForm()
+        if 'profile_form' not in kwargs:
+            kwargs['profile_form'] = RegistrationProfileForm()
+        return kwargs
 
-        return redirect(self.success_url)
+    def get(self, request, *args, **kwargs):
+        return render(request, self.template_name, self.get_context_data())
+
+    def post(self, request, *args, **kwargs):
+        main_form = RegistrationForm(request.POST)
+        profile_form = RegistrationProfileForm(request.POST)
+
+        if main_form.is_valid() and profile_form.is_valid():
+
+            # Check for unique email. This doesn't invalidate the form
+            # because we don't want to make it obvious on-site that the
+            # email is taken. We'll only tell the email owner.
+            #
+            # Our registration allows case-sensitive email distinction
+            # because some email domains support that (unfortunately).
+            # http://stackoverflow.com/questions/9807909/
+            email = main_form.cleaned_data['email']
+
+            if User.objects.filter(email=email).exists():
+                existing_user = User.objects.get(email=email)
+                self.send_already_exists_email(existing_user, email)
+            else:
+                # Clear to create a user and profile.
+                new_user = self.register(main_form)
+
+                profile = profile_form.instance
+                profile.user = new_user
+                profile.save()
+
+            return redirect(self.success_url)
+
+        messages.error(request, 'Please correct the errors below.')
+        return render(request, self.template_name, self.get_context_data(
+            main_form=main_form,
+            profile_form=profile_form,
+        ))
 
     def send_already_exists_email(self, existing_user, email_address):
         context = dict(username=existing_user.username)
@@ -94,7 +120,7 @@ class RegistrationView(BaseRegistrationView):
         already_exists_email.send()
 
 
-class ActivationResendView(RegistrationView):
+class ActivationResendView(BaseRegistrationView):
     form_class = ActivationResendForm
     success_url = 'activation_resend_complete'
     template_name = 'registration/activation_resend_form.html'
@@ -238,7 +264,7 @@ class EmailChangeConfirmView(LoginRequiredMixin, TemplateView):
 
 
 def profile_list(request):
-    all_profiles = Profile.objects.all().order_by('user__username')
+    all_profiles = Profile.objects.all().order_by('user__date_joined')
     all_results = [p for p in all_profiles if can_view_profile(request, p)]
     page_results = paginate(
         results=all_results,

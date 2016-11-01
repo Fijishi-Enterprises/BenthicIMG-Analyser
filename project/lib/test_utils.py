@@ -376,10 +376,13 @@ class ClientTest(BaseTest):
             email = '{username}@example.com'.format(username=username)
 
         cls.client.post(reverse('registration_register'), dict(
-            username=username,
-            email=email,
-            password1=password,
-            password2=password,
+            username=username, email=email,
+            password1=password, password2=password,
+            first_name="-", last_name="-",
+            affiliation="-",
+            reason_for_registering="-",
+            project_description="-",
+            how_did_you_hear_about_us="-",
             agree_to_data_policy=True,
         ))
 

@@ -9,7 +9,54 @@ from lib.test_utils import ClientTest
 User = get_user_model()
 
 
-class SignInTest(ClientTest):
+class BaseRegisterTest(ClientTest):
+
+    @classmethod
+    def setUpTestData(cls):
+        # Call the parent's setup (while still using this class as cls)
+        super(BaseRegisterTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+
+    def register(self, username='alice', email='alice123@example.com',
+                 password1='GreatBarrier', password2='GreatBarrier',
+                 first_name="Alice", last_name="Baker",
+                 affiliation="Testing Society",
+                 reason_for_registering="Trying labeling tools",
+                 project_description="Labeling corals",
+                 how_did_you_hear_about_us="Colleagues",
+                 agree_to_data_policy=True):
+        data = dict(
+            username=username, email=email,
+            password1=password1, password2=password2,
+            first_name=first_name, last_name=last_name,
+            affiliation=affiliation,
+            reason_for_registering=reason_for_registering,
+            project_description=project_description,
+            how_did_you_hear_about_us=how_did_you_hear_about_us,
+            agree_to_data_policy=agree_to_data_policy)
+        response = self.client.post(
+            reverse('registration_register'), data, follow=True)
+        return response
+
+    def register_and_get_activation_link(self):
+        """Shortcut function for tests focusing on the activation step."""
+        self.register()
+
+        activation_email = mail.outbox[-1]
+        # Activation link: should be the first link (first "word" with '://')
+        # in the activation email.
+        activation_link = None
+        for word in activation_email.body.split():
+            if '://' in word:
+                activation_link = word
+                break
+        self.assertIsNotNone(activation_link)
+
+        return activation_link
+
+
+class SignInTest(BaseRegisterTest):
 
     @classmethod
     def setUpTestData(cls):
@@ -114,13 +161,12 @@ class SignInTest(ClientTest):
 
     def test_sign_in_fail_if_user_inactive(self):
         # Register but don't activate.
-        self.client.post(reverse('registration_register'), dict(
+        self.register(
             username='alice',
             email='alice123@example.com',
             password1='GreatBarrier',
             password2='GreatBarrier',
-            agree_to_data_policy=True,
-        ))
+        )
 
         # Attempt to sign in as the new user.
         response = self.client.post(reverse('auth_login'), dict(
@@ -134,42 +180,6 @@ class SignInTest(ClientTest):
     # TODO: Add tests for getting redirected to the expected page
     # (about sources, source list, or whatever was in the 'next' URL
     # parameter).
-
-
-class BaseRegisterTest(ClientTest):
-
-    @classmethod
-    def setUpTestData(cls):
-        # Call the parent's setup (while still using this class as cls)
-        super(BaseRegisterTest, cls).setUpTestData()
-
-        cls.user = cls.create_user()
-
-    def register(self, username='alice', email='alice123@example.com',
-                 password1='GreatBarrier', password2='GreatBarrier',
-                 agree_to_data_policy=True):
-        data = dict(
-            username=username, email=email, password1=password1,
-            password2=password2, agree_to_data_policy=agree_to_data_policy)
-        response = self.client.post(
-            reverse('registration_register'), data, follow=True)
-        return response
-
-    def register_and_get_activation_link(self):
-        """Shortcut function for tests focusing on the activation step."""
-        self.register()
-
-        activation_email = mail.outbox[-1]
-        # Activation link: should be the first link (first "word" with '://')
-        # in the activation email.
-        activation_link = None
-        for word in activation_email.body.split():
-            if '://' in word:
-                activation_link = word
-                break
-        self.assertIsNotNone(activation_link)
-
-        return activation_link
 
 
 class RegisterTest(BaseRegisterTest):

@@ -23,7 +23,7 @@ from accounts.utils import get_robot_user
 from annotations.models import Annotation
 from images.model_utils import PointGen
 from images.models import Source, Point, Image
-from labels.models import LabelGroup, Label
+from labels.models import LabelGroup, Label, LocalLabel
 from lib.exceptions import TestfileDirectoryError
 from lib.utils import is_django_str
 from vision_backend.models import Classifier as Robot
@@ -474,7 +474,7 @@ class ClientTest(BaseTest):
         cls.client.logout()
 
     @classmethod
-    def create_labels(cls, user, label_names, group_name):
+    def create_labels(cls, user, label_names, group_name, default_codes = None):
         """
         Create labels.
         :param user: User who is creating these labels.
@@ -486,13 +486,16 @@ class ClientTest(BaseTest):
         group = LabelGroup(name=group_name, code=group_name[:10])
         group.save()
 
+        if default_codes is None:
+            default_codes = [name[:10] for name in label_names]
+
         cls.client.force_login(user)
-        for name in label_names:
+        for name, code in zip(label_names, default_codes):
             cls.client.post(
                 reverse('label_new_ajax'),
                 dict(
                     name=name,
-                    default_code=name[:10],
+                    default_code=code,
                     group=group.id,
                     description="Description",
                     # A new filename will be generated, and the uploaded

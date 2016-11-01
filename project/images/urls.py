@@ -10,10 +10,6 @@ urlpatterns = [
     url(r'^source/(?P<source_id>\d+)/admin/$', views.source_admin, name="source_admin"),
     url(r'^source/(?P<source_id>\d+)/detail_box/$', views.source_detail_box, name="source_detail_box"),
 
-    url(r'^source/(?P<source_id>\d+)/(?P<robot_version>\d+)/(?P<namestr>[a-z]+)$', views.cm_download, name="cm_download"),
-    url(r'^source/(?P<source_id>\d+)/(?P<robot_version>\d+)/alleviate.pdf$', views.alleviate_download, name="alleviate_download"),
-    url(r'^source/(?P<source_id>\d+)/robotstats/$', views.robot_stats_all, name="robot_stats_all"),
-
     url(r'^image/(?P<image_id>\d+)/view/$', views.image_detail, name="image_detail"),
     url(r'^image/(?P<image_id>\d+)/edit/$', views.image_detail_edit, name="image_detail_edit"),
 

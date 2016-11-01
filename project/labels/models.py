@@ -184,3 +184,9 @@ class LocalLabel(models.Model):
     @property
     def group(self):
         return self.global_label.group
+
+    def __unicode__(self):
+        """
+        To-string method.
+        """
+        return self.code

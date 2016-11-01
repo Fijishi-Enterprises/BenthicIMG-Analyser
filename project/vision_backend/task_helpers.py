@@ -150,14 +150,15 @@ def _featurecollector(messagebody):
     except:
         logger.info("Image {} was deleted. Aborting".format(image_id))
         return 0
-
+    logstr = "Image {} [Source: {} [{}]]".format(image_id, img.source, img.source_id)
+        
     # Double-check that the row-col information is still correct.
     rowcols = []
     for point in Point.objects.filter(image = img).order_by('id'):
         rowcols.append([point.row, point.column])
 
     if not rowcols == messagebody['original_job']['payload']['rowcols']:
-        logger.info("Row-col for image {} have changed. Aborting.".format(image_id))
+        logger.info("Row-col for {} have changed. Aborting.".format(logstr))
         return 0
     
     # If all is ok store meta-data.
@@ -182,11 +183,11 @@ def _classifiercollector(messagebody):
     except:
         logger.info("Classifier {} was deleted. Aborting".format(payload['pk']))
         return 0
-
+    logstr = 'Classifier {} [Source: {} [{}]]'.format(classifier.pk, classifier.source, classifier.source.id)
     # Check that the accuracy is higher than the previous classifiers
     if 'pc_models' in payload and len(payload['pc_models']) > 0:
         if max(result['pc_accs']) * settings.NEW_CLASSIFIER_IMPROVEMENT_TH > result['acc']:
-            logger.info("Classifier {} worse than previous. Not validated.".format(classifier.pk))
+            logger.info("{} worse than previous. Not validated.".format(logstr))
             return 0
         
         # Update accuracy for previous models
@@ -200,7 +201,7 @@ def _classifiercollector(messagebody):
     classifier.accuracy = result['acc']
     classifier.epoch_ref_accuracy = str([int(round(100 * ra)) for ra in result['refacc']])
     classifier.save()
-    logger.info("Classifier {} collected successfully.".format(classifier.pk))
+    logger.info("{} collected successfully.".format(logstr))
     return 1
 
 

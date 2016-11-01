@@ -6,7 +6,6 @@ from annotations.models import Annotation
 from images.model_utils import PointGen
 from images.models import Image, Point
 from labels.models import Label
-from vision_backend.utils import get_alleviate_meta
 
 def image_annotation_all_done(image):
     """
@@ -105,20 +104,11 @@ def apply_alleviate(image_id, label_probabilities):
     img = Image.objects.get(id=image_id)
     source = img.source
     robot = source.get_latest_robot()
-    alleviate_meta = get_alleviate_meta(robot) 
-
-    if source.alleviate_threshold < 1:
+    
+    if source.alleviate_threshold > 99:
         return
-    if (not(alleviate_meta['ok'])):
-        return
-
-    if (source.alleviate_threshold == 100):
-        # if the user wants 100% alleviation, we set the threhold to 0, meaning that all points will be annotated.
-        confidenct_threshold = 0
-    else:
-        # this is a critical step in the alleviate logic. It translate the alleviate level to a confidence threshold for the classifier.
-        # this confidence threshold is between 0 and 1.
-        confidenct_threshold = alleviate_meta['score_translate'][source.alleviate_threshold]
+    
+    confidenct_threshold = source.alleviate_threshold
 
     machine_annos = Annotation.objects.filter(image=img, user=get_robot_user())
     alleviate_was_applied = False

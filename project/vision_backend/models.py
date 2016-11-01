@@ -1,11 +1,13 @@
 from __future__ import unicode_literals
 
-from django.db import models
-
 from datetime import datetime
 
-from labels.models import Label, LocalLabel
+from django.db import models
+from django.conf import settings
 
+from labels.models import Label, LocalLabel
+from lib.utils import direct_s3_read
+import pickle
 
 class Classifier(models.Model):
     """
@@ -33,6 +35,18 @@ class Classifier(models.Model):
     # Create date
     create_date = models.DateTimeField('Date created', auto_now_add=True, editable=False)
     
+    @property
+    def valres(self):
+        #valres = direct_s3_read(settings.ROBOT_MODEL_VALRESULT_PATTERN.format(pk = self.pk, media = settings.AWS_LOCATION), 'json')
+        valres = pickle.load(open('/Users/beijbom/Desktop/valres.p'))
+        if type(valres['scores'][0]) == list:
+            valres['scores'] = [max(score) for score in valres['scores']]
+            print valres['scores'][0]
+        valres['gt'] = [int(g) for g in valres['gt']]
+        valres['est'] = [int(e) for e in valres['est']]
+        return valres
+
+
     def get_process_date_short_str(self):
         """
         Return the image's (pre)process date in YYYY-MM-DD format.

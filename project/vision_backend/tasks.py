@@ -136,7 +136,7 @@ def submit_classifier(source_id, nbr_images = 1e5, force = False):
     )
         
     # Prepare information for the message payload
-    classes = [l.global_label_id for l in LabelSet.objects.get(source = source).get_labels()] # Needed for the classifier.
+    #classes = [l.global_label_id for l in LabelSet.objects.get(source = source).get_labels()] # Needed for the classifier.
     previous_classifiers = Classifier.objects.filter(source = source, valid = True) # This will not include the current.
     pc_models = [settings.ROBOT_MODEL_FILE_PATTERN.format(pk = pc.pk, media = settings.AWS_LOCATION) for pc in previous_classifiers]
     pc_pks = [pc.pk for pc in previous_classifiers] # Primary keys needed for collect task.
@@ -149,7 +149,6 @@ def submit_classifier(source_id, nbr_images = 1e5, force = False):
         'valdata': settings.ROBOT_MODEL_VALDATA_PATTERN.format(pk = classifier.pk, media = settings.AWS_LOCATION),
         'valresult': settings.ROBOT_MODEL_VALRESULT_PATTERN.format(pk = classifier.pk, media = settings.AWS_LOCATION),
         'pk': classifier.pk,
-        'classes': classes,
         'nbr_epochs': settings.NBR_TRAINING_EPOCHS,
         'pc_models': pc_models,
         'pc_pks': pc_pks
@@ -166,6 +165,7 @@ def submit_classifier(source_id, nbr_images = 1e5, force = False):
 
     logger.info("Submitted classifier for source {} [{}] with {} images.".format(source.name, source.id, len(images)))
     logger.debug("Submitted classifier for source {} [{}] with {} images. Message: {}".format(source.name, source.id, len(images), messagebody))
+    return messagebody
  
 
 @task(name = "classify_image")
@@ -193,13 +193,8 @@ def classify_image(image_id):
         settings.FEATURE_VECTOR_FILE_PATTERN.format(full_image_path = os.path.join(settings.AWS_LOCATION, img.original_file.name)),
         'json' )
 
-    # Classify. Supress numpy overflow warning.
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        scores = classifier_model.predict_proba(feats)
-        # replace nans with equal probabilities for all classes.
-        scores[np.isnan(scores)] = 1.0 / len(classifier_model.classes_)
-        
+    # Classify.
+    scores = classifier_model.predict_proba(feats)
 
     # Pre-fetch label objects
     label_objs = []

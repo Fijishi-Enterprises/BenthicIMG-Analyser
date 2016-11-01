@@ -275,10 +275,6 @@ def source_detail_box(request, source_id):
     })
 
 
-# helper function to format numpy outputs
-def myfmt(r):
-    return "%.0f" % (r,)
-
 
 @source_permission_required('source_id', perm=Source.PermTypes.ADMIN.code)
 def source_admin(request, source_id):

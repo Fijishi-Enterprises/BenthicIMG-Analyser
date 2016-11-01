@@ -21,7 +21,8 @@ from registration.backends.hmac.views \
 from lib.utils import paginate
 from .forms import (
     ActivationResendForm, EmailAllForm, EmailChangeForm,
-    ProfileEditForm, RegistrationForm, RegistrationProfileForm)
+    ProfileEditForm, ProfileUserEditForm,
+    RegistrationForm, RegistrationProfileForm)
 from .models import Profile
 from .utils import can_view_profile
 
@@ -294,18 +295,35 @@ def profile_detail(request, user_id):
 
 
 class ProfileEditView(LoginRequiredMixin, FormView):
-    form_class = ProfileEditForm
     template_name = 'profiles/profile_form.html'
 
-    def get_form_kwargs(self):
-        kwargs = super(ProfileEditView, self).get_form_kwargs()
-        kwargs['instance'] = self.request.user.profile
+    def get_context_data(self, **kwargs):
+        if 'main_form' not in kwargs:
+            kwargs['main_form'] = ProfileEditForm(
+                instance=self.request.user.profile)
+        if 'user_form' not in kwargs:
+            kwargs['user_form'] = ProfileUserEditForm(
+                instance=self.request.user)
         return kwargs
 
-    def form_valid(self, form):
-        form.save()
-        messages.success(self.request, "Profile edited successfully.")
-        return redirect('profile_detail', self.request.user.pk)
+    def get(self, request, *args, **kwargs):
+        return render(request, self.template_name, self.get_context_data())
+
+    def post(self, request, *args, **kwargs):
+        main_form = ProfileEditForm(request.POST, instance=request.user.profile)
+        user_form = ProfileUserEditForm(request.POST, instance=request.user)
+
+        if main_form.is_valid() and user_form.is_valid():
+            main_form.save()
+            user_form.save()
+            messages.success(request, "Profile edited successfully.")
+            return redirect('profile_detail', request.user.pk)
+
+        messages.error(request, 'Please correct the errors below.')
+        return render(request, self.template_name, self.get_context_data(
+            main_form=main_form,
+            user_form=user_form,
+        ))
 
 
 @login_required

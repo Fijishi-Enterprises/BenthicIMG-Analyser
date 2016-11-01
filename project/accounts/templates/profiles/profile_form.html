@@ -17,15 +17,19 @@ input#id_website {
 <form action="" enctype="multipart/form-data" method="post" class="inline">
   {% csrf_token %}
 
-  {% for field in form %}
-    <div class="line">
-      {% if field.name == 'use_email_gravatar' %}
-        {% include "form_generic_one_field.html" with field=field checkbox="yes" %}
-      {% else %}
-        {% include "form_generic_one_field.html" with field=field %}
-      {% endif %}
-    </div>
-  {% endfor %}
+  {% include "form_generic_one_field.html" with field=main_form.privacy %}
+  {% include "form_generic_one_field.html" with field=user_form.first_name %}
+  {% include "form_generic_one_field.html" with field=user_form.last_name %}
+  {% include "form_generic_one_field.html" with field=main_form.affiliation %}
+  {% include "form_generic_one_field.html" with field=main_form.website %}
+  {% include "form_generic_one_field.html" with field=main_form.location %}
+  {% include "form_generic_one_field.html" with field=main_form.about_me %}
+  <div class="line">
+    {% include "form_generic_one_field.html" with field=main_form.mugshot %}
+  </div>
+  <div class="line">
+    {% include "form_generic_one_field.html" with field=main_form.use_email_gravatar checkbox="yes" %}
+  </div>
 
   <div class="submit_button_wrapper_column_form">
     <input type="submit" value="Save Changes" />

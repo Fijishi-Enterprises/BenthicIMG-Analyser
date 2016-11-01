@@ -5,12 +5,6 @@ from lib.test_utils import BaseTest
 from .confmatrix import ConfMatrix
 
 
-class ConfMatrixIntegration(BaseTest):
-    @classmethod
-    def setUpTestData(cls):
-        super(ConfMatrixAdd, cls).setUpTestData()
-
-
 class ConfMatrixBasics(BaseTest):
     """
     Check a newly uploaded image's status (as relevant to the vision backend).

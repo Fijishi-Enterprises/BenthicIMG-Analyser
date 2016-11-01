@@ -8,6 +8,11 @@
 
     {% for field in form %}
       <div class="line">{{ field.label }}: {{ field }}</div>
+
+      {% if field.help_text %}
+        <div class="helptext_small">
+          {{ field.help_text|safe|linebreaksbr }}</div>
+      {% endif %}
     {% endfor %}
 
     <input type="submit" value="Create Label" />

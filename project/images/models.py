@@ -100,8 +100,8 @@ class Source(models.Model):
     image_annotation_area = models.CharField(
         "Default image annotation area",
         help_text="This defines a rectangle of the image where annotation points are allowed to be generated.\n"
-                  "For example, X boundaries of 10% and 95% mean that the leftmost 10% and the rightmost 5% of the image will not have any points.\n"
-                  "You can also set these boundaries as pixel counts on a per-image basis; for images that don't have a specific value set, these percentages will be used.",
+                  "For example, X boundaries of 10% and 95% mean that the leftmost 10% and the rightmost 5% of the image will not have any points. Decimals like 95.6% are allowed.\n"
+                  "Later, you can also set these boundaries as pixel counts on a per-image basis; for images that don't have a specific value set, these percentages will be used.",
         max_length=50,
         null=True
     )

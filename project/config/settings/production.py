@@ -39,6 +39,8 @@ MANAGERS = ADMINS
 AWS_ACCESS_KEY_ID = get_secret('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = get_secret('AWS_SECRET_ACCESS_KEY')
 AWS_STORAGE_BUCKET_NAME = get_secret('AWS_STORAGE_BUCKET_NAME')
+# Default ACL permissions when saving S3 files
+AWS_DEFAULT_ACL = 'private'
 
 # Default file storage mechanism that holds media.
 DEFAULT_FILE_STORAGE = 'lib.storage_backends.MediaStorageS3'

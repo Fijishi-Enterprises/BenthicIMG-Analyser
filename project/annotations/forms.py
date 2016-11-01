@@ -117,18 +117,29 @@ class AnnotationImageOptionsForm(Form):
 
 class AnnotationAreaPercentsForm(Form):
 
-    min_x = DecimalField(label="Left boundary X",
-                         required=True, min_value=Decimal(0), max_value=Decimal(100),
-                         decimal_places=3, widget=NumberInput(attrs={'size': 3}))
-    max_x = DecimalField(label="Right boundary X",
-                         required=True, min_value=Decimal(0), max_value=Decimal(100),
-                         decimal_places=3, widget=NumberInput(attrs={'size': 3}))
-    min_y = DecimalField(label="Top boundary Y",
-                         required=True, min_value=Decimal(0), max_value=Decimal(100),
-                         decimal_places=3, widget=NumberInput(attrs={'size': 3}))
-    max_y = DecimalField(label="Bottom boundary Y",
-                         required=True, min_value=Decimal(0), max_value=Decimal(100),
-                         decimal_places=3, widget=NumberInput(attrs={'size': 3}))
+    # decimal_places=3 defines the max decimal places for the server-side form.
+    # But for the client-side experience, we define step='any' for two reasons:
+    # (1) So the NumberInput's up/down arrows change the value by 1 instead of
+    # 0.001 at a time.
+    # (2) So the browser doesn't do client-side form refusal based on
+    # decimal place count, which at least in Firefox is confusing
+    # because it doesn't display an error message.
+    min_x = DecimalField(
+        label="Left boundary X", required=True,
+        min_value=Decimal(0), max_value=Decimal(100), initial=Decimal(0),
+        decimal_places=3, widget=NumberInput(attrs={'step': 'any'}))
+    max_x = DecimalField(
+        label="Right boundary X", required=True,
+        min_value=Decimal(0), max_value=Decimal(100), initial=Decimal(100),
+        decimal_places=3, widget=NumberInput(attrs={'step': 'any'}))
+    min_y = DecimalField(
+        label="Top boundary Y", required=True,
+        min_value=Decimal(0), max_value=Decimal(100), initial=Decimal(0),
+        decimal_places=3, widget=NumberInput(attrs={'step': 'any'}))
+    max_y = DecimalField(
+        label="Bottom boundary Y", required=True,
+        min_value=Decimal(0), max_value=Decimal(100), initial=Decimal(100),
+        decimal_places=3, widget=NumberInput(attrs={'step': 'any'}))
 
     def __init__(self, *args, **kwargs):
         """

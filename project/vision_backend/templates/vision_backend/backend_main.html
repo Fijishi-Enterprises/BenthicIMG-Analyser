@@ -126,15 +126,23 @@ $(document).ready(function() {
         margin-right: auto"></div>
 
         <p>Select confidence threshold and label grouping to view detailed classifier performance. To actually change the source settings ask source admin to visit the <a href="{% url 'source_edit' source.id %}">source admin page</a>.
+        <div style="width:60%;margin-left:auto; margin-right:auto">
         <form action="" method="get">
             {{ form }}
             <input type="submit" name="cm_params"/>
         </form>    
+        </div>
         
         <div id="cm", style="width:80%; height:600px;margin-left: auto; margin-right: auto"></div>
+
+        <div style="width:20%;margin-left:auto; margin-right:auto">
+        <form action="" method="post">{% csrf_token %}
+            <input type="submit" name="export_cm" value="Export confusion matrix" />
+        </form>
+        </div>
+
     {% else %}
         <p> <i>This source does not have an automated classifier yet.</i></p>
-
     {% endif %}
 
 {% endblock %}

@@ -1,11 +1,12 @@
 import json
 import datetime
+import csv
 import numpy as np
 
 
 from django.shortcuts import render
 from django.core.urlresolvers import reverse
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, HttpResponse
 
 from lib.decorators import source_visibility_required
 
@@ -98,6 +99,23 @@ def backend_main(request, source_id):
         for member in ['acc_full', 'acc_func', 'ratios']:
             request.session['alleviate'][member] = [[conf, val] for val, conf in zip(eval(member), confs)]
 
+    # Handle the case where we are exporting the confusion matrix.
+    if request.method == 'POST' and request.POST.get('export_cm', None):
+        vecfmt = np.vectorize(myfmt)
+        
+        #create csv file
+        response = HttpResponse()
+        response['Content-Disposition'] = 'attachment;filename=confusion_matrix_{}_{}.csv'.format(labelmode, confidence_threshold)
+        writer = csv.writer(response)
+        
+        for enu, classname in enumerate(classnames):
+            row = []
+            row.append(classname)
+            row.extend(vecfmt(cm.cm[enu, :]))
+            writer.writerow(row)
+
+        return response
+
     return render(request, 'vision_backend/backend_main.html', {
         'form': form,
         'has_classifier': True,
@@ -106,4 +124,31 @@ def backend_main(request, source_id):
         'alleviate': request.session['alleviate'],
     })
 
+# helper function to format numpy outputs
+def myfmt(r):
+    return "%.0f" % (r,)
 
+@source_visibility_required('source_id')
+def download_cm(request, source_id, namestr):
+    vecfmt = vectorize(myfmt)
+    (fullcm, labelIds) = get_confusion_matrix(Robot.objects.get(version = robot_version))
+    if namestr == "full":
+        cm = fullcm
+        labelObjects = Label.objects.filter()
+    else:
+        (cm, placeholder, labelIds) = collapse_confusion_matrix(fullcm, labelIds)
+        labelObjects = LabelGroup.objects.filter()
+
+    #creating csv file
+    response = HttpResponse(type='text/csv')
+    response['Content-Disposition'] = 'attachment;filename=confusion_matrix.csv'
+    writer = csv.writer(response)
+    
+    ngroups = len(labelIds)
+    for i in range(ngroups):
+        row = []
+        row.append(labelObjects.get(id=labelIds[i]).name)
+        row.extend(vecfmt(cm[i, :]))
+        writer.writerow(row)
+
+    return response

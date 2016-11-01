@@ -28,22 +28,25 @@
             <span>Upload</span></a></li>
         {% endif %}
 
-        {% if "source_edit" in source_perms %}
-          <li><a href="{% url 'edit_metadata' source.id %}">
-            <span>Metadata</span></a></li>
-        {% endif %}
-
         <li><a href="{% url 'labelset_main' source.id %}">
           <span>Labelset</span></a></li>
 
         <li><a href="{% url 'browse_images' source.id %}">
-          <span>Browse</span></a></li>
+          <span>Images</span></a></li>
 
         <li><a href="{% url 'browse_patches' source.id %}">
           <span>Patches</span></a></li>
+          {% if "source_edit" in source_perms %}
+        
+        <li><a href="{% url 'edit_metadata' source.id %}">
+            <span>Metadata</span></a></li>
+        {% endif %}
 
         <li><a href="{% url 'statistics' source.id %}">
-          <span>Statistics</span></a></li>
+          <span>Stats</span></a></li>
+          
+        <li><a href="{% url 'backend_main' source.id %}">
+          <span>Backend</span></a></li>  
       </ul>
     </div>
 {% endblock %}

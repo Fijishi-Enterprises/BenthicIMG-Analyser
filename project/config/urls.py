@@ -17,6 +17,7 @@ urlpatterns = [
     url(r'^source/(?P<source_id>\d+)/browse/', include('visualization.urls')),
     url(r'^source/(?P<source_id>\d+)/export/', include('export.urls')),
     url(r'^source/(?P<source_id>\d+)/upload/', include('upload.urls')),
+    url(r'^source/(?P<source_id>\d+)/backend/', include('vision_backend.urls')),
 
     url(r'^admin/doc/', include('django.contrib.admindocs.urls')),
     url(r'^admin/', include(admin.site.urls)),

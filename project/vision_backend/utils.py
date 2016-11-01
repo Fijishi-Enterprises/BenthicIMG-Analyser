@@ -1,15 +1,23 @@
+import scipy.signal
+import scipy.interpolate
+
 import numpy as np
 
 from django.conf import settings
 
 from lib.utils import direct_s3_read, direct_s3_write
 from images.models import Source, Point
-from labels.models import LabelSet, Label, LabelGroup
-
+from labels.models import Label, LocalLabel
 from .models import Classifier, Score
 
-
-
+def acc(gt, est):
+    """
+    Calculate the accuracy of (agreement between) two interger valued list.
+    """
+    if len(gt) < 1:
+        return 1
+    else:
+        return float(sum([(g == e) for (g,e) in zip(gt, est)])) / len(gt)
 
 
 def get_label_probabilities_for_image(image_id):
@@ -25,163 +33,69 @@ def get_label_probabilities_for_image(image_id):
     return lpdict
 
 
-def get_current_confusion_matrix(source_id):
+def get_alleviate(estlabels, gtlabels, scores):
     """
-    Returns the confusion matrix for the latest classifier in source_id. 
-    """
-
-    source = Source.objects.get(id = source_id)
-    latestRobot = source.get_latest_robot()
-    if latestRobot == None:
-        return None
-    (cm, labelIds) = get_confusion_matrix(latestRobot)
-    return (cm, labelIds)
-
-def get_confusion_matrix(classifier):
-    """
-    Returns confusion matrix for classifier object.
+    calculates accuracy for (up to) 250 different score thresholds.
     """
     
-    valres = direct_s3_read(settings.ROBOT_MODEL_VALRESULT_PATTERN.format(pk = classifier.pk, media = settings.AWS_LOCATION), 'json')
-
-    classes = [l.global_label_id for l in LabelSet.objects.get(source = classifier.source).get_labels()]
-
-    cm = np.zeros((len(classes), len(classes)), dtype = int)
-
-    for gt, est in zip(valres['gt'], valres['est']):
-        cm[gt, est] = cm[gt, est] + 1
+    # convert to numpy for easy indexing
+    scores, gtlabels, estlabels = np.asarray(scores), np.asarray(gtlabels, dtype=np.int), np.asarray(estlabels, dtype=np.int)
     
-    return (cm, classes)
-
-def collapse_confusion_matrix(cm, labelIds):
-    """
-    (cm_func, fdict, funcIds) = collapse_confusion_matrix(cm, labelIds)
-    OUTPUT cm_func. a numpy matrix of functional group confusion matrix
-    OUTPUT fdict a dictionary that maps the functional group id to the row (and column) number in the confusion matrix
-    OUTPUT funcIds is a list that maps the row (or column) to the functional group id. ("inverse" or the fdict).
-    """
-
-    nlabels = len(labelIds)
-
-    # create a labelmap that maps the labels to functional groups. 
-    # The thing is that we can't rely on the functional group id field, 
-    # since this may not start on one, nor be consecutive.
-    funcgroups = LabelGroup.objects.filter().order_by('id') # get all groups
-    nfuncgroups = len(funcgroups)
-    fdict = {} # this will map group_id to a counter from 0 to (number of functional groups - 1).
-    for itt, group in enumerate(funcgroups):
-        fdict[group.id] = itt
-
-    # create the 'inverse' of the dictionary, namely a list of the functional groups. Same as the labelIds list but for functional groups. This is not used in this file, but is useful for other situations
-    funcIds = []    
-    for itt, group in enumerate(funcgroups):
-        funcIds.append(int(group.id))
-
-    # create a map from labelid to the functional group consecutive id. Needed for the matrix collapse.
-    funcMap = np.zeros( (nlabels, 1), dtype = int )
-    for labelItt in range(nlabels):
-        funcMap[labelItt] = fdict[Label.objects.get(id=labelIds[labelItt]).group_id]
-
-    ## collapse columns
+    # figureout appropritate thresholds to use
+    ths = sorted(scores)
+    if len(ths) > 250:
+        ths = ths[np.linspace(0, len(ths) - 1, 250, dtype = np.int)] # max 250!
+    # append something slightly lower and higher to ensure we include ratio = 0 and 100%
+    ths.insert(0, max(min(ths) - 0.01, 0))
+    ths.append(min(max(ths) + 0.01, 1.00))
     
-    # create an intermediate confusion matrix to facilitate the collapse
-    cm_int = np.zeros( ( nlabels, nfuncgroups ), dtype = int )
+    # do the actual sweep.
+    accs, ratios = [], []
+    for th in ths:
+        keep_ind = scores > th
+        accs.append(round(100 * acc(estlabels[keep_ind], gtlabels[keep_ind]), 1))
+        ratios.append(round(100 * np.sum(keep_ind) / float(len(estlabels)), 1))
+    ths = [round(100 * th, 1) for th in ths]
+    
+    return accs, ratios, ths
+
+
+def map_labels(labellist, classmap):
+    """
+    Helper function to map integer labels to new labels.
+    """
+    labellist = np.asarray(labellist, dtype = np.int)
+    newlist = np.zeros(len(labellist), dtype = np.int)
+    for key in classmap.keys():
+        newlist[labellist == key] = classmap[key]
+    return list(newlist)
+
+def labelset_mapper(labelmode, classids, source):
+    """
+    Prepares mapping function and labelset names to inject in confusion matrix.
+    """
+    if labelmode == 'full':
         
-    # do the collapse
-    for rowlabelitt in range(nlabels):
-        for collabelitt in range(nlabels):
-            cm_int[rowlabelitt, funcMap[collabelitt]] += cm[rowlabelitt, collabelitt]
+        # The label names are the abbreviated full names with code in parethesis.
+        classnames = [LocalLabel.objects.get(global_label__id = classid, labelset = source.labelset).global_label.name for classid in classids]
+        codes = [LocalLabel.objects.get(global_label__id = classid, labelset = source.labelset).code for classid in classids]
+        classmap = dict()
+        for i in range(len(classnames)):
+            if len(classnames[i]) > 25:
+                classnames[i] = classnames[i][:22] + '...'
+            classnames[i] = classnames[i] + ' (' + codes[i] + ')'
+            classmap[i] = i
+
+    elif labelmode == 'func':
+        classmap = dict()
+        classnames = []
+        for classid in classids:
+            fcnname = Label.objects.get(pk = classid).group.name
+            if not fcnname in classnames:
+                classnames.append(fcnname)
+            classmap[classids.index(classid)] = classnames.index(fcnname)
     
-    ## collapse rows
-    # create the final confusion matrix for functional groups
-    cm_func = np.zeros( ( nfuncgroups, nfuncgroups ), dtype = int )
-        
-    # do the collapse
-    for rowlabelitt in range(nlabels):
-        for funclabelitt in range(nfuncgroups):
-            cm_func[funcMap[rowlabelitt], funclabelitt] += cm_int[rowlabelitt, funclabelitt]
-
-    return (cm_func, fdict, funcIds)
-
-
-def confusion_matrix_normalize(cm):
-    """
-    (cm, row_sums) = confusion_matrix_normalize(cm)
-    OUTPUT cm is row-normalized confusion matrix. Exception. if row sums to zero, it will not be normalized.
-    OUTPUT row_sums is the row sums of the input cm
-    """
-    row_sums = cm.sum(axis=1)
-    cm = np.float32(cm)
-    row_sums[row_sums == 0] = 1
-    cm_normalized = cm / row_sums[:, np.newaxis]
-
-    return (cm_normalized, row_sums)
-
-
-def format_cm_for_display(cm, row_sums, labelobjects, labelIds):
-    """
-    This function takes a cm, and labels, and formats it for display on screen. 
-    OUTPUT cm_str is a list of strings.
-    """
-
-    nlabels = len(labelIds)
-    cm_str = ['']
-    for thisid in labelIds:
-        cm_str.append(str(labelobjects.get(id = thisid).name))
-    cm_str.append('Count')
-    for row in range(nlabels):
-        cm_str.append(str(labelobjects.get(id = labelIds[row]).name)) #the first entry is the name of the funcgroup.
-        for col in range(nlabels):
-            cm_str.append("%.2f" % cm[row][col])
-        cm_str.append("%.0f" % row_sums[row]) # add the count for this row
-
-    return cm_str
-
-
-def accuracy_from_cm(cm):
-    """
-    Calculates accuracy and kappa from confusion matrix.
-    """
-    cm = np.float32(cm)
-    acc = np.sum(np.diagonal(cm))/np.sum(cm)
-
-    pgt = cm.sum(axis=1) / np.sum(cm) #probability of the ground truth to predict each class
-
-    pest = cm.sum(axis=0) / np.sum(cm) #probability of the estimates to predict each class
-
-    pe = np.sum(pgt * pest) #probaility of randomly guessing the same thing!
-
-    if (pe == 1):
-        cok = 1
     else:
-        cok = (acc - pe) / (1 - pe) #cohens kappa!
+        Exception('labelmode {} not recognized'.format(labelmode))
 
-    return (acc, cok)
-
-
-def get_alleviate_meta(robot):
-    """
-    TODO: write this function for the new vision system!
-    """
-    
-    if True:
-        ok = 0
-    else:
-        f = open(alleviate_meta_file)
-        meta=json.loads(f.read())
-        f.close()
-        ok = meta['ok']
-
-    if (ok == 1):
-        alleviate_meta = dict(        
-            suggestion = meta['keepRatio'],
-            score_translate = meta['thout'],
-            plot_path = os.path.join(ALLEVIATE_IMAGE_DIR, str(robot.version) + '.png'),
-            plot_url = os.path.join(ALLEVIATE_IMAGE_URL, str(robot.version) + '.png'),
-            ok = True,
-        )
-    else:
-        alleviate_meta = dict(        
-            ok = False,
-        )
-    return (alleviate_meta)
+    return classmap, classnames

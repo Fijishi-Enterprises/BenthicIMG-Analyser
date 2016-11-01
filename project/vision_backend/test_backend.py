@@ -21,10 +21,6 @@ from .models import Classifier, Features, Score
 This file tests the mechanics of the vision_backend app. These are slow to run since they must allow actual processing to take place on the backend.
 """
 
-@skipIf(not settings.DEFAULT_FILE_STORAGE == 'lib.storage_backends.MediaStorageS3', "Can't run backend tests locally")
-@skipIf(get_total_messages_in_jobs_queue() > 10, "Too many messages in backend queue. Skipping this test.")
-
-
 
 class ImageInitialStatusTest(ClientTest):
     """

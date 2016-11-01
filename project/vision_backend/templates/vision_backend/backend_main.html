@@ -1,0 +1,140 @@
+{% extends "images/base_source.html" %}
+
+{% block page-specific-includes %}
+    {% include "static-local-include.html" with type="js" path="js/highcharts.js" %}
+    {% include "static-local-include.html" with type="js" path="js/heatmap.js" %}
+{% endblock %}
+
+{% block title %}Backend Inspector|CoralNet{% endblock %}
+
+{% block javascript-functions %}
+
+<script>
+
+$(document).ready(function() {
+    var chart1 = new Highcharts.Chart({
+        chart: {
+            renderTo: 'alleviate',
+            type: 'line',
+        },
+        title: {
+            text: 'Confidence threshold sweep'
+        },
+        xAxis: {
+            title: {
+                text: 'Confidence threshold (%)'
+            },
+            name: 'Confidence'
+        },
+        yAxis: {
+            title: {
+                text: '(%)'
+            },
+            min: 0,
+            max: 100,
+        },
+        tooltip: {
+            shared: true,
+            crosshairs: true,
+        },
+        series: [{
+            name: 'Label accuracy (%)',
+            data: {{alleviate.acc_full | safe}},
+            lineWidth: 3,
+            color: 'blue',
+        },{
+            name: 'Func. group accuracy (%)',
+            data: {{alleviate.acc_func | safe}},
+            lineWidth: 3,
+            color: 'red',
+        },{
+            name: 'Fraction above th. (%)',
+            data: {{alleviate.ratios | safe}},
+            lineWidth: 3,
+            color: 'grey',
+        }]
+    });
+});
+
+$(document).ready(function() {
+    var chart2 = new Highcharts.Chart({
+        chart: {
+            renderTo: 'cm',
+            type: 'heatmap',
+            marginTop: 40,
+            marginBottom: 200,
+        },
+        title: {
+            text: {{cm.title_ | safe}},
+        },
+        yAxis: {
+            categories: {{cm.ylabels | safe}},
+            title: null
+        },
+        xAxis: {
+            categories: {{cm.xlabels | safe}},
+            title: null
+        },
+        colorAxis: {
+            min: 0,
+            minColor: '#FFFFFF',
+            maxColor: Highcharts.getOptions().colors[0]
+        },
+        tooltip: {
+            formatter: function () {
+                return this.point.value + '% of <i>' + this.series.xAxis.categories[this.series.xAxis.categories.length - 1 - this.point.y] + '</i> classified as <i>'+ this.series.xAxis.categories[this.point.x] + 
+                '</i>.';
+            }
+        },
+        legend: {
+            align: 'right',
+            layout: 'vertical',
+            margin: 0,
+            verticalAlign: 'top',
+            y: 25,
+            symbolHeight: 280
+        },
+        series: [{
+            showInLegend: false,
+            borderWidth: 1,
+            data: {{cm.data_ | safe}},
+            dataLabels: {
+                enabled: true,
+                color: 'black',
+                style: {
+                    textShadow: 'none'
+                }
+            }
+        }]
+    });
+});
+
+</script>
+
+{% endblock %}
+
+
+{% block content %}
+
+<legend>Vision backend</legend>
+    <p>Diagnostics tools for the CoralNet computer vision backend. </p>
+    
+    <hr/>
+
+    {% if has_classifier %}
+        <div id="alleviate", style="width:60%; height:400px;margin-left: auto;
+        margin-right: auto"></div>
+
+        <p>Select confidence threshold and label grouping to view detailed classifier performance. To actually change the source settings ask source admin to visit the <a href="{% url 'source_edit' source.id %}">source admin page</a>.
+        <form action="" method="get">
+            {{ form }}
+            <input type="submit" name="cm_params"/>
+        </form>    
+        
+        <div id="cm", style="width:80%; height:600px;margin-left: auto; margin-right: auto"></div>
+    {% else %}
+        <p> <i>This source does not have an automated classifier yet.</i></p>
+
+    {% endif %}
+
+{% endblock %}

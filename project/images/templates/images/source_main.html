@@ -97,7 +97,7 @@ $(document).ready(function() {
                 {% endif %}
                 <li>Annotation point generation: {{ source.point_gen_method_display }}</li>
                 <li>
-                        Level of alleviation: {{ source.alleviate_threshold }}% <a href="{% url 'source_edit' source.id%}">(edit)</a>
+                        Confidence threshold: {{ source.confidence_threshold }}% <a href="{% url 'source_edit' source.id%}">(edit)</a>
                 </li>
             </ul>
             </div>

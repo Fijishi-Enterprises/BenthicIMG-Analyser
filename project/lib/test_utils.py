@@ -416,7 +416,7 @@ class ClientTest(BaseTest):
         max_y=100,
         point_generation_type=PointGen.Types.SIMPLE,
         simple_number_of_points=5,
-        alleviate_threshold=0,
+        confidence_threshold=100,
         latitude='0.0',
         longitude='0.0',
     )

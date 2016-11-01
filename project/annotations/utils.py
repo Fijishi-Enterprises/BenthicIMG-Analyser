@@ -105,11 +105,9 @@ def apply_alleviate(image_id, label_probabilities):
     source = img.source
     robot = source.get_latest_robot()
     
-    if source.alleviate_threshold > 99:
+    if source.confidence_threshold > 99:
         return
     
-    confidenct_threshold = source.alleviate_threshold
-
     machine_annos = Annotation.objects.filter(image=img, user=get_robot_user())
     alleviate_was_applied = False
 
@@ -120,7 +118,7 @@ def apply_alleviate(image_id, label_probabilities):
         top_score = descending_scores[0]['score']
         top_confidence = top_score
 
-        if top_confidence >= confidenct_threshold:
+        if top_confidence >= source.confidence_threshold:
             # Save the annotation under the username Alleviate, so that it's no longer
             # a robot annotation.
             anno.user = get_alleviate_user()

@@ -165,7 +165,7 @@ class SourceNewTest(ClientTest):
             max_y=90,
             point_generation_type=PointGen.Types.SIMPLE,
             simple_number_of_points=16,
-            alleviate_threshold=25,
+            confidence_threshold=25,
             latitude='-17.3776',
             longitude='25.1982',
         )
@@ -201,7 +201,7 @@ class SourceNewTest(ClientTest):
         self.assertEqual(form['key3'].value(), 'Aux3')
         self.assertEqual(form['key4'].value(), 'Aux4')
         self.assertEqual(form['key5'].value(), 'Aux5')
-        self.assertEqual(form['alleviate_threshold'].value(), 0)
+        self.assertEqual(form['confidence_threshold'].value(), 100)
 
     def test_source_create(self):
         """
@@ -467,7 +467,7 @@ class SourceEditTest(ClientTest):
                 number_of_cell_rows=4,
                 number_of_cell_columns=6,
                 stratified_points_per_cell=3,
-                alleviate_threshold=80,
+                confidence_threshold=80,
                 latitude='5.789',
                 longitude='-50',
             ),
@@ -504,7 +504,7 @@ class SourceEditTest(ClientTest):
                 stratified_points_per_cell=3,
             )
         )
-        self.assertEqual(self.source.alleviate_threshold, 80)
+        self.assertEqual(self.source.confidence_threshold, 80)
         self.assertEqual(self.source.latitude, '5.789')
         self.assertEqual(self.source.longitude, '-50')
 

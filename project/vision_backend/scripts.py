@@ -19,16 +19,6 @@ def print_image_scores(image_id):
             print score.label, score.score
 
 
-def set_alleviate_to_zero():
-    """
-    This scripts set the level of alleviation to 0 for all sources
-    """
-    for source in Source.objects.filter(enable_robot_classifier=True):
-        print "Processing source id:" + str(source.id)
-        source.alleviate_threshold = 0
-        source.save()           
-
-
 def read_error_messages():
     message = _read_message('spacer_errors')
     while not message == None:

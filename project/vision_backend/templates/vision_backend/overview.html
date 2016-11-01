@@ -2,10 +2,6 @@
 
 {% block content %}
 
-<form action="" method="post">{% csrf_token %}<input type="submit" name="list_in_process" value="List as seen by current backend-run." /></form>
-
-<form action="" method="post">{% csrf_token %} <input type="submit" name="list_current" value="Current list." /></form>
-
 <p>{{timestr}}</p>
 
 <table class="detail_table_popup">
@@ -46,6 +42,3 @@
 </table>
 
 {% endblock %}
-
-
-<a href="{% url 'annotation_area_edit' image.id %}">Edit</a>)

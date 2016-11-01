@@ -19,8 +19,9 @@ from .utils import labelset_mapper, map_labels
 from images.utils import source_robot_status
 import vision_backend.utils as utils
 
-@source_visibility_required('source_id')
-def backend_overview(request, source_id):
+
+# TODO: add super-user only permission for this view.
+def backend_overview(request):
 
     laundry_list = []
     for source in Source.objects.filter():

@@ -6,6 +6,8 @@ from django.views.generic import TemplateView
 
 import lib.views as lib_views
 
+import vision_backend.views as backend_views
+
 urlpatterns = [
     url(r'^annotations/', include('annotations.urls')),
     url(r'^feedback/', include('bug_reporting.urls')),
@@ -35,6 +37,8 @@ urlpatterns = [
 
     url(r'^nav_test/(?P<source_id>\d+)/$', lib_views.nav_test, name="nav_test"),
 
+    url(r'^backend_overview$', backend_views.backend_overview, name="backend_overview"),
+    
     # Internationalization
     url(r'^i18n/', include('django.conf.urls.i18n')),
 ]

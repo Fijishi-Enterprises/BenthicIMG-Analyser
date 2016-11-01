@@ -160,7 +160,7 @@ class ProfileEditForm(ModelForm):
         fields = ['privacy',
                   'affiliation',
                   'website', 'location', 'about_me',
-                  'mugshot', 'use_email_gravatar']
+                  'avatar_file', 'use_email_gravatar']
         widgets = {
             'about_me': Textarea(),
         }

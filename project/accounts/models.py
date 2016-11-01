@@ -42,7 +42,7 @@ class Profile(models.Model):
         help_text="Designates who can view your profile.")
 
     AVATAR_SIZE = 80
-    mugshot = ThumbnailerImageField(
+    avatar_file = ThumbnailerImageField(
         "Avatar file",
         blank=True,
         upload_to=get_avatar_upload_path,
@@ -81,11 +81,6 @@ class Profile(models.Model):
         "Project description", max_length=500, blank=True)
     how_did_you_hear_about_us = models.CharField(
         "How did you hear about us?", max_length=500, blank=True)
-
-    @property
-    def avatar_file(self):
-        """Ease the process of renaming mugshot to avatar_file."""
-        return self.mugshot
 
     @classmethod
     def _get_gravatar_url(cls, hash):

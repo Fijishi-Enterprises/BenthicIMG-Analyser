@@ -29,8 +29,6 @@ from annotations.models import Annotation
 from lib.decorators import source_permission_required, image_visibility_required, image_permission_required, source_visibility_required
 from visualization.utils import image_search_kwargs_to_queryset
 import vision_backend.tasks as backend_tasks
-from vision_backend.utils import get_confusion_matrix, collapse_confusion_matrix, confusion_matrix_normalize, format_cm_for_display, accuracy_from_cm, get_alleviate_meta
-
 
 def source_list(request):
     """
@@ -181,11 +179,26 @@ def source_main(request, source_id):
                 + urllib.urlencode(unconfirmed_kwargs),
         ))
 
-    ### PREPARE ALL ROBOT STATS ###
-    robot_stats = make_robot_stats(source_id, 3)
+    # Setup the classifier overview plot
+    clfs = source.get_valid_robots()
+    robot_stats = dict()
+    if clfs.count() > 0:
+        backend_plot_data = []
+        for enu, clf in enumerate(clfs[::-1]):
+            backend_plot_data.append({
+                'x': enu + 1,
+                'y': round(100 * clf.accuracy),
+                'nimages': clf.nbr_train_images, 
+                'traintime': str(datetime.timedelta(seconds = clf.runtime_train)),
+                'date': str(clf.create_date.strftime("%Y-%m-%d")),
+            })
+        robot_stats['backend_plot_data'] = backend_plot_data
+        robot_stats['has_robot'] = True
+    else:
+        robot_stats['has_robot'] = False
+
     source.latitude = source.latitude[:8]
     source.longitude = source.longitude[:8]
-    backend_status = utils.source_robot_status(source_id)
 
     return render(request, 'images/source_main.html', {
         'source': source,
@@ -193,7 +206,7 @@ def source_main(request, source_id):
         'latest_images': latest_images,
         'image_stats': image_stats,
         'robot_stats': robot_stats,
-        'backend_status': backend_status,
+        'min_nbr_annotated_images': settings.MIN_NBR_ANNOTATED_IMAGES,
     })
 
 @source_permission_required('source_id', perm=Source.PermTypes.ADMIN.code)
@@ -265,46 +278,6 @@ def source_detail_box(request, source_id):
 # helper function to format numpy outputs
 def myfmt(r):
     return "%.0f" % (r,)
-
-#
-# This functions prepares the confusion matrix for download in a csv file. input namestr determines whether it's the full of functional confusion matrix. INPUT source_id is included for permission reasons only.
-#
-@source_visibility_required('source_id')
-def cm_download(request, source_id, robot_version, namestr):
-    vecfmt = vectorize(myfmt)
-    (fullcm, labelIds) = get_confusion_matrix(Robot.objects.get(id = robot_version))
-    if namestr == "full":
-        cm = fullcm
-        labelObjects = Label.objects.filter()
-    else:
-        (cm, placeholder, labelIds) = collapse_confusion_matrix(fullcm, labelIds)
-        labelObjects = LabelGroup.objects.filter()
-
-    #creating csv file
-    response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = 'attachment;filename=confusion_matrix.csv'
-    writer = csv.writer(response)
-    
-    ngroups = len(labelIds)
-    for i in range(ngroups):
-        row = []
-        row.append(labelObjects.get(id=labelIds[i]).name)
-        row.extend(vecfmt(cm[i, :]))
-        writer.writerow(row)
-
-    return response
-
-
-"""
-This file exports the alleviate curve file
-"""
-@source_visibility_required('source_id')
-def alleviate_download(request, source_id, robot_version):
-    alleviate_meta = get_alleviate_meta(Robot.objects.get(version = robot_version))
-    with open(alleviate_meta['plot_path'], 'r') as png:
-        response = HttpResponse(png.read(), content_type='application/png')
-        response['Content-Disposition'] = 'inline;filename=alleviate' + str(robot_version) + '.png'
-        return response
 
 
 @source_permission_required('source_id', perm=Source.PermTypes.ADMIN.code)
@@ -706,82 +679,4 @@ def import_labels(request, source_id):
         'labelImportForm': labelImportForm,
         'source': source,
     })
-
-@source_visibility_required('source_id')
-def robot_stats_all(request, source_id):
-
-    robot_stats = make_robot_stats(source_id, 0)
-    source = Source.objects.get(id = source_id)
-
-    return render(request, 'images/robot_stats_all.html', {
-        'robot_stats': robot_stats,
-        'source': source,
-    })
-
-
-def make_robot_stats(source_id, nbr_robots):
-
-    ### PREPARE ALL ROBOT STATS ###
-    source = Source.objects.get(id = source_id)
-    groupObjects = LabelGroup.objects.filter()
-    labelObjects = Label.objects.filter()
-    validRobots = source.get_valid_robots()
-
-    robotlist = []
-    for robot in validRobots:
-        (fullcm, labelIds) = get_confusion_matrix(robot)
-        (fullcm_n, row_sums) = confusion_matrix_normalize(fullcm)
-        cm_str = format_cm_for_display(fullcm_n, row_sums, labelObjects, labelIds)
-        fullacc = accuracy_from_cm(fullcm)
-
-        (funccm, placeholder, groupIds) = collapse_confusion_matrix(fullcm, labelIds)
-        (funccm_n, row_sums) = confusion_matrix_normalize(funccm)
-        cm_func_str = format_cm_for_display(funccm_n, row_sums, groupObjects, groupIds)
-        funcacc = accuracy_from_cm(funccm)
-
-        cmlist = []
-        cmlist.append(dict(        
-            cm_str = cm_str,
-            ncols = len(labelIds) + 2,
-            ndiags = len(labelIds) + 3,
-            idstr = 'dialog' + str(robot.id) + 'full',
-            namestr = 'full',
-            acc = '%.1f' % (100*fullacc[0]),
-            kappa = '%.1f' % (100*fullacc[1]),
-        ))
-        cmlist.append(dict(        
-            cm_str = cm_func_str,
-            ncols = len(groupIds) + 2,
-            ndiags = len(groupIds) + 3,
-            idstr = 'dialog' + str(robot.id) + 'func',
-            namestr = 'func',
-            acc = '%.1f' % (100*funcacc[0]),
-            kappa = '%.1f' % (100*funcacc[1]),
-        ))
-
-        robotlist.append(dict(
-            cmlist = cmlist,
-            alleviate_meta = get_alleviate_meta(robot),
-            version = robot.id,
-            nsamples = robot.nbr_train_images,
-            train_time = robot.runtime_train,
-            date = robot.create_date
-        ))
-    
-    if not validRobots:
-        robot_stats = dict(
-            robotlist = robotlist,
-            has_robot=False,
-        )
-    else:
-        robot_stats = dict(
-            robotlist = robotlist,
-            has_robot=True,
-            # TODO: Get an aware datetime by changing the time.ctime call to
-            # timezone.make_aware(datetime.datetime.utcfromtimestamp(os.path.getmtime(...)), tz=pytz.utc)
-            # I would do it myself, but I can't test robots right now. -Stephen
-            most_recent_run_date = validRobots[0].runtime_train,
-        )
-
-    return robot_stats
 

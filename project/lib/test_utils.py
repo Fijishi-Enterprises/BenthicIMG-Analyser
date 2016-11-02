@@ -23,7 +23,7 @@ from accounts.utils import get_robot_user
 from annotations.models import Annotation
 from images.model_utils import PointGen
 from images.models import Source, Point, Image
-from labels.models import LabelGroup, Label, LocalLabel
+from labels.models import LabelGroup, Label
 from lib.exceptions import TestfileDirectoryError
 from lib.utils import is_django_str
 from vision_backend.models import Classifier as Robot
@@ -268,96 +268,6 @@ class ClientTest(BaseTest):
                 print "Errors:"
                 print actual_errors_printable
 
-    def login_required_page_test(self, protected_url, username, password):
-        """
-        Going to a login-required page while logged out should trigger a
-        redirect to the login page.  Then once the user logs in, they
-        should be redirected to the page they requested.
-        """
-        self.client.logout()
-        response = self.client.get(protected_url)
-
-        # This URL isn't built with django.utils.http.urlencode() because
-        # (1) urlencode() unfortunately escapes the '/' in its arguments, and
-        # (2) str concatenation should be safe when there's no possibility of
-        # malicious input.
-        url_signin_with_protected_page_next = reverse(settings.LOGIN_URL) + '?next=' + protected_url
-        self.assertRedirects(response, url_signin_with_protected_page_next)
-
-        response = self.client.post(url_signin_with_protected_page_next, dict(
-            identification=username,
-            password=password,
-        ))
-        self.assertRedirects(response, protected_url)
-
-    def permission_required_page_test(self, protected_url,
-                                      denied_users, accepted_users):
-        """
-        Going to a permission-required page...
-        - while logged out: should show the permission-denied template.
-        - while logged in as a user without sufficient permission: should
-        show the permission-denied template.
-        - while logged in a a user with sufficient permission: should show
-        the page they requested.
-        """
-        self.client.logout()
-        response = self.client.get(protected_url)
-        self.assertStatusOK(response)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-
-        for user in denied_users:
-            self.client.login(username=user['username'], password=user['password'])
-            response = self.client.get(protected_url)
-            self.assertStatusOK(response)
-            self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-
-        for user in accepted_users:
-            self.client.login(username=user['username'], password=user['password'])
-            response = self.client.get(protected_url)
-            self.assertStatusOK(response)
-            self.assertTemplateNotUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-
-    # TODO: Phase this out in favor of upload_image_new().
-    # This interface is a bit clunky for most purposes.
-    def upload_image(self, filename, **options):
-        """
-        Upload a single image via the Ajax view.
-
-        Requires logging in as a user with upload permissions in
-        the source, first.
-
-        :param filename: The image file's filepath as a string, relative to
-            <settings.SAMPLE_UPLOADABLES_ROOT>/data.
-        :return: A tuple of (image_id, response):
-            image_id - id of the uploaded image.
-            response - the response object from the upload.
-        """
-        sample_uploadable_directory = os.path.join(settings.SAMPLE_UPLOADABLES_ROOT, 'data')
-
-        sample_uploadable_path = os.path.join(sample_uploadable_directory, filename)
-        file_to_upload = open(sample_uploadable_path, 'rb')
-
-        post_dict = dict(
-            file=file_to_upload,
-            **self.default_upload_params
-        )
-        post_dict.update(options)
-
-        response = self.client.post(
-            reverse('upload_images_ajax', kwargs={'source_id': self.source_id}),
-            post_dict,
-        )
-        file_to_upload.close()
-
-        self.assertStatusOK(response)
-
-        # Get the image_id from response.content;
-        # if not present, set to None.
-        response_json = response.json()
-        image_id = response_json.get('image_id', None)
-
-        return image_id, response
-
     user_count = 0
     @classmethod
     def create_user(cls, username=None, password='SamplePassword', email=None):
@@ -526,6 +436,8 @@ class ClientTest(BaseTest):
         source.refresh_from_db()
         return source.labelset
 
+    # TODO: Now that the old upload_image() is gone, rename this function to
+    # upload_image() at some point.
     image_count = 0
     @classmethod
     def upload_image_new(cls, user, source, image_options=None):
@@ -641,22 +553,6 @@ class ClientTest(BaseTest):
             image.features.classified = True
             image.features.save()
 
-    @staticmethod
-    def print_response_messages(response):
-        """
-        Outputs (to console) the Django messages that were received in the given response.
-        """
-        print ['message: '+m.message for m in list(response.context['messages'])]
-
-    @staticmethod
-    def print_form_errors(response, form_name):
-        """
-        Outputs (to console) the errors of the given form in the given response.
-        response: the response object
-        form_name: the form's name in the response context (this is a string)
-        """
-        print ['{0} error: {1}: {2}'.format(form_name, field_name, str(error_list))
-               for field_name, error_list in response.context[form_name].errors.iteritems()]
 
 class StorageChecker(object):
     """

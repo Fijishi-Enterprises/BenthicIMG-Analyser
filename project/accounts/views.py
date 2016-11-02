@@ -310,7 +310,8 @@ class ProfileEditView(LoginRequiredMixin, FormView):
         return render(request, self.template_name, self.get_context_data())
 
     def post(self, request, *args, **kwargs):
-        main_form = ProfileEditForm(request.POST, instance=request.user.profile)
+        main_form = ProfileEditForm(
+            request.POST, request.FILES, instance=request.user.profile)
         user_form = ProfileUserEditForm(request.POST, instance=request.user)
 
         if main_form.is_valid() and user_form.is_valid():

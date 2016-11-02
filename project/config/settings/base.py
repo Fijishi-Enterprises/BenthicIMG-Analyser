@@ -1,3 +1,5 @@
+# Base settings for any type of server.
+
 import json, sys, os
 
 from unipath import Path
@@ -16,6 +18,9 @@ SETTINGS_DIR = Path(__file__).ancestor(1)
 
 # Base directory of the Django project.
 PROJECT_DIR = SETTINGS_DIR.ancestor(2)
+
+# Directory for any site related files, not just the repository.
+SITE_DIR = PROJECT_DIR.ancestor(2)
 
 # JSON-based secrets module, expected to be in the SETTINGS_DIR
 with open(SETTINGS_DIR.child('secrets.json')) as f:
@@ -44,6 +49,16 @@ with open(SETTINGS_DIR.child('secrets.json')) as f:
 
 # If you set this to True, Django will use timezone-aware datetimes.
 USE_TZ = True
+
+# Local time zone for this installation. All choices can be found here:
+# http://en.wikipedia.org/wiki/List_of_tz_zones_by_name (although not all
+# systems may support all possibilities). When USE_TZ is True, this is
+# interpreted as the default user time zone.
+#
+# The value in this base settings module should match what we want for the
+# production server. Each developer's settings module can override this
+# as needed.
+TIME_ZONE = 'America/Los_Angeles'
 
 # Language code for this installation. All choices can be found here:
 # http://www.i18nguy.com/unicode/language-identifiers.html
@@ -250,6 +265,14 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+
+# The maximum size (in bytes) that an upload will be before it
+# gets streamed to the file system.
+#
+# The value in this base settings module should match what we want for the
+# production server. Each developer's settings module can override this
+# as needed.
+FILE_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50 MB
 
 
 

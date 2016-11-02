@@ -2,11 +2,6 @@ from .base import *
 
 
 
-# Directory for any site related files, not just the repository.
-SITE_DIR = PROJECT_DIR.ancestor(2)
-
-
-
 DEBUG = False
 
 # People who get code error notifications.
@@ -23,12 +18,6 @@ ADMINS = [
 # "*" matches anything, ".example.com" matches example.com and all subdomains
 # TODO: When server setup is more settled in, only allow one host/domain.
 ALLOWED_HOSTS = ['.ucsd.edu', '.amazonaws.com', '127.0.0.1']
-
-# Local time zone for this installation. All choices can be found here:
-# http://en.wikipedia.org/wiki/List_of_tz_zones_by_name (although not all
-# systems may support all possibilities). When USE_TZ is True, this is
-# interpreted as the default user time zone.
-TIME_ZONE = 'America/Los_Angeles'
 
 # Not-necessarily-technical managers of the site. They get broken link
 # notifications and other various emails.
@@ -84,10 +73,6 @@ AWS_LOCATION = AWS_S3_MEDIA_SUBDIR
 # This only applies for DEBUG = False. When DEBUG = True, static files
 # are served automagically with django.contrib.staticfiles.views.serve().
 STATIC_ROOT = SITE_DIR.child('static_serve')
-
-# The maximum size (in bytes) that an upload will be before it
-# gets streamed to the file system.
-FILE_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50 MB
 
 WSGI_APPLICATION = 'config.wsgi.application'
 

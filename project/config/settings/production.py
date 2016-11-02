@@ -7,25 +7,6 @@ from .storage_s3 import *
 
 DEBUG = False
 
-# People who get code error notifications.
-# In the format [('Full Name', 'email@example.com'),
-# ('Full Name', 'anotheremail@example.com')]
-#
-# This might be a candidate for the secrets file, but it's borderline,
-# and it's also slightly messier to define a complex setting like this in JSON.
-# So it's staying here for now.
-#
-# TODO: Get email working in production, then uncomment this.
-ADMINS = [
-#    ('Stephen', 'stephenjchan@gmail.com'),
-#    ('Oscar', 'oscar.beijbom@gmail.com'),
-#    ('CoralNet', 'coralnet@eng.ucsd.edu'),
-]
-
-# Not-necessarily-technical managers of the site. They get broken link
-# notifications and other various emails.
-MANAGERS = ADMINS
-
 # Hosts/domain names that are valid for this site.
 # "*" matches anything, ".example.com" matches example.com and all subdomains
 # TODO: When server setup is more settled in, only allow one host/domain.

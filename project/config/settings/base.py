@@ -72,6 +72,25 @@ USE_I18N = True
 # according to user current locale.
 USE_L10N = True
 
+# People who get code error notifications.
+# In the format [('Full Name', 'email@example.com'),
+# ('Full Name', 'anotheremail@example.com')]
+#
+# This might be a candidate for the secrets file, but it's borderline,
+# and it's also slightly messier to define a complex setting like this in JSON.
+# So it's staying here for now.
+#
+# TODO: Get email working in production, then uncomment this.
+ADMINS = [
+#    ('Stephen', 'stephenjchan@gmail.com'),
+#    ('Oscar', 'oscar.beijbom@gmail.com'),
+#    ('CoralNet', 'coralnet@eng.ucsd.edu'),
+]
+
+# Not-necessarily-technical managers of the site. They get broken link
+# notifications and other various emails.
+MANAGERS = ADMINS
+
 # E-mail address that error messages come from.
 SERVER_EMAIL = 'noreply@coralnet.ucsd.edu'
 

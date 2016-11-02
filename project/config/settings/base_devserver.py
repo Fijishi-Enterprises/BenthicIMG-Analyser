@@ -8,18 +8,6 @@ from .base import *
 
 DEBUG = True
 
-# People who get code error notifications.
-# In the format [('Full Name', 'email@example.com'),
-# ('Full Name', 'anotheremail@example.com')]
-#
-# We'll leave this blank for dev servers, since they may not have
-# an email server set up.
-ADMINS = []
-
-# Not-necessarily-technical managers of the site. They get broken link
-# notifications and other various emails.
-MANAGERS = ADMINS
-
 # Instead of routing emails through a mail server,
 # just print emails to the console.
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'

@@ -35,21 +35,6 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 
 
-# [Custom setting]
-# Verbosity of print messages printed by our unit tests' code. Note that
-# this is different from Django's test runner's verbosity setting, which
-# relates to messages printed by Django's test runner code.
-#
-# 0 means the unit tests won't print any additional messages.
-#
-# 1 means the unit tests will print additional messages as extra confirmation
-# that things worked.
-#
-# There is no 2 for now, unless we see a need for it later.
-UNIT_TEST_VERBOSITY = 0
-
-
-
 # VISION BACKEND SETTINGS
 # TODO: move to separate settings file.
 SLEEP_TIME_BETWEEN_IMAGE_PROCESSING = 60 * 60

@@ -68,9 +68,6 @@ MEDIA_URL = 'https://{domain}/{subdir}/'.format(
 # S3 bucket subdirectory in which to store media.
 AWS_LOCATION = AWS_S3_MEDIA_SUBDIR
 
-# Temporary setting to make the old processing code exception-free for now...
-PROCESSING_ROOT = SITE_DIR.child('processing')
-
 # Absolute path to the directory which static files should be collected to.
 # Example: "/home/media/media.lawrence.com/static/"
 #

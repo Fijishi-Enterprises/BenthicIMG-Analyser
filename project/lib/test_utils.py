@@ -53,11 +53,6 @@ test_settings['CELERY_ALWAYS_EAGER'] = True
 # Make sure backedn tasks do not run.
 test_settings['FORCE_NO_BACKEND_SUBMIT'] = True
 
-# Store processing files in a 'unittests' subdir of the usual location.
-if hasattr(settings, 'PROCESSING_ROOT'):
-    test_settings['PROCESSING_ROOT'] = os.path.join(
-        settings.PROCESSING_ROOT, 'unittests')
-
 
 def get_total_messages_in_jobs_queue():
     """

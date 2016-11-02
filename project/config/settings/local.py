@@ -53,13 +53,6 @@ MEDIA_ROOT = SITE_DIR.child('media')
 # Example: "http://media.lawrence.com/media/"
 MEDIA_URL = '/media/'
 
-# [Custom setting]
-# Absolute filesystem path to the directory that will
-# hold input and output files for backend processing tasks.
-# This directory is best kept out of the repository.
-# Example: "/home/mysite_processing/"
-PROCESSING_ROOT = SITE_DIR.child('processing')
-
 # Absolute path to the directory which static files should be collected to.
 # Example: "/home/media/media.lawrence.com/static/"
 #

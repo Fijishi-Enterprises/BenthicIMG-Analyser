@@ -15,9 +15,3 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 # Hosts/domain names that are valid for this site.
 # "*" matches anything, ".example.com" matches example.com and all subdomains
 ALLOWED_HOSTS = ['*']
-
-
-
-# VISION BACKEND SETTINGS
-# TODO: move to separate settings file.
-SLEEP_TIME_BETWEEN_IMAGE_PROCESSING = 5 * 60

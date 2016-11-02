@@ -33,8 +33,3 @@ STATIC_ROOT = SITE_DIR.child('static_serve')
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-
-
-# VISION BACKEND SETTINGS
-# TODO: move to separate settings file.
-SLEEP_TIME_BETWEEN_IMAGE_PROCESSING = 60 * 60

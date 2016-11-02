@@ -34,10 +34,10 @@ with open(SETTINGS_DIR.child('secrets.json')) as f:
 
 
 
-# First come Django settings, then 3rd-party app settings,
+# In general, first come Django settings, then 3rd-party app settings,
 # then our own custom settings.
 #
-# The Django settings' comments and ordering are mainly from
+# The Django settings' comments are mainly from
 # django.conf.global_settings. (Not all Django settings are there though...)
 
 
@@ -59,6 +59,15 @@ USE_L10N = True
 
 # E-mail address that error messages come from.
 SERVER_EMAIL = 'noreply@coralnet.ucsd.edu'
+
+# Default email address to use for various automated correspondence
+# from the site manager(s).
+DEFAULT_FROM_EMAIL = SERVER_EMAIL
+
+# Subject-line prefix for email messages sent with
+# django.core.mail.mail_admins or django.core.mail.mail_managers.
+# You'll probably want to include the trailing space.
+EMAIL_SUBJECT_PREFIX = '[CoralNet] '
 
 # Database connection info.
 DATABASES = {
@@ -126,6 +135,33 @@ INSTALLED_APPS = [
     'storages',
 ]
 
+# The order of middleware classes is important!
+# https://docs.djangoproject.com/en/dev/topics/http/middleware/
+MIDDLEWARE_CLASSES = [
+    'django.middleware.common.CommonMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.locale.LocaleMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
+    # Clickjacking protection
+    # https://docs.djangoproject.com/en/dev/ref/clickjacking/
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
+
+    # django-reversion
+    'reversion.middleware.RevisionMiddleware',
+]
+
+AUTHENTICATION_BACKENDS = [
+    # Our subclass of Django's default backend.
+    # Allows sign-in by username or email.
+    'accounts.auth_backends.UsernameOrEmailModelBackend',
+    # django-guardian's backend for per-object permissions.
+    # Should be fine to put either before or after the main backend.
+    # https://django-guardian.readthedocs.io/en/stable/configuration.html
+    'guardian.backends.ObjectPermissionBackend',
+]
+
 ROOT_URLCONF = 'config.urls'
 
 # A list containing the settings for all template engines to be used
@@ -157,58 +193,37 @@ TEMPLATES = [
     },
 ]
 
-# Default email address to use for various automated correspondence
-# from the site manager(s).
-DEFAULT_FROM_EMAIL = SERVER_EMAIL
+# A list of locations of additional static files
+# (besides apps' "static/" subdirectories, which are automatically included)
+STATICFILES_DIRS = [
+    # Project-wide static files
+    PROJECT_DIR.child('static'),
+]
 
-# Subject-line prefix for email messages sent with
-# django.core.mail.mail_admins or django.core.mail.mail_managers.
-# You'll probably want to include the trailing space.
-EMAIL_SUBJECT_PREFIX = '[Beta CoralNet] '
-
-# A secret key for this particular Django installation. Used in secret-key
-# hashing algorithms.
-# Make this unique. Django's manage.py startproject command automatically
-# generates a random secret key and puts it in settings, so use that.
-SECRET_KEY = get_secret("SECRET_KEY")
+# List of finder classes that know how to find static files in
+# various locations.
+STATICFILES_FINDERS = [
+    'django.contrib.staticfiles.finders.FileSystemFinder',
+    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+#    'django.contrib.staticfiles.finders.DefaultStorageFinder',
+]
 
 # URL that handles the static files served from STATIC_ROOT.
 # (Or, if DEBUG is True, served automagically with the static-serve view.)
 # Example: "http://media.lawrence.com/static/"
 STATIC_URL = '/static/'
 
-# The order of middleware classes is important!
-# https://docs.djangoproject.com/en/dev/topics/http/middleware/
-MIDDLEWARE_CLASSES = [
-    'django.middleware.common.CommonMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.locale.LocaleMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    # Clickjacking protection
-    # https://docs.djangoproject.com/en/dev/ref/clickjacking/
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-
-    # django-reversion
-    'reversion.middleware.RevisionMiddleware',
-]
-
-AUTHENTICATION_BACKENDS = [
-    # Our subclass of Django's default backend.
-    # Allows sign-in by username or email.
-    'accounts.auth_backends.UsernameOrEmailModelBackend',
-    # django-guardian's backend for per-object permissions.
-    # Should be fine to put either before or after the main backend.
-    # https://django-guardian.readthedocs.io/en/stable/configuration.html
-    'guardian.backends.ObjectPermissionBackend',
-]
-
 # Don't expire the sign-in session when the user closes their browser
 # (Unless set_expiry(0) is explicitly called on the session).
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 # The age of session cookies, in seconds.
 SESSION_COOKIE_AGE = 60 * 60 * 24 * 30
+
+# A secret key for this particular Django installation. Used in secret-key
+# hashing algorithms.
+# Make this unique. Django's manage.py startproject command automatically
+# generates a random secret key and puts it in settings, so use that.
+SECRET_KEY = get_secret("SECRET_KEY")
 
 LOGIN_URL = 'auth_login'
 LOGOUT_URL = 'auth_logout'
@@ -236,21 +251,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-# A list of locations of additional static files
-# (besides apps' "static/" subdirectories, which are automatically included)
-STATICFILES_DIRS = [
-    # Project-wide static files
-    PROJECT_DIR.child('static'),
-]
-
-# List of finder classes that know how to find static files in
-# various locations.
-STATICFILES_FINDERS = [
-    'django.contrib.staticfiles.finders.FileSystemFinder',
-    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
-#    'django.contrib.staticfiles.finders.DefaultStorageFinder',
-]
-
 
 
 # django-guardian setting
@@ -273,7 +273,6 @@ ACCOUNT_ACTIVATION_DAYS = 7
 # The number of hours users will have to confirm an email change after
 # requesting one.
 EMAIL_CHANGE_CONFIRMATION_HOURS = 24
-
 
 
 

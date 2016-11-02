@@ -130,11 +130,14 @@ INSTALLED_APPS = [
     'accounts',
     'annotations',
     'bug_reporting',
+    # Saves internal server error messages for viewing in the admin site
     'errorlogs.apps.ErrorlogsConfig',
     'export',
     'images',
     'labels',
+    # Miscellaneous stuff
     'lib',
+    # Old account-request functionality; should be going away soon
     'requests',
     'upload',
     'visualization',
@@ -163,12 +166,14 @@ INSTALLED_APPS = [
 # https://docs.djangoproject.com/en/dev/topics/http/middleware/
 MIDDLEWARE_CLASSES = [
     'django.middleware.common.CommonMiddleware',
+    # Manages sessions across requests; required for auth
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.locale.LocaleMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     # Clickjacking protection
     # https://docs.djangoproject.com/en/dev/ref/clickjacking/
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # Associates users with requests across sessions; required for auth
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
 
@@ -201,13 +206,13 @@ TEMPLATES = [
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
+                # Adds current user and permissions to the template context.
                 'django.contrib.auth.context_processors.auth',
                 'django.template.context_processors.debug',
                 'django.template.context_processors.i18n',
                 'django.template.context_processors.media',
-                # request: Not included by default as of Django 1.8.
-                # If this processor is enabled, every RequestContext will
-                # contain a variable request, which is the current HttpRequest.
+                # Adds 'request' (current HttpRequest) to the context.
+                # Not included by default as of Django 1.8.
                 'django.template.context_processors.request',
                 'django.template.context_processors.static',
                 'django.template.context_processors.tz',

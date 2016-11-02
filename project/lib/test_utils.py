@@ -34,16 +34,20 @@ import boto.sqs
 test_settings = dict()
 
 # Store media in a 'unittests' subdir of the usual location.
-# MEDIA_ROOT is only defined for local, and AWS for production,
-# so use getattr() to catch the undefined cases (to avoid exceptions).
+
+# MEDIA_ROOT is only defined for local storage,
+# so use hasattr() to catch the undefined case (to avoid exceptions).
 if hasattr(settings, 'MEDIA_ROOT'):
     test_settings['MEDIA_ROOT'] = os.path.join(
         settings.MEDIA_ROOT, 'unittests')
+
+# AWS_LOCATION is only defined for S3 storage. In this case, a change of the
+# media location also needs a corresponding change in the MEDIA_URL.
 if hasattr(settings, 'AWS_LOCATION'):
     test_settings['AWS_LOCATION'] = posixpath.join(
         settings.AWS_LOCATION, 'unittests')
-test_settings['MEDIA_URL'] = urlparse.urljoin(
-    settings.MEDIA_URL, 'unittests/')
+    test_settings['MEDIA_URL'] = urlparse.urljoin(
+        settings.MEDIA_URL, 'unittests/')
 
 # Bypass the .delay() call to make the tasks run synchronously. 
 # This is needed since the celery agent runs in a different 

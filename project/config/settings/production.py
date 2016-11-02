@@ -1,4 +1,7 @@
+# Settings for the public site.
+
 from .base import *
+from .storage_s3 import *
 
 
 
@@ -7,6 +10,11 @@ DEBUG = False
 # People who get code error notifications.
 # In the format [('Full Name', 'email@example.com'),
 # ('Full Name', 'anotheremail@example.com')]
+#
+# This might be a candidate for the secrets file, but it's borderline,
+# and it's also slightly messier to define a complex setting like this in JSON.
+# So it's staying here for now.
+#
 # TODO: Get email working in production, then uncomment this.
 ADMINS = [
 #    ('Stephen', 'stephenjchan@gmail.com'),
@@ -14,60 +22,28 @@ ADMINS = [
 #    ('CoralNet', 'coralnet@eng.ucsd.edu'),
 ]
 
+# Not-necessarily-technical managers of the site. They get broken link
+# notifications and other various emails.
+MANAGERS = ADMINS
+
 # Hosts/domain names that are valid for this site.
 # "*" matches anything, ".example.com" matches example.com and all subdomains
 # TODO: When server setup is more settled in, only allow one host/domain.
 ALLOWED_HOSTS = ['.ucsd.edu', '.amazonaws.com', '127.0.0.1']
 
-# Not-necessarily-technical managers of the site. They get broken link
-# notifications and other various emails.
-MANAGERS = ADMINS
-
-# django-storages settings
-# http://django-storages.readthedocs.io/en/latest/backends/amazon-S3.html
-AWS_ACCESS_KEY_ID = get_secret('AWS_ACCESS_KEY_ID')
-AWS_SECRET_ACCESS_KEY = get_secret('AWS_SECRET_ACCESS_KEY')
-AWS_STORAGE_BUCKET_NAME = get_secret('AWS_STORAGE_BUCKET_NAME')
-# Default ACL permissions when saving S3 files
-AWS_DEFAULT_ACL = 'private'
-
-# Default file storage mechanism that holds media.
-DEFAULT_FILE_STORAGE = 'lib.storage_backends.MediaStorageS3'
-
-# easy_thumbnails 3rd party app:
-# Default file storage for saving generated thumbnails.
-#
-# The only downside of not using the app's provided storage class is that
-# the THUMBNAIL_MEDIA_ROOT and THUMBNAIL_MEDIA_URL settings won't work
-# (we'd have to apply them manually). We aren't using these settings, though.
-THUMBNAIL_DEFAULT_STORAGE = DEFAULT_FILE_STORAGE
-
-# [Custom settings]
-# S3 details on storing media.
-AWS_S3_DOMAIN = 's3-us-west-2.amazonaws.com/{bucket_name}'.format(
-    bucket_name=AWS_STORAGE_BUCKET_NAME)
-AWS_S3_MEDIA_SUBDIR = 'media'
-
-# Base URL for user-uploaded media.
-# Example: "http://media.lawrence.com/media/"
-MEDIA_URL = 'https://{domain}/{subdir}/'.format(
-    domain=AWS_S3_DOMAIN, subdir=AWS_S3_MEDIA_SUBDIR)
-
-# [django-storages setting]
-# S3 bucket subdirectory in which to store media.
-AWS_LOCATION = AWS_S3_MEDIA_SUBDIR
-
 # Absolute path to the directory which static files should be collected to.
 # Example: "/home/media/media.lawrence.com/static/"
 #
-# To collect static files here, first ensure that your static files are
-# in apps' "static/" subdirectories and in STATICFILES_DIRS. Then use the
+# To collect static files in STATIC_ROOT, first ensure that your static files
+# are in apps' "static/" subdirectories and in STATICFILES_DIRS. Then use the
 # collectstatic management command.
-# Don't put anything in this directory manually.
+# Don't put anything in STATIC_ROOT manually.
 #
 # Then, use your web server's settings to serve STATIC_ROOT at the STATIC_URL.
 # This is done outside of Django, but the docs have some implementation
-# suggestions.
+# suggestions. Basically, you either serve directly from the STATIC_ROOT
+# with nginx, or you push the STATIC_ROOT to a separate static-file server
+# and serve from there.
 # https://docs.djangoproject.com/en/dev/howto/static-files/deployment/
 #
 # This only applies for DEBUG = False. When DEBUG = True, static files

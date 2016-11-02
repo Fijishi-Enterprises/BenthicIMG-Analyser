@@ -89,16 +89,6 @@ DATABASES = {
     'default': {
         # 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
         'ENGINE': 'django.db.backends.postgresql',
-        # Or path to database file if using sqlite3.
-        'NAME': get_secret("DATABASES_NAME"),
-        # Not used with sqlite3.
-        'USER': get_secret("DATABASES_USER"),
-        # Not used with sqlite3.
-        'PASSWORD': get_secret("DATABASES_PASSWORD"),
-        # Set to empty string for localhost. Not used with sqlite3.
-        'HOST': get_secret("DATABASES_HOST"),
-        # Set to empty string for default. Not used with sqlite3.
-        'PORT': get_secret("DATABASES_PORT"),
         # If True, wraps each request (view function) in a transaction by
         # default. Individual view functions can override this behavior with
         # the non_atomic_requests decorator.

@@ -1,4 +1,5 @@
-from .local import *
+from .base_devserver import *
+from .storage_local import *
 
 DEBUG = True
 

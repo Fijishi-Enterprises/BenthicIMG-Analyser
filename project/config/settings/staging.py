@@ -6,14 +6,15 @@ from .production import *
 
 DEBUG = True
 
-# E-mail address that error messages come from.
-SERVER_EMAIL = 'noreply_staging@coralnet.ucsd.edu'
+# Instead of routing emails through a mail server,
+# just write emails to the filesystem.
+EMAIL_BACKEND = 'django.core.mail.backends.filebased.EmailBackend'
+EMAIL_FILE_PATH = SITE_DIR.child('tmp/emails')
 
-# Default email address to use for various automated correspondence
-# from the site manager(s).
-DEFAULT_FROM_EMAIL = SERVER_EMAIL
-
-# Subject-line prefix for email messages sent with
-# django.core.mail.mail_admins or django.core.mail.mail_managers.
-# You'll probably want to include the trailing space.
-EMAIL_SUBJECT_PREFIX = '[CoralNet staging] '
+# Hosts/domain names that are valid for this site.
+# "*" matches anything, ".example.com" matches example.com and all subdomains
+#
+# TODO: Once we upgrade to Django 1.9.11, we may or may not have to update
+# this to accommodate test runs. Read here:
+# https://docs.djangoproject.com/en/dev/topics/testing/advanced/#topics-testing-advanced-multiple-hosts
+ALLOWED_HOSTS = ['.amazonaws.com']

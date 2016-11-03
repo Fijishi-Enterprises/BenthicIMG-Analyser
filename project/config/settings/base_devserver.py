@@ -14,4 +14,8 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 # Hosts/domain names that are valid for this site.
 # "*" matches anything, ".example.com" matches example.com and all subdomains
-ALLOWED_HOSTS = ['*']
+#
+# When DEBUG is True and ALLOWED_HOSTS is empty,
+# the host is validated against ['localhost', '127.0.0.1', '[::1]'].
+# https://docs.djangoproject.com/en/dev/ref/settings/#allowed-hosts
+ALLOWED_HOSTS = []

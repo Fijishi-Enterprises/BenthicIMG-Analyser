@@ -76,15 +76,14 @@ USE_L10N = True
 # In the format [('Full Name', 'email@example.com'),
 # ('Full Name', 'anotheremail@example.com')]
 #
-# This might be a candidate for the secrets file, but it's borderline,
-# and it's also slightly messier to define a complex setting like this in JSON.
-# So it's staying here for now.
-#
-# TODO: Get email working in production, then uncomment this.
+# This might be a candidate for the secrets file, but it's borderline;
+# it's tied to the admins instead of to the server setup, and it's not that
+# much of a secret.
+# It's also slightly messier to define a complex setting like this in JSON.
 ADMINS = [
-#    ('Stephen', 'stephenjchan@gmail.com'),
-#    ('Oscar', 'oscar.beijbom@gmail.com'),
-#    ('CoralNet', 'coralnet@eng.ucsd.edu'),
+    ('Stephen', 'stephenjchan@gmail.com'),
+    ('Oscar', 'oscar.beijbom@gmail.com'),
+    ('CoralNet', 'coralnet@eng.ucsd.edu'),
 ]
 
 # Not-necessarily-technical managers of the site. They get broken link
@@ -97,6 +96,10 @@ SERVER_EMAIL = 'noreply@coralnet.ucsd.edu'
 # Default email address to use for various automated correspondence
 # from the site manager(s).
 DEFAULT_FROM_EMAIL = SERVER_EMAIL
+
+# [Custom setting]
+# Email of the labelset-committee group.
+LABELSET_COMMITTEE_EMAIL = 'coralnet-labelset@googlegroups.com'
 
 # Subject-line prefix for email messages sent with
 # django.core.mail.mail_admins or django.core.mail.mail_managers.

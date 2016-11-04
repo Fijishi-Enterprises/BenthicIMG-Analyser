@@ -1,0 +1,1 @@
+New label created: {{ label.name }}

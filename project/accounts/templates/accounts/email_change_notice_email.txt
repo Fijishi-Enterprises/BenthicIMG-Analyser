@@ -6,7 +6,7 @@ If you own the new email address, check that email account for your confirmation
 
 If you think you accidentally entered the wrong email address in your email change request, don't worry - the confirmation link requires logging in as {{ username }} in order to work. In addition, the confirmation link expires in {{ expiration_hours }} hours.
 
-On the other hand, if you didn't request an email change at CoralNet, someone else might be trying to get into your account. In this case, see if you can sign in and change your password as soon as possible. Don't hesitate to contact us if you need any assistance: http://{{ site.domain }}{% url 'contact' %}
+On the other hand, if you didn't request an email change at CoralNet, someone else might be trying to get into your account. In this case, see if you can sign in and change your password as soon as possible. Don't hesitate to contact us if you need any assistance: {{ request.scheme }}://{{ request.get_host }}{% url 'contact' %}
 
 
 Sincerely,

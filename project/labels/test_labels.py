@@ -1,7 +1,10 @@
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.core import mail
 from django.core.urlresolvers import reverse
+from django.shortcuts import resolve_url
+from django.test import override_settings
 
 from images.model_utils import PointGen
 from images.models import Source
@@ -357,6 +360,7 @@ class NewLabelAjaxTest(ClientTest):
             reverse(settings.LOGIN_URL) + '?next=' + self.url,
         )
 
+    @override_settings(LABELSET_COMMITTEE_EMAIL='labels@example.com')
     def test_label_creation(self):
         """Successfully create a new label."""
         self.client.force_login(self.user)
@@ -378,6 +382,20 @@ class NewLabelAjaxTest(ClientTest):
         self.assertIsNotNone(label.thumbnail)
         self.assertEqual(label.verified, False)
         self.assertEqual(label.created_by_id, self.user.pk)
+
+        # Check that an email was sent out
+        self.assertEqual(len(mail.outbox), 1)
+        label_email = mail.outbox[-1]
+        # Check recipients
+        self.assertEqual(len(label_email.to), 1)
+        self.assertEqual(label_email.to[0], 'labels@example.com')
+        self.assertEqual(len(label_email.cc), 1)
+        self.assertEqual(label_email.cc[0], self.user.email)
+        # Contents should have the creating user, label name, and link
+        # to label details
+        self.assertIn(self.user.username, label_email.body)
+        self.assertIn("CCC", label_email.body)
+        self.assertIn(resolve_url('label_main', label.pk), label_email.body)
 
     def test_label_name_taken(self):
         """Name taken -> error."""

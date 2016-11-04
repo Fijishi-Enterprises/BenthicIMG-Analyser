@@ -2,13 +2,16 @@ import codecs
 from collections import OrderedDict
 import csv
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.mail import EmailMessage
 from django.core.urlresolvers import reverse
 from django.core.validators import validate_comma_separated_integer_list
 from django.forms import Form
 from django.forms.fields import CharField
 from django.forms.models import ModelForm, BaseModelFormSet
 from django.forms.widgets import TextInput, HiddenInput
+from django.template.loader import render_to_string
 from django.utils.html import escape
 from django.utils.safestring import mark_safe
 
@@ -257,10 +260,31 @@ class LabelForm(ModelForm):
             ))
         raise ValidationError(msg, code='unique')
 
-    def save_new_label(self, creator_user):
+    def send_label_creation_email(self, request, new_label):
+        """Email the committee about the label creation, and CC the creator."""
+        context = dict(label=new_label)
+
+        subject = render_to_string(
+            'labels/label_created_subject.txt', context)
+        # Force subject to a single line to avoid header-injection issues.
+        subject = ''.join(subject.splitlines())
+        message = render_to_string(
+            'labels/label_created_email.txt', context, request=request)
+
+        label_creation_email = EmailMessage(
+            subject=subject,
+            body=message,
+            to=[settings.LABELSET_COMMITTEE_EMAIL],
+            cc=[request.user.email],
+        )
+        label_creation_email.send()
+
+    def save_new_label(self, request):
         label = self.instance
-        label.created_by = creator_user
+        label.created_by = request.user
         label.save()
+
+        self.send_label_creation_email(request, label)
 
         return label
 

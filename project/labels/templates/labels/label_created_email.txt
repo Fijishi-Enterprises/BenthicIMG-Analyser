@@ -1,0 +1,5 @@
+A new label has been created at CoralNet.
+
+Label name: {{ label.name }}
+Label details: {{ request.scheme }}://{{ request.get_host }}{% url 'label_main' label.pk %}
+Creator: {{ request.user.username }}

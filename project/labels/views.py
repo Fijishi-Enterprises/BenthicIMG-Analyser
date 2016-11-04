@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core import serializers
@@ -41,7 +42,7 @@ def label_new(request):
         form = LabelForm(request.POST, request.FILES)
 
         if form.is_valid():
-            form.save_new_label(request.user)
+            form.save_new_label(request)
             messages.success(request, 'Label successfully created.')
             return HttpResponseRedirect(
                 reverse('label_main', args=[form.instance.pk]))
@@ -64,7 +65,7 @@ def label_new_ajax(request):
     form = LabelForm(request.POST, request.FILES)
 
     if form.is_valid():
-        label = form.save_new_label(request.user)
+        label = form.save_new_label(request)
         return render(request, 'labels/label_box_container.html', {
             'labels': [label],
         })
@@ -172,6 +173,7 @@ def labelset_add(request, source_id):
         # Include a new-label form on the page. It'll be submitted to
         # another view though.
         'new_label_form': LabelForm(),
+        'labelset_committee_email': settings.LABELSET_COMMITTEE_EMAIL,
     })
 
 

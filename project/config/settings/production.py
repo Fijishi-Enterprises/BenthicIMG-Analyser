@@ -9,8 +9,7 @@ DEBUG = False
 
 # Hosts/domain names that are valid for this site.
 # "*" matches anything, ".example.com" matches example.com and all subdomains
-# TODO: When server setup is more settled in, only allow one host/domain.
-ALLOWED_HOSTS = ['.ucsd.edu', '.amazonaws.com', '127.0.0.1']
+ALLOWED_HOSTS = ['coralnet.ucsd.edu']
 
 # Absolute path to the directory which static files should be collected to.
 # Example: "/home/media/media.lawrence.com/static/"

@@ -75,7 +75,8 @@ class RegistrationForm(DefaultRegistrationForm):
         self.fields['email'].required = True
         self.fields['email'].label = "Email address"
         self.fields['email'].help_text = (
-            "For account activation, password recovery, and site announcements")
+            "For account activation, password recovery, site announcements,"
+            " and correspondence about any labels you create")
 
         # These aren't required on the User model, but we want them to be
         # required on the form.

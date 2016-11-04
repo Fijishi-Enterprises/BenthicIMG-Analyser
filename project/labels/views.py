@@ -42,7 +42,7 @@ def label_new(request):
         form = LabelForm(request.POST, request.FILES)
 
         if form.is_valid():
-            form.save_new_label(request.user)
+            form.save_new_label(request)
             messages.success(request, 'Label successfully created.')
             return HttpResponseRedirect(
                 reverse('label_main', args=[form.instance.pk]))
@@ -65,7 +65,7 @@ def label_new_ajax(request):
     form = LabelForm(request.POST, request.FILES)
 
     if form.is_valid():
-        label = form.save_new_label(request.user)
+        label = form.save_new_label(request)
         return render(request, 'labels/label_box_container.html', {
             'labels': [label],
         })

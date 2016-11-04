@@ -260,29 +260,31 @@ class LabelForm(ModelForm):
             ))
         raise ValidationError(msg, code='unique')
 
-    def send_label_creation_email(self, creator_user, new_label):
+    def send_label_creation_email(self, request, new_label):
         """Email the committee about the label creation, and CC the creator."""
-        context = dict(creator_username=creator_user.username, label=new_label)
+        context = dict(label=new_label)
 
-        subject = render_to_string('labels/label_created_subject.txt', context)
+        subject = render_to_string(
+            'labels/label_created_subject.txt', context)
         # Force subject to a single line to avoid header-injection issues.
         subject = ''.join(subject.splitlines())
-        message = render_to_string('labels/label_created_email.txt', context)
+        message = render_to_string(
+            'labels/label_created_email.txt', context, request=request)
 
         label_creation_email = EmailMessage(
             subject=subject,
             body=message,
             to=[settings.LABELSET_COMMITTEE_EMAIL],
-            cc=[creator_user.email],
+            cc=[request.user.email],
         )
         label_creation_email.send()
 
-    def save_new_label(self, creator_user):
+    def save_new_label(self, request):
         label = self.instance
-        label.created_by = creator_user
+        label.created_by = request.user
         label.save()
 
-        self.send_label_creation_email(creator_user, label)
+        self.send_label_creation_email(request, label)
 
         return label
 

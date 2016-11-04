@@ -1,10 +1,10 @@
 {% autoescape off %}
 Thanks for trying out CoralNet! Please activate your new account using this link:
-http://{{ site.domain }}{% url 'registration_activate' activation_key %}
+{{ request.scheme }}://{{ request.get_host }}{% url 'registration_activate' activation_key %}
 
 This activation link will be valid for {{ expiration_days }} days.
 
-If you didn't request an account at CoralNet, you may safely ignore this email. Someone might have typed in your email address by mistake. If you keep getting these emails without having requested them, we can look into it if you let us know here: http://{{ site.domain }}{% url 'contact' %}
+If you didn't request an account at CoralNet, you may safely ignore this email. Someone might have typed in your email address by mistake. If you keep getting these emails without having requested them, we can look into it if you let us know here: {{ request.scheme }}://{{ request.get_host }}{% url 'contact' %}
 
 Sincerely,
 The CoralNet team

@@ -4,7 +4,6 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import login as default_login_view
-from django.contrib.sites.shortcuts import get_current_site
 from django.core import signing
 from django.core.mail import EmailMessage
 from django.shortcuts import redirect, render, get_object_or_404
@@ -16,7 +15,7 @@ from django.views.generic.base import TemplateView
 from django.views.generic.edit import FormView
 
 from registration.backends.hmac.views \
-    import RegistrationView as BaseRegistrationView
+    import RegistrationView as ThirdPartyRegistrationView
 
 from lib.utils import paginate
 from .forms import (
@@ -50,6 +49,24 @@ def login(request, *args, **kwargs):
         if not request.POST.get('stay_signed_in', None):
             request.session.set_expiry(0)
     return default_login_view(request, *args, **kwargs)
+
+
+class BaseRegistrationView(ThirdPartyRegistrationView):
+    def send_activation_email(self, user):
+        """Override the superclass to pass the request to the template."""
+        activation_key = self.get_activation_key(user)
+        context = self.get_email_context(activation_key)
+        context.update({
+            'user': user
+        })
+        subject = render_to_string(self.email_subject_template,
+                                   context)
+        # Force subject to a single line to avoid header-injection
+        # issues.
+        subject = ''.join(subject.splitlines())
+        message = render_to_string(self.email_body_template,
+                                   context, request=self.request)
+        user.email_user(subject, message, settings.DEFAULT_FROM_EMAIL)
 
 
 @sensitive_post_parameters()
@@ -111,7 +128,8 @@ class RegistrationView(BaseRegistrationView):
         # Force subject to a single line to avoid header-injection issues.
         subject = ''.join(subject.splitlines())
         message = render_to_string(
-            'registration/registration_email_exists_email.txt', context)
+            'registration/registration_email_exists_email.txt',
+            context, request=self.request)
 
         already_exists_email = EmailMessage(
             subject=subject,
@@ -159,7 +177,6 @@ class EmailChangeView(LoginRequiredMixin, FormView):
             username=self.request.user.username,
             confirmation_key=confirmation_key,
             expiration_hours=settings.EMAIL_CHANGE_CONFIRMATION_HOURS,
-            site=get_current_site(self.request),
         )
 
         subject = render_to_string(
@@ -168,7 +185,8 @@ class EmailChangeView(LoginRequiredMixin, FormView):
         subject = ''.join(subject.splitlines())
 
         message = render_to_string(
-            'accounts/email_change_confirmation_email.txt', context)
+            'accounts/email_change_confirmation_email.txt',
+            context, request=self.request)
 
         confirmation_email = EmailMessage(
             subject=subject,
@@ -188,7 +206,6 @@ class EmailChangeView(LoginRequiredMixin, FormView):
             username=self.request.user.username,
             pending_email_address=pending_email_address,
             expiration_hours=settings.EMAIL_CHANGE_CONFIRMATION_HOURS,
-            site=get_current_site(self.request),
         )
 
         subject = render_to_string(
@@ -197,7 +214,8 @@ class EmailChangeView(LoginRequiredMixin, FormView):
         subject = ''.join(subject.splitlines())
 
         message = render_to_string(
-            'accounts/email_change_notice_email.txt', context)
+            'accounts/email_change_notice_email.txt',
+            context, request=self.request)
 
         confirmation_email = EmailMessage(
             subject=subject,
@@ -214,7 +232,8 @@ class EmailChangeView(LoginRequiredMixin, FormView):
         # Force subject to a single line to avoid header-injection issues.
         subject = ''.join(subject.splitlines())
         message = render_to_string(
-            'accounts/email_change_exists_email.txt', context)
+            'accounts/email_change_exists_email.txt',
+            context, request=self.request)
 
         already_exists_email = EmailMessage(
             subject=subject,

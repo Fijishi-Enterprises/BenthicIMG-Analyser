@@ -21,7 +21,7 @@ from images.utils import source_robot_status
 import vision_backend.utils as utils
 
 
-# TODO: add super-user only permission for this view.
+@permission_required('is_superuser')
 def backend_overview(request):
 
     laundry_list = []

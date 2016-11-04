@@ -109,7 +109,7 @@ class ConfMatrix:
 
       # This is a hack which enables us to show the class totals in the row titles. 
       # (there is no support for this in highchars.heatmap)
-      classes_with_rowsums = ['{} [n:{}]'.format(classname, rowsum) for rowsum, classname in zip(rowsums, self.labelset)][::-1]
+      classes_with_rowsums = ['{} [n:{}]'.format(classname, int(rowsum)) for rowsum, classname in zip(rowsums, self.labelset)][::-1]
 
       return cm_render, json.dumps(self.labelset), json.dumps(classes_with_rowsums)
 

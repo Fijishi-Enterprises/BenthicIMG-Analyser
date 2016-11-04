@@ -2,6 +2,10 @@
 
   <div class="line" id="label-form-status" style="font-weight: bold;"></div>
 
+  <div class="line">
+    Note that all labels in CoralNet are made available to the whole site. When you create a label, it will show up in label searches for all other users. Additionally, you and the CoralNet labelset committee will be emailed together to facilitate discussion about the newly created label. If you'd like to ask the labelset committee about something directly, you can reach them at: {{ labelset_committee_email|urlize }}
+  </div>
+
   <form id="label-form" action="{% url 'label_new_ajax' %}"
     method="post" enctype="multipart/form-data">
     {% csrf_token %}

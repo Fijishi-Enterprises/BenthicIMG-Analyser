@@ -4,6 +4,7 @@ import csv
 import numpy as np
 
 
+from django.contrib.auth.decorators import permission_required
 from django.shortcuts import render
 from django.core.urlresolvers import reverse
 from django.http import HttpResponseRedirect, HttpResponse

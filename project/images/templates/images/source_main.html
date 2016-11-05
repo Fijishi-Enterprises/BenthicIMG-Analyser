@@ -89,9 +89,6 @@ $(document).ready(function() {
             </div>
             <div style="float:left; width: 50%">
             <ul>
-                {% if source.image_height_in_cm %}
-                    <li>Default image height coverage(cm): {{ source.image_height_in_cm }}</li>
-                {% endif %}
                 {% if source.image_annotation_area %}
                     <li>Default image annotation area: {{ source.image_annotation_area_display }}</li>
                 {% endif %}
@@ -119,7 +116,6 @@ $(document).ready(function() {
                     {% for member in members %}
                         <tr>
                             <td><a href="{% url 'profile_detail' member.pk %}">{{ member.username }}</a></td>
-                            <td>{{ member.username }}</td>
                             <td><b>{{ member.role }}</b></td>
                         </tr>
                     {% endfor %}
@@ -151,7 +147,7 @@ $(document).ready(function() {
     <h3 style="text-align:center">Automated Annotation</h3>
     {% if source.enable_robot_classifier %}
         {% if not source.has_robot %}
-            <p> This source does not have a classifier yet. {{min_nbr_annotated_images}} images requred to trigger training the first one. </p>
+            <p> This source does not have a classifier yet. {{min_nbr_annotated_images}} images required to trigger training the first one. </p>
         {% endif %}
     {% endif %}
     {% if robot_stats.has_robot %}

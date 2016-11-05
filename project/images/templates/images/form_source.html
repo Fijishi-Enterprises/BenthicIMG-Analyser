@@ -3,8 +3,11 @@ This form template is meant to be used with the "include" template tag.
 {% endcomment %}
 
 <fieldset>
-    <legend class="small">General Information</legend>
-    {% include "form_generic.html" with form=sourceForm.fieldsets.general_info %}
+  <legend class="small">General Information</legend>
+  {% include "form_generic_one_field.html" with field=sourceForm.name %}
+  {% include "form_generic_one_field.html" with field=sourceForm.visibility %}
+  {% include "form_generic_one_field.html" with field=sourceForm.affiliation %}
+  {% include "form_generic_one_field.html" with field=sourceForm.description %}
 </fieldset>
 
 <fieldset>
@@ -26,12 +29,6 @@ This form template is meant to be used with the "include" template tag.
 
 <fieldset>
     <legend class="small">Image Annotation</legend>
-
-    <legend class="smaller">Default image height</legend>
-    <span class="helptext">{{ sourceForm.image_height_in_cm.help_text|linebreaksbr }}</span>
-    {% include "form_generic_one_field.html" with field=sourceForm.image_height_in_cm dont_show_help_text="True" %}
-
-    <hr class="light"/>
 
     <legend class="smaller">Default image annotation area</legend>
     <span class="helptext">{{ annotationAreaForm.form_help_text|linebreaksbr }}</span>
@@ -80,8 +77,9 @@ This form template is meant to be used with the "include" template tag.
 </fieldset>
 
 <fieldset>
-    <legend class="small">World Location</legend>
-    <span class="helptext">To get your source's coordinates, try <a href="http://www.latlong.net/" target="_blank">latlong.net</a>.<br />
-                           Later, we'll use this information to integrate with Google Maps.</span>
-    {% include "form_generic.html" with form=sourceForm.fieldsets.world_location %}
+  <legend class="small">World Location</legend>
+  <span class="helptext">To get your source's coordinates, try <a href="http://www.latlong.net/" target="_blank">latlong.net</a>.<br />
+                         Later, we'll use this information to integrate with Google Maps.</span>
+  {% include "form_generic_one_field.html" with field=sourceForm.latitude %}
+  {% include "form_generic_one_field.html" with field=sourceForm.longitude %}
 </fieldset>

@@ -178,10 +178,6 @@ class UploadImageTest(ClientTest):
         # currently logged in user.
         self.assertEqual(img.uploaded_by.pk, self.user.pk)
 
-        # cm height.
-        self.assertEqual(
-            img.metadata.height_in_cm, img.source.image_height_in_cm)
-
 
 class UploadImageFormatTest(ClientTest):
     """
@@ -343,7 +339,6 @@ class UploadMetadataTest(ClientTest):
         cls.source.key1 = 'Site'
         cls.source.key2 = 'Habitat'
         cls.source.key3 = 'Transect'
-        cls.source.image_height_in_cm = 50
         cls.source.save()
 
         cls.img1 = cls.upload_image_new(

@@ -159,7 +159,6 @@ class SourceNewTest(ClientTest):
             key3="Aux3",
             key4="Aux4",
             key5="Aux5",
-            image_height_in_cm=125,
             min_x=10,
             max_x=90,
             min_y=10,
@@ -228,10 +227,6 @@ class SourceNewTest(ClientTest):
         self.assertEqual(new_source.key3, "Aux3")
         self.assertEqual(new_source.key4, "Aux4")
         self.assertEqual(new_source.key5, "Aux5")
-        self.assertEqual(
-            new_source.image_height_in_cm,
-            125,
-        )
         self.assertEqual(
             new_source.default_point_generation_method,
             PointGen.args_to_db_format(
@@ -459,7 +454,6 @@ class SourceEditTest(ClientTest):
                 key3="Habitat",
                 key4="Section",
                 key5="Transect",
-                image_height_in_cm=77,
                 min_x=5,
                 max_x=95,
                 min_y=5,
@@ -489,7 +483,6 @@ class SourceEditTest(ClientTest):
         self.assertEqual(self.source.key3, "Habitat")
         self.assertEqual(self.source.key4, "Section")
         self.assertEqual(self.source.key5, "Transect")
-        self.assertEqual(self.source.image_height_in_cm, 77)
         self.assertEqual(
             self.source.image_annotation_area,
             AnnotationAreaUtils.percentages_to_db_format(

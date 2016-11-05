@@ -422,7 +422,7 @@ def image_detail_helper(image_id):
             value=getattr(metadata, field_name),
         )
         for field_name in [
-            'name', 'latitude', 'longitude', 'depth',
+            'height_in_cm', 'latitude', 'longitude', 'depth',
             'camera', 'photographer', 'water_quality', 'strobes',
             'framing', 'balance', 'comments',
         ]

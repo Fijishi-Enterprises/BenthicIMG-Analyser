@@ -119,11 +119,8 @@
         <div class="details">
         <h3>Other image details</h3>
         <ul>
+        <li>Name: {{ image.metadata.name }}</li>
         <li>Full resolution: {{ image.original_width }} x {{ image.original_height }} pixels</li>
-        <li>Height coverage: {{ metadata.height_in_cm }} centimeters</li>
-        </ul>
-
-        <ul>
         <li>Upload date: {{ image.upload_date }}</li>
         <li>Uploaded by: {{ image.uploaded_by|default:"(Unknown)" }}</li>
 

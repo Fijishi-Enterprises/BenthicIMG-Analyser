@@ -317,7 +317,6 @@ class ClientTest(BaseTest):
         key3="Aux3",
         key4="Aux4",
         key5="Aux5",
-        image_height_in_cm=50,
         min_x=0,
         max_x=100,
         min_y=0,

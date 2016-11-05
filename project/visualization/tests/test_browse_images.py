@@ -73,7 +73,6 @@ class SearchTest(ClientTest):
             point_generation_type=PointGen.Types.SIMPLE,
             # Make it easy to have confirmed and partially annotated images
             simple_number_of_points=2,
-            image_height_in_cm=50,
         )
         labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
         cls.create_labelset(cls.user, cls.source, labels)

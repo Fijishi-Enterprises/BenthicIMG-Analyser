@@ -26,7 +26,7 @@ class PermissionTest(ClientTest):
             cls.user, cls.source, cls.user_viewer, Source.PermTypes.VIEW.code)
         cls.user_outsider = cls.create_user()
 
-        cls.img1 = cls.upload_image_new(cls.user, cls.source)
+        cls.img1 = cls.upload_image(cls.user, cls.source)
 
         cls.url = reverse('edit_metadata', args=[cls.source.pk])
 
@@ -64,9 +64,9 @@ class LoadPageTest(ClientTest):
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
-        cls.img1 = cls.upload_image_new(cls.user, cls.source)
-        cls.img2 = cls.upload_image_new(cls.user, cls.source)
-        cls.img3 = cls.upload_image_new(cls.user, cls.source)
+        cls.img1 = cls.upload_image(cls.user, cls.source)
+        cls.img2 = cls.upload_image(cls.user, cls.source)
+        cls.img3 = cls.upload_image(cls.user, cls.source)
         cls.url = reverse('edit_metadata', args=[cls.source.pk])
 
         cls.default_search_params = dict(
@@ -174,11 +174,11 @@ class SubmitEditsTest(ClientTest):
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
-        cls.img1 = cls.upload_image_new(cls.user, cls.source)
-        cls.img2 = cls.upload_image_new(cls.user, cls.source)
-        cls.img3 = cls.upload_image_new(cls.user, cls.source)
-        cls.img4 = cls.upload_image_new(cls.user, cls.source)
-        cls.img5 = cls.upload_image_new(cls.user, cls.source)
+        cls.img1 = cls.upload_image(cls.user, cls.source)
+        cls.img2 = cls.upload_image(cls.user, cls.source)
+        cls.img3 = cls.upload_image(cls.user, cls.source)
+        cls.img4 = cls.upload_image(cls.user, cls.source)
+        cls.img5 = cls.upload_image(cls.user, cls.source)
         cls.url = reverse('edit_metadata_ajax', args=[cls.source.pk])
 
     def test_submit_edits(self):

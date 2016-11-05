@@ -619,9 +619,9 @@ class ImageViewTest(ClientTest):
         cls.source = cls.create_source(cls.user)
 
         # Upload a small image and a large image
-        cls.small_image = cls.upload_image_new(
+        cls.small_image = cls.upload_image(
             cls.user, cls.source, image_options=dict(width=400, height=400))
-        cls.large_image = cls.upload_image_new(
+        cls.large_image = cls.upload_image(
             cls.user, cls.source, image_options=dict(width=1600, height=1600))
 
     def test_view_page_with_small_image(self):

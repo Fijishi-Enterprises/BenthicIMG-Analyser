@@ -29,7 +29,7 @@ class AnnotationAreaEditTest(ClientTest):
         cls.add_source_member(
             cls.user, cls.source, cls.user_editor, Source.PermTypes.EDIT.code)
 
-        cls.img = cls.upload_image_new(cls.user, cls.source)
+        cls.img = cls.upload_image(cls.user, cls.source)
         cls.url = reverse('annotation_area_edit', args=[cls.img.pk])
 
     def test_load_page_anonymous(self):
@@ -100,7 +100,7 @@ class AnnotationHistoryTest(ClientTest):
         cls.add_source_member(
             cls.user, cls.source, cls.user_editor2, Source.PermTypes.EDIT.code)
 
-        cls.img = cls.upload_image_new(cls.user, cls.source)
+        cls.img = cls.upload_image(cls.user, cls.source)
         cls.url = reverse('annotation_history', args=[cls.img.pk])
 
     def test_load_page_anonymous(self):
@@ -282,7 +282,7 @@ class PointGenTest(ClientTest):
         Test that annotation points are generated correctly upon an
         image upload.
         """
-        img = self.upload_image_new(
+        img = self.upload_image(
             self.user, self.source, dict(width=10, height=20))
         self.pointgen_check(img.pk)
 

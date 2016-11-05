@@ -26,7 +26,7 @@ class PermissionTest(ClientTest):
         cls.add_source_member(
             cls.user, cls.source, cls.user_editor, Source.PermTypes.EDIT.code)
 
-        cls.img = cls.upload_image_new(cls.user, cls.source)
+        cls.img = cls.upload_image(cls.user, cls.source)
 
     def test_load_page_anonymous(self):
         """
@@ -134,7 +134,7 @@ class LoadImageTest(ClientTest):
         cls.create_labelset(cls.user, cls.source, labels)
 
     def test_small_image(self):
-        img = self.upload_image_new(
+        img = self.upload_image(
             self.user, self.source, dict(width=400, height=300))
         url = reverse('annotation_tool', args=[img.pk])
 
@@ -149,7 +149,7 @@ class LoadImageTest(ClientTest):
         self.assertStatusOK(response)
 
     def test_large_image(self):
-        img = self.upload_image_new(
+        img = self.upload_image(
             self.user, self.source, dict(width=1600, height=1200))
         url = reverse('annotation_tool', args=[img.pk])
 
@@ -178,11 +178,11 @@ class NavigationTest(ClientTest):
         labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
         cls.create_labelset(cls.user, cls.source, labels)
 
-        cls.img1 = cls.upload_image_new(
+        cls.img1 = cls.upload_image(
             cls.user, cls.source, dict(filename='1.png'))
-        cls.img2 = cls.upload_image_new(
+        cls.img2 = cls.upload_image(
             cls.user, cls.source, dict(filename='2.png'))
-        cls.img3 = cls.upload_image_new(
+        cls.img3 = cls.upload_image(
             cls.user, cls.source, dict(filename='3.png'))
 
         cls.default_search_params = dict(
@@ -267,7 +267,7 @@ class SaveAnnotationsTest(ClientTest):
         cls.add_source_member(
             cls.user, cls.source, cls.user_editor, Source.PermTypes.EDIT.code)
 
-        cls.img = cls.upload_image_new(cls.user, cls.source)
+        cls.img = cls.upload_image(cls.user, cls.source)
         cls.url = reverse(
             'save_annotations_ajax', kwargs=dict(image_id=cls.img.pk))
 
@@ -370,7 +370,7 @@ class IsAnnotationAllDoneTest(ClientTest):
         labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
         cls.create_labelset(cls.user, cls.source, labels)
 
-        cls.img = cls.upload_image_new(cls.user, cls.source)
+        cls.img = cls.upload_image(cls.user, cls.source)
         cls.url = reverse(
             'is_annotation_all_done_ajax', args=[cls.img.pk])
 
@@ -419,7 +419,7 @@ class SettingsTest(ClientTest):
         labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
         cls.create_labelset(cls.user, cls.source, labels)
 
-        cls.img = cls.upload_image_new(cls.user, cls.source)
+        cls.img = cls.upload_image(cls.user, cls.source)
         cls.tool_url = reverse('annotation_tool', args=[cls.img.pk])
         cls.settings_url = reverse('annotation_tool_settings_save')
 

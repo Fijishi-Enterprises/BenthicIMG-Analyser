@@ -316,11 +316,9 @@ class ClientTest(BaseTest):
         source.refresh_from_db()
         return source.labelset
 
-    # TODO: Now that the old upload_image() is gone, rename this function to
-    # upload_image() at some point.
     image_count = 0
     @classmethod
-    def upload_image_new(cls, user, source, image_options=None):
+    def upload_image(cls, user, source, image_options=None):
         """
         Upload a data image.
         :param user: User to upload as.

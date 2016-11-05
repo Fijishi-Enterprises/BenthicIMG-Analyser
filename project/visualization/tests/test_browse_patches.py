@@ -28,7 +28,7 @@ class PermissionTest(ClientTest):
             cls.user, cls.source, cls.user_viewer, Source.PermTypes.VIEW.code)
         cls.user_outsider = cls.create_user()
 
-        cls.img1 = cls.upload_image_new(cls.user, cls.source)
+        cls.img1 = cls.upload_image(cls.user, cls.source)
         cls.add_annotations(cls.user, cls.img1, {1: 'A', 2: 'B'})
 
         cls.url = reverse('browse_patches', args=[cls.source.pk])
@@ -83,7 +83,7 @@ class SearchTest(ClientTest):
         cls.add_source_member(
             cls.user, cls.source, cls.user_editor, Source.PermTypes.EDIT.code)
 
-        cls.img1 = cls.upload_image_new(cls.user, cls.source)
+        cls.img1 = cls.upload_image(cls.user, cls.source)
 
         cls.url = reverse('browse_patches', args=[cls.source.pk])
 
@@ -224,7 +224,7 @@ class NoLabelsetTest(ClientTest):
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
-        cls.img1 = cls.upload_image_new(cls.user, cls.source)
+        cls.img1 = cls.upload_image(cls.user, cls.source)
         cls.url = reverse('browse_patches', args=[cls.source.pk])
 
         cls.default_search_params = dict(

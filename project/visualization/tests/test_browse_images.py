@@ -25,7 +25,7 @@ class PermissionTest(ClientTest):
             cls.user, cls.source, cls.user_viewer, Source.PermTypes.VIEW.code)
         cls.user_outsider = cls.create_user()
 
-        cls.img1 = cls.upload_image_new(cls.user, cls.source)
+        cls.img1 = cls.upload_image(cls.user, cls.source)
 
         cls.url = reverse('browse_images', args=[cls.source.pk])
 
@@ -80,7 +80,7 @@ class SearchTest(ClientTest):
         cls.url = reverse('browse_images', args=[cls.source.pk])
 
         cls.imgs = [
-            cls.upload_image_new(cls.user, cls.source) for _ in range(5)
+            cls.upload_image(cls.user, cls.source) for _ in range(5)
         ]
 
         cls.default_search_params = dict(
@@ -496,7 +496,7 @@ class ResultsAndPagesTest(ClientTest):
         cls.url = reverse('browse_images', args=[cls.source.pk])
 
         cls.imgs = [
-            cls.upload_image_new(cls.user, cls.source) for _ in range(10)
+            cls.upload_image(cls.user, cls.source) for _ in range(10)
         ]
 
         cls.default_search_params = dict(

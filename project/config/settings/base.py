@@ -316,10 +316,6 @@ EMAIL_CHANGE_CONFIRMATION_HOURS = 24
 
 
 
-# [Custom setting]
-# Directory containing uploadable files for use during unit tests.
-SAMPLE_UPLOADABLES_ROOT = PROJECT_DIR.child('sample_uploadables')
-
 # [Custom settings]
 # Media filepath patterns
 IMAGE_FILE_PATTERN = 'images/{name}{extension}'

@@ -78,8 +78,16 @@ This form template is meant to be used with the "include" template tag.
 
 <fieldset>
   <legend class="small">World Location</legend>
-  <span class="helptext">To get your source's coordinates, try <a href="http://www.latlong.net/" target="_blank">latlong.net</a>.<br />
-                         Later, we'll use this information to integrate with Google Maps.</span>
+  <span class="helptext">
+    We'll use this to mark your source on our front-page map.
+    <br />
+    Your source will be shown on the map if it contains at least
+    {{ map_minimum_images }} images, and the source name doesn't include words
+    like "test".
+    <br />
+    To get your source's coordinates, try
+    <a href="http://www.latlong.net/" target="_blank">latlong.net</a>.
+  </span>
   {% include "form_generic_one_field.html" with field=sourceForm.latitude %}
   {% include "form_generic_one_field.html" with field=sourceForm.longitude %}
 </fieldset>

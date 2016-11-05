@@ -391,7 +391,8 @@ def get_map_sources():
     map_sources_qs = filter_out_test_sources(map_sources_qs)
     # Skip small sources.
     map_sources_qs = map_sources_qs.annotate(image_count=Count('image'))
-    map_sources_qs = map_sources_qs.exclude(image_count__lt=100)
+    map_sources_qs = map_sources_qs.exclude(
+        image_count__lt=settings.MAP_IMAGE_COUNT_TIERS[0])
 
     map_sources = []
 
@@ -401,9 +402,9 @@ def get_map_sources():
         else:
             source_type = 'private'
 
-        if source.image_count < 500:
+        if source.image_count < settings.MAP_IMAGE_COUNT_TIERS[1]:
             size = 1
-        elif source.image_count < 1500:
+        elif source.image_count < settings.MAP_IMAGE_COUNT_TIERS[2]:
             size = 2
         else:
             size = 3

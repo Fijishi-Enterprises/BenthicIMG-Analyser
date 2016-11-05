@@ -6,15 +6,15 @@ from .base import get_secret, DATABASES
 
 DATABASES['default'].update({
     # Database name, or path to database file if using sqlite3.
-    'NAME': get_secret("DATABASE_NAME"),
+    'NAME': get_secret("REGTESTS_DATABASE_NAME"),
     # Not used with sqlite3.
-    'USER': get_secret("DATABASE_USER"),
+    'USER': get_secret("REGTESTS_DATABASE_USER"),
     # Not used with sqlite3.
-    'PASSWORD': get_secret("DATABASE_PASSWORD", required=False),
+    'PASSWORD': get_secret("REGTESTS_DATABASE_PASSWORD"),
     # Set to empty string for localhost. Not used with sqlite3.
-    'HOST': get_secret("DATABASE_HOST", required=False),
+    'HOST': get_secret("REGTESTS_DATABASE_HOST"),
     # Set to empty string for default. Not used with sqlite3.
-    'PORT': get_secret("DATABASE_PORT", required=False),
+    'PORT': get_secret("REGTESTS_DATABASE_PORT"),
 })
 
 # django-storages settings
@@ -42,7 +42,7 @@ THUMBNAIL_DEFAULT_STORAGE = DEFAULT_FILE_STORAGE
 # [Custom settings]
 # S3 details on storing media.
 AWS_S3_DOMAIN = 's3-us-west-2.amazonaws.com/{bucket_name}'.format(
-    bucket_name=AWS_STORAGE_BUCKET_NAME)
+    bucket_name=AWS_STORAGE_BUCKET_NAME_REGTESTS)
 AWS_S3_MEDIA_SUBDIR = 'media'
 
 # Base URL where user-uploaded media are served.

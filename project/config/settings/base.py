@@ -36,6 +36,7 @@ with open(SETTINGS_DIR.child('secrets.json')) as f:
             if required:
                 error_msg = "Set the {0} setting in secrets.json".format(setting)
                 raise ImproperlyConfigured(error_msg)
+            return ""
 
 
 
@@ -255,7 +256,7 @@ SESSION_COOKIE_AGE = 60 * 60 * 24 * 30
 # hashing algorithms.
 # Make this unique. Django's manage.py startproject command automatically
 # generates a random secret key and puts it in settings, so use that.
-SECRET_KEY = get_secret("SECRET_KEY")
+SECRET_KEY = get_secret("DJANGO_SECRET_KEY")
 
 LOGIN_URL = 'auth_login'
 LOGOUT_URL = 'auth_logout'

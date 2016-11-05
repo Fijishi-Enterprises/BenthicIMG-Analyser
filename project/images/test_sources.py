@@ -1,9 +1,7 @@
-from django import forms
 from django.conf import settings
-from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
+from django.shortcuts import resolve_url
 from django.utils import timezone
-from guardian.shortcuts import get_objects_for_user
 from annotations.model_utils import AnnotationAreaUtils
 from images.model_utils import PointGen
 from images.models import Source
@@ -14,129 +12,150 @@ class SourceAboutTest(ClientTest):
     """
     Test the About Sources page.
     """
-    fixtures = ['test_users.yaml', 'test_sources.yaml']
+    @classmethod
+    def setUpTestData(cls):
+        super(SourceAboutTest, cls).setUpTestData()
 
-    def test_source_about(self):
-        response = self.client.get(reverse('source_about'))
-        self.assertStatusOK(response)
+        cls.user_with_sources = cls.create_user()
+        cls.user_without_sources = cls.create_user()
+
+        cls.private_source = cls.create_source(
+            cls.user_with_sources,
+            visibility=Source.VisibilityTypes.PRIVATE)
+        cls.public_source = cls.create_source(
+            cls.user_with_sources,
+            visibility=Source.VisibilityTypes.PUBLIC)
+
+    def test_load_page_anonymous(self):
+        response = self.client.get(resolve_url('source_about'))
+        self.assertTemplateUsed(response, 'images/source_about.html')
+        self.assertContains(
+            response, "You need an account to work with Sources")
+        # Source list should just have the public source
+        self.assertContains(response, self.public_source.name)
+        self.assertNotContains(response, self.private_source.name)
+
+    def test_load_page_without_source_memberships(self):
+        self.client.force_login(self.user_without_sources)
+        response = self.client.get(resolve_url('source_about'))
+        self.assertTemplateUsed(response, 'images/source_about.html')
+        self.assertContains(
+            response, "You're not part of any Sources")
+        # Source list should just have the public source
+        self.assertContains(response, self.public_source.name)
+        self.assertNotContains(response, self.private_source.name)
+
+    def test_load_page_with_source_memberships(self):
+        self.client.force_login(self.user_with_sources)
+        response = self.client.get(resolve_url('source_about'))
+        self.assertTemplateUsed(response, 'images/source_about.html')
+        self.assertContains(
+            response, "See your Sources")
+        # Source list should just have the public source
+        self.assertContains(response, self.public_source.name)
+        self.assertNotContains(response, self.private_source.name)
 
 
 class SourceListTestWithSources(ClientTest):
     """
     Test the source list page when there's at least one source.
     """
+    @classmethod
+    def setUpTestData(cls):
+        super(SourceListTestWithSources, cls).setUpTestData()
 
-    fixtures = ['test_users.yaml', 'test_sources.yaml']
-    source_member_roles = [
-        ('public1', 'user2', Source.PermTypes.ADMIN.code),
-        ('public1', 'user4', Source.PermTypes.EDIT.code),
-        ('private1', 'user3', Source.PermTypes.ADMIN.code),
-        ('private1', 'user4', Source.PermTypes.VIEW.code),
-        ]
+        cls.admin = cls.create_user()
 
-    def source_list_as_user(self, username, password,
-                            num_your_sources_predicted,
-                            num_other_public_sources_predicted):
-        """
-        Test the source_list page as a certain user.
-        If username is None, then the test is done while logged out.
-        """
-        # Sign in
-        user = None
-        if username is not None:
-            user = User.objects.get(username=username)
-            self.client.login(username=username, password=password)
+        # Create sources with names to ensure a certain source list order
+        cls.private_source = cls.create_source(
+            cls.admin, name="Source 1",
+            visibility=Source.VisibilityTypes.PRIVATE)
+        cls.public_source = cls.create_source(
+            cls.admin, name="Source 2",
+            visibility=Source.VisibilityTypes.PUBLIC)
 
-        response = self.client.get(reverse('source_list'))
+    def test_anonymous(self):
+        response = self.client.get(resolve_url('source_list'), follow=True)
+        # Should redirect to source_about
+        self.assertTemplateUsed(response, 'images/source_about.html')
 
-        if user is None or num_your_sources_predicted == 0:
-            # Redirects to source_about page
-            self.assertRedirects(response, reverse('source_about'))
+    def test_member_of_none(self):
+        user = self.create_user()
+        self.client.force_login(user)
 
-            # 2 public sources
-            response = self.client.get(reverse('source_list'), follow=True)
-            public_sources = response.context['public_sources']
-            self.assertEqual(len(public_sources), 2)
-            for source in public_sources:
-                self.assertEqual(source.visibility, Source.VisibilityTypes.PUBLIC)
-        else:
-            # Goes to source_list page
-            self.assertStatusOK(response)
-            your_sources_predicted = get_objects_for_user(user, Source.PermTypes.VIEW.fullCode)
+        response = self.client.get(resolve_url('source_list'), follow=True)
+        # Should redirect to source_about
+        self.assertTemplateUsed(response, 'images/source_about.html')
 
-            # Sources this user is a member of
-            your_sources = response.context['your_sources']
-            self.assertEqual(len(your_sources), num_your_sources_predicted)
-            for source_dict in your_sources:
-                source = Source.objects.get(pk=source_dict['id'])
-                self.assertTrue(source in your_sources_predicted)
-                self.assertEqual(source.get_member_role(user), source_dict['your_role'])
+    def test_member_of_public(self):
+        user = self.create_user()
+        self.add_source_member(
+            self.admin, self.public_source, user, Source.PermTypes.VIEW.code)
+        self.client.force_login(user)
 
-            # Public sources this user isn't a member of
-            other_public_sources = response.context['other_public_sources']
-            self.assertEqual(len(other_public_sources), num_other_public_sources_predicted)
-            for source in other_public_sources:
-                self.assertFalse(source in your_sources_predicted)
-                self.assertEqual(source.visibility, Source.VisibilityTypes.PUBLIC)
-
-        self.client.logout()
-
-    def test_source_list(self):
-        self.source_list_as_user(
-            None, None,
-            num_your_sources_predicted=0, num_other_public_sources_predicted=2,
+        response = self.client.get(resolve_url('source_list'))
+        self.assertTemplateUsed(response, 'images/source_list.html')
+        self.assertListEqual(
+            list(response.context['your_sources']),
+            [dict(
+                id=self.public_source.pk, name=self.public_source.name,
+                your_role="View")]
         )
-        self.source_list_as_user(
-            'user2', 'secret',
-            num_your_sources_predicted=1, num_other_public_sources_predicted=1,
-        )
-        self.source_list_as_user(
-            'user3', 'secret',
-            num_your_sources_predicted=1, num_other_public_sources_predicted=2,
-        )
-        self.source_list_as_user(
-            'user4', 'secret',
-            num_your_sources_predicted=2, num_other_public_sources_predicted=1,
-        )
-        self.source_list_as_user(
-            'user5', 'secret',
-            num_your_sources_predicted=0, num_other_public_sources_predicted=2,
-        )
-        self.source_list_as_user(
-            'superuser_user', 'secret',
-            num_your_sources_predicted=4, num_other_public_sources_predicted=0,
+        self.assertListEqual(
+            list(response.context['other_public_sources']),
+            []
         )
 
+    def test_member_of_private(self):
+        user = self.create_user()
+        self.add_source_member(
+            self.admin, self.private_source, user, Source.PermTypes.VIEW.code)
+        self.client.force_login(user)
 
-class SourceListTestWithoutSources(ClientTest):
-    """
-    Test the source list page when there are no sources on the entire site.
-    (A corner case to be sure, but testable material nonetheless.)
-    """
+        response = self.client.get(resolve_url('source_list'))
+        self.assertTemplateUsed(response, 'images/source_list.html')
+        self.assertListEqual(
+            list(response.context['your_sources']),
+            [
+                dict(
+                    id=self.private_source.pk, name=self.private_source.name,
+                    your_role="View"
+                ),
+            ]
+        )
+        self.assertListEqual(
+            list(response.context['other_public_sources']),
+            [self.public_source]
+        )
 
-    fixtures = ['test_users.yaml']
+    def test_member_of_public_and_private(self):
+        user = self.create_user()
+        self.add_source_member(
+            self.admin, self.private_source, user, Source.PermTypes.EDIT.code)
+        self.add_source_member(
+            self.admin, self.public_source, user, Source.PermTypes.ADMIN.code)
+        self.client.force_login(user)
 
-    def source_list_as_user(self, username, password):
-        """
-        Test the source_list page as a certain user.
-        If username is None, then the test is done while logged out.
-        """
-        if username is not None:
-            self.client.login(username=username, password=password)
-
-        # Redirect to source_about
-        response = self.client.get(reverse('source_list'))
-        self.assertRedirects(response, reverse('source_about'))
-
-        # 0 public sources
-        response = self.client.get(reverse('source_list'), follow=True)
-        self.assertEqual(len(response.context['public_sources']), 0)
-
-        self.client.logout()
-
-    def test_source_list(self):
-        self.source_list_as_user(None, None)
-        self.source_list_as_user('user2', 'secret')
+        response = self.client.get(resolve_url('source_list'))
+        self.assertTemplateUsed(response, 'images/source_list.html')
+        # Sources should be in name-alphabetical order
+        self.assertListEqual(
+            list(response.context['your_sources']),
+            [
+                dict(
+                    id=self.private_source.pk, name=self.private_source.name,
+                    your_role="Edit"
+                ),
+                dict(
+                    id=self.public_source.pk, name=self.public_source.name,
+                    your_role="Admin"
+                ),
+            ]
+        )
+        self.assertListEqual(
+            list(response.context['other_public_sources']),
+            []
+        )
 
 
 class SourceNewTest(ClientTest):
@@ -149,26 +168,22 @@ class SourceNewTest(ClientTest):
 
         cls.user = cls.create_user()
 
-        cls.source_defaults = dict(
+    def create_source(self, **kwargs):
+        data = dict(
             name="Test Source",
             visibility=Source.VisibilityTypes.PRIVATE,
             affiliation="Testing Society",
             description="Description\ngoes here.",
-            key1="Aux1",
-            key2="Aux2",
-            key3="Aux3",
-            key4="Aux4",
-            key5="Aux5",
-            min_x=10,
-            max_x=90,
-            min_y=10,
-            max_y=90,
+            key1="Aux1", key2="Aux2", key3="Aux3", key4="Aux4", key5="Aux5",
+            min_x=10, max_x=90, min_y=10, max_y=90,
             point_generation_type=PointGen.Types.SIMPLE,
-            simple_number_of_points=16,
-            confidence_threshold=25,
-            latitude='-17.3776',
-            longitude='25.1982',
-        )
+            simple_number_of_points=16, number_of_cell_rows=None,
+            number_of_cell_columns=None, stratified_points_per_cell=None,
+            latitude='-17.3776', longitude='25.1982')
+        data.update(**kwargs)
+        response = self.client.post(
+            reverse('source_new'), data, follow=True)
+        return response
 
     def test_login_required(self):
         response = self.client.get(reverse('source_new'))
@@ -201,7 +216,6 @@ class SourceNewTest(ClientTest):
         self.assertEqual(form['key3'].value(), 'Aux3')
         self.assertEqual(form['key4'].value(), 'Aux4')
         self.assertEqual(form['key5'].value(), 'Aux5')
-        self.assertEqual(form['confidence_threshold'].value(), 100)
 
     def test_source_create(self):
         """
@@ -210,18 +224,17 @@ class SourceNewTest(ClientTest):
         datetime_before_creation = timezone.now()
 
         self.client.force_login(self.user)
-        response = self.client.post(
-            reverse('source_new'), self.source_defaults)
+        response = self.create_source()
 
         new_source = Source.objects.latest('create_date')
-        self.assertRedirects(response,
-            reverse('source_main', kwargs={'source_id': new_source.pk}))
+        self.assertTemplateUsed('images/source_main.html')
+        self.assertEqual(response.context['source'], new_source)
+        self.assertContains(response, "Source successfully created.")
 
         self.assertEqual(new_source.name, "Test Source")
         self.assertEqual(new_source.visibility, Source.VisibilityTypes.PRIVATE)
         self.assertEqual(new_source.affiliation, "Testing Society")
         self.assertEqual(new_source.description, "Description\ngoes here.")
-        self.assertEqual(new_source.labelset, None)
         self.assertEqual(new_source.key1, "Aux1")
         self.assertEqual(new_source.key2, "Aux2")
         self.assertEqual(new_source.key3, "Aux3")
@@ -244,6 +257,9 @@ class SourceNewTest(ClientTest):
         self.assertEqual(new_source.latitude, '-17.3776')
         self.assertEqual(new_source.longitude, '25.1982')
 
+        # Fields that aren't in the form.
+        self.assertEqual(new_source.labelset, None)
+        self.assertEqual(new_source.confidence_threshold, 100)
         self.assertEqual(new_source.enable_robot_classifier, True)
 
         # Check that the source creation date is reasonable:
@@ -252,36 +268,57 @@ class SourceNewTest(ClientTest):
         self.assertTrue(datetime_before_creation <= new_source.create_date)
         self.assertTrue(new_source.create_date <= timezone.now())
 
-    def test_aux_name_required(self):
-        """
-        Not filling in an aux. meta field name should get an error saying it's
-        required.
-        """
-        source_args = dict()
-        source_args.update(self.source_defaults)
-        source_args.update(dict(
-            key1="",
-            key2="",
-            key3="",
-            key4="",
-            key5="",
-        ))
-
+    def test_name_required(self):
         self.client.force_login(self.user)
-        response = self.client.post(reverse('source_new'), source_args)
 
-        # Should be back on the new source form with errors.
+        response = self.create_source(name="")
         self.assertTemplateUsed(response, 'images/source_new.html')
-        self.assertDictEqual(
-            response.context['sourceForm'].errors,
-            dict(
-                key1=[forms.Field.default_error_messages['required']],
-                key2=[forms.Field.default_error_messages['required']],
-                key3=[forms.Field.default_error_messages['required']],
-                key4=[forms.Field.default_error_messages['required']],
-                key5=[forms.Field.default_error_messages['required']],
-            )
-        )
+        self.assertContains(response, "This field is required.")
+
+        # Should have no source created.
+        self.assertEqual(Source.objects.all().count(), 0)
+
+    def test_affiliation_required(self):
+        self.client.force_login(self.user)
+
+        response = self.create_source(affiliation="")
+        self.assertTemplateUsed(response, 'images/source_new.html')
+        self.assertContains(response, "This field is required.")
+
+        self.assertEqual(Source.objects.all().count(), 0)
+
+    def test_description_required(self):
+        self.client.force_login(self.user)
+
+        response = self.create_source(description="")
+        self.assertTemplateUsed(response, 'images/source_new.html')
+        self.assertContains(response, "This field is required.")
+
+        self.assertEqual(Source.objects.all().count(), 0)
+
+    def test_aux_names_required(self):
+        self.client.force_login(self.user)
+
+        response = self.create_source(key1="")
+        self.assertTemplateUsed(response, 'images/source_new.html')
+        self.assertContains(response, "This field is required.")
+
+        response = self.create_source(key2="")
+        self.assertTemplateUsed(response, 'images/source_new.html')
+        self.assertContains(response, "This field is required.")
+
+        response = self.create_source(key3="")
+        self.assertTemplateUsed(response, 'images/source_new.html')
+        self.assertContains(response, "This field is required.")
+
+        response = self.create_source(key4="")
+        self.assertTemplateUsed(response, 'images/source_new.html')
+        self.assertContains(response, "This field is required.")
+
+        response = self.create_source(key5="")
+        self.assertTemplateUsed(response, 'images/source_new.html')
+        self.assertContains(response, "This field is required.")
+
         # Should have no source created.
         self.assertEqual(Source.objects.all().count(), 0)
 
@@ -290,18 +327,14 @@ class SourceNewTest(ClientTest):
         If an aux. meta field name looks like it's tracking date or time,
         don't accept it.
         """
-        source_args = dict()
-        source_args.update(self.source_defaults)
-        source_args.update(dict(
+        self.client.force_login(self.user)
+        response = self.create_source(
             key1="date",
             key2="Year",
             key3="TIME",
             key4="month",
             key5="day",
-        ))
-
-        self.client.force_login(self.user)
-        response = self.client.post(reverse('source_new'), source_args)
+        )
 
         # Should be back on the new source form with errors.
         self.assertTemplateUsed(response, 'images/source_new.html')
@@ -328,16 +361,12 @@ class SourceNewTest(ClientTest):
         If an aux. meta field name conflicts with a built-in metadata field,
         show an error.
         """
-        source_args = dict()
-        source_args.update(self.source_defaults)
-        source_args.update(dict(
+        self.client.force_login(self.user)
+        response = self.create_source(
             key1="name",
             key2="Comments",
             key3="FRAMING GEAR used",
-        ))
-
-        self.client.force_login(self.user)
-        response = self.client.post(reverse('source_new'), source_args)
+        )
 
         # Should be back on the new source form with errors.
         self.assertTemplateUsed(response, 'images/source_new.html')
@@ -360,15 +389,11 @@ class SourceNewTest(ClientTest):
         """
         If two aux. meta field names are the same, show an error.
         """
-        source_args = dict()
-        source_args.update(self.source_defaults)
-        source_args.update(dict(
+        self.client.force_login(self.user)
+        response = self.create_source(
             key2="Site",
             key3="site",
-        ))
-
-        self.client.force_login(self.user)
-        response = self.client.post(reverse('source_new'), source_args)
+        )
 
         # Should be back on the new source form with errors.
         self.assertTemplateUsed(response, 'images/source_new.html')
@@ -384,6 +409,40 @@ class SourceNewTest(ClientTest):
             )
         )
         # Should have no source created.
+        self.assertEqual(Source.objects.all().count(), 0)
+
+    def test_annotation_area_required(self):
+        self.client.force_login(self.user)
+
+        response = self.create_source(min_x="")
+        self.assertTemplateUsed(response, 'images/source_new.html')
+        self.assertContains(response, "This field is required.")
+
+        response = self.create_source(max_x="")
+        self.assertTemplateUsed(response, 'images/source_new.html')
+        self.assertContains(response, "This field is required.")
+
+        response = self.create_source(min_y="")
+        self.assertTemplateUsed(response, 'images/source_new.html')
+        self.assertContains(response, "This field is required.")
+
+        response = self.create_source(max_y="")
+        self.assertTemplateUsed(response, 'images/source_new.html')
+        self.assertContains(response, "This field is required.")
+
+        self.assertEqual(Source.objects.all().count(), 0)
+
+    def test_latitude_longitude_required(self):
+        self.client.force_login(self.user)
+
+        response = self.create_source(latitude="")
+        self.assertTemplateUsed(response, 'images/source_new.html')
+        self.assertContains(response, "This field is required.")
+
+        response = self.create_source(longitude="")
+        self.assertTemplateUsed(response, 'images/source_new.html')
+        self.assertContains(response, "This field is required.")
+
         self.assertEqual(Source.objects.all().count(), 0)
 
 

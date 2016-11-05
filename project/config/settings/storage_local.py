@@ -11,11 +11,11 @@ DATABASES['default'].update({
     # Not used with sqlite3.
     'USER': get_secret("LOCAL_STORAGE_DATABASE_USER"),
     # Not used with sqlite3.
-    'PASSWORD': get_secret("LOCAL_STORAGE_DATABASE_PASSWORD"),
+    'PASSWORD': get_secret("LOCAL_STORAGE_DATABASE_PASSWORD", required=False),
     # Set to empty string for localhost. Not used with sqlite3.
-    'HOST': get_secret("LOCAL_STORAGE_DATABASE_HOST"),
+    'HOST': get_secret("LOCAL_STORAGE_DATABASE_HOST", required=False),
     # Set to empty string for default. Not used with sqlite3.
-    'PORT': get_secret("LOCAL_STORAGE_DATABASE_PORT"),
+    'PORT': get_secret("LOCAL_STORAGE_DATABASE_PORT", required=False),
 })
 
 # Default file storage mechanism that holds media.

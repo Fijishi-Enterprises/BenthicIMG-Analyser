@@ -366,8 +366,8 @@ class UploadMetadataTest(ClientTest):
 
     def test_starting_from_blank_metadata(self):
         """
-        Everything except height (cm) starts blank and has nothing
-        to be replaced.
+        Everything starts blank and has nothing to be replaced.
+        When editing, we'll set some fields while leaving others blank.
         """
         self.client.force_login(self.user)
 
@@ -587,7 +587,7 @@ class UploadMetadataTest(ClientTest):
                 'Transect': '2-4',
                 'Aux4': 'Q5',
                 'Aux5': '28',
-                'Height (cm)': '',
+                'Height (cm)': '50',
                 'Latitude': '20.18',
                 'Longitude': '-59.64',
                 'Depth': '30m',
@@ -612,12 +612,12 @@ class UploadMetadataTest(ClientTest):
                     self.standard_column_order,
                     ['1.png', ['2016-07-18', '2014-02-27'], ['SiteA', 'SiteC'],
                      'Fringing Reef', '2-4',
-                     'Q5', '28', ['', '50'], '20.18', '-59.64', '30m',
+                     'Q5', '28', '50', '20.18', '-59.64', '30m',
                      ['', 'Nikon'], '', '', '', '', '', ''],
                 ],
                 previewDetails=dict(
                     numImages=1,
-                    numFieldsReplaced=4,
+                    numFieldsReplaced=3,
                 ),
             ),
         )
@@ -632,7 +632,7 @@ class UploadMetadataTest(ClientTest):
         self.assertEqual(meta1.aux3, '2-4')
         self.assertEqual(meta1.aux4, 'Q5')
         self.assertEqual(meta1.aux5, '28')
-        self.assertEqual(meta1.height_in_cm, None)
+        self.assertEqual(meta1.height_in_cm, 50)
         self.assertEqual(meta1.latitude, '20.18')
         self.assertEqual(meta1.longitude, '-59.64')
         self.assertEqual(meta1.depth, '30m')
@@ -655,6 +655,7 @@ class UploadMetadataTest(ClientTest):
         meta1.photo_date = datetime.date(2014,2,27)
         meta1.aux1 = 'SiteC'
         meta1.camera = 'Nikon'
+        meta1.height_in_cm = 50
         meta1.save()
 
         column_names = ['Name', 'Site', 'Habitat', 'Transect']

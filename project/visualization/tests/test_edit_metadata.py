@@ -293,7 +293,7 @@ class SubmitEditsTest(ClientTest):
         expected_error_dict['id_form-1-height_in_cm'] = (
             self.img2.metadata.name
             + " | Height (cm)"
-            + " | Ensure this value is greater than or equal to 1.")
+            + " | Ensure this value is greater than or equal to 0.")
         self.assertDictEqual(
             response_error_dict,
             expected_error_dict,

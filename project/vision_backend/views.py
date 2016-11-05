@@ -7,6 +7,7 @@ import numpy as np
 from django.shortcuts import render
 from django.core.urlresolvers import reverse
 from django.http import HttpResponseRedirect, HttpResponse
+from django.contrib.auth.decorators import permission_required
 
 from lib.decorators import source_visibility_required
 

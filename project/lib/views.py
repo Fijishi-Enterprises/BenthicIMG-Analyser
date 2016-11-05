@@ -7,12 +7,12 @@ from django.core.urlresolvers import reverse
 from django.http import HttpResponseRedirect, HttpResponseServerError
 from django.shortcuts import render, get_object_or_404
 from django.template import loader, TemplateDoesNotExist
+from django.template.loader import render_to_string
 
 from annotations.models import Annotation
 from images.models import Image, Source
 from images.utils import get_map_sources, get_random_public_images
 from lib.forms import ContactForm
-from lib import msg_consts, str_consts
 
 
 def contact(request):
@@ -36,15 +36,15 @@ def contact(request):
                 user_email = contact_form.cleaned_data['email']
                 base_message = contact_form.cleaned_data['message']
 
-            subject = str_consts.CONTACT_EMAIL_SUBJECT_FMTSTR.format(
+            subject = render_to_string('lib/contact_subject.txt', dict(
                 username=username,
                 base_subject=base_subject,
-            )
-            message = str_consts.CONTACT_EMAIL_MESSAGE_FMTSTR.format(
+            ))
+            message = render_to_string('lib/contact_email.txt', dict(
                 username=username,
                 user_email=user_email,
                 base_message=base_message,
-            )
+            ))
 
             # Send the mail.
             try:
@@ -55,15 +55,16 @@ def contact(request):
             except BadHeaderError:
                 messages.error(
                     request,
-                    "Sorry, the email could not be sent. It didn't pass a security check."
+                    "Sorry, the email could not be sent."
+                    " It didn't pass a security check."
                 )
             else:
-                messages.success(request, msg_consts.CONTACT_EMAIL_SENT)
+                messages.success(request, "Your email was sent to the admins!")
                 return HttpResponseRedirect(reverse('index'))
         else:
-            messages.error(request, msg_consts.FORM_ERRORS)
+            messages.error(request, "Please correct the errors below.")
 
-    else: # GET
+    else:  # GET
         contact_form = ContactForm(request.user)
 
     return render(request, 'lib/contact.html', {
@@ -102,7 +103,8 @@ def handler500(request, template_name='500.html'):
     try:
         template = loader.get_template(template_name)
     except TemplateDoesNotExist:
-        return HttpResponseServerError('<h1>Server Error (500)</h1>', content_type='text/html')
+        return HttpResponseServerError(
+            '<h1>Server Error (500)</h1>', content_type='text/html')
     return HttpResponseServerError(template.render({
         'request': request,
     }))

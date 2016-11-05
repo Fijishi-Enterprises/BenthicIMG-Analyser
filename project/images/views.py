@@ -131,6 +131,7 @@ def source_new(request):
         'sourceForm': sourceForm,
         'pointGenForm': pointGenForm,
         'annotationAreaForm': annotationAreaForm,
+        'map_minimum_images': settings.MAP_IMAGE_COUNT_TIERS[0],
     })
 
 
@@ -262,6 +263,7 @@ def source_edit(request, source_id):
         'editSourceForm': sourceForm,
         'pointGenForm': pointGenForm,
         'annotationAreaForm': annotationAreaForm,
+        'map_minimum_images': settings.MAP_IMAGE_COUNT_TIERS[0],
     })
 
 
@@ -422,7 +424,7 @@ def image_detail_helper(image_id):
             value=getattr(metadata, field_name),
         )
         for field_name in [
-            'name', 'latitude', 'longitude', 'depth',
+            'height_in_cm', 'latitude', 'longitude', 'depth',
             'camera', 'photographer', 'water_quality', 'strobes',
             'framing', 'balance', 'comments',
         ]

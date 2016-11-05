@@ -25,7 +25,7 @@ class PermissionTest(ClientTest):
             cls.user, cls.source, cls.user_viewer, Source.PermTypes.VIEW.code)
         cls.user_outsider = cls.create_user()
 
-        cls.img1 = cls.upload_image_new(cls.user, cls.source)
+        cls.img1 = cls.upload_image(cls.user, cls.source)
 
         cls.url = reverse('browse_images', args=[cls.source.pk])
 
@@ -73,7 +73,6 @@ class SearchTest(ClientTest):
             point_generation_type=PointGen.Types.SIMPLE,
             # Make it easy to have confirmed and partially annotated images
             simple_number_of_points=2,
-            image_height_in_cm=50,
         )
         labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
         cls.create_labelset(cls.user, cls.source, labels)
@@ -81,7 +80,7 @@ class SearchTest(ClientTest):
         cls.url = reverse('browse_images', args=[cls.source.pk])
 
         cls.imgs = [
-            cls.upload_image_new(cls.user, cls.source) for _ in range(5)
+            cls.upload_image(cls.user, cls.source) for _ in range(5)
         ]
 
         cls.default_search_params = dict(
@@ -340,7 +339,10 @@ class SearchTest(ClientTest):
         self.imgs[1].metadata.save()
         self.imgs[2].metadata.height_in_cm = None
         self.imgs[2].metadata.save()
-        # Source default is 50, so the other 2 images have that
+        self.imgs[3].metadata.height_in_cm = 50
+        self.imgs[3].metadata.save()
+        self.imgs[4].metadata.height_in_cm = 50
+        self.imgs[4].metadata.save()
 
         post_data = self.default_search_params.copy()
         post_data['height_in_cm'] = '(none)'
@@ -355,7 +357,6 @@ class SearchTest(ClientTest):
         self.imgs[0].metadata.save()
         self.imgs[1].metadata.height_in_cm = 30
         self.imgs[1].metadata.save()
-        # Source default is 50, so the other 3 images have that
 
         self.client.force_login(self.user)
         response = self.client.get(self.url)
@@ -365,7 +366,7 @@ class SearchTest(ClientTest):
         choices = [value for value, label in field.choices]
         self.assertListEqual(
             choices,
-            ['', 25, 30, 50, '(none)']
+            ['', 25, 30, '(none)']
         )
 
     def test_filter_by_latitude(self):
@@ -464,10 +465,16 @@ class SearchTest(ClientTest):
         self.assertFalse('latitude' in search_form.fields)
 
     def test_dont_show_metadata_field_if_all_same_value(self):
-        # Just for good measure, we'll manually set a cm height that's the
-        # same as the default, to demonstrate that it doesn't change anything.
         self.imgs[0].metadata.height_in_cm = 50
         self.imgs[0].metadata.save()
+        self.imgs[1].metadata.height_in_cm = 50
+        self.imgs[1].metadata.save()
+        self.imgs[2].metadata.height_in_cm = 50
+        self.imgs[2].metadata.save()
+        self.imgs[3].metadata.height_in_cm = 50
+        self.imgs[3].metadata.save()
+        self.imgs[4].metadata.height_in_cm = 50
+        self.imgs[4].metadata.save()
 
         self.client.force_login(self.user)
         response = self.client.get(self.url)
@@ -489,7 +496,7 @@ class ResultsAndPagesTest(ClientTest):
         cls.url = reverse('browse_images', args=[cls.source.pk])
 
         cls.imgs = [
-            cls.upload_image_new(cls.user, cls.source) for _ in range(10)
+            cls.upload_image(cls.user, cls.source) for _ in range(10)
         ]
 
         cls.default_search_params = dict(

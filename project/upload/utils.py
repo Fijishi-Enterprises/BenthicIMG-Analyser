@@ -387,7 +387,6 @@ def upload_image_process(imageFile, source, currentUser):
     filename = imageFile.name
     metadata_obj = Metadata(
         name=filename,
-        height_in_cm=source.image_height_in_cm,
         annotation_area=source.image_annotation_area,
     )
     metadata_obj.save()

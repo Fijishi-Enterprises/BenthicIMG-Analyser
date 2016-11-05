@@ -91,7 +91,6 @@ def setup_source_for_import(annfile_path, sourcename):
             name = sourcename,
             image_annotation_area = '0;100;0;100',
             default_point_generation_method = 'm_11',
-            image_height_in_cm = 100
         )
         labelset = LabelSet()
         labelset.save()

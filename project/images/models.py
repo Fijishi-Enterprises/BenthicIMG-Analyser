@@ -19,14 +19,6 @@ from lib.utils import rand_string
 from vision_backend.models import Classifier, Features, Score
 
 
-class ImageModelConstants():
-    """
-    Constants that don't really belong to a particular model
-    """
-    MIN_IMAGE_CM_HEIGHT = 1
-    MAX_IMAGE_CM_HEIGHT = 100000
-
-
 class SourceManager(models.Manager):
     def get_by_natural_key(self, name):
         """
@@ -86,15 +78,6 @@ class Source(models.Model):
         default=PointGen.args_to_db_format(
                     point_generation_type=PointGen.Types.SIMPLE,
                     simple_number_of_points=200)
-    )
-
-    image_height_in_cm = models.IntegerField(
-        "Default image height coverage (centimeters)",
-        help_text="This is the number of centimeters of substrate the image cover from the top of the image to the bottom. For example, if you use a framer that is 50cm wide and 35cm tall, this value should be set to 35 (or slightly larger if you image covers areas outside the framer). If use you an AUV, you will need to calculate this based on the field of view and distance from the bottom. This information is needed for the automatic annotation system to normalize the pixel to centimeter ratio.\n"
-                  "You can also set this on a per-image basis; for images that don't have a specific value set, this default value will be used. Note that all images gets assigned this global default ON UPLOAD. If you change this default, and want this to apply to images that you have already upladed, you must first delete them (under the Browse tab) and then re-upload them.",
-        validators=[MinValueValidator(ImageModelConstants.MIN_IMAGE_CM_HEIGHT),
-                    MaxValueValidator(ImageModelConstants.MAX_IMAGE_CM_HEIGHT)],
-        null=True
     )
 
     image_annotation_area = models.CharField(
@@ -390,10 +373,10 @@ class Metadata(models.Model):
 
     height_in_cm = models.IntegerField(
         "Height (cm)",
-        help_text="What is the actual span between the top and bottom of this image?\n"
-                  "(This information is used by the automatic annotator.)",
-        validators=[MinValueValidator(ImageModelConstants.MIN_IMAGE_CM_HEIGHT),
-                    MaxValueValidator(ImageModelConstants.MAX_IMAGE_CM_HEIGHT)],
+        help_text=(
+            "The number of centimeters of substrate the image covers,"
+            " from the top of the image to the bottom."),
+        validators=[MinValueValidator(0)],
         null=True, blank=True
     )
 
@@ -538,22 +521,6 @@ class Image(models.Model):
         elif code == "annotated":
             return "Annotated"
 
-    def get_metadata_values_for_export(self):
-        exportfields = ['annotation_area', 'balance', 'camera', 'comments', \
-        'depth', 'framing', 'height_in_cm', 'latitude', 'longitude', \
-        'name', 'photographer', 'strobes', 'water_quality'];
-        out = [];
-        for e in exportfields:
-            out.append(getattr(self.metadata,e))
-        return out
-
-    def get_metadata_fields_for_export(self):
-
-        exportfields = ['Annotation area', 'White Balance', 'Camera', 'Comments', \
-        'Depth', 'Framing gear', 'Image Height (cm)', 'Latitude', 'Longitude', \
-        'Original File Name', 'Photographer', 'Strobes', 'Water quality'];
-        return exportfields
-
     def point_gen_method_display(self):
         """
         Display the point generation method in templates.
@@ -561,14 +528,8 @@ class Image(models.Model):
         """
         return PointGen.db_to_readable_format(self.point_generation_method)
 
-    # this function returns the image height by checking both the image and the source for the height
     def height_cm(self):
-        thisSource = Source.objects.filter(image = self.id)
-        imheight = thisSource[0].image_height_in_cm
-        if self.metadata.height_in_cm:
-            imheight = self.metadata.height_in_cm
-
-        return imheight
+        return self.metadata.height_in_cm
 
     def annotation_area_display(self):
         """

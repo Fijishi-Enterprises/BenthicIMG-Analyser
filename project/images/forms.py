@@ -34,11 +34,10 @@ class ImageSourceForm(ModelForm):
         fields = [
             'name', 'visibility', 'description', 'affiliation',
             'key1', 'key2', 'key3', 'key4', 'key5',
-            'image_height_in_cm', 'confidence_threshold',
+            'confidence_threshold',
             'longitude', 'latitude',
         ]
         widgets = {
-            'image_height_in_cm': NumberInput(attrs={'size': 3}),
             'confidence_threshold': NumberInput(attrs={'size': 2}),
             'longitude': TextInput(attrs={'size': 10}),
             'latitude': TextInput(attrs={'size': 10}),
@@ -48,15 +47,14 @@ class ImageSourceForm(ModelForm):
 
         super(ImageSourceForm, self).__init__(*args, **kwargs)
 
-        # This is used to make longitude and latitude required
+        if not self.instance.pk:
+            # New source form shouldn't have this field.
+            del self.fields['confidence_threshold']
+
+        # These aren't required by the model (probably to support old sources)
+        # but should be required in the form.
         self.fields['longitude'].required = True
         self.fields['latitude'].required = True
-
-        # For use in templates.  Can iterate over fieldsets instead of the entire form.
-        self.fieldsets = {'general_info': [self[name] for name in ['name', 'visibility', 'affiliation', 'description']],
-                          'image_height_in_cm': [self[name] for name in ['image_height_in_cm']],
-                          'confidence_threshold': [self[name] for name in ['confidence_threshold']],
-                          'world_location': [self[name] for name in ['latitude', 'longitude']]}
 
     def clean_key1(self):
         return validate_aux_meta_field_name(self.cleaned_data['key1'])

@@ -240,7 +240,7 @@ def upload_metadata_ajax(request, source_id):
 
     source = get_object_or_404(Source, id=source_id)
 
-    csv_metadata = request.session.pop('csv_metadata')
+    csv_metadata = request.session.pop('csv_metadata', None)
     if not csv_metadata:
         return JsonResponse(dict(
             error=(
@@ -347,7 +347,7 @@ def upload_annotations_ajax(request, source_id):
 
     source = get_object_or_404(Source, id=source_id)
 
-    csv_annotations = request.session.pop('csv_annotations')
+    csv_annotations = request.session.pop('csv_annotations', None)
     if not csv_annotations:
         return JsonResponse(dict(
             error=(

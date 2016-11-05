@@ -25,7 +25,7 @@ class PermissionTest(ClientTest):
             cls.user, cls.source, cls.user_viewer, Source.PermTypes.VIEW.code)
         cls.user_outsider = cls.create_user()
 
-        cls.img1 = cls.upload_image_new(cls.user, cls.source)
+        cls.img1 = cls.upload_image(cls.user, cls.source)
 
         cls.url = reverse('browse_delete_ajax', args=[cls.source.pk])
 
@@ -87,9 +87,9 @@ class SuccessTest(ClientTest):
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
-        cls.img1 = cls.upload_image_new(cls.user, cls.source)
-        cls.img2 = cls.upload_image_new(cls.user, cls.source)
-        cls.img3 = cls.upload_image_new(cls.user, cls.source)
+        cls.img1 = cls.upload_image(cls.user, cls.source)
+        cls.img2 = cls.upload_image(cls.user, cls.source)
+        cls.img3 = cls.upload_image(cls.user, cls.source)
 
         cls.url = reverse('browse_delete_ajax', args=[cls.source.pk])
 
@@ -196,8 +196,8 @@ class SuccessTest(ClientTest):
         Doesn't hurt to have a sanity check.
         """
         source2 = self.create_source(self.user)
-        img21 = self.upload_image_new(self.user, source2)
-        img22 = self.upload_image_new(self.user, source2)
+        img21 = self.upload_image(self.user, source2)
+        img22 = self.upload_image(self.user, source2)
 
         self.client.force_login(self.user)
         response = self.client.post(self.url, self.default_search_params)
@@ -215,9 +215,9 @@ class ErrorTest(ClientTest):
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
-        cls.img1 = cls.upload_image_new(cls.user, cls.source)
-        cls.img2 = cls.upload_image_new(cls.user, cls.source)
-        cls.img3 = cls.upload_image_new(cls.user, cls.source)
+        cls.img1 = cls.upload_image(cls.user, cls.source)
+        cls.img2 = cls.upload_image(cls.user, cls.source)
+        cls.img3 = cls.upload_image(cls.user, cls.source)
 
         cls.url = reverse('browse_delete_ajax', args=[cls.source.pk])
 

@@ -214,7 +214,7 @@ class LabelDetailPatchesTest(ClientTest):
         cls.create_labelset(cls.user, cls.source, cls.labels)
         cls.source.refresh_from_db()
 
-        cls.img = cls.upload_image_new(cls.user, cls.source)
+        cls.img = cls.upload_image(cls.user, cls.source)
 
     def test_one_page_of_patches(self):
         annotations = {1: 'A', 2: 'A', 3: 'A', 4: 'B', 5: 'B'}
@@ -310,10 +310,10 @@ class LabelDetailPatchLinksTest(ClientTest):
         cls.other_private_source.refresh_from_db()
 
         # Upload an image to each source
-        cls.public_img = cls.upload_image_new(cls.user2, cls.public_source)
-        cls.users_private_img = cls.upload_image_new(
+        cls.public_img = cls.upload_image(cls.user2, cls.public_source)
+        cls.users_private_img = cls.upload_image(
             cls.user, cls.users_private_source)
-        cls.other_private_img = cls.upload_image_new(
+        cls.other_private_img = cls.upload_image(
             cls.user2, cls.other_private_source)
 
     def test_dont_link_to_others_private_images(self):

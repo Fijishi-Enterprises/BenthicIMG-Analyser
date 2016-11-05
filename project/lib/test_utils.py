@@ -13,7 +13,6 @@ from django.core import mail, management
 from django.core.files.base import ContentFile
 from django.core.files.storage import get_storage_class
 from django.conf import settings
-from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
 from django.test import TestCase, override_settings
 from django.test.client import Client
@@ -25,7 +24,6 @@ from images.model_utils import PointGen
 from images.models import Source, Point, Image
 from labels.models import LabelGroup, Label
 from lib.exceptions import TestfileDirectoryError
-from lib.utils import is_django_str
 from vision_backend.models import Classifier as Robot
 import boto.sqs
 
@@ -76,9 +74,6 @@ class BaseTest(TestCase):
     """
     Base class for our test classes.
     """
-    fixtures = []
-    source_member_roles = []
-
     def __init__(self, *args, **kwargs):
         TestCase.__init__(self, *args, **kwargs)
 
@@ -91,9 +86,6 @@ class BaseTest(TestCase):
         # setUpTestData(), which may add files.
         cls.storage_checker = StorageChecker()
         cls.storage_checker.check_storage_pre_test()
-
-    def setUp(self):
-        self.setTestSpecificPerms()
 
     @classmethod
     def tearDownClass(cls):
@@ -113,18 +105,6 @@ class BaseTest(TestCase):
         test_settings['FORCE_NO_BACKEND_SUBMIT'] = True
 
         super(BaseTest, cls).tearDownClass()
-
-    def setTestSpecificPerms(self):
-        """
-        Set permissions specific to the test class, e.g. source permissions.
-        This has two advantages over specifying permissions in fixtures:
-        (1) Can easily set permissions specific to a particular test class.
-        (2) It's tedious to specify permissions in fixtures.
-        """
-        for role in self.source_member_roles:
-            source = Source.objects.get(name=role[0])
-            user = User.objects.get(username=role[1])
-            source.assign_role(user, role[2])
 
 
 class ClientTest(BaseTest):
@@ -168,105 +148,6 @@ class ClientTest(BaseTest):
 
     def assertStatusOK(self, response):
         self.assertEqual(response.status_code, 200)
-
-    def assertMessages(self, response, expected_messages):
-        """
-        Asserts that a specific set of messages (to display at the top
-        of the page) are in the response.
-
-        Actual and expected messages are sorted before being compared,
-        so message order does not matter.
-
-        response: the response object to check, which must have messages
-            in its context
-        expected_messages: a list of strings
-        """
-        messages = response.context['messages']
-        actual_messages = [m.message for m in messages]
-
-        # Make sure expected_messages is a list or tuple, not a string.
-        if is_django_str(expected_messages):
-            self.fail("expected_messages should be a list or tuple, not a string.")
-
-        # Sort actual and expected messages before comparing them, so that
-        # message order does not matter.
-        actual_messages.sort()
-        expected_messages.sort()
-
-        if not expected_messages == actual_messages:
-            # Must explicitly specify each message's format string as a unicode
-            # string, so that if the message is a lazy translation object, the
-            # message doesn't appear as <django.utils.functional...>
-            # See https://docs.djangoproject.com/en/1.4/topics/i18n/translation/#working-with-lazy-translation-objects
-            actual_messages_str = ", ".join(u'"{m}"'.format(m=m) for m in actual_messages)
-            expected_messages_str = ", ".join(u'"{m}"'.format(m=m) for m in expected_messages)
-
-            self.fail(u"Message mismatch.\n" \
-                      u"Expected messages were: {expected}\n" \
-                      u"Actual messages were:   {actual}".format(
-                expected=expected_messages_str,
-                actual=actual_messages_str,
-            ))
-        else:
-            # Success. Print the message if UNIT_TEST_VERBOSITY is on.
-            if settings.UNIT_TEST_VERBOSITY >= 1:
-                print u"Messages:"
-                for message in actual_messages:
-                    print u"{m}".format(m=message)
-
-    def assertFormErrors(self, response, form_name, expected_errors):
-        """
-        Asserts that a specific form in the response context has a specific
-        set of errors.
-
-        Actual and expected errors are sorted before being compared,
-        so error order does not matter.
-
-        response: the response object to check, which must have the form
-            named form_name in its context
-        form_name: the name of the form in the context
-        expected_errors: a dict like
-            {'fieldname1': ["error1"], 'fieldname2': ["error1", "error2"], ...}
-        """
-        if form_name not in response.context:
-            self.fail("There was no form called {form_name} in the response context.".format(
-                form_name=form_name,
-            ))
-
-        actual_errors = response.context[form_name].errors
-
-        # Sort actual and expected errors before comparing them, so that
-        # error order does not matter.
-        for field_name, field_errors in expected_errors.iteritems():
-            # Make sure expected error entries are lists or tuples, not strings.
-            if is_django_str(expected_errors[field_name]):
-                self.fail("Expected errors for {field_name} should be a list or tuple, not a string.".format(
-                    field_name=field_name,
-                ))
-
-            # Force lazy-translation strings to evaluate.
-            expected_errors[field_name] = [u"{e}".format(e=e) for e in expected_errors[field_name]]
-
-            expected_errors[field_name].sort()
-
-        for field_name, field_errors in actual_errors.iteritems():
-            actual_errors[field_name].sort()
-
-        actual_errors_printable = dict( [(k,list(errors)) for k,errors in actual_errors.items() if len(errors) > 0] )
-
-        if not expected_errors == actual_errors:
-            self.fail("Error mismatch in the form {form_name}.\n" \
-                      "Expected errors were: {expected}\n" \
-                      "Actual errors were:   {actual}".format(
-                form_name=form_name,
-                expected=expected_errors,
-                actual=actual_errors_printable,
-            ))
-        else:
-            # Success. Print the errors if UNIT_TEST_VERBOSITY is on.
-            if settings.UNIT_TEST_VERBOSITY >= 1:
-                print "Errors:"
-                print actual_errors_printable
 
     user_count = 0
     @classmethod
@@ -317,7 +198,6 @@ class ClientTest(BaseTest):
         key3="Aux3",
         key4="Aux4",
         key5="Aux5",
-        image_height_in_cm=50,
         min_x=0,
         max_x=100,
         min_y=0,
@@ -436,11 +316,9 @@ class ClientTest(BaseTest):
         source.refresh_from_db()
         return source.labelset
 
-    # TODO: Now that the old upload_image() is gone, rename this function to
-    # upload_image() at some point.
     image_count = 0
     @classmethod
-    def upload_image_new(cls, user, source, image_options=None):
+    def upload_image(cls, user, source, image_options=None):
         """
         Upload a data image.
         :param user: User to upload as.

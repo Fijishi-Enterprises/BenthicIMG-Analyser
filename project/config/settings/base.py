@@ -316,10 +316,6 @@ EMAIL_CHANGE_CONFIRMATION_HOURS = 24
 
 
 
-# [Custom setting]
-# Directory containing uploadable files for use during unit tests.
-SAMPLE_UPLOADABLES_ROOT = PROJECT_DIR.child('sample_uploadables')
-
 # [Custom settings]
 # Media filepath patterns
 IMAGE_FILE_PATTERN = 'images/{name}{extension}'
@@ -347,6 +343,11 @@ CSV_UPLOAD_MAX_FILE_SIZE = 30*1024*1024  # 30 MB
 
 # [Custom settings]
 BROWSE_DEFAULT_THUMBNAILS_PER_PAGE = 20
+
+# [Custom setting]
+# Image counts required for sources to: display on the map,
+# display as medium size, and display as large size.
+MAP_IMAGE_COUNT_TIERS = [100, 500, 1500]
 
 # [Custom setting]
 # Go to https://code.google.com/apis/console/ and get an API key

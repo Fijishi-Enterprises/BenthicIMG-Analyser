@@ -298,7 +298,7 @@ def labelset_import_preview_ajax(request, source_id):
 def labelset_import_ajax(request, source_id):
     source = get_object_or_404(Source, id=source_id)
 
-    serialized_labels = request.session.pop('csv_labels')
+    serialized_labels = request.session.pop('csv_labels', None)
     if not serialized_labels:
         return JsonResponse(dict(
             error=(

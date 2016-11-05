@@ -335,7 +335,7 @@ class LabelsetAddRemoveTest(LabelTest):
 
     def test_cant_remove_label_with_annotations(self):
         # Annotate with C
-        img = self.upload_image_new(self.user, self.source)
+        img = self.upload_image(self.user, self.source)
         self.add_annotations(self.user, img, {1: 'C'})
 
         # Remove C

@@ -28,9 +28,9 @@ class UploadImagePreviewTest(ClientTest):
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
 
-        cls.img1 = cls.upload_image_new(
+        cls.img1 = cls.upload_image(
             cls.user, cls.source, image_options=dict(filename='1.png'))
-        cls.img2 = cls.upload_image_new(
+        cls.img2 = cls.upload_image(
             cls.user, cls.source, image_options=dict(filename='2.png'))
 
     def test_no_dupe(self):
@@ -177,10 +177,6 @@ class UploadImageTest(ClientTest):
         # Check that the user who uploaded the image is the
         # currently logged in user.
         self.assertEqual(img.uploaded_by.pk, self.user.pk)
-
-        # cm height.
-        self.assertEqual(
-            img.metadata.height_in_cm, img.source.image_height_in_cm)
 
 
 class UploadImageFormatTest(ClientTest):
@@ -343,12 +339,11 @@ class UploadMetadataTest(ClientTest):
         cls.source.key1 = 'Site'
         cls.source.key2 = 'Habitat'
         cls.source.key3 = 'Transect'
-        cls.source.image_height_in_cm = 50
         cls.source.save()
 
-        cls.img1 = cls.upload_image_new(
+        cls.img1 = cls.upload_image(
             cls.user, cls.source, image_options=dict(filename='1.png'))
-        cls.img2 = cls.upload_image_new(
+        cls.img2 = cls.upload_image(
             cls.user, cls.source, image_options=dict(filename='2.png'))
 
         cls.standard_column_order = [
@@ -371,8 +366,8 @@ class UploadMetadataTest(ClientTest):
 
     def test_starting_from_blank_metadata(self):
         """
-        Everything except height (cm) starts blank and has nothing
-        to be replaced.
+        Everything starts blank and has nothing to be replaced.
+        When editing, we'll set some fields while leaving others blank.
         """
         self.client.force_login(self.user)
 
@@ -592,7 +587,7 @@ class UploadMetadataTest(ClientTest):
                 'Transect': '2-4',
                 'Aux4': 'Q5',
                 'Aux5': '28',
-                'Height (cm)': '',
+                'Height (cm)': '50',
                 'Latitude': '20.18',
                 'Longitude': '-59.64',
                 'Depth': '30m',
@@ -617,12 +612,12 @@ class UploadMetadataTest(ClientTest):
                     self.standard_column_order,
                     ['1.png', ['2016-07-18', '2014-02-27'], ['SiteA', 'SiteC'],
                      'Fringing Reef', '2-4',
-                     'Q5', '28', ['', '50'], '20.18', '-59.64', '30m',
+                     'Q5', '28', '50', '20.18', '-59.64', '30m',
                      ['', 'Nikon'], '', '', '', '', '', ''],
                 ],
                 previewDetails=dict(
                     numImages=1,
-                    numFieldsReplaced=4,
+                    numFieldsReplaced=3,
                 ),
             ),
         )
@@ -637,7 +632,7 @@ class UploadMetadataTest(ClientTest):
         self.assertEqual(meta1.aux3, '2-4')
         self.assertEqual(meta1.aux4, 'Q5')
         self.assertEqual(meta1.aux5, '28')
-        self.assertEqual(meta1.height_in_cm, None)
+        self.assertEqual(meta1.height_in_cm, 50)
         self.assertEqual(meta1.latitude, '20.18')
         self.assertEqual(meta1.longitude, '-59.64')
         self.assertEqual(meta1.depth, '30m')
@@ -660,6 +655,7 @@ class UploadMetadataTest(ClientTest):
         meta1.photo_date = datetime.date(2014,2,27)
         meta1.aux1 = 'SiteC'
         meta1.camera = 'Nikon'
+        meta1.height_in_cm = 50
         meta1.save()
 
         column_names = ['Name', 'Site', 'Habitat', 'Transect']
@@ -941,11 +937,11 @@ class UploadMetadataMultipleSourcesTest(ClientTest):
         cls.source = cls.create_source(cls.user)
         cls.source2 = cls.create_source(cls.user)
 
-        cls.img1_s1 = cls.upload_image_new(
+        cls.img1_s1 = cls.upload_image(
             cls.user, cls.source, image_options=dict(filename='1.png'))
-        cls.img1_s2 = cls.upload_image_new(
+        cls.img1_s2 = cls.upload_image(
             cls.user, cls.source2, image_options=dict(filename='1.png'))
-        cls.img2_s2 = cls.upload_image_new(
+        cls.img2_s2 = cls.upload_image(
             cls.user, cls.source2, image_options=dict(filename='2.png'))
 
     def preview1(self, csv_file):
@@ -1062,25 +1058,25 @@ class UploadMetadataPreviewTest(ClientTest):
         cls.source.key1 = 'Site'
         cls.source.save()
 
-        cls.img1 = cls.upload_image_new(
+        cls.img1 = cls.upload_image(
             cls.user, cls.source, image_options=dict(filename='1.png'))
-        cls.img2 = cls.upload_image_new(
+        cls.img2 = cls.upload_image(
             cls.user, cls.source, image_options=dict(filename='2.png'))
-        cls.img3 = cls.upload_image_new(
+        cls.img3 = cls.upload_image(
             cls.user, cls.source, image_options=dict(filename='3.png'))
-        cls.img4 = cls.upload_image_new(
+        cls.img4 = cls.upload_image(
             cls.user, cls.source, image_options=dict(filename='4.png'))
-        cls.img5 = cls.upload_image_new(
+        cls.img5 = cls.upload_image(
             cls.user, cls.source, image_options=dict(filename='5.png'))
-        cls.img6 = cls.upload_image_new(
+        cls.img6 = cls.upload_image(
             cls.user, cls.source, image_options=dict(filename='6.png'))
-        cls.img7 = cls.upload_image_new(
+        cls.img7 = cls.upload_image(
             cls.user, cls.source, image_options=dict(filename='7.png'))
-        cls.img8 = cls.upload_image_new(
+        cls.img8 = cls.upload_image(
             cls.user, cls.source, image_options=dict(filename='8.png'))
-        cls.img9 = cls.upload_image_new(
+        cls.img9 = cls.upload_image(
             cls.user, cls.source, image_options=dict(filename='9.png'))
-        cls.img10 = cls.upload_image_new(
+        cls.img10 = cls.upload_image(
             cls.user, cls.source, image_options=dict(filename='10.png'))
 
     def preview(self, csv_file):
@@ -1151,9 +1147,9 @@ class UploadMetadataErrorTest(ClientTest):
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
 
-        cls.img1 = cls.upload_image_new(
+        cls.img1 = cls.upload_image(
             cls.user, cls.source, image_options=dict(filename='1.png'))
-        cls.img2 = cls.upload_image_new(
+        cls.img2 = cls.upload_image(
             cls.user, cls.source, image_options=dict(filename='2.png'))
 
         cls.standard_column_order = [
@@ -1226,9 +1222,9 @@ class UploadMetadataPreviewErrorTest(ClientTest):
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
 
-        cls.img1 = cls.upload_image_new(
+        cls.img1 = cls.upload_image(
             cls.user, cls.source, image_options=dict(filename='1.png'))
-        cls.img2 = cls.upload_image_new(
+        cls.img2 = cls.upload_image(
             cls.user, cls.source, image_options=dict(filename='2.png'))
 
         cls.standard_column_order = [
@@ -1467,9 +1463,9 @@ class UploadMetadataPreviewFormatTest(ClientTest):
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
 
-        cls.img1 = cls.upload_image_new(
+        cls.img1 = cls.upload_image(
             cls.user, cls.source, image_options=dict(filename='1.png'))
-        cls.img2 = cls.upload_image_new(
+        cls.img2 = cls.upload_image(
             cls.user, cls.source, image_options=dict(filename='2.png'))
 
     def preview(self, csv_file):
@@ -1658,13 +1654,13 @@ class UploadAnnotationsTest(ClientTest):
         labels = cls.create_labels(cls.user, ['A', 'B'], 'Group1')
         cls.create_labelset(cls.user, cls.source, labels)
 
-        cls.img1 = cls.upload_image_new(
+        cls.img1 = cls.upload_image(
             cls.user, cls.source,
             image_options=dict(filename='1.png', width=100, height=100))
-        cls.img2 = cls.upload_image_new(
+        cls.img2 = cls.upload_image(
             cls.user, cls.source,
             image_options=dict(filename='2.png', width=100, height=100))
-        cls.img3 = cls.upload_image_new(
+        cls.img3 = cls.upload_image(
             cls.user, cls.source,
             image_options=dict(filename='3.png', width=100, height=100))
 
@@ -2401,13 +2397,13 @@ class UploadAnnotationsMultipleSourcesTest(ClientTest):
         cls.create_labelset(cls.user, cls.source, labels)
         cls.create_labelset(cls.user, cls.source2, labels)
 
-        cls.img1_s1 = cls.upload_image_new(
+        cls.img1_s1 = cls.upload_image(
             cls.user, cls.source,
             image_options=dict(filename='1.png', width=100, height=100))
-        cls.img1_s2 = cls.upload_image_new(
+        cls.img1_s2 = cls.upload_image(
             cls.user, cls.source2,
             image_options=dict(filename='1.png', width=100, height=100))
-        cls.img2_s2 = cls.upload_image_new(
+        cls.img2_s2 = cls.upload_image(
             cls.user, cls.source2,
             image_options=dict(filename='2.png', width=100, height=100))
 
@@ -2555,10 +2551,10 @@ class UploadAnnotationsPreviewErrorTest(ClientTest):
         # Label not in labelset
         cls.create_labels(cls.user, ['C'], 'Group1')
 
-        cls.img1 = cls.upload_image_new(
+        cls.img1 = cls.upload_image(
             cls.user, cls.source,
             image_options=dict(filename='1.png', width=100, height=200))
-        cls.img2 = cls.upload_image_new(
+        cls.img2 = cls.upload_image(
             cls.user, cls.source,
             image_options=dict(filename='2.png', width=200, height=100))
 

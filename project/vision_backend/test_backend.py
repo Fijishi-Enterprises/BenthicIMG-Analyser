@@ -33,7 +33,7 @@ class ImageInitialStatusTest(ClientTest):
     def test_features_extracted_false(self):
         self.user = self.create_user()
         self.source = self.create_source(self.user)
-        self.img1 = self.upload_image_new(self.user, self.source)
+        self.img1 = self.upload_image(self.user, self.source)
         self.assertFalse(self.img1.features.extracted)
 
 
@@ -104,7 +104,7 @@ class BackendTestWithClassifier(BackendTest):
 
         # Train a classifier.
         for itt in range(settings.MIN_NBR_ANNOTATED_IMAGES): 
-            img = cls.upload_image_new(cls.user, cls.source)
+            img = cls.upload_image(cls.user, cls.source)
             cls.annotate(img.id, cls.user, cls.dummy_annotations)
 
         # Make sure features are extracted
@@ -128,7 +128,7 @@ class RaiseErrorTest(BackendTest):
         super(RaiseErrorTest, cls).setUpTestData()
 
     def test_spacer_error_handling(self):
-        self.img1 = self.upload_image_new(self.user, self.source)
+        self.img1 = self.upload_image(self.user, self.source)
 
 @skipIf(not settings.DEFAULT_FILE_STORAGE == 'lib.storage_backends.MediaStorageS3', "Can't run backend tests locally")
 @skipIf(get_total_messages_in_jobs_queue() > 10, "Too many messages in backend queue. Skipping this test.")
@@ -142,7 +142,7 @@ class ImageGetsFeaturesTest(BackendTest):
         
     def test_features_extraction(self):
         # Upload image
-        img = self.upload_image_new(self.user, self.source)
+        img = self.upload_image(self.user, self.source)
         # No features initially.
         self.assertFalse(Image.objects.get(id = img.id).features.extracted)
         # Wait for backend.
@@ -168,7 +168,7 @@ class TrainClassifierTest(BackendTest):
         """
         # Upload and annotate just enough images for a classifier NOT to be trained.
         for itt in range(settings.MIN_NBR_ANNOTATED_IMAGES - 1): 
-            img = self.upload_image_new(self.user, self.source)
+            img = self.upload_image(self.user, self.source)
             self.annotate(img.id, self.user, self.dummy_annotations)
             
         # Make sure features are extracted
@@ -182,7 +182,7 @@ class TrainClassifierTest(BackendTest):
         self.assertEqual(Classifier.objects.filter(source = self.source).count(), 0)
 
         # Upload and annotate one more image.
-        img = self.upload_image_new(self.user, self.source)
+        img = self.upload_image(self.user, self.source)
         self.annotate(img.id, self.user, self.dummy_annotations)
 
         # Make sure features are extracted
@@ -207,7 +207,7 @@ class TrainClassifierTest(BackendTest):
        
         # Upload and MIN_NBR_ANNOTATED_IMAGES.
         for itt in range(settings.MIN_NBR_ANNOTATED_IMAGES): 
-            img = self.upload_image_new(self.user, self.source)
+            img = self.upload_image(self.user, self.source)
 
         # Make sure features are extracted
         for img in Image.objects.filter(source = self.source):
@@ -246,7 +246,7 @@ class ResetLabelSetTest(BackendTestWithClassifier):
         """
 
         # Upload an image
-        img1 = self.upload_image_new(self.user, self.source)
+        img1 = self.upload_image(self.user, self.source)
         
         # Wait for backend.
         self.wait_for_features_extracted(img1.id)
@@ -305,9 +305,9 @@ class ImageClassification(BackendTestWithClassifier):
         Test basic dynamics of image upload.
         """
         # Upload three images
-        img1 = self.upload_image_new(self.user, self.source)
-        img2 = self.upload_image_new(self.user, self.source)
-        img3 = self.upload_image_new(self.user, self.source)
+        img1 = self.upload_image(self.user, self.source)
+        img2 = self.upload_image(self.user, self.source)
+        img3 = self.upload_image(self.user, self.source)
         
         # Annotate the second one partially and the third fully
         self.annotate(img2.id, self.user, self.partial_dummy_annotations)
@@ -361,7 +361,7 @@ class ImageClassification(BackendTestWithClassifier):
         """
         If a point is deleted all scores for that point should be deleted.
         """
-        img1 = self.upload_image_new(self.user, self.source)
+        img1 = self.upload_image(self.user, self.source)
         self.wait_for_features_extracted(img1.id)
 
         self.assertEqual(Score.objects.filter(image = img1).count(), 3 * 5)
@@ -376,7 +376,7 @@ class ImageClassification(BackendTestWithClassifier):
         """
         If we genereate new point, features must be reset.
         """
-        img1 = self.upload_image_new(self.user, self.source)
+        img1 = self.upload_image(self.user, self.source)
         self.wait_for_features_extracted(img1.id)
 
         self.assertTrue(Image.objects.get(id = img1.id).features.extracted)

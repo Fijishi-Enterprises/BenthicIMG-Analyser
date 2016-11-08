@@ -138,6 +138,9 @@ class ImageSearchForm(forms.Form):
     image_form_type = forms.CharField(
         widget=HiddenInput(), initial='search', required=True)
 
+    # Search by image name.
+    image_name = forms.CharField(label="Image name contains", required=False)
+
     def __init__(self, *args, **kwargs):
 
         self.source = kwargs.pop('source')

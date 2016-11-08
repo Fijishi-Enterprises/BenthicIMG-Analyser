@@ -83,15 +83,19 @@ class SearchTest(ClientTest):
             cls.upload_image(cls.user, cls.source) for _ in range(5)
         ]
 
-        cls.default_search_params = dict(
+    def submit_search(self, **kwargs):
+        data = dict(
             image_form_type='search',
             aux1='', aux2='', aux3='', aux4='', aux5='',
             height_in_cm='', latitude='', longitude='', depth='',
             photographer='', framing='', balance='',
             date_filter_0='year', date_filter_1='',
             date_filter_2='', date_filter_3='',
-            annotation_status='',
+            annotation_status='', image_name='',
         )
+        data.update(**kwargs)
+        response = self.client.post(self.url, data, follow=True)
+        return response
 
     def test_page_landing(self):
         self.client.force_login(self.user)
@@ -101,7 +105,7 @@ class SearchTest(ClientTest):
 
     def test_default_search(self):
         self.client.force_login(self.user)
-        response = self.client.post(self.url, self.default_search_params)
+        response = self.submit_search()
         self.assertEqual(
             response.context['page_results'].paginator.count, 5)
 
@@ -114,11 +118,8 @@ class SearchTest(ClientTest):
         self.imgs[2].metadata.save()
         # 2 other images left with no date
 
-        post_data = self.default_search_params.copy()
-        post_data['date_filter_1'] = 2012
-
         self.client.force_login(self.user)
-        response = self.client.post(self.url, post_data)
+        response = self.submit_search(date_filter_1=2012)
         self.assertEqual(
             response.context['page_results'].paginator.count, 2)
 
@@ -131,11 +132,8 @@ class SearchTest(ClientTest):
         self.imgs[2].metadata.save()
         # 2 other images left with no date
 
-        post_data = self.default_search_params.copy()
-        post_data['date_filter_1'] = '(none)'
-
         self.client.force_login(self.user)
-        response = self.client.post(self.url, post_data)
+        response = self.submit_search(date_filter_1='(none)')
         self.assertEqual(
             response.context['page_results'].paginator.count, 2)
 
@@ -167,12 +165,9 @@ class SearchTest(ClientTest):
         self.imgs[2].metadata.save()
         # 2 other images left with no date
 
-        post_data = self.default_search_params.copy()
-        post_data['date_filter_0'] = 'date'
-        post_data['date_filter_2'] = datetime.date(2012, 1, 13)
-
         self.client.force_login(self.user)
-        response = self.client.post(self.url, post_data)
+        response = self.submit_search(
+            date_filter_0='date', date_filter_2=datetime.date(2012, 1, 13))
         self.assertEqual(
             response.context['page_results'].paginator.count, 2)
 
@@ -188,13 +183,11 @@ class SearchTest(ClientTest):
         self.imgs[4].metadata.photo_date = datetime.date(2012, 3, 21)
         self.imgs[4].metadata.save()
 
-        post_data = self.default_search_params.copy()
-        post_data['date_filter_0'] = 'date_range'
-        post_data['date_filter_3'] = datetime.date(2012, 3, 10)
-        post_data['date_filter_4'] = datetime.date(2012, 3, 20)
-
         self.client.force_login(self.user)
-        response = self.client.post(self.url, post_data)
+        response = self.submit_search(
+            date_filter_0='date_range',
+            date_filter_3=datetime.date(2012, 3, 10),
+            date_filter_4=datetime.date(2012, 3, 20))
         self.assertEqual(
             response.context['page_results'].paginator.count, 3)
         # Make sure that it's the middle three images
@@ -211,11 +204,8 @@ class SearchTest(ClientTest):
         self.add_robot_annotations(robot, self.imgs[2], {1: 'A', 2: 'B'})
         self.add_annotations(self.user, self.imgs[3], {1: 'B'})
 
-        post_data = self.default_search_params.copy()
-        post_data['annotation_status'] = 'confirmed'
-
         self.client.force_login(self.user)
-        response = self.client.post(self.url, post_data)
+        response = self.submit_search(annotation_status='confirmed')
         self.assertEqual(
             response.context['page_results'].paginator.count, 2)
 
@@ -228,11 +218,8 @@ class SearchTest(ClientTest):
         self.add_robot_annotations(robot, self.imgs[2], {1: 'A', 2: 'B'})
         self.add_annotations(self.user, self.imgs[3], {1: 'B'})
 
-        post_data = self.default_search_params.copy()
-        post_data['annotation_status'] = 'unconfirmed'
-
         self.client.force_login(self.user)
-        response = self.client.post(self.url, post_data)
+        response = self.submit_search(annotation_status='unconfirmed')
         self.assertEqual(
             response.context['page_results'].paginator.count, 2)
 
@@ -244,11 +231,8 @@ class SearchTest(ClientTest):
         self.add_robot_annotations(robot, self.imgs[1], {1: 'A', 2: 'B'})
         self.add_annotations(self.user, self.imgs[2], {1: 'B'})
 
-        post_data = self.default_search_params.copy()
-        post_data['annotation_status'] = 'unclassified'
-
         self.client.force_login(self.user)
-        response = self.client.post(self.url, post_data)
+        response = self.submit_search(annotation_status='unclassified')
         self.assertEqual(
             response.context['page_results'].paginator.count, 3)
 
@@ -260,11 +244,8 @@ class SearchTest(ClientTest):
         self.imgs[2].metadata.aux1 = 'Site3'
         self.imgs[2].metadata.save()
 
-        post_data = self.default_search_params.copy()
-        post_data['aux1'] = 'Site3'
-
         self.client.force_login(self.user)
-        response = self.client.post(self.url, post_data)
+        response = self.submit_search(aux1='Site3')
         self.assertEqual(
             response.context['page_results'].paginator.count, 2)
 
@@ -274,11 +255,8 @@ class SearchTest(ClientTest):
         self.imgs[1].metadata.aux1 = 'Site3'
         self.imgs[1].metadata.save()
 
-        post_data = self.default_search_params.copy()
-        post_data['aux1'] = '(none)'
-
         self.client.force_login(self.user)
-        response = self.client.post(self.url, post_data)
+        response = self.submit_search(aux1='(none)')
         self.assertEqual(
             response.context['page_results'].paginator.count, 3)
 
@@ -307,11 +285,8 @@ class SearchTest(ClientTest):
         self.imgs[2].metadata.aux5 = 'D'
         self.imgs[2].metadata.save()
 
-        post_data = self.default_search_params.copy()
-        post_data['aux5'] = 'D'
-
         self.client.force_login(self.user)
-        response = self.client.post(self.url, post_data)
+        response = self.submit_search(aux5='D')
         self.assertEqual(
             response.context['page_results'].paginator.count, 2)
 
@@ -324,11 +299,8 @@ class SearchTest(ClientTest):
         self.imgs[2].metadata.save()
         # Source default is 50, so the other 2 images have that
 
-        post_data = self.default_search_params.copy()
-        post_data['height_in_cm'] = 25
-
         self.client.force_login(self.user)
-        response = self.client.post(self.url, post_data)
+        response = self.submit_search(height_in_cm=25)
         self.assertEqual(
             response.context['page_results'].paginator.count, 2)
 
@@ -344,11 +316,8 @@ class SearchTest(ClientTest):
         self.imgs[4].metadata.height_in_cm = 50
         self.imgs[4].metadata.save()
 
-        post_data = self.default_search_params.copy()
-        post_data['height_in_cm'] = '(none)'
-
         self.client.force_login(self.user)
-        response = self.client.post(self.url, post_data)
+        response = self.submit_search(height_in_cm='(none)')
         self.assertEqual(
             response.context['page_results'].paginator.count, 1)
 
@@ -377,11 +346,8 @@ class SearchTest(ClientTest):
         self.imgs[2].metadata.latitude = '-56.78'
         self.imgs[2].metadata.save()
 
-        post_data = self.default_search_params.copy()
-        post_data['latitude'] = '-56.78'
-
         self.client.force_login(self.user)
-        response = self.client.post(self.url, post_data)
+        response = self.submit_search(latitude='-56.78')
         self.assertEqual(
             response.context['page_results'].paginator.count, 2)
 
@@ -391,11 +357,8 @@ class SearchTest(ClientTest):
         self.imgs[1].metadata.latitude = '-56.78'
         self.imgs[1].metadata.save()
 
-        post_data = self.default_search_params.copy()
-        post_data['latitude'] = '(none)'
-
         self.client.force_login(self.user)
-        response = self.client.post(self.url, post_data)
+        response = self.submit_search(latitude='(none)')
         self.assertEqual(
             response.context['page_results'].paginator.count, 3)
 
@@ -407,11 +370,8 @@ class SearchTest(ClientTest):
         self.imgs[2].metadata.camera = 'Canon'
         self.imgs[2].metadata.save()
 
-        post_data = self.default_search_params.copy()
-        post_data['camera'] = 'Canon'
-
         self.client.force_login(self.user)
-        response = self.client.post(self.url, post_data)
+        response = self.submit_search(camera='Canon')
         self.assertEqual(
             response.context['page_results'].paginator.count, 2)
 
@@ -421,13 +381,55 @@ class SearchTest(ClientTest):
         self.imgs[1].metadata.camera = 'Canon'
         self.imgs[1].metadata.save()
 
-        post_data = self.default_search_params.copy()
-        post_data['camera'] = '(none)'
-
         self.client.force_login(self.user)
-        response = self.client.post(self.url, post_data)
+        response = self.submit_search(camera='(none)')
         self.assertEqual(
             response.context['page_results'].paginator.count, 3)
+
+    def test_filter_by_image_name_one_token(self):
+        self.imgs[0].metadata.name = 'XYZ.jpg'
+        self.imgs[0].metadata.save()
+        self.imgs[1].metadata.name = 'abcxyzdef.png'
+        self.imgs[1].metadata.save()
+        self.imgs[2].metadata.name = 'xydefz.png'
+        self.imgs[2].metadata.save()
+
+        self.client.force_login(self.user)
+        response = self.submit_search(image_name='xyz')
+        self.assertEqual(
+            response.context['page_results'].paginator.count, 2)
+
+    def test_filter_by_image_name_two_tokens(self):
+        # Both search tokens must be present
+        self.imgs[0].metadata.name = 'ABCXYZ.jpg'
+        self.imgs[0].metadata.save()
+        self.imgs[1].metadata.name = 'xyz.abc'
+        self.imgs[1].metadata.save()
+        self.imgs[2].metadata.name = 'abc.png'
+        self.imgs[2].metadata.save()
+        self.imgs[3].metadata.name = 'xyz.jpg'
+        self.imgs[3].metadata.save()
+
+        self.client.force_login(self.user)
+        response = self.submit_search(image_name='abc xyz')
+        self.assertEqual(
+            response.context['page_results'].paginator.count, 2)
+
+    def test_filter_by_image_name_punctuation(self):
+        # Punctuation is considered part of search tokens
+        self.imgs[0].metadata.name = '1-1.png'
+        self.imgs[0].metadata.save()
+        self.imgs[1].metadata.name = '1*1.png'
+        self.imgs[1].metadata.save()
+        self.imgs[2].metadata.name = '2-1-1.jpg'
+        self.imgs[2].metadata.save()
+        self.imgs[3].metadata.name = '1-1-2.png'
+        self.imgs[3].metadata.save()
+
+        self.client.force_login(self.user)
+        response = self.submit_search(image_name='1-1.')
+        self.assertEqual(
+            response.context['page_results'].paginator.count, 2)
 
     def test_filter_by_multiple_fields(self):
         self.imgs[0].metadata.photo_date = datetime.date(2012, 3, 9)
@@ -443,12 +445,8 @@ class SearchTest(ClientTest):
         self.imgs[3].metadata.height_in_cm = 25
         self.imgs[3].metadata.save()
 
-        post_data = self.default_search_params.copy()
-        post_data['date_filter_1'] = 2013
-        post_data['height_in_cm'] = 30
-
         self.client.force_login(self.user)
-        response = self.client.post(self.url, post_data)
+        response = self.submit_search(date_filter_1=2013, height_in_cm=30)
         self.assertEqual(
             response.context['page_results'].paginator.count, 1)
 

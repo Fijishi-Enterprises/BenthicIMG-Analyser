@@ -1,20 +1,26 @@
 from io import BytesIO
+import operator
+import re
+
 from django.conf import settings
 from django.core.files.storage import get_storage_class
+from django.db.models import Q
 import django.db.models.fields as model_fields
 from PIL import Image as PILImage
 from images.models import Point, Image, Metadata
 
 
 def image_search_kwargs_to_queryset(search_kwargs, source):
-    queryset_kwargs = dict()
+    # Q objects which will be ANDed together at the end
+    qs = []
 
     # Date
     date_filter_kwargs = search_kwargs.get('date_filter', None)
     if date_filter_kwargs:
-        queryset_kwargs.update(date_filter_kwargs)
+        qs.append(Q(**date_filter_kwargs))
 
     # Metadata fields
+    metadata_kwargs = dict()
     metadata_field_names = [
         'aux1', 'aux2', 'aux3', 'aux4', 'aux5',
         'height_in_cm', 'latitude', 'longitude', 'depth',
@@ -30,12 +36,27 @@ def image_search_kwargs_to_queryset(search_kwargs, source):
             # Get images with an empty value for this field
             if isinstance(
               Metadata._meta.get_field(field_name), model_fields.CharField):
-                queryset_kwargs['metadata__' + field_name] = ''
+                metadata_kwargs['metadata__' + field_name] = ''
             else:
-                queryset_kwargs['metadata__' + field_name] = None
+                metadata_kwargs['metadata__' + field_name] = None
         else:
             # Filter by the given non-empty value
-            queryset_kwargs['metadata__' + field_name] = value
+            metadata_kwargs['metadata__' + field_name] = value
+    qs.append(Q(**metadata_kwargs))
+
+    # Image-name search field; all punctuation is allowed
+    search_value = search_kwargs.get('image_name', '')
+    # Strip whitespace from both ends
+    search_value = search_value.strip()
+    # Replace multi-spaces with one space
+    search_value = re.sub(r'\s{2,}', ' ', search_value)
+    # Get space-separated tokens
+    search_tokens = search_value.split(' ')
+    # Discard blank tokens
+    search_tokens = [t for t in search_tokens if t != '']
+    # Require all tokens to be found
+    for token in search_tokens:
+        qs.append(Q(metadata__name__icontains=token))
 
     # Annotation status
     annotation_status = search_kwargs.get('annotation_status', '')
@@ -43,15 +64,18 @@ def image_search_kwargs_to_queryset(search_kwargs, source):
         # Don't filter
         pass
     elif annotation_status == 'confirmed':
-        queryset_kwargs['confirmed'] = True
+        qs.append(Q(confirmed=True))
     elif annotation_status == 'unconfirmed':
-        queryset_kwargs['confirmed'] = False
-        queryset_kwargs['features__classified'] = True
+        qs.append(Q(confirmed=False))
+        qs.append(Q(features__classified=True))
     elif annotation_status == 'unclassified':
-        queryset_kwargs['confirmed'] = False
-        queryset_kwargs['features__classified'] = False
+        qs.append(Q(confirmed=False))
+        qs.append(Q(features__classified=False))
 
-    image_results = Image.objects.filter(source=source, **queryset_kwargs)
+    # AND all of the constraints so far, and remember to search within
+    # the source
+    image_results = Image.objects.filter(
+        reduce(operator.and_, qs), source=source)
 
     return image_results
 

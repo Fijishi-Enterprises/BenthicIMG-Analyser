@@ -141,6 +141,25 @@ class RegistrationProfileForm(ModelForm):
         self.fields['how_did_you_hear_about_us'].required = True
 
 
+class HoneypotForm(Form):
+    """
+    Form to trick robots that try to fill in all fields, even ones hidden
+    from view.
+    If the field is filled, the form is invalid.
+    """
+    # We name this 'username2' so it looks similar to an actual field.
+    username2 = CharField(
+        label="If you're human, don't fill in this field.", required=False)
+
+    def clean(self):
+        value = self.cleaned_data.get('username2')
+        if value:
+            raise ValidationError(
+                "If you're human, don't fill in the hidden trap field.",
+                code='robot_trap')
+        return value
+
+
 class ActivationResendForm(Form):
     email = EmailField(
         label="Email address",

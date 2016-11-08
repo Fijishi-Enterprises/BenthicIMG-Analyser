@@ -16,12 +16,20 @@
 
   {{ main_form.non_field_errors }}
   {{ profile_form.non_field_errors }}
+  {{ honeypot_form.non_field_errors }}
 
   <div class="page_section">
     {% include "form_generic_one_field.html" with field=main_form.username %}
     {% include "form_generic_one_field.html" with field=main_form.email %}
     {% include "form_generic_one_field.html" with field=main_form.password1 %}
     {% include "form_generic_one_field.html" with field=main_form.password2 %}
+
+    {# Honeypot; for catching robots #}
+    <span style="display: none;">
+      {% for field in honeypot_form %}
+        {% include "form_generic_one_field.html" with field=field %}
+      {% endfor %}
+    </span>
   </div>
 
   <div class="page_section">

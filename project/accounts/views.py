@@ -20,7 +20,7 @@ from registration.backends.hmac.views \
 from lib.utils import paginate
 from .forms import (
     ActivationResendForm, EmailAllForm, EmailChangeForm,
-    ProfileEditForm, ProfileUserEditForm,
+    HoneypotForm, ProfileEditForm, ProfileUserEditForm,
     RegistrationForm, RegistrationProfileForm)
 from .models import Profile
 from .utils import can_view_profile
@@ -81,6 +81,8 @@ class RegistrationView(BaseRegistrationView):
             kwargs['main_form'] = RegistrationForm()
         if 'profile_form' not in kwargs:
             kwargs['profile_form'] = RegistrationProfileForm()
+        if 'honeypot_form' not in kwargs:
+            kwargs['honeypot_form'] = HoneypotForm()
         return kwargs
 
     def get(self, request, *args, **kwargs):
@@ -89,8 +91,10 @@ class RegistrationView(BaseRegistrationView):
     def post(self, request, *args, **kwargs):
         main_form = RegistrationForm(request.POST)
         profile_form = RegistrationProfileForm(request.POST)
+        honeypot_form = HoneypotForm(request.POST)
 
-        if main_form.is_valid() and profile_form.is_valid():
+        if main_form.is_valid() and profile_form.is_valid()\
+           and honeypot_form.is_valid():
 
             # Check for unique email. This doesn't invalidate the form
             # because we don't want to make it obvious on-site that the
@@ -118,6 +122,7 @@ class RegistrationView(BaseRegistrationView):
         return render(request, self.template_name, self.get_context_data(
             main_form=main_form,
             profile_form=profile_form,
+            honeypot_form=honeypot_form,
         ))
 
     def send_already_exists_email(self, existing_user, email_address):

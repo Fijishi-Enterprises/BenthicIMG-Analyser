@@ -27,7 +27,8 @@ class BaseRegisterTest(ClientTest):
                  reason_for_registering="Trying labeling tools",
                  project_description="Labeling corals",
                  how_did_you_hear_about_us="Colleagues",
-                 agree_to_data_policy=True):
+                 agree_to_data_policy=True,
+                 username2=''):
         data = dict(
             username=username, email=email,
             password1=password1, password2=password2,
@@ -36,7 +37,8 @@ class BaseRegisterTest(ClientTest):
             reason_for_registering=reason_for_registering,
             project_description=project_description,
             how_did_you_hear_about_us=how_did_you_hear_about_us,
-            agree_to_data_policy=agree_to_data_policy)
+            agree_to_data_policy=agree_to_data_policy,
+            username2=username2)
         response = self.client.post(
             reverse('registration_register'), data, follow=True)
         return response
@@ -401,6 +403,15 @@ class RegisterTest(BaseRegisterTest):
         self.assertTemplateUsed(
             response, 'registration/registration_form.html')
         self.assertContains(response, "This field is required.")
+
+    def test_honeypot(self):
+        response = self.register(username2='a')
+
+        self.assertTemplateUsed(
+            response, 'registration/registration_form.html')
+        self.assertContains(
+            response,
+            escape("If you're human, don't fill in the hidden trap field."))
 
     def test_provided_fields_saved_to_database(self):
         self.register()

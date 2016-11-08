@@ -141,8 +141,6 @@ INSTALLED_APPS = [
     'labels',
     # Miscellaneous stuff
     'lib',
-    # Old account-request functionality; should be going away soon
-    'requests',
     'upload',
     'visualization',
     'vision_backend',

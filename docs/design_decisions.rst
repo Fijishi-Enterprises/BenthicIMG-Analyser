@@ -6,3 +6,4 @@ Contents:
 .. toctree::
 
    Accounts <design_decisions_accounts>
+   browser_compatibility

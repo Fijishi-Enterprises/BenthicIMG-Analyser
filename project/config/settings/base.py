@@ -353,10 +353,6 @@ MAP_IMAGE_COUNT_TIERS = [100, 500, 1500]
 GOOGLE_MAPS_API_KEY = get_secret("GOOGLE_MAPS_API_KEY")
 
 # [Custom settings]
-CAPTCHA_PRIVATE_KEY = get_secret("CAPTCHA_PRIVATE_KEY")
-CAPTCHA_PUBLIC_KEY = get_secret("CAPTCHA_PUBLIC_KEY")
-
-# [Custom settings]
 GOOGLE_ANALYTICS_CODE = get_secret("GOOGLE_ANALYTICS_CODE", required=False)
 
 # Celery

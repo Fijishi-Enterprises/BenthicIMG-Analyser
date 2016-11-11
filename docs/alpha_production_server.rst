@@ -1,6 +1,6 @@
 Alpha production server
 =======================
-This page contains miscellanous notes about the old alpha production server - a physical server machine running Linux.
+This page contains miscellaneous notes about the old alpha production server - a physical server machine running Linux.
 
 
 Hardware
@@ -302,48 +302,9 @@ Python packages and versions as of the 2016/06 restore (since we aren't document
 - django-supervisor==0.3.2 (a pre-2016/06 Sentry log has 0.3.0)
 
 
-Mail server
------------
-Postfix seems to be recommended for a simple outgoing-only mail server. Run: ``sudo apt-get install postfix``
-
-- Choose "Internet site: Mail is sent and received directly using SMTP."
-- FQDN: e.g. ``subdomain.example.com``
-
-It's important to send encrypted mail, especially during the signup procedure. Get a free TLS certificate using `Let's Encrypt <https://letsencrypt.org/getting-started/>`__.
-
-- Note that Let's Encrypt certificates expire after 3 months. So either get set up with their system of certificate auto-renewal, or remember to make a new certificate before the 3 months are up.
-- Let's Encrypt issues "domain-validated" TLS certificates. There are `different levels of TLS certificates <http://security.stackexchange.com/questions/13453/are-all-ssl-certificates-equal>`__, although whether those levels matter for security is up for debate.
-- Our specific procedure to get a Let's Encrypt certificate:
-
-  - Enlarge the SSH window to at least 132x43 to avoid a DialogError while running the certbot (`Source <https://github.com/certbot/certbot/issues/2787>`__)
-  - In nginx, turn off the coralnet site, and turn on the default nginx site
-  
-    - ``sudo ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled``
-    - ``sudo rm /etc/nginx/sites-enabled/coralnet``
-    - ``sudo /etc/init.d/nginx restart``
-    - Ensure you see the default nginx page at the website URL
-    
-  - Ensure that the server allows all IPs on port 80
-  - ``wget https://dl.eff.org/certbot-auto``
-  - ``chmod a+x certbot-auto``
-  - ``./certbot-auto certonly --webroot-path /usr/share/nginx/html``, select webroot option, enter email, agree, enter FQDN
-  - Turn the coralnet site back on
-  
-    - ``sudo ln -s /etc/nginx/sites-available/coralnet /etc/nginx/sites-enabled``
-    - ``sudo rm /etc/nginx/sites-enabled/default``
-    - ``sudo /etc/init.d/nginx restart``
-    - Ensure you see the coralnet website at the website URL
-    
-Now that we have a certificate, add or edit in the following lines in ``/etc/postfix/main.cf``:
-
-::
-
-  smtp_tls_cert_file=/etc/letsencrypt/live/<FQDN goes here>/privkey.pem
-  smtp_tls_key_file=/etc/letsencrypt/live/<FQDN goes here>/fullchain.pem
-  smtpd_tls_cert_file=/etc/letsencrypt/live/<FQDN goes here>/privkey.pem
-  smtpd_tls_key_file=/etc/letsencrypt/live/<FQDN goes here>/fullchain.pem
-  
-Then run ``sudo /etc/init.d/postfix reload``, and try sending mail from the website (e.g. using the website's Contact Us page) to a Gmail account. When that mail is opened in Gmail, there should not be a red padlock next to the email sender. (A red padlock would indicate a lack of TLS/SSL.)
+Mail server with SSL
+--------------------
+We used Postfix and Let's Encrypt, fairly similar to what's described in the `web server docs <web_server>`__, with SSL being used for email but not the website.
 
 
 Things to change after a suspected breach

@@ -1,4 +1,6 @@
-Installation, Setup, and Overview of the CoralNet vision backend 
+.. _backend:
+
+Installation, Setup, and Overview of the CoralNet vision backend
 ==========================================================================================
 
 Async Task management system

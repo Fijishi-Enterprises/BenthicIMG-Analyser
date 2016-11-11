@@ -1,8 +1,10 @@
-Specific instructions for 2016 migration process
-================================================
+.. _beta_migration_database:
+
+Database migration from alpha to beta
+=====================================
 
 
-.. _y2016-migration-pgloader:
+.. _beta-migration-pgloader:
 
 pgloader
 --------
@@ -10,7 +12,7 @@ pgloader
 
 Notes about pgloader and our process
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-`pgloader <http://pgloader.io/index.html>`__ seems to be one of the best tools out there for porting a MySQL database to PostgreSQL. It takes a live database or file (e.g. CSV) as input, and outputs to a live PostgreSQL database. If we have live databases on both sides, then we don't even need to have a separate database dumping step, which should reduce the possible points of failure / data corruption.
+`pgloader <http://pgloader.io/index.html>`__ is a popular tool for porting a MySQL database to PostgreSQL. It takes a live database or file (e.g. CSV) as input, and outputs to a live PostgreSQL database. If we have live databases on both sides, then we don't even need to have a separate database dumping step, which should reduce the possible points of failure / data corruption.
 
 At first the plan was to install pgloader on an AWS instance and connect to the UCSD CSE machine's MySQL database through the network. However, all attempts to the UCSD CSE machine's MySQL failed, even after disabling the ufw (firewall) configuration. Perhaps the UCSD CSE machine's router had a firewall which we didn't have control over. We briefly considered contacting CSE Help about it, but then decided not to give them another reminder about our very outdated server machine.
 
@@ -169,7 +171,7 @@ Two possible warnings that should be acceptable are:
 At this point, it's a good idea to make a snapshot of the RDS instance, in case we make a mistake on the Django migration steps. You can create a snapshot from Amazon's RDS Dashboard.
 
 
-.. _y2016-migration-django-migrations:
+.. _beta_migration_django_migrations:
 
 Django migrations
 -----------------
@@ -204,7 +206,7 @@ In our case, we have the stale contenttypes ``auth | message`` and ``annotations
 
 reversion
 ~~~~~~~~~
-``reversion`` is tricky. Before our 2016 upgrading process, we had reversion 1.5.1, and that had South migrations numbered up to 0005. But just before reversion switched to the new migrations, they had made South migrations up to 0008. Then they merged the South migrations 0001-0008 into a new 0001 to make things cleaner.
+``reversion`` is tricky. Before our beta upgrading process, we had reversion 1.5.1, and that had South migrations numbered up to 0005. But just before reversion switched to the new migrations, they had made South migrations up to 0008. Then they merged the South migrations 0001-0008 into a new 0001 to make things cleaner.
 
 To apply the ``reversion`` migrations:
 
@@ -219,27 +221,3 @@ To apply the ``reversion`` migrations:
 - Now you can see with ``manage.py showmigrations`` that the ``reversion`` migration numbers have changed. Fake-run 0001, then run 0002.
 
 At this point, it's a good idea to make another snapshot of the RDS instance.
-
-
-File transfer to AWS S3
------------------------
-
-SSH into an EC2 instance. Mount the CoralNet alpha server's filesystem using SSHFS.
-
-- ``sudo apt-get install sshfs``
-- ``sudo mkdir /mnt/cnalpha``
-- ``sudo sshfs <username>@<alpha server host>/ /mnt/cnalpha`` to mount the root of the alpha server's filesystem at ``/mnt/cnalpha``.
-
-Install and configure the AWS command line interface.
-
-- ``sudo apt-get install awscli``
-- ``aws configure`` - When prompted, be sure to specify an access key that has access to the desired S3 bucket.
-
-You can sync small directories with the ``aws s3 sync`` command. For example: ``sudo aws s3 sync /mnt/cnalpha/path/to/media/label_thumbnails s3://<bucket-name>/media/labels``
-
-Unfortunately, the ``aws s3 sync`` command seems to hang without transferring anything when it comes to large directories. (`Related GitHub issue <https://github.com/aws/aws-cli/issues/1775>`__)
-Instead, use the ``scripts/s3_sync.py`` script in our repository to transfer the files. For example: ``sudo python path/to/s3_sync.py /mnt/cnalpha/path/to/media/data/original s3://<bucket-name>/media/images``. This script basically loops over the files and copies them one by one using ``aws s3 cp``.
-
-The script has a ``--filter`` option that allows you to try transferring just a subset of images. For example, to transfer all files whose filenames start with ``00``, run: ``sudo python path/to/s3_sync.py <src> <dest> --filter "00.*"``
-
-The process can be run in the background, and should not be interrupted even if you close your SSH session (despite SSHFS being used). When finished, a summary .txt file should be written, so you can see the number of files copied, time elapsed, etc. For us, the transfer of 1.2 TB of 600k image files would take about 15.5 days.

@@ -1,54 +1,14 @@
-Installation
-============
+.. _python_and_django:
 
+Python and Django
+=================
 
-Git
------
-Download and install Git, if you don't have it already.
-
-Register an account on `Github <https://github.com/>`__ and ensure you have access to the coralnet repository.
-
-Create an SSH key on your machine for your user profile, and add the public part of the key on your GitHub settings. See `instructions <https://help.github.com/articles/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent/>`__ on GitHub.
-
-- This process could be optional for a local development machine, but it'll probably be required on the production server. If ``git`` commands result in a ``Permission Denied (publickey)`` error, then you know you have to complete this process. (`Source <https://gist.github.com/adamjohnson/5682757>`__)
-
-- The ``-C`` option on the SSH key creation step doesn't have to be an email address. It's just a comment for you to remember what and who the SSH key is for. (`Source <http://serverfault.com/questions/309171/possible-to-change-email-address-in-keypair>`__)
-
-Git-clone the coralnet repository to your machine.
-
-
-.. _installation-postgresql:
-
-PostgreSQL
-----------
-Download and install the PostgreSQL server/core, 9.5.1. 32 or 64 bit shouldn't matter. Make sure you keep track of the root password.
-
-Open pgAdmin. Connect to the server.
-
-Create a user called ``django``.
-
-- In pgAdmin: Right-click Login Roles, New Login Role..., Role name = ``django``, go to Definition tab and add password.
-
-Create a database called ``coralnet``. Owner = ``django``, Encoding = UTF8 (`Django says so <https://docs.djangoproject.com/en/dev/ref/databases/#optimizing-postgresql-s-configuration>`__). Defaults for other options should be fine.
-
-Make sure ``django`` has permission to create databases. This is for running unit tests.
-
-- In pgAdmin: Right click ``django`` login role, Properties..., Role privileges tab, check "Can create databases".
-
-Optimization recommended by Django: set some default parameters for database connections. `See the docs page <https://docs.djangoproject.com/en/dev/ref/databases/#optimizing-postgresql-s-configuration>`__. Can either set these for the ``django`` user with ``ALTER_ROLE``, or for all database users in ``postgresql.conf``.
-
-- ``ALTER_ROLE`` method in pgAdmin: Right click the ``django`` Login Role, Properties, Variables tab. Database = ``coralnet``, Variable Name and Variable Value = whatever is specified in that Django docs link. Click Add/Change to add each of the 3 variables. Click OK.
-
-Two more notes:
-
-- When you create the ``coralnet`` database, it'll have ``public`` privileges by default. This means that every user created in that PostgreSQL installation has certain privileges by default, such as connecting to that database. `Related SO thread <http://stackoverflow.com/questions/6884020/why-new-user-in-postgresql-can-connect-to-all-databases>`__. This shouldn't be an issue as long as we don't have any PostgreSQL users with insecure passwords.
-
-- A Django 1.7 release note says: "When running tests on PostgreSQL, the USER will need read access to the built-in postgres database." This doesn't seem to be a problem by default, probably due to the default ``public`` privileges described above.
+This page details Python and Django related setup steps.
 
 
 Python
 ------
-Download and install Python 2.7.11. 32 bit or 64 bit doesn't matter. It's perfectly fine to keep other Python versions on the same system. Just make sure that your ``python`` and ``pip`` commands point to the correct Python version.
+Download and install the latest Python 2.7.x. 32 bit or 64 bit doesn't matter. It's perfectly fine to keep other Python versions on the same system. Just make sure that your ``python`` and ``pip`` commands point to the correct Python version.
 
 - On Linux, you'll probably have to install this Python version from source.
 
@@ -57,9 +17,11 @@ Download and install Python 2.7.11. 32 bit or 64 bit doesn't matter. It's perfec
   - You probably don't want to change the default Python on your Linux system. To be on the safe side, heed the docs' warning and use ``make altinstall`` instead of ``make install`` to ensure that this Python version gets installed alongside the existing one, without masking/overwriting it.
 
     - On Ubuntu 14.04, 2015/05/17, the result of ``make altinstall`` is that the original Python 2.7.6 is still at ``/usr/bin/python2.7``, while the newly installed Python 2.7.11 is at ``/usr/local/bin/python2.7``.
-    
+
+    - It seems to be a standard practice to put self-installed packages in ``/usr/local`` like this. `Link 1 <http://askubuntu.com/a/34922/>`__, `Link 2 <http://unix.stackexchange.com/a/11552/>`__
+
   - If you get ``configure: error: no acceptable C compiler found in $PATH``, check to see if you have gcc installed: ``sudo apt-cache policy gcc``. If not, then run ``sudo apt-get install gcc``. Then try again.
-  
+
   - If you get ``The program 'make' is currently not installed.``, then do ``sudo apt-get install make``.
 
 Check your pip's version with ``pip -V``. (The pip executable is in the same directory as the python one; make sure you refer to the python/pip you just installed). If pip says it's out of date, it'll suggest that you run a command to update it. Do that.
@@ -92,12 +54,12 @@ A few package/OS combinations may need additional steps:
 
 - ``psycopg2`` on Linux
 
-  - If you get ``Error: pg_config executable not found``, you may have to install a Linux package first: ``postgresql95-devel`` on Red Hat/CentOS, ``libpq-dev`` on Debian/Ubuntu, ``libpq-devel`` on Cygwin/Babun. (`Source <http://stackoverflow.com/questions/11618898/pg-config-executable-not-found>`__)
+  - If you get ``Error: pg_config executable not found``, you may have to install a Linux package first: ``postgresql<version>-devel`` on Red Hat/CentOS, ``libpq-dev`` on Debian/Ubuntu, ``libpq-devel`` on Cygwin/Babun. (`Source <http://stackoverflow.com/questions/11618898/pg-config-executable-not-found>`__)
 
   - The package may not be in your package directory by default. See PostgreSQL's `Downloads <http://www.postgresql.org/download/>`__ page and follow instructions to get binary packages for your Linux distro.
 
 - ``Pillow`` on Linux
-  
+
   - You'll get errors if you don't have certain packages:
 
     - ``ValueError: jpeg is required unless explicitly disabled using --disable-jpeg, aborting``: You need to install libjpeg (jpeg development support). For supported versions of libjpeg, see the `Pillow docs <https://pillow.readthedocs.io/en/latest/installation.html>`__. For example, to use libjpeg version 8 in Ubuntu, install ``libjpeg8-dev``.
@@ -123,27 +85,16 @@ Django settings module
 ----------------------
 Look under ``project/config/settings``.
 
-- If you are setting up a development machine, use ``local.py`` at first. If you want to customize some settings for your environment specifically, you can later make another settings file based off of ``local.py``. See ``dev_stephen.py`` for an example.
+- If you are setting up a development server, use one of the dev-specific settings modules (such as ``dev_stephen.py``) or make your own. The module should include:
 
-- If you are setting up the production machine, you want to use ``production.py``.
+  - An import of ``base_devserver``
+  - An import of either ``storage_local`` or ``storage_s3``, depending on whether you want to store media files locally or in an S3 bucket
+  - Any settings values you want to customize for your environment specifically
 
-Django normally expects the settings to be in a ``settings.py`` at the project root, so we have to tell it otherwise. One way is with the ``DJANGO_SETTINGS_MODULE`` environment variable. Set this variable to ``config.settings.<module name>``, where ``<module name>`` is ``local``, ``dev_<name>``, etc.
+- The production server should use ``production.py``.
+- The staging server should use ``staging.py``.
 
-One way to put all of our Python setup together nicely is with a shell/batch script. On Windows, here's an example batch script that you could run to get a command window for running ``manage.py`` commands:
-
-::
-
-  cd D:\<path up to Git repo>\coralnet\project
-  set "DJANGO_SETTINGS_MODULE=config.settings.<module name>"
-  cmd /k D:\<path to virtualenv>\Scripts\activate.bat
-  
-And a shell script for Linux:
-
-::
-
-  cd /srv/www/coralnet/project
-  export DJANGO_SETTINGS_MODULE="config.settings.<module name>"
-  source /srv/www/<path to virtualenv>/bin/activate
+Django normally expects the settings to be in a ``settings.py`` at the project root, so we have to tell it otherwise. One way is with the ``DJANGO_SETTINGS_MODULE`` environment variable. Set this variable to ``config.settings.<module name>``, where ``<module name>`` is ``dev_<name>``, ``production``, etc.
 
 
 secrets.json
@@ -158,7 +109,7 @@ Some settings like passwords shouldn't be committed to the repo. We keep these s
 
 If you're missing any secret settings in ``secrets.json``, you'll get an ``ImproperlyConfigured`` error when running any ``manage.py`` commands.
 
-Check your settings module (and anything it imports from, such as ``base.py``) for details on how to specify the required secret settings.
+Check your settings module (and anything it imports from, such as ``base.py``) for details on the format of each required secret setting.
 
 
 maintenance_notice.html
@@ -178,12 +129,10 @@ Try running the unit tests
 --------------------------
 At this point, you should be ready to run the unit test suite to check if everything is working so far.
 
-Run ``python manage.py test``. There may be a few test failures ("F"), but there definitely shouldn't be errors ("E").
+Run ``python manage.py test``. Test failures will be shown as F, and errors will be shown as E.
 
 If you want to run a subset of the tests, you can use ``python manage.py test <app_name>``, or ``python manage.py test <app_name>.<module>.<TestClass>``.
 
-
-.. _installation-django-migrations:
 
 Django migrations
 -----------------
@@ -192,17 +141,10 @@ Run ``python manage.py migrate``. If Django's auth system asks you to create a s
 For information on how to manage migrations from now on, read `Django's docs <https://docs.djangoproject.com/en/dev/topics/migrations/>`__.
 
 
-Try running the server (dev only)
----------------------------------
-Run ``python manage.py runserver``. Navigate to your localhost web server, e.g. ``http://127.0.0.1:8000/``, in your browser.
+Sphinx docs
+-----------
+- *Development machine*
 
-If you created a superuser, log in as that superuser. Try creating a source, uploading images, making annotations, and generally checking various pages. Try checking out the admin interface at ``http://127.0.0.1:8000/admin/``.
-
-Try doing something that sends email, such as creating a user or using the "Email All" page. You should see the email in the Django-running console, since development servers use the console email backend.
-
-
-Sphinx docs (dev only)
-----------------------
 Not exactly an installation step, but here's how to build the docs for offline viewing. This can be especially useful when editing the docs.
 
 Go into the ``docs`` directory and run: ``make html``. (This command is cross platform, since there's a ``Makefile`` as well as a ``make.bat``.)
@@ -212,8 +154,10 @@ Then you can browse the documentation starting at ``docs/_build/html/index.html`
 It's also possible to output in formats other than HTML, if you use ``make <format>`` with a different format.
 
 
-PyCharm (dev only)
-------------------
+PyCharm
+-------
+- *Development machine*
+
 Here are some configuration tips for the PyCharm IDE. These instructions refer to PyCharm 2.6.3 (2012/02/26), so some points may be out of date.
 
 How to make PyCharm find everything:
@@ -238,3 +182,7 @@ How to make a Run Configuration that runs ``manage.py runserver`` from PyCharm:
 
 .. [#pycharmenvvar] Not sure why this is needed when we specify the settings module in Django Support settings, but it was needed in my experience. -Stephen
 
+
+Upgrading Python version
+------------------------
+TODO

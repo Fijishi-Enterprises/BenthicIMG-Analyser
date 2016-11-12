@@ -328,7 +328,9 @@ IMPORTED_USERNAME = "Imported"
 ROBOT_USERNAME = "robot"
 ALLEVIATE_USERNAME = "Alleviate"
 
-# [Custom settings] Upload restrictions
+# [Custom settings] Upload restrictions.
+# Ensure that the config/nginx.conf client_max_body_size is
+# strictly greater than every filesize limit specified here.
 IMAGE_UPLOAD_MAX_FILE_SIZE = 30*1024*1024  # 30 MB
 IMAGE_UPLOAD_MAX_DIMENSIONS = (8000, 8000)
 IMAGE_UPLOAD_ACCEPTED_CONTENT_TYPES = [

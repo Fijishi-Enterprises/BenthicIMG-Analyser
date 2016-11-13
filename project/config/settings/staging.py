@@ -9,7 +9,7 @@ DEBUG = True
 # Instead of routing emails through a mail server,
 # just write emails to the filesystem.
 EMAIL_BACKEND = 'django.core.mail.backends.filebased.EmailBackend'
-EMAIL_FILE_PATH = SITE_DIR.child('tmp/emails')
+EMAIL_FILE_PATH = SITE_DIR.child('tmp').child('emails')
 
 # Hosts/domain names that are valid for this site.
 # "*" matches anything, ".example.com" matches example.com and all subdomains

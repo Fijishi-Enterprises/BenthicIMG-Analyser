@@ -14,14 +14,53 @@ Notes about pgloader and our process
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 `pgloader <http://pgloader.io/index.html>`__ is a popular tool for porting a MySQL database to PostgreSQL. It takes a live database or file (e.g. CSV) as input, and outputs to a live PostgreSQL database. If we have live databases on both sides, then we don't even need to have a separate database dumping step, which should reduce the possible points of failure / data corruption.
 
-At first the plan was to install pgloader on an AWS instance and connect to the UCSD CSE machine's MySQL database through the network. However, all attempts to the UCSD CSE machine's MySQL failed, even after disabling the ufw (firewall) configuration. Perhaps the UCSD CSE machine's router had a firewall which we didn't have control over. We briefly considered contacting CSE Help about it, but then decided not to give them another reminder about our very outdated server machine.
+Our use case is to install pgloader on the alpha server, and run pgloader to transfer the data directly from the alpha server's MySQL to the beta RDS instance's PostgreSQL without any intermediate files.
 
-We ended up installing pgloader on the UCSD CSE machine, so that the MySQL connection would be local, and the PostgreSQL connection would be to the AWS instance (which has no firewall problems). We initially ruled out this idea because the UCSD CSE machine's Ubuntu is 11.04, a version that's no longer supported. However, it turned out to be possible.
+At first the plan was to install pgloader on an AWS instance and connect to the alpha server's MySQL database through the network. However, all attempts to connect to the alpha server's MySQL failed, even after disabling the ufw (firewall) configuration. Perhaps the alpha server's router had a firewall which we didn't have control over. We briefly considered contacting CSE Help about it, but then decided not to give them another reminder about our very outdated server machine.
+
+We ended up installing pgloader on the alpha server, so that the MySQL connection would be local, and the PostgreSQL connection would be to the AWS instance (which has no firewall problems). We initially ruled out this idea because the alpha server's Ubuntu is 11.04, a version that's no longer supported by the Ubuntu OS's publisher. However, it turned out to be possible. This was all figured out around 2016.05.
+
+Later, the alpha server ended up on Ubuntu 14.04 after the 2016.06 server recovery. So we also ended up figuring out how to build and run pgloader in that case.
 
 
-Install pgloader on the UCSD CSE machine 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-The machine's OS version, Ubuntu 11.04, stopped being supported in October 2012. Even if a pgloader build was possible to find for Ubuntu 11.04, it was likely to be very out of date, which would be a concern for porting correctness and being able to follow the online docs. So the preferred option was to build pgloader from source, using their `instructions <https://github.com/dimitri/pgloader/blob/master/INSTALL.md>`__ for doing so.
+
+Installing Common Lisp
+~~~~~~~~~~~~~~~~~~~~~~
+Building pgloader from source requires Common Lisp. SBCL and CCL are known to work with pgloader.
+
+
+CCL (Clozure Common Lisp)
+.........................
+The installation for this is somewhat picky if we want to avoid errors when building pgloader. The best bet was to closely follow pgloader's `Dockerfile <https://github.com/dimitri/pgloader/blob/master/Dockerfile.ccl>`__ for CCL installation. As of 2016/05/18, that means running the following commands:
+
+- ``cd /usr/local/src``
+- ``svn co http://svn.clozure.com/publicsvn/openmcl/release/1.11/linuxx86/ccl``
+- ``cp /usr/local/src/ccl/scripts/ccl64 /usr/local/bin/ccl``
+
+
+(Old) pgloader installation with SBCL (Steel Bank Common Lisp)
+..............................................................
+As of 2016/05/18, SBCL is the default Common Lisp recommendation of pgloader (as opposed to CCL). But building pgloader with SBCL can result in a ``Heap exhausted`` error with lots of data, such as when porting just our ``reversion_version`` table. (`Related link <https://github.com/dimitri/pgloader/issues/327>`__)
+
+Still, since we figured out how to build pgloader with SBCL, we might as well mention how we did it:
+
+``wget`` SBCL as Linux/AMD64 from `this page <http://www.sbcl.org/platform-table.html>`__. We used SBCL 1.3.5.
+
+Then, as instructed in the SBCL getting started page:
+
+- Run ``bzip2 -cd sbcl-1.3.5-x86-64-linux-binary.tar.bz2 | tar xvf -``
+
+- ``cd`` into the unpacked directory, then run ``sudo sh install.sh``.
+
+  - The end output was: ``SBCL has been installed:  binary /usr/local/bin/sbcl  core and contribs in /usr/local/lib/sbcl/  Documentation:  man /usr/local/share/man/man1/sbcl.1``
+
+Then in the pgloader directory, just run ``make``.
+
+
+
+Installing pgloader on Ubuntu 11.04
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Ubuntu 11.04 stopped being supported in October 2012. Even if a pgloader build was possible to find for Ubuntu 11.04, it was likely to be very out of date, which would be a concern for porting correctness and being able to follow the online docs. So the preferred option was to build pgloader from source, using their `instructions <https://github.com/dimitri/pgloader/blob/master/INSTALL.md>`__ for doing so.
 
 Here's what we get, in order:
 
@@ -53,16 +92,7 @@ freetds-dev
 ...........
 This requires ``libct4`` and ``libsybdb5``.
 
-wget from `here <http://old-releases.ubuntu.com/ubuntu/pool/main/f/freetds/freetds-dev_0.82-7_amd64.deb>`__ then ``sudo dpkg -i freetds-dev_0.82-7_amd64.deb``. 
-  
-  
-CCL (Clozure Common Lisp)
-.........................
-The installation for this is somewhat picky if we want to avoid errors when building pgloader. The best bet was to closely follow pgloader's `Dockerfile <https://github.com/dimitri/pgloader/blob/master/Dockerfile.ccl>`__ for CCL installation. As of 2015/05/18, that means running the following commands:
-
-- ``cd /usr/local/src``
-- ``svn co http://svn.clozure.com/publicsvn/openmcl/release/1.11/linuxx86/ccl``
-- ``cp /usr/local/src/ccl/scripts/ccl64 /usr/local/bin/ccl``
+wget from `here <http://old-releases.ubuntu.com/ubuntu/pool/main/f/freetds/freetds-dev_0.82-7_amd64.deb>`__ then ``sudo dpkg -i freetds-dev_0.82-7_amd64.deb``.
 
 
 pgloader
@@ -82,27 +112,37 @@ This requires Common Lisp (such as CCL) and ``freetds-dev``.
 When ``make`` finishes successfully, the ``pgloader`` executable should be in ``<pgloader directory>/build/bin``.
 
 
-(Old) pgloader installation with SBCL (Steel Bank Common Lisp)
-..............................................................
-As of 2016/05/18, SBCL is the default Common Lisp recommendation of pgloader (as opposed to CCL). But building pgloader with SBCL can result in a ``Heap exhausted`` error with lots of data, such as when porting just our ``reversion_version`` table. (`Related link <https://github.com/dimitri/pgloader/issues/327>`__)
 
-Still, since we figured out how to build pgloader with SBCL, we might as well mention how we did it:
+Installing pgloader on Ubuntu 14.04
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+pgloader `released version 3.3.1 <https://github.com/dimitri/pgloader/releases>`__ on 2016.08.28 with a new "bundle distribution". Unfortunately, this only works on SBCL.
 
-``wget`` SBCL as Linux/AMD64 from `this page <http://www.sbcl.org/platform-table.html>`__. We used SBCL 1.3.5.
 
-Then, as instructed in the SBCL getting started page:
+CCL way
+.......
+Basically the same as the Ubuntu 11.04 method, but at this time of writing Ubuntu 14.04 is still supported, so getting the packages is a lot less tedious.
 
-- Run ``bzip2 -cd sbcl-1.3.5-x86-64-linux-binary.tar.bz2 | tar xvf -``
+Get freetds-dev and its dependencies: ``sudo apt-get install freetds-dev``
 
-- ``cd`` into the unpacked directory, then run ``sudo sh install.sh``.
+Get pgloader: ``wget https://github.com/dimitri/pgloader/archive/v3.3.1.tar.gz`` then ``tar xzvf v3.3.1.tar.gz``.
 
-  - The end output was: ``SBCL has been installed:  binary /usr/local/bin/sbcl  core and contribs in /usr/local/lib/sbcl/  Documentation:  man /usr/local/share/man/man1/sbcl.1``
-  
-Then in the pgloader directory, just run ``make``.
+cd in: ``cd pgloader-3.3.1``. Then run ``make CL=ccl DYNSIZE=256``.
+
+When ``make`` finishes successfully, the ``pgloader`` executable should be in ``<pgloader directory>/build/bin``.
+
+
+SBCL way
+........
+Install SBCL.
+
+Do ``wget https://github.com/dimitri/pgloader/releases/download/v3.3.1/pgloader-bundle-3.3.1.tgz`` to get this distribution. Then ``tar xzvf pgloader-bundle-3.3.1.tgz``.
+
+Then as the README says, run ``make``. This'll take a while. Once it completes, run ``LANG=en_US.UTF-8 make test`` to run the test suite.
+
 
 
 (Old) pgloader from binary on Windows
-.....................................
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 This was initially used to test if pgloader seemed viable given our database structure.
 
 Get an early 2015 pgloader binary `here <https://github.com/dimitri/pgloader/issues/159>`__, linked in the 4th comment. You'll also need sqlite3.dll from `here <https://www.sqlite.org/download.html>`__, plus libssl32.dll and libeay32.dll from `here <http://gnuwin32.sourceforge.net/packages/openssl.htm>`__; put those 3 .dll files in the same directory as the pgloader binary.
@@ -111,15 +151,16 @@ In the pgloader command run from command line, replace ``pgloader`` with whateve
 
 
 
-
 Port the database using pgloader
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Ensure that the beta RDS instance's security group allows port 5432 (PostgreSQL) requests from the alpha server's IP.
+
 Create a load command file, say ``coralnet.load``, with the following contents:
 
 ::
     
   load database
-   from mysql://<usernamehere>:<passwordhere>@localhost/coralnet
+   from mysql://<usernamehere>:<passwordhere>@127.0.0.1/coralnet
    into postgresql://<usernamehere>:<passwordhere>@<RDS-instance-public-address-goes-here>:5432/coralnet
     
    WITH quote identifiers, include drop
@@ -129,12 +170,14 @@ Create a load command file, say ``coralnet.load``, with the following contents:
    CAST type date to date using zero-dates-to-null
     
    EXCLUDING TABLE NAMES MATCHING ~/celery/;
+
+- For the MySQL location, ``localhost`` worked for our Ubuntu 11.04 system, and ``127.0.0.1`` worked for our Ubuntu 14.04 system. (`Related issue <https://github.com/dimitri/pgloader/issues/214>`__)
    
-Substitute the database users' usernames and passwords for ``<usernamehere>`` and ``<passwordhere>``. If you've been following the instructions here so far, the PostgreSQL username should be ``django``. Don't use the root/master user, because we need ``django`` to be the owner of the tables; this prevents permission errors later on when Django works with the database.
+- Substitute the database users' usernames and passwords for ``<usernamehere>`` and ``<passwordhere>``. If you've been following the instructions here so far, the PostgreSQL username should be ``django``. Don't use the root/master user, because we need ``django`` to be the owner of the tables; this prevents permission errors later on when Django works with the database.
 
-Also fill in ``<RDS-instance-public-address-goes-here>`` with the Public DNS of the RDS instance.
+- Fill in ``<RDS-instance-public-address-goes-here>`` with the Public DNS of the RDS instance.
 
-After the hostname is the database name; change that if it's something other than ``coralnet``.
+- After the hostname is the database name; change that if it's something other than ``coralnet``.
 
 Explanations on the rest of the command file:
    
@@ -160,7 +203,7 @@ Explanations on the rest of the command file:
 
 Run pgloader: ``<pgloader directory>/build/bin/pgloader coralnet.load``
 
-For us, this process takes about 45 minutes. Confirm that there are no errors.
+For us, this process takes about 45 minutes. At the end it'll display a table of results. Confirm that there are no errors.
 
 Two possible warnings that should be acceptable are:
 
@@ -171,6 +214,43 @@ Two possible warnings that should be acceptable are:
 At this point, it's a good idea to make a snapshot of the RDS instance, in case we make a mistake on the Django migration steps. You can create a snapshot from Amazon's RDS Dashboard.
 
 
+Hanging issue
+.............
+In some cases, pgloader will seem to get stuck at a certain part of the porting process and hang forever. One way to confirm that it's getting stuck is to check the RDS dashboard's activity graph for the beta RDS instance. If no Write IOPs have happened for a while, it's probably stuck.
+
+If it gets stuck:
+
+- Kill the pgloader process.
+
+- Check your tables' row counts in the alpha and beta servers. See where they don't match, and use that to figure out how far the process got before getting stuck.
+
+  - There is probably a fancy command to output row counts for all tables at once, but if you're not in a hurry then you can do one table at a time: ``select count(*) from <table name>;`` works in both MySQL and PostgreSQL.
+
+- Modify ``coralnet.load`` to port smaller parts of the database at a time to prevent hanging (see `this issue <https://github.com/dimitri/pgloader/issues/337>`__). For example, you could run pgloader five times, each time with different table-name clauses:
+
+::
+
+  EXCLUDING TABLE NAMES MATCHING ~/celery/, ~/annotations_annotation/, ~/images_/, ~/reversion_version/, ~/sentry/;
+
+::
+
+  INCLUDING ONLY TABLE NAMES MATCHING ~/annotations_annotation/;
+
+::
+
+  INCLUDING ONLY TABLE NAMES MATCHING ~/images_/;
+
+::
+
+  INCLUDING ONLY TABLE NAMES MATCHING ~/reversion_version/;
+
+::
+
+  INCLUDING ONLY TABLE NAMES MATCHING ~/sentry/;
+
+In 2016.11, going from Ubuntu 14.04 alpha to a production-configured beta RDS instance, these commands took 1m09s, 4m55s, 3m48s, 29m33s, and 1m25s respectively.
+
+
 .. _beta_migration_django_migrations:
 
 Django migrations
@@ -179,7 +259,7 @@ These are the migrations that the UCSD CSE production DB must run to get complet
 
 The migration numbers are in Django's new migration framework unless specifically denoted as South migrations. (Last update: Django 1.9.5)
 
-Run these in order:
+SSH into the beta server, activate the environment, and run these in order:
 
 - contenttypes: fake 0001, run 0002
 - auth: fake 0001, run 0002-0007
@@ -187,21 +267,26 @@ Run these in order:
 - sessions: fake 0001
 - guardian: fake 0001
 - easy_thumbnails: fake 0001, run 0002 (OR run South's 0016, then fake new 0001-0002)
-- accounts: fake 0001-0002, run the rest
-- images: fake 0001, run the rest
-- annotations: fake 0001-0003, run the rest
-- bug_reporting: fake 0001, run the rest
-- errorlogs: run 0001 (since this is a new app)
-- reversion: run South's 0006-0008, then fake new 0001, then run new 0002 (see notes below)
+- reversion: run South's 0006-0008, then fake new 0001, then run new 0002 (see details below)
+- Our apps:
+  - accounts: fake 0001-0002
+  - images: fake 0001
+  - annotations: fake 0001-0003
+  - bug_reporting: fake 0001
+  - Run the rest in any order
+
+You'll get message(s) like ``The following content types are stale and need to be deleted``. Just to be safe, do all these deletions at the very end, when all migrations have been completed. Then go ahead and answer yes to the "Are you sure?" prompt(s).
+
+In our case, we have the stale contenttypes ``auth | message`` and ``annotations | annotation_attempt``, TODO. Each takes about 2 minutes to delete.
+
+ See more info about stale content types at `this link <http://stackoverflow.com/questions/16705249/stale-content-types-while-syncdb-in-django>`__. Note that we don't define any foreign keys to ``ContentType``.
+
+After running these migrations, go ahead and it's a good idea to make another snapshot of the RDS instance.
 
 
 contenttypes
 ~~~~~~~~~~~~
-Do these migrations first. If you don't run the ``contenttypes`` migrations early enough, you may get ``RuntimeError: Error creating new content types. Please make sure contenttypes is migrated before trying to migrate apps individually.`` `Link 1 <http://stackoverflow.com/questions/29917442/error-creating-new-content-types-please-make-sure-contenttypes-is-migrated-befo>`__, `Link 2 <https://code.djangoproject.com/ticket/25100>`__
-
-You might get message(s) like ``The following content types are stale and need to be deleted``. You should be safe to answer yes to the "Are you sure?" prompt(s). See `this link <http://stackoverflow.com/questions/16705249/stale-content-types-while-syncdb-in-django>`__. We don't define any foreign keys to ``ContentType``.
-
-In our case, we have the stale contenttypes ``auth | message`` and ``annotations | annotation_attempt``. Each takes about 2 minutes to delete.
+The reason these migrations should be run first is that, if you don't run the ``contenttypes`` migrations early enough, you may get ``RuntimeError: Error creating new content types. Please make sure contenttypes is migrated before trying to migrate apps individually.`` `Link 1 <http://stackoverflow.com/questions/29917442/error-creating-new-content-types-please-make-sure-contenttypes-is-migrated-befo>`__, `Link 2 <https://code.djangoproject.com/ticket/25100>`__
 
 
 reversion
@@ -219,5 +304,3 @@ To apply the ``reversion`` migrations:
 - Revert the ``INSTALLED_APPS`` and ``DATABASES`` settings. Assuming you made these changes in ``base.py``, just do ``git checkout config/settings/base.py``.
 - pip-install the latest ``Django`` and ``django-reversion`` again, and uninstall ``South``.
 - Now you can see with ``manage.py showmigrations`` that the ``reversion`` migration numbers have changed. Fake-run 0001, then run 0002.
-
-At this point, it's a good idea to make another snapshot of the RDS instance.

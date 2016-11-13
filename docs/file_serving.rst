@@ -12,6 +12,8 @@ S3 bucket setup
 - *Local server with S3 storage*
 
 
+.. _s3_bucket_setup:
+
 Setup steps
 ...........
 
@@ -68,7 +70,7 @@ Syncing media from an S3 bucket to another S3 bucket
 - *Staging server*
 - *Alpha to beta server migration*
 
-TODO
+From an EC2 instance, simply run: ``aws s3 sync s3://<source bucket> s3://<destination bucket>``
 
 
 .. _sync_filesystem_to_s3:
@@ -84,10 +86,7 @@ SSH into an EC2 instance. Mount the CoralNet alpha server's filesystem using SSH
 - ``sudo mkdir /mnt/cnalpha``
 - ``sudo sshfs <username>@<alpha server host>/ /mnt/cnalpha`` to mount the root of the alpha server's filesystem at ``/mnt/cnalpha``.
 
-Install and configure the AWS command line interface.
-
-- ``sudo apt-get install awscli``
-- ``aws configure`` - When prompted, be sure to specify an access key that has access to the desired S3 bucket.
+Ensure the :ref:`AWS command line interface is installed <aws_cli_install>` on the EC2 instance.
 
 You can sync small directories with the ``aws s3 sync`` command. For example: ``sudo aws s3 sync /mnt/cnalpha/path/to/media/label_thumbnails s3://<bucket-name>/media/labels``
 

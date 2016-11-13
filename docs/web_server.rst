@@ -71,7 +71,7 @@ Again, on your local machine, enter the EC2 instance's public DNS in your browse
 From here on out:
 
 - Remember that you need both nginx and gunicorn up and running for the website to work.
-- To update the Django code, kill the gunicorn master process, then update the code, then start gunicorn again. `Scripts <scripts>`__ can help make the process easier.
+- To update the Django code, kill the gunicorn master process, then update the code, then start gunicorn again. :ref:`Scripts <scripts>` can help make the process easier.
 - Remember that gunicorn must be run in the virtualenv, and also run from the correct directory (``coralnet/project``) so that ``config.wsgi`` can be found.
 
 
@@ -133,6 +133,45 @@ To add our SSL certificate, add or edit the following lines in ``/etc/postfix/ma
 Then run ``sudo /etc/init.d/postfix reload``.
 
 Try sending mail from the website (e.g. by requesting a password reset) to a Gmail account. When that mail is opened in Gmail, there should not be a red padlock next to the email sender. (A red padlock would indicate a lack of TLS/SSL.)
+
+
+.. _update_server_code:
+
+Updating the server code
+------------------------
+- *Production, when there are code updates to apply*
+- *Staging, when there are code updates to apply; skip the maintenance message steps*
+- *Development servers, when there are code updates to apply; skip the maintenance message and gunicorn steps*
+
+Steps:
+
+#. Put up the maintenance message. Set the maintenance time to be at least several minutes after the current time. That way, users have some advance warning before you actually start messing with the site. (TODO: Detail on the maintenance message)
+#. Wait until your specified maintenance time begins.
+#. :ref:`Set up your Python/Django environment <script_environment_setup>`.
+#. :ref:`Stop gunicorn <script_server_stop>`.
+
+   - When we're using gunicorn instead of the Django ``runserver`` command, updating code while the server is running can temporarily leave the server code in an inconsistent state, which can lead to some very weird internal server errors.
+   - When using the Django ``runserver`` command, there are still situations where you need to stop and re-start the server, such as when adding new files. `Link <https://docs.djangoproject.com/en/dev/ref/django-admin/#runserver>`__
+
+#. Get the new code from Git.
+
+   - If you're sure you don't have any code changes on your end (e.g. most of the time for the production server), you should just need ``git fetch origin``, ``git checkout master``, and ``git rebase origin/master``.
+
+#. If there are any new Python packages or package upgrades to install, then install them: ``pip install -U -r ../requirements/<name>.txt``.
+
+   - If it subsequently advises you to upgrade pip, then do so.
+
+#. If there are any new secret settings to specify in ``secrets.json``, then do that.
+#. If any static files (CSS, Javascript, etc.) were added or changed, run ``python manage.py collectstatic`` to serve those new static files.
+
+   - Do ``python manage.py collectstatic --clear`` if you think there's some obsolete static files that can be cleaned up.
+
+#. If there are any new Django migrations to run, then run those: ``python manage.py migrate``. New migrations should be tested in staging before being run in production.
+#. :ref:`Start gunicorn again <script_server_start>`.
+#. Check a couple of pages to confirm that things are working.
+#. Take down the maintenance message.
+
+(TODO: Any steps for the vision backend?)
 
 
 Previous failed attempts at web server setup

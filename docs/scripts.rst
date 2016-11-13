@@ -26,6 +26,8 @@ Starts the PostgreSQL service, starts the Redis server, and opens a command wind
   <path to redis>\redis-server.exe
 
 
+.. _script_environment_setup:
+
 Environment setup - Linux production/staging servers
 ----------------------------------------------------
 The assumption is that this kind of server does not get restarted regularly, hence the lack of PostgreSQL or Redis commands. You can put this in a ``.sh`` file, and run it with ``source <name>.sh`` whenever you SSH into the server and want to run ``manage.py`` commands:
@@ -37,6 +39,8 @@ The assumption is that this kind of server does not get restarted regularly, hen
   source <path to virtualenv>/bin/activate
 
 
+.. _script_server_start:
+
 Server start - Linux production/staging servers
 -----------------------------------------------
 
@@ -47,6 +51,8 @@ This sets up the environment (by calling the script above) and then runs gunicor
   source <environment setup script>.sh
   gunicorn config.wsgi:application --config=config.gunicorn &
 
+
+.. _script_server_stop:
 
 Server stop - Linux production/staging servers
 ----------------------------------------------

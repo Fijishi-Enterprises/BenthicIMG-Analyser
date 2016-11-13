@@ -12,17 +12,44 @@ Download and install the latest Python 2.7.x. 32 bit or 64 bit doesn't matter. I
 
 - On Linux, you'll probably have to install this Python version from source.
 
-  - See `Python's docs <https://docs.python.org/2/using/unix.html>`__ for help; download the ``.tgz`` for the desired version, then ``tar xzf Python-<version>.tgz``, then follow the build instructions from there.
+  - You'll probably want to install some other packages first. Here's what was needed on Ubuntu 14.04 and 16.04 EC2 instances:
 
-  - You probably don't want to change the default Python on your Linux system. To be on the safe side, heed the docs' warning and use ``make altinstall`` instead of ``make install`` to ensure that this Python version gets installed alongside the existing one, without masking/overwriting it.
+    - ``sudo apt-get install gcc`` - to avoid getting ``configure: error: no acceptable C compiler found in $PATH``.
+    - ``sudo apt-get install make`` - to avoid getting ``The program 'make' is currently not installed.``
 
-    - On Ubuntu 14.04, 2015/05/17, the result of ``make altinstall`` is that the original Python 2.7.6 is still at ``/usr/bin/python2.7``, while the newly installed Python 2.7.11 is at ``/usr/local/bin/python2.7``.
+    - When you run ``make`` during Python installation, you'll see a message ``Python build finished, but the necessary bits to build these modules were not found:`` followed by a list of components. Here is a list of things to install to trim down the not-found components:
 
-    - It seems to be a standard practice to put self-installed packages in ``/usr/local`` like this. `Link 1 <http://askubuntu.com/a/34922/>`__, `Link 2 <http://unix.stackexchange.com/a/11552/>`__
+      - ``sudo apt-get install zlib1g-dev`` (matches the already-installed zlib1g)
+      - ``sudo apt-get install libncurses5-dev`` (matches the already-installed libncurses5)
+      - ``sudo apt-get install libsqlite3-dev`` (matches the already-installed libsqlite3-0)
+      - ``sudo apt-get install libbz2-dev`` (best match for the already-installed libbz2-1.0)
+      - ``sudo apt-get install libreadline6-dev`` (matches the already-installed libreadline6)
+      - ``sudo apt-get install libssl-dev`` (best match for the already-installed libssl1.0.0)
+      - ``sudo apt-get install libdb5.3-dev`` (matches the already-installed libdb5.3. This is a package to support the Oracle Berkeley DB)
+      - ``sudo apt-get install libgdbm-dev`` (best match for the already-installed libgdbm3)
 
-  - If you get ``configure: error: no acceptable C compiler found in $PATH``, check to see if you have gcc installed: ``sudo apt-cache policy gcc``. If not, then run ``sudo apt-get install gcc``. Then try again.
+    - After these installations, Python ``make`` should only mention the following missing components, none of which are important (`Link 1 <https://gist.github.com/reorx/4067217>`__, `Link 2 <http://rajaseelan.com/2012/01/28/installing-python-2-dot-7-2-on-centos-5-dot-2/>`__):
 
-  - If you get ``The program 'make' is currently not installed.``, then do ``sudo apt-get install make``.
+      - bsddb185: Older version of Oracle Berkeley DB. Undocumented. Install version 4.8 instead.
+      - dl: For 32-bit machines. Deprecated. Use ctypes instead.
+      - imageop: For 32-bit machines. Deprecated. Use PIL instead.
+      - sunaudiodev: For Sun hardware. Deprecated.
+      - _tkinter: For tkinter graphy library, unnecessary if you don’t develop tkinter programs.
+
+  - `Download <https://www.python.org/downloads/>`__ the ``.tgz`` for the desired version, extract it, and follow the build `instructions <https://docs.python.org/2/using/unix.html>`__.
+
+    - ``wget https://www.python.org/ftp/python/2.7.12/Python-2.7.12.tgz`` (for example)
+    - ``tar xzf Python-<version>.tgz``
+    - ``cd Python-<version>.tgz``
+    - ``./configure``
+    - ``make``
+    - ``sudo make altinstall``
+
+      - If Ubuntu has a global Python 2.7.x installed, the result of ``make altinstall`` is that the original Python 2.7.x is still at ``/usr/bin/python2.7``, while the newly installed Python 2.7.x is at ``/usr/local/bin/python2.7``.
+
+      - It seems to be a standard practice to put self-installed packages in ``/usr/local`` like this. `Link 1 <http://askubuntu.com/a/34922/>`__, `Link 2 <http://unix.stackexchange.com/a/11552/>`__
+
+If you don't have ``pip``, get it with a wget of ``get-pip.py`` as linked in `pip’s docs <https://pip.pypa.io/en/latest/installing/>`__. Then run ``sudo /usr/local/bin/python2.7 get-pip.py``.
 
 Check your pip's version with ``pip -V``. (The pip executable is in the same directory as the python one; make sure you refer to the python/pip you just installed). If pip says it's out of date, it'll suggest that you run a command to update it. Do that.
 
@@ -56,7 +83,7 @@ A few package/OS combinations may need additional steps:
 
   - If you get ``Error: pg_config executable not found``, you may have to install a Linux package first: ``postgresql<version>-devel`` on Red Hat/CentOS, ``libpq-dev`` on Debian/Ubuntu, ``libpq-devel`` on Cygwin/Babun. (`Source <http://stackoverflow.com/questions/11618898/pg-config-executable-not-found>`__)
 
-  - The package may not be in your package directory by default. See PostgreSQL's `Downloads <http://www.postgresql.org/download/>`__ page and follow instructions to get binary packages for your Linux distro.
+  - The correct version of the package may not be in your package directory by default. See PostgreSQL's `Downloads <http://www.postgresql.org/download/>`__ page and follow instructions to get binary packages for your Linux distro.
 
 - ``Pillow`` on Linux
 
@@ -70,15 +97,15 @@ A few package/OS combinations may need additional steps:
 
   - There are also other packages that support optional functionality in Pillow. See the `Pillow docs <https://pillow.readthedocs.io/en/latest/installation.html>`__.
 
+- ``scikit-learn`` on Linux
+
+  - Requires g++: ``sudo apt-get install g++``
+
 - ``scipy`` on Windows
 
   - Installing SciPy with the requirements file will fail for two reasons. First, NumPy needs to be installed as NumPy+MKL, and the binary for that isn't on PyPI. Second, even after getting the NumPy install right, installing SciPy with pip fails for some reason (the first problem is ``libraries openblas not found in [ ... ] NOT AVAILABLE``).
 
   - What to do: First install NumPy+MKL and then SciPy manually using the .whl files here: http://www.lfd.uci.edu/~gohlke/pythonlibs/ Be sure to pick the appropriate .whl depending on whether your Python is 32 or 64 bit. To install a .whl, run ``pip install <path to .whl>``. Then run the requirements file to install the rest of the packages.
-
-- ``Twisted`` on Windows
-
-  - Similarly to SciPy, this should be installed manually using the .whl files at the aforementioned link.
 
 
 Django settings module

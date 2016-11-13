@@ -235,39 +235,9 @@ Python
 ------
 Starting from the 2016/06 restore, we used Python 2.7.11.
 
-Details on installations we needed in Ubuntu Server 14.04 to get Python set up properly:
-
-- ``sudo apt-get install gcc``
-- ``sudo apt-get install make``
-- At this point, if you build Python, you should see a message ``Python build finished, but the necessary bits to build these modules were not found:`` followed by a bunch of packages.
-
-  - Here is a list of what we installed with apt-get to trim down the not-found packages:
-  
-    - zlib1g-dev (matches the already-installed zlib1g)
-    - libncurses5-dev (matches the already-installed libncurses5)
-    - libsqlite3-dev (matches the already-installed libsqlite3-0)
-    - libbz2-dev (best match for the already-installed libbz2-1.0)
-    - libreadline6-dev (matches the already-installed libreadline6)
-    - libssl-dev (best match for the already-installed libssl1.0.0)
-    - libdb5.3-dev (matches the already-installed libdb5.3. This is a package to support the Oracle Berkeley DB)
-    - libgdbm-dev (best match for the already-installed libgdbm3)
-    
-  - At this point we only had the following packages not found, which are all unnecessary as noted in `this gist.github link <https://gist.github.com/reorx/4067217>`__:
-  
-    - bsddb185: Older version of Oracle Berkeley DB. Undocumented. Install version 4.8 instead.
-    - dl: For 32-bit machines. Deprecated. Use ctypes instead.
-    - imageop: For 32-bit machines. Deprecated. Use PIL instead.
-    - sunaudiodev: For Sun hardware. Deprecated.
-    - _tkinter: For tkinter graphy library, unnecessary if you don't develop tkinter programs.
-    
-  - `This link <http://rajaseelan.com/2012/01/28/installing-python-2-dot-7-2-on-centos-5-dot-2/>`__ was also useful for confirming what to do in this step.
-  - If you have to fix installations for the ``make`` step, don't forget to rerun the ``make altinstall`` as well.
-  
-- pip: Do a wget of ``get-pip.py`` as linked in `pip's docs <https://pip.pypa.io/en/latest/installing/>`__. Then run ``sudo /usr/local/bin/python2.7 get-pip.py``. As of the 2016/06 restore, this installed pip 8.1.2.
-
 We made a virtualenv for the 2016/06 restore, but didn't end up using it because MATLAB apparently might have required running the Python part of the server with sudo. Wasn't sure how sudo and virtualenv were supposed to work together, so we just went without a virtualenv.
 
-Python packages and versions as of the 2016/06 restore (since we aren't documenting these in a requirements.txt). Note that Sentry only showed package versions for packages that are added in Django's installed apps, so we couldn't check exact versions of other packages like numpy:
+Here are the Python packages and versions as of the 2016/06 restore (since we aren't documenting these in a requirements.txt). Note that Sentry only showed package versions for packages that are added in Django's installed apps, so we couldn't check exact versions of other packages like numpy:
 
 - MySQL-python==1.2.5 (picked 1.2.x from memory)
 

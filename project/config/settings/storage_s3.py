@@ -17,10 +17,12 @@ DATABASES['default'].update({
     'PORT': get_secret("DATABASE_PORT", required=False),
 })
 
-# django-storages settings
+# S3 configuration settings.
+# Also the names of settings expected by django-storages.
 # http://django-storages.readthedocs.io/en/latest/backends/amazon-S3.html
 AWS_ACCESS_KEY_ID = get_secret('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = get_secret('AWS_SECRET_ACCESS_KEY')
+AWS_STORAGE_BUCKET_NAME = get_secret('AWS_STORAGE_BUCKET_NAME')
 # Default ACL permissions when saving S3 files.
 # 'private' means the bucket-owning AWS account has full permissions, and no
 # one else has permissions. Further permissions can be specified in the bucket
@@ -41,7 +43,7 @@ THUMBNAIL_DEFAULT_STORAGE = DEFAULT_FILE_STORAGE
 # [Custom settings]
 # S3 details on storing media.
 AWS_S3_DOMAIN = 's3-us-west-2.amazonaws.com/{bucket_name}'.format(
-    bucket_name=get_secret('AWS_STORAGE_BUCKET_NAME'))
+    bucket_name=AWS_STORAGE_BUCKET_NAME)
 AWS_S3_MEDIA_SUBDIR = 'media'
 
 # Base URL where user-uploaded media are served.

@@ -5,7 +5,7 @@
 NEW_CLASSIFIER_TRAIN_TH = 1.1
 
 # How much better than previous classifiers must a new one be in order to get accepted.
-NEW_CLASSIFIER_IMPROVEMENT_TH = 1.02
+NEW_CLASSIFIER_IMPROVEMENT_TH = 1.01
 
 # These many must be annotated before a first classifier is trained.
 MIN_NBR_ANNOTATED_IMAGES = 20

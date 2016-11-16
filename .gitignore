@@ -1,39 +1,35 @@
-# Files that are meant to differ between dev and production
-secrets.json
-project/images/task_helpers.py
+# Specific files which are unique per machine or generated somehow
+project/config/settings/secrets.json
+project/config/nginx.conf
 project/templates/maintenance_notice.html
-coralnet_sqlite_database
-*.log
-*.db
-*.rdb
 
-# Compiled Python
-*.pyc
-
-# Temporary files made by text/code editors
-*~
+# Logs
+project/logs
 
 # Sphinx output files
 docs/_build
 docs/_static
 docs/_templates
 
-# Apache configs
-apache/django.wsgi
+# Compiled Python
+*.pyc
+
+# Redis dumps
+*.rdb
+
+# Database stuff
+coralnet_sqlite_database
+*.db
+
+# Temporary files made by text/code editors
+*~
 
 # IDE stuff
 .idea
 
-# Folders with the backend outputs
-project/images/models/*
-project/images/classify/*
-project/images/features/*
-project/images/preprocess/*
-/logs/*
+# Mac
+.DS_STORE
 
 # Misc
-project/images/robot_running_flag
 /misc_not_versioncontrolled/*
 /tmp/*
-supervisor*
-.DS_STORE

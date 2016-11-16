@@ -114,22 +114,6 @@ class BackendTestWithClassifier(BackendTest):
         # Make sure classifier is trained.                
         cls.wait_for_classifier_trained(cls.source, 1)
 
-@skip
-@skipIf(not settings.DEFAULT_FILE_STORAGE == 'lib.storage_backends.MediaStorageS3', "Can't run backend tests locally")
-@skipIf(get_total_messages_in_jobs_queue() > 10, "Too many messages in backend queue. Skipping this test.")
-class RaiseErrorTest(BackendTest):
-    """
-    Check that robot get's trained automatically.
-    This test uses dummy data and annotations.
-    """
-
-    @classmethod
-    def setUpTestData(cls):
-        super(RaiseErrorTest, cls).setUpTestData()
-
-    def test_spacer_error_handling(self):
-        self.img1 = self.upload_image(self.user, self.source)
-
 @skipIf(not settings.DEFAULT_FILE_STORAGE == 'lib.storage_backends.MediaStorageS3', "Can't run backend tests locally")
 @skipIf(get_total_messages_in_jobs_queue() > 10, "Too many messages in backend queue. Skipping this test.")
 class ImageGetsFeaturesTest(BackendTest):
@@ -231,7 +215,7 @@ class TrainClassifierTest(BackendTest):
         self.assertEqual(Classifier.objects.filter(source = self.source, valid=True).count(), 1)
         self.assertEqual(Classifier.objects.filter(source = self.source, valid=False).count(), 0)
     
-
+@skip #this test is unreliable.
 @skipIf(not settings.DEFAULT_FILE_STORAGE == 'lib.storage_backends.MediaStorageS3', "Can't run backend tests locally")
 @skipIf(get_total_messages_in_jobs_queue() > 10, "Too many messages in backend queue. Skipping this test.")
 class ResetLabelSetTest(BackendTestWithClassifier):
@@ -281,6 +265,7 @@ class ResetLabelSetTest(BackendTestWithClassifier):
         # And img1 should has 6 score (3 points * min(5, nbr_labels))
         self.assertEqual(Score.objects.filter(image_id = img1.id).count(), 3 * 2)
 
+@skip #this test is unreliable.
 @skipIf(not settings.DEFAULT_FILE_STORAGE == 'lib.storage_backends.MediaStorageS3', "Can't run backend tests locally")
 @skipIf(get_total_messages_in_jobs_queue() > 10, "Too many messages in backend queue. Skipping this test.")
 class ImageClassification(BackendTestWithClassifier):

@@ -328,9 +328,7 @@ IMPORTED_USERNAME = "Imported"
 ROBOT_USERNAME = "robot"
 ALLEVIATE_USERNAME = "Alleviate"
 
-# [Custom settings] Upload restrictions.
-# Ensure that the config/nginx.conf client_max_body_size is
-# strictly greater than every filesize limit specified here.
+# [Custom settings] Upload restrictions
 IMAGE_UPLOAD_MAX_FILE_SIZE = 30*1024*1024  # 30 MB
 IMAGE_UPLOAD_MAX_DIMENSIONS = (8000, 8000)
 IMAGE_UPLOAD_ACCEPTED_CONTENT_TYPES = [
@@ -360,7 +358,7 @@ GOOGLE_ANALYTICS_CODE = get_secret("GOOGLE_ANALYTICS_CODE", required=False)
 # Celery
 BROKER_URL = 'redis://localhost:6379'
 BROKER_TRANSPORT = 'redis'
-CELERYD_CONCURRENCY = 1
+CELERYD_CONCURRENCY = 2
 
 
 # LOG
@@ -396,6 +394,8 @@ LOGGING = {
 
 }
 
+# Regression tests
+REGRESSION_FIXTURES_ROOT = SITE_DIR.child('coralnet_regtests_fixtures')
 
 # [Custom setting]
 # Verbosity of print messages printed by our unit tests' code. Note that

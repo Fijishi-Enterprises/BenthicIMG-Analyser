@@ -68,9 +68,11 @@ def backend_main(request, source_id):
         'source': source,
     })
     
-    if not 'valres' in request.session.keys():
-        valres = source.get_valid_robots()[0].valres
+    cc = source.get_latest_robot()
+    if not 'valres' in request.session.keys() or ('ccpk' in request.session.keys() and not request.session['ccpk'] == cc.pk):
+        valres = source.get_latest_robot().valres
         request.session['valres'] = valres
+        request.session['ccpk'] = cc.pk
     
     # Load stored variables to local namsspace
     valres = request.session['valres']

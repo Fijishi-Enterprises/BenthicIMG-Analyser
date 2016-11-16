@@ -37,11 +37,7 @@ class Classifier(models.Model):
     
     @property
     def valres(self):
-        #valres = direct_s3_read(settings.ROBOT_MODEL_VALRESULT_PATTERN.format(pk = self.pk, media = settings.AWS_LOCATION), 'json')
-        valres = pickle.load(open('/Users/beijbom/Desktop/valres.p'))
-        if type(valres['scores'][0]) == list:
-            valres['scores'] = [max(score) for score in valres['scores']]
-            print valres['scores'][0]
+        valres = direct_s3_read(settings.ROBOT_MODEL_VALRESULT_PATTERN.format(pk = self.pk, media = settings.AWS_LOCATION), 'json')
         valres['gt'] = [int(g) for g in valres['gt']]
         valres['est'] = [int(e) for e in valres['est']]
         return valres

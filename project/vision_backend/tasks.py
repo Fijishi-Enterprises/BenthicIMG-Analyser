@@ -255,16 +255,14 @@ def collectjob():
         if th._classifiercollector(messagebody):
             # If job was entered into DB, submit a classify job for all images in source.
             classifier = Classifier.objects.get(pk = pk)
-            for image in Image.objects.filter(source = classifier.source):
+            for image in Image.objects.filter(source = classifier.source, features__extracted=True, confirmed=False):
                 classify_image.apply_async(args = [image.id], eta = now() + timedelta(seconds = 10))
-        else:
-            logger.debug("Error occured when collecting classifier")
-
     else:
         logger.error('Job task type {} not recognized'.format(task))
     
     # Conclude
     logger.info("job {}, pk: {} collected successfully".format(task, pk))
+    logger.debug("Collected job with messagebody: {}".format(messagebody))
     return 1
 
 

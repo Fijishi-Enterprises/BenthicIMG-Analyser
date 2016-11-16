@@ -40,11 +40,13 @@ Activate your virtualenv. If you used the production requirements file, you shou
 
 ``cd /path/to/coralnet/project``. Change your Django settings file to ``DEBUG = True`` temporarily for testing. Run ``gunicorn config.wsgi:application``. Check 127.0.0.1:8000 from an SSH tunnel to see if it worked.
 
-Now change your Django settings to ``DEBUG = False``, and then run the same command: ``gunicorn config.wsgi:application``. Check 127.0.0.1:8000 from an SSH tunnel to see if loading pages works. If you want to make things easier for now, change two Django settings: ``ADMINS = []`` and ``ALLOWED_HOSTS = [<other entries>, '127.0.0.1']``.
+Now change your Django settings to ``DEBUG = False``, and then run the same command: ``gunicorn config.wsgi:application``. Check 127.0.0.1:8000 from an SSH tunnel to see if loading pages works. If you get "The connection was reset" in Firefox or similar, you can change the ``ALLOWED_HOSTS`` setting to ``[]`` for the moment.
 
 
 nginx
 ~~~~~
+(Pronounced `"engine x" <http://nginx.org/en/>`__.)
+
 ``sudo apt-get install nginx``.
 
 Run ``sudo /etc/init.d/nginx start``. On your local machine, try entering the EC2 instance's public DNS in your browser's address bar. You should see a "Welcome to nginx!" page.
@@ -62,9 +64,11 @@ Allow nginx to find our configuration file, enable our config, and disable the d
 
 Running
 ~~~~~~~
+If this is the first time running, or the ``NGINX_ALLOWED_HOSTS`` setting has changed, run ``python manage.py makenginxconfig``.
+
 Restart nginx: ``sudo /etc/init.d/nginx restart``. (Other commands are ``start``, ``stop``, and ``status``.)
 
-Run gunicorn. This time we'll use our gunicorn config file, which binds to localhost on the port that our nginx config expects. We'll also add `&` at the end to run it as a background process: ``gunicorn config.wsgi:application --config=config.gunicorn &``
+Run gunicorn. This time we'll use our gunicorn config file, which binds to localhost on the port that our nginx config expects. We'll also add `&` at the end to run it as a background process: ``gunicorn config.wsgi:application --config=config/gunicorn.py &``
 
 Again, on your local machine, enter the EC2 instance's public DNS in your browser's address bar. You should see the CoralNet website.
 
@@ -72,7 +76,7 @@ From here on out:
 
 - Remember that you need both nginx and gunicorn up and running for the website to work.
 - To update the Django code, kill the gunicorn master process, then update the code, then start gunicorn again. :ref:`Scripts <scripts>` can help make the process easier.
-- Remember that gunicorn must be run in the virtualenv, and also run from the correct directory (``coralnet/project``) so that ``config.wsgi`` can be found.
+- Remember that gunicorn must be run in the virtualenv, and also run from the correct directory (``coralnet/project``) so that ``config.wsgi`` and ``config/gunicorn.py`` can be found.
 
 
 .. _tls:
@@ -172,6 +176,32 @@ Steps:
 #. Take down the maintenance message.
 
 (TODO: Any steps for the vision backend?)
+
+
+Getting the latest nginx
+------------------------
+nginx releases security fixes every so often, but these fixes might not make it to the default apt repository.
+
+According to `this page <http://nginx.org/en/linux_packages.html#stable>`__, you'll want to add the following to the end of the ``/etc/apt/sources.list`` file:
+
+::
+
+  deb http://nginx.org/packages/ubuntu/ codename nginx
+  deb-src http://nginx.org/packages/ubuntu/ codename nginx
+
+Where ``codename`` is, for example, ``xenial`` for Ubuntu 16.04.
+
+(TODO: It seems a GPG key needs to be added as well, otherwise apt-get update doesn't work?)
+
+Now whenever you want to update, run:
+
+::
+
+  sudo /etc/init.d/nginx stop
+  sudo apt-get update
+  sudo apt-get install nginx
+  sudo /etc/init.d/nginx start
+
 
 
 Previous failed attempts at web server setup

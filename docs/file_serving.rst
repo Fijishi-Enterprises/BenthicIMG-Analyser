@@ -62,6 +62,25 @@ One potential security hole is the fact that ``HTTP_REFERER`` can be set by the 
 See `this blog post <https://aws.amazon.com/blogs/security/iam-policies-and-bucket-policies-and-acls-oh-my-controlling-access-to-s3-resources/>`__ for info on bucket policies, `this docs page <http://docs.aws.amazon.com/AmazonS3/latest/dev/manage-acls-using-console.html>`__ for info on ACLs, and `this docs page <http://docs.aws.amazon.com/AmazonS3/latest/dev/example-bucket-policies.html#example-bucket-policies-use-case-4>`__ for the referer check.
 
 
+.. _s3cmd_install:
+
+Installing s3cmd
+----------------
+
+- *Install as needed*
+
+s3cmd is a third-party utility for Amazon S3 which provides some functionality that the AWS CLI lacks.
+
+Install with ``pip install s3cmd``.
+
+- This doesn't have to be part of the CoralNet virtualenv, since we don't (yet) plan to run s3cmd from the Django project.
+- Note that `s3cmd doesn't support Python 3 <https://github.com/s3tools/s3cmd/issues/335>`__ (as of 2016.11).
+
+If you're on an EC2 instance, just make sure the instance is associated with an IAM Role which has S3 permissions.
+
+If you're not on an EC2 instance, use ``s3cmd --configure`` to set your AWS access and secret keys. The configuration gets saved in ``~/.s3cfg``.
+
+
 .. _sync_between_s3_buckets:
 
 Syncing media from an S3 bucket to another S3 bucket
@@ -70,7 +89,7 @@ Syncing media from an S3 bucket to another S3 bucket
 - *Staging server*
 - *Alpha to beta server migration*
 
-From an EC2 instance, simply run: ``aws s3 sync s3://<source bucket> s3://<destination bucket>``
+From an EC2 instance :ref:`with the AWS CLI installed <aws_cli_install>`, simply run: ``aws s3 sync s3://<source bucket> s3://<destination bucket>``
 
 
 .. _sync_filesystem_to_s3:
@@ -80,19 +99,83 @@ Syncing media from a server filesystem to S3
 
 - *Alpha to beta server migration*
 
+The :ref:`AWS CLI <aws_cli_install>` can sync from a filesystem to S3 with the ``aws s3 sync`` command. However, it seems to hang without transferring anything in some cases with large directories. (`Related GitHub issue <https://github.com/aws/aws-cli/issues/1775>`__)
+
+To avoid hanging, use :ref:`s3cmd <s3cmd_install>` instead. The syntax is ``s3cmd sync LOCAL_DIR s3://BUCKET[/PREFIX]``.
+
+- As the `s3cmd usage reference <http://s3tools.org/usage>`__ says, this "checks files freshness using size and md5 checksum, unless overridden by options". Add the option ``--no-check-md5`` to skip checking the md5 checksum, which should speed up the sync significantly. This should be a safe option for our image data, since the website doesn't have any way to edit previously uploaded image files.
+
+- Presence of trailing slashes matters (`Link <http://s3tools.org/s3cmd-sync>`__). If source doesn't have a trailing slash, you'll end up with an extra directory at the end of your destination, like ``media/images/original/<filename>``. If destination doesn't have a trailing slash, s3cmd just forces an error. You need both trailing slashes.
+
+- You may see "remote copy:" output lines which indicate an attempt to optimize away some network transfer: if two files are detected as having identical contents (from the size and md5 checksum), then instead of transferring both of those files from source to destination, s3cmd will copy file 1 from the source's file 1 and then copy file 2 from the destination's file 1. This doesn't seem to be explained explicitly anywhere, but the intended behavior can be guessed from s3cmd's verbose output and links like`this one <https://github.com/s3tools/s3cmd/issues/643>`__.
+
+  - There's some potential for incorrect behavior though, so watch out: `Link 1 <https://github.com/s3tools/s3cmd/issues/768>`__, `Link 2 <http://stackoverflow.com/questions/22172861/>`__
+
+  - If you don't want the remote copy feature, use ``--no-check-md5``.
+
+- If you want some insurance against mistakes, such as mixing up the source and destination or forgetting trailing slash rules, you can add the option ``--no-delete-removed``, preventing the sync from deleting files.
+
+- If you want some indication of progress besides when files are actually transferred, use ``--verbose``. This is recommended since progress output is done intelligently to reduce clutter, e.g. ``INFO: [1000/2368]   INFO: [2000/2368] ...``.
+
+For the alpha to beta migration, you'll want to mind the mappings between the old and new directories. Here's an example set of commands:
+
+::
+
+  sudo s3cmd sync /cnhome/media/data/original/ s3://coralnet-production/media/images/ --verbose --no-delete-removed --no-check-md5
+  sudo s3cmd sync /cnhome/media/label_thumbnails/ s3://coralnet-production/media/labels/ --verbose --no-delete-removed
+  sudo s3cmd sync /cnhome/media/mugshots/ s3://coralnet-production/media/avatars/ --verbose --no-delete-removed
+
+On 2016.11, re-syncing images took about 11 hours: 1 hour to get the remote file listing, and 10 hours to transfer the files. There were 772386 files total and 110223 files to transfer.
+
+
+Failed attempt: Running s3cmd from an EC2 instance
+..................................................
+
+This was the original idea for the sync: running s3cmd from the EC2 instance which is already associated with an IAM Role, thus making it unnecessary to explicitly give s3cmd the AWS keys.
+
 SSH into an EC2 instance. Mount the CoralNet alpha server's filesystem using SSHFS.
 
 - ``sudo apt-get install sshfs``
 - ``sudo mkdir /mnt/cnalpha``
-- ``sudo sshfs <username>@<alpha server host>/ /mnt/cnalpha`` to mount the root of the alpha server's filesystem at ``/mnt/cnalpha``.
+- ``sudo sshfs <username>@<alpha server host>:/ /mnt/cnalpha`` to mount the root of the alpha server's filesystem at ``/mnt/cnalpha``. Ensure that the alpha server's firewall accepts SSH (port 22) from this EC2 instance.
 
-Ensure the :ref:`AWS command line interface is installed <aws_cli_install>` on the EC2 instance.
+The sync commands become:
 
-You can sync small directories with the ``aws s3 sync`` command. For example: ``sudo aws s3 sync /mnt/cnalpha/path/to/media/label_thumbnails s3://<bucket-name>/media/labels``
+::
 
-Unfortunately, the ``aws s3 sync`` command seems to hang without transferring anything when it comes to large directories. (`Related GitHub issue <https://github.com/aws/aws-cli/issues/1775>`__)
-Instead, use the ``scripts/s3_sync.py`` script in our repository to transfer the files. For example: ``sudo python path/to/s3_sync.py /mnt/cnalpha/path/to/media/data/original s3://<bucket-name>/media/images``. This script basically loops over the files and copies them one by one using ``aws s3 cp``.
+  sudo s3cmd sync /mnt/cnalpha/mnt/CoralNet/media/data/original/ s3://coralnet-production/media/images/ --verbose --no-delete-removed --no-check-md5
+  sudo s3cmd sync /mnt/cnalpha/mnt/CoralNet/media/label_thumbnails/ s3://coralnet-production/media/labels/ --verbose --no-delete-removed
+  sudo s3cmd sync /mnt/cnalpha/mnt/CoralNet/media/mugshots/ s3://coralnet-production/media/avatars/ --verbose --no-delete-removed
 
-The script has a ``--filter`` option that allows you to try transferring just a subset of images. For example, to transfer all files whose filenames start with ``00``, run: ``sudo python path/to/s3_sync.py <src> <dest> --filter "00.*"``
+For ``images``, there is a chance that the sync will hang at the first step, compiling a list of local files. (Use ``--verbose`` to see whether it's on this step or not.) When doing the sync in 2016.07, this chance was maybe around 50%, but unfortunately in 2016.11 it seems to be 100%, making this syncing method no longer possible. The cause is unknown.
 
-The process can be run in the background, and should not be interrupted even if you close your SSH session (despite SSHFS being used). When finished, a summary .txt file should be written, so you can see the number of files copied, time elapsed, etc. For us, the transfer of 1.2 TB of 600k image files would take about 15.5 days.
+- Even ``sudo du -sh /mnt/cnalpha/mnt/CoralNet/media/data/original`` (this calculates the total filesize of the directory) cannot ever seem to complete, despite finishing in a few seconds when run directly on the alpha server.
+- Also tried keeping the ``sshfs`` connection alive with ``-o reconnect,ServerAliveInterval=15,ServerAliveCountMax=3`` as suggested `here <http://stackoverflow.com/a/26584116/859858>`__, but it didn't help.
+
+
+.. _s3_reset_file_permissions:
+
+Resetting S3 file permissions
+-----------------------------
+
+Explanation
+...........
+
+All S3 files should only be shown to a user if the website explicitly serves that file to a user (e.g. an image is displayed as part of a page). Otherwise, S3 files should be private to our AWS account.
+
+The S3 bucket has a policy which enforces this by checking the Referer, as explained above. S3 buckets also have ACLs; these are the checkboxes you see when you click Properties -> Permissions for a bucket in the S3 console. The ACL should only grant permission to the name of our AWS account.
+
+But that's not all - individual files in a bucket can specify ACLs too. For example, the default behavior of the ``django-storages`` third-party app is to save files with public-read ACLs. In the S3 console, this appears as a grant of the "Open/Download" permission to "Everyone". The ``AWS_DEFAULT_ACL`` setting must be set to ``'private'`` to prevent this grant from happening.
+
+To be clear:
+
+- Bucket policy says website referral required + File has private ACL = File requires website referral.
+
+- Bucket policy says website referral required + File ACL allows public download = File can be publicly downloaded without website referral.
+
+Resetting permissions
+.....................
+
+If you notice or suspect that some bucket files have public-granting ACLs, this functionality from :ref:`s3cmd <s3cmd_install>` will reset all media files to private ACLs: ``s3cmd setacl --acl-private --recursive s3://<bucket-name>/media/``
+
+As of 2016.11, this seems to take roughly 4-6 hours to complete.

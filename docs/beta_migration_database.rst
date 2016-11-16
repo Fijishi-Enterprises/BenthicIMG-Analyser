@@ -255,11 +255,11 @@ In 2016.11, going from Ubuntu 14.04 alpha to a production-configured beta RDS in
 
 Django migrations
 -----------------
-These are the migrations that the UCSD CSE production DB must run to get completely up to date with the latest Django and repo code.
+These are the migrations that the alpha production DB must run to get completely up to date with the latest Django and repo code.
 
-The migration numbers are in Django's new migration framework unless specifically denoted as South migrations. (Last update: Django 1.9.5)
+The migration numbers are in Django's new migration framework unless specifically denoted as South migrations.
 
-SSH into the beta server, activate the environment, and run these in order:
+SSH into the beta server, activate the environment, and run these in order (correct as of 2016.11):
 
 - contenttypes: fake 0001, run 0002
 - auth: fake 0001, run 0002-0007
@@ -275,11 +275,18 @@ SSH into the beta server, activate the environment, and run these in order:
   - bug_reporting: fake 0001
   - Run the rest in any order
 
+Example commands: ``python manage.py migrate contenttypes 0001 --fake``, ``python manage.py migrate contenttypes 0002``, ``python manage.py migrate auth 0001 --fake``, ``python manage.py migrate auth 0007``, etc.
+
 You'll get message(s) like ``The following content types are stale and need to be deleted``. Just to be safe, do all these deletions at the very end, when all migrations have been completed. Then go ahead and answer yes to the "Are you sure?" prompt(s).
 
-In our case, we have the stale contenttypes ``auth | message`` and ``annotations | annotation_attempt``, TODO. Each takes about 2 minutes to delete.
+- In our case, we have 1 stale contenttype in auth, 4 in annotations, and 7 in images.
 
- See more info about stale content types at `this link <http://stackoverflow.com/questions/16705249/stale-content-types-while-syncdb-in-django>`__. Note that we don't define any foreign keys to ``ContentType``.
+- See more info about stale content types at `this link <http://stackoverflow.com/questions/16705249/stale-content-types-while-syncdb-in-django>`__. Note that we don't define any foreign keys to ``ContentType``.
+
+Notable time-consuming migrations as of 2016.11:
+
+- reversion (South) 0006: 3 minutes
+- images 0004-0015: 55 minutes combined
 
 After running these migrations, go ahead and it's a good idea to make another snapshot of the RDS instance.
 
@@ -287,6 +294,8 @@ After running these migrations, go ahead and it's a good idea to make another sn
 contenttypes
 ~~~~~~~~~~~~
 The reason these migrations should be run first is that, if you don't run the ``contenttypes`` migrations early enough, you may get ``RuntimeError: Error creating new content types. Please make sure contenttypes is migrated before trying to migrate apps individually.`` `Link 1 <http://stackoverflow.com/questions/29917442/error-creating-new-content-types-please-make-sure-contenttypes-is-migrated-befo>`__, `Link 2 <https://code.djangoproject.com/ticket/25100>`__
+
+In fact, you may get that message after faking ``contenttypes`` 0001. This doesn't seem to have any consequence though; just proceed to real-migrate 0002 and you shouldn't see the message again.
 
 
 reversion
@@ -297,10 +306,11 @@ To apply the ``reversion`` migrations:
 
 - pip-install ``Django==1.6``, ``django-reversion==1.8.4``, and ``South``.
 - Add ``'south'`` to your ``INSTALLED_APPS`` setting.
-- Comment out all other apps in ``INSTALLED_APPS`` except for Django core apps, south, and reversion. This is probably the simplest way to avoid South errors about other apps having `ghost migrations <http://stackoverflow.com/questions/8875459/what-is-a-django-south-ghostmigrations-exception-and-how-do-you-debug-it>`__.
+- Comment out all other apps in ``INSTALLED_APPS`` except for Django core apps, south, and reversion. This is probably the simplest way to avoid South errors about other apps having `ghost migrations <http://stackoverflow.com/questions/8875459/what-is-a-django-south-ghostmigrations-exception-and-how-do-you-debug-it>`__. Also comment out ``errorlogs`` since the app setup is post-Django-1.6.
 - Change the ``DATABASES`` setting's engine to ``'postgresql_psycopg2'`` to make Django 1.6 happy. (This is the same engine, just under a different name.)
+- Comment out the celery line in ``config/__init__.py`` to make Django 1.6 happy (``django.setup()`` didn't exist yet).
 - Use ``manage.py migrate --list`` to confirm that ``reversion`` has run migrations 0001 to 0005.
 - Use ``manage.py migrate reversion`` to run migrations 0006 to 0008.
-- Revert the ``INSTALLED_APPS`` and ``DATABASES`` settings. Assuming you made these changes in ``base.py``, just do ``git checkout config/settings/base.py``.
+- Revert all the code changes. ``git checkout config/settings/base.py``, etc.
 - pip-install the latest ``Django`` and ``django-reversion`` again, and uninstall ``South``.
 - Now you can see with ``manage.py showmigrations`` that the ``reversion`` migration numbers have changed. Fake-run 0001, then run 0002.

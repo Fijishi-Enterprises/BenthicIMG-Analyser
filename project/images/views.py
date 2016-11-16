@@ -193,6 +193,7 @@ def source_main(request, source_id):
                 'nimages': clf.nbr_train_images, 
                 'traintime': str(datetime.timedelta(seconds = clf.runtime_train)),
                 'date': str(clf.create_date.strftime("%Y-%m-%d")),
+                'pk': str(clf.pk),
             })
         robot_stats['backend_plot_data'] = backend_plot_data
         robot_stats['has_robot'] = True

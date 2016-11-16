@@ -1,8 +1,12 @@
 {% extends "base.html" %}
 
-{% block content %}
+<style>
+body {color: #222; } 
+p {color: #222; } 
+</style>
 
-<p>{{timestr}}</p>
+
+{% block content %}
 
 <table class="detail_table_popup">
     <tr>
@@ -19,10 +23,10 @@
     </tr>
     {% for source in laundry_list %}
         {% if source.need_attention %}
-            <tr style="background-color:red">
+            <tr style="background-color:#988">
         {% else %}
             {% if source.has_robot %}
-                <tr style="background-color:green">
+                <tr style="background-color:#898">
             {% else %}
                 <tr style="background-color:gray">
             {% endif %}

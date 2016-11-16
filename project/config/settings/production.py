@@ -7,9 +7,26 @@ from .storage_s3 import *
 
 DEBUG = False
 
-# Hosts/domain names that are valid for this site.
+# Hosts/domain names that Django should consider as valid.
 # "*" matches anything, ".example.com" matches example.com and all subdomains
-ALLOWED_HOSTS = ['coralnet.ucsd.edu']
+#
+# With our nginx proxy_pass setup, Django ends up seeing a hostname of
+# 127.0.0.1. nginx is the gatekeeper for the original host header.
+# So for validating the original host header, see NGINX_ALLOWED_HOSTS.
+#
+# Although it doesn't seem to apply to us currently, here's some info about
+# configuring this setting if unit tests have some special domain name logic:
+# https://docs.djangoproject.com/en/dev/topics/testing/advanced/#topics-testing-advanced-multiple-hosts
+ALLOWED_HOSTS = ['127.0.0.1']
+
+# [Custom setting]
+# Hosts that nginx should consider valid. Each string item should be a valid
+# server_name string in an nginx config file:
+# http://nginx.org/en/docs/http/server_names.html
+#
+# When you update this, run the makenginxconfig management command
+# to regenerate the nginx config file.
+NGINX_ALLOWED_HOSTS = ['coralnet.ucsd.edu']
 
 # Absolute path to the directory which static files should be collected to.
 # Example: "/home/media/media.lawrence.com/static/"

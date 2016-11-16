@@ -65,3 +65,14 @@ This kills all running gunicorn processes (one master and one or more workers).
 
   pkill gunicorn
 
+
+Staging sync - Database
+-----------------------
+
+Base this off of: :ref:`database_porting`
+
+
+Staging sync - S3
+-----------------
+
+Base this off of: :ref:`sync_between_s3_buckets`

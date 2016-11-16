@@ -4,17 +4,16 @@ from .production import *
 
 
 
-DEBUG = True
-
 # Instead of routing emails through a mail server,
 # just write emails to the filesystem.
 EMAIL_BACKEND = 'django.core.mail.backends.filebased.EmailBackend'
 EMAIL_FILE_PATH = SITE_DIR.child('tmp').child('emails')
 
-# Hosts/domain names that are valid for this site.
-# "*" matches anything, ".example.com" matches example.com and all subdomains
+# [Custom setting]
+# Hosts that nginx should consider valid. Each string item should be a valid
+# server_name string in an nginx config file:
+# http://nginx.org/en/docs/http/server_names.html
 #
-# TODO: Once we upgrade to Django 1.9.11, we may or may not have to update
-# this to accommodate test runs. Read here:
-# https://docs.djangoproject.com/en/dev/topics/testing/advanced/#topics-testing-advanced-multiple-hosts
-ALLOWED_HOSTS = ['.amazonaws.com']
+# When you update this, run the makenginxconfig management command
+# to regenerate the nginx config file.
+NGINX_ALLOWED_HOSTS = ['*.us-west-2.compute.amazonaws.com']

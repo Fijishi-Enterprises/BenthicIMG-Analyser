@@ -16,9 +16,9 @@ Phase 1
   - We currently have two S3 buckets (``coralnet-serve-1`` and ``coralnet-website-serve-staging``) which are copies of the alpha-server media files from around 2016.07. We now want two buckets called ``coralnet-production`` and ``coralnet-staging``. There is no way to rename a bucket, so this requires several steps.
   - :ref:`Create a bucket <s3_bucket_setup>` called ``coralnet-production``.
   - :ref:`Create a bucket <s3_bucket_setup>` called ``coralnet-staging``.
-  - :ref:`Sync files <sync_between_s3_buckets>` from one of the old buckets to ``coralnet-production``. (Start 10:20 PM, End TODO)
+  - :ref:`Sync files <sync_between_s3_buckets>` from one of the old buckets to ``coralnet-production``. (Seems to take 7-8 hours)
   - :ref:`Sync files from the alpha server filesystem <sync_filesystem_to_s3>` to ``coralnet-production``. Account for mappings between old/new directory names. This sync will be much slower per-file, but it should just be a partial sync, getting just the past 4 months' updates.
-  - Run a script to check that ``coralnet-production`` doesn't reference any image files that don't exist in our new S3 bucket.
+  - Run a script to check that ``coralnet-production`` doesn't reference any image files that don't exist in our new S3 bucket. (This should be the case since we synced DB before S3.)
   - :ref:`Sync files <sync_between_s3_buckets>` from ``coralnet-production`` to ``coralnet-staging``.
   - Delete the two old buckets when we're sure we don't need them anymore.
 
@@ -42,12 +42,13 @@ Phase 1
   - :ref:`Set up the vision backend <backend>`.
   - Run unit tests. Look at the running website to see that all types of database data seem intact.
   - :ref:`Add convenience scripts <scripts>` somewhere on the EC2 instance, with simple names such as ``setup_env.sh``, ``server_start.sh``, and ``server_stop.sh``.
+  - Add convenience symlinks: ``/cnhome`` -> ``/srv/www/coralnet``, and ``/scripts`` -> ``/srv/www/scripts``.
 
 Phase 2
 
 - Contact the UCSD hostmaster. Get things ready to switch coralnet.ucsd.edu to the AWS beta server.
 - Once the hostmaster related timeframe is under control, email users about the alpha site closing date/time.
-- Switch the beta server from staging to "pre-production" settings so that email isn't faked anymore. The only difference from production now should be ``ALLOWED_HOSTS``.
+- Switch the beta server from staging to "pre-production" settings so that email isn't faked anymore. The only possible difference from production now should be ``ALLOWED_HOSTS``.
 - :ref:`Generate a TLS certificate <tls>` for the current amazonaws URL. This is for testing TLS during this phase.
 - Implement HTTPS/SSL/TLS on the beta server using that certificate.
 
@@ -61,12 +62,14 @@ Phase 3
 
 - Wait until the alpha site closing date/time.
 - Take the alpha server down. (TODO: Details)
-- :ref:`Migrate the alpha server database to the new RDS instance <beta_migration_database>`.
-- :ref:`Update the code on the beta server <update_server_code>`. Since the database was reset to alpha, :ref:`run all Django migrations <beta_migration_django_migrations>`.
-- :ref:`Sync files from the alpha server filesystem to the new S3 bucket <sync_filesystem_to_s3>`. This sync should just involve the new files since Phase 1.
+- :ref:`Migrate the alpha server database to the new RDS instance <beta_migration_database>`. (20m work, 40m waiting)
+- :ref:`Update the code on the beta server <update_server_code>`.
+- Since the database was reset to alpha, :ref:`run all Django migrations <beta_migration_django_migrations>`. (20m work, 60m waiting)
+- :ref:`Sync files from the alpha server filesystem to the production S3 bucket <sync_filesystem_to_s3>`. This sync should just involve the new files since Phase 1. (2-3h waiting)
+- :ref:`Reset production S3 file permissions to private <s3_reset_file_permissions>`__.
 - Ensure all ``secrets.json`` details on the beta server are correct.
 - Switch coralnet.ucsd.edu to the beta server.
-- Switch the beta server from pre-production to production settings. ``ALLOWED_HOSTS`` should only have coralnet.ucsd.edu now.
+- Switch the beta server from pre-production to production settings (if this entails changing anything).
 - Generate a TLS certificate for the coralnet.ucsd.edu domain.
 
   - Generating a new certificate seems safer than transferring the old certificate over the network from the alpha server.

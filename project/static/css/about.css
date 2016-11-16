@@ -1,9 +1,9 @@
 
 body {
-    color:#777;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
     font-size: 14px;
+    color:#777;
 }
 
 .center {

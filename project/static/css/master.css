@@ -20,8 +20,10 @@ breadandpepper.com
 ................................... */
 
 html, body{
-    color:#777; font-family: 'Droid Sans', helvetica, arial, Geneva, sans-serif;
+    color:#444; font-family: 'Droid Sans', helvetica, arial, Geneva, sans-serif;
     background: #eae5e1 url(../img/bg-container.png) repeat-y center top;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
 }
 
 #container{

@@ -1,6 +1,34 @@
 {% extends "base.html" %}
 {% load static from staticfiles %}
 
+{% block js-includes %}
+  {% include "javascript-includes.html" with jquery_ui="yes" %}
+{% endblock %}
+
+{% block page-specific-includes %}
+    {% include "static-local-include.html" with type="css" path="css/about.css" %}
+{% endblock %}
+
+{% block javascript-functions %}
+<script src="https://code.jquery.com/jquery-1.9.1.js" type="text/javascript"></script>
+<script type="text/javascript">
+$("a[href^='#']").click(function(){
+    var clicked = $(this).attr("href");
+    var link = $('a[data-scroll-name="' + clicked + '"]');
+    
+    $(".selected").attr("class","");
+    
+    $('body,html').animate({
+        'scrollTop':   $(link).offset().top
+    }, 1000, function() {
+    // Animation complete.
+    });
+    $(this).attr("class"," selected");
+});
+</script>
+{% endblock %}
+
+
 {% block content %}
 
 <style>
@@ -10,232 +38,109 @@ table.people td {
 }
 </style>
 
+
+<link href='https://fonts.googleapis.com/css?family=Roboto&subset=latin,latin-ext' rel='stylesheet' type='text/css'>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+<body class="show" id="pages">
+<script src="https://code.jquery.com/jquery-1.9.1.js" type="text/javascript"></script>
+
+<div class="center">
 <h1>About CoralNet</h1>
-    <div style="float:left;">
-    <p>CoralNet is a repository and a resource for benthic images analysis. It was created as part of an NSF project,
-    <a href="#funding">Computer Vision Coral Ecology</a> by researchers at UCSD in 2012. The site implements sophisticated
-    computer vision algorithms that allow researchers, agencies, and private partners to rapidly annotate benthic survey
-    images. The site also serves as a repository and collaboration platform for the scientific community.</p>
-    </div>
-    <div style="float:right;">
-<iframe src="//player.vimeo.com/video/105839824" width="500" height="281" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe> 
-    </div>
+    
+    <p class="abstract">CoralNet is a repository and a resource for benthic images analysis. The site implements
+    computer vision algorithms which allow fully- and semi- automated annotation. It also serves as a repository and collaboration platform.
+    </p>
+    <ul class="social">
+    <li class="first-item"><a href="#background">background</a></li>
+    <li><a href="#site">site</a></li>
+    <li><a href="#acknowledgment">acknowledgment</a></li>
+    <li><a href="#people">people</a></li>
+    <li><a href="#press">press</a></li>
+    <li><a href="#changelog">changelog</a></li>
+    
+    </ul>
 
-<h2>Background</h2>
-    <p>Global warming and local anthropogenic stressors are causing severe stress to coral reefs across the world.
-    To take appropriate action decision makers need accurate data over large spatio-temporal scales. The speed of data
-    collection has increased tremendously in recent years, thanks to proliferation of digital cameras and underwater
-    autonomous, or remotely operated, vehicles. As a result, millions of images are collected each years across the
-    world. The subsequent analysis, however, remains painfully slow as manual inspection of each photo is required
-    by a trained expert.</p>
-    <p>Recent progress in machine learning and computer vision offer a compelling solution to this problem: a
-    machine-annotator can learn from human labels and then proceed to rapidly process large numbers of new images.</p>
-    <p>CoralNet offers an open-source framework to approach this solution. It serves as a repository of benthic images,
-    and allow for different modes of interaction between the machine-annotator and the human expert. CoralNet, by it’s
-    nature, also provides a platform for collaboration & sharing of data.</p>
+    <h2>Background</h2>
+    <a class="section-anchor" data-scroll-name="#background"></a>
+    <p>Global and local stressors have caused a rapid decline of coral reefs across the world.
+    To monitor the changes and take appropriate action large spatio-temporal surveys are needed. Data
+    collection speeds are typically sufficient to meet this need but the subsequent image analysis remains slow as manual inspection of each photo is required. This creates a 'manual annotation botleneck'.</p>
+    <p>CoralNet reduces this bottleneck by allowing modern computer vision algorithms to be deployed alongside human experts. Often 50-100% automation can be achieved with minimal reduction in the quality of the final data-product. CoralNet, by it’s nature, also provides a platform for collaboration & sharing of data.</p>
 
-
-<h2>The site</h2>
+    <h2>The site</h2>
+    <a class="section-anchor" data-scroll-name="#site"></a>
     <p>
-        The CoralNet website consist of several modules outlined below. For more information, 
-        check out our <a href="http://vimeo.com/channels/coralnet">Vimeo channel</a>.
+        The CoralNet website consist of several modules outlined below. For some (slightly outdated) information, check out our <a href="http://vimeo.com/channels/coralnet">Vimeo channel</a>.
     </p>
     <p>
         <a name="source"></a>
-        <b>Source creation:</b> Your “source” is your space at CoralNet. You specify what labelset you want to use, your
-        privacy settings, and invite collaborators to your source. The source interface also allows you to organize your
-        images by a number of custom metadata fields, such as “site”, “habitat”, “depth”.
+        <b>Source:</b> Main organizational element for a benthic survey or image "source". Here you specify your labelset, your privacy settings, and invite collaborators.
     </p>
     <p>
         <b>Labelset:</b> Specify what labels you want to use in your analysis. Choose from a set of existing labels or create your own.
     </p>
     <p>
-        <b>Import:</b> Upload images to the server. You can also import annotation already completed in other systems such as Coral Point Count.
+        <b>Import:</b> Upload images, metadata and archived annotations to the site.
     </p>
     <p>
-        <b>Annotation:</b> Annotate your image right in the web browser using a point count interface. CoralNet supports manual annotation through an interface similar to the popular Coral Point Count with Excel Extensions. Several users can annotate the same set of  images at the same time, and the system tracks who annotated what. Each night at 3.03 AM PST CoralNet will read all annotations provided by the users of each source, and (if new annotations have been provided) train an automated classifier as detailed in the paper below. This classifier, or 'robot' as we call it, will then provided annotations for the remaining images in your source. Note that the robot is specific to your source meaning that it only uses images and annotation from your source for the training. Accuracy and confusion of the robot can be viewed on the source main page. The robot annotations can then be accepted or corrected by the users during the next annotation session. As more annotations are provided, new versions of the robot will be trained that (hopefully) achieve higher and higher accuracy. Users may choose whether to proceed in this semi-automated annotation mode (accepting or correcting the robot's suggestions), until all images are annotated, or to stop at any point and export the robot annotations for the remaining images along with the user provided annotations.
+        <b>Annotation:</b> Annotate your image right in the web browser using a point count interface. When enough images are manually annotated, an automated annotator is trained. This automated annotator is integrated directly into the annotation tool and makes the remaining annotation work easier.
     </p>
-    <p>
-        <b>Statistics:</b> Get statistics detailing the coverage of each category in your labelset along with aggregated functional group level statistics.
-    </p>
-    <p>
-        <b>Export:</b> Export all images and annotations to your desktop for backup or further processing.
-    </p>
+
     <h2>Data Policy</h2>
-    <p>CoralNet are committed to protecting the data privacy of it’s users, and offer two privacy options which are set
-    of the <a href="#source">Source</a> level.</p>
-<h3>Private</h3>
-    <p>
-        All your images and annotations are hidden from the public. Your project will however appear in the source
-        listing and map, so that other researchers / interested parties can find you. The only information we will share
-        is thus:
-    </p>
-    <p>1. Name of source</p>
-    <p>2. Source description and affiliation</p>
-    <p>3. Latitude and Longitude of your sites</p>
-    <p>4. Total number of images in your <a href="#source">source</a></p>
-    <p>
-        All other information remains hidden from the public. CoralNet also reserves the right to let the computer
-        vision algorithm learn from annotation made on private sources. This will in no way compromise the integrity of
-        your data, but it will help further boost the efficiency of the machine-annotator for all users.
-        Note: According to the US National Science Foundation guidelines on data policy, all scientific information
-        should be made publicly available two years after collection. We therefore encourage users to switch their
-        privacy setting from Private to Public when appropriate.
-    </p>
-<h3>Public</h3>
-    <p>
-        In addition to the information shared in the private mode, all your source images and annotation data will be
-        available for the public to browse and download (including original images in full resolution). However, only members of the source can add or edit content. We encourage all users to consider this privacy option.
-    </p>
+    <p>CoralNet are committed to protecting the data privacy of it’s users, and offer two privacy options.</p>
+        <h4>Private</h4>
+            <p> All your images and annotations are private but the source location is shown on the world map along with the name, description, affiliation and the total number of images. We will also show thumbnails extrated from annotated image locations as part of our label browse tool. </p>
+        <h4>Public</h4>
+            <p> All your source images and annotation data are available for the public to browse and download (including original images in full resolution). However, only members of the source can add or edit content. </p>
 
-<h2>Support:</h2>
-<a name="funding"></a>
-    <p>
-        CoralNet development is support by the NSF Computer Vision Coral Ecology grant #ATM-0941760 and by the National Oceanic and Atmospheric Administration (NOAA) grant No. NA10OAR4320156.
-    </p>
-<h2>Publications:</h2>
-    <p>
-    The following papers are relevant to the development of CoralNet. We ask that you cite the appropriate papers if you use CoralNet in your work.
-    </p>
-    <dl>
-    <dd><p>O. Beijbom, P.J. Edmunds, D.I. Kline, G.B. Mitchell, D. Kriegman. <a href="http://ieeexplore.ieee.org/xpls/abs_all.jsp?arnumber=6247798&tag=1">"Automated Annotation of Coral Reef Survey Images"</a>. IEEE Conference on Computer Vision and Pattern Recognition (CVPR), Providence, Rhode Island, June, 2012.</p></dd>
+    <h2>Acknowledgment</h2>
+    <a class="section-anchor" data-scroll-name="#acknowledgments"></a>
+    <p> CoralNet development is support by the NSF Computer Vision Coral Ecology grant #ATM-0941760 and by the National Oceanic and Atmospheric Administration (NOAA) grant No. NA10OAR4320156. The following papers are relevant to the development of CoralNet. We ask that you cite the appropriate papers if you use CoralNet in your work.</p>
+    <ul>
+    <li><p>O. Beijbom, P.J. Edmunds, D.I. Kline, G.B. Mitchell, D. Kriegman. <a href="http://ieeexplore.ieee.org/xpls/abs_all.jsp?arnumber=6247798&tag=1">"Automated Annotation of Coral Reef Survey Images"</a>. IEEE Conference on Computer Vision and Pattern Recognition (CVPR), Providence, Rhode Island, June, 2012.</p></li>
 
-    <dd><p>O. Beijbom, P. J. Edmunds, C. Roelfsema, J. Smith, D. I. Kline, B. Neal, M. J. Dunlap, V. Moriarty, T-Y. Fan, C-J. Tan, S. Chan, T. Treibitz, A. Gamst, B. G. Mitchell, D. Kriegman. <a href="http://journals.plos.org/plosone/article?id=10.1371/journal.pone.0130312">"Towards automated annotation of benthic survey images: variability of human experts and operational modes of automation"</a>. PLOS One, July 2015.</p></dd>
-    </dl>   
+    <li><p>O. Beijbom, P. J. Edmunds, C. Roelfsema, J. Smith, D. I. Kline, B. Neal, M. J. Dunlap, V. Moriarty, T-Y. Fan, C-J. Tan, S. Chan, T. Treibitz, A. Gamst, B. G. Mitchell, D. Kriegman. <a href="http://journals.plos.org/plosone/article?id=10.1371/journal.pone.0130312">"Towards automated annotation of benthic survey images: variability of human experts and operational modes of automation"</a>. PLOS One, July 2015.</p></li>
+    </li>   
 
-    <dd><p>O. Beijbom, <a href="http://roger.ucsd.edu/record=b8984742~S9">"Automated Annotation of Coral Reef Survey Images"</a>. PhD Thesis UCSD, June 2015.</p>
-    </dd>
-<h2>Contact:</h2>
-<p>
-    Contact us by filling out this <a href="{% url 'contact' %}">form</a>.
-</p>
+    <li><p>O. Beijbom, <a href="http://roger.ucsd.edu/record=b8984742~S9">"Automated Annotation of Coral Reef Survey Images"</a>. PhD Thesis UCSD, June 2015.</p></li>
+    </ul>
 
 
-<h2>Affiliation</h2>
+    <h2>People</h2>
+    
+    <ul>        
+        <li>Oscar Beijbom - Project Manager [<a href="eecs.berkeley.edu/~obeijbom/">www</a>]</li>
+        <li>Stephen Chan - Lead Developer</li>
+        <li>David Kriegman - PI [<a href="http://cseweb.ucsd.edu/~kriegman/">www</a>]</li>
+        <li>TBD - Labelset Committee </li>
+        <li>TBD - Labelset Committee </li>
+        <li>Serge Belongie - Academic advisor [<a href="https://vision.cornell.edu/se3/people/serge-belongie/">www</a>]</li>
+        <li>David Kline - Academic advisor [<a href="http://scrippsscholars.ucsd.edu/dkline/biocv">www</a>]</li>
+		<li>Ben Neal - Academic advisor [<a href="http://catlinseaviewsurvey.com/benjamin-neal">www</a>]</li>
+        <li>Gregory Mitchell - Academic advisor [<a href="http://spg.ucsd.edu/People/Greg/">www</a>]</li>
+        <li>Devang Sampat - developer (Alumni)</li>
+        <li>Andrew Hu - developer (Alumni)</li>
+        <li>Jeff Sandvik - developer (Alumni)</li>  
+    </ul>
 
-<h3>Development team:</h3>
-    <table class="people">
-        <tr>
-            <td><img width="150" src="{% static "img/mugshots/oscar-beijbom.jpg" %}"></td>
-            <td>
-                <b>Oscar Beijbom - Project Manager</b>
-                <p>
-                    Previously lead developer of the <a href="http://www.hovding.com/"><span class="s1">Hovding invisible bicycle helmet</span></a>, Oscar is now a 								PhD candidate at the Computer Science & Engineering Department at the University of California, San Diego. His research focuses on automating the scientific	analysis of reef survey images, using elements from texture recognition, color analysis, and machine learning. <a href="http://vision.ucsd.edu/~beijbom/website/"><span class="s1">http://vision.ucsd.edu/~beijbom/website/</span></a>
-                </p>
-            </td>
-        </tr>
-        <tr>
-            <td></td>
-            <td>
-                <b>Stephen Chan - Lead Developer</b>
-						<p>
-							Stephen is a Masters student at the Computer Science department of the University of California, San Diego. His interests include user 							interfaces, websites, and game programming.
-						</p>
-            </td>
-        </tr>
-		 <tr> 
-            <td><img width="150" src="{% static "img/mugshots/devang-sampat.jpg" %}"></td>
-            <td>            
-                <b>Devang Sampat</b>
-                <p>Devang received his B.S. in Computer Science from the University of California, San Diego in 2013. He worked on CoralNet in the early days while at UCSD. He is currently a Software Developer at Hulu.</p>
-            </td>
+    <h2>Press</h2>
+    <ul >
+    <li>September 2016: CoralNet featured in the GTC keynote (at 0:0:52) [<a href = "https://www.youtube.com/watch?v=npzRyTimcZo">www</a>]. </li>
+
+    <li>August 2016: CoralNet featured in the Nature Toolbox section [<a href = "http://www.nature.com/news/computers-on-the-reef-1.20497">www</a>]. </li>
+
+    <li>June 2016: NVIDIA blog post about my work on deep learning for coral ecology [<a href = "https://blogs.nvidia.com/blog/2016/06/22/deep-learning-save-coral-reefs/">www</a>]. </li>
+
+    <li >Nov 2014: Jonathan Cohen at NVIDIA highlights CoralNet in his talk at the SuperComputer conference. CoralNet section starts at 9.30 [<a href="http://on-demand.gputechconf.com/supercomputing/2014/video/SC411-machine-learning-computational-researchers.html">www</a>].</li>
+
+    <li >May 2014: Destin at SmarterEveryDay follows the data collected by the Catlin Seaview Survey all the way to CoralNet [<a href="https://www.youtube.com/watch?v=az1PTIehYKI">www</a>].</li> 
             
-	    </tr>
+    <li >September 2013: Greenwire covers CoralNet [<a href="http://www.eenews.net/greenwire/stories/1059986651">www</a>]. </li>
 
-        <tr> 
-            <td><img width="150" src="{% static "img/mugshots/andrew-hu.jpg" %}"></td>
-            <td>            
-                <b>Andrew Hu</b>
-                <p>Andrew is a third-year Computer Science undergratuate at the University of California, San Diego.</p>
-            </td>
-            
-	    </tr>
-        <tr>
-            <td><img width="150" src="{% static "img/mugshots/jeff-sandvik.png" %}"></td>
-            <td>
-                <b>Jeff Sandvik</b>
-                <p>
-                    Jeff is a fourth-year Computer Science undergraduate at University of California, San Diego.
-                </p>
-            </td>
-        </tr>
-    </table>
-<h3>Advisory team</h3>
-    <table class="people">
-        <tr>
-            <td><img width="150" src="{% static "img/mugshots/david-kriegman.png" %}"></td>
-            <td>
-                <b>David Kriegman</b>
-                <p>
-                    In September 2002, David joined the Computer Science & Engineering Department at the University of
-                    California, San Diego. Previously, he was on the faculty at Computer Science Department
-                    and Beckman Institute at the University of Illinois at Urbana-Champaign and the Center
-                    for Computational Vision and Control and Electrical Engineering Department at Yale University.
-                    <a href="http://cseweb.ucsd.edu/~kriegman/">http://cseweb.ucsd.edu/~kriegman/</a>
-                </p>
-            </td>
-        </tr>
-        <tr>
-            <td><img width="150" src="{% static "img/mugshots/serge-belongie.jpg" %}"></td>
-            <td>
-                <b>Serge Belongie</b>
-                <p>
-                    Serge Belongie received the B.S. degree (with honor) in Electrical Engineering from the California
-                    Institute of Technology in 1995 and the M.S. and Ph.D.
-                    degrees in Electrical Engineering and Computer Sciences (EECS) at U.C. Berkeley in 1997 and 2000,
-                    respectively. While at Berkeley, his research was supported by a National Science Foundation Graduate
-                    Research Fellowship. He is also a co-founder of Digital Persona, Inc., and the principal architect
-                    of the Digital Persona fingerprint recognition algorithm. He is currently a Professor in the Computer
-                    Science and Engineering Department at U.C. San Diego.
-                    <a href="http://cseweb.ucsd.edu/~sjb/">http://cseweb.ucsd.edu/~sjb/</a>
-                </p>
-            </td>
-        </tr>
-        <tr>
-            <td ><img width="150" src="{% static "img/mugshots/david-kline.jpg" %}"></td>
-            <td>
-                <b>David Kline</b>
-						<p>
-							David is a coral reef biologist at the Scripps Institution of Oceanography who studies the fate of coral reefs in a high CO2 future on molecular to ecosystem scales. In particular he collaborates with computer vision scientists, engineers, chemists and physiologists to develop new techniques for studying the impact ofclimate change on coral reefs.
-							<a href="http://scrippsscholars.ucsd.edu/dkline/biocv">http://scrippsscholars.ucsd.edu/dkline/biocv</a>
-						</p>
-            </td>
-        </tr>
-        <tr>
-            <td><img width="150" src="{% static "img/mugshots/tali-treibitz.jpg" %}"></td>
-            <td>
-                <b>Tali Treibitz</b>
-			       <p>
-						Tali Treibitz received her BA degree in computer science and her PhD
-        				in Electrical Engineering, from the Technion-Israel Institute of
-				      Technology in 2001 and 2010, respectively. Between 2010-2013 she has been a
-				      post-doctoral researcher in the department of computer science and
-                  engineering, in the University of California, San Diego and in the
-        				Marine Physical Lab in Scripps Institution of Oceanography. She is currently heading the marine sensing lab in the school of Marine Sciences in 						the University of Haifa. <a href="http://vision.ucsd.edu/~tali/"><span class="s1">http://vision.ucsd.edu/~tali/</span></a>
-					</p>
-            </td>
-        </tr>
-        <tr>
-            <td><img width="150" src="{% static "img/mugshots/ben-neal.jpg" %}"></td>
-            <td>
-                <b>Ben Neal</b>
-			       <p>
-						After finishing his PhD at the Scripps Institution of Oceanography, investigating how corals respond to high temperature water stress connected 						to global warming, Ben is now a postdoctoral researcher with the Catlin Seaview Survey, based at the University of Queensland Global Change 							Institute <a href="http://catlinseaviewsurvey.com/"><span class="s1">http://catlinseaviewsurvey.com/</span></a>. CoralNet is essential to this 							project for processing the largest volume of coral reef benthic imagery ever collected. 
-					</p>
-            </td>
-        </tr>
-        <tr>
-            <td><img width="150" src="{% static "img/mugshots/greg-mitchell.jpg" %}"></td>
-            <td>
-                <b>Gregory Mitchell</b>
-                <p>
-                    Dr. B. Greg Mitchell is a Research Biologist and Senior Lecturer at the University of California
-                    San Diego, Scripps Institution of Oceanography (SIO).
-                    <a href="http://spg.ucsd.edu/People/Greg/">http://spg.ucsd.edu/People/Greg/</a>
-                </p>
-            </td>
-        </tr>
-    </table>
+</ul>
+
+    <h2>Changelog</h2>
 
 {% endblock %}
 

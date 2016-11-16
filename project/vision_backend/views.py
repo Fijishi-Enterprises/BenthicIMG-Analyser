@@ -69,7 +69,9 @@ def backend_main(request, source_id):
     })
     
     cc = source.get_latest_robot()
-    if not 'valres' in request.session.keys() or ('ccpk' in request.session.keys() and not request.session['ccpk'] == cc.pk):
+    if 'valres' in request.session.keys() and 'ccpk' in request.session.keys() and request.session['ccpk'] == cc.pk:
+        pass
+    else:
         valres = source.get_latest_robot().valres
         request.session['valres'] = valres
         request.session['ccpk'] = cc.pk

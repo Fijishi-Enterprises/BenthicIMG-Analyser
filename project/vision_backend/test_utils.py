@@ -6,7 +6,7 @@ from lib.test_utils import BaseTest, ClientTest
 from vision_backend import utils
 
 from images.models import Source
-from labels.models import Label, LocalLabel
+from labels.models import Label, LabelGroup, LocalLabel
 
 
 class TestLabelSetMapper(ClientTest):
@@ -30,7 +30,10 @@ class TestLabelSetMapper(ClientTest):
 
 
     def test_full(self):
-        classmap, classnames = utils.labelset_mapper('full', [1, 2], self.source)
+        pklist = []
+        pklist.append(Label.objects.get(name = 'A').pk)
+        pklist.append(Label.objects.get(name = 'B').pk)
+        classmap, classnames = utils.labelset_mapper('full', pklist, self.source)
         
         # classmap is always identity for the full labelset
         for i in range(2):
@@ -41,8 +44,11 @@ class TestLabelSetMapper(ClientTest):
         
         self.assertEqual(len(classnames), 2)
 
-    def test_full_inverse(self):   
-        classmap, classnames = utils.labelset_mapper('full', [2, 1], self.source)
+    def test_full_inverse(self):  
+        pklist = []
+        pklist.append(Label.objects.get(name = 'B').pk)
+        pklist.append(Label.objects.get(name = 'A').pk) 
+        classmap, classnames = utils.labelset_mapper('full', pklist, self.source)
         
         # classmap is always identity for the full labelset
         for i in range(2):
@@ -54,7 +60,10 @@ class TestLabelSetMapper(ClientTest):
         self.assertEqual(len(classnames), 2)
 
     def test_full_skip(self):
-        classmap, classnames = utils.labelset_mapper('full', [3, 1], self.source)
+        pklist = []
+        pklist.append(Label.objects.get(name = 'C').pk)
+        pklist.append(Label.objects.get(name = 'A').pk)
+        classmap, classnames = utils.labelset_mapper('full', pklist, self.source)
         
         # classmap is always identity for the full labelset
         for i in range(2):
@@ -68,7 +77,11 @@ class TestLabelSetMapper(ClientTest):
         self.assertEqual(len(classnames), 2)
 
     def test_func(self):
-        classmap, classnames = utils.labelset_mapper('func', [1, 2], self.source)
+        pklist = []
+        pklist.append(Label.objects.get(name = 'A').pk)
+        pklist.append(Label.objects.get(name = 'B').pk)
+
+        classmap, classnames = utils.labelset_mapper('func', pklist, self.source)
         self.assertEqual(len(classnames), 1)
         self.assertEqual(len(classmap.keys()), 2)
         self.assertEqual(classmap[0], 0)
@@ -76,7 +89,11 @@ class TestLabelSetMapper(ClientTest):
 
         self.assertTrue('GroupA' in classnames[0])
 
-        classmap, classnames = utils.labelset_mapper('func', [1, 4], self.source)
+        pklist = []
+        pklist.append(Label.objects.get(name = 'A').pk)
+        pklist.append(Label.objects.get(name = 'AA').pk)
+        
+        classmap, classnames = utils.labelset_mapper('func', pklist, self.source)
         self.assertEqual(len(classnames), 2)
         self.assertEqual(len(classmap.keys()), 2)
         self.assertEqual(classmap[0], 0)
@@ -85,7 +102,11 @@ class TestLabelSetMapper(ClientTest):
         self.assertEqual('GroupA', classnames[0])
         self.assertEqual('GroupB', classnames[1])
 
-        classmap, classnames = utils.labelset_mapper('func', [4, 1], self.source)
+        pklist = []
+        pklist.append(Label.objects.get(name = 'AA').pk)
+        pklist.append(Label.objects.get(name = 'A').pk)
+
+        classmap, classnames = utils.labelset_mapper('func', pklist, self.source)
         self.assertEqual(len(classnames), 2)
         self.assertEqual(len(classmap.keys()), 2)
         self.assertEqual(classmap[0], 0)
@@ -95,7 +116,12 @@ class TestLabelSetMapper(ClientTest):
         self.assertEqual('GroupA', classnames[1])
 
 
-        classmap, classnames = utils.labelset_mapper('func', [1, 2, 4], self.source)
+        pklist = []
+        pklist.append(Label.objects.get(name = 'A').pk)
+        pklist.append(Label.objects.get(name = 'B').pk)
+        pklist.append(Label.objects.get(name = 'AA').pk)
+
+        classmap, classnames = utils.labelset_mapper('func', pklist, self.source)
         self.assertEqual(len(classnames), 2)
         self.assertEqual(len(classmap.keys()), 3)
         self.assertEqual(classmap[0], 0)
@@ -105,8 +131,12 @@ class TestLabelSetMapper(ClientTest):
         self.assertEqual('GroupA', classnames[0])
         self.assertEqual('GroupB', classnames[1])
 
+        pklist = []
+        pklist.append(Label.objects.get(name = 'AA').pk)
+        pklist.append(Label.objects.get(name = 'A').pk)
+        pklist.append(Label.objects.get(name = 'B').pk)
 
-        classmap, classnames = utils.labelset_mapper('func', [4, 1, 2], self.source)
+        classmap, classnames = utils.labelset_mapper('func', pklist, self.source)
         self.assertEqual(len(classnames), 2)
         self.assertEqual(len(classmap.keys()), 3)
         self.assertEqual(classmap[0], 0)

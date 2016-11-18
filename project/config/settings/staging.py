@@ -16,4 +16,4 @@ EMAIL_FILE_PATH = SITE_DIR.child('tmp').child('emails')
 #
 # When you update this, run the makenginxconfig management command
 # to regenerate the nginx config file.
-NGINX_ALLOWED_HOSTS = ['*.us-west-2.compute.amazonaws.com']
+NGINX_ALLOWED_HOSTS = ['ec2-35-162-62-60.us-west-2.compute.amazonaws.com']

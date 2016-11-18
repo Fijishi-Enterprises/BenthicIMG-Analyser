@@ -6,7 +6,7 @@ from django.template.loader import render_to_string
 
 class Command(BaseCommand):
 
-    help = "Generates the nginx.conf file"
+    help = "Generates the nginx.conf file."
 
     def handle(self, *args, **options):
         try:
@@ -22,6 +22,7 @@ class Command(BaseCommand):
         with open(conf_file, 'w') as fp:
             fp.write(render_to_string('nginx_template.conf', {
                 'nginx_allowed_hosts': nginx_allowed_hosts_str,
+                'use_https': settings.SESSION_COOKIE_SECURE,
             }))
 
         self.stdout.write(self.style.SUCCESS(

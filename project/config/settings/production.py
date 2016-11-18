@@ -28,6 +28,14 @@ ALLOWED_HOSTS = ['127.0.0.1']
 # to regenerate the nginx config file.
 NGINX_ALLOWED_HOSTS = ['coralnet.ucsd.edu']
 
+# Use HTTPS.
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+# This setting is needed since our nginx config connects to Django with a
+# non-HTTPS proxy_pass.
+# https://docs.djangoproject.com/en/dev/ref/settings/#secure-proxy-ssl-header
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 # Absolute path to the directory which static files should be collected to.
 # Example: "/home/media/media.lawrence.com/static/"
 #

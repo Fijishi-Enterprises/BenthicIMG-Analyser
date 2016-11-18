@@ -19,3 +19,8 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 # the host is validated against ['localhost', '127.0.0.1', '[::1]'].
 # https://docs.djangoproject.com/en/dev/ref/settings/#allowed-hosts
 ALLOWED_HOSTS = []
+
+# No HTTPS.
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = False
+SECURE_PROXY_SSL_HEADER = None

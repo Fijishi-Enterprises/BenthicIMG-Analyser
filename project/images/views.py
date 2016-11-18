@@ -50,7 +50,6 @@ def source_list(request):
     return render(request, 'images/source_list.html', {
         'your_sources': your_sources_dicts,
         'map_sources': get_map_sources(),
-        'google_maps_api_key': settings.GOOGLE_MAPS_API_KEY,
         'other_public_sources': other_public_sources,
     })
 

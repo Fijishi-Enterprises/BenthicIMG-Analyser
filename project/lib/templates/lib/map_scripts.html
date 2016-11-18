@@ -1,0 +1,17 @@
+{% load google_maps_api_url jsonify from common_tags %}
+
+<script type="text/javascript">
+  {# This function should be called after Google Maps loads. #}
+  function initMap() {
+    CNMap.init({
+      'mapSources': {{ map_sources|jsonify }}
+    });
+  }
+</script>
+
+{# This Google Maps script tag can take some time to load, so #}
+{# we've made it non-blocking. #}
+{# https://developers.google.com/maps/documentation/javascript/tutorial#Loading_the_Maps_API #}
+{# https://www.sitepoint.com/non-blocking-async-defer/ #}
+<script async defer type="text/javascript"
+        src="{% google_maps_api_url 'initMap' %}"></script>

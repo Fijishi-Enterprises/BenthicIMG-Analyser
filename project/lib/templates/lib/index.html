@@ -1,6 +1,5 @@
 {% extends "base.html" %}
 
-{% load jsonify from common_tags %}
 {% load thumbnail %}
 
 {% block js-includes %}
@@ -72,10 +71,9 @@
     </p>
 </div>
 
+{% include 'lib/map_scripts.html' with map_sources=map_sources %}
+
 <script type="text/javascript">
-    CNMap.init({
-        'mapSources': {{ map_sources|jsonify }}
-    });
     $(document).ready(function(){
         $('.carousel').carousel({ interval:3500 });
     });

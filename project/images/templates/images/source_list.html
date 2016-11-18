@@ -1,7 +1,5 @@
 {% extends "base.html" %}
 
-{% load jsonify from common_tags %}
-
 {% block js-includes %}
   {% include "javascript-includes.html" with map="yes" %}
 {% endblock %}
@@ -37,10 +35,6 @@
     {% endfor %}
   </ul>
 
-  <script type="text/javascript">
-      CNMap.init({
-          'mapSources': {{ map_sources|jsonify }}
-      });
-  </script>
+  {% include 'lib/map_scripts.html' with map_sources=map_sources %}
 
 {% endblock %}

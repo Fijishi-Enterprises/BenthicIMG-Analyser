@@ -352,8 +352,9 @@ BROWSE_DEFAULT_THUMBNAILS_PER_PAGE = 20
 MAP_IMAGE_COUNT_TIERS = [100, 500, 1500]
 
 # [Custom setting]
-# Go to https://code.google.com/apis/console/ and get an API key
-GOOGLE_MAPS_API_KEY = get_secret("GOOGLE_MAPS_API_KEY")
+# https://developers.google.com/maps/faq - "How do I get a new API key?"
+# It seems that development servers don't need an API key though.
+GOOGLE_MAPS_API_KEY = get_secret("GOOGLE_MAPS_API_KEY", required=False)
 
 # [Custom settings]
 GOOGLE_ANALYTICS_CODE = get_secret("GOOGLE_ANALYTICS_CODE", required=False)

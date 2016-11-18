@@ -323,6 +323,9 @@ POINT_PATCH_FILE_PATTERN = \
     '{full_image_path}.pointpk{point_pk}.thumbnail.jpg'
 PROFILE_AVATAR_FILE_PATTERN = 'avatars/{name}{extension}'
 
+# [Custom setting]
+MAINTENANCE_STATUS_FILE_PATH = SITE_DIR.child('tmp').child('maintenance.json')
+
 # [Custom settings] Special users
 IMPORTED_USERNAME = "Imported"
 ROBOT_USERNAME = "robot"

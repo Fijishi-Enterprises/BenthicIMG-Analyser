@@ -3,7 +3,8 @@
 
 import json
 import os.path
-from datetime import datetime, timedelta
+import pytz
+from datetime import datetime
 from django import template
 from django.conf import settings
 from django.contrib.staticfiles import finders
@@ -34,69 +35,15 @@ def jsonify(object):
     return mark_safe(json.dumps(object))
 
 
-# Usage: {% set_maintenance_time "9:00 PM" as maintenance_time %}
 @register.simple_tag
-def set_maintenance_time(datetime_str):
-
-    # Acceptable datetime formats.
-    datetime_format_strs = dict(
-        time = '%I:%M %p',                        # 12:34 PM
-        day_and_time = '%b %d %I:%M %p',          # Jun 24 12:34 PM
-        year_day_and_time = '%Y %b %d %I:%M %p',  # 2008 Jun 24 12:34 PM
-    )
-    datetime_obj = None
-    now = timezone.now()
-
-    # Parse the input, trying each acceptable datetime format.
-    # Then infer the full date and time.
-    for key, datetime_format_str in datetime_format_strs.iteritems():
-        try:
-            input = datetime.strptime(datetime_str, datetime_format_str)
-            input = timezone.make_aware(input, timezone.get_current_timezone())
-
-            if key == 'time':
-                # Just the hour and minute were given.
-                naive_datetime_obj = datetime(
-                    now.year, now.month, now.day, input.hour, input.minute)
-                datetime_obj = timezone.make_aware(
-                    naive_datetime_obj, timezone.get_current_timezone())
-                # To find whether the intended day is yesterday,
-                # today, or tomorrow, assume that the admin meant a time
-                # within 12 hours (either way) from now.
-                if datetime_obj - now > timedelta(0.5):
-                    # e.g. datetime_obj = 11 PM, now = 1 AM
-                    # Assume datetime_obj should be in the previous day,
-                    # meaning we went under maintenance 2 hours ago.
-                    datetime_obj = datetime_obj - timedelta(1)
-                elif now - datetime_obj > timedelta(0.5):
-                    # e.g. datetime_obj = 1 AM, now = 11 PM
-                    # Assume datetime_obj should be in the next day,
-                    # meaning we plan to go under maintenance in 2 hours.
-                    datetime_obj = datetime_obj + timedelta(1)
-            elif key == 'day_and_time':
-                # The month, day, hour, and minute were given.
-                naive_datetime_obj = datetime(
-                    now.year, input.month, input.day,
-                    input.hour, input.minute)
-                datetime_obj = timezone.make_aware(
-                    naive_datetime_obj, timezone.get_current_timezone())
-                # Unlike the 'time' case, we won't bother dealing with
-                # the 'maintenance next year' or 'maintenance last year'
-                # corner case here. Adding/subtracting 1 year is sketchy
-                # due to leap years.
-                # Just be sure to use the 'year_day_and_time' case if it's
-                # close to the new year.
-            elif key == 'year_day_and_time':
-                # The full date and time were given.
-                datetime_obj = input
-
-            # We've got the date and time, so we're done.
-            break
-
-        except ValueError:
-            continue
-
-    return datetime_obj
+def get_maintenance_time():
+    try:
+        with open(settings.MAINTENANCE_STATUS_FILE_PATH, 'r') as json_file:
+            params = json.load(json_file)
+            naive_utc_time = datetime.utcfromtimestamp(params['timestamp'])
+            return timezone.make_aware(naive_utc_time, pytz.timezone("UTC"))
+    except IOError:
+        return None
 
 
 @register.filter

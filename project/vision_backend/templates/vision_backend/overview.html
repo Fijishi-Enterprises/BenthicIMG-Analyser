@@ -1,11 +1,5 @@
 {% extends "base.html" %}
 
-<style>
-body {color: #222; } 
-p {color: #222; } 
-</style>
-
-
 {% block content %}
 
 <table class="detail_table_popup">
@@ -23,12 +17,12 @@ p {color: #222; }
     </tr>
     {% for source in laundry_list %}
         {% if source.need_attention %}
-            <tr style="background-color:#988">
+            <tr style="background-color:red;color:#000">
         {% else %}
             {% if source.has_robot %}
-                <tr style="background-color:#898">
+                <tr style="background-color:green;color:#000">
             {% else %}
-                <tr style="background-color:gray">
+                <tr style="background-color:gray;color:#000">
             {% endif %}
         {% endif %}
         <td> <a href="{% url 'source_main' source.id %}">{{source.id}}</a></td>

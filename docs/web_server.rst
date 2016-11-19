@@ -98,9 +98,10 @@ Get a free TLS certificate using `Let's Encrypt <https://letsencrypt.org/getting
   - Ensure you see the default nginx page at the website URL
 
 - Ensure that the server allows all IPs on port 80 and 443
-- ``wget https://dl.eff.org/certbot-auto``
-- ``chmod a+x certbot-auto``
-- ``./certbot-auto certonly --webroot-path /usr/share/nginx/html``, select webroot option, enter email, agree, enter FQDN
+- ``sudo apt-get install letsencrypt``
+- ``letsencrypt certonly --webroot -w /usr/share/nginx/html -d <domain (FQDN)>``
+- Enter email address if prompted
+- Agree to TOS if prompted
 - Turn the coralnet site back on
 
   - ``sudo ln -s /etc/nginx/sites-available/coralnet /etc/nginx/sites-enabled``
@@ -112,6 +113,7 @@ Notes:
 
 - Let's Encrypt certificates expire after 3 months. So either get set up with their system of certificate auto-renewal, or remember to make a new certificate before the 3 months are up (there is a reminder-email option).
 - Let's Encrypt issues "domain-validated" TLS certificates. There are `different levels of TLS certificates <http://security.stackexchange.com/questions/13453/are-all-ssl-certificates-equal>`__, although whether those levels matter for security is up for debate.
+- LE seems to reject all EC2 domains as part of its policy. `Link <https://community.letsencrypt.org/t/policy-forbids-issuing-for-name-on-amazon-ec2-domain/12692>`__ - "amazonaws.com happens to be on the blacklist Let's Encrypt uses for high-risk domain names (i.e. phishing targets, etc.)."
 
 
 .. _postfix:
@@ -120,12 +122,14 @@ Email server - Postfix
 ----------------------
 - *Production server*
 
-Postfix seems to be recommended for a simple outgoing-only mail server. Run: ``sudo apt-get install postfix``
+Postfix seems to be recommended for a simple outgoing-only mail server.
 
+- Enlarge the SSH window as much as you can so the install choices aren't invisible to you. (If you messed up here, force kill the SSH session and try again.)
+- Run: ``sudo apt-get install postfix``
 - Choose "Internet site: Mail is sent and received directly using SMTP."
 - FQDN: e.g. ``subdomain.example.com``
 
-To add our SSL certificate, add or edit the following lines in ``/etc/postfix/main.cf``:
+To add our SSL certificate, open ``/etc/postfix/main.cf`` with sudo, and add or edit the following lines:
 
 ::
 
@@ -149,7 +153,7 @@ Updating the server code
 
 Steps:
 
-#. Put up the maintenance message. Set the maintenance time to be at least several minutes after the current time. That way, users have some advance warning before you actually start messing with the site. (TODO: Detail on the maintenance message)
+#. Put up the maintenance message: ``python manage.py maintenanceon``. Ensure the start time gives users some advance warning.
 #. Wait until your specified maintenance time begins.
 #. :ref:`Set up your Python/Django environment <script_environment_setup>`.
 #. :ref:`Stop gunicorn <script_server_stop>`.
@@ -173,9 +177,9 @@ Steps:
 #. If there are any new Django migrations to run, then run those: ``python manage.py migrate``. New migrations should be tested in staging before being run in production.
 #. :ref:`Start gunicorn again <script_server_start>`.
 #. Check a couple of pages to confirm that things are working.
-#. Take down the maintenance message.
+#. Take down the maintenance message: ``python manage.py maintenanceoff``
 
-(TODO: Any steps for the vision backend?)
+(TODO: Does the vision backend have to be stopped before updating code?)
 
 
 Getting the latest nginx

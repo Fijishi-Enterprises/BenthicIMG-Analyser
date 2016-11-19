@@ -44,12 +44,36 @@ The assumption is that this kind of server does not get restarted regularly, hen
 Server start - Linux production/staging servers
 -----------------------------------------------
 
-This sets up the environment (by calling the script above) and then runs gunicorn.
-
 ::
 
+  # Set up the Python/Django environment.
   source <environment setup script>.sh
-  gunicorn config.wsgi:application --config=config.gunicorn &
+
+  echo "(Re)starting gunicorn."
+  pkill gunicorn
+  gunicorn config.wsgi:application --config=config/gunicorn.py &
+
+  # Start redis, but only if it's not already running.
+  # http://stackoverflow.com/a/9118509/
+  ps cax | grep redis-server > /dev/null
+  if [ $? -eq 0 ]; then
+    echo "redis-server is already running."
+  else
+    echo "Starting redis-server."
+    redis server &
+  fi
+
+  # (Re)start celery processes.
+  # It's probably possible to check what's already running, and only start
+  # stuff as needed. If you know how, implement that here.
+  echo "(Re)starting celery processes."
+  pkill celery
+  # Worker(s).
+  celery worker --app=config --loglevel=info &
+  # Scheduler which creates tasks.
+  celery beat --app=config --loglevel=info &
+  # Task viewer.
+  celery flower --app=config &
 
 
 .. _script_server_stop:
@@ -57,12 +81,11 @@ This sets up the environment (by calling the script above) and then runs gunicor
 Server stop - Linux production/staging servers
 ----------------------------------------------
 
-This kills all running gunicorn processes (one master and one or more workers).
-
-(TODO: Add a "the site is down for maintenance" HTML that's served by nginx when gunicorn is down.)
+This just kills all running gunicorn processes (one master and one or more workers). The purpose here is just to allow the Django code to be updated, so redis and celery don't need to be stopped.
 
 ::
 
+  echo "Stopping gunicorn."
   pkill gunicorn
 
 

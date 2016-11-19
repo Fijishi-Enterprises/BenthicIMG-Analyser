@@ -16,7 +16,7 @@ You also need to install the actual redis program with is a message broker. On m
 
 - brew install redis
 
-On ubuntu, this will probably work:
+On Ubuntu 16.04:
 
 - sudo apt-get install redis-server
 

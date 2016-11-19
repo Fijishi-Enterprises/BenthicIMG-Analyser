@@ -22,6 +22,8 @@ class Command(BaseCommand):
         with open(conf_file, 'w') as fp:
             fp.write(render_to_string('nginx_template.conf', {
                 'nginx_allowed_hosts': nginx_allowed_hosts_str,
+                'site_dir': settings.SITE_DIR,
+                'static_root': settings.STATIC_ROOT,
                 'use_https': settings.SESSION_COOKIE_SECURE,
             }))
 

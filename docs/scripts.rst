@@ -46,6 +46,9 @@ Server start - Linux production/staging servers
 
 ::
 
+  # Remove the nginx-served maintenance message if it exists.
+  rm -f /srv/www/tmp/maintenance.html
+
   # Set up the Python/Django environment.
   source <environment setup script>.sh
 
@@ -81,12 +84,19 @@ Server start - Linux production/staging servers
 Server stop - Linux production/staging servers
 ----------------------------------------------
 
-This just kills all running gunicorn processes (one master and one or more workers). The purpose here is just to allow the Django code to be updated, so redis and celery don't need to be stopped.
-
 ::
 
+  # Stop all gunicorn processes.
+  # The purpose here is just to allow the Django code to be updated,
+  # so redis and celery don't need to be stopped.
   echo "Stopping gunicorn."
   pkill gunicorn
+
+  # Create an HTML file with a maintenance message.
+  # Our nginx config should detect a maintenance HTML at this location,
+  # and serve it if it exists.
+  echo "CoralNet is under maintenance. We'll be back as soon as we can!" > \
+    /srv/www/tmp/maintenance.html
 
 
 Staging sync - Database

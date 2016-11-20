@@ -29,6 +29,10 @@ urlpatterns = [
         TemplateView.as_view(template_name='lib/about.html'),
         name='about',
     ),
+    url(r'^release/$',
+        TemplateView.as_view(template_name='lib/release_notes.html'),
+        name='release',
+    ),
     url(r'^contact/$', lib_views.contact, name='contact'),
 
     # "Secret" dev views

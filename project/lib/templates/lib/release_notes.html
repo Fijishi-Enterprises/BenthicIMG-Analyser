@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% load static from staticfiles %}
+
+{% block page-specific-includes %}
+    {% include "static-local-include.html" with type="css" path="css/infopage.css" %}
+{% endblock %}
+
+{% block content %}
+
+<div class="center">
+
+<h1>CoralNet Release Notes</h1>
+
+<h2>Nov 2016: Beta Release</h2>
+<p>The CoralNet Beta release is a major software and systems upgrade involving most parts of the site. Below is a summary of the main changes.</p>
+
+<h3>Hardware</h3>
+<p>CoralNet Beta is hosted at Amazon Web Services (AWS). The means that the web-server, database and the image data now lives at professionally managed data-centers which guarantees virtually constant uptime strong backup and data redundancy plans.</p>
+
+<h3>Upload and image file names</h3>
+<p>All image names in a source must now be unique. This is enforced at upload. We have re-named all images with identical file-names as xxx-dupe1.jpg, xxx-dupe2.jpg, etc.</p>
+<p>We have also re-written the upload tool to allow upload of metadata and archived annotation separately from image upload.</p>
+
+<h3>Auxiliary metadata fields</h3>
+<p>Location keys have been renamed to auxiliary metadata fields, and there are now always 5 per source.</p>
+
+<h3>Browse</h3>
+<p>Filtering is now allowed on any metadata field, not just on the auxiliary metadata-fields.
+Also, image delete and upload functions now reside here. </p>
+
+<h3>Annotation work-flow</h3>
+<p>The next and previous buttons of the annotation tool now iterates over the image selection made in the browse (not called "images") page.</p>
+
+<h3>Computer vision back-end</h3>
+<p>The computer vision back-end system is rebuilt from scratch. The new system relies on deep convolutional neural networks and is deployed using a scalable cluster hosted at AWS. We have also modified some of the processing and interface logic. </p>
+
+<p>Major changes as a result of the redesign are:</p>
+<ul class="simple">
+<li>Orders of magnitude faster processing. </li>
+<li>Dedicated back-end analytics page. </li>
+<li>We have changed back to letting users directly specify the confidence threshold instead of the previous "alleviate" threshold. </li>
+<li>The back-end does no longer run each 24 hours, but a job will be triggered immediately after upload. You can therefore expect an uploaded image to be automatically annotated within minutes of upload.</li>
+<li>According to our experiments we further expect the actual <i>accuracy</i> to increase significantly.</li>
+</ul>
+<p>Note that we have to re-process ALL IMAGES already uploaded on the site. There will be delays initially because of this.</p>
+
+<h3>Labelset logic</h3>
+<p>We have made several update to the way labels are handled in CoralNet.</p>
+<ul class="simple">
+<li>While the labels themselves remain global, we now allow users to set the label-codes on a source level The allows a uniform set of codes for everyone while still sharing the labels themselves.</li>
+<li>Labels can now be edited if (and only if) (1) no-one else is using the label and (2) the labelset-committee hasn't already verified it [see below].
+<li>Source label-sets, including the custom label-codes, can be exported into a simple CSV file format and then re-uploaded to another source</li>
+<li>We have added a popularity fields to encourage emergence of labels used and shared by multiple groups. This is to encourage and make easier meta-analysis across projects.</li>
+</ul>
+
+<h3>Labelset committee</h3>
+<p>We have created the software infrastructure to support a labelset committee (LSC). The long-term goal of the LSC to encourage and shepherd the community towards a unified set of global labels.</p> 
+
+<p>In practice, the LSC will be responsible for maintaining the global labelset with emphasis on:</p>
+<ul class="simple">
+<li>Ensure consistent label names.</li>
+<li>Ensure that label descriptions are sufficient.</li>
+<li>Update species and general as the scientific literature evolves.</li>
+</ul>
+<p>The labelset committee will therefore have authority to edit any label on the site. Labels inspected, and maintained by the LSC will be designated as "verified", and the user interface will encourage future label-sets to include as many verified labels as possible. As the LSC goes through existing set of labels and find duplicates, the one that is most commonly used will be chosen as verified. </p>
+
+<p>NOTE: no labels will be deleted from the site, and users can still create any labels they want. </p>
+
+{% endblock %}
+

@@ -398,8 +398,8 @@ LOGGING = {
 
 }
 
-# Regression tests
-REGRESSION_FIXTURES_ROOT = SITE_DIR.child('coralnet_regtests_fixtures')
+# Name of the CoralNet regtests S3 bucket.
+REGTEST_BUCKET = 'coralnet-regtest-fixtures'
 
 # [Custom setting]
 # Verbosity of print messages printed by our unit tests' code. Note that

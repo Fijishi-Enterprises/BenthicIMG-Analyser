@@ -3,6 +3,7 @@ import json
 import glob
 import csv
 import sys
+import boto
 
 import os.path as osp
 
@@ -22,7 +23,7 @@ from test_utils import ClientTest
 
 from images.models import Source, Image
 from labels.models import LabelGroup, Label, LabelSet, LocalLabel
-
+from lib.utils import direct_s3_read
 
 
 
@@ -53,12 +54,19 @@ class RegressionTest(ClientTest):
                 user.save()
         
         # Setup path to source_id fixtures.
-
-        self.source_root = osp.join(settings.REGRESSION_FIXTURES_ROOT, 'sources', 's{}'.format(source_id))
-        self.annfile = osp.join(self.source_root, 'imdict.p')
+        self.annfile = 'sources/s{}/imdict.p'.format(source_id)
+        self.imdir = 'sources/s{}/imgs/'.format(source_id)
         self.sourcename = 'REGTEST_CUSTOM_SOURCE_{}_{}'.format(source_id, name_suffix)
-        self.global_labelfile = osp.join(settings.REGRESSION_FIXTURES_ROOT, 'labels.json')
-        self.imfiles =  glob.glob(osp.join(self.source_root, 'imgs', '*'))
+        self.global_labelfile = 'labels.json'
+
+        # List images.
+        conn = boto.connect_s3(
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
+        )
+        bucket = conn.get_bucket(settings.REGTEST_BUCKET)
+        imfiles = bucket.list(prefix = self.imdir)
+        self.imfiles = [member.name for member in imfiles][1:] #starting from 1 to skip root folder.
 
         # Create source and labelset.
         self._setup_source()
@@ -91,7 +99,7 @@ class RegressionTest(ClientTest):
             print "Already uploaded all images."
             return
         img = self.imfiles[self.cur]
-        
+
         sys.stdout.write(str(self.cur) + ', ')
         sys.stdout.flush()
         
@@ -114,8 +122,7 @@ class RegressionTest(ClientTest):
         self.source = self.create_source()
         
         # Find all labelnames in exported annotation file.
-        f = open(self.annfile, 'r')
-        anns = pickle.load(f)
+        anns = direct_s3_read(self.annfile, 'pickle', bucketname = settings.REGTEST_BUCKET)
         labellist = set()
         for key in anns.keys():
             for [labelname, row, col] in anns[key][0]:
@@ -158,20 +165,20 @@ class RegressionTest(ClientTest):
         This is needed b/c the upload form needs codes but the fixtures lists
         label names.
         """
-        with open(self.global_labelfile) as f:
-            (grps, lbls) = json.load(f)
+        (_, lbls) = direct_s3_read(self.global_labelfile, 'json', bucketname = settings.REGTEST_BUCKET)
+
         codedict = dict()
         for lbl in lbls:
             codedict[lbl[0]] = lbl[1]
         self.codedict = codedict
+
         return
 
     def _parse_annotations(self):
         """
         Parses exported annotation file and returns a dictionary ready to be uploaded.
         """
-        f = open(self.annfile, 'r')
-        anns = pickle.load(f)
+        anns = direct_s3_read(self.annfile, 'pickle', bucketname = settings.REGTEST_BUCKET)
         newanns = dict()
         for imname in anns.keys():
             newanns[imname] = []
@@ -186,8 +193,8 @@ class RegressionTest(ClientTest):
         Imports all labels and groups from a json file. See 
         "vision_backend/scripts.export_labels_json".
         """
-        with open(self.global_labelfile) as f:
-            (grps, lbls) = json.load(f)
+        
+        (grps, lbls) = direct_s3_read(self.global_labelfile, 'json', bucketname = settings.REGTEST_BUCKET)
 
         for grp in grps:
             self._add_functional_group(grp[0], grp[1])
@@ -255,30 +262,8 @@ class RegressionTest(ClientTest):
         :param imfile: path to the image file to upload.
         :return: The new image object.
         """
-
-        def image_to_buffer(imfile):
-            """
-            Convert imfile to buffer
-            """
-
-            filename = osp.basename(imfile)
-            filetype = osp.splitext(imfile)[-1]
-            
-            if filetype.upper() in ['.JPG', '.JPEG']:
-                filetype = 'JPEG'
-            elif filetype.upper() == '.PNG':
-                filetype = 'PNG'
-
-            im = PILImage.open(imfile)
-
-            with BytesIO() as stream:
-                im.save(stream, filetype)
-                image_file = ContentFile(stream.getvalue(), name=filename)
-            return image_file  
-
-
         post_dict = dict()        
-        post_dict['file'] = image_to_buffer(imfile)
+        post_dict['file'] = ContentFile(direct_s3_read(imfile, 'none', bucketname = settings.REGTEST_BUCKET), name=imfile)
 
         # Send the upload form
         self.client.force_login(self.user)

@@ -269,6 +269,7 @@ SSH into the beta server, activate the environment, and run these in order (corr
 - easy_thumbnails: fake 0001, run 0002 (OR run South's 0016, then fake new 0001-0002)
 - reversion: run South's 0006-0008, then fake new 0001, then run new 0002 (see details below)
 - Our apps:
+
   - accounts: fake 0001-0002
   - images: fake 0001
   - annotations: fake 0001-0003
@@ -288,7 +289,7 @@ Notable time-consuming migrations as of 2016.11:
 - reversion (South) 0006: 3 minutes
 - images 0004-0015: 55 minutes combined
 
-After running these migrations, go ahead and it's a good idea to make another snapshot of the RDS instance.
+After running these migrations, make another snapshot of the RDS instance.
 
 
 contenttypes

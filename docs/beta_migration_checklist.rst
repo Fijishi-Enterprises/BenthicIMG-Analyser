@@ -85,7 +85,7 @@ Phase 3
 
 - Wait until Saturday or IP-switch-induced downtime.
 
-- Take the alpha server down, using the first few steps of `this process <update_server_code>`__.
+- Take the alpha server down, using the first few steps of :ref:`this process <update_server_code>`.
 - Serve a simple "site is under maintenance" HTML response with nginx.
 
   - Do this on the staging server (which currently has the production elastic IP).

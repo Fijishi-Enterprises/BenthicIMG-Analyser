@@ -40,11 +40,11 @@ Go to the Amazon EC2 console. Create a Security Group which allows inbound conne
 
 Go to the Amazon RDS console. Create a PostgreSQL instance.
 
-- Select Yes or No on the "Production?" question, depending on whether it's for the production server.
+- Select No to the "Production?" question. The Yes settings are generally out of our budget.
 - Select PostgreSQL version 9.6.x.
-- Select db.m3.xlarge for production and db.t2.micro.
+- Select db.t2.medium for production, db.t2.micro for staging.
 
-  - Actually, we're not sure what are the best instance types to use, but these are the defaults for production and non-production.
+  - Again, strict budgeting here. t2.medium might still be a bit expensive for us.
 
 - Specify at least 30 GB of Allocated Storage (this is just based on our database size, about 15 GB at the end of alpha). If you answered Yes to "Production?" then the minimum might be greater than 30 GB.
 - Select Yes on the Publicly Accessible option.

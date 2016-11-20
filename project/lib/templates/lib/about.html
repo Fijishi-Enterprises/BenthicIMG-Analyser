@@ -1,75 +1,36 @@
 {% extends "base.html" %}
 {% load static from staticfiles %}
 
-{% block js-includes %}
-  {% include "javascript-includes.html" with jquery_ui="yes" %}
-{% endblock %}
-
 {% block page-specific-includes %}
-    {% include "static-local-include.html" with type="css" path="css/about.css" %}
+    {% include "static-local-include.html" with type="css" path="css/infopage.css" %}
 {% endblock %}
-
-{% block javascript-functions %}
-<script src="https://code.jquery.com/jquery-1.9.1.js" type="text/javascript"></script>
-<script type="text/javascript">
-$("a[href^='#']").click(function(){
-    var clicked = $(this).attr("href");
-    var link = $('a[data-scroll-name="' + clicked + '"]');
-    
-    $(".selected").attr("class","");
-    
-    $('body,html').animate({
-        'scrollTop':   $(link).offset().top
-    }, 1000, function() {
-    // Animation complete.
-    });
-    $(this).attr("class"," selected");
-});
-</script>
-{% endblock %}
-
 
 {% block content %}
 
-<style>
-table.people td {
-    vertical-align: middle;
-    padding: 10px
-}
-</style>
-
-
-<link href='https://fonts.googleapis.com/css?family=Roboto&subset=latin,latin-ext' rel='stylesheet' type='text/css'>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-
-<body class="show" id="pages">
-<script src="https://code.jquery.com/jquery-1.9.1.js" type="text/javascript"></script>
 
 <div class="center">
+<a class="section-anchor section-anchor-top" data-scroll-name="#main"></a>
 <h1>About CoralNet</h1>
     
-    <p class="abstract">CoralNet is a repository and a resource for benthic images analysis. The site implements
-    computer vision algorithms which allow fully- and semi- automated annotation. It also serves as a repository and collaboration platform.
-    </p>
-    <ul class="social">
+    <p class="abstract">CoralNet is a repository and a resource for benthic images analysis. The site implements computer vision algorithms which allow fully- and semi- automated annotation. It also serves as a repository and collaboration platform.</p>
+    <ul class="indexlist">
     <li class="first-item"><a href="#background">background</a></li>
     <li><a href="#site">site</a></li>
-    <li><a href="#acknowledgment">acknowledgment</a></li>
+    <li><a href="#datapolicy">data policy</a></li>
+    <li><a href="#acknowledgments">acknowledgments</a></li>
     <li><a href="#people">people</a></li>
     <li><a href="#press">press</a></li>
-    <li><a href="#changelog">changelog</a></li>
-    
     </ul>
 
-    <h2>Background</h2>
-    <a class="section-anchor" data-scroll-name="#background"></a>
+    <h2>Background<a class="section-anchor" data-scroll-name="#background"></a></h2>
     <p>Global and local stressors have caused a rapid decline of coral reefs across the world.
     To monitor the changes and take appropriate action large spatio-temporal surveys are needed. Data
-    collection speeds are typically sufficient to meet this need but the subsequent image analysis remains slow as manual inspection of each photo is required. This creates a 'manual annotation botleneck'.</p>
-    <p>CoralNet reduces this bottleneck by allowing modern computer vision algorithms to be deployed alongside human experts. Often 50-100% automation can be achieved with minimal reduction in the quality of the final data-product. CoralNet, by it’s nature, also provides a platform for collaboration & sharing of data.</p>
+    collection speeds are typically sufficient to meet this need but the subsequent image analysis remains slow as manual inspection of each photo is required. This creates a 'manual annotation bottleneck'.</p>
+    <p>CoralNet reduces this bottleneck by allowing modern computer vision algorithms to be deployed alongside human experts. Often 50-100% automation can be achieved with minimal reduction in the quality of the final data-product. CoralNet, by its nature, also provides a platform for collaboration & sharing of data.</p>
 
-    <h2>The site</h2>
-    <a class="section-anchor" data-scroll-name="#site"></a>
+    <p class="uparrow border"><a href="#main">&#9650</a></p>
+
+    <h2>The site<a class="section-anchor" data-scroll-name="#site"></a></h2>
     <p>
         The CoralNet website consist of several modules outlined below. For some (slightly outdated) information, check out our <a href="http://vimeo.com/channels/coralnet">Vimeo channel</a>.
     </p>
@@ -87,15 +48,18 @@ table.people td {
         <b>Annotation:</b> Annotate your image right in the web browser using a point count interface. When enough images are manually annotated, an automated annotator is trained. This automated annotator is integrated directly into the annotation tool and makes the remaining annotation work easier.
     </p>
 
-    <h2>Data Policy</h2>
-    <p>CoralNet are committed to protecting the data privacy of it’s users, and offer two privacy options.</p>
+    <p class="uparrow border"><a href="#main">&#9650</a></p>
+    
+    <h2>Data Policy<a class="section-anchor" data-scroll-name="#datapolicy"></a></h2>
+    <p>CoralNet are committed to protecting the data privacy of its users, and offer two privacy options.</p>
         <h4>Private</h4>
-            <p> All your images and annotations are private but the source location is shown on the world map along with the name, description, affiliation and the total number of images. We will also show thumbnails extrated from annotated image locations as part of our label browse tool. </p>
+            <p> All your images and annotations are private but the source location is shown on the world map along with the name, description, affiliation and the total number of images. We will also show thumbnails extracted from annotated image locations as part of our label browse tool. </p>
         <h4>Public</h4>
             <p> All your source images and annotation data are available for the public to browse and download (including original images in full resolution). However, only members of the source can add or edit content. </p>
 
-    <h2>Acknowledgment</h2>
-    <a class="section-anchor" data-scroll-name="#acknowledgments"></a>
+    <p class="uparrow border"><a href="#main">&#9650</a></p>
+    
+    <h2 id ="acknowledgments">Acknowledgments<a class="section-anchor" data-scroll-name="#acknowledgments"></a></h2>
     <p> CoralNet development is support by the NSF Computer Vision Coral Ecology grant #ATM-0941760 and by the National Oceanic and Atmospheric Administration (NOAA) grant No. NA10OAR4320156. The following papers are relevant to the development of CoralNet. We ask that you cite the appropriate papers if you use CoralNet in your work.</p>
     <ul>
     <li><p>O. Beijbom, P.J. Edmunds, D.I. Kline, G.B. Mitchell, D. Kriegman. <a href="http://ieeexplore.ieee.org/xpls/abs_all.jsp?arnumber=6247798&tag=1">"Automated Annotation of Coral Reef Survey Images"</a>. IEEE Conference on Computer Vision and Pattern Recognition (CVPR), Providence, Rhode Island, June, 2012.</p></li>
@@ -106,11 +70,11 @@ table.people td {
     <li><p>O. Beijbom, <a href="http://roger.ucsd.edu/record=b8984742~S9">"Automated Annotation of Coral Reef Survey Images"</a>. PhD Thesis UCSD, June 2015.</p></li>
     </ul>
 
-
-    <h2>People</h2>
+    <p class="uparrow border"><a href="#main">&#9650</a></p>
+    <h2>People<a class="section-anchor" data-scroll-name="#people"></a></h2>
     
     <ul>        
-        <li>Oscar Beijbom - Project Manager [<a href="eecs.berkeley.edu/~obeijbom/">www</a>]</li>
+        <li>Oscar Beijbom - Project Manager [<a href="http://eecs.berkeley.edu/~obeijbom/">www</a>]</li>
         <li>Stephen Chan - Lead Developer</li>
         <li>David Kriegman - PI [<a href="http://cseweb.ucsd.edu/~kriegman/">www</a>]</li>
         <li>TBD - Labelset Committee </li>
@@ -124,7 +88,8 @@ table.people td {
         <li>Jeff Sandvik - developer (Alumni)</li>  
     </ul>
 
-    <h2>Press</h2>
+    <p class="uparrow border"><a href="#main">&#9650</a></p>
+    <h2>Press<a class="section-anchor" data-scroll-name="#press"></a></h2>
     <ul >
     <li>September 2016: CoralNet featured in the GTC keynote (at 0:0:52) [<a href = "https://www.youtube.com/watch?v=npzRyTimcZo">www</a>]. </li>
 
@@ -138,9 +103,23 @@ table.people td {
             
     <li >September 2013: Greenwire covers CoralNet [<a href="http://www.eenews.net/greenwire/stories/1059986651">www</a>]. </li>
 
-</ul>
+    </ul>
 
-    <h2>Changelog</h2>
-
+    <p class="uparrow-final border"><a href="#main">&#9650</a></p>
+<script>
+$("a[href^='#']").click(function(){
+    var clicked = $(this).attr("href");
+    var link = $('a[data-scroll-name="' + clicked + '"]');
+    
+    $(".selected").attr("class","");
+    
+    $('body,html').animate({
+        'scrollTop':   $(link).offset().top
+    }, 1000, function() {
+    // Animation complete.
+    });
+    $(this).attr("class"," selected");
+});
+</script>
 {% endblock %}
 

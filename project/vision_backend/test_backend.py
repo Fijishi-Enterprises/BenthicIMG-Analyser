@@ -265,7 +265,7 @@ class ResetLabelSetTest(BackendTestWithClassifier):
         # And img1 should has 6 score (3 points * min(5, nbr_labels))
         self.assertEqual(Score.objects.filter(image_id = img1.id).count(), 3 * 2)
 
-@skip #this test is unreliable.
+
 @skipIf(not settings.DEFAULT_FILE_STORAGE == 'lib.storage_backends.MediaStorageS3', "Can't run backend tests locally")
 @skipIf(get_total_messages_in_jobs_queue() > 10, "Too many messages in backend queue. Skipping this test.")
 class ImageClassification(BackendTestWithClassifier):
@@ -311,6 +311,10 @@ class ImageClassification(BackendTestWithClassifier):
             self.assertTrue(Image.objects.get(id = img.id).features.classified)
 
         # Check the annotations. 
+        r = self.source.get_latest_robot()
+        print r.valres['classes']
+
+        
 
         # Img1 whould have only robot annotations
         for ann in Annotation.objects.filter(image_id = img1.id):

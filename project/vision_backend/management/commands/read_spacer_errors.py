@@ -4,7 +4,7 @@ from django.conf import settings
 from vision_backend.task_helpers import _read_message
 
 class Command(BaseCommand):
-    help = 'Read all spacer error messages.'
+    help = 'Read all spacer error messages. Deletes messages after they are displayed.'
 
     def handle(self, *args, **options):
         self.read_error_messages()

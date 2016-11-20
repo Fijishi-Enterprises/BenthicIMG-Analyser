@@ -4,9 +4,10 @@ from django.core import mail
 from django.core.urlresolvers import reverse
 from django.shortcuts import resolve_url
 from django.utils.html import escape
-
-from lib.test_utils import ClientTest
 from django.test.utils import override_settings
+
+from .test_utils import BaseTest, ClientTest
+from .utils import direct_s3_write, direct_s3_read
 
 
 class IndexTest(ClientTest):
@@ -25,6 +26,24 @@ class IndexTest(ClientTest):
     ],
     EMAIL_SUBJECT_PREFIX="[Sample prefix] "
 )
+
+
+class DirectS3Test(BaseTest):
+    """
+    Test the direct s3 read and write tests.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super(DirectS3Test, cls).setUpTestData()
+
+    def test_write_and_read(self):
+        var = {'A':10, 'B':20}
+        for enc in ['json', 'pickle']:
+            direct_s3_write('testkey', enc, var)
+            var_recovered = direct_s3_read('testkey', enc)
+            self.assertEqual(var, var_recovered)
+
+
 class ContactTest(ClientTest):
     """
     Test the Contact Us page.

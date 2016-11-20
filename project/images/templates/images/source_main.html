@@ -78,16 +78,17 @@ $(document).ready(function() {
         <div>
             <div style="float:left; width: 50%">
             <ul>
-                <li>Date Created: {{ source.create_date }}</li>
-            {% if not source.enable_robot_classifier %}
-                <li>Machine annotator: Disabled (can enable upon <a href="{% url 'contact' %}">request</a>)</li>
-            {% else %}
+                <li>Source created: {{ source.create_date }}</li>
+                {% if not source.enable_robot_classifier %}
+                    <li>Machine annotator: Disabled (can enable upon <a href="{% url 'contact' %}">request</a>)</li>
+                {% else %}
                 {% if robot_stats.has_robot %}
-                    <li>Last Robot run: {{robot_stats.most_recent_run_date}}</li>
+                    <li>Last classifier trained: {{robot_stats.create_date}}</li>
                 {% endif %}
             {% endif %}
             </ul>
             </div>
+            
             <div style="float:left; width: 50%">
             <ul>
                 {% if source.image_annotation_area %}
@@ -95,7 +96,7 @@ $(document).ready(function() {
                 {% endif %}
                 <li>Annotation point generation: {{ source.point_gen_method_display }}</li>
                 <li>
-                        Confidence threshold: {{ source.confidence_threshold }}% <a href="{% url 'source_edit' source.id%}">(edit)</a>
+                    Confidence threshold: {{ source.confidence_threshold }}% <a href="{% url 'source_edit' source.id%}">(edit)</a>
                 </li>
             </ul>
             </div>

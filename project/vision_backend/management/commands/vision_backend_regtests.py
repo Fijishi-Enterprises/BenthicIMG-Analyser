@@ -15,7 +15,8 @@ class Command(BaseCommand):
     help = 'Run vision backend regtests.'
 
     def add_arguments(self, parser):
-        parser.add_argument('scope', choices=['small', 'medium', 'large'], help='Chose size of regtests. Small ~ 50 images; medium ~ 250 images; large ~ 1200 images; huge ~ 10000 images total.')
+        parser.add_argument('scope', choices=['small', 'medium', 'large'], 
+            help='Chose size of regtests. Small ~ 50 images; medium ~ 400 images; large ~ 1600 images')
 
     def handle(self, *args, **options):
         scope = options['scope']

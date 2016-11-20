@@ -5,7 +5,6 @@ import random
 import shutil
 from images.models import Source, Image, Point
 from .models import Score
-from .task_helpers import _read_message
 from labels.models import Label, LabelGroup, LabelSet, LocalLabel
 
 def print_image_scores(image_id):
@@ -17,14 +16,6 @@ def print_image_scores(image_id):
         print '===', enu, point.row, point.column, '==='
         for score in Score.objects.filter(point = point):
             print score.label, score.score
-
-
-def read_error_messages():
-    message = _read_message('spacer_errors')
-    while not message == None:
-        print message.get_body()
-        message.delete()
-        message = _read_message('spacer_errors')
 
 
 def export_labels_json(filename):

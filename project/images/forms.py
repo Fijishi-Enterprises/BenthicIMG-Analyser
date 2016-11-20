@@ -432,13 +432,3 @@ class PointGenForm(Form):
 
         self.cleaned_data = data
         super(PointGenForm, self).clean()
-
-
-class LabelImportForm(Form):
-    labelset_description = CharField(
-        label='Labelset description',
-    )
-
-    labels_file = FileField(
-        label='Labels file (.txt)',
-    )

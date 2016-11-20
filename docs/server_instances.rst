@@ -35,6 +35,8 @@ Use the EC2 console to create a new EC2 instance.
 
       - By associating the EC2 instance with an IAM role, the instance's ``secrets.json`` file doesn't have to specify AWS credentials.
 
+      - Careful to not skip this: associating an IAM role with an *existing* instance isn't possible. There are only workarounds. (`Link 1 <http://stackoverflow.com/questions/23416502/>`__, `Link 2 <https://aws.amazon.com/iam/faqs/>`__)
+
     - Ensure shutdown behavior is "Stop".
 
     - Check "Protect against accidental termination".
@@ -101,7 +103,7 @@ Add users to the EC2 instance
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 `This Amazon guide <http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/managing-users.html>`__ explains that it's insecure to share the default user (we'll assume this is ``ubuntu`` for brevity) between multiple people, because "that account can cause a lot of damage to a system when used improperly." Therefore, we'll create a user per team member.
 
-Log into the EC2 instance using the ``ubuntu`` user. Ensure the :ref:`AWS CLI is installed <aws_cli_install>`.
+Log into the EC2 instance using the ``ubuntu`` user.
 
 Do the following for each team member you want to add a user for:
 
@@ -131,7 +133,7 @@ Upgrade system packages: ``sudo apt-get update`` then ``sudo apt-get upgrade`` o
 Create a ``/srv/www`` directory for putting website files. (This seems to be a recommended, standard location: `Link 1 <http://serverfault.com/questions/102569/should-websites-live-in-var-or-usr-according-to-recommended-usage>`__, `Link 2 <http://superuser.com/questions/635289/what-is-the-recommended-directory-to-store-website-content>`__)
 
 - Change the directory's group to ``www-data``: ``sudo chgrp www-data www``
-- Add your user to the ``www-data`` group: ``sudo usermod -aG www-data usernamegoeshere``
+- Add your user to the ``www-data`` group: ``sudo usermod -aG www-data <username>``
 - Check that you did it right: ``cat /etc/group``
 - If you are currently signed in as that user, logout and login to make the new permissions take effect. (`Source <http://unix.stackexchange.com/questions/96343/how-to-take-effect-usermod-command-without-logout-and-login>`__)
 - Allow group write permissions: ``sudo chmod g+w www``
@@ -145,8 +147,8 @@ Upgrading Linux packages on an EC2 instance
 When you log into Ubuntu, it should say how many updates are available. If there are one or more updates, run ``sudo apt-get update`` then ``sudo apt-get upgrade``.
 
 
-Upgrading Linux kernel/version on an EC2 instance
--------------------------------------------------
+Upgrading Linux kernel on an EC2 instance
+-----------------------------------------
 When you log into Ubuntu, it might say "System restart required". This is probably because some of the updates are part of the kernel (`Link <http://superuser.com/questions/498174/>`__).
 
 There are non-trivial ways of applying even these updates without restarting. One way is to use Oracle's `ksplice <http://www.ksplice.com/>`__, but this software isn't free for Ubuntu Server.
@@ -158,6 +160,15 @@ If a restart is acceptable, here's a simple update procedure:
 - Stop gunicorn. ``sudo apt-get update`` then ``sudo apt-get upgrade`` (assuming Ubuntu). Log out. Go to the EC2 dashboard and reboot the EC2 instance. Wait for the reboot to finish.
 
 - Log in again. Start redis, nginx (if not auto-starting), and gunicorn. Take down the maintenance message.
+
+
+Upgrading Linux version of the EC2 instance
+-------------------------------------------
+Probably the most doubt-free way to do this is to create a new EC2 instance with that new Linux version, and migrate the server to that EC2 instance. This can be a relatively quick process if you have a Docker file specifying how to set up a new instance.
+
+However, if you want to try upgrading the Linux version on an instance, it should be possible. In this case it should say "you can run ``do-release-upgrade`` to upgrade".
+
+It'll advise you that the restart of certain services could interrupt your SSH session, and that this can be mitigated by opening access to port 1022. Go ahead and do that in the EC2 instance's security group.
 
 
 Reserving an EC2 instance

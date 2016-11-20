@@ -90,7 +90,6 @@ def index(request):
     total_annotations = Annotation.objects.all().count()
 
     return render(request, 'lib/index.html', {
-        'google_maps_api_key': settings.GOOGLE_MAPS_API_KEY,
         'map_sources': map_sources,
         'total_sources': total_sources,
         'total_images': total_images,

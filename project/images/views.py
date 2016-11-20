@@ -1,7 +1,6 @@
-import json, csv, os.path, time, datetime
+import datetime
 import urllib
 
-from numpy import vectorize
 from datetime import timedelta
 
 from django.conf import settings
@@ -9,26 +8,24 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.contrib import messages
 from django.core.urlresolvers import reverse
-from django.forms import ValidationError
 from django.shortcuts import render, get_object_or_404
-from django.http import HttpResponseRedirect, HttpResponse
-from django.utils import timezone
+from django.http import HttpResponseRedirect
 from django.utils.timezone import now
 
-
 from . import utils
-from .forms import ImageSourceForm, LabelImportForm, MetadataForm, PointGenForm, SourceChangePermissionForm, SourceInviteForm, SourceRemoveUserForm
+from .forms import ImageSourceForm, MetadataForm, PointGenForm, SourceChangePermissionForm, SourceInviteForm, SourceRemoveUserForm
 from .model_utils import PointGen
 from .models import Source, Image, SourceInvite, Metadata
 from .utils import get_map_sources
 from annotations.forms import AnnotationAreaPercentsForm
 from annotations.model_utils import AnnotationAreaUtils
 from annotations.utils import image_annotation_area_is_editable, image_has_any_human_annotations
-from labels.models import LabelGroup, Label, LabelSet
+from labels.models import LabelGroup
 from annotations.models import Annotation
 from lib.decorators import source_permission_required, image_visibility_required, image_permission_required, source_visibility_required
 from visualization.utils import image_search_kwargs_to_queryset
 import vision_backend.tasks as backend_tasks
+
 
 def source_list(request):
     """
@@ -50,7 +47,6 @@ def source_list(request):
     return render(request, 'images/source_list.html', {
         'your_sources': your_sources_dicts,
         'map_sources': get_map_sources(),
-        'google_maps_api_key': settings.GOOGLE_MAPS_API_KEY,
         'other_public_sources': other_public_sources,
     })
 
@@ -582,101 +578,3 @@ def import_groups(request, fileLocation):
         group = LabelGroup(name=words[0], code=words[1])
         group.save()
     file.close()
-    
-
-@source_permission_required('source_id', perm=Source.PermTypes.ADMIN.code)
-def import_labels(request, source_id):
-    """
-    Create a labelset through a text file.
-    NOTE: This view might be obsolete.  Or site-admin only.
-    """
-
-    source = get_object_or_404(Source, id=source_id)
-
-    #creates a new labelset for the source
-    labelset = LabelSet()
-    labelset.save()
-
-    labelsImported = 0
-    newLabels = 0
-    existingLabels = 0
-
-    if request.method == 'POST':
-        labelImportForm = LabelImportForm(request.POST, request.FILES)
-
-        if labelImportForm.is_valid():
-
-            file = request.FILES['labels_file']
-
-            # We'll assume we're using an InMemoryUploadedFile, as opposed to a filename of a temp-disk-storage file.
-            # If we encounter a case where we have a filename, use the below:
-            #file = open(fileLocation, 'r') #opens the file for reading
-
-            #iterates over each line in the file and processes it
-            for line in file:
-                #sanitizes and splits apart the string/line
-                line = line.strip().replace("; ", ';')
-                words = line.split(';')
-
-                # Ignore blank lines
-                if line == '':
-                    continue
-
-                labelName, labelCode, groupName = words[0], words[1], words[2]
-                group = get_object_or_404(LabelGroup, name=groupName)
-
-                # (1) Create a new label, (2) use an existing label,
-                # or (3) throw an error if a file label and existing
-                # label of the same code don't match.
-                try:
-                    existingLabel = Label.objects.get(code=labelCode)
-                except Label.DoesNotExist:
-                    #creates a label object and stores it in the database
-                    label = Label(name=labelName, code=labelCode, group=group)
-                    label.save()
-                    newLabels += 1
-                else:
-                    if (existingLabel.name == labelName and
-                        existingLabel.code == labelCode and
-                        existingLabel.group == group
-                    ):
-                        label = existingLabel
-                        existingLabels += 1
-                    else:
-                        raise ValidationError(
-                            """Our database already has a label with code %s,
-                            but it doesn't match yours.
-                            Ours: %s, %s, %s
-                            Yours: %s, %s, %s""" % (
-                            labelCode,
-                            existingLabel.name, existingLabel.code, existingLabel.group.name,
-                            labelName, labelCode, groupName
-                            ))
-
-                #adds label to the labelset
-                labelset.labels.add(label)
-                labelsImported += 1
-
-            file.close() #closes file since we're done
-
-            labelset.description = labelImportForm.cleaned_data['labelset_description']
-            labelset.save()
-            source.labelset = labelset
-            source.save()
-
-            success_msg = "%d labels imported: %d new labels and %d existing labels." % (labelsImported, newLabels, existingLabels)
-            messages.success(request, success_msg)
-            return HttpResponseRedirect(reverse('source_main', args=[source_id]))
-
-        else:
-            messages.error(request, 'Please correct the errors below.')
-
-    # GET
-    else:
-        labelImportForm = LabelImportForm()
-
-    return render(request, 'images/label_import.html', {
-        'labelImportForm': labelImportForm,
-        'source': source,
-    })
-

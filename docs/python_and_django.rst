@@ -40,7 +40,7 @@ Download and install the latest Python 2.7.x. 32 bit or 64 bit doesn't matter. I
 
     - ``wget https://www.python.org/ftp/python/2.7.12/Python-2.7.12.tgz`` (for example)
     - ``tar xzf Python-<version>.tgz``
-    - ``cd Python-<version>.tgz``
+    - ``cd Python-<version>``
     - ``./configure``
     - ``make``
     - ``sudo make altinstall``
@@ -139,11 +139,6 @@ If you're missing any secret settings in ``secrets.json``, you'll get an ``Impro
 Check your settings module (and anything it imports from, such as ``base.py``) for details on the format of each required secret setting.
 
 
-maintenance_notice.html
------------------------
-Look in ``project/templates``. Copy ``maintenance_notice_example.html`` to ``maintenance_notice.html``. This is all you need to do for now. See the docs on putting the site under maintenance (TODO) for more details on what this file is for.
-
-
 Make some directories
 ---------------------
 Certain file-creation parts of the project code may trigger an error such as ``No such file or directory`` when the destination directory doesn't already exist. This behavior should probably be fixed at some point, but in the meantime, you'll need to create at least the following directories:
@@ -163,6 +158,9 @@ If you want to run a subset of the tests, you can use ``python manage.py test <a
 
 Django migrations
 -----------------
+- *Development server*
+- *Staging server with brand-new database*
+
 Run ``python manage.py migrate``. If Django's auth system asks you to create a superuser, then do that.
 
 For information on how to manage migrations from now on, read `Django's docs <https://docs.djangoproject.com/en/dev/topics/migrations/>`__.

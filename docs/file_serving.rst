@@ -43,6 +43,8 @@ Setup steps
     ]
   }
 
+- TODO: Should production `enable bucket versioning <https://docs.aws.amazon.com/AmazonS3/latest/UG/enable-bucket-versioning.html>`__?
+
 
 Explanation on setup steps
 ..........................

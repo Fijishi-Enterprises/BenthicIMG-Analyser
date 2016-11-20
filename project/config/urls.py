@@ -5,16 +5,17 @@ from django.contrib import admin
 from django.views.generic import TemplateView
 
 import lib.views as lib_views
-
 import vision_backend.views as backend_views
 
 urlpatterns = [
-    url(r'^annotations/', include('annotations.urls')),
-    url(r'^feedback/', include('bug_reporting.urls')),
-    url(r'^images/', include('images.urls')),
-    url(r'^labels/', include('labels.urls')),
-    url(r'^vision_backend/', include('vision_backend.urls')),
+    # These apps don't have uniform prefixes. We'll trust them to provide
+    # their own non-clashing URL patterns.
+    url(r'', include('annotations.urls')),
+    url(r'', include('images.urls')),
+    url(r'', include('labels.urls')),
 
+    url(r'^accounts/', include('accounts.urls')),
+    url(r'^feedback/', include('bug_reporting.urls')),
     url(r'^source/(?P<source_id>\d+)/browse/', include('visualization.urls')),
     url(r'^source/(?P<source_id>\d+)/export/', include('export.urls')),
     url(r'^source/(?P<source_id>\d+)/upload/', include('upload.urls')),
@@ -23,18 +24,15 @@ urlpatterns = [
     url(r'^admin/doc/', include('django.contrib.admindocs.urls')),
     url(r'^admin/', include(admin.site.urls)),
 
-    url(r'^accounts/', include('accounts.urls')),
-
     url(r'^$', lib_views.index, name='index'),
-
     url(r'^about/$',
         TemplateView.as_view(template_name='lib/about.html'),
         name='about',
     ),
     url(r'^contact/$', lib_views.contact, name='contact'),
 
+    # "Secret" dev views
     url(r'^nav_test/(?P<source_id>\d+)/$', lib_views.nav_test, name="nav_test"),
-
     url(r'^backend_overview$', backend_views.backend_overview, name="backend_overview"),
     
     # Internationalization

@@ -13,7 +13,6 @@ included by default.  If you don't want to include the file, set varname
 to any value (except the empty string) to not include it.
 {% endcomment %}
 
-{% load common_tags %}
 {% load static from staticfiles %}
 
 
@@ -84,13 +83,13 @@ to any value (except the empty string) to not include it.
 
 {# Google Maps API #}
 {% if map %}
-    <script type="text/javascript"
-            src="https://maps.googleapis.com/maps/api/js?sensor=false"></script>
     <!--staticmapimgs is required so that map.js and markerclusterer.js find the map symbols.-->
     <script> var staticmapimgs = "{% static 'img/map/' %}"</script>
     {% include "static-local-include.html" with type="js" path="js/map.js" %}
     {% include "static-local-include.html" with type="js" path="js/markerclusterer.js" %}
     {% include "static-local-include.html" with type="css" path="css/map.css" %}
+
+    {# You'll also want to include map_scripts.html in the page template. #}
 {% endif %}
 
 {# Our own utility functions and plugin modifications. #}

@@ -50,16 +50,16 @@ class BackendTest(ClientTest):
         cls.user = cls.create_user() # we will always need a user. 
 
         cls.dummy_annotations = dict(
-            label_1='A', label_2='A', label_3='B',
-            robot_1='false', robot_2='false', robot_3='false',
+            label_1='A', label_2='B', label_3='C',label_4='D', label_5='E', label_6='F',
+            robot_1='false', robot_2='false', robot_3='false', robot_4='false', robot_5='false', robot_6='false',
         )
 
-        cls.source = cls.create_source(cls.user, point_generation_type=PointGen.Types.SIMPLE, simple_number_of_points=3)
+        cls.source = cls.create_source(cls.user, point_generation_type=PointGen.Types.SIMPLE, simple_number_of_points=6)
         
-        labels = cls.create_labels(cls.user, ['A', 'B', 'C', 'D', 'E', 'F'], "Group1")
+        labels = cls.create_labels(cls.user, ['A', 'B', 'C', 'D', 'E', 'F', 'G'], "Group1")
 
         cls.create_labelset(cls.user, cls.source, labels.filter(
-            name__in=['A', 'B', 'C', 'D', 'E', 'F'])
+            name__in=['A', 'B', 'C', 'D', 'E', 'F', 'G'])
         )
     
     @classmethod    
@@ -215,7 +215,6 @@ class TrainClassifierTest(BackendTest):
         self.assertEqual(Classifier.objects.filter(source = self.source, valid=True).count(), 1)
         self.assertEqual(Classifier.objects.filter(source = self.source, valid=False).count(), 0)
     
-@skip #this test is unreliable.
 @skipIf(not settings.DEFAULT_FILE_STORAGE == 'lib.storage_backends.MediaStorageS3', "Can't run backend tests locally")
 @skipIf(get_total_messages_in_jobs_queue() > 10, "Too many messages in backend queue. Skipping this test.")
 class ResetLabelSetTest(BackendTestWithClassifier):
@@ -228,33 +227,31 @@ class ResetLabelSetTest(BackendTestWithClassifier):
         """
         Test that if the labelset changes all scores, classifiers, and annotations are wiped.
         """
-
         # Upload an image
         img1 = self.upload_image(self.user, self.source)
-        
+
         # Wait for backend.
         self.wait_for_features_extracted(img1.id)
-               
-        # Check that img1 has 15 scores (3 points * min(5, nbr_labels))
-        self.assertEqual(Score.objects.filter(image_id = img1.id).count(), 3 * 5)
+         
+        # Check that img1 has 30 scores (6 points * min(5, nbr_labels))
+        self.assertEqual(Score.objects.filter(image_id = img1.id).count(), 6 * 5)
 
-        # Change the labelset.
+        # Change the labelset (remove the 'G' label which has not imported annotations.)
         self.client.force_login(self.user)
-        label_pks = [Label.objects.get(name=name).pk for name in ['A', 'B']]
+        label_pks = [Label.objects.get(name=name).pk for name in ['A', 'B', 'C', 'D', 'E', 'F']]
         response = self.client.post(
             reverse('labelset_add', args=[self.source.pk]),
             dict(label_ids=','.join(str(pk) for pk in label_pks)),
             follow=True,
         )
+        self.assertContains(response, "Labelset successfully changed.")
 
         # Check that there is no valid classifier, but one in process
         self.assertEqual(Classifier.objects.filter(source = self.source, valid=True).count(), 0)
         self.assertEqual(Classifier.objects.filter(source = self.source, valid=False).count(), 1)
 
-        # Check that img1 has no annotations
+        # Check that img1 has no annotations nor scores
         self.assertEqual(Annotation.objects.filter(image_id = img1.id).count(), 0)
-        
-        # Check that img1 has no scores.
         self.assertEqual(Score.objects.filter(image_id = img1.id).count(), 0)
     
         # Wait a while, and there should be a new classifier
@@ -262,8 +259,8 @@ class ResetLabelSetTest(BackendTestWithClassifier):
         self.assertEqual(Classifier.objects.filter(source = self.source, valid=True).count(), 1)
         self.assertEqual(Classifier.objects.filter(source = self.source, valid=False).count(), 0)
         
-        # And img1 should has 6 score (3 points * min(5, nbr_labels))
-        self.assertEqual(Score.objects.filter(image_id = img1.id).count(), 3 * 2)
+        # And img1 should again have 30 score (6 points * min(5, nbr_labels))
+        self.assertEqual(Score.objects.filter(image_id = img1.id).count(), 6 * 5)
 
 
 @skipIf(not settings.DEFAULT_FILE_STORAGE == 'lib.storage_backends.MediaStorageS3', "Can't run backend tests locally")
@@ -271,7 +268,7 @@ class ResetLabelSetTest(BackendTestWithClassifier):
 class ImageClassification(BackendTestWithClassifier):
     """
     Tests various aspects of classifying images. 
-    NOTE: some of these tests tend to fail irradically due to race conditions.
+    NOTE: some of these tests tend  to fail irradically due to race conditions.
     My assessment is that it is specific to the tests, not the actual server.
     """
 
@@ -312,9 +309,6 @@ class ImageClassification(BackendTestWithClassifier):
 
         # Check the annotations. 
         r = self.source.get_latest_robot()
-        print r.valres['classes']
-
-        
 
         # Img1 whould have only robot annotations
         for ann in Annotation.objects.filter(image_id = img1.id):
@@ -334,7 +328,7 @@ class ImageClassification(BackendTestWithClassifier):
         # Check the scores.
         for img in [img1, img2, img3]:
             scores = Score.objects.filter(image_id = img.id)
-            self.assertEqual(len(scores), 5 * 3) # 5 labels and 5 points.
+            self.assertEqual(5 * 6, len(scores)) # 5 labels and 6 points.
             for score in scores:
                 self.assertTrue(score.score >= 0)
                 self.assertTrue(score.score <= 100)
@@ -353,13 +347,13 @@ class ImageClassification(BackendTestWithClassifier):
         img1 = self.upload_image(self.user, self.source)
         self.wait_for_features_extracted(img1.id)
 
-        self.assertEqual(Score.objects.filter(image = img1).count(), 3 * 5)
+        self.assertEqual(5 * 6, Score.objects.filter(image = img1).count())
         # remove one point
         points = Point.objects.filter(image = img1)
         points[0].delete()
 
         # Now all scores for that point should be gone.
-        self.assertEqual(Score.objects.filter(image = img1).count(), 2 * 5)
+        self.assertEqual(5 * 5, Score.objects.filter(image = img1).count())
 
     def test_point_generated_features_reset(self):
         """

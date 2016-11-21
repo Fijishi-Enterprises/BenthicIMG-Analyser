@@ -110,6 +110,12 @@ class DateFilterField(MultiValueField):
             require_all_fields=False, *args, **kwargs)
 
     def compress(self, data_list):
+        # Unsure why data_list is an empty list sometimes, but one
+        # case is when you get to Browse via a GET link which only has
+        # image_search_type and annotation_status kwargs.
+        if not data_list:
+            return dict()
+
         date_filter_type, year, date, start_date, end_date = data_list
         queryset_kwargs = dict()
 
@@ -411,18 +417,18 @@ class ImageSpecifyByIdForm(forms.Form):
         return "(Manual selection)"
 
 
-def post_to_image_filter_form(POST_data, source, has_annotation_status):
+def create_image_filter_form(data, source, has_annotation_status):
     """
     All the browse views and the annotation tool view can use this
     to process image-specification forms.
     """
     image_form = None
-    if POST_data.get('image_form_type') == 'search':
+    if data.get('image_form_type') == 'search':
         image_form = ImageSearchForm(
-            POST_data, source=source,
+            data, source=source,
             has_annotation_status=has_annotation_status)
-    elif POST_data.get('image_form_type') == 'ids':
-        image_form = ImageSpecifyByIdForm(POST_data, source=source)
+    elif data.get('image_form_type') == 'ids':
+        image_form = ImageSpecifyByIdForm(data, source=source)
 
     return image_form
 

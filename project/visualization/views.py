@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib import messages
 from django.core.urlresolvers import reverse
 from django.db import transaction
@@ -5,10 +6,10 @@ from django.forms import modelformset_factory
 from django.forms.formsets import formset_factory
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
-from django.conf import settings
+from django.views.decorators.http import require_POST
 
 from .forms import CheckboxForm, StatisticsSearchForm, ImageSearchForm, \
-    PatchSearchOptionsForm, HiddenForm, post_to_image_filter_form
+    PatchSearchOptionsForm, HiddenForm, create_image_filter_form
 from .utils import generate_patch_if_doesnt_exist, get_patch_url
 from accounts.utils import get_robot_user
 from annotations.models import Annotation
@@ -33,8 +34,11 @@ def browse_images(request, source_id):
         source=source, has_annotation_status=True)
     hidden_image_form = None
 
-    image_form = \
-        post_to_image_filter_form(request.POST, source, has_annotation_status=True)
+    # The primary way to filter images is by POST params due to the possible
+    # length of some of the params. However, in some cases like the source main
+    # page's image-status links, it can be easier to use GET.
+    image_form = create_image_filter_form(
+        request.POST or request.GET, source, has_annotation_status=True)
     if image_form:
         if image_form.is_valid():
             image_results = image_form.get_images()
@@ -105,8 +109,8 @@ def edit_metadata(request, source_id):
     image_search_form = ImageSearchForm(
         source=source, has_annotation_status=True)
 
-    image_form = \
-        post_to_image_filter_form(request.POST, source, has_annotation_status=True)
+    image_form = create_image_filter_form(
+        request.POST or request.GET, source, has_annotation_status=True)
     if image_form:
         if image_form.is_valid():
             image_results = image_form.get_images()
@@ -186,8 +190,8 @@ def browse_patches(request, source_id):
     patch_search_form = PatchSearchOptionsForm(source=source)
     hidden_image_and_patch_form = None
 
-    image_form = \
-        post_to_image_filter_form(request.POST, source, has_annotation_status=False)
+    image_form = create_image_filter_form(
+        request.POST or request.GET, source, has_annotation_status=False)
     if request.POST:
         patch_search_form = PatchSearchOptionsForm(request.POST, source=source)
 
@@ -299,6 +303,7 @@ def edit_metadata_ajax(request, source_id):
         ))
 
 
+@require_POST
 @source_permission_required(
     'source_id', perm=Source.PermTypes.EDIT.code, ajax=True)
 def browse_delete_ajax(request, source_id):
@@ -307,8 +312,8 @@ def browse_delete_ajax(request, source_id):
     """
     source = get_object_or_404(Source, id=source_id)
 
-    image_form = \
-        post_to_image_filter_form(request.POST, source, has_annotation_status=True)
+    image_form = create_image_filter_form(
+        request.POST, source, has_annotation_status=True)
     if not image_form:
         # There's nothing invalid about a user wanting to delete all images
         # in the source, but it's somewhat plausible that we'd accidentally

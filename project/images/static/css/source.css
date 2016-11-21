@@ -26,3 +26,22 @@
 }
 
 
+/* Used for grey boxes on source main page */
+div.detail_box {
+    background-color:#d7d3cf;
+    border-style:solid;
+    border-width:1px;
+    padding: 10px;
+    margin: 5px 0 5px 0;
+}
+
+table.detail_box_table {
+    /* Firefox seems to make border widths inconsistent
+       if border-collapse: collapse */
+    border-collapse: separate;
+}
+
+table.detail_box_table th,
+table.detail_box_table td {
+    padding: 5px;
+}

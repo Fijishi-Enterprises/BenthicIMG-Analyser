@@ -1092,24 +1092,6 @@ table.detail_table_popup.horizontal td {
     padding: 3px 5px;  /* vertical horizontal */
 }
 
-/* Used for grey boxes on source main page */
-div.detail_box {
-    background-color:#d7d3cf;
-    border-style:solid;
-    border-width:1px;
-    padding: 10px;
-    margin: 5px 0px 5px 0px;
-}
-
-table.detail_box_table {
-    border-collapse: separate; /* Firefox seems to make border widths inconsistent if border-collapse: collapse */
-}
-
-table.detail_box_table th,
-table.detail_box_table td {
-    padding: 5px;
-}
-
 
 /* thumbnails and thumbnail wrappers
 ................................... */

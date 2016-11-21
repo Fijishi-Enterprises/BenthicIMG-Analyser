@@ -3,11 +3,11 @@ from django.http import HttpResponse
 
 from annotations.models import Annotation
 from images.models import Image
-from visualization.forms import post_to_image_filter_form
+from visualization.forms import create_image_filter_form
 
 
 def get_request_images(request, source):
-    image_form = post_to_image_filter_form(
+    image_form = create_image_filter_form(
         request.POST, source, has_annotation_status=True)
     if image_form:
         if image_form.is_valid():

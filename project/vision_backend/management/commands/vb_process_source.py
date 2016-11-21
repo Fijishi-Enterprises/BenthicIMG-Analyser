@@ -31,7 +31,7 @@ class Command(BaseCommand):
             nbr_images = options['nbr_images'][0]
             
             print "Running in parallel mode with {} images".format(nbr_images)
-            for source in Source.objects.filter():
+            for source in Source.objects.filter().order_by('-id'):
                 images = Image.objects.filter(source = source, features__extracted=False)[:nbr_images]
                 print "Submitting {} jobs for {}... ".format(images.count(), source.name)
                 for image in images:

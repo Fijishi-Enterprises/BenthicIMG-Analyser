@@ -27,15 +27,13 @@ import vision_backend.utils as utils
 def backend_overview(request):
 
     laundry_list = []
-    for source in Source.objects.filter().order_by('id'):
+    for source in Source.objects.filter().order_by('-id'):
         laundry_list.append(source_robot_status(source.id))
-    timestr = ""
 
-    laundry_list = sorted(laundry_list, key=lambda k: k['need_attention']*k['id'])[::-1]
+    laundry_list = sorted(laundry_list, key=lambda k: (-k['need_attention'], -k['id']))
     
     return render(request, 'vision_backend/overview.html', {
         'laundry_list': laundry_list,
-        'timestr': timestr,
     })
 
 

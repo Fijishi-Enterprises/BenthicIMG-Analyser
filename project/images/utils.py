@@ -353,7 +353,7 @@ def source_robot_status(source_id):
     status['name'] = source.name
     status['name_short'] = source.name[:40]
     status['id'] = source.id
-    status['has_robot'] = source.get_latest_robot() is not None
+    status['has_robot'] = source.has_robot()
     status['nbr_robots'] = Classifier.objects.filter(source_id = source_id).count()
     status['nbr_valid_robots'] = Classifier.objects.filter(source_id = source_id, valid = True).count()
 

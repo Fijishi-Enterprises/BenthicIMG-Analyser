@@ -55,20 +55,6 @@ test_settings['CELERY_ALWAYS_EAGER'] = True
 # Make sure backedn tasks do not run.
 test_settings['FORCE_NO_BACKEND_SUBMIT'] = True
 
-
-def get_total_messages_in_jobs_queue():
-    """
-    Returns number of jobs in the spacer jobs queue.
-    If there are, for some tests, it means we have to wait.
-    """
-    if not settings.DEFAULT_FILE_STORAGE == 'lib.storage_backends.MediaStorageS3':
-        return 0
-    c = boto.sqs.connect_to_region('us-west-2')
-    queue = c.lookup('spacer_jobs')
-    attr = queue.get_attributes()
-    return int(attr['ApproximateNumberOfMessages']) + int(attr['ApproximateNumberOfMessagesNotVisible'])
-
-
 @override_settings(**test_settings)
 class BaseTest(TestCase):
     """

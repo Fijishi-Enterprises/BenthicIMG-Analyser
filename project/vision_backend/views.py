@@ -27,7 +27,7 @@ import vision_backend.utils as utils
 def backend_overview(request):
 
     laundry_list = []
-    for source in Source.objects.filter():
+    for source in Source.objects.filter().order_by('id'):
         laundry_list.append(source_robot_status(source.id))
     timestr = ""
 

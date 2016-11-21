@@ -94,7 +94,7 @@ def submit_features(image_id, force = False):
 
     logger.info("Submitted feature extraction for {}".format(logstr))
     logger.debug("Submitted feature extraction for {}. Message: {}".format(logstr, messagebody))
-
+    return messagebody
 
 @task(name = "submit_classifier")
 def submit_classifier(source_id, nbr_images = 1e5, force = False):

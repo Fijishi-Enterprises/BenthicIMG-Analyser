@@ -12,6 +12,7 @@ class Command(BaseCommand):
         parser.add_argument('mode', choices=['individual', 'parallel']) 
         parser.add_argument('--source_ids', type=int, nargs='+', help="list of source ids to process")
         parser.add_argument('--nbr_images', type=int, nargs=1, help="number of images per source")
+        parser.add_argument('--confirmed_only', type=int, default = 1, nargs = '?', help="only process confirmed images")
 
     def handle(self, *args, **options):
 
@@ -29,10 +30,14 @@ class Command(BaseCommand):
         elif options['mode'] == 'parallel':
             assert options['nbr_images']
             nbr_images = options['nbr_images'][0]
-            
-            print "Running in parallel mode with {} images".format(nbr_images)
+            confirmed_only = options['confirmed_only']
+
+            print "Running in parallel mode with {} images and confirmed_only: {}".format(nbr_images, confirmed_only)
             for source in Source.objects.filter().order_by('-id'):
-                images = Image.objects.filter(source = source, features__extracted=False)[:nbr_images]
+                if confirmed_only:
+                    images = Image.objects.filter(source = source, confirmed = True, features__extracted=False)[:nbr_images]
+                else:
+                    images = Image.objects.filter(source = source, features__extracted=False)[:nbr_images]
                 print "Submitting {} jobs for {}... ".format(images.count(), source.name)
                 for image in images:
                     submit_features.delay(image.id)

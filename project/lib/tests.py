@@ -21,15 +21,6 @@ class IndexTest(ClientTest):
         self.assertTemplateUsed(response, 'lib/index.html')
 
 
-@override_settings(
-    ADMINS=[
-        ('Admin One', 'admin1@example.com'),
-        ('Admin Two', 'admin2@example.com'),
-    ],
-    EMAIL_SUBJECT_PREFIX="[Sample prefix] "
-)
-
-
 @skipIf(not settings.DEFAULT_FILE_STORAGE == 'lib.storage_backends.MediaStorageS3', "Can't run backend tests locally")
 class DirectS3Test(BaseTest):
     """
@@ -47,6 +38,13 @@ class DirectS3Test(BaseTest):
             self.assertEqual(var, var_recovered)
 
 
+@override_settings(
+    ADMINS=[
+        ('Admin One', 'admin1@example.com'),
+        ('Admin Two', 'admin2@example.com'),
+    ],
+    EMAIL_SUBJECT_PREFIX="[Sample prefix] "
+)
 class ContactTest(ClientTest):
     """
     Test the Contact Us page.

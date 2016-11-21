@@ -173,18 +173,19 @@
             {% csrf_token %}
             {% for field in hidden_image_set_form %}{{ field }}{% endfor %}
 
-            <input type="submit" value="Prev" id="nav-prev-submit"
+            <input type="submit" value="Prev" id="nav-prev-submit" class="link"
               title="{{ prev_image.get_image_element_title }}" />
           </form>
         {% endif %}
 
         {% if next_image %}
+          |
           <form action="{% url 'annotation_tool' next_image.id %}"
                 method="post">
             {% csrf_token %}
             {% for field in hidden_image_set_form %}{{ field }}{% endfor %}
 
-            <input type="submit" value="Next" id="nav-next-submit"
+            <input type="submit" value="Next" id="nav-next-submit" class="link"
               title="{{ next_image.get_image_element_title }}" />
           </form>
         {% endif %}
@@ -212,7 +213,7 @@
           {% csrf_token %}
           {% for field in hidden_image_set_form %}{{ field }}{% endfor %}
 
-          <input type="submit" value="Return to Browse" />
+          <input type="submit" value="Return to Browse" class="link" />
         </form>
       </div>
 

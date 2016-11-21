@@ -50,6 +50,7 @@
                         &lt; Previous</a>
                 {% endif %}
                 {% if next_image %}
+                    |
                     <a href="{% url 'image_detail' next_image.id %}"
                        title="{{ next_image.get_image_element_title }}">
                         Next &gt;</a>

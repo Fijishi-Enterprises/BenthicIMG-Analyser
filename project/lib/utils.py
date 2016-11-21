@@ -11,13 +11,16 @@ from django.conf import settings
 from django.core.paginator import Paginator, EmptyPage, InvalidPage
 
 
-def direct_s3_read(key, encoding, bucketname = settings.AWS_STORAGE_BUCKET_NAME):
+def direct_s3_read(key, encoding, bucketname = None):
 
     encoding_map = {
         'json': json.loads,
         'pickle': pickle.loads,
         'none': lambda x: x,
     }
+
+    if bucketname == None:
+        bucketname = settings.AWS_STORAGE_BUCKET_NAME
 
     conn = boto.connect_s3(
         aws_access_key_id=settings.AWS_ACCESS_KEY_ID,

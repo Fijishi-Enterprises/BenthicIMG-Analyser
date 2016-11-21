@@ -1,4 +1,6 @@
 # Tests for non-app-specific pages.
+from unittest import skipIf
+
 from django.conf import settings
 from django.core import mail
 from django.core.urlresolvers import reverse
@@ -28,6 +30,7 @@ class IndexTest(ClientTest):
 )
 
 
+@skipIf(not settings.DEFAULT_FILE_STORAGE == 'lib.storage_backends.MediaStorageS3', "Can't run backend tests locally")
 class DirectS3Test(BaseTest):
     """
     Test the direct s3 read and write tests.

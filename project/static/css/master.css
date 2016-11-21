@@ -611,6 +611,28 @@ input[type=submit].gray {
     cursor: pointer;
 }
 
+input[type=submit].link {
+    /* Make these input elements look like links. */
+    /* TODO: Instead of doing THIS much style resetting, perhaps the
+       'standard' submit button should have its own class, instead
+       of just taking over input type=submit in general. */
+    background: none;
+    color: #880E00;
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    line-height: inherit;
+    letter-spacing: inherit;
+    text-shadow: none;
+
+    min-width: inherit;
+    height: inherit;
+    border: none;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+}
+
 
 /* Wrap one or multiple submit buttons of a form. */
 
@@ -1090,24 +1112,6 @@ table.detail_table_popup.horizontal th,
 table.detail_table_popup.horizontal td {
     border: none;
     padding: 3px 5px;  /* vertical horizontal */
-}
-
-/* Used for grey boxes on source main page */
-div.detail_box {
-    background-color:#d7d3cf;
-    border-style:solid;
-    border-width:1px;
-    padding: 10px;
-    margin: 5px 0px 5px 0px;
-}
-
-table.detail_box_table {
-    border-collapse: separate; /* Firefox seems to make border widths inconsistent if border-collapse: collapse */
-}
-
-table.detail_box_table th,
-table.detail_box_table td {
-    padding: 5px;
 }
 
 

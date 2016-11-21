@@ -21,7 +21,7 @@ from images.models import Source, Image, Point
 from images.utils import generate_points, get_next_image, \
     get_date_and_aux_metadata_table, get_prev_image, get_image_order_placement
 from lib.decorators import image_permission_required, image_annotation_area_must_be_editable, image_labelset_required, login_required_ajax
-from visualization.forms import HiddenForm, post_to_image_filter_form
+from visualization.forms import HiddenForm, create_image_filter_form
 from vision_backend.utils import get_label_probabilities_for_image
 import vision_backend.tasks as backend_tasks
 
@@ -113,8 +113,8 @@ def annotation_tool(request, image_id):
     hidden_image_set_form = None
     filters_used_display = None
 
-    image_form = \
-        post_to_image_filter_form(request.POST, source, has_annotation_status=True)
+    image_form = create_image_filter_form(
+        request.POST, source, has_annotation_status=True)
     if image_form:
         if image_form.is_valid():
             image_set = image_form.get_images()

@@ -153,28 +153,25 @@ def source_main(request, source_id):
 
     # Images' annotation status
     browse_url_base = reverse('browse_images', args=[source.id])
-    confirmed_kwargs = dict(annotation_status='confirmed')
-    unclassified_kwargs = dict(annotation_status='unclassified')
-    unconfirmed_kwargs = dict(annotation_status='unconfirmed')
+    def image_count_by_status(annotation_status):
+        return image_search_kwargs_to_queryset(
+            dict(annotation_status=annotation_status), source).count()
+    def browse_link_filtered_by_status(annotation_status):
+        return browse_url_base + '?' + urllib.urlencode(dict(
+            image_form_type='search', annotation_status=annotation_status))
 
     image_stats = dict(
         total = all_images.count(),
         total_link = browse_url_base,
-        confirmed = image_search_kwargs_to_queryset(
-            confirmed_kwargs, source).count(),
-        confirmed_link = browse_url_base + '?'
-            + urllib.urlencode(confirmed_kwargs),
-        unclassified = image_search_kwargs_to_queryset(
-            unclassified_kwargs, source).count(),
-        unclassified_link = browse_url_base + '?'
-            + urllib.urlencode(unclassified_kwargs),
+        confirmed = image_count_by_status('confirmed'),
+        confirmed_link = browse_link_filtered_by_status('confirmed'),
+        unclassified = image_count_by_status('unclassified'),
+        unclassified_link = browse_link_filtered_by_status('unclassified'),
     )
     if source.enable_robot_classifier:
         image_stats.update(dict(
-            unconfirmed = image_search_kwargs_to_queryset(
-                unconfirmed_kwargs, source).count(),
-            unconfirmed_link = browse_url_base + '?'
-                + urllib.urlencode(unconfirmed_kwargs),
+            unconfirmed = image_count_by_status('unconfirmed'),
+            unconfirmed_link = browse_link_filtered_by_status('unconfirmed'),
         ))
 
     # Setup the classifier overview plot

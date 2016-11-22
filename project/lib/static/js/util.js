@@ -47,6 +47,23 @@ var util = {
             // A manually aborted request, not a server issue.
             return;
         }
+        if (textStatus === 'error' && errorThrown === '') {
+            // As far as we've seen so far, this case only happens when you
+            // interrupt an Ajax request with another action. So the alert
+            // below will be more confusing than helpful to users.
+            //
+            // For example, go to a label-detail page and
+            // navigate away before the example patches finish loading.
+            // That should trigger this case. On the server side, we observe
+            // something like "error: [Errno 10053] An established connection
+            // was aborted by the software in your host machine".
+            console.log("There was a server error: error / [blank]");
+            return;
+        }
+
+        // The most common case is "error" / "Internal Server Error",
+        // but there may be other cases too.
+        // See: https://api.jquery.com/jQuery.ajax/
         alert(
             "There was a server error:" +
             "\n{0} / {1}".format(textStatus, errorThrown) +

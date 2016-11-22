@@ -184,6 +184,11 @@ def _classifiercollector(messagebody):
         logger.info("Classifier {} was deleted. Aborting".format(payload['pk']))
         return 0
     logstr = 'Classifier {} [Source: {} [{}]]'.format(classifier.pk, classifier.source, classifier.source.id)
+    
+    # If training didn't finish with OK status, return false and exit.
+    if not payload['ok']:
+        return 0
+
     # Check that the accuracy is higher than the previous classifiers
     if 'pc_models' in payload and len(payload['pc_models']) > 0:
         if max(result['pc_accs']) * settings.NEW_CLASSIFIER_IMPROVEMENT_TH > result['acc']:

@@ -64,7 +64,7 @@ Allow nginx to find our configuration file, enable our config, and disable the d
 
 Running
 ~~~~~~~
-If this is the first time running, or the ``NGINX_ALLOWED_HOSTS`` setting has changed, run ``python manage.py makenginxconfig``.
+If this is the first time running, or the nginx config template has been updated, run ``python manage.py makenginxconfig``.
 
 Restart nginx: ``sudo /etc/init.d/nginx restart``. (Other commands are ``start``, ``stop``, and ``status``.)
 

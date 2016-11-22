@@ -150,3 +150,8 @@ p {
     font-family: inherit;
     font-size: 0.9em;
 }
+
+.ui-widget-content a {
+    /* Override jQuery UI defaults */
+    color: inherit;
+}

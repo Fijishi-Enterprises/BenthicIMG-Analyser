@@ -1,4 +1,3 @@
-from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import permission_required
 from django.core.mail import mail_admins
@@ -11,7 +10,7 @@ from django.template.loader import render_to_string
 
 from annotations.models import Annotation
 from images.models import Image, Source
-from images.utils import get_map_sources, get_random_public_images
+from images.utils import get_map_sources, get_carousel_images
 from lib.forms import ContactForm
 
 
@@ -82,7 +81,7 @@ def index(request):
     map_sources = get_map_sources()
 
     # Images for the carousel
-    images = get_random_public_images()
+    images = get_carousel_images(5)
 
     # Gather some stats
     total_sources = Source.objects.all().count()

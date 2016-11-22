@@ -4,6 +4,7 @@ import math
 import random
 
 from django.conf import settings
+from django.core.cache import cache
 from django.core.urlresolvers import reverse
 from django.db.models import Count
 
@@ -421,34 +422,44 @@ def get_map_sources():
     return map_sources
 
 
-def get_random_public_images():
+def get_carousel_images(count):
     """
-    This will return a list of 5 random images that are from public sources only.
-    These will be displayed on the front page to be seen in all their glory
+    Return <count> random images that are from public sources only.
     """
-    public_sources_list = Source.get_public_sources()
+    cache_key = 'carousel_image_pks'
+    cached_image_pks = cache.get(cache_key)
+    if cached_image_pks is not None:
+        return Image.objects.filter(pk__in=cached_image_pks)
 
-    # return empty list if no public sources
-    if len(public_sources_list) == 0:
-        return public_sources_list
+    public_sources = Source.get_public_sources()
 
-    random_source_list = []
+    # Return empty queryset if no public sources
+    if not public_sources.exists():
+        return Image.objects.none()
+
     random_image_list = []
 
-    # get 5 random public sources
-    for i in range(5):
-        random_source = random.choice(public_sources_list)
-        random_source_list.append(random_source)
+    # Get <count> random public sources and pick 1 random image from each.
+    # This allows equal representation of sources regardless of image volume.
+    #
+    # Note that optimization of random selection isn't always obvious.
+    # In particular, random.choice() MAY be faster than order_by('?').
+    # http://stackoverflow.com/questions/962619/
+    for i in range(count):
+        random_source = random.choice(public_sources)
+        source_images = Image.objects.filter(source=random_source)
 
-    # get a random image from each randomly chosen public source
-    for source in random_source_list:
-        all_images = source.get_all_images()
-
-        if len(all_images) == 0:
+        # Source has no images
+        if not source_images.exists():
             continue
 
-        random_image = random.choice(all_images)
+        random_image = random.choice(source_images)
         random_image_list.append(random_image)
+
+    # Cache the carousel images for 1 day.
+    # This improves performance by reducing the number of times
+    # carousel thumbnails must be generated.
+    cache.set(cache_key, [img.pk for img in random_image_list], 60*60*24)
 
     return random_image_list
 

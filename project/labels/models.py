@@ -1,5 +1,6 @@
 import math
 import posixpath
+import random
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.cache import cache
@@ -114,13 +115,14 @@ class Label(models.Model):
             # Map to a 0-100 scale.
             popularity = 100 * (1 - raw_score**(-0.15))
 
-        # Cache the value for this number of seconds.
-        POPULARITY_CACHE_DURATION = 60*60*24
+        # Cache the value for a random duration between 2 and 3 days.
+        # The duration is random so that the cached popularities don't all
+        # expire at the same time.
+        POPULARITY_CACHE_DURATION = random.randint(60*60*24*2, 60*60*24*3)
         cache_key = 'label_popularity_{pk}'.format(pk=self.pk)
         cache.set(cache_key, popularity, POPULARITY_CACHE_DURATION)
 
         return popularity
-
 
 
 class LabelSet(models.Model):

@@ -193,6 +193,17 @@ AUTHENTICATION_BACKENDS = [
     'guardian.backends.ObjectPermissionBackend',
 ]
 
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'OPTIONS': {
+            # This should at least support:
+            # - Our label count (for label popularities)
+            'MAX_ENTRIES': 10000,
+        }
+    }
+}
+
 ROOT_URLCONF = 'config.urls'
 
 # A list containing the settings for all template engines to be used

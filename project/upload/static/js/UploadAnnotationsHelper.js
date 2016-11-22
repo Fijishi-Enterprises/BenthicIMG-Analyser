@@ -14,7 +14,6 @@ var UploadAnnotationsHelper = (function() {
     var previewTableContent = null;
     var previewDetails = null;
 
-    var $csvRefreshButton = null;
     var $uploadStartButton = null;
 
     var uploadPreviewUrl = null;
@@ -275,15 +274,11 @@ var UploadAnnotationsHelper = (function() {
             csvFileField = $('#id_csv_file')[0];
 
             // Button elements.
-            $csvRefreshButton = $('#csv_refresh_button');
             $uploadStartButton = $('#id_upload_submit');
 
 
             // Handlers.
             $(csvFileField).change(function() {
-                updateUploadPreview();
-            });
-            $csvRefreshButton.click(function() {
                 updateUploadPreview();
             });
             $uploadStartButton.click(function() {

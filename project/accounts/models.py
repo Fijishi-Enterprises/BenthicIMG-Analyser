@@ -84,8 +84,15 @@ class Profile(models.Model):
 
     @classmethod
     def _get_gravatar_url(cls, hash):
-        fmt = 'http://www.gravatar.com/avatar/{hash}?d=identicon&s={size}'
-        return fmt.format(hash=hash, size=cls.AVATAR_SIZE)
+        # In general, we don't have the request object handy, so we can't use
+        # request.scheme. This is the next best thing that comes to mind.
+        if settings.SESSION_COOKIE_SECURE:
+            scheme = 'https'
+        else:
+            scheme = 'http'
+
+        fmt = '{scheme}://www.gravatar.com/avatar/{hash}?d=identicon&s={size}'
+        return fmt.format(scheme=scheme, hash=hash, size=cls.AVATAR_SIZE)
 
     def get_avatar_url(self):
         if self.use_email_gravatar:

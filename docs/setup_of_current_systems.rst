@@ -14,5 +14,5 @@ Contents:
    git
    python_and_django
    web_server
-   Vision backend <backend>
+   Vision backend <vision_backend>
    scripts

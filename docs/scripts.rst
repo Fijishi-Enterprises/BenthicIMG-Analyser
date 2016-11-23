@@ -50,7 +50,7 @@ Server start - Linux production/staging servers
   rm -f /srv/www/tmp/maintenance.html
 
   # Set up the Python/Django environment.
-  source <environment setup script>.sh
+  source /scripts/env_setup.sh
 
   echo "(Re)starting gunicorn."
   pkill gunicorn
@@ -66,17 +66,11 @@ Server start - Linux production/staging servers
     redis server &
   fi
 
-  # (Re)start celery processes.
-  # It's probably possible to check what's already running, and only start
-  # stuff as needed. If you know how, implement that here.
-  echo "(Re)starting celery processes."
-  pkill celery
-  # Worker(s).
-  celery worker --app=config --loglevel=info &
-  # Scheduler which creates tasks.
-  celery beat --app=config --loglevel=info &
-  # Task viewer.
-  celery flower --app=config &
+  echo "Starting celery beat and worker..."
+  cd /cnhome
+  supervisorctl -c config/supervisor.conf start celeryworker
+  supervisorctl -c config/supervisor.conf start celerybeat
+
 
 
 .. _script_server_stop:
@@ -91,6 +85,11 @@ Server stop - Linux production/staging servers
   # so redis and celery don't need to be stopped.
   echo "Stopping gunicorn."
   pkill gunicorn
+
+  echo "Stopping celery beat and worker"
+  cd /cnhome
+  supervisorctl -c config/supervisor.conf stop celeryworker
+  supervisorctl -c config/supervisor.conf stop celerybeat
 
   # Create an HTML file with a maintenance message.
   # Our nginx config should detect a maintenance HTML at this location,

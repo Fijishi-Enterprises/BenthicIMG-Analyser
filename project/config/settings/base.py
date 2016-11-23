@@ -22,6 +22,9 @@ PROJECT_DIR = SETTINGS_DIR.ancestor(2)
 # Directory for any site related files, not just the repository.
 SITE_DIR = PROJECT_DIR.ancestor(2)
 
+# Directory containing log files
+LOG_DIR = SITE_DIR.child('log')
+
 # JSON-based secrets module, expected to be in the SETTINGS_DIR
 with open(SETTINGS_DIR.child('secrets.json')) as f:
     secrets = json.loads(f.read())
@@ -391,13 +394,13 @@ LOGGING = {
         'backend': {
             'level': 'INFO',
             'class': 'logging.FileHandler',
-            'filename': SITE_DIR.child('log/vision_backend.log'),
+            'filename': LOG_DIR.child('vision_backend.log'),
             'formatter': 'standard'
         },
         'backend_debug': {
             'level': 'DEBUG',
             'class': 'logging.FileHandler',
-            'filename': SITE_DIR.child('log/vision_backend_debug.log'),
+            'filename': LOG_DIR.child('vision_backend_debug.log'),
             'formatter': 'standard'
         },
     },

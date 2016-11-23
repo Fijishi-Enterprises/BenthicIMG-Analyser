@@ -154,7 +154,7 @@ class AnnotationHistoryTest(ClientTest):
         self.assertContains(response, "Accessed annotation tool", count=1)
         self.assertContains(response, self.user.username, count=1)
 
-    def test_annotation_event(self):
+    def test_human_annotation_event(self):
         data = dict(
             label_1='A', label_2='', label_3='B',
             robot_1='false', robot_2='false', robot_3='false',
@@ -173,7 +173,7 @@ class AnnotationHistoryTest(ClientTest):
         self.assertContains(response, "Point", count=2)
         self.assertContains(response, self.user.username, count=1)
 
-    def test_annotation_overwrite(self):
+    def test_human_annotation_overwrite(self):
         # Annotate as user: 2 new (2 history points)
         data = dict(
             label_1='A', label_2='', label_3='B',
@@ -204,6 +204,16 @@ class AnnotationHistoryTest(ClientTest):
         self.assertContains(response, "Point", count=4)
         self.assertContains(response, self.user.username, count=1)
         self.assertContains(response, self.user_editor.username, count=1)
+
+    def test_robot_annotation(self):
+        robot = self.create_robot(self.source)
+        self.add_robot_annotations(robot, self.img, {1: 'A', 2: 'B', 3: 'B'})
+
+        self.client.force_login(self.user)
+        response = self.client.get(self.url)
+        # Should have 1 table entry showing all the points that were changed.
+        self.assertContains(response, "Point", count=3)
+        self.assertContains(response, "Robot {v}".format(v=robot.pk), count=1)
 
 
 class PointGenTest(ClientTest):

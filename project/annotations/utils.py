@@ -1,6 +1,9 @@
+import datetime
 import operator
+import pytz
 
 from django.contrib.auth.models import User
+from django.utils import timezone
 from accounts.utils import get_robot_user, is_robot_user, get_alleviate_user
 from annotations.models import Annotation
 from images.model_utils import PointGen
@@ -50,25 +53,26 @@ def get_annotation_user_display(anno):
 
     Returns a string representing the user who made the annotation.
     """
-
     if not anno.user:
         return "(Unknown user)"
 
     elif is_robot_user(anno.user):
         if not anno.robot_version:
             return "(Robot, unknown version)"
-        return "Robot: %s" % anno.robot_version
+        return "Robot {v}".format(v=anno.robot_version)
 
     else:
         return anno.user.username
 
-def get_annotation_version_user_display(anno_version):
+
+def get_annotation_version_user_display(anno_version, date_created):
     """
-    anno - a reversion.Version model; a previous or current version of an annotations.Annotation model.
+    anno_version - a reversion.Version model; a previous or current version
+    of an annotations.Annotation model.
+    date_created - creation date of the Version.
 
     Returns a string representing the user who made the annotation.
     """
-
     user_id = anno_version.field_dict['user']
     user = User.objects.get(pk=user_id)
 
@@ -76,7 +80,8 @@ def get_annotation_version_user_display(anno_version):
         return "(Unknown user)"
 
     elif is_robot_user(user):
-        # This check may be needed because Annotation didn't originally save robot versions.
+        # This check may be needed because Annotation didn't
+        # originally save robot versions.
         if not anno_version.field_dict.has_key('robot_version'):
             return "(Robot, unknown version)"
 
@@ -84,8 +89,18 @@ def get_annotation_version_user_display(anno_version):
         if not robot_version_id:
             return "(Robot, unknown version)"
 
-        robot_version = Robot.objects.get(pk=robot_version_id)
-        return "Robot: %s" % robot_version
+        # On this date/time in UTC, CoralNet alpha had ended and CoralNet beta
+        # robot runs had not yet started.
+        beta_start_dt_naive = datetime.datetime(2016, 11, 19, 8)
+        beta_start_dt = timezone.make_aware(
+            beta_start_dt_naive, pytz.timezone("UTC"))
+
+        if date_created < beta_start_dt:
+            # Alpha
+            return "Robot alpha-{v}".format(v=robot_version_id)
+
+        # Beta (versions had reset, hence the need for alpha/beta distinction)
+        return "Robot {v}".format(v=robot_version_id)
 
     else:
         return user.username

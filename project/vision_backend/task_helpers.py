@@ -14,6 +14,7 @@ from django.conf import settings
 from django.utils import timezone
 from django.db.models import F
 from django.db import transaction
+from reversion import revisions
 
 from images.models import Image, Point
 from annotations.models import Annotation
@@ -36,6 +37,9 @@ def _submit_job(messagebody):
     queue.write(m)
 
 
+# Must explicitly turn on history creation when RevisionMiddleware is
+# not in effect. (It's only in effect within views.)
+@revisions.create_revision()
 def _add_annotations(image_id, scores, label_objs, classifier):
     """
     Adds annotations objects using the classifier scores.

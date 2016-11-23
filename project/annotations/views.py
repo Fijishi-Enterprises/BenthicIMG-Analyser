@@ -422,7 +422,8 @@ def annotation_history(request, image_id):
             dict(
                 date=rev.date_created,
                 # Any Version will do
-                user=get_annotation_version_user_display(rev_versions[0]),
+                user=get_annotation_version_user_display(
+                    rev_versions[0], rev.date_created),
                 events=events,
             )
         )

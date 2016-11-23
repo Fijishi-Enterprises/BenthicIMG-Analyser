@@ -17,6 +17,7 @@ from django.core.urlresolvers import reverse
 from django.test import TestCase, override_settings
 from django.test.client import Client
 from django.utils import timezone
+from reversion import revisions
 
 from accounts.utils import get_robot_user
 from annotations.models import Annotation
@@ -24,6 +25,7 @@ from images.model_utils import PointGen
 from images.models import Source, Point, Image
 from labels.models import LabelGroup, Label
 from lib.exceptions import TestfileDirectoryError
+
 from vision_backend.models import Classifier as Robot
 import boto.sqs
 
@@ -381,6 +383,7 @@ class ClientTest(BaseTest):
         return robot
 
     @classmethod
+    @revisions.create_revision()
     def add_robot_annotations(cls, robot, image, annotations):
         """
         Add robot annotations to an image.
@@ -395,7 +398,9 @@ class ClientTest(BaseTest):
         """
         num_points = Point.objects.filter(image=image).count()
 
-        # TODO: Speed up with prefetching and/or bulk saving
+        # Note that bulk-saving annotations would skip the signal firing,
+        # and thus would not trigger django-reversion's revision creation.
+        # So we must save annotations one by one.
         for point_num in range(1, num_points+1):
             label_code = annotations.get(point_num, '')
             if not label_code:

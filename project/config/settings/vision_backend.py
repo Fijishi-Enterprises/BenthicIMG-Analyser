@@ -1,6 +1,3 @@
-# VISION BACKEND SETTINGS
-# TODO: move to separate settings file.
-
 # How many more annotated images are required before we try to train a new classifier.
 NEW_CLASSIFIER_TRAIN_TH = 2
 

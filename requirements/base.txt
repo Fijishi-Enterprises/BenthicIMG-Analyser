@@ -71,3 +71,5 @@ flower==0.9.1
 futures==3.0.5
 tornado==4.2
 
+# Supervisord to manage celery
+supervisor==3.3.1

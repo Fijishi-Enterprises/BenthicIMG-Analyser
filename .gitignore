@@ -3,9 +3,6 @@ project/config/settings/secrets.json
 project/config/nginx.conf
 project/templates/maintenance_notice.html
 
-# Logs
-project/logs
-
 # Sphinx output files
 docs/_build
 docs/_static
@@ -16,6 +13,9 @@ docs/_templates
 
 # Redis dumps
 *.rdb
+
+# Celery stuff
+*.pid
 
 # Database stuff
 coralnet_sqlite_database

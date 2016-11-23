@@ -208,6 +208,27 @@ class ContactTest(ClientTest):
             response,
             "Ensure this value has at most 5000 characters (it has 5001).")
 
+    def test_contact_no_html_escaping(self):
+        """
+        We had a problem before where characters like quotes and angle
+        brackets would become HTML entities like &#39; - in a plain-text email.
+        Here we check that this doesn't happen.
+        """
+        self.client.force_login(self.user)
+        self.client.post(reverse('contact'), dict(
+            subject="""'test' "test" <test>""",
+            message="""'test2' "test2" <test2>""",
+            email='email@goeshere.com',
+        ))
+
+        contact_email = mail.outbox[0]
+        self.assertIn(
+            """'test' "test" <test>""",
+            contact_email.subject)
+        self.assertIn(
+            """'test2' "test2" <test2>""",
+            contact_email.body)
+
     def test_bad_header_error(self):
         """Test for a BadHeaderError case."""
         self.client.force_login(self.user)

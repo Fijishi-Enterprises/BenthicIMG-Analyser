@@ -9,14 +9,9 @@ from .production import *
 EMAIL_BACKEND = 'django.core.mail.backends.filebased.EmailBackend'
 EMAIL_FILE_PATH = SITE_DIR.child('tmp').child('emails')
 
-# [Custom setting]
-# Hosts that nginx should consider valid. Each string item should be a valid
-# server_name string in an nginx config file:
-# http://nginx.org/en/docs/http/server_names.html
-#
-# When you update this, run the makenginxconfig management command
-# to regenerate the nginx config file.
-NGINX_ALLOWED_HOSTS = ['ec2-35-162-62-60.us-west-2.compute.amazonaws.com']
+# Hosts/domain names that are valid for this site.
+# "*" matches anything, ".example.com" matches example.com and all subdomains
+ALLOWED_HOSTS = ['ec2-35-162-62-60.us-west-2.compute.amazonaws.com']
 
 # Let's Encrypt doesn't accept amazonaws domain names, so we can't use
 # HTTPS on the staging server.

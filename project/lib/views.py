@@ -7,6 +7,7 @@ from django.http import HttpResponseRedirect, HttpResponseServerError
 from django.shortcuts import render, get_object_or_404
 from django.template import loader, TemplateDoesNotExist
 from django.template.loader import render_to_string
+from django.utils.safestring import mark_safe
 
 from annotations.models import Annotation
 from images.models import Image, Source
@@ -35,14 +36,18 @@ def contact(request):
                 user_email = contact_form.cleaned_data['email']
                 base_message = contact_form.cleaned_data['message']
 
+            # We will send a plain-text email.
+            # So when passing the subject and message as template variables,
+            # we have to use mark_safe() so that characters like quote marks
+            # don't get HTML-escaped.
             subject = render_to_string('lib/contact_subject.txt', dict(
                 username=username,
-                base_subject=base_subject,
+                base_subject=mark_safe(base_subject),
             ))
             message = render_to_string('lib/contact_email.txt', dict(
                 username=username,
                 user_email=user_email,
-                base_message=base_message,
+                base_message=mark_safe(base_message),
             ))
 
             # Send the mail.

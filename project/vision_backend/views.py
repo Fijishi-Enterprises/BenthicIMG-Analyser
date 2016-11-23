@@ -12,11 +12,12 @@ from django.contrib.auth.decorators import permission_required
 
 from lib.decorators import source_visibility_required
 
-from images.models import Source
+from images.models import Source, Image
 from labels.models import LocalLabel, Label
 from .forms import TreshForm
 from .confmatrix import ConfMatrix
 from .utils import labelset_mapper, map_labels
+from .models import Classifier
 
 
 from images.utils import source_robot_status
@@ -26,6 +27,31 @@ import vision_backend.utils as utils
 @permission_required('is_superuser')
 def backend_overview(request):
 
+    nimgs = Image.objects.filter().count()
+    nconfirmed = Image.objects.filter(confirmed = True).count()
+    nclassified = Image.objects.filter(features__classified = True).count()
+    nextracted = Image.objects.filter(features__extracted = True).count()
+    nnaked = Image.objects.filter(features__extracted = False, confirmed = False).count()
+
+    img_stats = {
+        'nimgs': nimgs,
+        'nconfirmed': nconfirmed,
+        'nclassified': nclassified, 
+        'nextracted': nextracted,
+        'nnaked': nnaked,
+        'fextracted': '{:.1f}'.format(100*float(nextracted) / nimgs),
+        'fconfirmed': '{:.1f}'.format(100*float(nconfirmed) / nimgs),
+        'fclassified': '{:.1f}'.format(100*float(nclassified) / nimgs),
+        'fnaked': '{:.1f}'.format(100*float(nnaked) / nimgs)
+    }
+
+    clf_stats = {
+        'nclassifiers': Classifier.objects.filter().count(),
+        'nvalidclassifiers': Classifier.objects.filter(valid=True).count(),
+        'nsources': Source.objects.filter().count(),
+        'valid_ratio': '{:.1f}'.format(float(Classifier.objects.filter().count()) / Source.objects.filter().count())
+    }
+
     laundry_list = []
     for source in Source.objects.filter().order_by('-id'):
         laundry_list.append(source_robot_status(source.id))
@@ -34,6 +60,8 @@ def backend_overview(request):
     
     return render(request, 'vision_backend/overview.html', {
         'laundry_list': laundry_list,
+        'img_stats': img_stats,
+        'clf_stats': clf_stats
     })
 
 

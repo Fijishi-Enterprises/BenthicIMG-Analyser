@@ -391,13 +391,13 @@ LOGGING = {
         'backend': {
             'level': 'INFO',
             'class': 'logging.FileHandler',
-            'filename': os.path.join(PROJECT_DIR, 'logs', 'vision_backend.log') ,
+            'filename': SITE_DIR.child('log/vision_backend.log'),
             'formatter': 'standard'
         },
         'backend_debug': {
             'level': 'DEBUG',
             'class': 'logging.FileHandler',
-            'filename': os.path.join(PROJECT_DIR, 'logs', 'vision_backend_debug.log') ,
+            'filename': SITE_DIR.child('log/vision_backend_debug.log'),
             'formatter': 'standard'
         },
     },

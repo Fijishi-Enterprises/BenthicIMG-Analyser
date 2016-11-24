@@ -91,7 +91,7 @@ def get_annotation_version_user_display(anno_version, date_created):
 
         # On this date/time in UTC, CoralNet alpha had ended and CoralNet beta
         # robot runs had not yet started.
-        beta_start_dt_naive = datetime.datetime(2016, 11, 19, 8)
+        beta_start_dt_naive = datetime.datetime(2016, 11, 20, 2)
         beta_start_dt = timezone.make_aware(
             beta_start_dt_naive, pytz.timezone("UTC"))
 

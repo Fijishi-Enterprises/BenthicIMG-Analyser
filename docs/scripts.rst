@@ -111,7 +111,7 @@ Run this as a ``.bat`` file:
 When you're done working:
 
 - Close the command windows
-- If you ran celery beat, delete the ``celerybeat.pid`` and ``celerybeat-schedule`` files from the ``project`` directory (in particular, if ``celerybeat.pid`` still exists, a subsequent start of celerybeat will fail because it thinks a celerybeat process is still running)
+- If you ran celery beat, delete the ``celerybeat.pid`` file from the ``project`` directory (otherwise, a subsequent start of celerybeat will see that file, assume a celerybeat process is still running, and fail to start)
 
 
 Staging sync - Database

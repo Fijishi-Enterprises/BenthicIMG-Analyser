@@ -330,6 +330,57 @@ It seems we were mistaken in assuming the alpha database state was at South migr
 
 The reason we need this "which migrations have been run?" deduction is that the alpha database does not have any records of which easy_thumbnails South migrations were run in the past. One version of easy_thumbnails we used in the past caused problems with its South migrations directory location, so that may be part of the reason for the missing records.
 
-In conclusion, the correct procedure was: fake South's 0001-0013, then run South's 0014-0015, then fake new 0001, then run new 0002.
+In conclusion, the correct procedure was: **fake South's 0001-0013, then run South's 0014-0015, then fake new 0001, then run new 0002**.
 
-After beta release, though, it's not trivial to go back and run South migrations to fix the situation.
+After beta release, though, we didn't really have the luxury of re-running these migrations from scratch. Here's how we patched the situation:
+
+- Find the duplicate easy_thumbnails objects with the following code:
+
+  ::
+
+    from easy_thumbnails.models import Source, Thumbnail
+    sources = Source.objects.all().order_by('pk')
+    source_name_set = set()
+    dupe_sources = []
+    for obj in sources:
+        if obj.name in source_name_set:
+            print("Source {pk} *** {name}".format(pk=obj.pk, name=obj.name))
+            dupe_sources.append(obj)
+        else:
+            source_name_set.add(obj.name)
+    thumbnails = Thumbnail.objects.all().order_by('pk')
+    thumbnail_name_set = set()
+    dupe_thumbnails = []
+    for obj in thumbnails:
+        if obj.name in thumbnail_name_set:
+            print("Thumbnail {pk} *** {name}".format(pk=obj.pk, name=obj.name))
+            dupe_thumbnails.append(obj)
+        else:
+            thumbnail_name_set.add(obj.name)
+
+- There were 14 duplicate Sources and hundreds of duplicate Thumbnails. There's no reason why we should lose the original images by deleting easy_thumbnails' objects, but to satisfy our paranoia, we went into S3 and manually backed up the original files of the 14 duplicate Sources (found by filename-searching each of the printed Source names in the S3 console) before deleting the Sources.
+
+- Delete the duplicate objects:
+
+  ::
+
+    for t in dupe_thumbnails:
+        t.delete()
+    for s in dupe_sources:
+        s.delete()
+
+- Use ``manage.py sqlmigrate easy_thumbnails 0001_initial`` to see the database-level SQL commands required to create the ``unique_together`` constraints. (This management command just prints the SQL that the migration is equivalent to.)
+
+- Open pgAdmin, connect to our database, and run those SQL commands - took about 15 seconds total:
+
+  ::
+
+    ALTER TABLE "easy_thumbnails_source" ADD CONSTRAINT "easy_thumbnails_source_storage_hash_481ce32d_uniq" UNIQUE ("storage_hash", "name");
+    ALTER TABLE "easy_thumbnails_thumbnail" ADD CONSTRAINT "easy_thumbnails_thumbnail_storage_hash_fb375270_uniq" UNIQUE ("storage_hash", "name", "source_id");
+    COMMIT;
+
+- In pgAdmin, check the SQL tab for the easy_thumbnails tables to ensure that the table definitions now have the unique constraints.
+
+- Check for the original files' existence in S3 again.
+
+One last note of interest: `A similar "Multiple objects returned" issue <https://github.com/SmileyChris/easy-thumbnails/issues/69>`__ was reported to easy_thumbnails back in 2011. The fix was to create South migration 0015, which was one of the migrations we had missed. The issue thread suggests that the issue tended to happen with cloud storage rather than local storage, which also applies to our beta migration.

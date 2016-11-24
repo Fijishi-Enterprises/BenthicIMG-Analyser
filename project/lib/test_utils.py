@@ -378,6 +378,8 @@ class ClientTest(BaseTest):
             source=source,
             nbr_train_images=50,
             runtime_train=100,
+            accuracy=0.50,
+            valid=True,
         )
         robot.save()
         return robot

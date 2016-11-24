@@ -21,6 +21,8 @@ OPTIONAL. You can also install "flower" which is a neat celery task viewer. Agai
 
 ``pip install flower``
 
+Also, the backend requires Django settings that use S3 media storage, not local media storage.
+
 Run (simple)
 --------------------
 You then need to run the following commands (in seperate consoles). Run them all from the project root (where manage.py is).
@@ -43,7 +45,9 @@ OPTIONAL. This runs the celery task viewer:
 
 Run (production)
 --------------------
-For production we use a service called supervisord (this can also easily be setup in development if desired). Supervisord allows celery beat and worker to be run as daemons in the background. 
+For production we use a service called supervisord. Supervisord allows celery beat and worker to be run as daemons in the background.
+
+This can also easily be setup in development if desired. It works on Mac, Linux, and `Cygwin <http://stackoverflow.com/a/18032347/>`__.
 
 To install use (this is included in the base requirements):
 
@@ -84,6 +88,6 @@ Other management commands
 
 Can be used to submit feature extract jobs for images already uploaded to the site, but not processed for whatever reason.
 
-``python manage.py read_spacer_erors``
+``python manage.py read_spacer_errors``
 
 This reads all messages in the spacer error queue and dumps the content to the console. Messages are deleted after they are processed.

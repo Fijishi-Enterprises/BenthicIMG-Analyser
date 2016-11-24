@@ -133,10 +133,11 @@ To add our SSL certificate, open ``/etc/postfix/main.cf`` with sudo, and add or 
 
 ::
 
-  smtp_tls_cert_file=/etc/letsencrypt/live/<FQDN goes here>/privkey.pem
-  smtp_tls_key_file=/etc/letsencrypt/live/<FQDN goes here>/fullchain.pem
-  smtpd_tls_cert_file=/etc/letsencrypt/live/<FQDN goes here>/privkey.pem
-  smtpd_tls_key_file=/etc/letsencrypt/live/<FQDN goes here>/fullchain.pem
+  smtp_tls_cert_file=/etc/letsencrypt/live/<FQDN goes here>/fullchain.pem
+  smtp_tls_key_file=/etc/letsencrypt/live/<FQDN goes here>/privkey.pem
+  smtpd_tls_cert_file=/etc/letsencrypt/live/<FQDN goes here>/fullchain.pem
+  smtpd_tls_key_file=/etc/letsencrypt/live/<FQDN goes here>/privkey.pem
+  smtp_use_tls=yes
 
 Then run ``sudo /etc/init.d/postfix reload``.
 
@@ -156,7 +157,7 @@ Steps:
 #. Put up the maintenance message: ``python manage.py maintenanceon``. Ensure the start time gives users some advance warning.
 #. Wait until your specified maintenance time begins.
 #. :ref:`Set up your Python/Django environment <script_environment_setup>`.
-#. :ref:`Stop gunicorn <script_server_stop>`.
+#. :ref:`Stop gunicorn and other services <script_server_stop>`.
 
    - When we're using gunicorn instead of the Django ``runserver`` command, updating code while the server is running can temporarily leave the server code in an inconsistent state, which can lead to some very weird internal server errors.
    - When using the Django ``runserver`` command, there are still situations where you need to stop and re-start the server, such as when adding new files. `Link <https://docs.djangoproject.com/en/dev/ref/django-admin/#runserver>`__
@@ -175,11 +176,9 @@ Steps:
    - Do ``python manage.py collectstatic --clear`` if you think there's some obsolete static files that can be cleaned up.
 
 #. If there are any new Django migrations to run, then run those: ``python manage.py migrate``. New migrations should be tested in staging before being run in production.
-#. :ref:`Start gunicorn again <script_server_start>`.
+#. :ref:`Start gunicorn and other services <script_server_start>`.
 #. Check a couple of pages to confirm that things are working.
 #. Take down the maintenance message: ``python manage.py maintenanceoff``
-
-(TODO: Does the vision backend have to be stopped before updating code?)
 
 
 Getting the latest nginx

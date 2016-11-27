@@ -1,8 +1,8 @@
 import json
 import datetime
 import csv
-import numpy as np
 
+import numpy as np
 
 from django.contrib.auth.decorators import permission_required
 from django.shortcuts import render
@@ -13,15 +13,17 @@ from django.contrib.auth.decorators import permission_required
 from lib.decorators import source_visibility_required
 
 from images.models import Source, Image
+from images.utils import source_robot_status
 from labels.models import LocalLabel, Label
+
 from .forms import TreshForm
 from .confmatrix import ConfMatrix
-from .utils import labelset_mapper, map_labels
+from .utils import labelset_mapper, map_labels, get_total_messages_in_jobs_queue, get_alleviate
 from .models import Classifier
 
 
-from images.utils import source_robot_status
-import vision_backend.utils as utils
+
+
 
 
 @permission_required('is_superuser')
@@ -49,7 +51,7 @@ def backend_overview(request):
         'nclassifiers': Classifier.objects.filter().count(),
         'nvalidclassifiers': Classifier.objects.filter(valid=True).count(),
         'nsources': Source.objects.filter().count(),
-        'valid_ratio': '{:.1f}'.format(float(Classifier.objects.filter().count()) / Source.objects.filter().count())
+        'valid_ratio': '{:.1f}'.format(float(Classifier.objects.filter(valid=True).count()) / Source.objects.filter().count())
     }
 
     laundry_list = []
@@ -61,7 +63,8 @@ def backend_overview(request):
     return render(request, 'vision_backend/overview.html', {
         'laundry_list': laundry_list,
         'img_stats': img_stats,
-        'clf_stats': clf_stats
+        'clf_stats': clf_stats,
+        'spacer_queue': get_total_messages_in_jobs_queue(),
     })
 
 
@@ -124,9 +127,9 @@ def backend_main(request, source_id):
     
     # Prepare the alleviate plot if not allready in session
     if not 'alleviate_data' in request.session.keys():
-        acc_full, ratios, confs = utils.get_alleviate(valres['gt'], valres['est'], valres['scores'])
+        acc_full, ratios, confs = get_alleviate(valres['gt'], valres['est'], valres['scores'])
         classmap, classnames = labelset_mapper('func', valres['classes'], source)
-        acc_func, _, _ = utils.get_alleviate(map_labels(valres['gt'], classmap), map_labels(valres['est'], classmap), valres['scores'])
+        acc_func, _, _ = get_alleviate(map_labels(valres['gt'], classmap), map_labels(valres['est'], classmap), valres['scores'])
         request.session['alleviate'] = dict()
         for member in ['acc_full', 'acc_func', 'ratios']:
             request.session['alleviate'][member] = [[conf, val] for val, conf in zip(eval(member), confs)]

@@ -190,7 +190,7 @@ def _classifiercollector(messagebody):
     logstr = 'Classifier {} [Source: {} [{}]]'.format(classifier.pk, classifier.source, classifier.source.id)
     
     # If training didn't finish with OK status, return false and exit.
-    if not payload['ok']:
+    if not result['ok']:
         return 0
 
     # Check that the accuracy is higher than the previous classifiers

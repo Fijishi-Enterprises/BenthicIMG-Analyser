@@ -193,6 +193,12 @@ def _classifiercollector(messagebody):
     if not result['ok']:
         return 0
 
+    # Store generic stats
+    classifier.runtime_train = result['runtime']
+    classifier.accuracy = result['acc']
+    classifier.epoch_ref_accuracy = str([int(round(100 * ra)) for ra in result['refacc']])
+    classifier.save()
+
     # Check that the accuracy is higher than the previous classifiers
     if 'pc_models' in payload and len(payload['pc_models']) > 0:
         if max(result['pc_accs']) * settings.NEW_CLASSIFIER_IMPROVEMENT_TH > result['acc']:
@@ -206,9 +212,6 @@ def _classifiercollector(messagebody):
             pc.save()
     
     classifier.valid = True
-    classifier.runtime_train = result['runtime']
-    classifier.accuracy = result['acc']
-    classifier.epoch_ref_accuracy = str([int(round(100 * ra)) for ra in result['refacc']])
     classifier.save()
     logger.info("{} collected successfully.".format(logstr))
     return 1

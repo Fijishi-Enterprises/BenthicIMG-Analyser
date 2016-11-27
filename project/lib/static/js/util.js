@@ -494,7 +494,7 @@ util.addLoadEvent( function() {
     var $tutorialMessages = $(".tutorial-message");
     $tutorialMessages.each ( function() {
         var $helpImage = $('<img style="display:inline;cursor:pointer" width="20" />');
-        $helpImage.attr('src', utilQuestionMarkImage);
+        $helpImage.attr('src', window.utilQuestionMarkImage);
         // Insert the help image before the tutorial message element
         // (which should have display:none, so effectively, insert the
         // help image in place of the tutorial message).

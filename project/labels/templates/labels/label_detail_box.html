@@ -10,7 +10,7 @@
     src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
     class="lazy-load" data-src="{{ label.thumbnail.url }}" style="float: right;" />
 {% else %}
-  <img src="{% static "img/No-image-available.png" %}" style="float: right;" />
+  <img src="{% static "img/placeholders/thumbnail-no-image-available__150x150.png" %}" style="float: right;" />
 {% endif %}
 
 <div class="line">Name: <strong>{{ label.name }}</strong></div>

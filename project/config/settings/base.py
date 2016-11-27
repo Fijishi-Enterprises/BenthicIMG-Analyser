@@ -136,6 +136,7 @@ DATABASES = {
 INSTALLED_APPS = [
     'accounts',
     'annotations',
+    'async_media',
     'bug_reporting',
     # Saves internal server error messages for viewing in the admin site
     'errorlogs.apps.ErrorlogsConfig',
@@ -201,7 +202,10 @@ CACHES = {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
         'OPTIONS': {
             # This should at least support:
-            # - Our label count (for label popularities)
+            # - Label popularities: assume we're always caching 1 entry per
+            #   label, for the label list
+            # - Async thumbnail requests: however many might be generated in
+            #   the expiration duration
             'MAX_ENTRIES': 10000,
         }
     }

@@ -266,7 +266,7 @@ SSH into the beta server, activate the environment, and run these in order (corr
 - admin: fake 0001, run 0002
 - sessions: fake 0001
 - guardian: fake 0001
-- easy_thumbnails: fake 0001, run 0002 (OR run South's 0016, then fake new 0001-0002)
+- easy_thumbnails: fake 0001, run 0002 (OR run South's 0016, then fake new 0001-0002) (**this was wrong; see details below**)
 - reversion: run South's 0006-0008, then fake new 0001, then run new 0002 (see details below)
 - Our apps:
 
@@ -315,3 +315,21 @@ To apply the ``reversion`` migrations:
 - Revert all the code changes. ``git checkout config/settings/base.py``, etc.
 - pip-install the latest ``Django`` and ``django-reversion`` again, and uninstall ``South``.
 - Now you can see with ``manage.py showmigrations`` that the ``reversion`` migration numbers have changed. Fake-run 0001, then run 0002.
+
+
+easy_thumbnails
+~~~~~~~~~~~~~~~
+Shortly after beta release, we found out that our ``easy_thumbnails_source`` and ``easy_thumbnails_thumbnail`` tables were not having their ``unique_together`` constraints applied when saving thumbnails. This caused the error ``MultipleObjectsReturned at /image/<id>/annotation/tool/ get() returned more than one Source -- it returned 2!``
+
+It seems we were mistaken in assuming the alpha database state was at South migration 0015. In reality, it seems alpha was at South migration 0013:
+
+- From South migration 0001 to 0012, at least one of the tables ``Storage`` and ``StorageNew`` existed in easy_thumbnails.
+- Starting from South migration 0013, neither of ``Storage`` or ``StorageNew`` exist in the migration state.
+- Neither of ``easy_thumbnails_storage`` or ``easy_thumbnails_storagenew`` exist in the alpha database, indicating that it was at least at 0013.
+- South migrations 0014 and 0015 create the ``unique_together`` indexes which are missing from our tables.
+
+The reason we need this "which migrations have been run?" deduction is that the alpha database does not have any records of which easy_thumbnails South migrations were run in the past. One version of easy_thumbnails we used in the past caused problems with its South migrations directory location, so that may be part of the reason for the missing records.
+
+In conclusion, the correct procedure was: fake South's 0001-0013, then run South's 0014-0015, then fake new 0001, then run new 0002.
+
+After beta release, though, it's not trivial to go back and run South migrations to fix the situation.

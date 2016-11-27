@@ -143,7 +143,7 @@ Make some directories
 ---------------------
 Certain file-creation parts of the project code may trigger an error such as ``No such file or directory`` when the destination directory doesn't already exist. This behavior should probably be fixed at some point, but in the meantime, you'll need to create at least the following directories:
 
-- ``project/logs``
+- ``<SITE_DIR>/log``
 - ``<SITE_DIR>/tmp``
 - ``<MEDIA_ROOT>/unittests`` (local-machine storage only)
 

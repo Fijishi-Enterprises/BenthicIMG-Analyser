@@ -6,26 +6,6 @@ Environment and server scripts
 Most of the setup steps only need to be done once, but there are a few commands that you need to run each time you work on CoralNet. There are also server commands that can be hard to remember. We can put these commands in convenient shell/batch scripts to make life easier.
 
 
-Environment setup - Windows development servers
------------------------------------------------
-Starts the PostgreSQL service, starts the Redis server, and opens a command window for running ``manage.py`` commands. Run this as a ``.bat`` file:
-
-::
-
-  cd D:\<path up to Git repo>\coralnet\project
-  set "DJANGO_SETTINGS_MODULE=config.settings.<module name>"
-
-  rem Start the PostgreSQL service (this does nothing if it's already started)
-  net start postgresql-x64-<version number>
-
-  rem Call opens a new command window, cmd /k ensures it waits for input
-  rem instead of closing immediately
-  start cmd /k call <path to virtualenv>\Scripts\activate.bat
-
-  rem Run the redis server in this window
-  <path to redis>\redis-server.exe
-
-
 .. _script_environment_setup:
 
 Environment setup - Linux production/staging servers
@@ -96,6 +76,42 @@ Server stop - Linux production/staging servers
   # and serve it if it exists.
   echo "CoralNet is under maintenance. We'll be back as soon as we can!" > \
     /srv/www/tmp/maintenance.html
+
+
+Environment setup and services start - Windows development servers
+------------------------------------------------------------------
+Run this as a ``.bat`` file:
+
+::
+
+  cd D:\<path up to Git repo>\coralnet\project
+  set "DJANGO_SETTINGS_MODULE=config.settings.<module name>"
+
+  rem Start the PostgreSQL service (this does nothing if it's already started)
+  net start postgresql-x64-<version number>
+
+  rem Start celery.
+  rem /B runs a command asynchronously and without an extra command window,
+  rem similarly to & in Linux.
+  <path to virtualenv>\Scripts\activate.bat
+  start /B celery -A config worker
+
+  rem Start celery beat. Could consider commenting this out if you don't
+  rem need to submit spacer jobs.
+  start /B celery -A config beat
+
+  rem Open a new command window with the virtualenv activated.
+  rem Call opens a new command window, cmd /k ensures it waits for input
+  rem instead of closing immediately.
+  start cmd /k call <path to virtualenv>\Scripts\activate.bat
+
+  rem Run the redis server in this window
+  <path to redis>\redis-server.exe
+
+When you're done working:
+
+- Close the command windows
+- If you ran celery beat, delete the ``celerybeat.pid`` and ``celerybeat-schedule`` files from the ``project`` directory (in particular, if ``celerybeat.pid`` still exists, a subsequent start of celerybeat will fail because it thinks a celerybeat process is still running)
 
 
 Staging sync - Database

@@ -10,7 +10,6 @@ from django.views.decorators.http import require_POST
 
 from .forms import CheckboxForm, StatisticsSearchForm, ImageSearchForm, \
     PatchSearchOptionsForm, HiddenForm, create_image_filter_form
-from .utils import generate_patch_if_doesnt_exist, get_patch_url
 from accounts.utils import get_robot_user
 from annotations.models import Annotation
 from images.forms import MetadataFormForGrid, BaseMetadataFormSet
@@ -218,23 +217,11 @@ def browse_patches(request, source_id):
         settings.BROWSE_DEFAULT_THUMBNAILS_PER_PAGE,
         request.POST)
 
-    patches = []
-    for index, point in enumerate(page_results.object_list):
-        generate_patch_if_doesnt_exist(point)
-        patches.append(dict(
-            image=point.image,
-            thumbnail_url=get_patch_url(point.id),
-            row=point.row,
-            col=point.column,
-            point_number=point.point_number,
-        ))
-
     return render(request, 'visualization/browse_patches.html', {
         'source': source,
         'image_search_form': image_search_form,
         'patch_search_form': patch_search_form,
         'page_results': page_results,
-        'patches': patches,
         'hidden_image_and_patch_form': hidden_image_and_patch_form,
         'empty_message': empty_message,
     })

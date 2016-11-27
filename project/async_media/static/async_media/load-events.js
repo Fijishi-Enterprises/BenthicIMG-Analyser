@@ -1,68 +1,68 @@
 /* Dependencies: jQuery, util */
 
 
-/* If there are thumbnails to be asynchronously loaded, then load them. */
+/* If there are media to be asynchronously loaded, then load them. */
 util.addLoadEvent( function() {
-    // Async thumbnails = Images that have the thumb-async class and
+    // Async media = Images that have the media-async class and
     // a non-blank hash attribute.
-    var $asyncThumbnails =
-        $('img.thumb-async[data-async-request-hash!=""]');
-    if ($asyncThumbnails.length === 0) { return; }
+    var $asyncMedia =
+        $('img.media-async[data-async-request-hash!=""]');
+    if ($asyncMedia.length === 0) { return; }
 
     var requestHashes = [];
-    $asyncThumbnails.each(function() {
+    $asyncMedia.each(function() {
         requestHashes.push($(this).attr('data-async-request-hash'));
     });
 
-    var handlePollForThumbnailsResponse = function(response) {
+    var handlePollForMediaResponse = function(response) {
         var i;
-        for (i = 0; i < response['thumbnails'].length; i++) {
-            var thumb = response['thumbnails'][i];
-            // Load the newly-generated thumbnail's URL into the
+        for (i = 0; i < response['media'].length; i++) {
+            var thumb = response['media'][i];
+            // Load the newly-generated media file's URL into the
             // img element.
             // We get the index from the server side because responses
             // could potentially arrive here out of order.
-            $asyncThumbnails[thumb['index']].src = thumb['url'];
+            $asyncMedia[thumb['index']].src = thumb['url'];
         }
 
-        if (response['thumbnailsRemaining']) {
-            // There are more thumbnails to get; keep polling the server.
-            window.setTimeout(pollForThumbnails, 2*1000);
+        if (response['mediaRemaining']) {
+            // There are more media to get; keep polling the server.
+            window.setTimeout(pollForMedia, 2*1000);
         }
     };
-    var pollForThumbnails = function() {
+    var pollForMedia = function() {
         $.ajax({
             // URL to make request to
-            url: window.pollForThumbnailsURL,
+            url: window.pollForMediaURL,
             // Data to send in the request.
-            // The server uses the hash of the first requested thumbnail
-            // as the thumbnail-progress key.
+            // The server uses the hash of the first requested media file
+            // as the file-retrieval-progress key.
             data: {'first_hash': requestHashes[0]},
             type: 'POST',
             // Callbacks
-            success: handlePollForThumbnailsResponse,
+            success: handlePollForMediaResponse,
             error: util.handleServerError
         });
     };
 
-    // Request generation of all the thumbnails this page requires.
+    // Request generation of all the media this page requires.
     $.ajax({
         // URL to make request to
-        url: window.generateThumbnailsURL,
+        url: window.generateMediaURL,
         // Data to send in the request.
-        // The server uses the hashes to identify which thumbnails
+        // The server uses the hashes to identify which media
         // are being requested.
         data: {'hashes': requestHashes},
         type: 'POST',
         // Callbacks
-        // Thumbnails are retrieved from the polling responses,
+        // Media are retrieved from the polling responses,
         // so no success callback is needed here.
         error: util.handleServerError
     });
-    // Start periodically checking the server for generated thumbnails.
-    // This is more responsive than retrieving all thumbnails once they're
+    // Start periodically checking the server for generated media.
+    // This is more responsive than retrieving all media once they're
     // all finished.
     // It's also more efficient than having the server return to us and wait
-    // for another request after each thumbnail.
-    window.setTimeout(pollForThumbnails, 2*1000);
+    // for another request after each media file.
+    window.setTimeout(pollForMedia, 2*1000);
 });

@@ -110,8 +110,8 @@ to any value (except the empty string) to not include it.
 {# Must be included after: util.js #}
 {% if not no_async_media_load_events %}
     <script>
-    window.generateThumbnailsURL = "{% url 'async_media:thumbnails_ajax' %}";
-    window.pollForThumbnailsURL = "{% url 'async_media:thumbnails_poll_ajax' %}";
+    window.generateMediaURL = "{% url 'async_media:media_ajax' %}";
+    window.pollForMediaURL = "{% url 'async_media:media_poll_ajax' %}";
     </script>
     {% include "static-local-include.html" with type="js" path="async_media/load-events.js" %}
 {% endif %}

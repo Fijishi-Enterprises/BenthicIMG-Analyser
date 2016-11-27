@@ -2,8 +2,8 @@ from django.conf.urls import url
 from . import views
 
 urlpatterns = [
-    url(r'^thumbnails_ajax/$', views.thumbnails_ajax,
-        name="thumbnails_ajax"),
-    url(r'^thumbnails_poll_ajax/$', views.thumbnails_poll_ajax,
-        name="thumbnails_poll_ajax"),
+    url(r'^media_ajax/$', views.media_ajax,
+        name="media_ajax"),
+    url(r'^media_poll_ajax/$', views.media_poll_ajax,
+        name="media_poll_ajax"),
 ]

@@ -22,10 +22,6 @@ from .utils import labelset_mapper, map_labels, get_total_messages_in_jobs_queue
 from .models import Classifier
 
 
-
-
-
-
 @permission_required('is_superuser')
 def backend_overview(request):
 

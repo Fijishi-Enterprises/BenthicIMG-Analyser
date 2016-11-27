@@ -1,70 +1,7 @@
 {% extends "base.html" %}
 
-{% block javascript-functions %}
-
-<script>
-var chart,
-  binnedData,
-  rawData = [3.5, 3, 3.2, 3.1, 3.6, 3.9, 3.4, 3.4, 2.9, 3.1, 3.7, 3.4, 3, 3, 4, 4.4, 3.9, 3.5, 3.8, 3.8, 3.4, 3.7, 3.6, 3.3, 3.4, 3, 3.4, 3.5, 3.4, 3.2, 3.1, 3.4, 4.1, 4.2, 3.1, 3.2, 3.5, 3.6, 3, 3.4, 3.5, 2.3, 3.2, 3.5, 3.8, 3, 3.8, 3.2, 3.7, 3.3, 3.2, 3.2, 3.1, 2.3, 2.8, 2.8, 3.3, 2.4, 2.9, 2.7, 2, 3, 2.2, 2.9, 2.9, 3.1, 3, 2.7, 2.2, 2.5, 3.2, 2.8, 2.5, 2.8, 2.9, 3, 2.8, 3, 2.9, 2.6, 2.4, 2.4, 2.7, 2.7, 3, 3.4, 3.1, 2.3, 3, 2.5, 2.6, 3, 2.6, 2.3, 2.7, 3, 2.9, 2.9, 2.5, 2.8, 3.3, 2.7, 3, 2.9, 3, 3, 2.5, 2.9, 2.5, 3.6, 3.2, 2.7, 3, 2.5, 2.8, 3.2, 3, 3.8, 2.6, 2.2, 3.2, 2.8, 2.8, 2.7, 3.3, 3.2, 2.8, 3, 2.8, 3, 2.8, 3.8, 2.8, 2.8, 2.6, 3, 3.4, 3.1, 3, 3.1, 3.1, 3.1, 2.7, 3.2, 3.3, 3, 2.5, 3, 3.4, 3];
-binnedData = binData(rawData);
-
-$(document).ready(function() {
-    var chart1 = new Highcharts.Chart({
-        chart: {
-          type: 'column',
-          renderTo: 'acchist',
-          margin: [60, 10, 40, 40],
-        },
-        title: {
-          text: 'Symmetrical Distribution',
-          x: 25
-        },
-        subtitle: {
-          text: 'Fisher\'s Iris Data: Sepal Width',
-          x: 25
-        },
-        legend: {
-          enabled: false
-        },
-        credits: {
-          enabled: false
-        },
-        exporting: {
-          enabled: false
-        },
-        tooltip: {},
-        plotOptions: {
-          series: {
-            pointPadding: 0,
-            groupPadding: 0,
-            borderWidth: 0.5,
-            borderColor: 'rgba(255,255,255,0.5)',
-            color: Highcharts.getOptions().colors[1]
-          }
-        },
-        xAxis: {
-          title: {
-            text: 'Sepal Width (cm)'
-          }
-        },
-        yAxis: {
-          title: {
-            text: ''
-          }
-        }
-        series: [{
-            data: [1,2,3, 4, 5],
-        }];
-    });
-});
-</script>
-
-{% endblock %}
-
 
 {% block content %}
-<div id="acchist", style="width:60%; height:400px;margin-left: auto;
-        margin-right: auto"></div>
 
 <p>There are {{img_stats.nimgs}} images on the site out of which {{img_stats.nextracted}} ({{img_stats.fextracted}}%) have features, {{img_stats.nconfirmed}} ({{img_stats.fconfirmed}}%) are confirmed and {{img_stats.nclassified}} ({{img_stats.fclassified}}%) classified. {{img_stats.nnaked}} are neither classified nor confirmed ({{img_stats.fnaked}}%).</p>
 

@@ -59,7 +59,8 @@
     {% get_obj_perms user for source as 'source_perms' %}
 
     {# Grid of patches #}
-    {% for point in page_results.object_list %}
+    {% for annotation in page_results.object_list %}
+    {% with point=annotation.point %}
       {% patch_async point request as patch_dict %}
 
       <span class="thumb_wrapper">
@@ -75,6 +76,7 @@
             title="Point {{ point.point_number }} ({{ point.row }},{{ point.column }}) in: {{ point.image.get_image_element_title }}"/>
         </a>
       </span>
+    {% endwith %}
     {% endfor %}
 
     {# Pagination info and links #}

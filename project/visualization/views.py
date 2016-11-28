@@ -183,7 +183,7 @@ def browse_patches(request, source_id):
         "Use the form to retrieve image patches"
         " corresponding to annotated points."
     )
-    patch_results = Point.objects.none()
+    annotation_results = Annotation.objects.none()
     image_search_form = ImageSearchForm(
         source=source, has_annotation_status=False)
     patch_search_form = PatchSearchOptionsForm(source=source)
@@ -197,7 +197,8 @@ def browse_patches(request, source_id):
     if image_form:
         if image_form.is_valid() and patch_search_form.is_valid():
             image_results = image_form.get_images()
-            patch_results = patch_search_form.get_patches(image_results)
+            annotation_results = patch_search_form.get_annotations(
+                image_results)
             hidden_image_and_patch_form = \
                 HiddenForm(forms=[image_form, patch_search_form])
             empty_message = "No patch results."
@@ -210,10 +211,10 @@ def browse_patches(request, source_id):
             image_search_form = image_form
 
     # Random order
-    patch_results = patch_results.order_by('?')
+    annotation_results = annotation_results.order_by('?')
 
     page_results = paginate(
-        patch_results,
+        annotation_results,
         settings.BROWSE_DEFAULT_THUMBNAILS_PER_PAGE,
         request.POST)
 

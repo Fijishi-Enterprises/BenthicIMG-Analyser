@@ -316,18 +316,20 @@ class PatchSearchOptionsForm(forms.Form):
             empty_label="All",
         )
 
-    def get_patches(self, image_results):
+    def get_annotations(self, image_results):
         """
-        Call this after cleaning the form to get the patch search results
+        Call this after cleaning the form to get the annotation search results
         specified by the fields, within the specified images.
+
+        In the patches view, we care more about the points than the
+        annotations, but it's more efficient to get a queryset of annotations
+        and then just grab the few points that we want to display on the page.
         """
         data = self.cleaned_data
 
         # Only get patches corresponding to annotated points of the
         # given images.
-        patch_results = \
-            Point.objects.filter(image__in=image_results) \
-            .exclude(annotation=None)
+        results = Annotation.objects.filter(image__in=image_results)
 
         # Empty value is None for ModelChoiceFields, '' for other fields.
         # (If we could use None for every field, we would, but there seems to
@@ -337,24 +339,20 @@ class PatchSearchOptionsForm(forms.Form):
         # by the field.
 
         if data['label'] is not None:
-            patch_results = patch_results.filter(
-                annotation__label=data['label'])
+            results = results.filter(label=data['label'])
 
         if data['annotation_status'] == 'unconfirmed':
-            patch_results = patch_results.filter(
-                annotation__user=get_robot_user())
+            results = results.filter(user=get_robot_user())
         elif data['annotation_status'] == 'confirmed':
-            patch_results = patch_results.exclude(
-                annotation__user=get_robot_user())
+            results = results.exclude(user=get_robot_user())
 
         # This option doesn't really make sense if filtering status as
         # 'unconfirmed', but not a big deal if the user does a search
         # like that. It'll just get 0 results.
         if data['annotator'] is not None:
-            patch_results = patch_results.filter(
-                annotation__user=data['annotator'])
+            results = results.filter(user=data['annotator'])
 
-        return patch_results
+        return results
 
 
 class ImageSpecifyByIdForm(forms.Form):

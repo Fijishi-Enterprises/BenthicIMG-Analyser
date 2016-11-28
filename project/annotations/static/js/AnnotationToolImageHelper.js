@@ -1,104 +1,27 @@
-var ATI = {
+var AnnotationToolImageHelper = (function() {
 
-    $applyButton: undefined,
-    $resetButton: undefined,
-    $applyingText: undefined,
+    var $applyButton = null;
+    var $resetButton = null;
+    var $applyingText = null;
 
-    form: undefined,
-    fields: undefined,
+    var form = null;
+    var fields = null;
 
-    MIN_BRIGHTNESS: -150,
-    MAX_BRIGHTNESS: 150,
-    BRIGHTNESS_STEP: 1,
+    var MIN_BRIGHTNESS = -150;
+    var MAX_BRIGHTNESS = 150;
+    var BRIGHTNESS_STEP = 1;
 
-    MIN_CONTRAST: -1.0,
-    MAX_CONTRAST: 3.0,
-    CONTRAST_STEP: 0.1,
+    var MIN_CONTRAST = -1.0;
+    var MAX_CONTRAST = 3.0;
+    var CONTRAST_STEP = 0.1;
 
-    sourceImages: {},
-    currentSourceImage: undefined,
-    imageCanvas: undefined,
+    var sourceImages = {};
+    var currentSourceImage = null;
+    var imageCanvas = null;
 
-    nowApplyingProcessing: false,
-    redrawSignal: false,
+    var nowApplyingProcessing = false;
+    var redrawSignal = false;
 
-    init: function(sourceImages) {
-        ATI.$applyButton = $('#applyImageOptionsButton');
-        ATI.$resetButton = $('#resetImageOptionsButton');
-        ATI.$applyingText = $('#applyingText');
-
-        ATI.form = util.forms.Form({
-            brightness: util.forms.Field({
-                $element: $('#id_brightness'),
-                type: 'signedInt',
-                defaultValue: 0,
-                validators: [util.forms.validators.inNumberRange.curry(ATI.MIN_BRIGHTNESS, ATI.MAX_BRIGHTNESS)],
-                extraWidget: util.forms.SliderWidget(
-                    $('#brightness_slider'),
-                    $('#id_brightness'),
-                    ATI.MIN_BRIGHTNESS,
-                    ATI.MAX_BRIGHTNESS,
-                    ATI.BRIGHTNESS_STEP
-                )
-            }),
-            contrast: util.forms.FloatField({
-                $element: $('#id_contrast'),
-                type: 'signedFloat',
-                defaultValue: 0.0,
-                validators: [util.forms.validators.inNumberRange.curry(ATI.MIN_CONTRAST, ATI.MAX_CONTRAST)],
-                extraWidget: util.forms.SliderWidget(
-                    $('#contrast_slider'),
-                    $('#id_contrast'),
-                    ATI.MIN_CONTRAST,
-                    ATI.MAX_CONTRAST,
-                    ATI.CONTRAST_STEP
-                ),
-                decimalPlaces: 1
-            })
-        });
-        ATI.fields = ATI.form.fields;
-
-        ATI.sourceImages = sourceImages;
-
-        ATI.imageCanvas = $("#imageCanvas")[0];
-
-        // Initialize fields.
-        for (var fieldName in ATI.fields) {
-            if (!ATI.fields.hasOwnProperty(fieldName)){ continue; }
-
-            var field = ATI.fields[fieldName];
-
-            // Initialize the stored field value.
-            field.onFieldChange();
-            // When the element's value is changed, update the stored field value
-            // (or revert the element's value if the value is invalid).
-            field.$element.change(field.onFieldChange);
-        }
-
-        if (ATI.sourceImages.hasOwnProperty('scaled')) {
-            ATI.preloadAndUseSourceImage('scaled');
-        }
-        else {
-            ATI.preloadAndUseSourceImage('full');
-        }
-
-        // When the Apply button is clicked, re-draw the source image
-        // and re-apply bri/con operations.
-        ATI.$applyButton.click( function(){
-            ATI.redrawImage();
-        });
-
-        // When the Reset button is clicked, reset image processing parameters
-        // to default values, and redraw the image.
-        ATI.$resetButton.click( function() {
-            for (var fieldName in ATI.fields) {
-                if (!ATI.fields.hasOwnProperty(fieldName)){ continue; }
-
-                ATI.fields[fieldName].reset();
-            }
-            ATI.redrawImage();
-        });
-    },
 
     /* Preload a source image; once it's loaded, swap it in as the image
      * used in the annotation tool.
@@ -106,29 +29,29 @@ var ATI = {
      * Parameters:
      * code - Which version of the image it is: 'scaled' or 'full'.
      *
-     * Basic code pattern from: http://stackoverflow.com/a/1662153/859858
+     * Basic code pattern from: http://stackoverflow.com/a/1662153/
      */
-    preloadAndUseSourceImage: function(code) {
+    function preloadAndUseSourceImage(code) {
         // Create an Image object.
-        ATI.sourceImages[code].imgBuffer = new Image();
+        sourceImages[code].imgBuffer = new Image();
 
         // When image preloading is done, swap images.
-        ATI.sourceImages[code].imgBuffer.onload = function() {
-            ATI.imageCanvas.width = ATI.sourceImages[code].width;
-            ATI.imageCanvas.height = ATI.sourceImages[code].height;
+        sourceImages[code].imgBuffer.onload = function() {
+            imageCanvas.width = sourceImages[code].width;
+            imageCanvas.height = sourceImages[code].height;
 
-            ATI.currentSourceImage = ATI.sourceImages[code];
-            ATI.redrawImage();
+            currentSourceImage = sourceImages[code];
+            redrawImage();
 
             // If we just finished loading the scaled image, then start loading
             // the full image.
             if (code === 'scaled') {
-                ATI.preloadAndUseSourceImage('full');
+                preloadAndUseSourceImage('full');
             }
         };
 
         // Image preloading starts as soon as we set this src attribute.
-        ATI.sourceImages[code].imgBuffer.src = ATI.sourceImages[code].url;
+        sourceImages[code].imgBuffer.src = sourceImages[code].url;
 
         // For debugging, it sometimes helps to load an image that
         // (1) has different image content, so you can tell when it's swapped in, and/or
@@ -139,20 +62,20 @@ var ATI = {
         // is milliseconds until the first-parameter function is called.
         // NOTE: only use this for debugging, not for production.
         //setTimeout(function() {
-        //    ATI.sourceImages[code].imgBuffer.src = ATI.sourceImages[code].url;
+        //    sourceImages[code].imgBuffer.src = sourceImages[code].url;
         //}, 10000);
-    },
+    }
 
     /* Redraw the source image, and apply brightness and contrast operations. */
-    redrawImage: function() {
+    function redrawImage() {
         // If we haven't loaded any image yet, don't do anything.
-        if (ATI.currentSourceImage === undefined)
+        if (currentSourceImage === undefined)
             return;
 
         // If processing is currently going on, emit the redraw signal to
         // tell it to stop processing and re-call this function.
-        if (ATI.nowApplyingProcessing === true) {
-            ATI.redrawSignal = true;
+        if (nowApplyingProcessing === true) {
+            redrawSignal = true;
             return;
         }
 
@@ -160,12 +83,12 @@ var ATI = {
         // (Pixastic has a revert function that's supposed to do this,
         // but it's not really flexible enough for our purposes, so
         // we're reverting manually.)
-        ATI.imageCanvas.getContext("2d").drawImage(ATI.currentSourceImage.imgBuffer, 0, 0);
+        imageCanvas.getContext("2d").drawImage(currentSourceImage.imgBuffer, 0, 0);
 
         // If processing parameters are the default values, then we just need
         // the original image, so we're done.
-        if (ATI.fields.brightness.value === ATI.fields.brightness.defaultValue
-           && ATI.fields.contrast.value === ATI.fields.contrast.defaultValue) {
+        if (fields.brightness.value === fields.brightness.defaultValue
+           && fields.contrast.value === fields.contrast.defaultValue) {
             return;
         }
 
@@ -178,8 +101,8 @@ var ATI = {
            That way we don't lock up the browser for a really long
            time when processing a large image. */
 
-        var X_MAX = ATI.imageCanvas.width - 1;
-        var Y_MAX = ATI.imageCanvas.height - 1;
+        var X_MAX = imageCanvas.width - 1;
+        var Y_MAX = imageCanvas.height - 1;
 
         // TODO: Make the rect size configurable somehow.
         var RECT_SIZE = 1400;
@@ -208,23 +131,23 @@ var ATI = {
             }
         }
 
-        ATI.nowApplyingProcessing = true;
-        ATI.$applyingText.css({'visibility': 'visible'});
+        nowApplyingProcessing = true;
+        $applyingText.css({'visibility': 'visible'});
 
-        ATI.applyBrightnessAndContrastToRects(
-            ATI.fields.brightness.value,
-            ATI.fields.contrast.value,
+        applyBrightnessAndContrastToRects(
+            fields.brightness.value,
+            fields.contrast.value,
             rects
         )
-    },
+    }
 
-    applyBrightnessAndContrastToRects: function(brightness, contrast, rects) {
-        if (ATI.redrawSignal === true) {
-            ATI.nowApplyingProcessing = false;
-            ATI.redrawSignal = false;
-            ATI.$applyingText.css({'visibility': 'hidden'});
+    function applyBrightnessAndContrastToRects(brightness, contrast, rects) {
+        if (redrawSignal === true) {
+            nowApplyingProcessing = false;
+            redrawSignal = false;
+            $applyingText.css({'visibility': 'hidden'});
 
-            ATI.redrawImage();
+            redrawImage();
             return;
         }
 
@@ -233,7 +156,7 @@ var ATI = {
 
         var params = {
             image: undefined,  // unused?
-            canvas: ATI.imageCanvas,
+            canvas: imageCanvas,
             width: undefined,  // unused?
             height: undefined,  // unused?
             useData: true,
@@ -256,11 +179,11 @@ var ATI = {
         // Pixastic core's applyAction().
         if (params.useData) {
             if (Pixastic.Client.hasCanvasImageData()) {
-                ATI.imageCanvas.getContext("2d").putImageData(params.canvasData, params.options.rect.left, params.options.rect.top);
+                imageCanvas.getContext("2d").putImageData(params.canvasData, params.options.rect.left, params.options.rect.top);
 
                 // Opera doesn't seem to update the canvas until we draw something on it, lets draw a 0x0 rectangle.
                 // Is this still so?
-                ATI.imageCanvas.getContext("2d").fillRect(0,0,0,0);
+                imageCanvas.getContext("2d").fillRect(0,0,0,0);
             }
         }
 
@@ -269,13 +192,104 @@ var ATI = {
             // don't lock up the browser for an extended period of time.
             // Note the use of curry() to produce a function.
             setTimeout(
-                ATI.applyBrightnessAndContrastToRects.curry(brightness, contrast, rects),
+                applyBrightnessAndContrastToRects.curry(brightness, contrast, rects),
                 50
             );
         }
         else {
-            ATI.nowApplyingProcessing = false;
-            ATI.$applyingText.css({'visibility': 'hidden'});
+            nowApplyingProcessing = false;
+            $applyingText.css({'visibility': 'hidden'});
         }
     }
-};
+
+    /* Public methods.
+     * These are the only methods that need to be referred to as
+     * <SingletonClassName>.<methodName>. */
+    return {
+        init: function (sourceImagesArg) {
+            $applyButton = $('#applyImageOptionsButton');
+            $resetButton = $('#resetImageOptionsButton');
+            $applyingText = $('#applyingText');
+
+            form = util.forms.Form({
+                brightness: util.forms.Field({
+                    $element: $('#id_brightness'),
+                    type: 'signedInt',
+                    defaultValue: 0,
+                    validators: [util.forms.validators.inNumberRange.curry(MIN_BRIGHTNESS, MAX_BRIGHTNESS)],
+                    extraWidget: util.forms.SliderWidget(
+                        $('#brightness_slider'),
+                        $('#id_brightness'),
+                        MIN_BRIGHTNESS,
+                        MAX_BRIGHTNESS,
+                        BRIGHTNESS_STEP
+                    )
+                }),
+                contrast: util.forms.FloatField({
+                    $element: $('#id_contrast'),
+                    type: 'signedFloat',
+                    defaultValue: 0.0,
+                    validators: [util.forms.validators.inNumberRange.curry(MIN_CONTRAST, MAX_CONTRAST)],
+                    extraWidget: util.forms.SliderWidget(
+                        $('#contrast_slider'),
+                        $('#id_contrast'),
+                        MIN_CONTRAST,
+                        MAX_CONTRAST,
+                        CONTRAST_STEP
+                    ),
+                    decimalPlaces: 1
+                })
+            });
+            fields = form.fields;
+
+            sourceImages = sourceImagesArg;
+
+            imageCanvas = $("#imageCanvas")[0];
+
+            // Initialize fields.
+            for (var fieldName in fields) {
+                if (!fields.hasOwnProperty(fieldName)) {
+                    continue;
+                }
+
+                var field = fields[fieldName];
+
+                // Initialize the stored field value.
+                field.onFieldChange();
+                // When the element's value is changed, update the stored field value
+                // (or revert the element's value if the value is invalid).
+                field.$element.change(field.onFieldChange);
+            }
+
+            if (sourceImages.hasOwnProperty('scaled')) {
+                preloadAndUseSourceImage('scaled');
+            }
+            else {
+                preloadAndUseSourceImage('full');
+            }
+
+            // When the Apply button is clicked, re-draw the source image
+            // and re-apply bri/con operations.
+            $applyButton.click(function () {
+                redrawImage();
+            });
+
+            // When the Reset button is clicked, reset image processing parameters
+            // to default values, and redraw the image.
+            $resetButton.click(function () {
+                for (var fieldName in fields) {
+                    if (!fields.hasOwnProperty(fieldName)) {
+                        continue;
+                    }
+
+                    fields[fieldName].reset();
+                }
+                redrawImage();
+            });
+        },
+
+        getImageCanvas: function () {
+            return imageCanvas;
+        }
+    }
+})();

@@ -245,7 +245,7 @@
             "{% url 'annotation_tool_settings_save' %}"
     });
     // Initialize the Annotation Tool Image helper object.
-    ATI.init({{ source_images|jsonify }});
+    AnnotationToolImageHelper.init({{ source_images|jsonify }});
     // Initialize the Annotation Tool Helper object.
     AnnotationToolHelper.init({
         fullHeight: {{ image.original_height }},

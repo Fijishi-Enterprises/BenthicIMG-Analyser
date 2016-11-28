@@ -374,42 +374,26 @@ def annotation_history(request, image_id):
     image = get_object_or_404(Image, id=image_id)
     source = image.source
 
-    # Use values_list() and list() to avoid nested queries.
-    # https://docs.djangoproject.com/en/1.3/ref/models/querysets/#in
-    annotation_values = Annotation.objects.filter(
-        image=image, source=source).values('pk', 'point__point_number')
-    annotation_ids = [v['pk'] for v in annotation_values]
+    annotations = Annotation.objects.filter(image=image)
+    versions = Version.objects.filter(object_id_int__in=annotations)
+    revisions = Revision.objects.filter(version__in=versions).distinct()
 
-    # Prefetch versions from the DB using list().
-    versions_queryset = Version.objects.filter(
-        object_id__in=list(annotation_ids))
-    list(versions_queryset)
-
-    revision_pks = \
-        versions_queryset.values_list('revision', flat=True).distinct()
-    revisions = list(Revision.objects.filter(pk__in=list(revision_pks)))
-
-    # anno_pks_to_pointnums maps each Annotation's pk to the corresponding
-    # Point's point number.
-    point_number_tuples = [
-        (v['pk'], v['point__point_number']) for v in annotation_values]
-    anno_pks_to_pointnums = dict()
-    for tup in point_number_tuples:
-        anno_pks_to_pointnums[tup[0]] = tup[1]
-
+    def version_to_point_number(v):
+        return Annotation.objects.get(pk=v.object_id_int).point.point_number
     event_log = []
 
     for rev in revisions:
         # Get Versions under this Revision
-        rev_versions = list(versions_queryset.filter(revision=rev))
+        rev_versions = versions.filter(revision=rev)
+
         # Sort by the point number of the annotation
-        rev_versions.sort(
-            key=lambda x: anno_pks_to_pointnums[int(x.object_id)])
+        rev_versions = list(rev_versions)
+        rev_versions.sort(key=version_to_point_number)
 
         # Create a log entry for this Revision
         events = []
         for v in rev_versions:
-            point_number = anno_pks_to_pointnums[int(v.object_id)]
+            point_number = version_to_point_number(v)
             global_label_pk = v.field_dict['label']
             label_code = source.labelset.global_pk_to_code(global_label_pk)
 

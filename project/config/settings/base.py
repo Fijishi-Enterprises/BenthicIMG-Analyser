@@ -199,7 +199,16 @@ AUTHENTICATION_BACKENDS = [
 
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        # The default local-memory cache backend is saved per-process, which
+        # doesn't cut it if we have more than one server process, e.g.
+        # multiple gunicorn worker processes.
+        #
+        # For example, async media loading uses the cache as a kind of
+        # persistent storage between requests. In general, the subsequent
+        # requests may be handled by different worker processes, so per-process
+        # caches won't work; the cache must be shared between processes.
+        'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+        'LOCATION': SITE_DIR.child('tmp').child('django_cache'),
         'OPTIONS': {
             # This should at least support:
             # - Label popularities: assume we're always caching 1 entry per

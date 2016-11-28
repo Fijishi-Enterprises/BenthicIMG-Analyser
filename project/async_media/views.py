@@ -21,25 +21,28 @@ def media_ajax(request):
     status = dict(count=len(hashes), index=0)
     set_media_request_status(first_hash, status)
 
+    error = None
+
     for index, media_hash in enumerate(hashes):
         cache_key = 'media_async_request_{hash}'.format(
             hash=media_hash)
-        if cache_key not in cache:
-            raise ValueError("One or more request hashes were not found.")
-
         details = cache.get(cache_key)
         cache.delete(cache_key)
 
-        size = details['size']
+        size = details['size'] if details else (150, 150)
         not_found_image = to_static_path(
             'img/placeholders/'
             'media-image-not-found__{w}x{h}.png'.format(
                 w=size[0], h=size[1]))
 
-        if details['user_id'] and request.user.pk != details['user_id']:
-            # Security check: the user didn't match the original media
-            # requester.
+        if not details:
+            # Seems the hash is invalid.
             url = not_found_image
+            error = "Invalid hash: " + media_hash
+        elif details['user_id'] and request.user.pk != details['user_id']:
+            # Security check.
+            url = not_found_image
+            error = "The user didn't match the original media requester."
         elif details['media_type'] == 'thumbnail':
             try:
                 # Generate the media.
@@ -54,14 +57,15 @@ def media_ajax(request):
             generate_patch_if_doesnt_exist(details['point_id'])
             url = get_patch_url(details['point_id'])
         else:
-            # Unknown media type for some reason.
             url = not_found_image
+            error = "Unknown media type."
 
         set_media_url(first_hash, index, url)
 
-    # Nothing to really return. The client should be getting the media
-    # from the polling responses.
-    return JsonResponse(dict())
+    # If there was an error, report at least one of them.
+    # Otherwise, no actual data to return. The client should be getting the
+    # media from the polling responses.
+    return JsonResponse(dict(error=error))
 
 
 def media_poll_ajax(request):

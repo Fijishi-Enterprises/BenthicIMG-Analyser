@@ -55,8 +55,9 @@ util.addLoadEvent( function() {
         data: {'hashes': requestHashes},
         type: 'POST',
         // Callbacks
-        // Media are retrieved from the polling responses,
-        // so no success callback is needed here.
+        success: function(response) {
+            if (response['error']) { console.log(response['error']); }
+        },
         error: util.handleServerError
     });
     // Start periodically checking the server for generated media.

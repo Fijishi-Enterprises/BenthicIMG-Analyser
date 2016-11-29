@@ -11,6 +11,7 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+   operation
    setup_of_current_systems
    setup_of_old_systems
    design_decisions

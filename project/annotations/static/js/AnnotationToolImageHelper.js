@@ -30,6 +30,10 @@ var AnnotationToolImageHelper = (function() {
         // Create an Image object.
         sourceImages[code].imgBuffer = new Image();
 
+        // Allow the image to be from a different domain such as S3.
+        // https://developer.mozilla.org/en-US/docs/Web/HTML/CORS_enabled_image
+        sourceImages[code].imgBuffer.crossOrigin = "Anonymous";
+
         // When image preloading is done, swap images.
         sourceImages[code].imgBuffer.onload = function() {
             imageCanvas.width = sourceImages[code].width;

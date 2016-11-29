@@ -1,19 +1,14 @@
 var AnnotationToolImageHelper = (function() {
 
-    var $applyButton = null;
     var $resetButton = null;
     var $applyingText = null;
 
-    var form = null;
-    var fields = null;
-
-    var MIN_BRIGHTNESS = -100;
-    var MAX_BRIGHTNESS = 100;
-    var BRIGHTNESS_STEP = 1;
-
-    var MIN_CONTRAST = -100;
-    var MAX_CONTRAST = 100;
-    var CONTRAST_STEP = 1;
+    var brightnessField = null;
+    var contrastField = null;
+    var MIN_BRIGHTNESS = null;
+    var MAX_BRIGHTNESS = null;
+    var MIN_CONTRAST = null;
+    var MAX_CONTRAST = null;
 
     var sourceImages = {};
     var currentSourceImage = null;
@@ -82,10 +77,9 @@ var AnnotationToolImageHelper = (function() {
         // Redraw the source image.
         imageCanvas.getContext("2d").drawImage(currentSourceImage.imgBuffer, 0, 0);
 
-        // If processing parameters are the default values, then we just need
+        // If processing parameters are neutral values, then we just need
         // the original image, so we're done.
-        if (fields.brightness.value === fields.brightness.defaultValue
-           && fields.contrast.value === fields.contrast.defaultValue) {
+        if (brightnessField.value === 0 && contrastField.value === 0) {
             return;
         }
 
@@ -97,7 +91,6 @@ var AnnotationToolImageHelper = (function() {
         var X_MAX = imageCanvas.width - 1;
         var Y_MAX = imageCanvas.height - 1;
 
-        // TODO: Make the rect size configurable somehow.
         var RECT_SIZE = 1400;
 
         var x1 = 0, y1 = 0, xRanges = [], yRanges = [];
@@ -133,7 +126,7 @@ var AnnotationToolImageHelper = (function() {
 
         // We'll say the bias can increase/decrease the pixel value by
         // as much as 150.
-        var brightness = Number(fields.brightness.value);
+        var brightness = Number(brightnessField.value);
         var brightnessFraction =
             (brightness - MIN_BRIGHTNESS) / (MAX_BRIGHTNESS - MIN_BRIGHTNESS);
         var bias = (150*2)*brightnessFraction - 150;
@@ -143,7 +136,7 @@ var AnnotationToolImageHelper = (function() {
         // The middle contrast value must map to 1.
         var MIN_BIAS = 0.25;
         var MAX_BIAS = 3.0;
-        var contrast = Number(fields.contrast.value);
+        var contrast = Number(contrastField.value);
         var contrastFraction =
             (contrast - MIN_CONTRAST) / (MAX_CONTRAST - MIN_CONTRAST);
         var gain = null;
@@ -224,59 +217,62 @@ var AnnotationToolImageHelper = (function() {
      * <SingletonClassName>.<methodName>. */
     return {
         init: function (sourceImagesArg) {
-            $applyButton = $('#applyImageOptionsButton');
             $resetButton = $('#resetImageOptionsButton');
             $applyingText = $('#applyingText');
 
-            form = util.forms.Form({
-                brightness: util.forms.Field({
-                    $element: $('#id_brightness'),
-                    type: 'signedInt',
-                    defaultValue: 0,
-                    validators: [util.forms.validators.inNumberRange.curry(MIN_BRIGHTNESS, MAX_BRIGHTNESS)],
-                    extraWidget: util.forms.SliderWidget(
-                        $('#brightness_slider'),
-                        $('#id_brightness'),
-                        MIN_BRIGHTNESS,
-                        MAX_BRIGHTNESS,
-                        BRIGHTNESS_STEP
-                    )
-                }),
-                contrast: util.forms.FloatField({
-                    $element: $('#id_contrast'),
-                    type: 'signedFloat',
-                    defaultValue: 0.0,
-                    validators: [util.forms.validators.inNumberRange.curry(MIN_CONTRAST, MAX_CONTRAST)],
-                    extraWidget: util.forms.SliderWidget(
-                        $('#contrast_slider'),
-                        $('#id_contrast'),
-                        MIN_CONTRAST,
-                        MAX_CONTRAST,
-                        CONTRAST_STEP
-                    ),
-                    decimalPlaces: 1
-                })
+            brightnessField = $('#id_brightness')[0];
+            contrastField = $('#id_contrast')[0];
+            MIN_BRIGHTNESS = Number(brightnessField.min);
+            MAX_BRIGHTNESS = Number(brightnessField.max);
+            MIN_CONTRAST = Number(contrastField.min);
+            MAX_CONTRAST = Number(contrastField.max);
+
+            // http://api.jqueryui.com/slider/
+            var $brightnessSlider = $('#brightness_slider').slider({
+                value: Number(brightnessField.value),
+                min: MIN_BRIGHTNESS,
+                max: MAX_BRIGHTNESS,
+                step: 1,
+                // When the slider is moved (by the user),
+                // update the text field too.
+                slide: function(event, ui) {
+                    brightnessField.value = ui.value;
+                },
+                // When the slider value is changed, either by the user
+                // directly or a programmatic change, re-draw the source image
+                // and re-apply bri/con operations.
+                change: redrawImage
             });
-            fields = form.fields;
+            var $contrastSlider = $('#contrast_slider').slider({
+                value: Number(contrastField.value),
+                min: MIN_CONTRAST,
+                max: MAX_CONTRAST,
+                step: 1,
+                slide: function(event, ui) {
+                    contrastField.value = ui.value;
+                },
+                change: redrawImage
+            });
+
+            // When the text fields are updated (by the user),
+            // update the sliders too.
+            brightnessField.addEventListener('change', function() {
+                // If the browser supports the "number" input type, with
+                // validity checking and all, then return if invalid.
+                if (this.validity && !this.validity.valid) { return; }
+                // If value box is empty, return.
+                if (this.value === '') { return; }
+                $brightnessSlider.slider('value', Number(this.value));
+            });
+            contrastField.addEventListener('change', function() {
+                if (this.validity && !this.validity.valid) { return; }
+                if (this.value === '') { return; }
+                $contrastSlider.slider('value', Number(this.value));
+            });
 
             sourceImages = sourceImagesArg;
 
-            imageCanvas = $("#imageCanvas")[0];
-
-            // Initialize fields.
-            for (var fieldName in fields) {
-                if (!fields.hasOwnProperty(fieldName)) {
-                    continue;
-                }
-
-                var field = fields[fieldName];
-
-                // Initialize the stored field value.
-                field.onFieldChange();
-                // When the element's value is changed, update the stored field value
-                // (or revert the element's value if the value is invalid).
-                field.$element.change(field.onFieldChange);
-            }
+            imageCanvas = $('#imageCanvas')[0];
 
             if (sourceImages.hasOwnProperty('scaled')) {
                 preloadAndUseSourceImage('scaled');
@@ -285,22 +281,13 @@ var AnnotationToolImageHelper = (function() {
                 preloadAndUseSourceImage('full');
             }
 
-            // When the Apply button is clicked, re-draw the source image
-            // and re-apply bri/con operations.
-            $applyButton.click(function () {
-                redrawImage();
-            });
-
-            // When the Reset button is clicked, reset image processing parameters
-            // to default values, and redraw the image.
+            // When the Reset button is clicked, reset image processing
+            // parameters to default values, and redraw the image.
             $resetButton.click(function () {
-                for (var fieldName in fields) {
-                    if (!fields.hasOwnProperty(fieldName)) {
-                        continue;
-                    }
-
-                    fields[fieldName].reset();
-                }
+                brightnessField.value = 0;
+                contrastField.value = 0;
+                $brightnessSlider.slider('value', 0);
+                $contrastSlider.slider('value', 0);
                 redrawImage();
             });
         },

@@ -103,8 +103,8 @@ class AnnotationToolSettingsForm(ModelForm):
 
 
 class AnnotationImageOptionsForm(Form):
-    brightness = IntegerField(initial='0', widget=NumberInput(attrs={'size': 3}))
-    contrast = DecimalField(initial='0', widget=NumberInput(attrs={'size': 3}))
+    brightness = IntegerField(initial=0, min_value=-100, max_value=100)
+    contrast = IntegerField(initial=0, min_value=-100, max_value=100)
 
 
 class AnnotationAreaPercentsForm(Form):

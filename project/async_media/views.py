@@ -15,7 +15,7 @@ from .utils import (
 def media_ajax(request):
     hashes = request.POST.getlist('hashes[]')
     if not hashes:
-        raise ValueError("No request hashes provided.")
+        return JsonResponse(dict(error="No request hashes provided."))
 
     first_hash = hashes[0]
     status = dict(count=len(hashes), index=0)

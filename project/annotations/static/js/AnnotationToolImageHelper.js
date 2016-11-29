@@ -7,13 +7,13 @@ var AnnotationToolImageHelper = (function() {
     var form = null;
     var fields = null;
 
-    var MIN_BRIGHTNESS = -150;
-    var MAX_BRIGHTNESS = 150;
+    var MIN_BRIGHTNESS = -100;
+    var MAX_BRIGHTNESS = 100;
     var BRIGHTNESS_STEP = 1;
 
-    var MIN_CONTRAST = -1.0;
-    var MAX_CONTRAST = 3.0;
-    var CONTRAST_STEP = 0.1;
+    var MIN_CONTRAST = -100;
+    var MAX_CONTRAST = 100;
+    var CONTRAST_STEP = 1;
 
     var sourceImages = {};
     var currentSourceImage = null;
@@ -69,7 +69,7 @@ var AnnotationToolImageHelper = (function() {
     /* Redraw the source image, and apply brightness and contrast operations. */
     function redrawImage() {
         // If we haven't loaded any image yet, don't do anything.
-        if (currentSourceImage === undefined)
+        if (currentSourceImage === null)
             return;
 
         // If processing is currently going on, emit the redraw signal to
@@ -80,9 +80,6 @@ var AnnotationToolImageHelper = (function() {
         }
 
         // Redraw the source image.
-        // (Pixastic has a revert function that's supposed to do this,
-        // but it's not really flexible enough for our purposes, so
-        // we're reverting manually.)
         imageCanvas.getContext("2d").drawImage(currentSourceImage.imgBuffer, 0, 0);
 
         // If processing parameters are the default values, then we just need
@@ -91,10 +88,6 @@ var AnnotationToolImageHelper = (function() {
            && fields.contrast.value === fields.contrast.defaultValue) {
             return;
         }
-
-        // TODO: Work on reducing browser memory usage.
-        // Abandoning Pixastic.process() was probably a good start, since that
-        // means we no longer create a new canvas.  What else can be done though?
 
         /* Divide the canvas into rectangles.  We'll operate on one
            rectangle at a time, and do a timeout between rectangles.
@@ -134,14 +127,58 @@ var AnnotationToolImageHelper = (function() {
         nowApplyingProcessing = true;
         $applyingText.css({'visibility': 'visible'});
 
-        applyBrightnessAndContrastToRects(
-            fields.brightness.value,
-            fields.contrast.value,
-            rects
-        )
+        // The user-defined brightness and contrast are applied as
+        // 'bias' and 'gain' according to this formula:
+        // http://docs.opencv.org/2.4/doc/tutorials/core/basic_linear_transform/basic_linear_transform.html
+
+        // We'll say the bias can increase/decrease the pixel value by
+        // as much as 150.
+        var brightness = Number(fields.brightness.value);
+        var brightnessFraction =
+            (brightness - MIN_BRIGHTNESS) / (MAX_BRIGHTNESS - MIN_BRIGHTNESS);
+        var bias = (150*2)*brightnessFraction - 150;
+
+        // We'll say the gain can multiply the pixel values by
+        // a range of MIN_BIAS to MAX_BIAS.
+        // The middle contrast value must map to 1.
+        var MIN_BIAS = 0.25;
+        var MAX_BIAS = 3.0;
+        var contrast = Number(fields.contrast.value);
+        var contrastFraction =
+            (contrast - MIN_CONTRAST) / (MAX_CONTRAST - MIN_CONTRAST);
+        var gain = null;
+        var gainFraction = null;
+        if (contrastFraction > 0.5) {
+            // Map 0.5~1.0 to 1.0~3.0
+            gainFraction = (contrastFraction - 0.5) / (1.0 - 0.5);
+            gain = (MAX_BIAS-1.0)*gainFraction + 1.0;
+        }
+        else {
+            // Map 0.0~0.5 to 0.25~1.0
+            gainFraction = contrastFraction / 0.5;
+            gain = (1.0-MIN_BIAS)*gainFraction + MIN_BIAS;
+        }
+
+        applyBriConToRemainingRects(gain, bias, rects);
     }
 
-    function applyBrightnessAndContrastToRects(brightness, contrast, rects) {
+    function applyBriConToRect(gain, bias, data, numPixels) {
+        // Performance note: We tried having a curried function which was
+        // called once for each pixel. However, this ended up taking 8-9
+        // seconds for a 1400x1400 pixel rect, even if the function simply
+        // returns immediately. (Firefox 50.0, 2016.11.28)
+        // So the lesson is: function calls are usually cheap,
+        // but don't underestimate using them by the million.
+        var px;
+        for (px = 0; px < numPixels; px++) {
+            // 4 components per pixel, in RGBA order. We'll ignore alpha.
+            data[4*px] = gain*data[4*px] + bias;
+            data[4*px + 1] = gain*data[4*px + 1] + bias;
+            data[4*px + 2] = gain*data[4*px + 2] + bias;
+        }
+    }
+
+    function applyBriConToRemainingRects(gain, bias, rects) {
         if (redrawSignal === true) {
             nowApplyingProcessing = false;
             redrawSignal = false;
@@ -154,46 +191,25 @@ var AnnotationToolImageHelper = (function() {
         // "Pop" the first element from rects.
         var rect = rects.shift();
 
-        var params = {
-            image: undefined,  // unused?
-            canvas: imageCanvas,
-            width: undefined,  // unused?
-            height: undefined,  // unused?
-            useData: true,
-            options: {
-                'brightness': brightness,
-                'contrast': contrast,
-                'rect': rect    // apply the effect to this region only
-            }
-        };
+        // Grab the rect from the image canvas.
+        var rectCanvasImageData = imageCanvas.getContext("2d")
+            .getImageData(rect.left, rect.top, rect.width, rect.height);
 
-        // This is a call to an "internal" Pixastic function, sort of.
-        // The intended API function Pixastic.process() includes a
-        // drawImage() of the entire image, so that's not good for
-        // operations that require many calls to Pixastic!
-        Pixastic.Actions.brightness.process(params);
+        // Apply bri/con to the rect.
+        applyBriConToRect(
+            gain, bias, rectCanvasImageData.data,
+            rect['width']*rect['height']);
 
-        // Now that we've computed the processed-image data, put that
-        // data on the canvas.
-        // This code block is based on code near the end of the
-        // Pixastic core's applyAction().
-        if (params.useData) {
-            if (Pixastic.Client.hasCanvasImageData()) {
-                imageCanvas.getContext("2d").putImageData(params.canvasData, params.options.rect.left, params.options.rect.top);
-
-                // Opera doesn't seem to update the canvas until we draw something on it, lets draw a 0x0 rectangle.
-                // Is this still so?
-                imageCanvas.getContext("2d").fillRect(0,0,0,0);
-            }
-        }
+        // Put the post-bri/con data on the image canvas.
+        imageCanvas.getContext("2d").putImageData(
+            rectCanvasImageData, rect.left, rect.top);
 
         if (rects.length > 0) {
             // Slightly delay the processing of the next rect, so we
             // don't lock up the browser for an extended period of time.
             // Note the use of curry() to produce a function.
             setTimeout(
-                applyBrightnessAndContrastToRects.curry(brightness, contrast, rects),
-                50
+                applyBriConToRemainingRects.curry(gain, bias, rects), 50
             );
         }
         else {
@@ -201,6 +217,7 @@ var AnnotationToolImageHelper = (function() {
             $applyingText.css({'visibility': 'hidden'});
         }
     }
+
 
     /* Public methods.
      * These are the only methods that need to be referred to as

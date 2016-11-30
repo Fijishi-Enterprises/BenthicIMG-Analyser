@@ -132,7 +132,7 @@ def export_image_covers(request, source_id):
                     image_annotations.filter(label=global_label).count()
                     / float(image_annotation_count)
                 )
-            coverage_percent_str = format(coverage_fraction * 100.0, '.10f')
+            coverage_percent_str = format(coverage_fraction * 100.0, '.3f')
             row.append(coverage_percent_str)
         writer.writerow(row)
 

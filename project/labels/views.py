@@ -406,7 +406,7 @@ def label_example_patches_ajax(request, label_id):
         image = point.image
         source = image.source
 
-        generate_patch_if_doesnt_exist(point)
+        generate_patch_if_doesnt_exist(point.pk)
 
         if source.visible_to_user(request.user):
             dest_url = reverse('image_detail', args=[image.pk])

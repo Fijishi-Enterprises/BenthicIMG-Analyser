@@ -118,6 +118,10 @@ var AnnotationToolHelper = (function() {
     // CANVAS methods
     //
 
+    function getImageCanvas() {
+        return AnnotationToolImageHelper.getImageCanvas();
+    }
+
     /*
      * Based on the current zoom level and focus of the zoom, position and
      * set up the image and on-image listener elements.
@@ -180,7 +184,7 @@ var AnnotationToolHelper = (function() {
         imageTopOffset = parseFloat(imageTopOffset.toFixed(3));
 
         // Set styling properties for the image canvas.
-        $(ATI.imageCanvas).css({
+        $(getImageCanvas()).css({
             "height": imageDisplayHeight,
             "left": imageLeftOffset,
             "top": imageTopOffset,
@@ -210,7 +214,7 @@ var AnnotationToolHelper = (function() {
     }
 
     /*
-     * Clear the canvas and reset the context.
+     * Clear the points canvas and reset the context.
      */
     function resetCanvas() {
         // Get the original (untranslated) context back.
@@ -305,7 +309,7 @@ var AnnotationToolHelper = (function() {
         }
 
         // Get the x,y relative to the upper-left corner of the image
-        var elmt = ATI.imageCanvas;
+        var elmt = getImageCanvas();
         while (elmt !== null) {
             x -= elmt.offsetLeft;
             y -= elmt.offsetTop;
@@ -903,8 +907,8 @@ var AnnotationToolHelper = (function() {
         var imageElmtPos = getImageElmtPosition(e);
         var imageElmtX = imageElmtPos[0];
         var imageElmtY = imageElmtPos[1];
-        var imageLeftOffset = parseFloat($(ATI.imageCanvas).css('left'));
-        var imageTopOffset = parseFloat($(ATI.imageCanvas).css('top'));
+        var imageLeftOffset = parseFloat($(getImageCanvas()).css('left'));
+        var imageTopOffset = parseFloat($(getImageCanvas()).css('top'));
         rectangleStartX = imageElmtX + imageLeftOffset;
         rectangleStartY = imageElmtY + imageTopOffset;
 
@@ -923,8 +927,8 @@ var AnnotationToolHelper = (function() {
         var imageElmtPos = getImageElmtPosition(e);
         var imageElmtX = imageElmtPos[0];
         var imageElmtY = imageElmtPos[1];
-        var imageLeftOffset = parseFloat($(ATI.imageCanvas).css('left'));
-        var imageTopOffset = parseFloat($(ATI.imageCanvas).css('top'));
+        var imageLeftOffset = parseFloat($(getImageCanvas()).css('left'));
+        var imageTopOffset = parseFloat($(getImageCanvas()).css('top'));
         var currentX = imageElmtX + imageLeftOffset;
         var currentY = imageElmtY + imageTopOffset;
 
@@ -942,8 +946,8 @@ var AnnotationToolHelper = (function() {
 
         // Mouse's position in the canvas element
         var imageElmtPos = getImageElmtPosition(e);
-        var imageLeftOffset = parseFloat($(ATI.imageCanvas).css('left'));
-        var imageTopOffset = parseFloat($(ATI.imageCanvas).css('top'));
+        var imageLeftOffset = parseFloat($(getImageCanvas()).css('left'));
+        var imageTopOffset = parseFloat($(getImageCanvas()).css('top'));
         var displayX1 = imageElmtPos[0] + imageLeftOffset;
         var displayY1 = imageElmtPos[1] + imageTopOffset;
         var displayX2 = rectangleStartX;

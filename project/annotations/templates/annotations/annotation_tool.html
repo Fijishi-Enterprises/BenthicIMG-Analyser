@@ -8,26 +8,24 @@
 {% block title %}Annotation Tool | CoralNet{% endblock %}
 
 {% block js-includes %}
-    {% include "javascript-includes.html" with jquery_ui="yes" pixastic="yes" util_forms="yes" %}
+    {% include "javascript-includes.html" with jquery_ui="yes" %}
 {% endblock %}
 
 {% block page-specific-includes %}
-    {# TODO: Add mousetrap as part of javascript-includes? #}
+    {% include "static-local-include.html" with type="css" path="css/annotation_tool.css" %}
+
     {% include "static-local-include.html" with type="js" path="js/mousetrap.min.js" %}
     {% include "static-local-include.html" with type="js" path="js/mousetrap-pause.min.js" %}
+    {% include "static-local-include.html" with type="js" path="jscolor/jscolor.js" %}
 
-    {% include "static-local-include.html" with type="css" path="css/annotation_tool.css" %}
+    {% include "static-local-include.html" with type="js" path="js/AnnotationToolSettingsHelper.js" %}
+    {% include "static-local-include.html" with type="js" path="js/AnnotationToolImageHelper.js" %}
     {% include "static-local-include.html" with type="js" path="js/AnnotationToolAutocomplete.js" %}
     {% include "static-local-include.html" with type="js" path="js/AnnotationToolHelper.js" %}
-
-    {% include "form_media_versioned.html" with form=settings_form %}
-    {% include "form_media_versioned.html" with form=image_options_form %}
 {% endblock %}
 
 
 {% block content %}
-
-
 
 <hr class="narrow"/>
 
@@ -245,7 +243,7 @@
             "{% url 'annotation_tool_settings_save' %}"
     });
     // Initialize the Annotation Tool Image helper object.
-    ATI.init({{ source_images|jsonify }});
+    AnnotationToolImageHelper.init({{ source_images|jsonify }});
     // Initialize the Annotation Tool Helper object.
     AnnotationToolHelper.init({
         fullHeight: {{ image.original_height }},

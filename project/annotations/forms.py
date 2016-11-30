@@ -84,10 +84,6 @@ class AnnotationToolSettingsForm(ModelForm):
             'show_machine_annotations',
         ]
 
-    class Media:
-        js = ('jscolor/jscolor.js',
-              'js/AnnotationToolSettingsHelper.js',)
-
     def __init__(self, *args, **kwargs):
         super(AnnotationToolSettingsForm, self).__init__(*args, **kwargs)
 
@@ -107,12 +103,8 @@ class AnnotationToolSettingsForm(ModelForm):
 
 
 class AnnotationImageOptionsForm(Form):
-
-    class Media:
-        js = ('js/AnnotationToolImageHelper.js',)
-
-    brightness = IntegerField(initial='0', widget=NumberInput(attrs={'size': 3}))
-    contrast = DecimalField(initial='0', widget=NumberInput(attrs={'size': 3}))
+    brightness = IntegerField(initial=0, min_value=-100, max_value=100)
+    contrast = IntegerField(initial=0, min_value=-100, max_value=100)
 
 
 class AnnotationAreaPercentsForm(Form):

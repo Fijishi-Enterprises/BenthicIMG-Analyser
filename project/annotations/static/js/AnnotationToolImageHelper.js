@@ -1,104 +1,22 @@
-var ATI = {
+var AnnotationToolImageHelper = (function() {
 
-    $applyButton: undefined,
-    $resetButton: undefined,
-    $applyingText: undefined,
+    var $resetButton = null;
+    var $applyingText = null;
 
-    form: undefined,
-    fields: undefined,
+    var brightnessField = null;
+    var contrastField = null;
+    var MIN_BRIGHTNESS = null;
+    var MAX_BRIGHTNESS = null;
+    var MIN_CONTRAST = null;
+    var MAX_CONTRAST = null;
 
-    MIN_BRIGHTNESS: -150,
-    MAX_BRIGHTNESS: 150,
-    BRIGHTNESS_STEP: 1,
+    var sourceImages = {};
+    var currentSourceImage = null;
+    var imageCanvas = null;
 
-    MIN_CONTRAST: -1.0,
-    MAX_CONTRAST: 3.0,
-    CONTRAST_STEP: 0.1,
+    var nowApplyingProcessing = false;
+    var redrawSignal = false;
 
-    sourceImages: {},
-    currentSourceImage: undefined,
-    imageCanvas: undefined,
-
-    nowApplyingProcessing: false,
-    redrawSignal: false,
-
-    init: function(sourceImages) {
-        ATI.$applyButton = $('#applyImageOptionsButton');
-        ATI.$resetButton = $('#resetImageOptionsButton');
-        ATI.$applyingText = $('#applyingText');
-
-        ATI.form = util.forms.Form({
-            brightness: util.forms.Field({
-                $element: $('#id_brightness'),
-                type: 'signedInt',
-                defaultValue: 0,
-                validators: [util.forms.validators.inNumberRange.curry(ATI.MIN_BRIGHTNESS, ATI.MAX_BRIGHTNESS)],
-                extraWidget: util.forms.SliderWidget(
-                    $('#brightness_slider'),
-                    $('#id_brightness'),
-                    ATI.MIN_BRIGHTNESS,
-                    ATI.MAX_BRIGHTNESS,
-                    ATI.BRIGHTNESS_STEP
-                )
-            }),
-            contrast: util.forms.FloatField({
-                $element: $('#id_contrast'),
-                type: 'signedFloat',
-                defaultValue: 0.0,
-                validators: [util.forms.validators.inNumberRange.curry(ATI.MIN_CONTRAST, ATI.MAX_CONTRAST)],
-                extraWidget: util.forms.SliderWidget(
-                    $('#contrast_slider'),
-                    $('#id_contrast'),
-                    ATI.MIN_CONTRAST,
-                    ATI.MAX_CONTRAST,
-                    ATI.CONTRAST_STEP
-                ),
-                decimalPlaces: 1
-            })
-        });
-        ATI.fields = ATI.form.fields;
-
-        ATI.sourceImages = sourceImages;
-
-        ATI.imageCanvas = $("#imageCanvas")[0];
-
-        // Initialize fields.
-        for (var fieldName in ATI.fields) {
-            if (!ATI.fields.hasOwnProperty(fieldName)){ continue; }
-
-            var field = ATI.fields[fieldName];
-
-            // Initialize the stored field value.
-            field.onFieldChange();
-            // When the element's value is changed, update the stored field value
-            // (or revert the element's value if the value is invalid).
-            field.$element.change(field.onFieldChange);
-        }
-
-        if (ATI.sourceImages.hasOwnProperty('scaled')) {
-            ATI.preloadAndUseSourceImage('scaled');
-        }
-        else {
-            ATI.preloadAndUseSourceImage('full');
-        }
-
-        // When the Apply button is clicked, re-draw the source image
-        // and re-apply bri/con operations.
-        ATI.$applyButton.click( function(){
-            ATI.redrawImage();
-        });
-
-        // When the Reset button is clicked, reset image processing parameters
-        // to default values, and redraw the image.
-        ATI.$resetButton.click( function() {
-            for (var fieldName in ATI.fields) {
-                if (!ATI.fields.hasOwnProperty(fieldName)){ continue; }
-
-                ATI.fields[fieldName].reset();
-            }
-            ATI.redrawImage();
-        });
-    },
 
     /* Preload a source image; once it's loaded, swap it in as the image
      * used in the annotation tool.
@@ -106,29 +24,33 @@ var ATI = {
      * Parameters:
      * code - Which version of the image it is: 'scaled' or 'full'.
      *
-     * Basic code pattern from: http://stackoverflow.com/a/1662153/859858
+     * Basic code pattern from: http://stackoverflow.com/a/1662153/
      */
-    preloadAndUseSourceImage: function(code) {
+    function preloadAndUseSourceImage(code) {
         // Create an Image object.
-        ATI.sourceImages[code].imgBuffer = new Image();
+        sourceImages[code].imgBuffer = new Image();
+
+        // Allow the image to be from a different domain such as S3.
+        // https://developer.mozilla.org/en-US/docs/Web/HTML/CORS_enabled_image
+        sourceImages[code].imgBuffer.crossOrigin = "Anonymous";
 
         // When image preloading is done, swap images.
-        ATI.sourceImages[code].imgBuffer.onload = function() {
-            ATI.imageCanvas.width = ATI.sourceImages[code].width;
-            ATI.imageCanvas.height = ATI.sourceImages[code].height;
+        sourceImages[code].imgBuffer.onload = function() {
+            imageCanvas.width = sourceImages[code].width;
+            imageCanvas.height = sourceImages[code].height;
 
-            ATI.currentSourceImage = ATI.sourceImages[code];
-            ATI.redrawImage();
+            currentSourceImage = sourceImages[code];
+            redrawImage();
 
             // If we just finished loading the scaled image, then start loading
             // the full image.
             if (code === 'scaled') {
-                ATI.preloadAndUseSourceImage('full');
+                preloadAndUseSourceImage('full');
             }
         };
 
         // Image preloading starts as soon as we set this src attribute.
-        ATI.sourceImages[code].imgBuffer.src = ATI.sourceImages[code].url;
+        sourceImages[code].imgBuffer.src = sourceImages[code].url;
 
         // For debugging, it sometimes helps to load an image that
         // (1) has different image content, so you can tell when it's swapped in, and/or
@@ -139,49 +61,40 @@ var ATI = {
         // is milliseconds until the first-parameter function is called.
         // NOTE: only use this for debugging, not for production.
         //setTimeout(function() {
-        //    ATI.sourceImages[code].imgBuffer.src = ATI.sourceImages[code].url;
+        //    sourceImages[code].imgBuffer.src = sourceImages[code].url;
         //}, 10000);
-    },
+    }
 
     /* Redraw the source image, and apply brightness and contrast operations. */
-    redrawImage: function() {
+    function redrawImage() {
         // If we haven't loaded any image yet, don't do anything.
-        if (ATI.currentSourceImage === undefined)
+        if (currentSourceImage === null)
             return;
 
         // If processing is currently going on, emit the redraw signal to
         // tell it to stop processing and re-call this function.
-        if (ATI.nowApplyingProcessing === true) {
-            ATI.redrawSignal = true;
+        if (nowApplyingProcessing === true) {
+            redrawSignal = true;
             return;
         }
 
         // Redraw the source image.
-        // (Pixastic has a revert function that's supposed to do this,
-        // but it's not really flexible enough for our purposes, so
-        // we're reverting manually.)
-        ATI.imageCanvas.getContext("2d").drawImage(ATI.currentSourceImage.imgBuffer, 0, 0);
+        imageCanvas.getContext("2d").drawImage(currentSourceImage.imgBuffer, 0, 0);
 
-        // If processing parameters are the default values, then we just need
+        // If processing parameters are neutral values, then we just need
         // the original image, so we're done.
-        if (ATI.fields.brightness.value === ATI.fields.brightness.defaultValue
-           && ATI.fields.contrast.value === ATI.fields.contrast.defaultValue) {
+        if (brightnessField.value === 0 && contrastField.value === 0) {
             return;
         }
-
-        // TODO: Work on reducing browser memory usage.
-        // Abandoning Pixastic.process() was probably a good start, since that
-        // means we no longer create a new canvas.  What else can be done though?
 
         /* Divide the canvas into rectangles.  We'll operate on one
            rectangle at a time, and do a timeout between rectangles.
            That way we don't lock up the browser for a really long
            time when processing a large image. */
 
-        var X_MAX = ATI.imageCanvas.width - 1;
-        var Y_MAX = ATI.imageCanvas.height - 1;
+        var X_MAX = imageCanvas.width - 1;
+        var Y_MAX = imageCanvas.height - 1;
 
-        // TODO: Make the rect size configurable somehow.
         var RECT_SIZE = 1400;
 
         var x1 = 0, y1 = 0, xRanges = [], yRanges = [];
@@ -208,74 +121,183 @@ var ATI = {
             }
         }
 
-        ATI.nowApplyingProcessing = true;
-        ATI.$applyingText.css({'visibility': 'visible'});
+        nowApplyingProcessing = true;
+        $applyingText.css({'visibility': 'visible'});
 
-        ATI.applyBrightnessAndContrastToRects(
-            ATI.fields.brightness.value,
-            ATI.fields.contrast.value,
-            rects
-        )
-    },
+        // The user-defined brightness and contrast are applied as
+        // 'bias' and 'gain' according to this formula:
+        // http://docs.opencv.org/2.4/doc/tutorials/core/basic_linear_transform/basic_linear_transform.html
 
-    applyBrightnessAndContrastToRects: function(brightness, contrast, rects) {
-        if (ATI.redrawSignal === true) {
-            ATI.nowApplyingProcessing = false;
-            ATI.redrawSignal = false;
-            ATI.$applyingText.css({'visibility': 'hidden'});
+        // We'll say the bias can increase/decrease the pixel value by
+        // as much as 150.
+        var brightness = Number(brightnessField.value);
+        var brightnessFraction =
+            (brightness - MIN_BRIGHTNESS) / (MAX_BRIGHTNESS - MIN_BRIGHTNESS);
+        var bias = (150*2)*brightnessFraction - 150;
 
-            ATI.redrawImage();
+        // We'll say the gain can multiply the pixel values by
+        // a range of MIN_BIAS to MAX_BIAS.
+        // The middle contrast value must map to 1.
+        var MIN_BIAS = 0.25;
+        var MAX_BIAS = 3.0;
+        var contrast = Number(contrastField.value);
+        var contrastFraction =
+            (contrast - MIN_CONTRAST) / (MAX_CONTRAST - MIN_CONTRAST);
+        var gain = null;
+        var gainFraction = null;
+        if (contrastFraction > 0.5) {
+            // Map 0.5~1.0 to 1.0~3.0
+            gainFraction = (contrastFraction - 0.5) / (1.0 - 0.5);
+            gain = (MAX_BIAS-1.0)*gainFraction + 1.0;
+        }
+        else {
+            // Map 0.0~0.5 to 0.25~1.0
+            gainFraction = contrastFraction / 0.5;
+            gain = (1.0-MIN_BIAS)*gainFraction + MIN_BIAS;
+        }
+
+        applyBriConToRemainingRects(gain, bias, rects);
+    }
+
+    function applyBriConToRect(gain, bias, data, numPixels) {
+        // Performance note: We tried having a curried function which was
+        // called once for each pixel. However, this ended up taking 8-9
+        // seconds for a 1400x1400 pixel rect, even if the function simply
+        // returns immediately. (Firefox 50.0, 2016.11.28)
+        // So the lesson is: function calls are usually cheap,
+        // but don't underestimate using them by the million.
+        var px;
+        for (px = 0; px < numPixels; px++) {
+            // 4 components per pixel, in RGBA order. We'll ignore alpha.
+            data[4*px] = gain*data[4*px] + bias;
+            data[4*px + 1] = gain*data[4*px + 1] + bias;
+            data[4*px + 2] = gain*data[4*px + 2] + bias;
+        }
+    }
+
+    function applyBriConToRemainingRects(gain, bias, rects) {
+        if (redrawSignal === true) {
+            nowApplyingProcessing = false;
+            redrawSignal = false;
+            $applyingText.css({'visibility': 'hidden'});
+
+            redrawImage();
             return;
         }
 
         // "Pop" the first element from rects.
         var rect = rects.shift();
 
-        var params = {
-            image: undefined,  // unused?
-            canvas: ATI.imageCanvas,
-            width: undefined,  // unused?
-            height: undefined,  // unused?
-            useData: true,
-            options: {
-                'brightness': brightness,
-                'contrast': contrast,
-                'rect': rect    // apply the effect to this region only
-            }
-        };
+        // Grab the rect from the image canvas.
+        var rectCanvasImageData = imageCanvas.getContext("2d")
+            .getImageData(rect.left, rect.top, rect.width, rect.height);
 
-        // This is a call to an "internal" Pixastic function, sort of.
-        // The intended API function Pixastic.process() includes a
-        // drawImage() of the entire image, so that's not good for
-        // operations that require many calls to Pixastic!
-        Pixastic.Actions.brightness.process(params);
+        // Apply bri/con to the rect.
+        applyBriConToRect(
+            gain, bias, rectCanvasImageData.data,
+            rect['width']*rect['height']);
 
-        // Now that we've computed the processed-image data, put that
-        // data on the canvas.
-        // This code block is based on code near the end of the
-        // Pixastic core's applyAction().
-        if (params.useData) {
-            if (Pixastic.Client.hasCanvasImageData()) {
-                ATI.imageCanvas.getContext("2d").putImageData(params.canvasData, params.options.rect.left, params.options.rect.top);
-
-                // Opera doesn't seem to update the canvas until we draw something on it, lets draw a 0x0 rectangle.
-                // Is this still so?
-                ATI.imageCanvas.getContext("2d").fillRect(0,0,0,0);
-            }
-        }
+        // Put the post-bri/con data on the image canvas.
+        imageCanvas.getContext("2d").putImageData(
+            rectCanvasImageData, rect.left, rect.top);
 
         if (rects.length > 0) {
             // Slightly delay the processing of the next rect, so we
             // don't lock up the browser for an extended period of time.
             // Note the use of curry() to produce a function.
             setTimeout(
-                ATI.applyBrightnessAndContrastToRects.curry(brightness, contrast, rects),
-                50
+                applyBriConToRemainingRects.curry(gain, bias, rects), 50
             );
         }
         else {
-            ATI.nowApplyingProcessing = false;
-            ATI.$applyingText.css({'visibility': 'hidden'});
+            nowApplyingProcessing = false;
+            $applyingText.css({'visibility': 'hidden'});
         }
     }
-};
+
+
+    /* Public methods.
+     * These are the only methods that need to be referred to as
+     * <SingletonClassName>.<methodName>. */
+    return {
+        init: function (sourceImagesArg) {
+            $resetButton = $('#resetImageOptionsButton');
+            $applyingText = $('#applyingText');
+
+            brightnessField = $('#id_brightness')[0];
+            contrastField = $('#id_contrast')[0];
+            MIN_BRIGHTNESS = Number(brightnessField.min);
+            MAX_BRIGHTNESS = Number(brightnessField.max);
+            MIN_CONTRAST = Number(contrastField.min);
+            MAX_CONTRAST = Number(contrastField.max);
+
+            // http://api.jqueryui.com/slider/
+            var $brightnessSlider = $('#brightness_slider').slider({
+                value: Number(brightnessField.value),
+                min: MIN_BRIGHTNESS,
+                max: MAX_BRIGHTNESS,
+                step: 1,
+                // When the slider is moved (by the user),
+                // update the text field too.
+                slide: function(event, ui) {
+                    brightnessField.value = ui.value;
+                },
+                // When the slider value is changed, either by the user
+                // directly or a programmatic change, re-draw the source image
+                // and re-apply bri/con operations.
+                change: redrawImage
+            });
+            var $contrastSlider = $('#contrast_slider').slider({
+                value: Number(contrastField.value),
+                min: MIN_CONTRAST,
+                max: MAX_CONTRAST,
+                step: 1,
+                slide: function(event, ui) {
+                    contrastField.value = ui.value;
+                },
+                change: redrawImage
+            });
+
+            // When the text fields are updated (by the user),
+            // update the sliders too.
+            brightnessField.addEventListener('change', function() {
+                // If the browser supports the "number" input type, with
+                // validity checking and all, then return if invalid.
+                if (this.validity && !this.validity.valid) { return; }
+                // If value box is empty, return.
+                if (this.value === '') { return; }
+                $brightnessSlider.slider('value', Number(this.value));
+            });
+            contrastField.addEventListener('change', function() {
+                if (this.validity && !this.validity.valid) { return; }
+                if (this.value === '') { return; }
+                $contrastSlider.slider('value', Number(this.value));
+            });
+
+            sourceImages = sourceImagesArg;
+
+            imageCanvas = $('#imageCanvas')[0];
+
+            if (sourceImages.hasOwnProperty('scaled')) {
+                preloadAndUseSourceImage('scaled');
+            }
+            else {
+                preloadAndUseSourceImage('full');
+            }
+
+            // When the Reset button is clicked, reset image processing
+            // parameters to default values, and redraw the image.
+            $resetButton.click(function () {
+                brightnessField.value = 0;
+                contrastField.value = 0;
+                $brightnessSlider.slider('value', 0);
+                $contrastSlider.slider('value', 0);
+                redrawImage();
+            });
+        },
+
+        getImageCanvas: function () {
+            return imageCanvas;
+        }
+    }
+})();

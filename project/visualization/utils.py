@@ -91,7 +91,7 @@ def get_patch_path(point_id):
 def get_patch_url(point_id):
     return get_storage_class()().url(get_patch_path(point_id))
 
-def generate_patch_if_doesnt_exist(point):
+def generate_patch_if_doesnt_exist(point_id):
     """
     If this point doesn't have an image patch file yet, then
     generate one.
@@ -101,7 +101,7 @@ def generate_patch_if_doesnt_exist(point):
     # Get the storage class, then get an instance of it.
     storage = get_storage_class()()
     # Check if patch exists for the point
-    patch_relative_path = get_patch_path(point.pk)
+    patch_relative_path = get_patch_path(point_id)
     if storage.exists(patch_relative_path):
         return
 
@@ -113,6 +113,7 @@ def generate_patch_if_doesnt_exist(point):
     # Patch covers this proportion of the original image's greater dimension
     REDUCE_SIZE = 1.0/5.0
 
+    point = Point.objects.get(pk=point_id)
     original_image_relative_path = point.image.original_file.name
     original_image_file = storage.open(original_image_relative_path)
     image = PILImage.open(original_image_file)

@@ -10,6 +10,9 @@ Although we tend to recommend the latest Firefox/Chrome, we should still weigh s
    * - Feature used on CoralNet
      - Incompatible browsers
      - Usage notes
+   * - `addEventListener() <http://caniuse.com/#feat=addeventlistener>`__
+     - IE 8
+     - See `this page <https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener>`__ for an explanation of why this is preferred over attributes like ``onclick``.
    * - `Border-radius <http://caniuse.com/#feat=border-radius>`__
      - Opera Mini, IE 8
      - Not a big deal if some elements don't have rounded corners
@@ -34,6 +37,9 @@ Although we tend to recommend the latest Firefox/Chrome, we should still weigh s
    * - `Flexbox <http://caniuse.com/#feat=flexbox>`__
      - Safari 8, IE 10
      - Single usage of ``display: flex; align-items: center;`` in map code. Used without ``webkit-`` prefix. (2016.11)
+   * - `input type="number" <http://caniuse.com/#feat=input-number>`__
+     - iOS Safari, Android, Chrome for Android, Opera Mini, IE 9
+     - Not necessarily broken if not supported, just less robust against arbitrary input.
    * - `:not selector <http://caniuse.com/#feat=css-sel3>`__
      - Safari 3.1, IE 8
      -

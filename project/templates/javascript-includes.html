@@ -67,13 +67,6 @@ to any value (except the empty string) to not include it.
     {% include "static-local-include.html" with type="js" path="js/jquery.hotkeys.js" %}
 {% endif %}
 
-{# Pixastic, for real-time image processing #}
-{# http://www.pixastic.com/lib/ #}
-{# Must be included after: jQuery (because we use Pixastic's jQuery plugin) #}
-{% if pixastic %}
-    {% include "static-local-include.html" with type="js" path="js/pixastic.custom.js" %}
-{% endif %}
-
 {# Bootstrap carousel, for displaying images #}
 {# http://twitter.github.io/bootstrap/javascript.html#carousel #}
 {# Must be included after: jQuery (Bootstrap makes use of jquery) #}
@@ -96,17 +89,22 @@ to any value (except the empty string) to not include it.
 {# Not just for JS-heavy pages, but also for some basic styling. #}
 {# Must be included after: jQuery #}
 {% if not no_util %}
-    {# First allow util to locate the question-mark image for help buttons. #}
-    {# It's not pretty, but we'll use a JS global variable for this. #}
+    {# One or more variables needed in this module are more easily defined #}
+    {# on the Django template level. However, it's best if the module isn't #}
+    {# constrained by Django template syntax, so we'll define the variables #}
+    {# out here as global variables. #}
     <script>
-    var utilQuestionMarkImage = "{% static "img/question-mark-icon.png" %}";
+    window.utilQuestionMarkImage = "{% static "img/question-mark-icon.png" %}";
     </script>
-    {# Then load the util script. #}
     {% include "static-local-include.html" with type="js" path="js/util.js" %}
 {% endif %}
 
-{# Our utility classes for forms and fields. #}
+{# On-load events required for supporting asynchronous generation of media. #}
 {# Must be included after: util.js #}
-{% if util_forms %}
-    {% include "static-local-include.html" with type="js" path="js/util-forms.js" %}
+{% if not no_async_media_load_events %}
+    <script>
+    window.generateMediaURL = "{% url 'async_media:media_ajax' %}";
+    window.pollForMediaURL = "{% url 'async_media:media_poll_ajax' %}";
+    </script>
+    {% include "static-local-include.html" with type="js" path="async_media/load-events.js" %}
 {% endif %}

@@ -1,7 +1,6 @@
 {% extends "images/base_source.html" %}
-{% load thumbnail %}
-{% load guardian_tags %}
-{% load common_tags %}
+{% load get_obj_perms from guardian_tags %}
+{% load patch_async from async_media_tags %}
 
 {% block title %}{{ source.name }} - Browse Patches | CoralNet{% endblock %}
 {% block js-includes %}
@@ -60,24 +59,24 @@
     {% get_obj_perms user for source as 'source_perms' %}
 
     {# Grid of patches #}
-    {% for patch in patches %}
-      <span class="thumb_wrapper">
+    {% for annotation in page_results.object_list %}
+    {% with point=annotation.point %}
+      {% patch_async point request as patch_dict %}
 
+      <span class="thumb_wrapper">
         {% if 'source_edit' in source_perms %}
-          <a href="{% url 'annotation_tool' patch.image.pk %}">
-            <img class="thumb"
-                 src="{{ patch.thumbnail_url }}"
-                 title="Point {{ patch.point_number }} ({{ patch.row }},{{ patch.col }}) in: {{ patch.image.get_image_element_title }}"/>
-          </a>
+        <a href="{% url 'annotation_tool' point.image.pk %}">
         {% else %}
-          <a href="{% url 'image_detail' patch.image.pk %}">
-            <img class="thumb"
-                 src="{{ patch.thumbnail_url }}"
-                 title="Point {{ patch.point_number }} ({{ patch.row }},{{ patch.col }}) in: {{ patch.image.get_image_element_title }}"/>
-          </a>
+        <a href="{% url 'image_detail' point.image.pk %}">
         {% endif %}
 
+          <img class="thumb media-async"
+            src="{{ patch_dict.src }}"
+            data-async-request-hash="{{ patch_dict.async_request_hash }}"
+            title="Point {{ point.point_number }} ({{ point.row }},{{ point.column }}) in: {{ point.image.get_image_element_title }}"/>
+        </a>
       </span>
+    {% endwith %}
     {% endfor %}
 
     {# Pagination info and links #}

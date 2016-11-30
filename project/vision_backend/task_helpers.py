@@ -202,7 +202,7 @@ def _classifiercollector(messagebody):
     # Check that the accuracy is higher than the previous classifiers
     if 'pc_models' in payload and len(payload['pc_models']) > 0:
         if max(result['pc_accs']) * settings.NEW_CLASSIFIER_IMPROVEMENT_TH > result['acc']:
-            logger.info("{} worse than previous. Not validated. Max previous: {0:.2f}, threshold: {0:.2f}, this: {0:.2f}".format(logstr, max(result['pc_accs']), max(result['pc_accs']) * settings.NEW_CLASSIFIER_IMPROVEMENT_TH, result['acc']))
+            logger.info("{} worse than previous. Not validated. Max previous: {:.2f}, threshold: {:.2f}, this: {:.2f}".format(logstr, max(result['pc_accs']), max(result['pc_accs']) * settings.NEW_CLASSIFIER_IMPROVEMENT_TH, result['acc']))
             return 0
         
         # Update accuracy for previous models

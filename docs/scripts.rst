@@ -32,9 +32,6 @@ Server start - Linux production/staging servers
   # Set up the Python/Django environment.
   source /scripts/env_setup.sh
 
-  echo "(Re)starting gunicorn."
-  pkill gunicorn
-  gunicorn config.wsgi:application --config=config/gunicorn.py &
 
   # Start redis, but only if it's not already running.
   # http://stackoverflow.com/a/9118509/
@@ -46,8 +43,9 @@ Server start - Linux production/staging servers
     redis server &
   fi
 
-  echo "Starting celery beat and worker..."
+  # Starting webserver and workers
   cd /cnhome
+  supervisorctl -c config/supervisor.conf start gunicorn 
   supervisorctl -c config/supervisor.conf start celeryworker
   supervisorctl -c config/supervisor.conf start celerybeat
 
@@ -60,14 +58,11 @@ Server stop - Linux production/staging servers
 
 ::
 
-  # Stop all gunicorn processes.
-  # The purpose here is just to allow the Django code to be updated,
-  # so redis and celery don't need to be stopped.
-  echo "Stopping gunicorn."
-  pkill gunicorn
-
-  echo "Stopping celery beat and worker"
+  # Stop all gunicorn and celery processes.
+  # The purpose here is to allow the Django code to be updated.
+  # Redis doesn't need to be stopped because it doesn't run the Django code.
   cd /cnhome
+  supervisorctl -c config/supervisor.conf stop gunicorn
   supervisorctl -c config/supervisor.conf stop celeryworker
   supervisorctl -c config/supervisor.conf stop celerybeat
 

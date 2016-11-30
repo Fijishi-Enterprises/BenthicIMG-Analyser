@@ -22,7 +22,7 @@ ROBOT_MODEL_VALRESULT_PATTERN = '{media}/classifiers/{pk}.valresult'
 NBR_SCORES_PER_ANNOTATION = 5
 
 # This is the number of epochs we request the SGD solver to take over the data.
-NBR_TRAINING_EPOCHS = 5
+NBR_TRAINING_EPOCHS = 10
 
 # This should always be false except for certain unit-test situations.
 FORCE_NO_BACKEND_SUBMIT = False

@@ -196,7 +196,7 @@ def _classifiercollector(messagebody):
     # Store generic stats
     classifier.runtime_train = result['runtime']
     classifier.accuracy = result['acc']
-    classifier.epoch_ref_accuracy = str([int(round(100 * ra)) for ra in result['refacc']])
+    classifier.epoch_ref_accuracy = str([int(round(10000 * ra)) for ra in result['refacc']])
     classifier.save()
 
     # Check that the accuracy is higher than the previous classifiers

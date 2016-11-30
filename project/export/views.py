@@ -103,7 +103,7 @@ def export_image_covers(request, source_id):
         return HttpResponseRedirect(
             reverse('browse_images', args=[source_id]))
 
-    response = create_csv_stream_response('annotations_full.csv')
+    response = create_csv_stream_response('percent_covers.csv')
     writer = csv.writer(response)
 
     local_labels = source.labelset.get_locals_ordered_by_group_and_code()
@@ -132,7 +132,7 @@ def export_image_covers(request, source_id):
                     image_annotations.filter(label=global_label).count()
                     / float(image_annotation_count)
                 )
-            coverage_percent_str = format(coverage_fraction * 100.0, '.1f')
+            coverage_percent_str = format(coverage_fraction * 100.0, '.10f')
             row.append(coverage_percent_str)
         writer.writerow(row)
 

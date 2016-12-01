@@ -124,7 +124,7 @@ def backend_main(request, source_id):
     # Prepare the alleviate plot if not allready in session
     if not 'alleviate_data' in request.session.keys():
         acc_full, ratios, confs = get_alleviate(valres['gt'], valres['est'], valres['scores'])
-        classmap, classnames = labelset_mapper('func', valres['classes'], source)
+        classmap, _ = labelset_mapper('func', valres['classes'], source)
         acc_func, _, _ = get_alleviate(map_labels(valres['gt'], classmap), map_labels(valres['est'], classmap), valres['scores'])
         request.session['alleviate'] = dict()
         for member in ['acc_full', 'acc_func', 'ratios']:

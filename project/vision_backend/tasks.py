@@ -250,7 +250,7 @@ def collectjob():
         if th._featurecollector(messagebody): 
             # If job was entered into DB, submit a classify job.
             classify_image.apply_async(args = [pk], eta = now() + timedelta(seconds = 10))
-            submit_classifier.apply_async(args = [Image.objects.get(id = pk).source_id], eta = now() + timedelta(seconds = 10))
+            # submit_classifier.apply_async(args = [Image.objects.get(id = pk).source_id], eta = now() + timedelta(seconds = 10))
     elif task == 'train_classifier':
         if th._classifiercollector(messagebody):
             # If job was entered into DB, submit a classify job for all images in source.

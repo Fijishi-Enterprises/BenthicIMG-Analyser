@@ -130,24 +130,28 @@ $(document).ready(function() {
     <hr/>
 
     {% if has_classifier %}
-        <div id="alleviate", style="width:60%; height:400px;margin-left: auto;
+        <div id="alleviate", style="width:60%; height:300px;margin-left: auto;
         margin-right: auto"></div>
 
         <p>Select confidence threshold and label grouping to view detailed classifier performance. To actually change the source settings ask source admin to visit the <a href="{% url 'source_edit' source.id %}">source admin page</a>.
         <div style="width:60%;margin-left:auto; margin-right:auto">
-        <form action="" method="get">
-            {{ form }}
-            <input type="submit" name="cm_params"/>
-        </form>    
+            <form action="" method="get">
+                {{ form }}
+                <input type="submit" name="cm_params"/>
+            </form>    
         </div>
-        
-        <div id="cm", style="width:80vw;height:80vw;margin-left: auto; margin-right: auto"></div>
 
         <div style="width:20%;margin-left:auto; margin-right:auto">
         <form action="" method="post">{% csrf_token %}
             <input type="submit" name="export_cm" value="Export confusion matrix" />
         </form>
         </div>
+
+        <div style="height: 900px; width: 900px; overflow:scroll; scroll: auto; margin-left:auto; margin-right:auto;position: relative;">
+            <div id="cm", style="height: {{cm.css_height}}px; width: {{cm.css_width}}px; margin-left:auto; margin-right:auto"></div>
+        </div>
+
+        
 
     {% else %}
         <p> <i>This source does not have an automated classifier yet.</i></p>

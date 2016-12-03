@@ -93,8 +93,8 @@ def labelset_mapper(labelmode, classids, source):
         codes = [LocalLabel.objects.get(global_label__id = classid, labelset = source.labelset).code for classid in classids]
         classmap = dict()
         for i in range(len(classnames)):
-            if len(classnames[i]) > 15:
-                classnames[i] = classnames[i][:12] + '...'
+            if len(classnames[i]) > 25:
+                classnames[i] = classnames[i][:22] + '...'
             classnames[i] = classnames[i] + ' (' + codes[i] + ')'
             classmap[i] = i
 

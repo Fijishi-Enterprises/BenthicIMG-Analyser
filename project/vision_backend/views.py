@@ -120,6 +120,9 @@ def backend_main(request, source_id):
     cm_render = dict()
     cm_render['data_'], cm_render['xlabels'], cm_render['ylabels'] = cm.render_for_heatmap()
     cm_render['title_'] = json.dumps('Confusion matrix for {} (acc:{}, n: {})'.format(labelmodestr[labelmode], round(100*cm.get_accuracy()[0], 1), int(np.sum(np.sum(cm.cm)))))
+    cm_render['css_height'] = max(500, len(classnames) * 20 + 280)
+    cm_render['css_width'] = max(600, len(classnames) * 20 + 300)
+    
     
     # Prepare the alleviate plot if not allready in session
     if not 'alleviate_data' in request.session.keys():

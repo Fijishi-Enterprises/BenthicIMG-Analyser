@@ -2,7 +2,7 @@
 project/config/settings/secrets.json
 project/config/nginx.conf
 project/templates/maintenance_notice.html
-
+supervisor.conf
 # Sphinx output files
 docs/_build
 docs/_static

@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block js-includes %}
+  {% include "javascript-includes.html" with jquery_ui="yes" %}
+{% endblock %}
+
+{% block page-specific-includes %}
+    {% include "static-local-include.html" with type="js" path="js/highcharts.js" %}
+    {% include "static-local-include.html" with type="js" path="js/heatmap.js" %}
+{% endblock %}
+
+{% block title %}Backend Inspector|CoralNet{% endblock %}
+
+{% block javascript-functions %}
+
+<script>
+
+$(document).ready(function() {
+    var chart2 = new Highcharts.Chart({
+        chart: {
+            renderTo: 'cm',
+            type: 'heatmap',
+            marginTop: 40,
+            marginBottom: 200,
+        },
+        title: {
+            text: {{cm.title_ | safe}},
+        },
+        yAxis: {
+            categories: {{cm.ylabels | safe}},
+            title: null
+        },
+        xAxis: {
+            categories: {{cm.xlabels | safe}},
+            title: null
+        },
+        colorAxis: {
+            min: 0,
+            minColor: '#FFFFFF',
+            maxColor: Highcharts.getOptions().colors[0]
+        },
+        tooltip: {
+            formatter: function () {
+                return this.point.value + '% of <i>' + this.series.xAxis.categories[this.series.xAxis.categories.length - 1 - this.point.y] + '</i> classified as <i>'+ this.series.xAxis.categories[this.point.x] + 
+                '</i>.';
+            }
+        },
+        legend: {
+            align: 'right',
+            layout: 'vertical',
+            margin: 0,
+            verticalAlign: 'top',
+            y: 25,
+            symbolHeight: 280
+        },
+        series: [{
+            turboThreshold:0,
+            showInLegend: false,
+            borderWidth: 0.3,
+            data: {{cm.data_ | safe}},
+            dataLabels: {
+                enabled: true,
+                color: 'black',
+                style: {
+                    textShadow: 'none'
+                }
+            }
+        }]
+    });
+});
+
+</script>
+
+{% endblock %}
+
+{% block content %}
+    This is a page that can be used to test the confusion matrix rendering settings.
+    <legend>CM test</legend>
+
+        <div style="width:60%;margin-left:auto; margin-right:auto">
+            <form action="" method="get">
+                {{ form }}
+                <input type="submit" name="cm_params"/>
+            </form>    
+        </div>
+        
+        <div style="height: 900px; width: 900px; overflow:scroll; scroll: auto; margin-left:auto; margin-right:auto;position: relative;">
+        
+        <div id="cm", style="height: {{cm.css_height}}px; width: {{cm.css_width}}px; margin-left:auto; margin-right:auto;"></div>
+            
+            
+        </div>
+
+{% endblock %}

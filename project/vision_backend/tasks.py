@@ -46,7 +46,7 @@ def hello_world():
 End dummy tasks for debugging
 """
 
-@task(name = "submit_features")
+@task(name = "Submit Features")
 def submit_features(image_id, force = False):
     """
     Submits a job to SQS for extracting features for an image.
@@ -96,7 +96,15 @@ def submit_features(image_id, force = False):
     logger.debug("Submitted feature extraction for {}. Message: {}".format(logstr, messagebody))
     return messagebody
 
-@task(name = "submit_classifier")
+
+# @periodic_task(run_every=timedelta(hours = 24), name ='Periodict Classifiers Submit', ignore_result=True)
+def submit_all_classifiers():
+    for source in Source.objects.filter():
+        if source.need_new_robot():
+            submit_classifier.delay(source.id)
+
+
+@task(name = "Submit Classifier")
 def submit_classifier(source_id, nbr_images = 1e5, force = False):
 
     # Do some intial checks
@@ -168,7 +176,7 @@ def submit_classifier(source_id, nbr_images = 1e5, force = False):
     return messagebody
  
 
-@task(name = "classify_image")
+@task(name = "Classify Image")
 def classify_image(image_id):
 
     try:
@@ -213,7 +221,7 @@ def classify_image(image_id):
 
     logger.info("Classified Image {} [Source: {} [{}]] with classifier {}".format(img.id, img.source, img.source_id, classifier.id))
 
-@periodic_task(run_every=timedelta(seconds = 60), name='Collect all jobs', ignore_result=True)
+@periodic_task(run_every=timedelta(seconds = 60), name ='Collect all jobs', ignore_result=True)
 def collect_all_jobs():
     """
     Runs collectjob until queue is empty.
@@ -250,7 +258,7 @@ def collectjob():
         if th._featurecollector(messagebody): 
             # If job was entered into DB, submit a classify job.
             classify_image.apply_async(args = [pk], eta = now() + timedelta(seconds = 10))
-            # submit_classifier.apply_async(args = [Image.objects.get(id = pk).source_id], eta = now() + timedelta(seconds = 10))
+ 
     elif task == 'train_classifier':
         if th._classifiercollector(messagebody):
             # If job was entered into DB, submit a classify job for all images in source.
@@ -265,8 +273,7 @@ def collectjob():
     logger.debug("Collected job with messagebody: {}".format(messagebody))
     return 1
 
-
-@task(name = "reset_source")
+@task(name = "Reset Source")
 def reset_after_labelset_change(source_id):
     """
     The removes ALL TRACES of the vision backend for this source, including:
@@ -284,7 +291,7 @@ def reset_after_labelset_change(source_id):
     # Finally, let's train a new classifier.
     submit_classifier.apply_async(args = [source_id], eta = now() + timedelta(seconds = 10))
 
-@task(name = "reset_features")
+@task(name = "Reset Features")
 def reset_features(image_id):
     """
     Resets features for image. Call this after any change that affects the image 

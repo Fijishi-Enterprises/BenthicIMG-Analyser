@@ -99,6 +99,7 @@ $(document).ready(function() {
             symbolHeight: 280
         },
         series: [{
+            turboThreshold:0,
             showInLegend: false,
             borderWidth: 0.2,
             data: {{cm.data_ | safe}},
@@ -148,8 +149,7 @@ $(document).ready(function() {
         </div>
 
         <div style="height: 900px; width: 900px; overflow:scroll; scroll: auto; margin-left:auto; margin-right:auto;position: relative;">
-            <div id="cm", style="height: {{cm.css_height}}px; width: {{cm.css_width}}px; margin-left:auto; margin-right:auto"></div>
-        </div>
+            <div id="cm", style="height: {{cm.css_height}}px; width: {{cm.css_width}}px; margin-left:auto; margin-right:auto"></div></div>
 
         
 

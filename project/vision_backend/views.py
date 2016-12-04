@@ -16,7 +16,7 @@ from images.models import Source, Image
 from images.utils import source_robot_status
 from labels.models import LocalLabel, Label
 
-from .forms import TreshForm
+from .forms import TreshForm, CmTestForm
 from .confmatrix import ConfMatrix
 from .utils import labelset_mapper, map_labels, get_total_messages_in_jobs_queue, get_alleviate
 from .models import Classifier
@@ -115,13 +115,18 @@ def backend_main(request, source_id):
 
     # Sort by descending order.
     cm.sort()
+
+    max_display_labels = 50
+    
+    if cm.nclasses > max_display_labels:
+        cm.cut(max_display_labels)
     
     # Export for heatmap
     cm_render = dict()
     cm_render['data_'], cm_render['xlabels'], cm_render['ylabels'] = cm.render_for_heatmap()
     cm_render['title_'] = json.dumps('Confusion matrix for {} (acc:{}, n: {})'.format(labelmodestr[labelmode], round(100*cm.get_accuracy()[0], 1), int(np.sum(np.sum(cm.cm)))))
-    cm_render['css_height'] = max(500, len(classnames) * 20 + 280)
-    cm_render['css_width'] = max(600, len(classnames) * 20 + 300)
+    cm_render['css_height'] = max(500, cm.nclasses * 22 + 320)
+    cm_render['css_width'] = max(600, cm.nclasses * 22 + 360)
     
     
     # Prepare the alleviate plot if not allready in session
@@ -186,3 +191,44 @@ def download_cm(request, source_id, namestr):
         writer.writerow(row)
 
     return response
+
+
+@permission_required('is_superuser')
+def cm_test(request):
+    """
+    Test and debug function for confusion matrices.
+    """
+    nlabels = int(request.GET.get('nlabels', 5))
+    namelength = int(request.GET.get('namelength', 25))
+    
+    # Initialize form
+    form = CmTestForm()    
+    form.initial['nlabels'] = nlabels
+    form.initial['namelength'] = namelength
+    
+    # Initialize confusion matrix
+    cm = ConfMatrix(nlabels, labelset = ['a'*namelength]*nlabels)
+
+    # Add datapoints above the threhold.
+    cm.add(np.random.choice(nlabels, size = 10*nlabels), np.random.choice(nlabels, size = 10*nlabels))
+
+    # Sort by descending order.
+    cm.sort()
+
+    max_display_labels = 50
+    
+    if nlabels > max_display_labels:
+        cm.cut(max_display_labels)
+    # Export for heatmap
+    cm_render = dict()
+    cm_render['data_'], cm_render['xlabels'], cm_render['ylabels'] = cm.render_for_heatmap()
+    cm_render['title_'] = '"This is a title"'
+    cm_render['css_height'] = max(500, cm.nclasses * 22 + 320)
+    cm_render['css_width'] = max(600, cm.nclasses * 22 + 360)
+    
+
+    return render(request, 'vision_backend/cm_test.html', {
+        'form': form,
+        'cm': cm_render,
+    })
+

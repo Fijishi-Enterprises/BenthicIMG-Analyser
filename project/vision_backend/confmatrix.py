@@ -64,7 +64,7 @@ class ConfMatrix:
       self.collapse(cmperm, self.labelset)
       self.labelset = self.labelset[:newsize]
       self.nclasses = newsize + 1
-      self.labelset = np.concatenate((self.labelset[:newsize], np.asarray(['OTHER'])))
+      self.labelset = self.labelset[:newsize] + ['OTHER']
 
    def collapse(self, collapsemap, new_labelset):
       """
@@ -105,7 +105,7 @@ class ConfMatrix:
       cm_render = []
       for col in range(cm.shape[1]):
          for row in range(cm.shape[0]):
-            cm_render.append([col, row, round(cm[cm.shape[0]-1-row, col]*100)])
+            cm_render.append([col, row, int(round(cm[cm.shape[0]-1-row, col]*100))])
 
       # This is a hack which enables us to show the class totals in the row titles. 
       # (there is no support for this in highchars.heatmap)

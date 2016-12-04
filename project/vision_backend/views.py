@@ -9,6 +9,7 @@ from django.shortcuts import render
 from django.core.urlresolvers import reverse
 from django.http import HttpResponseRedirect, HttpResponse
 from django.contrib.auth.decorators import permission_required
+from celery.task.control import inspect
 
 from lib.decorators import source_visibility_required
 
@@ -50,6 +51,17 @@ def backend_overview(request):
         'valid_ratio': '{:.1f}'.format(float(Classifier.objects.filter(valid=True).count()) / Source.objects.filter().count())
     }
 
+    i = inspect()
+    isch = i.scheduled()
+    iact = i.active()
+    iqu = i.reserved()
+    q_stats = {
+        'spacer': get_total_messages_in_jobs_queue(),
+        'celery_scheduled': len(isch.itervalues().next()),
+        'celery_active': len(iact.itervalues().next()),
+        'celery_queued': len(iqu.itervalues().next()),
+    }
+
     laundry_list = []
     for source in Source.objects.filter().order_by('-id'):
         laundry_list.append(source_robot_status(source.id))
@@ -60,7 +72,7 @@ def backend_overview(request):
         'laundry_list': laundry_list,
         'img_stats': img_stats,
         'clf_stats': clf_stats,
-        'spacer_queue': get_total_messages_in_jobs_queue(),
+        'q_stats':q_stats
     })
 
 

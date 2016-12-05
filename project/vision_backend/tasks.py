@@ -97,7 +97,7 @@ def submit_features(image_id, force = False):
     return messagebody
 
 
-# @periodic_task(run_every=timedelta(hours = 24), name ='Periodict Classifiers Submit', ignore_result=True)
+@periodic_task(run_every=timedelta(hours = 24), name ='Periodic Classifiers Submit', ignore_result=True)
 def submit_all_classifiers():
     for source in Source.objects.filter():
         if source.need_new_robot():

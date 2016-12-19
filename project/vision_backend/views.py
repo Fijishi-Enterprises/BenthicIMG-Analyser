@@ -159,7 +159,7 @@ def backend_main(request, source_id):
         response['Content-Disposition'] = 'attachment;filename=confusion_matrix_{}_{}.csv'.format(labelmode, confidence_threshold)
         writer = csv.writer(response)
         
-        for enu, classname in enumerate(classnames):
+        for enu, classname in enumerate(cm.labelset):
             row = []
             row.append(classname)
             row.extend(vecfmt(cm.cm[enu, :]))
@@ -178,31 +178,6 @@ def backend_main(request, source_id):
 # helper function to format numpy outputs
 def myfmt(r):
     return "%.0f" % (r,)
-
-@source_visibility_required('source_id')
-def download_cm(request, source_id, namestr):
-    vecfmt = vectorize(myfmt)
-    (fullcm, labelIds) = get_confusion_matrix(Robot.objects.get(version = robot_version))
-    if namestr == "full":
-        cm = fullcm
-        labelObjects = Label.objects.filter()
-    else:
-        (cm, placeholder, labelIds) = collapse_confusion_matrix(fullcm, labelIds)
-        labelObjects = LabelGroup.objects.filter()
-
-    #creating csv file
-    response = HttpResponse(type='text/csv')
-    response['Content-Disposition'] = 'attachment;filename=confusion_matrix.csv'
-    writer = csv.writer(response)
-    
-    ngroups = len(labelIds)
-    for i in range(ngroups):
-        row = []
-        row.append(labelObjects.get(id=labelIds[i]).name)
-        row.extend(vecfmt(cm[i, :]))
-        writer.writerow(row)
-
-    return response
 
 
 @permission_required('is_superuser')

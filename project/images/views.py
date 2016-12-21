@@ -333,7 +333,8 @@ def source_admin(request, source_id):
             labelset = source.labelset
 
             source.delete()
-            labelset.delete()
+            if labelset:
+                labelset.delete()
 
             messages.success(request, 'Source has been deleted.')
             

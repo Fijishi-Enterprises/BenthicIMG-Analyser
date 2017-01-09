@@ -484,6 +484,7 @@ def image_detail(request, image_id):
                 ann.delete()
             image.confirmed = False
             image.save()
+            backend_tasks.classify_image.apply_async(args = [image_id], eta = now() + timedelta(seconds = 10))
             messages.success(request, 'Successfully removed all annotations from this image.')
             return HttpResponseRedirect(reverse('image_detail', args=[image_id]))
 

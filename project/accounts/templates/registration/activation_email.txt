@@ -15,11 +15,9 @@ A few other things to keep in mind:
 
 2) Please make your data public if possible. The more public data on the site, the better for the community. profile_detail
 
-3) Please go to {{ request.scheme }}://{{ request.get_host }}{% url 'profile_detail' %} and update your account details. This makes it easier for other CoralNet users to find you. 
+3) Please add "noreply@coralnet.ucsd.edu" to your contact list to ensure you get our newsletter.
 
-4) Please add "noreply@coralnet.ucsd.edu" to your contact list to ensure you get our newsletter.
-
-5) Finally, we ask that you cite the following papers if you use CoralNet in your work:
+4) Finally, we ask that you cite the following papers if you use CoralNet in your work:
 
 Oscar Beijbom, Peter. J. Edmunds, David. I. Kline, B. Greg Mitchell and David Kriegman. "Automated Annotation of Coral Reef Survey Images". Proceedings of the Conference on Computer Vision and Pattern Recognition (CVPR), June 2012.
 

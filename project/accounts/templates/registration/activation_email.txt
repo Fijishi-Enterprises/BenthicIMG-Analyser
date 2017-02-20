@@ -4,6 +4,31 @@ Thanks for trying out CoralNet! Please activate your new account using this link
 
 This activation link will be valid for {{ expiration_days }} days.
 
+Dear User,
+
+Welcome to CoralNet! 
+
+Some basic information about CoralNet can be found at {{ request.scheme }}://{{ request.get_host }}{% url 'about' %} and on our Vimeo channel: vimeo.com/channels/coralnet. The main source of information is our google-group: coralnet-users@googlegroups.com, which also works as an evolving Q&A. Please make sure to register and post any questions you may have there. You can also search previous posts for common questions.
+
+A few other things to keep in mind: 
+1) Please be aware that the site in 'Beta' mode, and things are not yet optimized for the best user experience. We are working hard on making the site better and better, and we appreciate your feedback.
+
+2) Please make your data public if possible. The more public data on the site, the better for the community. profile_detail
+
+3) Please go to {{ request.scheme }}://{{ request.get_host }}{% url 'profile_detail' %} and update your account details. This makes it easier for other CoralNet users to find you. 
+
+4) Please add "noreply@coralnet.ucsd.edu" to your contact list to ensure you get our newsletter.
+
+5) Finally, we ask that you cite the following papers if you use CoralNet in your work:
+
+Oscar Beijbom, Peter. J. Edmunds, David. I. Kline, B. Greg Mitchell and David Kriegman. "Automated Annotation of Coral Reef Survey Images". Proceedings of the Conference on Computer Vision and Pattern Recognition (CVPR), June 2012.
+
+Oscar Beijbom, Peter J. Edmunds, Chris Roelfsema, Jennifer Smith, David I. Kline, Benjamin Neal, Matthew J. Dunlap, Vincent Moriarty, Tung-Yung Fan, Chih-Jui Tan, Stephen Chan, Tali Treibitz, A. Gamst, B. Greg Mitchell, David Kriegman. "Towards automated annotation of benthic survey images: variability of human experts and operational modes of automation". PLoS ONE, July 2015.
+
+Happy CoralNetting!
+
+/the CoralNet Development Team
+
 If you didn't request an account at CoralNet, you may safely ignore this email. Someone might have typed in your email address by mistake. If you keep getting these emails without having requested them, we can look into it if you let us know here: {{ request.scheme }}://{{ request.get_host }}{% url 'contact' %}
 
 Sincerely,

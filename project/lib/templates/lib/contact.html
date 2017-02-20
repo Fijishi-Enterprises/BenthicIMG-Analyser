@@ -10,27 +10,16 @@
 
 <form action="" method="post">
     {% csrf_token %}
+    
+    <legend>Contact Us</legend>
 
-    <fieldset>
-        <legend>Contact Us</legend>
+    <p> For questions and suggestions, please send an email to <a href="mailto:coralnet-users@googlegroups.com">coralnet-users@googlegroups.com</a>. You can also visit the <a href="https://groups.google.com/forum/#!forum/coralnet-users">group forum</a> to post or search for previously asked questions.</p>
+    <p></p>
 
-        <p> For general questions and suggestions on features and designs, please send an email to <a href="mailto:coralnet-users@googlegroups.com">coralnet-users@googlegroups.com</a>. You can also visit the <a href="https://groups.google.com/forum/#!forum/coralnet-users">group forum</a>, and search for previously asked questions.</p>
-
-        <p>For private questions regarding your account or data, please use this form.</p>
-
-        <p>For bug reports please use the
-           <a href="{% url 'feedback_form' %}">feedback form</a>.</p>
-
-        {% if user.is_authenticated %}
-            <p>We'll send any replies to your email: {{ user.email }}</p>
-        {% endif %}
-
-        {% include "form_generic.html" with form=contact_form %}
-    </fieldset>
-
-    <div class="submit_button_wrapper_column_form">
-        <input type="submit" value="Send Email" />
-    </div>
+    <p>For bug reports please use the
+       <a href="{% url 'feedback_form' %}">feedback form</a>.</p>
+    
+    
 </form>
 
 {% endblock %}

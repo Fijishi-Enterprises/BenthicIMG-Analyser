@@ -10,7 +10,7 @@ django-guardian==1.4.1
 
 # Python Imaging Library
 # (A currently active, package friendly fork of it; also endorsed by Django)
-Pillow==3.2.0
+Pillow==4.1.1
 
 # System for generating smaller versions of images
 # Requires django, Pillow
@@ -25,8 +25,10 @@ django-registration==2.1.2
 # Requires django
 django-reversion==1.10.1
 
-# Allows Django to connect to a PostgreSQL database
-psycopg2==2.6.1
+# Allow Django to connect to a PostgreSQL database.
+# See here for versions Django supports:
+# https://docs.djangoproject.com/en/dev/ref/databases/#postgresql-notes
+psycopg2==2.6.2
 
 # Amazon Web Services SDK for Python
 # There's a newer package called boto3, but the interface is completely
@@ -40,6 +42,9 @@ boto==2.40.0
 # Requires boto
 django-storages==1.4.1
 
+# Assist gradual migration from Python 2 to 3
+future==0.16.0
+
 # Fancy math
 numpy==1.11.1
 
@@ -52,7 +57,8 @@ PyYAML==3.10
 # More elegant filepath calculations
 unipath==1.1
 
-# Machine Learning tools
+# Machine Learning tools.
+# scikit-learn has no Python 3.6 support yet (as of scikit-learn 0.18.1).
 scipy==0.18.1
 scikit-learn==0.17.1
 
@@ -71,5 +77,7 @@ flower==0.9.1
 futures==3.0.5
 tornado==4.2
 
-# Supervisord to manage celery
+# Supervisord to manage celery.
+# supervisor has no Python 3.x support yet (as of supervisor 3.3.1);
+# it's planned for supervisor 4.0.
 supervisor==3.3.1

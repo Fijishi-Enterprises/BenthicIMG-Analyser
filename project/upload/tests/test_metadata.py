@@ -1192,9 +1192,8 @@ class UploadMetadataPreviewFormatTest(ClientTest):
         """
         # TODO: Not sure how to make this work with Python 2 and its CSV module
         # (getting them to work with non-ASCII is a known pain).
-        # But it seems the use case hasn't come up in practice yet, so let's
-        # defer this until (1) it comes up in practice, or
-        # (2) we upgrade to Python 3.
+        # Non-ASCII characters have come up several times in practice (in
+        # server errors). So it should be looked at sooner or later.
         return
 
         self.client.force_login(self.user)

@@ -70,6 +70,71 @@ class UploadAnnotationsBaseTest(ClientTest):
         return f
 
 
+class UploadAnnotationsNoLabelsetTest(ClientTest):
+    """
+    Point/annotation upload attempts with no labelset.
+    This should just fail to reach the page.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super(UploadAnnotationsNoLabelsetTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(cls.user)
+
+    def test_page_csv(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse('upload_annotations_csv', args=[self.source.pk]),
+        )
+        self.assertContains(
+            response,
+            "You must create a labelset before uploading annotations.")
+        self.assertTemplateUsed(response, 'labels/labelset_required.html')
+
+    def test_preview_csv(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse('upload_annotations_csv_preview_ajax', args=[
+                self.source.pk]),
+        )
+        self.assertContains(
+            response,
+            "You must create a labelset before uploading annotations.")
+        self.assertTemplateUsed(response, 'labels/labelset_required.html')
+
+    def test_page_cpc(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse('upload_annotations_cpc', args=[self.source.pk]),
+        )
+        self.assertContains(
+            response,
+            "You must create a labelset before uploading annotations.")
+        self.assertTemplateUsed(response, 'labels/labelset_required.html')
+
+    def test_preview_cpc(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse('upload_annotations_cpc_preview_ajax', args=[
+                self.source.pk]),
+        )
+        self.assertContains(
+            response,
+            "You must create a labelset before uploading annotations.")
+        self.assertTemplateUsed(response, 'labels/labelset_required.html')
+
+    def test_upload(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse('upload_annotations_ajax', args=[self.source.pk]),
+        )
+        self.assertContains(
+            response,
+            "You must create a labelset before uploading annotations.")
+        self.assertTemplateUsed(response, 'labels/labelset_required.html')
+
+
 class UploadAnnotationsTest(UploadAnnotationsBaseTest):
     """
     Point/annotation upload and preview.
@@ -1003,9 +1068,326 @@ class UploadAnnotationsMultipleSourcesTest(UploadAnnotationsBaseTest):
         })
 
 
+class UploadAnnotationsContentsTest(UploadAnnotationsBaseTest):
+    """
+    Annotation upload edge cases and error cases related to contents.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super(UploadAnnotationsContentsTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(cls.user)
+        # Labels in labelset
+        labels = cls.create_labels(cls.user, ['A', 'B'], 'Group1')
+        cls.create_labelset(cls.user, cls.source, labels)
+        # Label not in labelset
+        cls.create_labels(cls.user, ['C'], 'Group1')
+
+        cls.img1 = cls.upload_image(
+            cls.user, cls.source,
+            image_options=dict(filename='1.png', width=200, height=100))
+        cls.img2 = cls.upload_image(
+            cls.user, cls.source,
+            image_options=dict(filename='2.png', width=100, height=200))
+
+    def preview_csv(self, csv_file):
+        return self.client.post(
+            reverse('upload_annotations_csv_preview_ajax', args=[
+                self.source.pk]),
+            {'csv_file': csv_file},
+        )
+
+    def preview_cpc(self, cpc_files):
+        return self.client.post(
+            reverse('upload_annotations_cpc_preview_ajax', args=[
+                self.source.pk]),
+            {'cpc_files': cpc_files},
+        )
+
+    def upload(self):
+        return self.client.post(
+            reverse('upload_annotations_ajax', args=[self.source.pk]),
+        )
+
+    def do_success_csv(self, point_data, expected_points_set):
+        self.client.force_login(self.user)
+        rows = [['1.png']+list(p) for p in point_data]
+        if len(rows[0]) == 3:
+            header_row = ['Name', 'Column', 'Row']
+        else:
+            header_row = ['Name', 'Column', 'Row', 'Label']
+        csv_file = self.make_csv_file('A.csv', [header_row] + rows)
+        self.preview_csv(csv_file)
+        self.upload()
+
+        values_set = set(
+            Point.objects.filter(image__in=[self.img1])
+            .values_list('column', 'row', 'point_number', 'image_id'))
+        self.assertSetEqual(values_set, expected_points_set)
+
+    def do_error_csv(self, point_data, expected_error):
+        self.client.force_login(self.user)
+        rows = [['1.png']+list(p) for p in point_data]
+        if len(rows[0]) == 3:
+            header_row = ['Name', 'Column', 'Row']
+        else:
+            header_row = ['Name', 'Column', 'Row', 'Label']
+        csv_file = self.make_csv_file('A.csv', [header_row] + rows)
+        preview_response = self.preview_csv(csv_file)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(error=expected_error))
+
+    def do_success_cpc(self, point_data, expected_points_set):
+        self.client.force_login(self.user)
+        if len(point_data[0]) == 2:
+            point_data = [p+('',) for p in point_data]
+        cpc_files = [
+            self.make_cpc_file(
+                '1.cpc', r"C:\My Photos\2017-05-13 GBR\1.png", point_data)]
+        self.preview_cpc(cpc_files)
+        self.upload()
+
+        values_set = set(
+            Point.objects.filter(image__in=[self.img1])
+            .values_list('column', 'row', 'point_number', 'image_id'))
+        self.assertSetEqual(values_set, expected_points_set)
+
+    def do_error_cpc(self, point_data, expected_error):
+        self.client.force_login(self.user)
+        if len(point_data[0]) == 2:
+            point_data = [p+('',) for p in point_data]
+        cpc_files = [
+            self.make_cpc_file(
+                '1.cpc', r"C:\My Photos\2017-05-13 GBR\1.png", point_data)]
+        preview_response = self.preview_cpc(cpc_files)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(error=expected_error))
+
+    def test_row_not_number_csv(self):
+        """A row/col which can't be parsed as a number should result in an
+        appropriate error message."""
+        self.do_error_csv(
+            [(50, 'abc')],
+            "Row value is not a positive integer: abc")
+
+    def test_row_not_number_cpc(self):
+        self.do_error_cpc(
+            [(49*15, '?.;')], (
+                "From file 1.cpc, point 1:"
+                " Row value is not an integer in the accepted range: ?.;"))
+
+    def test_column_not_number_csv(self):
+        self.do_error_csv(
+            [('1abc', 50)],
+            "Column value is not a positive integer: 1abc")
+
+    def test_column_not_number_cpc(self):
+        self.do_error_cpc(
+            [('abc2', 49*15)], (
+                "From file 1.cpc, point 1:"
+                " Column value is not an integer in the accepted range: abc2"))
+
+    def test_row_is_float_csv(self):
+        """A row/col which can't be parsed as an integer should result in an
+        appropriate error message."""
+        self.do_error_csv(
+            [(50, 40.8)],
+            "Row value is not a positive integer: 40.8")
+
+    def test_row_is_float_cpc(self):
+        self.do_error_cpc(
+            [(49*15, 39*15+0.8)], (
+                "From file 1.cpc, point 1:"
+                " Row value is not an integer in the accepted range: 585.8"))
+
+    def test_column_is_float_csv(self):
+        self.do_error_csv(
+            [(50.88, 40)],
+            "Column value is not a positive integer: 50.88")
+
+    def test_column_is_float_cpc(self):
+        self.do_error_cpc(
+            [(49*15+0.88, 39*15)], (
+                "From file 1.cpc, point 1:"
+                " Column value is not an integer in the accepted range:"
+                " 735.88"))
+
+    def test_row_minimum_value_csv(self):
+        """Minimum acceptable row value."""
+        self.do_success_csv(
+            [(50, 1)],
+            {(50, 1, 1, self.img1.pk)})
+
+    def test_row_minimum_value_cpc(self):
+        self.do_success_cpc(
+            [(49*15, 0)],
+            {(50, 1, 1, self.img1.pk)})
+
+    def test_column_minimum_value_csv(self):
+        self.do_success_csv(
+            [(1, 40)],
+            {(1, 40, 1, self.img1.pk)})
+
+    def test_column_minimum_value_cpc(self):
+        self.do_success_cpc(
+            [(0, 39*15)],
+            {(1, 40, 1, self.img1.pk)})
+
+    def test_row_too_small_csv(self):
+        """Below the minimum acceptable row value."""
+        self.do_error_csv(
+            [(50, 0)],
+            "Row value is not a positive integer: 0")
+
+    def test_row_too_small_cpc(self):
+        self.do_error_cpc(
+            [(49*15, -1)], (
+                "From file 1.cpc, point 1:"
+                " Row value is not an integer in the accepted range: -1"))
+
+    def test_column_too_small_csv(self):
+        self.do_error_csv(
+            [(0, 50)],
+            "Column value is not a positive integer: 0")
+
+    def test_column_too_small_cpc(self):
+        self.do_error_cpc(
+            [(-1, 49*15)], (
+                "From file 1.cpc, point 1:"
+                " Column value is not an integer in the accepted range: -1"))
+
+    def test_row_maximum_value_csv(self):
+        """Maximum acceptable row value given the image dimensions."""
+        self.do_success_csv(
+            [(50, 100)],
+            {(50, 100, 1, self.img1.pk)})
+
+    def test_row_maximum_value_cpc(self):
+        self.do_success_cpc(
+            [(49*15, 99*15)],
+            {(50, 100, 1, self.img1.pk)})
+
+    def test_column_maximum_value_csv(self):
+        self.do_success_csv(
+            [(200, 40)],
+            {(200, 40, 1, self.img1.pk)})
+
+    def test_column_maximum_value_cpc(self):
+        self.do_success_cpc(
+            [(199*15, 39*15)],
+            {(200, 40, 1, self.img1.pk)})
+
+    def test_row_too_large_csv(self):
+        """Above the maximum acceptable row value given the
+        image dimensions."""
+        self.do_error_csv(
+            [(50, 101)], (
+                "Row value of 101 is too large for image 1.png,"
+                " which has dimensions 200 x 100"))
+
+    def test_row_too_large_cpc(self):
+        self.do_error_cpc(
+            [(49*15, 100*15)], (
+                "From file 1.cpc, point 1:"
+                " Row value of 1500 corresponds to pixel 101."
+                " This is too large"
+                " for image 1.png, which has dimensions"
+                " 200 x 100."))
+
+    def test_column_too_large_csv(self):
+        self.do_error_csv(
+            [(201, 50)], (
+                "Column value of 201 is too large for image 1.png,"
+                " which has dimensions 200 x 100"))
+
+    def test_column_too_large_cpc(self):
+        self.do_error_cpc(
+            [(200*15, 49*15)], (
+                "From file 1.cpc, point 1:"
+                " Column value of 3000 corresponds to pixel 201."
+                " This is too large"
+                " for image 1.png, which has dimensions"
+                " 200 x 100."))
+
+    def test_multiple_points_same_row_column_csv(self):
+        """
+        More than one point in the same image on the exact same position
+        (same row and same column) should not be allowed.
+        """
+        self.do_error_csv(
+            [(150, 90), (20, 20), (150, 90)], (
+                "Image 1.png has multiple points on the same position:"
+                " row 90, column 150"))
+
+    def test_multiple_points_same_row_column_cpc(self):
+        # These CPC file values for points 1 and 3
+        # are different, but they map to the same pixel.
+        self.do_error_cpc(
+            [(149*15-2, 89*15-2), (19*15, 19*15), (149*15+2, 89*15+2)], (
+                "From file 1.cpc:"
+                " Points 1 and 3 are on the same"
+                " pixel position:"
+                " row 90, column 150"))
+
+    def test_label_not_in_labelset_csv(self):
+        self.do_error_csv(
+            [(150, 90, 'B'), (20, 20, 'C')],
+            "No label of code C found in this source's labelset")
+
+    def test_label_not_in_labelset_cpc(self):
+        self.do_error_cpc(
+            [(149*15, 89*15, 'B'), (19*15, 19*15, 'C')], (
+                "From file 1.cpc, point 2:"
+                " No label of code C found in this source's labelset"))
+
+    def test_no_specified_images_found_in_source_csv(self):
+        """
+        The import data has no filenames that can be found in the source.
+        """
+        self.client.force_login(self.user)
+
+        csv_file = self.make_csv_file('A.csv', [
+            ['Name', 'Column', 'Row'],
+            ['3.png', 50, 50],
+            ['4.png', 60, 40]])
+        preview_response = self.preview_csv(csv_file)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                error="No matching image names found in the source",
+            ),
+        )
+
+    def test_no_specified_images_found_in_source_cpc(self):
+        self.client.force_login(self.user)
+
+        cpc_files = [
+            self.make_cpc_file(
+                '3.cpc', r"C:\My Photos\2017-05-13 GBR\3.png", [
+                    (49*15, 49*15, '')]),
+            self.make_cpc_file(
+                '4.cpc', r"C:\My Photos\2017-05-13 GBR\4.png", [
+                    (59*15, 39*15, '')]),
+        ]
+        preview_response = self.preview_cpc(cpc_files)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                error="No matching image names found in the source",
+            ),
+        )
+
+
 class UploadAnnotationsCSVFormatTest(UploadAnnotationsBaseTest):
     """
-    Tests specific to CSV format.
+    Tests (mostly error cases) specific to CSV format.
     """
     @classmethod
     def setUpTestData(cls):
@@ -1362,7 +1744,7 @@ class UploadAnnotationsCSVFormatTest(UploadAnnotationsBaseTest):
 
 class UploadAnnotationsCPCFormatTest(UploadAnnotationsBaseTest):
     """
-    Tests specific to CSV format.
+    Tests (mostly error cases) specific to CPC format.
     """
     @classmethod
     def setUpTestData(cls):
@@ -1638,385 +2020,3 @@ class UploadAnnotationsCPCFormatTest(UploadAnnotationsBaseTest):
                 "Image 1.png has points from more than one .cpc file: 1.cpc"
                 " and 2.cpc. There should be only one .cpc file"
                 " per image.")))
-
-
-class UploadAnnotationsContentsTest(UploadAnnotationsBaseTest):
-    """
-    Annotation upload edge cases and error cases related to contents.
-    """
-    @classmethod
-    def setUpTestData(cls):
-        super(UploadAnnotationsContentsTest, cls).setUpTestData()
-
-        cls.user = cls.create_user()
-        cls.source = cls.create_source(cls.user)
-        # Labels in labelset
-        labels = cls.create_labels(cls.user, ['A', 'B'], 'Group1')
-        cls.create_labelset(cls.user, cls.source, labels)
-        # Label not in labelset
-        cls.create_labels(cls.user, ['C'], 'Group1')
-
-        cls.img1 = cls.upload_image(
-            cls.user, cls.source,
-            image_options=dict(filename='1.png', width=200, height=100))
-        cls.img2 = cls.upload_image(
-            cls.user, cls.source,
-            image_options=dict(filename='2.png', width=100, height=200))
-
-    def preview_csv(self, csv_file):
-        return self.client.post(
-            reverse('upload_annotations_csv_preview_ajax', args=[
-                self.source.pk]),
-            {'csv_file': csv_file},
-        )
-
-    def preview_cpc(self, cpc_files):
-        return self.client.post(
-            reverse('upload_annotations_cpc_preview_ajax', args=[
-                self.source.pk]),
-            {'cpc_files': cpc_files},
-        )
-
-    def upload(self):
-        return self.client.post(
-            reverse('upload_annotations_ajax', args=[self.source.pk]),
-        )
-
-    def do_success_csv(self, point_data, expected_points_set):
-        self.client.force_login(self.user)
-        rows = [['1.png']+list(p) for p in point_data]
-        if len(rows[0]) == 3:
-            header_row = ['Name', 'Column', 'Row']
-        else:
-            header_row = ['Name', 'Column', 'Row', 'Label']
-        csv_file = self.make_csv_file('A.csv', [header_row] + rows)
-        self.preview_csv(csv_file)
-        self.upload()
-
-        values_set = set(
-            Point.objects.filter(image__in=[self.img1])
-            .values_list('column', 'row', 'point_number', 'image_id'))
-        self.assertSetEqual(values_set, expected_points_set)
-
-    def do_error_csv(self, point_data, expected_error):
-        self.client.force_login(self.user)
-        rows = [['1.png']+list(p) for p in point_data]
-        if len(rows[0]) == 3:
-            header_row = ['Name', 'Column', 'Row']
-        else:
-            header_row = ['Name', 'Column', 'Row', 'Label']
-        csv_file = self.make_csv_file('A.csv', [header_row] + rows)
-        preview_response = self.preview_csv(csv_file)
-
-        self.assertDictEqual(
-            preview_response.json(),
-            dict(error=expected_error))
-
-    def do_success_cpc(self, point_data, expected_points_set):
-        self.client.force_login(self.user)
-        if len(point_data[0]) == 2:
-            point_data = [p+('',) for p in point_data]
-        cpc_files = [
-            self.make_cpc_file(
-                '1.cpc', r"C:\My Photos\2017-05-13 GBR\1.png", point_data)]
-        self.preview_cpc(cpc_files)
-        self.upload()
-
-        values_set = set(
-            Point.objects.filter(image__in=[self.img1])
-            .values_list('column', 'row', 'point_number', 'image_id'))
-        self.assertSetEqual(values_set, expected_points_set)
-
-    def do_error_cpc(self, point_data, expected_error):
-        self.client.force_login(self.user)
-        if len(point_data[0]) == 2:
-            point_data = [p+('',) for p in point_data]
-        cpc_files = [
-            self.make_cpc_file(
-                '1.cpc', r"C:\My Photos\2017-05-13 GBR\1.png", point_data)]
-        preview_response = self.preview_cpc(cpc_files)
-
-        self.assertDictEqual(
-            preview_response.json(),
-            dict(error=expected_error))
-
-    def test_row_not_number_csv(self):
-        """A row/col which can't be parsed as a number should result in an
-        appropriate error message."""
-        self.do_error_csv(
-            [(50, 'abc')],
-            "Row value is not a positive integer: abc")
-
-    def test_row_not_number_cpc(self):
-        self.do_error_cpc(
-            [(49*15, '?.;')], (
-                "From file 1.cpc, point 1:"
-                " Row value is not an integer in the accepted range: ?.;"))
-
-    def test_column_not_number_csv(self):
-        self.do_error_csv(
-            [('1abc', 50)],
-            "Column value is not a positive integer: 1abc")
-
-    def test_column_not_number_cpc(self):
-        self.do_error_cpc(
-            [('abc2', 49*15)], (
-                "From file 1.cpc, point 1:"
-                " Column value is not an integer in the accepted range: abc2"))
-
-    def test_row_is_float_csv(self):
-        """A row/col which can't be parsed as an integer should result in an
-        appropriate error message."""
-        self.do_error_csv(
-            [(50, 40.8)],
-            "Row value is not a positive integer: 40.8")
-
-    def test_row_is_float_cpc(self):
-        self.do_error_cpc(
-            [(49*15, 39*15+0.8)], (
-                "From file 1.cpc, point 1:"
-                " Row value is not an integer in the accepted range: 585.8"))
-
-    def test_column_is_float_csv(self):
-        self.do_error_csv(
-            [(50.88, 40)],
-            "Column value is not a positive integer: 50.88")
-
-    def test_column_is_float_cpc(self):
-        self.do_error_cpc(
-            [(49*15+0.88, 39*15)], (
-                "From file 1.cpc, point 1:"
-                " Column value is not an integer in the accepted range:"
-                " 735.88"))
-
-    def test_row_minimum_value_csv(self):
-        """Minimum acceptable row value."""
-        self.do_success_csv(
-            [(50, 1)],
-            {(50, 1, 1, self.img1.pk)})
-
-    def test_row_minimum_value_cpc(self):
-        self.do_success_cpc(
-            [(49*15, 0)],
-            {(50, 1, 1, self.img1.pk)})
-
-    def test_column_minimum_value_csv(self):
-        self.do_success_csv(
-            [(1, 40)],
-            {(1, 40, 1, self.img1.pk)})
-
-    def test_column_minimum_value_cpc(self):
-        self.do_success_cpc(
-            [(0, 39*15)],
-            {(1, 40, 1, self.img1.pk)})
-
-    def test_row_too_small_csv(self):
-        """Below the minimum acceptable row value."""
-        self.do_error_csv(
-            [(50, 0)],
-            "Row value is not a positive integer: 0")
-
-    def test_row_too_small_cpc(self):
-        self.do_error_cpc(
-            [(49*15, -1)], (
-                "From file 1.cpc, point 1:"
-                " Row value is not an integer in the accepted range: -1"))
-
-    def test_column_too_small_csv(self):
-        self.do_error_csv(
-            [(0, 50)],
-            "Column value is not a positive integer: 0")
-
-    def test_column_too_small_cpc(self):
-        self.do_error_cpc(
-            [(-1, 49*15)], (
-                "From file 1.cpc, point 1:"
-                " Column value is not an integer in the accepted range: -1"))
-
-    def test_row_maximum_value_csv(self):
-        """Maximum acceptable row value given the image dimensions."""
-        self.do_success_csv(
-            [(50, 100)],
-            {(50, 100, 1, self.img1.pk)})
-
-    def test_row_maximum_value_cpc(self):
-        self.do_success_cpc(
-            [(49*15, 99*15)],
-            {(50, 100, 1, self.img1.pk)})
-
-    def test_column_maximum_value_csv(self):
-        self.do_success_csv(
-            [(200, 40)],
-            {(200, 40, 1, self.img1.pk)})
-
-    def test_column_maximum_value_cpc(self):
-        self.do_success_cpc(
-            [(199*15, 39*15)],
-            {(200, 40, 1, self.img1.pk)})
-
-    def test_row_too_large_csv(self):
-        """Above the maximum acceptable row value given the
-        image dimensions."""
-        self.do_error_csv(
-            [(50, 101)], (
-                "Row value of 101 is too large for image 1.png,"
-                " which has dimensions 200 x 100"))
-
-    def test_row_too_large_cpc(self):
-        self.do_error_cpc(
-            [(49*15, 100*15)], (
-                "From file 1.cpc, point 1:"
-                " Row value of 1500 corresponds to pixel 101."
-                " This is too large"
-                " for image 1.png, which has dimensions"
-                " 200 x 100."))
-
-    def test_column_too_large_csv(self):
-        self.do_error_csv(
-            [(201, 50)], (
-                "Column value of 201 is too large for image 1.png,"
-                " which has dimensions 200 x 100"))
-
-    def test_column_too_large_cpc(self):
-        self.do_error_cpc(
-            [(200*15, 49*15)], (
-                "From file 1.cpc, point 1:"
-                " Column value of 3000 corresponds to pixel 201."
-                " This is too large"
-                " for image 1.png, which has dimensions"
-                " 200 x 100."))
-
-    def test_multiple_points_same_row_column_csv(self):
-        """
-        More than one point in the same image on the exact same position
-        (same row and same column) should not be allowed.
-        """
-        self.do_error_csv(
-            [(150, 90), (20, 20), (150, 90)], (
-                "Image 1.png has multiple points on the same position:"
-                " row 90, column 150"))
-
-    def test_multiple_points_same_row_column_cpc(self):
-        # These CPC file values for points 1 and 3
-        # are different, but they map to the same pixel.
-        self.do_error_cpc(
-            [(149*15-2, 89*15-2), (19*15, 19*15), (149*15+2, 89*15+2)], (
-                "From file 1.cpc:"
-                " Points 1 and 3 are on the same"
-                " pixel position:"
-                " row 90, column 150"))
-
-    def test_label_not_in_labelset_csv(self):
-        self.do_error_csv(
-            [(150, 90, 'B'), (20, 20, 'C')],
-            "No label of code C found in this source's labelset")
-
-    def test_label_not_in_labelset_cpc(self):
-        self.do_error_cpc(
-            [(149*15, 89*15, 'B'), (19*15, 19*15, 'C')], (
-                "From file 1.cpc, point 2:"
-                " No label of code C found in this source's labelset"))
-
-    def test_no_specified_images_found_in_source_csv(self):
-        """
-        The import data has no filenames that can be found in the source.
-        """
-        self.client.force_login(self.user)
-
-        csv_file = self.make_csv_file('A.csv', [
-            ['Name', 'Column', 'Row'],
-            ['3.png', 50, 50],
-            ['4.png', 60, 40]])
-        preview_response = self.preview_csv(csv_file)
-
-        self.assertDictEqual(
-            preview_response.json(),
-            dict(
-                error="No matching image names found in the source",
-            ),
-        )
-
-    def test_no_specified_images_found_in_source_cpc(self):
-        self.client.force_login(self.user)
-
-        cpc_files = [
-            self.make_cpc_file(
-                '3.cpc', r"C:\My Photos\2017-05-13 GBR\3.png", [
-                    (49*15, 49*15, '')]),
-            self.make_cpc_file(
-                '4.cpc', r"C:\My Photos\2017-05-13 GBR\4.png", [
-                    (59*15, 39*15, '')]),
-        ]
-        preview_response = self.preview_cpc(cpc_files)
-
-        self.assertDictEqual(
-            preview_response.json(),
-            dict(
-                error="No matching image names found in the source",
-            ),
-        )
-
-
-class UploadAnnotationsNoLabelsetTest(ClientTest):
-    """
-    Point/annotation upload attempts with no labelset.
-    This should just fail to reach the page.
-    """
-    @classmethod
-    def setUpTestData(cls):
-        super(UploadAnnotationsNoLabelsetTest, cls).setUpTestData()
-
-        cls.user = cls.create_user()
-        cls.source = cls.create_source(cls.user)
-
-    def test_page_csv(self):
-        self.client.force_login(self.user)
-        response = self.client.post(
-            reverse('upload_annotations_csv', args=[self.source.pk]),
-        )
-        self.assertContains(
-            response,
-            "You must create a labelset before uploading annotations.")
-        self.assertTemplateUsed(response, 'labels/labelset_required.html')
-
-    def test_preview_csv(self):
-        self.client.force_login(self.user)
-        response = self.client.post(
-            reverse('upload_annotations_csv_preview_ajax', args=[
-                self.source.pk]),
-        )
-        self.assertContains(
-            response,
-            "You must create a labelset before uploading annotations.")
-        self.assertTemplateUsed(response, 'labels/labelset_required.html')
-
-    def test_page_cpc(self):
-        self.client.force_login(self.user)
-        response = self.client.post(
-            reverse('upload_annotations_cpc', args=[self.source.pk]),
-        )
-        self.assertContains(
-            response,
-            "You must create a labelset before uploading annotations.")
-        self.assertTemplateUsed(response, 'labels/labelset_required.html')
-
-    def test_preview_cpc(self):
-        self.client.force_login(self.user)
-        response = self.client.post(
-            reverse('upload_annotations_cpc_preview_ajax', args=[
-                self.source.pk]),
-        )
-        self.assertContains(
-            response,
-            "You must create a labelset before uploading annotations.")
-        self.assertTemplateUsed(response, 'labels/labelset_required.html')
-
-    def test_upload(self):
-        self.client.force_login(self.user)
-        response = self.client.post(
-            reverse('upload_annotations_ajax', args=[self.source.pk]),
-        )
-        self.assertContains(
-            response,
-            "You must create a labelset before uploading annotations.")
-        self.assertTemplateUsed(response, 'labels/labelset_required.html')

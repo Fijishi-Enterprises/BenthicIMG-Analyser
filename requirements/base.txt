@@ -1,6 +1,15 @@
 # To see requirements for an installed package, use: pip show <package-name>
 
 
+# Assist gradual migration from Python 2 to 3.
+#
+# An alternative is the 'future' package, but its methods
+# seem to be less well recognized by Python IDEs, at least PyCharm
+# (https://youtrack.jetbrains.com/issue/PY-15538).
+# Nevertheless, future's cheat sheet is useful:
+# http://python-future.org/compatible_idioms.html
+six==1.10.0
+
 Django==1.9.11
 
 # Per-object permissions
@@ -41,9 +50,6 @@ boto==2.40.0
 # module imports work
 # Requires boto
 django-storages==1.4.1
-
-# Assist gradual migration from Python 2 to 3
-future==0.16.0
 
 # Fancy math
 numpy==1.11.1

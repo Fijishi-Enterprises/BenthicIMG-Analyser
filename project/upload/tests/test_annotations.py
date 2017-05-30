@@ -1360,6 +1360,286 @@ class UploadAnnotationsCSVFormatTest(UploadAnnotationsBaseTest):
         )
 
 
+class UploadAnnotationsCPCFormatTest(UploadAnnotationsBaseTest):
+    """
+    Tests specific to CSV format.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super(UploadAnnotationsCPCFormatTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(cls.user)
+        labels = cls.create_labels(cls.user, ['A', 'B'], 'Group1')
+        cls.create_labelset(cls.user, cls.source, labels)
+
+        cls.img1 = cls.upload_image(
+            cls.user, cls.source,
+            image_options=dict(filename='1.png', width=100, height=100))
+
+    def preview_cpc(self, cpc_files):
+        return self.client.post(
+            reverse('upload_annotations_cpc_preview_ajax', args=[
+                self.source.pk]),
+            {'cpc_files': cpc_files},
+        )
+
+    def upload(self):
+        return self.client.post(
+            reverse('upload_annotations_ajax', args=[self.source.pk]),
+        )
+
+    def test_one_line(self):
+        self.client.force_login(self.user)
+
+        with BytesIO() as stream:
+            # Line 1
+            stream.writelines(['a,b,c,d,e,f\n'])
+            cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
+        preview_response = self.preview_cpc([cpc_file])
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(error="File 1.cpc seems to have too few lines."))
+
+    def test_line_1_not_enough_tokens(self):
+        self.client.force_login(self.user)
+
+        with BytesIO() as stream:
+            # Line 1
+            stream.writelines(['abc\n'])
+            cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
+        preview_response = self.preview_cpc([cpc_file])
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(error=(
+                "File 1.cpc, line 1 has"
+                " 1 comma-separated tokens, but"
+                " 6 were expected.")))
+
+    def test_line_1_too_many_tokens(self):
+        self.client.force_login(self.user)
+
+        with BytesIO() as stream:
+            # Line 1
+            stream.writelines(['ab,cd,ef,gh,ij,kl,mn\n'])
+            cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
+        preview_response = self.preview_cpc([cpc_file])
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(error=(
+                "File 1.cpc, line 1 has"
+                " 7 comma-separated tokens, but"
+                " 6 were expected.")))
+
+    def test_line_1_quoted_commas_accepted(self):
+        """Any commas between quotes should be considered part of a
+        token, instead of a token separator."""
+        self.client.force_login(self.user)
+
+        with BytesIO() as stream:
+            # Line 1
+            stream.writelines(['ab,cd,ef,"gh,ij",kl,mn\n'])
+            cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
+        preview_response = self.preview_cpc([cpc_file])
+
+        # Should get past line 1 just fine, and then error due to not
+        # having more lines.
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(error="File 1.cpc seems to have too few lines."))
+
+    def test_line_2_wrong_number_of_tokens(self):
+        self.client.force_login(self.user)
+
+        with BytesIO() as stream:
+            # Line 1
+            stream.writelines(['a,b,c,d,e,f\n'])
+            # Line 2
+            stream.writelines(['1,2,3\n'])
+            cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
+        preview_response = self.preview_cpc([cpc_file])
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(error=(
+                "File 1.cpc, line 2 has"
+                " 3 comma-separated tokens, but"
+                " 2 were expected.")))
+
+    def test_line_6_wrong_number_of_tokens(self):
+        self.client.force_login(self.user)
+
+        with BytesIO() as stream:
+            # Line 1
+            stream.writelines(['a,b,c,d,e,f\n'])
+            # Lines 2-5
+            stream.writelines(['1,2\n']*4)
+            # Line 6
+            stream.writelines(['abc,def\n'])
+            cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
+        preview_response = self.preview_cpc([cpc_file])
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(error=(
+                "File 1.cpc, line 6 has"
+                " 2 comma-separated tokens, but"
+                " 1 were expected.")))
+
+    def test_line_6_not_number(self):
+        self.client.force_login(self.user)
+
+        with BytesIO() as stream:
+            # Line 1
+            stream.writelines(['a,b,c,d,e,f\n'])
+            # Lines 2-5
+            stream.writelines(['1,2\n']*4)
+            # Line 6
+            stream.writelines(['abc\n'])
+            cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
+        preview_response = self.preview_cpc([cpc_file])
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(error=(
+                "File 1.cpc, line 6 is supposed to have"
+                " the number of points, but this line isn't a"
+                " positive integer: abc")))
+
+    def test_line_6_number_below_1(self):
+        self.client.force_login(self.user)
+
+        with BytesIO() as stream:
+            # Line 1
+            stream.writelines(['a,b,c,d,e,f\n'])
+            # Lines 2-5
+            stream.writelines(['1,2\n']*4)
+            # Line 6
+            stream.writelines(['0\n'])
+            cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
+        preview_response = self.preview_cpc([cpc_file])
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(error=(
+                "File 1.cpc, line 6 is supposed to have"
+                " the number of points, but this line isn't a"
+                " positive integer: 0")))
+
+    def test_point_position_line_wrong_number_of_tokens(self):
+        self.client.force_login(self.user)
+
+        with BytesIO() as stream:
+            # Line 1
+            stream.writelines(['a,b,c,d,e,f\n'])
+            # Lines 2-5
+            stream.writelines(['1,2\n']*4)
+            # Line 6
+            stream.writelines(['10\n'])
+            # Line 7-15: point positions (one line too few)
+            stream.writelines([
+                '{n},{n}\n'.format(n=n*15) for n in range(1,9+1)])
+            # Line 16: labels
+            stream.writelines(['a,b,c,d\n'])
+            cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
+        preview_response = self.preview_cpc([cpc_file])
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(error=(
+                "File 1.cpc, line 16 has"
+                " 4 comma-separated tokens, but"
+                " 2 were expected.")))
+
+    def test_label_line_wrong_number_of_tokens(self):
+        self.client.force_login(self.user)
+
+        with BytesIO() as stream:
+            # Line 1
+            stream.writelines(['a,b,c,d,e,f\n'])
+            # Lines 2-5
+            stream.writelines(['1,2\n']*4)
+            # Line 6
+            stream.writelines(['10\n'])
+            # Lines 7-17: point positions (one line too many)
+            stream.writelines([
+                '{n},{n}\n'.format(n=n*15) for n in range(1,11+1)])
+            cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
+        preview_response = self.preview_cpc([cpc_file])
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(error=(
+                "File 1.cpc, line 17 has"
+                " 2 comma-separated tokens, but"
+                " 4 were expected.")))
+
+    def test_not_enough_label_lines(self):
+        self.client.force_login(self.user)
+
+        with BytesIO() as stream:
+            # Line 1
+            stream.writelines(['a,b,c,d,e,f\n'])
+            # Lines 2-5
+            stream.writelines(['1,2\n']*4)
+            # Line 6
+            stream.writelines(['10\n'])
+            # Lines 7-16: point positions
+            stream.writelines([
+                '{n},{n}\n'.format(n=n*15) for n in range(1,10+1)])
+            # Line 17-25: labels (one line too few)
+            stream.writelines(['a,b,c,d\n']*9)
+            cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
+        preview_response = self.preview_cpc([cpc_file])
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(error="File 1.cpc seems to have too few lines."))
+
+    def test_multiple_cpcs_for_one_image(self):
+        self.client.force_login(self.user)
+
+        with BytesIO() as stream:
+            # Line 1
+            stream.writelines(['a,"D:\\Panama transects\\1.png",c,d,e,f\n'])
+            # Lines 2-5
+            stream.writelines(['1,2\n']*4)
+            # Line 6
+            stream.writelines(['10\n'])
+            # Lines 7-16: point positions
+            # Multiply by 15 so they end up on different pixels. Otherwise
+            # we may get the 'multiple points on same pixel' error instead.
+            stream.writelines([
+                '{n},{n}\n'.format(n=n*15) for n in range(1,10+1)])
+            # Line 17-26: labels
+            stream.writelines(['a,b,c,d\n']*10)
+            cpc_file_1 = ContentFile(stream.getvalue(), name='1.cpc')
+        with BytesIO() as stream:
+            # Line 1
+            stream.writelines(['a,"D:\\GBR transects\\1.png",c,d,e,f\n'])
+            # Lines 2-5
+            stream.writelines(['1,2\n']*4)
+            # Line 6
+            stream.writelines(['10\n'])
+            # Lines 7-16: point positions
+            stream.writelines([
+                '{n},{n}\n'.format(n=n*15) for n in range(1,10+1)])
+            # Line 17-26: labels
+            stream.writelines(['a,b,c,d\n']*10)
+            cpc_file_2 = ContentFile(stream.getvalue(), name='2.cpc')
+        preview_response = self.preview_cpc([cpc_file_1, cpc_file_2])
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(error=(
+                "Image 1.png has points from more than one .cpc file: 1.cpc"
+                " and 2.cpc. There should be only one .cpc file"
+                " per image.")))
+
+
 class UploadAnnotationsContentsTest(UploadAnnotationsBaseTest):
     """
     Annotation upload edge cases and error cases related to contents.

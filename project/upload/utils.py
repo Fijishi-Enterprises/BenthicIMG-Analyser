@@ -365,7 +365,7 @@ def annotations_cpcs_to_dict(cpc_files, source):
             row_tokens = [token.strip() for token in next(reader)]
         except StopIteration:
             raise FileProcessError(
-                "File {cpc_filename} unexpectedly ran out of rows.".format(
+                "File {cpc_filename} seems to have too few lines.".format(
                     cpc_filename=cpc_filename))
 
         if len(row_tokens) != num_tokens_expected:
@@ -401,12 +401,25 @@ def annotations_cpcs_to_dict(cpc_files, source):
         # CPCe only runs on Windows, so ntpath should be safe.
         cpc_dict['image_filename'] = ntpath.split(image_filepath)[-1]
 
-        # Lines 2-5; don't need these
+        # Lines 2-5; don't need any info from these,
+        # but they should have 2 tokens each
         for _ in range(4):
             read_csv_row_curried(2)
 
-        # Line 6
-        num_points = int(read_csv_row_curried(1)[0])
+        # Line 6: number of points
+        token = read_csv_row_curried(1)[0]
+        try:
+            num_points = int(token)
+            if num_points <= 0:
+                raise ValueError
+        except ValueError:
+            raise FileProcessError((
+                "File {cpc_filename}, line {line_num} is supposed to have"
+                " the number of points, but this line isn't a"
+                " positive integer: {token}").format(
+                    cpc_filename=cpc_file.name,
+                    line_num=reader.line_num,
+                    token=token))
 
         # Next num_points lines: point positions.
         # CPCe point positions are on a scale of 15 units = 1 pixel, and

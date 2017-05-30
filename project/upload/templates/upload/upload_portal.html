@@ -12,6 +12,7 @@
   <legend>Upload</legend>
   <p>Choose what you want to upload.</p>
 
+  {# TODO: Add annotations CPC, and add a description line above each button #}
   <form action="" method="post" enctype="multipart/form-data">{% csrf_token %}
     <input type="submit" name="images" value="Upload Images" />
     <input type="submit" name="metadata" value="Upload Metadata" />

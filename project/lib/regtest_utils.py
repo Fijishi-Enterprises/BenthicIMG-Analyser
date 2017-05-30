@@ -233,7 +233,7 @@ class RegressionTest(ClientTest):
 
         def preview_anns(csv_file):
             return self.client.post(
-                reverse('upload_annotations_preview_ajax', args=[self.source.pk]),
+                reverse('upload_annotations_csv_preview_ajax', args=[self.source.pk]),
                 {'csv_file': csv_file},
             )
 

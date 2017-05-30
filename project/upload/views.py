@@ -19,10 +19,12 @@ from lib.decorators import source_permission_required, source_labelset_required
 from lib.exceptions import FileProcessError
 from lib.utils import filesize_display
 from visualization.forms import ImageSpecifyByIdForm
-from .forms import MultiImageUploadForm, ImageUploadForm, CSVImportForm
-from .utils import upload_image_process, find_dupe_image,\
-    metadata_csv_to_dict, annotations_csv_to_dict, \
-    annotations_preview, metadata_preview
+from .forms import (
+    CPCImportForm, CSVImportForm, ImageUploadForm, MultiImageUploadForm)
+from .utils import (
+    annotations_cpcs_to_dict, annotations_csv_to_dict,
+    annotations_preview, find_dupe_image, metadata_csv_to_dict,
+    metadata_preview, upload_image_process)
 import vision_backend.tasks as backend_tasks
 
 
@@ -40,7 +42,8 @@ def upload_portal(request, source_id):
                 reverse('upload_metadata', args=[source_id]))
         if request.POST.get('annotations'):
             return HttpResponseRedirect(
-                reverse('upload_annotations', args=[source_id]))
+                reverse('upload_annotations_csv', args=[source_id]))
+        # TODO: Add annotations CPC
 
     source = get_object_or_404(Source, id=source_id)
     return render(request, 'upload/upload_portal.html', {
@@ -273,12 +276,12 @@ def upload_metadata_ajax(request, source_id):
 @source_permission_required('source_id', perm=Source.PermTypes.EDIT.code)
 @source_labelset_required('source_id', message=(
     "You must create a labelset before uploading annotations."))
-def upload_annotations(request, source_id):
+def upload_annotations_csv(request, source_id):
     source = get_object_or_404(Source, id=source_id)
 
     csv_import_form = CSVImportForm()
 
-    return render(request, 'upload/upload_annotations.html', {
+    return render(request, 'upload/upload_annotations_csv.html', {
         'source': source,
         'csv_import_form': csv_import_form,
     })
@@ -288,7 +291,7 @@ def upload_annotations(request, source_id):
     'source_id', perm=Source.PermTypes.EDIT.code, ajax=True)
 @source_labelset_required('source_id', message=(
     "You must create a labelset before uploading annotations."))
-def upload_annotations_preview_ajax(request, source_id):
+def upload_annotations_csv_preview_ajax(request, source_id):
     """
     Add points/annotations to images by uploading a CSV file.
 
@@ -319,7 +322,65 @@ def upload_annotations_preview_ajax(request, source_id):
     preview_table, preview_details = \
         annotations_preview(csv_annotations, source)
 
-    request.session['csv_annotations'] = csv_annotations
+    request.session['uploaded_annotations'] = csv_annotations
+
+    return JsonResponse(dict(
+        success=True,
+        previewTable=preview_table,
+        previewDetails=preview_details,
+    ))
+
+
+@source_permission_required('source_id', perm=Source.PermTypes.EDIT.code)
+@source_labelset_required('source_id', message=(
+    "You must create a labelset before uploading annotations."))
+def upload_annotations_cpc(request, source_id):
+    source = get_object_or_404(Source, id=source_id)
+
+    cpc_import_form = CPCImportForm()
+
+    return render(request, 'upload/upload_annotations_cpc.html', {
+        'source': source,
+        'cpc_import_form': cpc_import_form,
+    })
+
+
+@source_permission_required(
+    'source_id', perm=Source.PermTypes.EDIT.code, ajax=True)
+@source_labelset_required('source_id', message=(
+    "You must create a labelset before uploading annotations."))
+def upload_annotations_cpc_preview_ajax(request, source_id):
+    """
+    Add points/annotations to images by uploading Coral Point Count files.
+
+    This view takes multiple .cpc files, processes them, saves the processed
+    data to the session, and returns a preview table of the data to be saved.
+    """
+    if request.method != 'POST':
+        return JsonResponse(dict(
+            error="Not a POST request",
+        ))
+
+    source = get_object_or_404(Source, id=source_id)
+
+    cpc_import_form = CPCImportForm(request.POST, request.FILES)
+    if not cpc_import_form.is_valid():
+        return JsonResponse(dict(
+            error=cpc_import_form.errors['cpc_files'][0],
+        ))
+
+    try:
+        cpc_annotations = annotations_cpcs_to_dict(
+            cpc_import_form.cleaned_data['cpc_files'], source)
+    except FileProcessError as error:
+        return JsonResponse(dict(
+            error=error.message,
+        ))
+
+    preview_table, preview_details = \
+        annotations_preview(cpc_annotations, source)
+
+    request.session['uploaded_annotations'] = cpc_annotations
 
     return JsonResponse(dict(
         success=True,
@@ -334,10 +395,9 @@ def upload_annotations_preview_ajax(request, source_id):
     "You must create a labelset before uploading annotations."))
 def upload_annotations_ajax(request, source_id):
     """
-    Add points/annotations to images by uploading a CSV file.
-
-    This view gets the data that was previously saved to the session
-    by the upload-preview view. Then it saves the data to the database,
+    This view gets the annotation data that was previously saved to the
+    session by upload-preview-csv or upload-preview-cpc.
+    Then it saves the data to the database,
     while deleting all previous points/annotations for the images involved.
     """
     if request.method != 'POST':
@@ -347,8 +407,8 @@ def upload_annotations_ajax(request, source_id):
 
     source = get_object_or_404(Source, id=source_id)
 
-    csv_annotations = request.session.pop('csv_annotations', None)
-    if not csv_annotations:
+    uploaded_annotations = request.session.pop('uploaded_annotations', None)
+    if not uploaded_annotations:
         return JsonResponse(dict(
             error=(
                 "We couldn't find the expected data in your session."
@@ -357,7 +417,7 @@ def upload_annotations_ajax(request, source_id):
             ),
         ))
 
-    for image_id, csv_annotations_for_image in csv_annotations.items():
+    for image_id, annotations_for_image in uploaded_annotations.items():
 
         img = Image.objects.get(pk=image_id, source=source)
 
@@ -371,7 +431,7 @@ def upload_annotations_ajax(request, source_id):
         new_points = []
         new_annotations = []
 
-        for num, point_dict in enumerate(csv_annotations_for_image, 1):
+        for num, point_dict in enumerate(annotations_for_image, 1):
             # Create a Point.
             point = Point(
                 row=point_dict['row'], column=point_dict['column'],
@@ -380,7 +440,7 @@ def upload_annotations_ajax(request, source_id):
         # Save to DB with an efficient bulk operation.
         Point.objects.bulk_create(new_points)
 
-        for num, point_dict in enumerate(csv_annotations_for_image, 1):
+        for num, point_dict in enumerate(annotations_for_image, 1):
             # Create an Annotation if a label is specified.
             if 'label' in point_dict:
                 label_obj = source.labelset.get_global_by_code(
@@ -408,7 +468,8 @@ def upload_annotations_ajax(request, source_id):
         # Update relevant image status fields.
         img.confirmed = (len(new_points) == len(new_annotations))
         img.save()
-        backend_tasks.reset_features.apply_async(args = [img.id], eta = now() + timedelta(seconds = 10))
+        backend_tasks.reset_features.apply_async(
+            args = [img.id], eta = now() + timedelta(seconds = 10))
 
     return JsonResponse(dict(
         success=True,

@@ -1,0 +1,69 @@
+{% extends "images/base_source.html" %}
+{% load thumbnail %}
+{% load common_tags %}
+
+{% block title %}Upload Annotations | CoralNet{% endblock %}
+
+{% block js-includes %}
+    {% include "javascript-includes.html" with jquery_ui="yes" %}
+{% endblock %}
+
+{% block page-specific-includes %}
+    {% include "static-local-include.html" with type="css" path="css/uploadForm.css" %}
+    {% include "static-local-include.html" with type="js" path="js/UploadAnnotationsHelper.js" %}
+{% endblock %}
+
+{% block content %}
+
+  <legend>Upload Points and Annotations (CSV)</legend>
+
+  <div class="narrow_column">
+
+    <div class="page_section">
+
+      <form id="csv_form" action="" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        {% with csv_import_form.csv_file as field %}
+          {{ field.label }}: {{ field }}
+        {% endwith %}
+
+        <div class="tutorial-message">
+          {% include 'upload/upload_annotations_csv_help.html' %}
+        </div>
+      </form>
+
+    </div>
+
+    <div class="page_section">
+
+      <div id="upload_summary_section">
+
+        <span id="status_display"></span>
+        <hr>
+        <span id="status_detail"></span>
+
+        <div id="preview_table_container">
+          <table id="preview_table"></table>
+        </div>
+      </div>
+
+      <div id="upload_and_proceed_buttons">
+
+        <button type="button" class="submit" id="id_upload_submit" disabled="disabled">Save points and annotations</button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Script in the body will run on page load. -->
+  <script type="text/javascript">
+    UploadAnnotationsHelper.initForm({
+        uploadPreviewUrl: "{% url 'upload_annotations_csv_preview_ajax' source.id %}",
+        uploadStartUrl: "{% url 'upload_annotations_ajax' source.id %}"
+    });
+  </script>
+
+{% endblock %}

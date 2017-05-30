@@ -19,10 +19,18 @@ urlpatterns = [
     url(r'^metadata_ajax/$',
         views.upload_metadata_ajax, name="upload_metadata_ajax"),
 
-    url(r'^annotations/$',
-        views.upload_annotations, name="upload_annotations"),
-    url(r'^annotations_preview_ajax/$',
-        views.upload_annotations_preview_ajax, name="upload_annotations_preview_ajax"),
+    url(r'^annotations_csv/$',
+        views.upload_annotations_csv, name="upload_annotations_csv"),
+    url(r'^annotations_csv_preview_ajax/$',
+        views.upload_annotations_csv_preview_ajax,
+        name="upload_annotations_csv_preview_ajax"),
+    url(r'^annotations_cpc/$',
+        views.upload_annotations_cpc, name="upload_annotations_cpc"),
+    url(r'^annotations_cpc_preview_ajax/$',
+        views.upload_annotations_cpc_preview_ajax,
+        name="upload_annotations_cpc_preview_ajax"),
+    # This is the final step for both CSV and CPC.
+    # TODO: This could use a more descriptive name. 'confirm' maybe.
     url(r'^annotations_ajax/$',
         views.upload_annotations_ajax, name="upload_annotations_ajax"),
 ]

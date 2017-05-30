@@ -197,8 +197,12 @@
           <span>Metadata</span>
         </a></li>
 
-        <li><a href="{% url 'upload_annotations' source.pk %}">
-          <span>Annotations</span>
+        <li><a href="{% url 'upload_annotations_csv' source.pk %}">
+          <span>Annotations (CSV)</span>
+        </a></li>
+
+        <li><a href="{% url 'upload_annotations_cpc' source.pk %}">
+          <span>Annotations (CPC)</span>
         </a></li>
 
       </ul>

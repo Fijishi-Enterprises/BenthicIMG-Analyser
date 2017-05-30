@@ -7,7 +7,8 @@ from django.forms.widgets import FileInput
 
 class MultipleFileInput(FileInput):
     """
-    Modifies the built-in FileInput widget by allowing validation of multi-file input.
+    Modifies the built-in FileInput widget by allowing validation
+    of multi-file input.
     (When FileInput takes multiple files, it only validates the last one.)
     """
     def __init__(self, attrs=None):
@@ -20,7 +21,8 @@ class MultipleFileInput(FileInput):
 
     def value_from_datadict(self, data, files, name):
         """
-        FileInput's method only uses get() here, which means only 1 file is gotten.
+        FileInput's method only uses get() here, which means
+        only 1 file is gotten.
         We need getlist to get all the files.
         """
         if not files:
@@ -33,6 +35,27 @@ class MultipleFileInput(FileInput):
             # In any other case, we'll have a MultiValueDict, which has
             # the method getlist() to get the values as a list.
             return files.getlist(name)
+
+
+class MultipleFileField(FileField):
+    """
+    Modifies the built-in FileField by allowing validation of multi-file input.
+    (When FileField takes multiple files, it only validates the last one.)
+
+    Must be used with the MultipleFileInput widget.
+    """
+
+    def to_python(self, data):
+        data_out = []
+
+        for list_item in data:
+            try:
+                f = super(MultipleFileField, self).to_python(list_item)
+            except ValidationError as err:
+                raise ValidationError(err.messages[0])
+            data_out.append(f)
+
+        return data_out
 
 
 class MultipleImageField(ImageField):
@@ -54,7 +77,7 @@ class MultipleImageField(ImageField):
         for list_item in data:
             try:
                 f = super(MultipleImageField, self).to_python(list_item)
-            except ValidationError, err:
+            except ValidationError as err:
                 raise ValidationError(err.messages[0])
             data_out.append(f)
 
@@ -144,3 +167,25 @@ class CSVImportForm(Form):
             raise ValidationError("The selected file is not a CSV file.")
 
         return self.cleaned_data['csv_file']
+
+
+class CPCImportForm(Form):
+    cpc_files = MultipleFileField(
+        label='CPC files',
+        widget=MultipleFileInput(),
+        error_messages=dict(required="Please select one or more CPC files."),
+    )
+
+    def clean_cpc_files(self):
+        """
+        Check for extensions of .cpc. This isn't foolproof, but it can
+        catch simple file selection mistakes.
+        """
+        cpc_files = self.cleaned_data['cpc_files']
+
+        for cpc_file in cpc_files:
+            if not cpc_file.name.endswith('.cpc'):
+                raise ValidationError(
+                    "This is not a CPC file: {fn}".format(fn=cpc_file.name))
+
+        return self.cleaned_data['cpc_files']

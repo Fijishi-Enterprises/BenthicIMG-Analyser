@@ -1,6 +1,14 @@
+# / can result in floats, // only results in ints
+from __future__ import division
+
 import codecs
 from collections import OrderedDict
 import csv
+import functools
+import ntpath
+
+from six import next, viewitems
+from six.moves import range
 
 from django.core.urlresolvers import reverse
 
@@ -254,15 +262,14 @@ def annotations_csv_to_dict(csv_file, source):
     return csv_annotations
 
 
-def annotations_csv_verify_contents(csv_annotations_by_image_name, source):
+def annotations_csv_verify_contents(csv_annotations, source):
     """
     Argument dict is indexed by image name. We'll create a new dict indexed
     by image id, while verifying image existence, row, column, and label.
     """
-    csv_annotations = OrderedDict()
+    annotations = OrderedDict()
 
-    for image_name, annotations_for_image \
-            in csv_annotations_by_image_name.items():
+    for image_name, annotations_for_image in viewitems(csv_annotations):
         try:
             img = Image.objects.get(metadata__name=image_name, source=source)
         except Image.DoesNotExist:
@@ -328,12 +335,241 @@ def annotations_csv_verify_contents(csv_annotations_by_image_name, source):
                         name=image_name, row=row, column=column))
             row_col_set.add((row, column))
 
-        csv_annotations[img.pk] = annotations_for_image
+        annotations[img.pk] = annotations_for_image
 
-    if len(csv_annotations) == 0:
-        raise FileProcessError("No matching filenames found in the source")
+    if len(annotations) == 0:
+        raise FileProcessError("No matching image names found in the source")
 
-    return csv_annotations
+    return annotations
+
+
+def annotations_cpcs_to_dict(cpc_files, source):
+    """
+    Go from Coral Point Count .cpc files to
+    dict of (image ids -> lists of dicts with keys row, column, (opt.) label).
+    One .cpc corresponds to one image.
+    """
+
+    def read_csv_row(reader, cpc_filename, num_tokens_expected):
+        """
+        Basically like calling next(reader), but with more controlled error
+        handling.
+        :param reader: A CSV reader object.
+        :param cpc_filename: The filename of the .cpc file we're reading.
+         Used for error messages.
+        :param num_tokens_expected: Number of tokens expected in this CSV row.
+        :return: iterable of the CSV tokens, stripped of leading and
+         trailing whitespace.
+        """
+        try:
+            row_tokens = [token.strip() for token in next(reader)]
+        except StopIteration:
+            raise FileProcessError(
+                "File {cpc_filename} unexpectedly ran out of rows.".format(
+                    cpc_filename=cpc_filename))
+
+        if len(row_tokens) != num_tokens_expected:
+            raise FileProcessError((
+                "File {cpc_filename}, line {line_num} has"
+                " {num_tokens} comma-separated tokens, but"
+                " {num_tokens_expected} were expected.").format(
+                    cpc_filename=cpc_filename,
+                    line_num=reader.line_num,
+                    num_tokens=len(row_tokens),
+                    num_tokens_expected=num_tokens_expected))
+
+        return row_tokens
+
+    cpc_dicts = []
+
+    for cpc_file in cpc_files:
+
+        cpc_dict = dict(cpc_filename=cpc_file.name)
+
+        # Each line of a .cpc file is like a CSV row.
+        #
+        # But different lines have different kinds of values, so we'll go
+        # through the lines with next() instead of with a for loop.
+        reader = csv.reader(cpc_file, delimiter=',', quotechar='"')
+        read_csv_row_curried = functools.partial(
+            read_csv_row, reader, cpc_file.name)
+
+        # Line 1
+        _, image_filepath, _, _, _, _ = read_csv_row_curried(6)
+        # Assumption: image name on CoralNet == image filename from their
+        # local machine.
+        # CPCe only runs on Windows, so ntpath should be safe.
+        cpc_dict['image_filename'] = ntpath.split(image_filepath)[-1]
+
+        # Lines 2-5; don't need these
+        for _ in range(4):
+            read_csv_row_curried(2)
+
+        # Line 6
+        num_points = int(read_csv_row_curried(1)[0])
+
+        # Next num_points lines: point positions.
+        # CPCe point positions are on a scale of 15 units = 1 pixel, and
+        # the positions start from 0, not 1.
+        cpc_dict['points'] = []
+        for _ in range(num_points):
+            x_str, y_str = read_csv_row_curried(2)
+            cpc_dict['points'].append(dict(x_str=x_str, y_str=y_str))
+
+        # Next num_points lines: point labels.
+        # Assumption: label code in CoralNet source's labelset == label code
+        # in the .cpc file (case insensitive).
+        # We're taking advantage of the fact that the previous section
+        # and this section are both in point-number order. As long as we
+        # maintain that order, we assign labels to the correct points.
+        for point_index in range(num_points):
+            _, label_code, _, _ = read_csv_row_curried(4)
+            if label_code:
+                cpc_dict['points'][point_index]['label'] = label_code
+
+        cpc_dicts.append(cpc_dict)
+
+    # So far we've checked the .cpc formatting. Now check the validity
+    # of the contents.
+    cpc_annotations = annotations_cpc_verify_contents(cpc_dicts, source)
+
+    return cpc_annotations
+
+
+def annotations_cpc_verify_contents(cpc_dicts, source):
+    """
+    Argument dict is a list of dicts, one dict per .cpc file.
+    We'll create a new annotations dict indexed
+    by image id, while verifying image existence, row, column, and label.
+    """
+    annotations = OrderedDict()
+    image_names_to_cpc_filenames = dict()
+
+    for cpc_dict in cpc_dicts:
+        image_name = cpc_dict['image_filename']
+        cpc_filename = cpc_dict['cpc_filename']
+
+        try:
+            img = Image.objects.get(metadata__name=image_name, source=source)
+        except Image.DoesNotExist:
+            # This filename isn't in the source. Just skip it
+            # without raising an error. It could be an image the user is
+            # planning to upload later, or an image they're not planning
+            # to upload but are still tracking in their records.
+            continue
+
+        if image_name in image_names_to_cpc_filenames:
+            raise FileProcessError((
+                "Image {name} has points from more than one .cpc file: {f1}"
+                " and {f2}. There should be only one .cpc file"
+                " per image.").format(
+                    name=image_name,
+                    f1=image_names_to_cpc_filenames[image_name],
+                    f2=cpc_filename,
+                )
+            )
+        image_names_to_cpc_filenames[image_name] = cpc_filename
+
+        row_col_dict = dict()
+        annotations_for_image = []
+
+        for point_number, cpc_point_dict in enumerate(cpc_dict['points'], 1):
+
+            # Check that row/column are within the image dimensions.
+            # Convert from CPCe units to pixels in the meantime.
+
+            try:
+                y = int(cpc_point_dict['y_str'])
+                if y < 0:
+                    raise ValueError
+            except ValueError:
+                raise FileProcessError((
+                    "From file {cpc_filename}, point {point_number}:"
+                    " Row value is not an integer in the accepted range:"
+                    " {y_str}").format(
+                        cpc_filename=cpc_filename,
+                        point_number=point_number,
+                        y_str=cpc_point_dict['y_str']))
+
+            try:
+                x = int(cpc_point_dict['x_str'])
+                if x < 0:
+                    raise ValueError
+            except ValueError:
+                raise FileProcessError((
+                    "From file {cpc_filename}, point {point_number}:"
+                    " Column value is not an integer in the accepted range:"
+                    " {x_str}").format(
+                        cpc_filename=cpc_filename,
+                        point_number=point_number,
+                        x_str=cpc_point_dict['x_str']))
+
+            row = int(round( y/15 + 1 ))
+            column = int(round( x/15 + 1 ))
+            point_dict = dict(
+                row=row,
+                column=column,
+            )
+
+            if img.original_height < row:
+                raise FileProcessError(
+                    "From file {cpc_filename}, point {point_number}:"
+                    " Row value of {y} corresponds to pixel {row}."
+                    " This is too large"
+                    " for image {name}, which has dimensions"
+                    " {width} x {height}.".format(
+                        cpc_filename=cpc_filename,
+                        point_number=point_number,
+                        y=y,
+                        row=row, name=image_name,
+                        width=img.original_width, height=img.original_height))
+
+            if img.original_width < column:
+                raise FileProcessError(
+                    "From file {cpc_filename}, point {point_number}:"
+                    " Column value of {x} corresponds to pixel {column}."
+                    " This is too large"
+                    " for image {name}, which has dimensions"
+                    " {width} x {height}.".format(
+                        cpc_filename=cpc_filename,
+                        point_number=point_number,
+                        x=x,
+                        column=column, name=image_name,
+                        width=img.original_width, height=img.original_height))
+
+            if 'label' in cpc_point_dict:
+                # Check that the label is in the labelset
+                label_code = cpc_point_dict['label']
+                if not source.labelset.get_global_by_code(label_code):
+                    raise FileProcessError(
+                        "From file {cpc_filename}, point {point_number}:"
+                        " No label of code {code} found"
+                        " in this source's labelset".format(
+                            cpc_filename=cpc_filename,
+                            point_number=point_number,
+                            code=label_code))
+                point_dict['label'] = label_code
+
+            if (row, column) in row_col_dict:
+                raise FileProcessError(
+                    "From file {cpc_filename}:"
+                    " Points {p1} and {p2} are on the same"
+                    " pixel position:"
+                    " row {row}, column {column}".format(
+                        cpc_filename=cpc_filename,
+                        p1=row_col_dict[(row, column)],
+                        p2=point_number,
+                        row=row, column=column))
+            row_col_dict[(row, column)] = point_number
+
+            annotations_for_image.append(point_dict)
+
+        annotations[img.pk] = annotations_for_image
+
+    if len(annotations) == 0:
+        raise FileProcessError("No matching image names found in the source")
+
+    return annotations
 
 
 def annotations_preview(csv_annotations, source):

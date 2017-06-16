@@ -40,10 +40,12 @@ def upload_portal(request, source_id):
         if request.POST.get('metadata'):
             return HttpResponseRedirect(
                 reverse('upload_metadata', args=[source_id]))
-        if request.POST.get('annotations'):
+        if request.POST.get('annotations_cpc'):
+            return HttpResponseRedirect(
+                reverse('upload_annotations_cpc', args=[source_id]))
+        if request.POST.get('annotations_csv'):
             return HttpResponseRedirect(
                 reverse('upload_annotations_csv', args=[source_id]))
-        # TODO: Add annotations CPC
 
     source = get_object_or_404(Source, id=source_id)
     return render(request, 'upload/upload_portal.html', {

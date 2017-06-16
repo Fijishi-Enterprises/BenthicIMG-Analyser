@@ -172,7 +172,8 @@ class CSVImportForm(Form):
 class CPCImportForm(Form):
     cpc_files = MultipleFileField(
         label='CPC files',
-        widget=MultipleFileInput(),
+        # Multi-file input whose dialog only allows selecting .cpc
+        widget=MultipleFileInput(attrs=dict(accept='.cpc')),
         error_messages=dict(required="Please select one or more CPC files."),
     )
 

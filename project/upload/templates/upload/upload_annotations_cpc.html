@@ -10,7 +10,7 @@
 
 {% block page-specific-includes %}
     {% include "static-local-include.html" with type="css" path="css/uploadForm.css" %}
-    {# TODO: Add Javascript include #}
+    {% include "static-local-include.html" with type="js" path="js/UploadAnnotationsCPCHelper.js" %}
 {% endblock %}
 
 {% block content %}
@@ -21,19 +21,16 @@
 
     <div class="page_section">
 
-      <form id="csv_form" action="" method="post" enctype="multipart/form-data">
+      <form id="cpc_form" action="" method="post" enctype="multipart/form-data">
         {% csrf_token %}
 
         {% with cpc_import_form.cpc_files as field %}
           {{ field.label }}: {{ field }}
         {% endwith %}
 
-        {# TODO: Add help dialog #}
-        {% comment %}
         <div class="tutorial-message">
           {% include 'upload/upload_annotations_cpc_help.html' %}
         </div>
-        {% endcomment %}
       </form>
 
     </div>
@@ -61,6 +58,12 @@
 
   </div>
 
-  {# TODO: Add Javascript function call(s) #}
+  <!-- Script in the body will run on page load. -->
+  <script type="text/javascript">
+    UploadAnnotationsCPCHelper.initForm({
+        uploadPreviewUrl: "{% url 'upload_annotations_cpc_preview_ajax' source.id %}",
+        uploadStartUrl: "{% url 'upload_annotations_ajax' source.id %}"
+    });
+  </script>
 
 {% endblock %}

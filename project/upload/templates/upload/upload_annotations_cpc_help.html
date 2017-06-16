@@ -1,0 +1,13 @@
+<p>Coral Point Count (CPCe) saves point positions and annotations in .cpc files - one .cpc file per image. You can upload .cpc files here to import the points and annotations into your source.</p>
+
+<p>You can select multiple files, but you can only select files within a single folder. Tip: When selecting files, click inside the folder area and then hit <kbd>Ctrl</kbd>+<kbd>A</kbd> in Windows / <kbd>Cmd</kbd>+<kbd>A</kbd> in Mac to select all files in that folder.</p>
+
+<ul>
+  <li>The image filenames used by the CPC files must match existing image filenames in your CoralNet source. The names of your folders do not matter.</li>
+
+  <li>When you upload a CPC file for an image, all existing points and annotations for that image will be overwritten. The preview will warn you if you are overwriting any confirmed annotations.</li>
+
+  <li>Each CPC file is allowed to contain labels for all, some, or none of the points.</li>
+
+  <li>Label codes used in the CPC file must match a label code in your source's labelset. Codes are case-insensitive. If your labelset has a label code <code>PORIT</code>, and the CPC file has <code>Porit</code>, then these codes will match.</li>
+</ul>

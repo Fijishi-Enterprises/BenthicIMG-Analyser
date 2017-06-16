@@ -12,11 +12,18 @@
   <legend>Upload</legend>
   <p>Choose what you want to upload.</p>
 
-  {# TODO: Add annotations CPC, and add a description line above each button #}
   <form action="" method="post" enctype="multipart/form-data">{% csrf_token %}
     <input type="submit" name="images" value="Upload Images" />
+    <p>This is the first step: uploading the images you want to analyze.</p>
+
     <input type="submit" name="metadata" value="Upload Metadata" />
-    <input type="submit" name="annotations" value="Upload Points/Annotations" />
+    <p>Adding metadata to your images makes it easier to search for them in the Browse tool.</p>
+
+    <input type="submit" name="annotations_cpc" value="Upload Points/Annotations (CPCe files)" />
+    <p>If you've previously annotated some images using Coral Point Count, you can upload those annotations here. You can also upload non-annotated points and then use CoralNet to annotate them.</p>
+
+    <input type="submit" name="annotations_csv" value="Upload Points/Annotations (CSV file)" />
+    <p>A more general format for uploading old points and annotations.</p>
   </form>
 
 {% endblock %}

@@ -29,7 +29,7 @@ You then need to run the following commands (in seperate consoles). Run them all
 
 Start the redis message:
 
-``redis server``
+``redis-server``
 
 Start the celery worker process which will consume the jobs:
 

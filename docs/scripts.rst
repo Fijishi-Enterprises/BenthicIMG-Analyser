@@ -109,6 +109,28 @@ When you're done working:
 - If you ran celery beat, delete the ``celerybeat.pid`` file from the ``project`` directory (otherwise, a subsequent start of celerybeat will see that file, assume a celerybeat process is still running, and fail to start)
 
 
+Environment setup -- Mac
+------------------------------------
+
+start postgres
+::
+  postgres -D /usr/local/var/postgres/
+set environment variable
+::
+  export DJANGO_SETTINGS_MODULE=config.settings.dev_beijbom
+make sure messaging agent is running
+::
+  redis-server
+start worker
+::
+  celery -A config worker
+(optionally) also start beat which runs scheduled tasks
+::
+  celery -A config beat
+(optionally) also run the celery task viewer:
+::
+  celery flower -A config
+
 Staging sync - Database
 -----------------------
 

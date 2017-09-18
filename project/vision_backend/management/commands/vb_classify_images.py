@@ -14,5 +14,8 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         source = Source.objects.get(id=options['source_id'])
 
-        for image in Image.objects.filter(source=source, features__extracted=True, confirmed=False):
+        for image in Image.objects.filter(source=source,
+                                          features__extracted=True,
+                                          features__classified=False,
+                                          confirmed=False):
             classify_image.delay(image.id)

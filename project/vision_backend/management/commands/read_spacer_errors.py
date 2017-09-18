@@ -1,7 +1,7 @@
-from django.core.management.base import BaseCommand, CommandError
-from django.conf import settings
+from django.core.management.base import BaseCommand
 
 from vision_backend.task_helpers import _read_message
+
 
 class Command(BaseCommand):
     help = 'Read all spacer error messages. Deletes messages after they are displayed.'

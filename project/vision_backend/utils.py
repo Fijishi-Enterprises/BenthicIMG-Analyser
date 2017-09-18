@@ -13,6 +13,7 @@ from images.models import Source, Point
 from labels.models import Label, LocalLabel
 from .models import Classifier, Score
 
+
 def acc(gt, est):
     """
     Calculate the accuracy of (agreement between) two interger valued list.
@@ -82,6 +83,7 @@ def map_labels(labellist, classmap):
         newlist[labellist == key] = classmap[key]
     return list(newlist)
 
+
 def labelset_mapper(labelmode, classids, source):
     """
     Prepares mapping function and labelset names to inject in confusion matrix.
@@ -111,8 +113,6 @@ def labelset_mapper(labelmode, classids, source):
         Exception('labelmode {} not recognized'.format(labelmode))
 
     return classmap, classnames
-
-
 
 
 def get_total_messages_in_jobs_queue():

@@ -1,12 +1,11 @@
 import os
 import logging
 import json
-import warnings
-
-import numpy as np
 
 from celery.decorators import task, periodic_task
-from sklearn import linear_model
+from django.conf import settings
+from django.utils.timezone import now
+
 from datetime import timedelta
 
 import task_helpers as th
@@ -19,35 +18,11 @@ from labels.models import LabelSet, Label
 from lib.utils import direct_s3_read, direct_s3_write
 from accounts.utils import get_robot_user
 
-from django.conf import settings
-from django.utils.timezone import now
-
-import time
-
 logger = logging.getLogger(__name__)
 
-"""
-Dummy tasks for debugging
 
-
-@task(name="one hello")
-def one_hello_world():
-    print "This is a one time hello world"
-
-@periodic_task(run_every=timedelta(seconds = 10), name='periodic hello', ignore_result=True)
-def hello_world():
-    print "This is a periodic hello world"
-
-@periodic_task(run_every=timedelta(seconds = 12), name='DB read', ignore_result=True)
-def hello_world():
-    print "There are {} images in the DB".format(Image.objects.filter().count())
-
-
-End dummy tasks for debugging
-"""
-
-@task(name = "Submit Features")
-def submit_features(image_id, force = False):
+@task(name="Submit Features")
+def submit_features(image_id, force=False):
     """
     Submits a job to SQS for extracting features for an image.
     """
@@ -57,7 +32,7 @@ def submit_features(image_id, force = False):
         return
 
     try:
-        img = Image.objects.get(pk = image_id)
+        img = Image.objects.get(pk=image_id)
     except:
         logger.info("Image {} does not exist.".format(image_id))
         return
@@ -69,7 +44,7 @@ def submit_features(image_id, force = False):
 
     # Assemble row column information
     rowcols = []
-    for point in Point.objects.filter(image = img).order_by('id'):
+    for point in Point.objects.filter(image=img).order_by('id'):
         rowcols.append([point.row, point.column])
     
     # Setup the job payload.
@@ -97,23 +72,23 @@ def submit_features(image_id, force = False):
     return messagebody
 
 
-@periodic_task(run_every=timedelta(hours = 24), name ='Periodic Classifiers Submit', ignore_result=True)
+@periodic_task(run_every=timedelta(hours = 24), name='Periodic Classifiers Submit', ignore_result=True)
 def submit_all_classifiers():
     for source in Source.objects.filter():
         if source.need_new_robot():
             submit_classifier.delay(source.id)
 
 
-@task(name = "Submit Classifier")
-def submit_classifier(source_id, nbr_images = 1e5, force = False):
+@task(name="Submit Classifier")
+def submit_classifier(source_id, nbr_images=1e5, force=False):
 
-    # Do some intial checks
+    # Do some initial checks
     if not settings.DEFAULT_FILE_STORAGE == 'lib.storage_backends.MediaStorageS3' or settings.FORCE_NO_BACKEND_SUBMIT:
         logger.info("Can't use vision backend if media is stored locally.")
         return
 
     try:
-        source = Source.objects.get(pk = source_id)
+        source = Source.objects.get(pk=source_id)
     except:
         logger.info("Can't find source [{}]".format(source_id))
         return
@@ -144,10 +119,9 @@ def submit_classifier(source_id, nbr_images = 1e5, force = False):
     )
         
     # Prepare information for the message payload
-    #classes = [l.global_label_id for l in LabelSet.objects.get(source = source).get_labels()] # Needed for the classifier.
-    previous_classifiers = Classifier.objects.filter(source = source, valid = True) # This will not include the current.
-    pc_models = [settings.ROBOT_MODEL_FILE_PATTERN.format(pk = pc.pk, media = settings.AWS_LOCATION) for pc in previous_classifiers]
-    pc_pks = [pc.pk for pc in previous_classifiers] # Primary keys needed for collect task.
+    previous_classifiers = Classifier.objects.filter(source=source, valid=True) # This will not include the current.
+    pc_models = [settings.ROBOT_MODEL_FILE_PATTERN.format(pk=pc.pk, media=settings.AWS_LOCATION) for pc in previous_classifiers]
+    pc_pks = [pc.pk for pc in previous_classifiers]  # Primary keys needed for collect task.
 
     # Create payload
     payload = {
@@ -176,11 +150,11 @@ def submit_classifier(source_id, nbr_images = 1e5, force = False):
     return messagebody
  
 
-@task(name = "Classify Image")
+@task(name="Classify Image")
 def classify_image(image_id):
 
     try:
-        img = Image.objects.get(pk = image_id)
+        img = Image.objects.get(pk=image_id)
     except:
         logger.info("Image {} does not exist.".format(image_id))
         return
@@ -194,7 +168,7 @@ def classify_image(image_id):
 
     # Load model
     classifier_model = direct_s3_read(
-        settings.ROBOT_MODEL_FILE_PATTERN.format(pk = classifier.pk, media = settings.AWS_LOCATION),
+        settings.ROBOT_MODEL_FILE_PATTERN.format(pk=classifier.pk, media=settings.AWS_LOCATION),
         'pickle' )
     
     feats = direct_s3_read(
@@ -221,7 +195,8 @@ def classify_image(image_id):
 
     logger.info("Classified Image {} [Source: {} [{}]] with classifier {}".format(img.id, img.source, img.source_id, classifier.id))
 
-@periodic_task(run_every=timedelta(seconds = 60), name ='Collect all jobs', ignore_result=True)
+
+@periodic_task(run_every=timedelta(seconds=60), name='Collect all jobs', ignore_result=True)
 def collect_all_jobs():
     """
     Runs collectjob until queue is empty.
@@ -230,6 +205,7 @@ def collect_all_jobs():
     while collectjob():
         pass
     logger.info('Done collecting all jobs in result queue.')
+
 
 def collectjob():
     """
@@ -247,7 +223,7 @@ def collectjob():
         logger.info("Job pertains to wrong bucket [%]".format(messagebody['original_job']['payload']['bucketname']))
         return 1
 
-    # Delete message (at this point, if it is not handeled correctly, we still want to delete it from queue.)
+    # Delete message (at this point, if it is not handled correctly, we still want to delete it from queue.)
     message.delete()
 
     # Handle message
@@ -257,14 +233,14 @@ def collectjob():
     if task == 'extract_features':
         if th._featurecollector(messagebody): 
             # If job was entered into DB, submit a classify job.
-            classify_image.apply_async(args = [pk], eta = now() + timedelta(seconds = 10))
+            classify_image.apply_async(args=[pk], eta=now() + timedelta(seconds=10))
  
     elif task == 'train_classifier':
         if th._classifiercollector(messagebody):
             # If job was entered into DB, submit a classify job for all images in source.
-            classifier = Classifier.objects.get(pk = pk)
-            for image in Image.objects.filter(source = classifier.source, features__extracted=True, confirmed=False):
-                classify_image.apply_async(args = [image.id], eta = now() + timedelta(seconds = 10))
+            classifier = Classifier.objects.get(pk=pk)
+            for image in Image.objects.filter(source=classifier.source, features__extracted=True, confirmed=False):
+                classify_image.apply_async(args=[image.id], eta=now() + timedelta(seconds = 10))
     else:
         logger.error('Job task type {} not recognized'.format(task))
     
@@ -273,7 +249,8 @@ def collectjob():
     logger.debug("Collected job with messagebody: {}".format(messagebody))
     return 1
 
-@task(name = "Reset Source")
+
+@task(name="Reset Source")
 def reset_after_labelset_change(source_id):
     """
     The removes ALL TRACES of the vision backend for this source, including:
@@ -291,7 +268,8 @@ def reset_after_labelset_change(source_id):
     # Finally, let's train a new classifier.
     submit_classifier.apply_async(args = [source_id], eta = now() + timedelta(seconds = 10))
 
-@task(name = "Reset Features")
+
+@task(name="Reset Features")
 def reset_features(image_id):
     """
     Resets features for image. Call this after any change that affects the image 

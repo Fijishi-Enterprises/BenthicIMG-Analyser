@@ -24,6 +24,7 @@ from .models import Classifier, Score
 
 logger = logging.getLogger(__name__)
 
+
 def _submit_job(messagebody):
     """
     Submits message to the SQS spacer_jobs
@@ -79,6 +80,7 @@ def _add_annotations(image_id, scores, label_objs, classifier):
 
                 # Else, it's an existing confirmed annotation, and we don't want
                 # to overwrite it. So do nothing in this case.
+
 
 def _add_scores(image_id, scores, label_objs):
     """
@@ -174,6 +176,7 @@ def _featurecollector(messagebody):
     img.features.save()
     return 1
 
+
 def _classifiercollector(messagebody):
     """
     collects train_classifier jobs.
@@ -207,7 +210,7 @@ def _classifiercollector(messagebody):
         
         # Update accuracy for previous models
         for pc_pk, pc_acc in zip(payload['pc_pks'], result['pc_accs']):
-            pc = Classifier.objects.get(pk = pc_pk)
+            pc = Classifier.objects.get(pk=pc_pk)
             pc.accuracy = pc_acc
             pc.save()
     

@@ -10,6 +10,34 @@ from images.model_utils import PointGen
 from images.models import Image, Point
 from labels.models import Label
 
+
+def purge_annotations(image_id):
+    """
+    Goes through all point for this image and cleans up duplicate annotations.
+    This should not be needed, but due to race-conditions of the backend and annotation tools
+    it happens sometimes. When we catch it, this method can be called to clean up the mess.
+    """
+    image = Image.objects.get(pk=image_id)
+
+    for point in Point.objects.filter(image=image):
+        anns = Annotation.objects.filter(point=point)
+        if len(anns) > 1:
+            # Iterate through and remove any robot annotations
+            for ann in anns:
+                if ann.user == get_robot_user():
+                    ann.delete()
+
+            # If there are still excess annotations, simply remove the human annotations one by one.
+            anns = Annotation.objects.filter(point=point)
+            while anns.count() > 1:
+                anns[0].delete()
+                anns = Annotation.objects.filter(point=point)
+
+    # Update the image status
+    image.confirmed = image_annotation_all_done(image)
+    image.save()
+
+
 def image_annotation_all_done(image):
     """
     Return True if all of the image's annotation points are human annotated.

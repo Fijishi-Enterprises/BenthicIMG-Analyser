@@ -1,9 +1,42 @@
 from django.conf import settings
 from django.core.urlresolvers import reverse
 from annotations.model_utils import AnnotationAreaUtils
+from annotations.utils import purge_annotations
 from images.model_utils import PointGen
 from images.models import Source, Image, Point
+from annotations.models import Annotation, Label
 from lib.test_utils import ClientTest
+
+
+class PurgeAnnotationTest(ClientTest):
+    """
+    Test that purge_annotations remove duplicate annotations.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        super(PurgeAnnotationTest, cls).setUpTestData()
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(cls.user)
+
+        labels = cls.create_labels(cls.user, ['A', 'B', 'C', 'D', 'E', 'F', 'G'], "Group1")
+
+        cls.create_labelset(cls.user, cls.source, labels.filter(name__in=['A', 'B', 'C', 'D', 'E', 'F', 'G']))
+
+        cls.img = cls.upload_image(cls.user, cls.source)
+
+    def test_classify_image(self):
+
+        points = Point.objects.filter(image = self.img)
+        label = Label.objects.get(name='A')
+
+        ann = Annotation(point=points[0], image=self.img, label=label, source=self.source)
+        ann.save()
+        ann = Annotation(point=points[0], image=self.img, label=label, source=self.source)
+        ann.save()
+        self.assertEqual(Annotation.objects.filter(point=points[0]).count(), 2)
+        purge_annotations(self.img.id)
+        self.assertEqual(Annotation.objects.filter(point=points[0]).count(), 1)
 
 
 class AnnotationAreaEditTest(ClientTest):

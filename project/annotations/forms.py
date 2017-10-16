@@ -35,7 +35,9 @@ class AnnotationForm(forms.Form):
                 existingAnnotation = None
             except MultipleObjectsReturned:
                 existingAnnotation = None
-                mail_admins('Multiple annotations returned for a point object', 'Multiple annotations returned for query: Annotations.objects.get(point=point) for Imageid:' + str(image.id) + ', pointid:' + str(point.id) + '. Please investigate.')
+                mail_admins('Multiple annotations returned for a point object',
+                            'Multiple annotations returned for query: Annotations.objects.get(point=point) '
+                            'for image_id:' + str(image.id) + ', point_id:' + str(point.id) + '. Please investigate.')
 
             if existingAnnotation:
                 existingAnnoCode = existingAnnotation.label_code

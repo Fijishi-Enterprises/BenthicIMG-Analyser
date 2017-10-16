@@ -12,7 +12,7 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
 
-        parser.add_argument('--dryrun', type=bool, nargs=1, default=True, help="If true, don't take any action. "
+        parser.add_argument('--dryrun', type=int, nargs=1, default=True, help="If true, don't take any action. "
                                                                                "Print findings only.")
 
     def handle(self, *args, **options):
@@ -27,6 +27,7 @@ class Command(BaseCommand):
             print('Image {} has {} points & {} anns: {} robot and {} human'.format(
                 image_id, nbr_points, nbr_anns, robot_cnt, human_cnt))
 
+        print("Crawling all images for duplicate annotations. dryrun={}".format(options['dryrun']))
         for image in Image.objects.filter():
             nbr_points = Point.objects.filter(image=image.pk).count()
             nbr_anns = Annotation.objects.filter(image=image.pk).count()

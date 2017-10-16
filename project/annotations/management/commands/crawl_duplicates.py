@@ -12,7 +12,8 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
 
-        parser.add_argument('--dryrun', type=int, nargs='?', default=True, help="Whether to take action")
+        parser.add_argument('--dryrun', type=bool, nargs=1, default=True, help="If true, don't take any action. "
+                                                                               "Print findings only.")
 
     def handle(self, *args, **options):
 
@@ -31,5 +32,6 @@ class Command(BaseCommand):
             nbr_anns = Annotation.objects.filter(image=image.pk).count()
             if nbr_anns > nbr_points:
                 status(image.id)
-                purge_annotations(image.id)
-                status(image.id)
+                if not options['dryrun']:
+                    purge_annotations(image.id)
+                    status(image.id)

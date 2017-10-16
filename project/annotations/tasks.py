@@ -1,6 +1,7 @@
 from celery.decorators import task, periodic_task
 
 import logging
+from datetime import timedelta
 
 from images.models import Point, Image
 from annotations.models import Annotation

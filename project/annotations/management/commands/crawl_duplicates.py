@@ -17,6 +17,8 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
 
+        dryrun = options['dryrun'][0]
+
         def status(image_id):
             robot_cnt, human_cnt = 0, 0
             for ann in Annotation.objects.filter(image_id=image_id):
@@ -27,12 +29,12 @@ class Command(BaseCommand):
             print('Image {} has {} points & {} anns: {} robot and {} human'.format(
                 image_id, nbr_points, nbr_anns, robot_cnt, human_cnt))
 
-        print("Crawling all images for duplicate annotations. dryrun={}".format(options['dryrun']))
+        print("Crawling all images for duplicate annotations. dryrun={}".format(dryrun))
         for image in Image.objects.filter():
             nbr_points = Point.objects.filter(image=image.pk).count()
             nbr_anns = Annotation.objects.filter(image=image.pk).count()
             if nbr_anns > nbr_points:
                 status(image.id)
-                if not options['dryrun']:
+                if not dryrun:
                     purge_annotations(image.id)
                     status(image.id)

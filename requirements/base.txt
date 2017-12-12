@@ -60,7 +60,14 @@ pytz==2016.3
 # Handle the YAML format, e.g. for fixtures
 PyYAML==3.10
 
-# More elegant filepath calculations
+# More elegant filepath calculations compared to os.path.
+# pathlib has become part of the Python 3 standard library. As a Python 2
+# package, it's the best bet for migrating cleanly and idiomatically to
+# Python 3.
+pathlib2==2.3.0
+# unipath hasn't been updated since early 2015 (as of late 2017).
+# Was formerly recommended by Two Scoops of Django, but they moved to pathlib.
+# https://github.com/twoscoops/two-scoops-of-django-1.8/issues/150
 unipath==1.1
 
 # Machine Learning tools.

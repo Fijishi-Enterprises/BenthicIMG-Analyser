@@ -547,12 +547,23 @@ class Image(models.Model):
         """
         return "{0}-{1:02}-{2:02}".format(self.process_date.year, self.process_date.month, self.process_date.day)
 
+
 class Point(models.Model):
     row = models.IntegerField()
     column = models.IntegerField()
     point_number = models.IntegerField()
     annotation_status = models.CharField(max_length=1, blank=True)
     image = models.ForeignKey(Image, on_delete=models.CASCADE)
+
+    @property
+    def label_code(self):
+        if self.annotation_set.count() == 0:
+            # Unannotated point
+            return ''
+        else:
+            # Annotated point
+            annotation = self.annotation_set.first()
+            return annotation.label_code
 
     def __unicode__(self):
         """

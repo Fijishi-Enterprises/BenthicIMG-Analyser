@@ -5,7 +5,6 @@
 # that use models.py should go in the general utility functions
 # file, utils.py.
 from decimal import Decimal
-from exceptions import ValueError
 import math
 
 

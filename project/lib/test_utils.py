@@ -1,4 +1,6 @@
 # Utility classes and functions for tests.
+from abc import ABCMeta
+from contextlib import contextmanager
 import datetime
 from io import BytesIO
 import json
@@ -6,16 +8,22 @@ import os
 import posixpath
 import pytz
 import random
+import six
 from six.moves.urllib.parse import urljoin
 
 from PIL import Image as PILImage
+from selenium import webdriver
+from selenium.common.exceptions import NoAlertPresentException
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 from django.contrib.auth import get_user_model
+from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.core import mail, management
 from django.core.files.base import ContentFile
 from django.core.files.storage import get_storage_class
 from django.conf import settings
 from django.core.urlresolvers import reverse
-from django.test import TestCase, override_settings
+from django.test import override_settings, skipIfDBFeature, TestCase
 from django.test.client import Client
 from django.utils import timezone
 from reversion import revisions
@@ -60,89 +68,34 @@ test_settings['STATICFILES_STORAGE'] = \
 # context (e.g. Database)
 test_settings['CELERY_ALWAYS_EAGER'] = True
 
-# Make sure backedn tasks do not run.
+# Make sure backend tasks do not run.
 test_settings['FORCE_NO_BACKEND_SUBMIT'] = True
 
-@override_settings(**test_settings)
-class BaseTest(TestCase):
+
+# Abstract class
+@six.add_metaclass(ABCMeta)
+class ClientUtilsMixin(object):
     """
-    Base class for our test classes.
-    """
-    def __init__(self, *args, **kwargs):
-        TestCase.__init__(self, *args, **kwargs)
+    Utility-function mixin for tests that use a test client.
 
-    @classmethod
-    def setUpTestData(cls):
-        super(BaseTest, cls).setUpTestData()
-
-        # File checking must be done in setUpTestData() rather than setUp(),
-        # so that we can run it before individual test classes'
-        # setUpTestData(), which may add files.
-        cls.storage_checker = StorageChecker()
-        cls.storage_checker.check_storage_pre_test()
-
-    @classmethod
-    def tearDownClass(cls):
-        # File cleanup must be done in tearDownClass() rather than tearDown(),
-        # otherwise it'll clean up class-wide setup files after the
-        # class's first test.
-        #
-        # TODO: It's possible that files created by one test will interfere
-        # with the next test (in the same class), and this timing doesn't
-        # account for that because it doesn't run between tests. We may need
-        # a more clever solution.
-        # Read here for example:
-        # http://stackoverflow.com/questions/4283933/
-        cls.storage_checker.clean_storage_post_test()
-        
-        # Reset so that only tests that explicitly need the backend calls it.
-        test_settings['FORCE_NO_BACKEND_SUBMIT'] = True
-
-        super(BaseTest, cls).tearDownClass()
-
-
-class ClientTest(BaseTest):
-    """
-    Base class for tests that use a test client.
+    This has to be a mixin because our test classes are descendants of two
+    different built-in test classes: TestCase and LiveServerTestCase.
     """
     PERMISSION_DENIED_TEMPLATE = 'permission_denied.html'
-    client = None
-
-    @classmethod
-    def setUpTestData(cls):
-        super(ClientTest, cls).setUpTestData()
-        cls.client = Client()
-
-        # Create a superuser. By using --noinput, the superuser won't be
-        # able to log in normally because no password was set.
-        # Use force_login() to log in.
-        management.call_command('createsuperuser',
-            '--noinput', username='superuser',
-            email='superuser@example.com', verbosity=0)
-        User = get_user_model()
-        cls.superuser = User.objects.get(username='superuser')
-
-    def setUp(self):
-        BaseTest.setUp(self)
-
-        # The test client.
-        self.client = Client()
-
-        # Whenever a source id needs to be specified for a URL parameter
-        # or something, this will generally be used.
-        # Subclasses can set this to an actual source id.
-        self.source_id = None
-
-        self.default_upload_params = dict(
-            specify_metadata='after',
-            skip_or_upload_duplicates='skip',
-            is_uploading_points_or_annotations=False,
-            is_uploading_annotations_not_just_points='no',
-        )
 
     def assertStatusOK(self, response):
         """Assert that an HTTP response's status is 200 OK."""
         self.assertEqual(response.status_code, 200)
+
+    @classmethod
+    def create_superuser(cls):
+        # By using --noinput, the superuser won't be able to log in normally
+        # because no password was set. Use force_login() to log in.
+        management.call_command(
+            'createsuperuser', '--noinput',
+            username='superuser', email='superuser@example.com', verbosity=0)
+        User = get_user_model()
+        return User.objects.get(username='superuser')
 
     user_count = 0
     @classmethod
@@ -615,6 +568,266 @@ class StorageChecker(object):
         # during that same test run. Not sure how it is on Linux, but
         # overall it seems like directory cleanup is more trouble than
         # it's worth.
+
+
+@override_settings(**test_settings)
+class BaseTest(TestCase):
+    """
+    Basic unit testing class.
+
+    Before running the class's tests or setting up any data, checks that file
+    storage is empty.
+    Then after running all of the class's tests, cleans up the file storage.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super(BaseTest, cls).setUpTestData()
+        cls.storage_checker = StorageChecker()
+        cls.storage_checker.check_storage_pre_test()
+
+    @classmethod
+    def tearDownClass(cls):
+        # TODO: It's possible that files created by one test will interfere
+        # with the next test (in the same class), and this timing doesn't
+        # account for that because it doesn't run between tests. We may need
+        # a more clever solution which tracks 2 sets of files: 1 for the
+        # whole class and 1 for the individual test.
+        cls.storage_checker.clean_storage_post_test()
+
+        # Reset so that only tests that explicitly need the backend calls it.
+        test_settings['FORCE_NO_BACKEND_SUBMIT'] = True
+
+        super(BaseTest, cls).tearDownClass()
+
+
+class ClientTest(ClientUtilsMixin, BaseTest):
+    """
+    Unit testing class that uses the test client.
+    The mixin provides many convenience functions, mostly for setting up data.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super(ClientTest, cls).setUpTestData()
+
+        # Test client. Subclasses' setUpTestData() calls can use this client
+        # to set up more data before running the class's test functions.
+        cls.client = Client()
+
+        # Create a superuser.
+        cls.superuser = cls.create_superuser()
+
+    def setUp(self):
+        super(ClientTest, self).setUp()
+
+        # Test client. By setting this in setUp(), we initialize this before
+        # each test function, so that stuff like login status gets reset
+        # between tests.
+        self.client = Client()
+
+
+class EC_alert_is_not_present(object):
+    """Selenium expected condition: An alert is NOT present.
+    Based on the built-in alert_is_present."""
+    def __init__(self):
+        pass
+
+    def __call__(self, driver):
+        try:
+            alert = driver.switch_to.alert
+            # Accessing the alert text could throw a NoAlertPresentException
+            _ = alert.text
+            return False
+        except NoAlertPresentException:
+            return True
+
+
+class EC_javascript_global_var_value(object):
+    """Selenium expected condition: A global Javascript variable
+    has a particular value."""
+    def __init__(self, var_name, expected_value):
+        self.var_name = var_name
+        self.expected_value = expected_value
+
+    def __call__(self, driver):
+        return driver.execute_script(
+            'return (window.{} === {})'.format(
+                self.var_name, self.expected_value))
+
+
+@skipIfDBFeature('test_db_allows_multiple_connections')
+@override_settings(**test_settings)
+class BrowserTest(ClientUtilsMixin, TestCase, StaticLiveServerTestCase):
+    """
+    Unit testing class for running tests in the browser with Selenium.
+    Selenium reference: https://selenium-python.readthedocs.io/api.html
+
+    Explanation of the inheritance scheme and
+    @skipIfDBFeature('test_db_allows_multiple_connections'):
+    This class inherits StaticLiveServerTestCase for the live-server
+    functionality, and TestCase to achieve test-function isolation using
+    uncommitted transactions.
+    StaticLiveServerTestCase does not have the latter feature. The reason is
+    that live server tests use separate threads, which may use separate
+    DB connections, which may end up in inconsistent states. To avoid
+    this, TransactionTestCase is used, which makes each connection commit
+    all their transactions.
+    But if there is only one DB connection possible, like with SQLite
+    (which is in-memory for Django tests), then this inconsistency concern
+    is not present, and we can use TestCase's feature. Hence the decorator:
+    @skipIfDBFeature('test_db_allows_multiple_connections')
+    Which ensures that these tests are skipped for PostgreSQL, MySQL, etc.,
+    but are run if the DB backend setting is SQLite.
+    Finally, we really want TestCase because:
+    1) Our migrations have initial data in them, such as Robot and Alleviate
+    users, and for some reason this data might get erased (and not re-created)
+    between tests if TestCase is not used.
+    2) The ClientUtilsMixin's utility methods are all classmethods which are
+    supposed to be called in setUpTestData(). TestCase is what provides the
+    setUpTestData() hook.
+    Related discussions:
+    https://code.djangoproject.com/ticket/23640
+    https://stackoverflow.com/questions/29378328/
+
+    TIP: Specify a range of ports to run the live server on. If you have
+    multiple test classes running in a row, one test might deprive the next
+    test of using the same port. Use something like:
+    `manage.py test --liveserver=127.0.0.1:9200-9300`
+    Also, in some error cases, you must specify a different range of ports
+    from the previous attempt to not have port conflicts.
+    Remember that you can check on your OS if a port is in use
+    (e.g. on Windows, `netstat -a -b`, and look for something like
+    127.0.0.1:<port> on the left column) to get a better idea of what's
+    happening.
+    TODO: This advice might become obsolete in Django 1.11:
+    https://docs.djangoproject.com/en/1.11/topics/testing/tools/#django.test.LiveServerTestCase
+    Also related: https://code.djangoproject.com/ticket/20238
+
+    TODO: In Django 1.10, tag these tests so that we can specify skipping
+    them with a command line option.
+    They are slow and may be a pain to get working in certain environments.
+    """
+    selenium = None
+
+    @classmethod
+    def setUpClass(cls):
+        super(BrowserTest, cls).setUpClass()
+
+        # Selenium driver.
+        # TODO: Look into running tests with multiple browsers. Right now it
+        # just runs Firefox OR Chrome (whichever is first in
+        # SELENIUM_BROWSERS).
+        # Test parametrization idea 1:
+        # https://docs.pytest.org/en/latest/parametrize.html
+        # https://twitter.com/audreyr/status/702540511425396736
+        # Test parametrization idea 2: https://stackoverflow.com/a/40982410/
+        # Decorator idea: https://stackoverflow.com/a/26821662/
+        for browser in settings.SELENIUM_BROWSERS:
+            browser_name_lower = browser['name'].lower()
+            if browser_name_lower == 'firefox':
+                cls.selenium = webdriver.Firefox(
+                    firefox_binary=browser.get('browser_binary', None),
+                    executable_path=browser.get('webdriver', 'geckodriver'),
+                )
+                break
+            if browser_name_lower == 'chrome':
+                # Seems like the Chrome driver doesn't support a browser
+                # binary option.
+                cls.selenium = webdriver.Chrome(
+                    executable_path=browser.get('webdriver', 'chromedriver'),
+                )
+                break
+            if browser_name_lower == 'phantomjs':
+                cls.selenium = webdriver.PhantomJS(
+                    executable_path=browser.get('webdriver', 'phantomjs'),
+                )
+                break
+
+        # These class-var names should be nicer for autocomplete usage.
+        cls.TIMEOUT_DB_CONSISTENCY = \
+            settings.SELENIUM_TIMEOUTS['db_consistency']
+        cls.TIMEOUT_SHORT = settings.SELENIUM_TIMEOUTS['short']
+        cls.TIMEOUT_MEDIUM = settings.SELENIUM_TIMEOUTS['medium']
+        cls.TIMEOUT_PAGE_LOAD = settings.SELENIUM_TIMEOUTS['page_load']
+
+        # The default timeout here can be quite long, like 300 seconds.
+        cls.selenium.set_page_load_timeout(cls.TIMEOUT_PAGE_LOAD)
+
+    @classmethod
+    def setUpTestData(cls):
+        super(BrowserTest, cls).setUpTestData()
+
+        cls.storage_checker = StorageChecker()
+        cls.storage_checker.check_storage_pre_test()
+
+        # Test client. Subclasses' setUpTestData() calls can use this client
+        # to set up more data before running the class's test functions.
+        cls.client = Client()
+
+        # Create a superuser.
+        cls.superuser = cls.create_superuser()
+
+    def setUp(self):
+        super(BrowserTest, self).setUp()
+
+        # Test client. By setting this in setUp(), we initialize this before
+        # each test function, so that stuff like login status gets reset
+        # between tests.
+        self.client = Client()
+
+    def tearDown(self):
+        super(BrowserTest, self).tearDown()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.storage_checker.clean_storage_post_test()
+        cls.selenium.quit()
+        test_settings['FORCE_NO_BACKEND_SUBMIT'] = True
+
+        super(BrowserTest, cls).tearDownClass()
+
+    @contextmanager
+    def wait_for_page_load(self, old_element=None):
+        """
+        Implementation from:
+        http://www.obeythetestinggoat.com/how-to-get-selenium-to-wait-for-page-load-after-a-click.html
+
+        Limitations:
+
+        - "Note that this solution only works for "non-javascript" clicks,
+        ie clicks that will cause the browser to load a brand new page,
+        and thus load a brand new HTML body element."
+
+        - Getting old_element and checking for staleness of it won't work
+        if an alert is present. You'll get an unexpected alert exception.
+        If you expect to have an alert present when starting this context
+        manager, you should pass in an old_element, and wait until the alert
+        is no longer present before finishing this context manager's block.
+
+        - This doesn't wait for on-page-load Javascript to run. That will need
+        to be checked separately.
+        """
+        if not old_element:
+            old_element = self.selenium.find_element_by_tag_name('html')
+        yield
+        WebDriverWait(self.selenium, self.TIMEOUT_PAGE_LOAD) \
+            .until(EC.staleness_of(old_element))
+
+    def get_url(self, url):
+        """
+        url is something like `/login/`. In general it can be a result of
+        reverse().
+        """
+        self.selenium.get('{}{}'.format(self.live_server_url, url))
+
+    def login(self, username, password):
+        self.get_url(reverse('auth_login'))
+        username_input = self.selenium.find_element_by_name("username")
+        username_input.send_keys(username)
+        password_input = self.selenium.find_element_by_name("password")
+        password_input.send_keys(password)
+        with self.wait_for_page_load():
+            self.selenium.find_element_by_css_selector(
+                'input[value="Sign in"]').click()
 
 
 def create_sample_image(width=200, height=200, cols=10, rows=10):

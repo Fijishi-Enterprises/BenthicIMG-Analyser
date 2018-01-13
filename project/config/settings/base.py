@@ -483,3 +483,46 @@ REGTEST_BUCKET = 'coralnet-regtest-fixtures'
 # is to temporarily insert `import pdb; pdb.set_trace()` wherever we want.
 # Or use an IDE with debugging capabilities, like PyCharm.
 UNIT_TEST_VERBOSITY = 0
+
+# [Custom setting]
+# Browsers to run Selenium tests in.
+# This is a list of dicts. Each dict supports the following keys:
+#
+# name
+#   (Required) Name of the browser. Not case sensitive.
+#   Supported: 'Firefox', 'Chrome', 'PhantomJS'.
+# webdriver
+#   Absolute path to the web driver program, such as geckodriver.exe for
+#   Firefox on Windows. If not specified, it searches your PATH for the
+#   web driver.
+#   For PhantomJS, this is the phantomjs executable.
+# browser_binary
+#   Absolute path to the browser binary, such as firefox.exe for Firefox
+#   on Windows. If not specified, it looks on your PATH or your Windows
+#   registry.
+#   Only applies to Firefox.
+#
+# For now, only ONE browser is picked: the first one listed in this setting.
+# Running in multiple browsers will hopefully be implemented in the future
+# (with test parametrization or something).
+#
+# Note that PhantomJS seems to need the Selenium server / remote webdriver,
+# and so needs extra setup steps to work:
+# http://selenium-python.readthedocs.io/installation.html#downloading-selenium-server
+# https://github.com/detro/ghostdriver#register-ghostdriver-with-a-selenium-grid-hub
+SELENIUM_BROWSERS = [{'name': 'Firefox'}, {'name': 'Chrome'}]
+
+# [Custom setting]
+# Timeouts for Selenium tests, in seconds.
+SELENIUM_TIMEOUTS = {
+    'short': 0.5,
+    'medium': 5,
+    # Hard wait time after a DB-changing operation to ensure consistency.
+    # Without this wait time, we may get odd effects such as the DB not getting
+    # rolled back before starting the next test.
+    'db_consistency': 0.5,
+    # Timeout when waiting for a page to load. If the page loads beforehand,
+    # the timeout's cut short. If the page doesn't load within this time, we
+    # get an error.
+    'page_load': 20,
+}

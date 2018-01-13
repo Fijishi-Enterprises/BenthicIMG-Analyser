@@ -12,6 +12,7 @@ from .forms import CheckboxForm, StatisticsSearchForm, ImageSearchForm, \
     PatchSearchOptionsForm, HiddenForm, create_image_filter_form
 from accounts.utils import get_robot_user
 from annotations.models import Annotation
+from export.forms import CpcPrefsForm
 from images.forms import MetadataFormForGrid, BaseMetadataFormSet
 from images.models import Source, Image, Metadata, Point
 from images.utils import delete_images
@@ -71,15 +72,9 @@ def browse_images(request, source_id):
             annotation_tool_page_results=
                 [reverse('annotation_tool', args=[pk])
                  for pk in page_image_ids],
-            browse=reverse('browse_images', args=[source.pk]),
             delete=reverse('browse_delete_ajax', args=[source.pk]),
-            export_metadata=reverse('export_metadata', args=[source.pk]),
-            export_annotations_simple=reverse(
-                'export_annotations_simple', args=[source.pk]),
-            export_annotations_full=reverse(
-                'export_annotations_full', args=[source.pk]),
-            export_image_covers=reverse(
-                'export_image_covers', args=[source.pk]),
+            export_annotations_cpc_create_ajax=
+                reverse('export_annotations_cpc_create_ajax', args=[source.pk]),
         )
     else:
         page_image_ids = None
@@ -92,6 +87,7 @@ def browse_images(request, source_id):
         'page_image_ids': page_image_ids,
         'links': links,
         'hidden_image_form': hidden_image_form,
+        'cpc_prefs_form': CpcPrefsForm(),
         'empty_message': empty_message,
     })
 

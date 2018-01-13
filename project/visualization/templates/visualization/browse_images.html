@@ -72,18 +72,10 @@
     {# Pagination info and links #}
     {% include 'pagination_links.html' with use_post_form=True hidden_form=hidden_image_form page_results=page_results %}
 
-    {# The image-filter parameters that led us to this browse page. #}
-    {# May be used when submitting the action form. #}
-    <span id="previous-image-form-fields" style="display:none;">
-      {% if hidden_image_form %}
-        {% for field in hidden_image_form %}{{ field }}{% endfor %}
-      {% endif %}
-    </span>
+    {# Fields to perform an action on one or more images #}
+    <div id="action-box" class="box">
 
-    {% get_obj_perms user for source as 'source_perms' %}
-
-    {# Action form #}
-    <div id="action-form-box" class="box">
+      {% get_obj_perms user for source as 'source_perms' %}
 
       <select name="browse_action" title="Action">
         {% if 'source_edit' in source_perms %}
@@ -97,19 +89,22 @@
         {% endif %}
       </select>
 
-      <span id="action_form_annotate_specifics">
+      <span id="action_box_annotate_specifics">
         for
       </span>
-      <span id="action_form_export_specifics">
+      <span id="action_box_export_specifics">
         <select name="export_type" title="Export type">
           <option value="metadata">Metadata</option>
-          <option value="annotations_simple">Annotations, Simple</option>
-          <option value="annotations_full">Annotations, Full</option>
+          <option value="annotations_simple">Annotations, CSV, Simple</option>
+          <option value="annotations_full">Annotations, CSV, Full</option>
+          {% if 'source_edit' in source_perms %}
+            <option value="annotations_cpc">Annotations, CPCe</option>
+          {% endif %}
           <option value="image_covers">Image Covers</option>
         </select>
         for
       </span>
-      <span id="action_form_delete_specifics">
+      <span id="action_box_delete_specifics">
       </span>
 
       <select name="image_select_type" title="Image selection">
@@ -124,12 +119,96 @@
           images on this page</option>
       </select>
 
-      <form action="" method="post" id="action-form">
+      {# Fields or other content that we may or may not include as part of #}
+      {# the action form, depending on the dropdown values. #}
+      <span style="display:none;">
+
+        {# The image-filter parameters that led us to this browse page. #}
+        <span id="previous-image-form-fields">
+          {% if hidden_image_form %}
+            {% for field in hidden_image_form %}{{ field }}{% endfor %}
+          {% endif %}
+        </span>
+
+      </span>
+
+      {# Below are the possible action forms. #}
+      {# TODO: Ensure these are all hidden from the get-go without a CSS loading/JS running delay. #}
+
+      <form action="{% url 'export_metadata' source.pk %}" method="post"
+      id="export-metadata-form">
         {% csrf_token %}
-        <span id="action-form-field-container"></span>
-        <button type="button" class="submit" id="action-submit-button">
-          Go</button>
+        <span class="image-select-field-container"></span>
+        <button type="button" class="submit">Go</button>
       </form>
+
+      <form action="{% url 'export_annotations_simple' source.pk %}"
+      method="post" id="export-annotations-simple-form">
+        {% csrf_token %}
+        <span class="image-select-field-container"></span>
+        <button type="button" class="submit">Go</button>
+      </form>
+
+      <form action="{% url 'export_annotations_full' source.pk %}"
+      method="post" id="export-annotations-full-form">
+        {% csrf_token %}
+        <span class="image-select-field-container"></span>
+        <button type="button" class="submit">Go</button>
+      </form>
+
+      <form action="{% url 'export_image_covers' source.pk %}" method="post"
+      id="export-image-covers-form">
+        {% csrf_token %}
+        <span class="image-select-field-container"></span>
+        <button type="button" class="submit">Go</button>
+      </form>
+
+      {% comment %}
+      Below are the edit-permission forms. We check for permission before even
+      putting these forms invisibly on the page, because:
+      1. The fields can contain semi-sensitive stuff like PC filepaths
+      recently used in an uploaded .cpc.
+      2. View level users shouldn't be able to find this form via inspect
+      element and submit that way. The server side will re-check permission
+      as an additional guard, but still.
+      {% endcomment %}
+
+      {% if 'source_edit' in source_perms %}
+
+        <form action="{{ links.annotation_tool_first_result }}"
+        method="post" id="annotate-all-form">
+          {% csrf_token %}
+          <span class="image-select-field-container"></span>
+          <button type="button" class="submit">Go</button>
+        </form>
+
+        <form action="{{ links.annotation_tool_page_results.0 }}"
+        method="post" id="annotate-selected-form">
+          {% csrf_token %}
+          <span class="image-select-field-container"></span>
+          <button type="button" class="submit">Go</button>
+        </form>
+
+        <form action="{% url 'export_annotations_cpc_serve' source.pk %}"
+        method="post" id="export-annotations-cpc-form">
+          {% csrf_token %}
+          <span id="cpc-prefs-fields-container">
+            {% include "form_generic.html" with form=cpc_prefs_form %}
+          </span>
+          <button type="button" class="submit">Go</button>
+        </form>
+
+        {# Deletion itself is done through Ajax; after that's done, we use #}
+        {# this form's action and fields to re-fetch this browse page. #}
+        <form action="{% url 'browse_images' source.pk %}"
+        method="post" id="delete-form">
+          {% csrf_token %}
+          <span class="image-select-field-container"></span>
+          <button type="button" class="submit">Go</button>
+        </form>
+
+      {% endif %}
+
     </div>
   {% endif %}
 
@@ -143,6 +222,8 @@
           links: {{ links|jsonify }}
       });
     {% endif %}
+
+    window.seleniumDebugInitRan = true;
   </script>
 
 {% endblock %}

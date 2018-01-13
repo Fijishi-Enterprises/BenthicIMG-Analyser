@@ -84,12 +84,12 @@ class ZipTest(ClientTest):
 
     def test_write_zip(self):
         zip_stream = BytesIO()
-        f1 = BytesIO(b'This is\r\na test file.')
-        f2 = BytesIO(b'This is another test file.\r\n')
-        names_and_streams = [
-            ('f1.txt', f1),
-            ('f2.txt', f2),
-        ]
+        f1 = b'This is\r\na test file.'
+        f2 = b'This is another test file.\r\n'
+        names_and_streams = {
+            'f1.txt': f1,
+            'f2.txt': f2,
+        }
         write_zip(zip_stream, names_and_streams)
 
         zip_file = ZipFile(zip_stream)

@@ -1,5 +1,6 @@
 import csv
 from io import BytesIO
+import six
 from zipfile import ZipFile
 
 try:
@@ -57,19 +58,47 @@ def create_zip_stream_response(filename):
     return create_stream_response('application/zip', filename)
 
 
-def create_zipped_cpcs_stream_response(image_set, cpc_prefs, filename):
-    cpc_names_and_streams = []
+def create_cpc_strings(image_set, cpc_prefs_paths_only):
+    # Dict mapping from cpc filenames to cpc file contents as strings.
+    cpc_strings = dict()
     for img in image_set:
+        cpc_prefs = cpc_prefs_paths_only.copy()
+        # .cpc files have one part that seems to be the width
+        # and height that the image was displayed at in CPCe.
+        # But it doesn't seem like these numbers are actually used when
+        # opening the .cpc file. So we'll just assign some arbitrary values:
+        # the image's pixel width/height.
+        cpc_prefs['display_width'] = img.original_width
+        cpc_prefs['display_height'] = img.original_height
+        # Write .cpc contents to a byte stream.
         cpc_stream = BytesIO()
         write_annotations_cpc(cpc_stream, img, cpc_prefs)
-        # TODO: Check CPCe behavior to see how to make the cpc filename.
-        # Think we should strip the ext and put .cpc on, but not 100% sure.
-        cpc_filename = img.metadata.name
-        cpc_names_and_streams.append((cpc_filename, cpc_stream))
+        # Convert the stream contents to a string.
+        # TODO: Save uploaded cpc filenames so that filename generation is
+        # only used when necessary.
+        cpc_filename = image_filename_to_cpc_filename(img.metadata.name)
+        cpc_strings[cpc_filename] = cpc_stream.getvalue()
+    return cpc_strings
 
+
+def create_zipped_cpcs_stream_response(cpc_strings, filename):
     response = create_zip_stream_response(filename)
-    write_zip(response, cpc_names_and_streams)
+    write_zip(response, cpc_strings)
     return response
+
+
+def image_filename_to_cpc_filename(image_filename):
+    """
+    Take an image filename string and convert to a cpc filename according
+    to CPCe's rules. As far as we can tell, it's simple: strip extension,
+    add '.cpc'. Examples:
+    IMG_0001.JPG -> IMG_0001.cpc
+    img 0001.jpg -> img 0001.cpc
+    my_image.bmp -> my_image.cpc
+    another_image.gif -> another_image.cpc
+    """
+    cpc_filename = Path(image_filename).stem + '.cpc'
+    return cpc_filename
 
 
 def write_annotations_cpc(cpc_stream, img, cpc_prefs):
@@ -92,8 +121,6 @@ def write_annotations_cpc(cpc_stream, img, cpc_prefs):
     writer = csv.writer(cpc_stream, quotechar=None, quoting=csv.QUOTE_NONE)
 
     # Line 1: Environment info and image dimensions
-    # TODO: Not sure if the code filepath gets abbreviated with a tilde in some
-    # cases. Think I've seen that before but not sure. -Stephen
     local_image_path = Path(cpc_prefs[u'local_image_dir'], img.metadata.name)
     row = [
         u'"' + cpc_prefs[u'local_code_filepath'] + u'"',
@@ -123,20 +150,19 @@ def write_annotations_cpc(cpc_stream, img, cpc_prefs):
     elif anno_area_type == AnnotationAreaUtils.TYPE_IMPORTED:
         # Unspecified; just use the whole image
         anno_area = dict(
-            # TODO: Check
             min_x=1, max_x=img.original_width,
             min_y=1, max_y=img.original_height)
     bound_left = (anno_area[u'min_x']-1) * 15
     bound_right = (anno_area[u'max_x']-1) * 15
-    bound_top = (anno_area[u'min_y']-1) * 15  # TODO: Check
-    bound_bottom = (anno_area[u'max_y']-1) * 15  # TODO: Check
+    bound_top = (anno_area[u'min_y']-1) * 15
+    bound_bottom = (anno_area[u'max_y']-1) * 15
     writer.writerow([bound_left, bound_bottom])
     writer.writerow([bound_right, bound_bottom])
     writer.writerow([bound_right, bound_top])
     writer.writerow([bound_left, bound_top])
 
     # Line 6: number of points
-    points = Point.objects.filter(image=img)
+    points = Point.objects.filter(image=img).order_by('point_number')
     writer.writerow([points.count()])
 
     # Next num_points lines: point positions.
@@ -164,24 +190,21 @@ def write_annotations_cpc(cpc_stream, img, cpc_prefs):
         writer.writerow([u'" "'])
 
 
-def write_zip(zip_stream, names_and_streams):
+def write_zip(zip_stream, file_strings):
     """
     Write a zip file to a stream.
     :param zip_stream:
       The file stream to write the zip file to.
-    :param names_and_streams:
-      Zip contents as a list of (filename, byte stream) tuples.
+    :param file_strings:
+      Zip contents as a dict of filenames to byte strings (e.g. result of
+      getvalue() on a byte stream).
       Filename is the name that the file will have in the zip archive.
-      A byte stream should be a BytesIO object.
     :return:
       None.
     """
     zip_file = ZipFile(zip_stream, 'w')
-    for filename, file_stream in names_and_streams:
-        # write() takes a filename. writestr() takes a data string, which
-        # seems more suitable for the temporary files we use in
-        # export functions.
-        zip_file.writestr(filename, file_stream.getvalue())
+    for filename, cpc_string in six.iteritems(file_strings):
+        zip_file.writestr(filename, cpc_string)
 
 
 def write_annotations_csv(writer, image_set, full):

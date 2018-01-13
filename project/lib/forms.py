@@ -1,5 +1,6 @@
+import six
+
 from django import forms
-from django.contrib.auth.decorators import login_required
 
 
 class ContactForm(forms.Form):
@@ -36,7 +37,7 @@ def get_one_form_error(form, include_field_name=True):
     Use this if form validation failed and you just want to get the string for
     one error.
     """
-    for field_name, error_messages in form.errors.iteritems():
+    for field_name, error_messages in six.iteritems(form.errors):
         if error_messages:
             if not include_field_name:
                 # Requested not to include the field name in the message

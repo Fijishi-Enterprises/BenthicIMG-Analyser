@@ -258,6 +258,15 @@ STATICFILES_DIRS = [
     PROJECT_DIR.child('static'),
 ]
 
+# The default file storage backend used during the build process.
+# ManifestStaticFilesStorage appends a content-based hash to the filename
+# to facilitate browser caching.
+# This hash appending happens as a post-processing step in collectstatic, so
+# it only applies to DEBUG False.
+# https://docs.djangoproject.com/en/dev/ref/contrib/staticfiles/#manifeststaticfilesstorage
+STATICFILES_STORAGE = \
+    'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
+
 # List of finder classes that know how to find static files in
 # various locations.
 STATICFILES_FINDERS = [
@@ -265,6 +274,30 @@ STATICFILES_FINDERS = [
     'django.contrib.staticfiles.finders.AppDirectoriesFinder',
 #    'django.contrib.staticfiles.finders.DefaultStorageFinder',
 ]
+
+# Absolute path to the directory which static files should be collected to.
+# Example: "/home/media/media.lawrence.com/static/"
+#
+# To collect static files in STATIC_ROOT, first ensure that your static files
+# are in apps' "static/" subdirectories and in STATICFILES_DIRS. Then use the
+# collectstatic management command.
+# Don't put anything in STATIC_ROOT manually.
+#
+# Then, use your web server's settings (e.g. nginx, Apache) to serve
+# STATIC_ROOT at the STATIC_URL.
+# This is done outside of Django, but the docs have some implementation
+# suggestions. Basically, you either serve directly from the STATIC_ROOT
+# with nginx, or you push the STATIC_ROOT to a separate static-file server
+# and serve from there.
+# https://docs.djangoproject.com/en/dev/howto/static-files/deployment/
+#
+# This only is used when DEBUG = False. When DEBUG = True, static files
+# are served automagically with django.contrib.staticfiles.views.serve().
+#
+# Regardless of DEBUG, as long as we're using ManifestStaticFilesStorage,
+# this setting is required. Otherwise, Django gets an
+# ImproperlyConfiguredError. So, even devs need this value set to something.
+STATIC_ROOT = SITE_DIR.child('static_serve')
 
 # URL that handles the static files served from STATIC_ROOT.
 # (Or, if DEBUG is True, served automagically with the static-serve view.)
@@ -427,6 +460,7 @@ LOGGING = {
 
 }
 
+# [Custom setting]
 # Name of the CoralNet regtests S3 bucket.
 REGTEST_BUCKET = 'coralnet-regtest-fixtures'
 

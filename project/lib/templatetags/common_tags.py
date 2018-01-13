@@ -2,13 +2,12 @@
 
 
 import json
-import os.path
 import pytz
 import urllib
 from datetime import datetime
 from django import template
 from django.conf import settings
-from django.contrib.staticfiles import finders
+from django.contrib.staticfiles.templatetags.staticfiles import StaticFilesNode
 from django.utils import timezone
 from django.utils.safestring import mark_safe
 
@@ -91,16 +90,9 @@ def truncate_float(f):
 #
 # Usage: {% versioned_static "js/util.js" %}
 # Example output: {{ STATIC_URL }}js/util.js?version=1035720937
-@register.simple_tag
-def versioned_static(relative_path):
-    if settings.DEBUG:
-        # Find file in development environment
-        absolute_path = finders.find(relative_path)
-    else:
-        # Find file in production environment
-        absolute_path = os.path.join(settings.STATIC_ROOT, relative_path)
-
-    return '%s?version=%s' % (
-        os.path.join(settings.STATIC_URL, relative_path),
-        int(os.path.getmtime(absolute_path))
-        )
+#
+# TODO: This is obsolete now that we use ManifestStaticFilesStorage.
+# Replace all versioned_static uses with static, and delete this tag.
+@register.tag('versioned_static')
+def do_versioned_static(parser, token):
+    return StaticFilesNode.handle_token(parser, token)

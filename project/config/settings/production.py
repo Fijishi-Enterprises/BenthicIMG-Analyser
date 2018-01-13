@@ -23,24 +23,5 @@ CSRF_COOKIE_SECURE = True
 # https://docs.djangoproject.com/en/dev/ref/settings/#secure-proxy-ssl-header
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
-# Absolute path to the directory which static files should be collected to.
-# Example: "/home/media/media.lawrence.com/static/"
-#
-# To collect static files in STATIC_ROOT, first ensure that your static files
-# are in apps' "static/" subdirectories and in STATICFILES_DIRS. Then use the
-# collectstatic management command.
-# Don't put anything in STATIC_ROOT manually.
-#
-# Then, use your web server's settings to serve STATIC_ROOT at the STATIC_URL.
-# This is done outside of Django, but the docs have some implementation
-# suggestions. Basically, you either serve directly from the STATIC_ROOT
-# with nginx, or you push the STATIC_ROOT to a separate static-file server
-# and serve from there.
-# https://docs.djangoproject.com/en/dev/howto/static-files/deployment/
-#
-# This only applies for DEBUG = False. When DEBUG = True, static files
-# are served automagically with django.contrib.staticfiles.views.serve().
-STATIC_ROOT = SITE_DIR.child('static_serve')
-
 WSGI_APPLICATION = 'config.wsgi.application'
 

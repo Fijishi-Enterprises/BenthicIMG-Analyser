@@ -1,5 +1,3 @@
-import json
-import os
 import posixpath
 
 from django.conf import settings
@@ -87,6 +85,20 @@ class Source(models.Model):
                   "Later, you can also set these boundaries as pixel counts on a per-image basis; for images that don't have a specific value set, these percentages will be used.",
         max_length=50,
         null=True
+    )
+
+    # CPCe parameters given during the last .cpc import or export.
+    # These are used as the default values for the next .cpc export.
+    cpce_code_filepath = models.CharField(
+        "Local absolute path to the CPCe code file",
+        max_length=1000,
+        default='',
+    )
+    cpce_image_dir = models.CharField(
+        "Local absolute path to the directory with image files",
+        help_text="Ending slash can be present or not",
+        max_length=1000,
+        default='',
     )
 
     confidence_threshold = models.IntegerField(
@@ -463,6 +475,14 @@ class Image(models.Model):
         'How points were generated',
         max_length=50,
         blank=True,
+    )
+
+    # If a .cpc is uploaded for this image, we save the entire .cpc content
+    # (including parts of the .cpc that CoralNet doesn't use) so that future
+    # .cpc exports preserve as much info as possible.
+    cpc_content = models.TextField(
+        "File content of last .cpc uploaded for this image",
+        default='',
     )
 
     metadata = models.ForeignKey(Metadata, on_delete=models.PROTECT)

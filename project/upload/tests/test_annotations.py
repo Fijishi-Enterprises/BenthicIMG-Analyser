@@ -23,10 +23,11 @@ class UploadAnnotationsBaseTest(ClientTest):
             f = ContentFile(stream.getvalue(), name=csv_filename)
         return f
 
-    def make_cpc_file(self, cpc_filename, image_filepath, points):
+    def make_cpc_file(
+            self, cpc_filename, image_filepath, points,
+            codes_filepath=r'C:\PROGRA~4\CPCE_4~1\SHALLO~1.TXT'):
         with BytesIO() as stream:
             # Line 1
-            codes_filepath = r'C:\PROGRA~4\CPCE_4~1\SHALLO~1.TXT'
             line1_nums = '3000,1500,9000,4500'
             stream.writelines([
                 '"{codes_filepath}","{image_filepath}",{line1_nums}\n'.format(
@@ -1923,7 +1924,7 @@ class UploadAnnotationsCPCFormatTest(UploadAnnotationsBaseTest):
             stream.writelines(['10\n'])
             # Line 7-15: point positions (one line too few)
             stream.writelines([
-                '{n},{n}\n'.format(n=n*15) for n in range(1,9+1)])
+                '{n},{n}\n'.format(n=n*15) for n in range(1, 9+1)])
             # Line 16: labels
             stream.writelines(['a,b,c,d\n'])
             cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
@@ -1948,7 +1949,7 @@ class UploadAnnotationsCPCFormatTest(UploadAnnotationsBaseTest):
             stream.writelines(['10\n'])
             # Lines 7-17: point positions (one line too many)
             stream.writelines([
-                '{n},{n}\n'.format(n=n*15) for n in range(1,11+1)])
+                '{n},{n}\n'.format(n=n*15) for n in range(1, 11+1)])
             cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
         preview_response = self.preview_cpc([cpc_file])
 
@@ -1971,7 +1972,7 @@ class UploadAnnotationsCPCFormatTest(UploadAnnotationsBaseTest):
             stream.writelines(['10\n'])
             # Lines 7-16: point positions
             stream.writelines([
-                '{n},{n}\n'.format(n=n*15) for n in range(1,10+1)])
+                '{n},{n}\n'.format(n=n*15) for n in range(1, 10+1)])
             # Line 17-25: labels (one line too few)
             stream.writelines(['a,b,c,d\n']*9)
             cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
@@ -1995,7 +1996,7 @@ class UploadAnnotationsCPCFormatTest(UploadAnnotationsBaseTest):
             # Multiply by 15 so they end up on different pixels. Otherwise
             # we may get the 'multiple points on same pixel' error instead.
             stream.writelines([
-                '{n},{n}\n'.format(n=n*15) for n in range(1,10+1)])
+                '{n},{n}\n'.format(n=n*15) for n in range(1, 10+1)])
             # Line 17-26: labels
             stream.writelines(['a,b,c,d\n']*10)
             cpc_file_1 = ContentFile(stream.getvalue(), name='1.cpc')
@@ -2008,7 +2009,7 @@ class UploadAnnotationsCPCFormatTest(UploadAnnotationsBaseTest):
             stream.writelines(['10\n'])
             # Lines 7-16: point positions
             stream.writelines([
-                '{n},{n}\n'.format(n=n*15) for n in range(1,10+1)])
+                '{n},{n}\n'.format(n=n*15) for n in range(1, 10+1)])
             # Line 17-26: labels
             stream.writelines(['a,b,c,d\n']*10)
             cpc_file_2 = ContentFile(stream.getvalue(), name='2.cpc')
@@ -2020,3 +2021,122 @@ class UploadAnnotationsCPCFormatTest(UploadAnnotationsBaseTest):
                 "Image 1.png has points from more than one .cpc file: 1.cpc"
                 " and 2.cpc. There should be only one .cpc file"
                 " per image.")))
+
+
+class UploadAnnotationsSaveCPCInfoTest(UploadAnnotationsBaseTest):
+    """
+    Tests saving of CPC file info when uploading CPCs.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super(UploadAnnotationsSaveCPCInfoTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(cls.user)
+        labels = cls.create_labels(cls.user, ['A', 'B'], 'Group1')
+        cls.create_labelset(cls.user, cls.source, labels)
+
+        cls.img1 = cls.upload_image(
+            cls.user, cls.source,
+            image_options=dict(filename='1.jpg', width=100, height=100))
+        cls.img2 = cls.upload_image(
+            cls.user, cls.source,
+            image_options=dict(filename='2.jpg', width=100, height=100))
+
+    def preview_cpc(self, cpc_files):
+        return self.client.post(
+            reverse('upload_annotations_cpc_preview_ajax', args=[
+                self.source.pk]),
+            {'cpc_files': cpc_files},
+        )
+
+    def upload(self):
+        return self.client.post(
+            reverse('upload_annotations_ajax', args=[self.source.pk]),
+        )
+
+    def test_cpc_content_one_image(self):
+
+        self.client.force_login(self.user)
+
+        cpc_files = [
+            self.make_cpc_file(
+                '1.cpc',
+                r"C:\My Photos\2017-05-13 GBR\1.jpg", [
+                    (49*15, 49*15, 'A'),
+                    (59*15, 39*15, 'B')]),
+        ]
+        # Save the file content for comparison purposes.
+        img1_expected_cpc_content = cpc_files[0].read()
+        # Reset the file pointer so that the views can read from the start.
+        cpc_files[0].seek(0)
+
+        self.preview_cpc(cpc_files)
+        self.upload()
+
+        self.img1.refresh_from_db()
+        self.assertEqual(self.img1.cpc_content, img1_expected_cpc_content)
+        self.img2.refresh_from_db()
+        self.assertEqual(self.img2.cpc_content, '')
+
+    def test_cpc_content_multiple_images(self):
+
+        self.client.force_login(self.user)
+
+        cpc_files = [
+            self.make_cpc_file(
+                '1.cpc',
+                r"C:\My Photos\2017-05-13 GBR\1.jpg", [
+                    (49*15, 49*15, 'A'),
+                    (59*15, 39*15, 'B')]),
+            self.make_cpc_file(
+                '2.cpc',
+                r"C:\My Photos\2017-05-13 GBR\2.jpg", [
+                    (69*15, 29*15, 'A'),
+                    (79*15, 19*15, 'A')]),
+        ]
+        # Save the file content for comparison purposes.
+        img1_expected_cpc_content = cpc_files[0].read()
+        img2_expected_cpc_content = cpc_files[1].read()
+        # Reset the file pointer so that the views can read from the start.
+        cpc_files[0].seek(0)
+        cpc_files[1].seek(0)
+
+        self.preview_cpc(cpc_files)
+        self.upload()
+
+        self.img1.refresh_from_db()
+        self.assertEqual(self.img1.cpc_content, img1_expected_cpc_content)
+        self.img2.refresh_from_db()
+        self.assertEqual(self.img2.cpc_content, img2_expected_cpc_content)
+
+    def test_source_fields(self):
+
+        self.client.force_login(self.user)
+
+        cpc_files = [
+            self.make_cpc_file(
+                '1.cpc',
+                r"C:\My Photos\2017-05-13 GBR\1.jpg", [
+                    (49*15, 49*15, 'A'),
+                    (59*15, 39*15, 'B')],
+                codes_filepath=r'C:\PROGRA~4\CPCE_4~1\SHALLO~1.TXT'),
+            self.make_cpc_file(
+                '2.cpc',
+                r"C:\My Photos\2017-05-13 GBR\2.jpg", [
+                    (69*15, 29*15, 'A'),
+                    (79*15, 19*15, 'A')],
+                codes_filepath=r'C:\My Photos\CPCe codefiles\GBR codes.txt'),
+        ]
+        self.preview_cpc(cpc_files)
+        self.upload()
+
+        self.source.refresh_from_db()
+        # Although it's an implementation detail and not part of spec,
+        # the last uploaded CPC should have its values used in a multi-CPC
+        # upload.
+        self.assertEqual(
+            self.source.cpce_code_filepath,
+            r'C:\My Photos\CPCe codefiles\GBR codes.txt')
+        self.assertEqual(
+            self.source.cpce_image_dir, r'C:\My Photos\2017-05-13 GBR')

@@ -5,7 +5,13 @@ import codecs
 from collections import OrderedDict
 import csv
 import functools
-import ntpath
+
+try:
+    # Python 3.4+
+    from pathlib import Path
+except ImportError:
+    # Python 2.x with pathlib2 package
+    from pathlib2 import Path
 
 from six import next, viewitems
 from six.moves import range
@@ -343,44 +349,58 @@ def annotations_csv_verify_contents(csv_annotations, source):
     return annotations
 
 
+def annotations_cpcs_to_dict_read_csv_row(
+        reader, cpc_filename, num_tokens_expected):
+    """
+    Helper for annotations_cpcs_to_dict().
+    Basically like calling next(reader), but with more controlled error
+    handling.
+    :param reader: A CSV reader object.
+    :param cpc_filename: The filename of the .cpc file we're reading.
+     Used for error messages.
+    :param num_tokens_expected: Number of tokens expected in this CSV row.
+    :return: iterable of the CSV tokens, stripped of leading and
+     trailing whitespace.
+    """
+    try:
+        row_tokens = [token.strip() for token in next(reader)]
+    except StopIteration:
+        raise FileProcessError(
+            "File {cpc_filename} seems to have too few lines.".format(
+                cpc_filename=cpc_filename))
+
+    if len(row_tokens) != num_tokens_expected:
+        raise FileProcessError((
+            "File {cpc_filename}, line {line_num} has"
+            " {num_tokens} comma-separated tokens, but"
+            " {num_tokens_expected} were expected.").format(
+                cpc_filename=cpc_filename,
+                line_num=reader.line_num,
+                num_tokens=len(row_tokens),
+                num_tokens_expected=num_tokens_expected))
+
+    return row_tokens
+
+
 def annotations_cpcs_to_dict(cpc_files, source):
     """
-    Go from Coral Point Count .cpc files to
-    dict of (image ids -> lists of dicts with keys row, column, (opt.) label).
-    One .cpc corresponds to one image.
+    :param cpc_files: An iterable of Coral Point Count .cpc files.
+      One .cpc corresponds to one image.
+    :param source: The source these .cpc files correspond to.
+    :return: A dict of relevant info, with the following keys::
+      annotations: dict of (image ids -> lists of dicts with keys row,
+        column, (opt.) label).
+      cpc_contents: dict of image ids -> .cpc's full contents as a string
+      code_filepath: Local path to CPCe code file used by one of the .cpc's.
+        Since CPCe is Windows only, this is going to be a Windows path.
+      image_dir: Local path to image directory used by one of the .cpc's.
+        Again, a Windows path. Ending slash can be present or not.
+    Throws a FileProcessError if a .cpc has a problem.
     """
 
-    def read_csv_row(reader, cpc_filename, num_tokens_expected):
-        """
-        Basically like calling next(reader), but with more controlled error
-        handling.
-        :param reader: A CSV reader object.
-        :param cpc_filename: The filename of the .cpc file we're reading.
-         Used for error messages.
-        :param num_tokens_expected: Number of tokens expected in this CSV row.
-        :return: iterable of the CSV tokens, stripped of leading and
-         trailing whitespace.
-        """
-        try:
-            row_tokens = [token.strip() for token in next(reader)]
-        except StopIteration:
-            raise FileProcessError(
-                "File {cpc_filename} seems to have too few lines.".format(
-                    cpc_filename=cpc_filename))
-
-        if len(row_tokens) != num_tokens_expected:
-            raise FileProcessError((
-                "File {cpc_filename}, line {line_num} has"
-                " {num_tokens} comma-separated tokens, but"
-                " {num_tokens_expected} were expected.").format(
-                    cpc_filename=cpc_filename,
-                    line_num=reader.line_num,
-                    num_tokens=len(row_tokens),
-                    num_tokens_expected=num_tokens_expected))
-
-        return row_tokens
-
     cpc_dicts = []
+    code_filepath = None
+    image_dir = None
 
     for cpc_file in cpc_files:
 
@@ -392,14 +412,14 @@ def annotations_cpcs_to_dict(cpc_files, source):
         # through the lines with next() instead of with a for loop.
         reader = csv.reader(cpc_file, delimiter=',', quotechar='"')
         read_csv_row_curried = functools.partial(
-            read_csv_row, reader, cpc_file.name)
+            annotations_cpcs_to_dict_read_csv_row, reader, cpc_file.name)
 
         # Line 1
-        _, image_filepath, _, _, _, _ = read_csv_row_curried(6)
+        code_filepath, image_filepath, _, _, _, _ = read_csv_row_curried(6)
         # Assumption: image name on CoralNet == image filename from their
         # local machine.
-        # CPCe only runs on Windows, so ntpath should be safe.
-        cpc_dict['image_filename'] = ntpath.split(image_filepath)[-1]
+        cpc_dict['image_filename'] = Path(image_filepath).name
+        image_dir = str(Path(image_filepath).parent)
 
         # Lines 2-5; don't need any info from these,
         # but they should have 2 tokens each
@@ -440,22 +460,35 @@ def annotations_cpcs_to_dict(cpc_files, source):
             if label_code:
                 cpc_dict['points'][point_index]['label'] = label_code
 
+        cpc_file.seek(0)
+        cpc_dict['cpc_content'] = cpc_file.read()
+
         cpc_dicts.append(cpc_dict)
 
     # So far we've checked the .cpc formatting. Now check the validity
     # of the contents.
-    cpc_annotations = annotations_cpc_verify_contents(cpc_dicts, source)
+    cpc_annotations, cpc_contents = annotations_cpc_verify_contents(
+        cpc_dicts, source)
 
-    return cpc_annotations
+    return dict(
+        annotations=cpc_annotations,
+        cpc_contents=cpc_contents,
+        code_filepath=code_filepath,
+        image_dir=image_dir,
+    )
 
 
 def annotations_cpc_verify_contents(cpc_dicts, source):
     """
     Argument dict is a list of dicts, one dict per .cpc file.
+
     We'll create a new annotations dict indexed
     by image id, while verifying image existence, row, column, and label.
+
+    While we're at it, we'll also make a dict from image id to .cpc contents.
     """
     annotations = OrderedDict()
+    cpc_contents = OrderedDict()
     image_names_to_cpc_filenames = dict()
 
     for cpc_dict in cpc_dicts:
@@ -578,11 +611,12 @@ def annotations_cpc_verify_contents(cpc_dicts, source):
             annotations_for_image.append(point_dict)
 
         annotations[img.pk] = annotations_for_image
+        cpc_contents[img.pk] = cpc_dict['cpc_content']
 
     if len(annotations) == 0:
         raise FileProcessError("No matching image names found in the source")
 
-    return annotations
+    return annotations, cpc_contents
 
 
 def annotations_preview(csv_annotations, source):

@@ -371,18 +371,19 @@ def upload_annotations_cpc_preview_ajax(request, source_id):
             error=cpc_import_form.errors['cpc_files'][0],
         ))
 
+    cpc_files = cpc_import_form.cleaned_data['cpc_files']
     try:
-        cpc_annotations = annotations_cpcs_to_dict(
-            cpc_import_form.cleaned_data['cpc_files'], source)
+        cpc_info = annotations_cpcs_to_dict(cpc_files, source)
     except FileProcessError as error:
         return JsonResponse(dict(
             error=error.message,
         ))
 
     preview_table, preview_details = \
-        annotations_preview(cpc_annotations, source)
+        annotations_preview(cpc_info['annotations'], source)
 
-    request.session['uploaded_annotations'] = cpc_annotations
+    request.session['uploaded_annotations'] = cpc_info['annotations']
+    request.session['cpc_info'] = cpc_info
 
     return JsonResponse(dict(
         success=True,
@@ -418,6 +419,8 @@ def upload_annotations_ajax(request, source_id):
                 " contact a site admin."
             ),
         ))
+
+    cpc_info = request.session.pop('cpc_info', None)
 
     for image_id, annotations_for_image in uploaded_annotations.items():
 
@@ -462,6 +465,12 @@ def upload_annotations_ajax(request, source_id):
             point_generation_type=PointGen.Types.IMPORTED,
             imported_number_of_points=len(new_points)
         )
+        if cpc_info:
+            # We uploaded annotations as CPC. Save contents for future CPC
+            # exports.
+            # Note: Since cpc_info went through session serialization,
+            # dicts with integer keys have had their keys stringified.
+            img.cpc_content = cpc_info['cpc_contents'][str(img.pk)]
         img.save()
 
         img.metadata.annotation_area = AnnotationAreaUtils.IMPORTED_STR
@@ -472,6 +481,13 @@ def upload_annotations_ajax(request, source_id):
         img.save()
         backend_tasks.reset_features.apply_async(
             args = [img.id], eta = now() + timedelta(seconds = 10))
+
+    if cpc_info:
+        # We uploaded annotations as CPC. Save some info for future CPC
+        # exports.
+        source.cpce_code_filepath = cpc_info['code_filepath']
+        source.cpce_image_dir = cpc_info['image_dir']
+        source.save()
 
     return JsonResponse(dict(
         success=True,

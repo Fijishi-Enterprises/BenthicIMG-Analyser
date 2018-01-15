@@ -417,7 +417,7 @@ def annotations_cpcs_to_dict(cpc_files, source):
         # Line 1
         code_filepath, image_filepath, _, _, _, _ = read_csv_row_curried(6)
         # Assumption: image name on CoralNet == image filename from their
-        # local machine.
+        # local machine. This is how we match up images with CPC files.
         cpc_dict['image_filename'] = Path(image_filepath).name
         image_dir = str(Path(image_filepath).parent)
 
@@ -467,12 +467,13 @@ def annotations_cpcs_to_dict(cpc_files, source):
 
     # So far we've checked the .cpc formatting. Now check the validity
     # of the contents.
-    cpc_annotations, cpc_contents = annotations_cpc_verify_contents(
-        cpc_dicts, source)
+    cpc_annotations, cpc_contents, cpc_filenames = \
+        annotations_cpc_verify_contents(cpc_dicts, source)
 
     return dict(
         annotations=cpc_annotations,
         cpc_contents=cpc_contents,
+        cpc_filenames=cpc_filenames,
         code_filepath=code_filepath,
         image_dir=image_dir,
     )
@@ -489,6 +490,7 @@ def annotations_cpc_verify_contents(cpc_dicts, source):
     """
     annotations = OrderedDict()
     cpc_contents = OrderedDict()
+    cpc_filenames = OrderedDict()
     image_names_to_cpc_filenames = dict()
 
     for cpc_dict in cpc_dicts:
@@ -612,11 +614,12 @@ def annotations_cpc_verify_contents(cpc_dicts, source):
 
         annotations[img.pk] = annotations_for_image
         cpc_contents[img.pk] = cpc_dict['cpc_content']
+        cpc_filenames[img.pk] = cpc_filename
 
     if len(annotations) == 0:
         raise FileProcessError("No matching image names found in the source")
 
-    return annotations, cpc_contents
+    return annotations, cpc_contents, cpc_filenames
 
 
 def annotations_preview(csv_annotations, source):

@@ -478,11 +478,17 @@ class Image(models.Model):
     )
 
     # If a .cpc is uploaded for this image, we save the entire .cpc content
-    # (including parts of the .cpc that CoralNet doesn't use) so that future
-    # .cpc exports preserve as much info as possible.
+    # (including parts of the .cpc that CoralNet doesn't use) as well as the
+    # .cpc filename so that upload -> export can preserve as much info as
+    # possible.
     cpc_content = models.TextField(
         "File content of last .cpc uploaded for this image",
         default='',
+    )
+    cpc_filename = models.CharField(
+        "Filename of last .cpc uploaded for this image",
+        default='',
+        max_length=1000,
     )
 
     metadata = models.ForeignKey(Metadata, on_delete=models.PROTECT)

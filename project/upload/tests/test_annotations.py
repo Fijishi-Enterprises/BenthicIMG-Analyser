@@ -2076,8 +2076,10 @@ class UploadAnnotationsSaveCPCInfoTest(UploadAnnotationsBaseTest):
 
         self.img1.refresh_from_db()
         self.assertEqual(self.img1.cpc_content, img1_expected_cpc_content)
+        self.assertEqual(self.img1.cpc_filename, '1.cpc')
         self.img2.refresh_from_db()
         self.assertEqual(self.img2.cpc_content, '')
+        self.assertEqual(self.img2.cpc_filename, '')
 
     def test_cpc_content_multiple_images(self):
 
@@ -2085,12 +2087,12 @@ class UploadAnnotationsSaveCPCInfoTest(UploadAnnotationsBaseTest):
 
         cpc_files = [
             self.make_cpc_file(
-                '1.cpc',
+                'GBR_1.cpc',
                 r"C:\My Photos\2017-05-13 GBR\1.jpg", [
                     (49*15, 49*15, 'A'),
                     (59*15, 39*15, 'B')]),
             self.make_cpc_file(
-                '2.cpc',
+                'GBR_2.cpc',
                 r"C:\My Photos\2017-05-13 GBR\2.jpg", [
                     (69*15, 29*15, 'A'),
                     (79*15, 19*15, 'A')]),
@@ -2107,8 +2109,10 @@ class UploadAnnotationsSaveCPCInfoTest(UploadAnnotationsBaseTest):
 
         self.img1.refresh_from_db()
         self.assertEqual(self.img1.cpc_content, img1_expected_cpc_content)
+        self.assertEqual(self.img1.cpc_filename, 'GBR_1.cpc')
         self.img2.refresh_from_db()
         self.assertEqual(self.img2.cpc_content, img2_expected_cpc_content)
+        self.assertEqual(self.img2.cpc_filename, 'GBR_2.cpc')
 
     def test_source_fields(self):
 

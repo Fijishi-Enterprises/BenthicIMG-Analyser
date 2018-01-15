@@ -471,6 +471,7 @@ def upload_annotations_ajax(request, source_id):
             # Note: Since cpc_info went through session serialization,
             # dicts with integer keys have had their keys stringified.
             img.cpc_content = cpc_info['cpc_contents'][str(img.pk)]
+            img.cpc_filename = cpc_info['cpc_filenames'][str(img.pk)]
         img.save()
 
         img.metadata.annotation_area = AnnotationAreaUtils.IMPORTED_STR

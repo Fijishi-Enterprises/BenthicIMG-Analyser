@@ -34,15 +34,13 @@ class CPCUtilsTest(ClientTest):
         cpc_prefs = dict(
             local_code_filepath=r'C:\CPCe codefiles\My codes.txt',
             local_image_dir=r'C:\Panama dataset',
-            display_width=948,
-            display_height=711,
         )
 
         cpc_stream = BytesIO()
         write_annotations_cpc(cpc_stream, self.img1, cpc_prefs)
 
         expected_lines = [
-            r'"C:\CPCe codefiles\My codes.txt","C:\Panama dataset\1.png",6000,4500,14220,10665',
+            r'"C:\CPCe codefiles\My codes.txt","C:\Panama dataset\1.png",6000,4500,14400,10800',
             '285,4035',
             '5685,4035',
             '5685,435',

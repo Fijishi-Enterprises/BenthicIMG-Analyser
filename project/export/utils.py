@@ -58,25 +58,21 @@ def create_zip_stream_response(filename):
     return create_stream_response('application/zip', filename)
 
 
-def create_cpc_strings(image_set, cpc_prefs_paths_only):
+def create_cpc_strings(image_set, cpc_prefs):
     # Dict mapping from cpc filenames to cpc file contents as strings.
     cpc_strings = dict()
     for img in image_set:
-        cpc_prefs = cpc_prefs_paths_only.copy()
-        # .cpc files have one part that seems to be the width
-        # and height that the image was displayed at in CPCe.
-        # But it doesn't seem like these numbers are actually used when
-        # opening the .cpc file. So we'll just assign some arbitrary values:
-        # the image's pixel width/height.
-        cpc_prefs['display_width'] = img.original_width
-        cpc_prefs['display_height'] = img.original_height
         # Write .cpc contents to a byte stream.
         cpc_stream = BytesIO()
         write_annotations_cpc(cpc_stream, img, cpc_prefs)
-        # Convert the stream contents to a string.
-        # TODO: Save uploaded cpc filenames so that filename generation is
-        # only used when necessary.
+        # Determine the CPC filename based on the image filename.
+        # TODO: Allow custom CPC filenames by saving the filenames
+        # during CPC-import. Remember, CPC filenames aren't used for matching
+        # up images with CPCs. The image filepath in line 1 is what's used.
         cpc_filename = image_filename_to_cpc_filename(img.metadata.name)
+        # Convert the stream contents to a string.
+        # TODO: If cpc_filename is already in the cpc_strings dict, then we
+        # have a name conflict and need to warn / disambiguate.
         cpc_strings[cpc_filename] = cpc_stream.getvalue()
     return cpc_strings
 
@@ -125,15 +121,23 @@ def write_annotations_cpc(cpc_stream, img, cpc_prefs):
     row = [
         u'"' + cpc_prefs[u'local_code_filepath'] + u'"',
         u'"' + str(local_image_path) + u'"',
+        # Image dimensions. CPCe operates in units of 1/15th of a pixel.
         img.original_width * 15,
         img.original_height * 15,
-        cpc_prefs[u'display_width'] * 15,
-        cpc_prefs[u'display_height'] * 15,
+        # These 2 items seem to be the display width/height that the image
+        # was opened at in CPCe. Last opened? Initially opened? Not sure.
+        # Is this ever even used when opening the CPC file? As far as we know,
+        # no. We'll just arbitrarily set this to 960x720.
+        # The CPCe documentation says CPCe works best with 1024x768 resolution
+        # and above, so displaying the image itself at 960x720 is roughly
+        # around there.
+        960 * 15,
+        720 * 15,
     ]
     writer.writerow(row)
 
     # Lines 2-5: Annotation area bounds.
-    # <x from left>,<y from top> in pixels-times-15 units.
+    # <x from left>,<y from top> in units of 1/15th of a pixel.
     # Order: Bottom left, bottom right, top right, top left.
     # Get from the image model if present, otherwise make it the whole image.
 

@@ -13,8 +13,9 @@ from .forms import CheckboxForm, StatisticsSearchForm, ImageSearchForm, \
 from accounts.utils import get_robot_user
 from annotations.models import Annotation
 from export.forms import CpcPrefsForm
+from export.utils import get_previous_cpcs_status
 from images.forms import MetadataFormForGrid, BaseMetadataFormSet
-from images.models import Source, Image, Metadata, Point
+from images.models import Source, Image, Metadata
 from images.utils import delete_images
 from labels.models import LabelGroup, Label
 from lib.decorators import source_visibility_required, source_permission_required
@@ -76,9 +77,11 @@ def browse_images(request, source_id):
             export_annotations_cpc_create_ajax=
                 reverse('export_annotations_cpc_create_ajax', args=[source.pk]),
         )
+        previous_cpcs_status = get_previous_cpcs_status(image_results)
     else:
         page_image_ids = None
         links = None
+        previous_cpcs_status = None
 
     return render(request, 'visualization/browse_images.html', {
         'source': source,
@@ -87,7 +90,8 @@ def browse_images(request, source_id):
         'page_image_ids': page_image_ids,
         'links': links,
         'hidden_image_form': hidden_image_form,
-        'cpc_prefs_form': CpcPrefsForm(),
+        'cpc_prefs_form': CpcPrefsForm(source=source),
+        'previous_cpcs_status': previous_cpcs_status,
         'empty_message': empty_message,
     })
 

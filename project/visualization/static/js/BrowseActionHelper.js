@@ -194,6 +194,10 @@ var BrowseActionHelper = (function() {
             pageImageIds = params['pageImageIds'];
             links = params['links'];
 
+            if (params['previousCpcsStatus'] === 'all') {
+                $('#cpc-prefs-fields-container').hide();
+            }
+
             $actionBox = $('#action-box');
             $actionForms = $actionBox.find('form');
 

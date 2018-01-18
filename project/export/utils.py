@@ -1,6 +1,7 @@
 import csv
-from io import BytesIO
 import six
+from six.moves import range
+from six import StringIO
 from zipfile import ZipFile
 
 try:
@@ -61,19 +62,27 @@ def create_zip_stream_response(filename):
 def create_cpc_strings(image_set, cpc_prefs):
     # Dict mapping from cpc filenames to cpc file contents as strings.
     cpc_strings = dict()
+
     for img in image_set:
-        # Write .cpc contents to a byte stream.
-        cpc_stream = BytesIO()
-        write_annotations_cpc(cpc_stream, img, cpc_prefs)
-        # Determine the CPC filename based on the image filename.
-        # TODO: Allow custom CPC filenames by saving the filenames
-        # during CPC-import. Remember, CPC filenames aren't used for matching
-        # up images with CPCs. The image filepath in line 1 is what's used.
-        cpc_filename = image_filename_to_cpc_filename(img.metadata.name)
+        # Write .cpc contents to a stream.
+        cpc_stream = StringIO()
+
+        if img.cpc_content and img.cpc_filename:
+            # A CPC file was uploaded for this image before.
+            write_annotations_cpc_based_on_prev_cpc(cpc_stream, img)
+            # Use the same CPC filename that was used for this image before.
+            cpc_filename = img.cpc_filename
+        else:
+            # No CPC file was uploaded for this image before.
+            write_annotations_cpc(cpc_stream, img, cpc_prefs)
+            # Make a CPC filename based on the image filename, like CPCe does.
+            cpc_filename = image_filename_to_cpc_filename(img.metadata.name)
+
         # Convert the stream contents to a string.
         # TODO: If cpc_filename is already in the cpc_strings dict, then we
         # have a name conflict and need to warn / disambiguate.
         cpc_strings[cpc_filename] = cpc_stream.getvalue()
+
     return cpc_strings
 
 
@@ -104,7 +113,7 @@ def write_annotations_cpc(cpc_stream, img, cpc_prefs):
     :param img: An Image model object.
     :param cpc_prefs:
       CPC 'preferences' indicated by previous CPC uploads to this source.
-      Includes code file path, image directory, and CPCe window dimensions.
+      Includes code file path and image directory.
       These are not important to usage of the image within CoralNet, but they
       are important for exporting back to CPC as seamlessly as possible.
     :return:
@@ -192,6 +201,58 @@ def write_annotations_cpc(cpc_stream, img, cpc_prefs):
     # Next 28 lines: header fields.
     for _ in range(28):
         writer.writerow([u'" "'])
+
+
+def write_annotations_cpc_based_on_prev_cpc(cpc_stream, img):
+    old_cpc = StringIO(img.cpc_content)
+
+    # Copy first 5 lines
+    for _ in range(5):
+        cpc_stream.write(old_cpc.next())
+
+    # 6th line has the point count
+    point_count_line = old_cpc.next()
+    point_count = int(point_count_line.strip())
+    cpc_stream.write(point_count_line)
+
+    # Next point_count lines have the point positions
+    for _ in range(point_count):
+        cpc_stream.write(old_cpc.next())
+
+    # Next point_count lines have the labels.
+    # Replace the label codes with the ones in CoralNet's DB.
+    points_prefetched = list(
+        Point.objects.filter(image=img).order_by('point_number'))
+    points = dict([(p.point_number, p) for p in points_prefetched])
+
+    for point_number in range(1, point_count+1):
+        old_line = old_cpc.next()
+        old_tokens = old_line.split(',')
+        # Tokens are: point number, label code, 'Notes', notes code.
+        # All always present (at least an empty str) and all in double-quotes.
+        label_code = points[point_number].label_code
+        new_tokens = [
+            old_tokens[0], '"{}"'.format(label_code),
+            old_tokens[2], old_tokens[3]]
+        new_line = ','.join(new_tokens)
+        cpc_stream.write(new_line)
+
+    # Copy remaining contents
+    cpc_stream.write(old_cpc.read())
+
+
+def get_previous_cpcs_status(image_set):
+    if image_set.exclude(cpc_content='').exists():
+        # At least 1 image has a previous CPC
+        if image_set.filter(cpc_content='').exists():
+            # Some, but not all images have previous CPCs
+            return 'some'
+        else:
+            # All images have previous CPCs
+            return 'all'
+    else:
+        # No images have previous CPCs
+        return 'none'
 
 
 def write_zip(zip_stream, file_strings):

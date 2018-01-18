@@ -192,6 +192,15 @@
         <form action="{% url 'export_annotations_cpc_serve' source.pk %}"
         method="post" id="export-annotations-cpc-form">
           {% csrf_token %}
+          <div class="line">
+            {% if previous_cpcs_status == 'all' %}
+              All of the images in this search have previously-uploaded CPC files available. Their environment info, notes, and header values will be preserved when exporting to CPC.
+            {% elif previous_cpcs_status == 'some' %}
+              Some of the images in this search have previously-uploaded CPC files available. Their environment info, notes, and header values will be preserved when exporting to CPC. The other images will use the environment info in the text fields below, and will not have notes or header values.
+            {% elif previous_cpcs_status == 'none' %}
+              None of the images in this search have previously-uploaded CPC files available. They will use the environment info in the text fields below, and will not have notes or header values.
+            {% endif %}
+          </div>
           <span id="cpc-prefs-fields-container">
             {% include "form_generic.html" with form=cpc_prefs_form %}
           </span>
@@ -219,7 +228,8 @@
     {% if page_results.paginator.count > 0 %}
       BrowseActionHelper.init({
           pageImageIds: {{ page_image_ids|jsonify }},
-          links: {{ links|jsonify }}
+          links: {{ links|jsonify }},
+          previousCpcsStatus: {{ previous_cpcs_status|jsonify }}
       });
     {% endif %}
 

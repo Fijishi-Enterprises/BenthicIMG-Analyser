@@ -465,26 +465,6 @@ LOGGING = {
 REGTEST_BUCKET = 'coralnet-regtest-fixtures'
 
 # [Custom setting]
-# Verbosity of print messages printed by our unit tests' code. Note that
-# this is different from Django's test runner's verbosity setting, which
-# relates to messages printed by Django's test runner code.
-#
-# 0 means the unit tests won't print any additional messages.
-# 1 means the unit tests will print additional messages as extra confirmation
-# that things worked.
-# There is no 2 for now, unless we see a need for it later.
-#
-# The value in this base settings module should match what we want for the
-# production server. Each developer's settings module can override this
-# as needed.
-#
-# Note: This setting is falling out of use because, as long as we have full
-# access to all of our project code, a much more flexible debugging strategy
-# is to temporarily insert `import pdb; pdb.set_trace()` wherever we want.
-# Or use an IDE with debugging capabilities, like PyCharm.
-UNIT_TEST_VERBOSITY = 0
-
-# [Custom setting]
 # Browsers to run Selenium tests in.
 # This is a list of dicts. Each dict supports the following keys:
 #

@@ -98,7 +98,6 @@ def export_annotations_full(request, source_id):
 
 @source_permission_required(
     'source_id', perm=Source.PermTypes.EDIT.code, ajax=True)
-@transaction.non_atomic_requests
 def export_annotations_cpc_create_ajax(request, source_id):
     """
     This is the first view after requesting a CPC export.
@@ -126,10 +125,14 @@ def export_annotations_cpc_create_ajax(request, source_id):
         ))
 
     cpc_prefs = cpc_prefs_form.cleaned_data
-    # Create a dict of filenames to cpc-file-content strings
+    # Create a dict of filenames to CPC-file-content strings
     cpc_strings = create_cpc_strings(image_set, cpc_prefs)
-    # Save to the session
+    # Save CPC strings to the session
     request.session['cpc_strings'] = cpc_strings
+    # Save CPC prefs to the database for use next time
+    source.cpce_code_filepath = cpc_prefs['local_code_filepath']
+    source.cpce_image_dir = cpc_prefs['local_image_dir']
+    source.save()
 
     return JsonResponse(dict(
         success=True,

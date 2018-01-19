@@ -456,8 +456,9 @@ def upload_annotations_ajax(request, source_id):
                     label=label_obj, user=get_imported_user()))
         # Save to DB with an efficient bulk operation.
         # TODO: It may be possible to merge the Point and Annotation
-        # creation code more cleanly in Django 1.10:
-        # https://github.com/django/django/pull/5936
+        # creation code more cleanly in Django 1.10, which can set
+        # database IDs on newly created objects:
+        # https://docs.djangoproject.com/en/dev/releases/1.10/#database-backends
         Annotation.objects.bulk_create(new_annotations)
 
         # Update relevant image/metadata fields.
@@ -472,6 +473,11 @@ def upload_annotations_ajax(request, source_id):
             # dicts with integer keys have had their keys stringified.
             img.cpc_content = cpc_info['cpc_contents'][str(img.pk)]
             img.cpc_filename = cpc_info['cpc_filenames'][str(img.pk)]
+        else:
+            # We uploaded CSV. Any CPC we had saved previously no longer has
+            # the correct point positions, so we'll just discard the CPC.
+            img.cpc_content = ''
+            img.cpc_filename = ''
         img.save()
 
         img.metadata.annotation_area = AnnotationAreaUtils.IMPORTED_STR

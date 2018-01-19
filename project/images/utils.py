@@ -330,6 +330,11 @@ def generate_points(img, usesourcemethod=True):
     old_points = Point.objects.filter(image=img)
     for old_point in old_points:
         old_point.delete()
+    # Any CPC (Coral Point Count file) we had saved previously no longer has
+    # the correct point positions, so we'll just discard the CPC.
+    img.cpc_content = ''
+    img.cpc_filename = ''
+    img.save()
 
     # Save the newly calculated points.
     for new_point in new_points:

@@ -1,5 +1,6 @@
+from __future__ import unicode_literals
 import csv
-from io import BytesIO
+from six import StringIO
 
 from django.core.files.base import ContentFile
 from django.core.urlresolvers import reverse
@@ -14,61 +15,86 @@ from lib.test_utils import ClientTest, sample_image_as_file
 
 class UploadAnnotationsBaseTest(ClientTest):
 
-    def make_csv_file(self, csv_filename, rows):
-        with BytesIO() as stream:
-            writer = csv.writer(stream)
-            for row in rows:
-                writer.writerow(row)
+    @staticmethod
+    def make_csv_file(csv_filename, rows):
+        stream = StringIO()
+        writer = csv.writer(stream)
+        for row in rows:
+            writer.writerow(row)
 
-            f = ContentFile(stream.getvalue(), name=csv_filename)
+        f = ContentFile(stream.getvalue(), name=csv_filename)
         return f
 
+    @staticmethod
     def make_cpc_file(
-            self, cpc_filename, image_filepath, points,
+            cpc_filename, image_filepath, points,
             codes_filepath=r'C:\PROGRA~4\CPCE_4~1\SHALLO~1.TXT'):
-        with BytesIO() as stream:
-            # Line 1
-            line1_nums = '3000,1500,9000,4500'
-            stream.writelines([
-                '"{codes_filepath}","{image_filepath}",{line1_nums}\n'.format(
-                    codes_filepath=codes_filepath,
-                    image_filepath=image_filepath,
-                    line1_nums=line1_nums,
-                )
-            ])
-
-            # Annotation area
-            stream.writelines([
-                '0,1500\n',
-                '2000,1500\n',
-                '2000,302.35\n',
-                '0,302.35\n',
-            ])
-
-            # Number of points
-            stream.writelines([
-                '{num_points}\n'.format(num_points=len(points)),
-            ])
-
-            # Point positions
-            stream.writelines(
-                ['{x},{y}\n'.format(x=x, y=y) for x, y, _ in points]
+        stream = StringIO()
+        # Line 1
+        line1_nums = '3000,1500,9000,4500'
+        stream.writelines([
+            '"{codes_filepath}","{image_filepath}",{line1_nums}\n'.format(
+                codes_filepath=codes_filepath,
+                image_filepath=image_filepath,
+                line1_nums=line1_nums,
             )
+        ])
 
-            # Label codes and notes
-            label_code_lines = []
-            for point_number, point in enumerate(points):
-                _, _, label_code = point
-                label_code_lines.append(
-                    '"{point_number}","{label_code}","Notes",""\n'.format(
-                        point_number=point_number, label_code=label_code))
-            stream.writelines(label_code_lines)
+        # Annotation area
+        stream.writelines([
+            '0,1500\n',
+            '2000,1500\n',
+            '2000,302.35\n',
+            '0,302.35\n',
+        ])
 
-            # Metadata
-            stream.writelines(['" "\n']*28)
+        # Number of points
+        stream.writelines([
+            '{num_points}\n'.format(num_points=len(points)),
+        ])
 
-            f = ContentFile(stream.getvalue(), name=cpc_filename)
+        # Point positions
+        stream.writelines(
+            ['{x},{y}\n'.format(x=x, y=y) for x, y, _ in points]
+        )
+
+        # Label codes and notes
+        label_code_lines = []
+        for point_number, point in enumerate(points):
+            _, _, label_code = point
+            label_code_lines.append(
+                '"{point_number}","{label_code}","Notes",""\n'.format(
+                    point_number=point_number, label_code=label_code))
+        stream.writelines(label_code_lines)
+
+        # Metadata
+        stream.writelines(['" "\n']*28)
+
+        f = ContentFile(stream.getvalue(), name=cpc_filename)
         return f
+
+    def preview_csv(self, csv_file, source=None):
+        if not source:
+            source = self.source
+        return self.client.post(
+            reverse('upload_annotations_csv_preview_ajax', args=[source.pk]),
+            {'csv_file': csv_file},
+        )
+
+    def preview_cpc(self, cpc_files, source=None):
+        if not source:
+            source = self.source
+        return self.client.post(
+            reverse('upload_annotations_cpc_preview_ajax', args=[source.pk]),
+            {'cpc_files': cpc_files},
+        )
+
+    def upload(self, source=None):
+        if not source:
+            source = self.source
+        return self.client.post(
+            reverse('upload_annotations_ajax', args=[source.pk]),
+        )
 
 
 class UploadAnnotationsNoLabelsetTest(ClientTest):
@@ -148,7 +174,6 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
         cls.source = cls.create_source(cls.user)
         labels = cls.create_labels(cls.user, ['A', 'B'], 'Group1')
         cls.create_labelset(cls.user, cls.source, labels)
-        cls.maxDiff = None
         cls.img1 = cls.upload_image(
             cls.user, cls.source,
             image_options=dict(filename='1.png', width=200, height=100))
@@ -159,24 +184,8 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
             cls.user, cls.source,
             image_options=dict(filename='3.png', width=200, height=100))
 
-    def preview_csv(self, csv_file):
-        return self.client.post(
-            reverse('upload_annotations_csv_preview_ajax', args=[
-                self.source.pk]),
-            {'csv_file': csv_file},
-        )
-
-    def preview_cpc(self, cpc_files):
-        return self.client.post(
-            reverse('upload_annotations_cpc_preview_ajax', args=[
-                self.source.pk]),
-            {'cpc_files': cpc_files},
-        )
-
-    def upload(self):
-        return self.client.post(
-            reverse('upload_annotations_ajax', args=[self.source.pk]),
-        )
+        # Get full diff output if something like an assertEqual fails
+        cls.maxDiff = None
 
     def test_points_only_csv(self):
         """
@@ -881,44 +890,6 @@ class UploadAnnotationsMultipleSourcesTest(UploadAnnotationsBaseTest):
             cls.user, cls.source2,
             image_options=dict(filename='2.png', width=100, height=100))
 
-    def preview_csv_1(self, csv_file):
-        return self.client.post(
-            reverse('upload_annotations_csv_preview_ajax', args=[
-                self.source.pk]),
-            {'csv_file': csv_file},
-        )
-
-    def preview_cpc_1(self, cpc_files):
-        return self.client.post(
-            reverse('upload_annotations_cpc_preview_ajax', args=[
-                self.source.pk]),
-            {'cpc_files': cpc_files},
-        )
-
-    def upload_1(self):
-        return self.client.post(
-            reverse('upload_annotations_ajax', args=[self.source.pk]),
-        )
-
-    def preview_csv_2(self, csv_file):
-        return self.client.post(
-            reverse('upload_annotations_csv_preview_ajax', args=[
-                self.source2.pk]),
-            {'csv_file': csv_file},
-        )
-
-    def preview_cpc_2(self, cpc_files):
-        return self.client.post(
-            reverse('upload_annotations_cpc_preview_ajax', args=[
-                self.source2.pk]),
-            {'cpc_files': cpc_files},
-        )
-
-    def upload_2(self):
-        return self.client.post(
-            reverse('upload_annotations_ajax', args=[self.source2.pk]),
-        )
-
     def test_other_sources_unaffected_csv(self):
         """
         We shouldn't touch images of other sources which happen to have
@@ -935,8 +906,8 @@ class UploadAnnotationsMultipleSourcesTest(UploadAnnotationsBaseTest):
             ['2.png', 25, 25, 'A'],
         ]
         csv_file = self.make_csv_file('A.csv', rows)
-        self.preview_csv_2(csv_file)
-        self.upload_2()
+        self.preview_csv(csv_file, source=self.source2)
+        self.upload(source=self.source2)
 
         # Upload to source 1
         rows = [
@@ -946,8 +917,8 @@ class UploadAnnotationsMultipleSourcesTest(UploadAnnotationsBaseTest):
             ['2.png', 60, 40, 'B'],
         ]
         csv_file = self.make_csv_file('B.csv', rows)
-        preview_response = self.preview_csv_1(csv_file)
-        upload_response = self.upload_1()
+        preview_response = self.preview_csv(csv_file, source=self.source)
+        upload_response = self.upload(source=self.source)
 
         self.check_other_sources_unaffected(preview_response, upload_response)
 
@@ -971,8 +942,8 @@ class UploadAnnotationsMultipleSourcesTest(UploadAnnotationsBaseTest):
                     (14*15, 14*15, 'A'),
                     (24*15, 24*15, 'A')]),
         ]
-        self.preview_cpc_2(cpc_files)
-        self.upload_2()
+        self.preview_cpc(cpc_files, source=self.source2)
+        self.upload(source=self.source2)
 
         # Upload to source 1
         cpc_files = [
@@ -986,8 +957,8 @@ class UploadAnnotationsMultipleSourcesTest(UploadAnnotationsBaseTest):
                 r"C:\My Photos\2017-05-13 GBR\2.png", [
                     (59*15, 39*15, 'B')]),
         ]
-        preview_response = self.preview_cpc_1(cpc_files)
-        upload_response = self.upload_1()
+        preview_response = self.preview_cpc(cpc_files, source=self.source)
+        upload_response = self.upload(source=self.source)
 
         self.check_other_sources_unaffected(preview_response, upload_response)
 
@@ -1091,25 +1062,6 @@ class UploadAnnotationsContentsTest(UploadAnnotationsBaseTest):
         cls.img2 = cls.upload_image(
             cls.user, cls.source,
             image_options=dict(filename='2.png', width=100, height=200))
-
-    def preview_csv(self, csv_file):
-        return self.client.post(
-            reverse('upload_annotations_csv_preview_ajax', args=[
-                self.source.pk]),
-            {'csv_file': csv_file},
-        )
-
-    def preview_cpc(self, cpc_files):
-        return self.client.post(
-            reverse('upload_annotations_cpc_preview_ajax', args=[
-                self.source.pk]),
-            {'cpc_files': cpc_files},
-        )
-
-    def upload(self):
-        return self.client.post(
-            reverse('upload_annotations_ajax', args=[self.source.pk]),
-        )
 
     def do_success_csv(self, point_data, expected_points_set):
         self.client.force_login(self.user)
@@ -1402,18 +1354,6 @@ class UploadAnnotationsCSVFormatTest(UploadAnnotationsBaseTest):
         cls.img1 = cls.upload_image(
             cls.user, cls.source,
             image_options=dict(filename='1.png', width=100, height=100))
-
-    def preview_csv(self, csv_file):
-        return self.client.post(
-            reverse('upload_annotations_csv_preview_ajax', args=[
-                self.source.pk]),
-            {'csv_file': csv_file},
-        )
-
-    def upload(self):
-        return self.client.post(
-            reverse('upload_annotations_ajax', args=[self.source.pk]),
-        )
 
     def test_skipped_csv_columns(self):
         """
@@ -1760,25 +1700,13 @@ class UploadAnnotationsCPCFormatTest(UploadAnnotationsBaseTest):
             cls.user, cls.source,
             image_options=dict(filename='1.png', width=100, height=100))
 
-    def preview_cpc(self, cpc_files):
-        return self.client.post(
-            reverse('upload_annotations_cpc_preview_ajax', args=[
-                self.source.pk]),
-            {'cpc_files': cpc_files},
-        )
-
-    def upload(self):
-        return self.client.post(
-            reverse('upload_annotations_ajax', args=[self.source.pk]),
-        )
-
     def test_one_line(self):
         self.client.force_login(self.user)
 
-        with BytesIO() as stream:
-            # Line 1
-            stream.writelines(['a,b,c,d,e,f\n'])
-            cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
+        stream = StringIO()
+        # Line 1
+        stream.writelines(['a,b,c,d,e,f\n'])
+        cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
         preview_response = self.preview_cpc([cpc_file])
 
         self.assertDictEqual(
@@ -1788,10 +1716,10 @@ class UploadAnnotationsCPCFormatTest(UploadAnnotationsBaseTest):
     def test_line_1_not_enough_tokens(self):
         self.client.force_login(self.user)
 
-        with BytesIO() as stream:
-            # Line 1
-            stream.writelines(['abc\n'])
-            cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
+        stream = StringIO()
+        # Line 1
+        stream.writelines(['abc\n'])
+        cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
         preview_response = self.preview_cpc([cpc_file])
 
         self.assertDictEqual(
@@ -1804,10 +1732,10 @@ class UploadAnnotationsCPCFormatTest(UploadAnnotationsBaseTest):
     def test_line_1_too_many_tokens(self):
         self.client.force_login(self.user)
 
-        with BytesIO() as stream:
-            # Line 1
-            stream.writelines(['ab,cd,ef,gh,ij,kl,mn\n'])
-            cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
+        stream = StringIO()
+        # Line 1
+        stream.writelines(['ab,cd,ef,gh,ij,kl,mn\n'])
+        cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
         preview_response = self.preview_cpc([cpc_file])
 
         self.assertDictEqual(
@@ -1822,10 +1750,10 @@ class UploadAnnotationsCPCFormatTest(UploadAnnotationsBaseTest):
         token, instead of a token separator."""
         self.client.force_login(self.user)
 
-        with BytesIO() as stream:
-            # Line 1
-            stream.writelines(['ab,cd,ef,"gh,ij",kl,mn\n'])
-            cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
+        stream = StringIO()
+        # Line 1
+        stream.writelines(['ab,cd,ef,"gh,ij",kl,mn\n'])
+        cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
         preview_response = self.preview_cpc([cpc_file])
 
         # Should get past line 1 just fine, and then error due to not
@@ -1837,12 +1765,12 @@ class UploadAnnotationsCPCFormatTest(UploadAnnotationsBaseTest):
     def test_line_2_wrong_number_of_tokens(self):
         self.client.force_login(self.user)
 
-        with BytesIO() as stream:
-            # Line 1
-            stream.writelines(['a,b,c,d,e,f\n'])
-            # Line 2
-            stream.writelines(['1,2,3\n'])
-            cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
+        stream = StringIO()
+        # Line 1
+        stream.writelines(['a,b,c,d,e,f\n'])
+        # Line 2
+        stream.writelines(['1,2,3\n'])
+        cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
         preview_response = self.preview_cpc([cpc_file])
 
         self.assertDictEqual(
@@ -1855,14 +1783,14 @@ class UploadAnnotationsCPCFormatTest(UploadAnnotationsBaseTest):
     def test_line_6_wrong_number_of_tokens(self):
         self.client.force_login(self.user)
 
-        with BytesIO() as stream:
-            # Line 1
-            stream.writelines(['a,b,c,d,e,f\n'])
-            # Lines 2-5
-            stream.writelines(['1,2\n']*4)
-            # Line 6
-            stream.writelines(['abc,def\n'])
-            cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
+        stream = StringIO()
+        # Line 1
+        stream.writelines(['a,b,c,d,e,f\n'])
+        # Lines 2-5
+        stream.writelines(['1,2\n']*4)
+        # Line 6
+        stream.writelines(['abc,def\n'])
+        cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
         preview_response = self.preview_cpc([cpc_file])
 
         self.assertDictEqual(
@@ -1875,14 +1803,14 @@ class UploadAnnotationsCPCFormatTest(UploadAnnotationsBaseTest):
     def test_line_6_not_number(self):
         self.client.force_login(self.user)
 
-        with BytesIO() as stream:
-            # Line 1
-            stream.writelines(['a,b,c,d,e,f\n'])
-            # Lines 2-5
-            stream.writelines(['1,2\n']*4)
-            # Line 6
-            stream.writelines(['abc\n'])
-            cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
+        stream = StringIO()
+        # Line 1
+        stream.writelines(['a,b,c,d,e,f\n'])
+        # Lines 2-5
+        stream.writelines(['1,2\n']*4)
+        # Line 6
+        stream.writelines(['abc\n'])
+        cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
         preview_response = self.preview_cpc([cpc_file])
 
         self.assertDictEqual(
@@ -1895,14 +1823,14 @@ class UploadAnnotationsCPCFormatTest(UploadAnnotationsBaseTest):
     def test_line_6_number_below_1(self):
         self.client.force_login(self.user)
 
-        with BytesIO() as stream:
-            # Line 1
-            stream.writelines(['a,b,c,d,e,f\n'])
-            # Lines 2-5
-            stream.writelines(['1,2\n']*4)
-            # Line 6
-            stream.writelines(['0\n'])
-            cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
+        stream = StringIO()
+        # Line 1
+        stream.writelines(['a,b,c,d,e,f\n'])
+        # Lines 2-5
+        stream.writelines(['1,2\n']*4)
+        # Line 6
+        stream.writelines(['0\n'])
+        cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
         preview_response = self.preview_cpc([cpc_file])
 
         self.assertDictEqual(
@@ -1915,19 +1843,19 @@ class UploadAnnotationsCPCFormatTest(UploadAnnotationsBaseTest):
     def test_point_position_line_wrong_number_of_tokens(self):
         self.client.force_login(self.user)
 
-        with BytesIO() as stream:
-            # Line 1
-            stream.writelines(['a,b,c,d,e,f\n'])
-            # Lines 2-5
-            stream.writelines(['1,2\n']*4)
-            # Line 6
-            stream.writelines(['10\n'])
-            # Line 7-15: point positions (one line too few)
-            stream.writelines([
-                '{n},{n}\n'.format(n=n*15) for n in range(1, 9+1)])
-            # Line 16: labels
-            stream.writelines(['a,b,c,d\n'])
-            cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
+        stream = StringIO()
+        # Line 1
+        stream.writelines(['a,b,c,d,e,f\n'])
+        # Lines 2-5
+        stream.writelines(['1,2\n']*4)
+        # Line 6
+        stream.writelines(['10\n'])
+        # Line 7-15: point positions (one line too few)
+        stream.writelines([
+            '{n},{n}\n'.format(n=n*15) for n in range(1, 9+1)])
+        # Line 16: labels
+        stream.writelines(['a,b,c,d\n'])
+        cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
         preview_response = self.preview_cpc([cpc_file])
 
         self.assertDictEqual(
@@ -1940,17 +1868,17 @@ class UploadAnnotationsCPCFormatTest(UploadAnnotationsBaseTest):
     def test_label_line_wrong_number_of_tokens(self):
         self.client.force_login(self.user)
 
-        with BytesIO() as stream:
-            # Line 1
-            stream.writelines(['a,b,c,d,e,f\n'])
-            # Lines 2-5
-            stream.writelines(['1,2\n']*4)
-            # Line 6
-            stream.writelines(['10\n'])
-            # Lines 7-17: point positions (one line too many)
-            stream.writelines([
-                '{n},{n}\n'.format(n=n*15) for n in range(1, 11+1)])
-            cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
+        stream = StringIO()
+        # Line 1
+        stream.writelines(['a,b,c,d,e,f\n'])
+        # Lines 2-5
+        stream.writelines(['1,2\n']*4)
+        # Line 6
+        stream.writelines(['10\n'])
+        # Lines 7-17: point positions (one line too many)
+        stream.writelines([
+            '{n},{n}\n'.format(n=n*15) for n in range(1, 11+1)])
+        cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
         preview_response = self.preview_cpc([cpc_file])
 
         self.assertDictEqual(
@@ -1963,19 +1891,19 @@ class UploadAnnotationsCPCFormatTest(UploadAnnotationsBaseTest):
     def test_not_enough_label_lines(self):
         self.client.force_login(self.user)
 
-        with BytesIO() as stream:
-            # Line 1
-            stream.writelines(['a,b,c,d,e,f\n'])
-            # Lines 2-5
-            stream.writelines(['1,2\n']*4)
-            # Line 6
-            stream.writelines(['10\n'])
-            # Lines 7-16: point positions
-            stream.writelines([
-                '{n},{n}\n'.format(n=n*15) for n in range(1, 10+1)])
-            # Line 17-25: labels (one line too few)
-            stream.writelines(['a,b,c,d\n']*9)
-            cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
+        stream = StringIO()
+        # Line 1
+        stream.writelines(['a,b,c,d,e,f\n'])
+        # Lines 2-5
+        stream.writelines(['1,2\n']*4)
+        # Line 6
+        stream.writelines(['10\n'])
+        # Lines 7-16: point positions
+        stream.writelines([
+            '{n},{n}\n'.format(n=n*15) for n in range(1, 10+1)])
+        # Line 17-25: labels (one line too few)
+        stream.writelines(['a,b,c,d\n']*9)
+        cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
         preview_response = self.preview_cpc([cpc_file])
 
         self.assertDictEqual(
@@ -1985,34 +1913,36 @@ class UploadAnnotationsCPCFormatTest(UploadAnnotationsBaseTest):
     def test_multiple_cpcs_for_one_image(self):
         self.client.force_login(self.user)
 
-        with BytesIO() as stream:
-            # Line 1
-            stream.writelines(['a,"D:\\Panama transects\\1.png",c,d,e,f\n'])
-            # Lines 2-5
-            stream.writelines(['1,2\n']*4)
-            # Line 6
-            stream.writelines(['10\n'])
-            # Lines 7-16: point positions
-            # Multiply by 15 so they end up on different pixels. Otherwise
-            # we may get the 'multiple points on same pixel' error instead.
-            stream.writelines([
-                '{n},{n}\n'.format(n=n*15) for n in range(1, 10+1)])
-            # Line 17-26: labels
-            stream.writelines(['a,b,c,d\n']*10)
-            cpc_file_1 = ContentFile(stream.getvalue(), name='1.cpc')
-        with BytesIO() as stream:
-            # Line 1
-            stream.writelines(['a,"D:\\GBR transects\\1.png",c,d,e,f\n'])
-            # Lines 2-5
-            stream.writelines(['1,2\n']*4)
-            # Line 6
-            stream.writelines(['10\n'])
-            # Lines 7-16: point positions
-            stream.writelines([
-                '{n},{n}\n'.format(n=n*15) for n in range(1, 10+1)])
-            # Line 17-26: labels
-            stream.writelines(['a,b,c,d\n']*10)
-            cpc_file_2 = ContentFile(stream.getvalue(), name='2.cpc')
+        stream = StringIO()
+        # Line 1
+        stream.writelines(['a,"D:\\Panama transects\\1.png",c,d,e,f\n'])
+        # Lines 2-5
+        stream.writelines(['1,2\n']*4)
+        # Line 6
+        stream.writelines(['10\n'])
+        # Lines 7-16: point positions
+        # Multiply by 15 so they end up on different pixels. Otherwise
+        # we may get the 'multiple points on same pixel' error instead.
+        stream.writelines([
+            '{n},{n}\n'.format(n=n*15) for n in range(1, 10+1)])
+        # Line 17-26: labels
+        stream.writelines(['a,b,c,d\n']*10)
+        cpc_file_1 = ContentFile(stream.getvalue(), name='1.cpc')
+
+        stream = StringIO()
+        # Line 1
+        stream.writelines(['a,"D:\\GBR transects\\1.png",c,d,e,f\n'])
+        # Lines 2-5
+        stream.writelines(['1,2\n']*4)
+        # Line 6
+        stream.writelines(['10\n'])
+        # Lines 7-16: point positions
+        stream.writelines([
+            '{n},{n}\n'.format(n=n*15) for n in range(1, 10+1)])
+        # Line 17-26: labels
+        stream.writelines(['a,b,c,d\n']*10)
+        cpc_file_2 = ContentFile(stream.getvalue(), name='2.cpc')
+
         preview_response = self.preview_cpc([cpc_file_1, cpc_file_2])
 
         self.assertDictEqual(
@@ -2042,18 +1972,6 @@ class UploadAnnotationsSaveCPCInfoTest(UploadAnnotationsBaseTest):
         cls.img2 = cls.upload_image(
             cls.user, cls.source,
             image_options=dict(filename='2.jpg', width=100, height=100))
-
-    def preview_cpc(self, cpc_files):
-        return self.client.post(
-            reverse('upload_annotations_cpc_preview_ajax', args=[
-                self.source.pk]),
-            {'cpc_files': cpc_files},
-        )
-
-    def upload(self):
-        return self.client.post(
-            reverse('upload_annotations_ajax', args=[self.source.pk]),
-        )
 
     def test_cpc_content_one_image(self):
 

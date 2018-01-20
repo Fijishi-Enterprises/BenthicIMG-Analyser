@@ -1,3 +1,4 @@
+from __future__ import unicode_literals
 from django.core.urlresolvers import reverse
 from images.model_utils import PointGen
 from images.models import Source
@@ -34,14 +35,17 @@ class AnnotationHistoryTest(ClientTest):
             cls.user, cls.source, cls.user_editor2, Source.PermTypes.EDIT.code)
 
         cls.img = cls.upload_image(cls.user, cls.source)
-        cls.url = reverse('annotation_history', args=[cls.img.pk])
+
+    def view_history(self):
+        return self.client.get(
+            reverse('annotation_history', args=[self.img.pk]))
 
     def test_load_page_anonymous(self):
         """
         Load the page while logged out ->
         sorry, don't have permission.
         """
-        response = self.client.get(self.url)
+        response = self.view_history()
         self.assertStatusOK(response)
         self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
 
@@ -51,7 +55,7 @@ class AnnotationHistoryTest(ClientTest):
         sorry, don't have permission.
         """
         self.client.force_login(self.user_outsider)
-        response = self.client.get(self.url)
+        response = self.view_history()
         self.assertStatusOK(response)
         self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
 
@@ -61,13 +65,13 @@ class AnnotationHistoryTest(ClientTest):
         sorry, don't have permission.
         """
         self.client.force_login(self.user_viewer)
-        response = self.client.get(self.url)
+        response = self.view_history()
         self.assertStatusOK(response)
         self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
 
     def test_load_page(self):
         self.client.force_login(self.user_editor)
-        response = self.client.get(self.url)
+        response = self.view_history()
         self.assertStatusOK(response)
         self.assertTemplateUsed(
             response, 'annotations/annotation_history.html')
@@ -82,7 +86,7 @@ class AnnotationHistoryTest(ClientTest):
         # of the annotator's username
         self.client.logout()
         self.client.force_login(self.user_editor)
-        response = self.client.get(self.url)
+        response = self.view_history()
         # Should have 1 table entry saying user_editor accessed.
         self.assertContains(response, "Accessed annotation tool", count=1)
         self.assertContains(response, self.user.username, count=1)
@@ -101,7 +105,7 @@ class AnnotationHistoryTest(ClientTest):
         # of the annotator's username
         self.client.logout()
         self.client.force_login(self.user_editor)
-        response = self.client.get(self.url)
+        response = self.view_history()
         # Should have 1 table entry showing all the points that were changed.
         self.assertContains(response, "Point", count=2)
         self.assertContains(response, self.user.username, count=1)
@@ -131,7 +135,7 @@ class AnnotationHistoryTest(ClientTest):
         # of the annotator's username
         self.client.logout()
         self.client.force_login(self.user_editor2)
-        response = self.client.get(self.url)
+        response = self.view_history()
         # The two history entries should have 4 instances of "Point"
         # combined: 2 in user's entry, 2 in user_editor's entry.
         self.assertContains(response, "Point", count=4)
@@ -143,7 +147,7 @@ class AnnotationHistoryTest(ClientTest):
         self.add_robot_annotations(robot, self.img, {1: 'A', 2: 'B', 3: 'B'})
 
         self.client.force_login(self.user)
-        response = self.client.get(self.url)
+        response = self.view_history()
         # Should have 1 table entry showing all the points that were changed.
         self.assertContains(response, "Point", count=3)
         self.assertContains(response, "Robot {v}".format(v=robot.pk), count=1)

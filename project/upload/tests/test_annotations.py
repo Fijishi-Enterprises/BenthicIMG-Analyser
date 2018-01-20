@@ -1,5 +1,4 @@
 from __future__ import unicode_literals
-import csv
 from six import StringIO
 
 from django.core.files.base import ContentFile
@@ -11,90 +10,7 @@ from annotations.models import Annotation
 from images.model_utils import PointGen
 from images.models import Point
 from lib.test_utils import ClientTest, sample_image_as_file
-
-
-class UploadAnnotationsBaseTest(ClientTest):
-
-    @staticmethod
-    def make_csv_file(csv_filename, rows):
-        stream = StringIO()
-        writer = csv.writer(stream)
-        for row in rows:
-            writer.writerow(row)
-
-        f = ContentFile(stream.getvalue(), name=csv_filename)
-        return f
-
-    @staticmethod
-    def make_cpc_file(
-            cpc_filename, image_filepath, points,
-            codes_filepath=r'C:\PROGRA~4\CPCE_4~1\SHALLO~1.TXT'):
-        stream = StringIO()
-        # Line 1
-        line1_nums = '3000,1500,9000,4500'
-        stream.writelines([
-            '"{codes_filepath}","{image_filepath}",{line1_nums}\n'.format(
-                codes_filepath=codes_filepath,
-                image_filepath=image_filepath,
-                line1_nums=line1_nums,
-            )
-        ])
-
-        # Annotation area
-        stream.writelines([
-            '0,1500\n',
-            '2000,1500\n',
-            '2000,302.35\n',
-            '0,302.35\n',
-        ])
-
-        # Number of points
-        stream.writelines([
-            '{num_points}\n'.format(num_points=len(points)),
-        ])
-
-        # Point positions
-        stream.writelines(
-            ['{x},{y}\n'.format(x=x, y=y) for x, y, _ in points]
-        )
-
-        # Label codes and notes
-        label_code_lines = []
-        for point_number, point in enumerate(points):
-            _, _, label_code = point
-            label_code_lines.append(
-                '"{point_number}","{label_code}","Notes",""\n'.format(
-                    point_number=point_number, label_code=label_code))
-        stream.writelines(label_code_lines)
-
-        # Metadata
-        stream.writelines(['" "\n']*28)
-
-        f = ContentFile(stream.getvalue(), name=cpc_filename)
-        return f
-
-    def preview_csv(self, csv_file, source=None):
-        if not source:
-            source = self.source
-        return self.client.post(
-            reverse('upload_annotations_csv_preview_ajax', args=[source.pk]),
-            {'csv_file': csv_file},
-        )
-
-    def preview_cpc(self, cpc_files, source=None):
-        if not source:
-            source = self.source
-        return self.client.post(
-            reverse('upload_annotations_cpc_preview_ajax', args=[source.pk]),
-            {'cpc_files': cpc_files},
-        )
-
-    def upload(self, source=None):
-        if not source:
-            source = self.source
-        return self.client.post(
-            reverse('upload_annotations_ajax', args=[source.pk]),
-        )
+from upload.test_utils import UploadAnnotationsTestMixin
 
 
 class UploadAnnotationsNoLabelsetTest(ClientTest):
@@ -162,6 +78,10 @@ class UploadAnnotationsNoLabelsetTest(ClientTest):
         self.assertTemplateUsed(response, 'labels/labelset_required.html')
 
 
+class UploadAnnotationsBaseTest(ClientTest, UploadAnnotationsTestMixin):
+    pass
+
+
 class UploadAnnotationsTest(UploadAnnotationsBaseTest):
     """
     Point/annotation upload and preview.
@@ -191,8 +111,6 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
         """
         No annotations on specified points.
         """
-        self.client.force_login(self.user)
-
         rows = [
             ['Name', 'Column', 'Row'],
             ['1.png', 50, 50],
@@ -205,8 +123,9 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
             ['2.png', 44, 44],
         ]
         csv_file = self.make_csv_file('A.csv', rows)
-        preview_response = self.preview_csv(csv_file)
-        upload_response = self.upload()
+        preview_response = self.preview_csv_annotations(
+            self.user, self.source, csv_file)
+        upload_response = self.upload_annotations(self.user, self.source)
 
         self.check_points_only(preview_response, upload_response)
 
@@ -214,8 +133,6 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
         """
         No annotations on specified points.
         """
-        self.client.force_login(self.user)
-
         cpc_files = [
             self.make_cpc_file(
                 '1.cpc',
@@ -232,8 +149,9 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
                     (2992, 1492, ''),
                     (43*15, 43*15, '')]),
         ]
-        preview_response = self.preview_cpc(cpc_files)
-        upload_response = self.upload()
+        preview_response = self.preview_cpc_annotations(
+            self.user, self.source, cpc_files)
+        upload_response = self.upload_annotations(self.user, self.source)
 
         self.check_points_only(preview_response, upload_response)
 
@@ -308,8 +226,6 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
         """
         Annotations on all specified points.
         """
-        self.client.force_login(self.user)
-
         rows = [
             ['Name', 'Column', 'Row', 'Label'],
             ['1.png', 50, 50, 'A'],
@@ -318,8 +234,9 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
             ['2.png', 80, 20, 'A'],
         ]
         csv_file = self.make_csv_file('A.csv', rows)
-        preview_response = self.preview_csv(csv_file)
-        upload_response = self.upload()
+        preview_response = self.preview_csv_annotations(
+            self.user, self.source, csv_file)
+        upload_response = self.upload_annotations(self.user, self.source)
 
         self.check_all_annotations(preview_response, upload_response)
 
@@ -327,8 +244,6 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
         """
         Annotations on all specified points.
         """
-        self.client.force_login(self.user)
-
         cpc_files = [
             self.make_cpc_file(
                 '1.cpc',
@@ -341,8 +256,9 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
                     (69*15, 29*15, 'A'),
                     (79*15, 19*15, 'A')]),
         ]
-        preview_response = self.preview_cpc(cpc_files)
-        upload_response = self.upload()
+        preview_response = self.preview_cpc_annotations(
+            self.user, self.source, cpc_files)
+        upload_response = self.upload_annotations(self.user, self.source)
 
         self.check_all_annotations(preview_response, upload_response)
 
@@ -416,8 +332,6 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
         """
         Annotations on some specified points, but not all.
         """
-        self.client.force_login(self.user)
-
         rows = [
             ['Name', 'Column', 'Row', 'Label'],
             ['1.png', 50, 50, 'A'],
@@ -428,8 +342,9 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
             ['3.png', 80, 20],
         ]
         csv_file = self.make_csv_file('A.csv', rows)
-        preview_response = self.preview_csv(csv_file)
-        upload_response = self.upload()
+        preview_response = self.preview_csv_annotations(
+            self.user, self.source, csv_file)
+        upload_response = self.upload_annotations(self.user, self.source)
 
         self.check_some_annotations(preview_response, upload_response)
 
@@ -437,8 +352,6 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
         """
         Annotations on some specified points, but not all.
         """
-        self.client.force_login(self.user)
-
         cpc_files = [
             self.make_cpc_file(
                 '1.cpc',
@@ -456,8 +369,9 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
                     (69*15, 29*15, ''),
                     (79*15, 19*15, '')]),
         ]
-        preview_response = self.preview_cpc(cpc_files)
-        upload_response = self.upload()
+        preview_response = self.preview_cpc_annotations(
+            self.user, self.source, cpc_files)
+        upload_response = self.upload_annotations(self.user, self.source)
 
         self.check_some_annotations(preview_response, upload_response)
 
@@ -539,8 +453,6 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
         """
         Save some annotations, then overwrite those with other annotations.
         """
-        self.client.force_login(self.user)
-
         rows = [
             ['Name', 'Column', 'Row', 'Label'],
             ['1.png', 50, 50, 'A'],
@@ -551,8 +463,8 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
             ['3.png', 80, 20],
         ]
         csv_file = self.make_csv_file('A.csv', rows)
-        self.preview_csv(csv_file)
-        self.upload()
+        self.preview_csv_annotations(self.user, self.source, csv_file)
+        self.upload_annotations(self.user, self.source)
 
         rows = [
             ['Name', 'Column', 'Row', 'Label'],
@@ -564,8 +476,9 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
             ['3.png', 60, 60, 'B'],
         ]
         csv_file = self.make_csv_file('B.csv', rows)
-        preview_response = self.preview_csv(csv_file)
-        upload_response = self.upload()
+        preview_response = self.preview_csv_annotations(
+            self.user, self.source, csv_file)
+        upload_response = self.upload_annotations(self.user, self.source)
 
         self.check_overwrite_annotations(preview_response, upload_response)
 
@@ -573,8 +486,6 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
         """
         Save some annotations, then overwrite those with other annotations.
         """
-        self.client.force_login(self.user)
-
         cpc_files = [
             self.make_cpc_file(
                 '1.cpc',
@@ -592,8 +503,8 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
                     (69*15, 29*15, ''),
                     (79*15, 19*15, '')]),
         ]
-        self.preview_cpc(cpc_files)
-        self.upload()
+        self.preview_cpc_annotations(self.user, self.source, cpc_files)
+        self.upload_annotations(self.user, self.source)
 
         cpc_files = [
             self.make_cpc_file(
@@ -612,8 +523,9 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
                     (49*15, 49*15, 'A'),
                     (59*15, 59*15, 'B')]),
         ]
-        preview_response = self.preview_cpc(cpc_files)
-        upload_response = self.upload()
+        preview_response = self.preview_cpc_annotations(
+            self.user, self.source, cpc_files)
+        upload_response = self.upload_annotations(self.user, self.source)
 
         self.check_overwrite_annotations(preview_response, upload_response)
 
@@ -694,8 +606,6 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
         The import file's label codes can use different upper/lower case
         and still be matched to the corresponding labelset label codes.
         """
-        self.client.force_login(self.user)
-
         # Make a longer-than-1-char label code so we can test that
         # lower() is being used on both the label's code and the CSV value
         labels = self.create_labels(self.user, ['Abc'], 'Group1')
@@ -706,8 +616,9 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
             ['1.png', 60, 40, 'aBc'],
         ]
         csv_file = self.make_csv_file('A.csv', rows)
-        preview_response = self.preview_csv(csv_file)
-        upload_response = self.upload()
+        preview_response = self.preview_csv_annotations(
+            self.user, self.source, csv_file)
+        upload_response = self.upload_annotations(self.user, self.source)
 
         self.check_label_codes_different_case(
             preview_response, upload_response)
@@ -717,8 +628,6 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
         The import file's label codes can use different upper/lower case
         and still be matched to the corresponding labelset label codes.
         """
-        self.client.force_login(self.user)
-
         # Make a longer-than-1-char label code so we can test that
         # lower() is being used on both the label's code and the CSV value
         labels = self.create_labels(self.user, ['Abc'], 'Group1')
@@ -730,8 +639,9 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
                 r"C:\My Photos\2017-05-13 GBR\1.png", [
                     (59*15, 39*15, 'aBc')]),
         ]
-        preview_response = self.preview_cpc(cpc_files)
-        upload_response = self.upload()
+        preview_response = self.preview_cpc_annotations(
+            self.user, self.source, cpc_files)
+        upload_response = self.upload_annotations(self.user, self.source)
 
         self.check_label_codes_different_case(
             preview_response, upload_response)
@@ -785,16 +695,15 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
         The CSV can have filenames that we don't recognize. Those rows
         will just be ignored.
         """
-        self.client.force_login(self.user)
-
         rows = [
             ['Name', 'Column', 'Row', 'Label'],
             ['1.png', 50, 50, 'A'],
             ['4.png', 60, 40, 'B'],
         ]
         csv_file = self.make_csv_file('A.csv', rows)
-        preview_response = self.preview_csv(csv_file)
-        upload_response = self.upload()
+        preview_response = self.preview_csv_annotations(
+            self.user, self.source, csv_file)
+        upload_response = self.upload_annotations(self.user, self.source)
 
         self.check_skipped_filenames(preview_response, upload_response)
 
@@ -803,8 +712,6 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
         There can be CPCs corresponding to filenames that we don't recognize.
         Those CPCs will just be ignored.
         """
-        self.client.force_login(self.user)
-
         cpc_files = [
             self.make_cpc_file(
                 '1.cpc',
@@ -815,8 +722,9 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
                 r"C:\My Photos\2017-05-13 GBR\4.png", [
                     (59*15, 39*15, 'B')]),
         ]
-        preview_response = self.preview_cpc(cpc_files)
-        upload_response = self.upload()
+        preview_response = self.preview_cpc_annotations(
+            self.user, self.source, cpc_files)
+        upload_response = self.upload_annotations(self.user, self.source)
 
         self.check_skipped_filenames(preview_response, upload_response)
 
@@ -895,8 +803,6 @@ class UploadAnnotationsMultipleSourcesTest(UploadAnnotationsBaseTest):
         We shouldn't touch images of other sources which happen to have
         the same image names.
         """
-        self.client.force_login(self.user)
-
         # Upload to source 2
         rows = [
             ['Name', 'Column', 'Row', 'Label'],
@@ -906,8 +812,8 @@ class UploadAnnotationsMultipleSourcesTest(UploadAnnotationsBaseTest):
             ['2.png', 25, 25, 'A'],
         ]
         csv_file = self.make_csv_file('A.csv', rows)
-        self.preview_csv(csv_file, source=self.source2)
-        self.upload(source=self.source2)
+        self.preview_csv_annotations(self.user, self.source2, csv_file)
+        self.upload_annotations(self.user, self.source2)
 
         # Upload to source 1
         rows = [
@@ -917,8 +823,9 @@ class UploadAnnotationsMultipleSourcesTest(UploadAnnotationsBaseTest):
             ['2.png', 60, 40, 'B'],
         ]
         csv_file = self.make_csv_file('B.csv', rows)
-        preview_response = self.preview_csv(csv_file, source=self.source)
-        upload_response = self.upload(source=self.source)
+        preview_response = self.preview_csv_annotations(
+            self.user, self.source, csv_file)
+        upload_response = self.upload_annotations(self.user, self.source)
 
         self.check_other_sources_unaffected(preview_response, upload_response)
 
@@ -927,8 +834,6 @@ class UploadAnnotationsMultipleSourcesTest(UploadAnnotationsBaseTest):
         We shouldn't touch images of other sources which happen to have
         the same image names.
         """
-        self.client.force_login(self.user)
-
         # Upload to source 2
         cpc_files = [
             self.make_cpc_file(
@@ -942,8 +847,8 @@ class UploadAnnotationsMultipleSourcesTest(UploadAnnotationsBaseTest):
                     (14*15, 14*15, 'A'),
                     (24*15, 24*15, 'A')]),
         ]
-        self.preview_cpc(cpc_files, source=self.source2)
-        self.upload(source=self.source2)
+        self.preview_cpc_annotations(self.user, self.source2, cpc_files)
+        self.upload_annotations(self.user, self.source2)
 
         # Upload to source 1
         cpc_files = [
@@ -957,8 +862,9 @@ class UploadAnnotationsMultipleSourcesTest(UploadAnnotationsBaseTest):
                 r"C:\My Photos\2017-05-13 GBR\2.png", [
                     (59*15, 39*15, 'B')]),
         ]
-        preview_response = self.preview_cpc(cpc_files, source=self.source)
-        upload_response = self.upload(source=self.source)
+        preview_response = self.preview_cpc_annotations(
+            self.user, self.source, cpc_files)
+        upload_response = self.upload_annotations(self.user, self.source)
 
         self.check_other_sources_unaffected(preview_response, upload_response)
 
@@ -1064,15 +970,14 @@ class UploadAnnotationsContentsTest(UploadAnnotationsBaseTest):
             image_options=dict(filename='2.png', width=100, height=200))
 
     def do_success_csv(self, point_data, expected_points_set):
-        self.client.force_login(self.user)
         rows = [['1.png']+list(p) for p in point_data]
         if len(rows[0]) == 3:
             header_row = ['Name', 'Column', 'Row']
         else:
             header_row = ['Name', 'Column', 'Row', 'Label']
         csv_file = self.make_csv_file('A.csv', [header_row] + rows)
-        self.preview_csv(csv_file)
-        self.upload()
+        self.preview_csv_annotations(self.user, self.source, csv_file)
+        self.upload_annotations(self.user, self.source)
 
         values_set = set(
             Point.objects.filter(image__in=[self.img1])
@@ -1080,28 +985,27 @@ class UploadAnnotationsContentsTest(UploadAnnotationsBaseTest):
         self.assertSetEqual(values_set, expected_points_set)
 
     def do_error_csv(self, point_data, expected_error):
-        self.client.force_login(self.user)
         rows = [['1.png']+list(p) for p in point_data]
         if len(rows[0]) == 3:
             header_row = ['Name', 'Column', 'Row']
         else:
             header_row = ['Name', 'Column', 'Row', 'Label']
         csv_file = self.make_csv_file('A.csv', [header_row] + rows)
-        preview_response = self.preview_csv(csv_file)
+        preview_response = self.preview_csv_annotations(
+            self.user, self.source, csv_file)
 
         self.assertDictEqual(
             preview_response.json(),
             dict(error=expected_error))
 
     def do_success_cpc(self, point_data, expected_points_set):
-        self.client.force_login(self.user)
         if len(point_data[0]) == 2:
             point_data = [p+('',) for p in point_data]
         cpc_files = [
             self.make_cpc_file(
                 '1.cpc', r"C:\My Photos\2017-05-13 GBR\1.png", point_data)]
-        self.preview_cpc(cpc_files)
-        self.upload()
+        self.preview_cpc_annotations(self.user, self.source, cpc_files)
+        self.upload_annotations(self.user, self.source)
 
         values_set = set(
             Point.objects.filter(image__in=[self.img1])
@@ -1109,13 +1013,13 @@ class UploadAnnotationsContentsTest(UploadAnnotationsBaseTest):
         self.assertSetEqual(values_set, expected_points_set)
 
     def do_error_cpc(self, point_data, expected_error):
-        self.client.force_login(self.user)
         if len(point_data[0]) == 2:
             point_data = [p+('',) for p in point_data]
         cpc_files = [
             self.make_cpc_file(
                 '1.cpc', r"C:\My Photos\2017-05-13 GBR\1.png", point_data)]
-        preview_response = self.preview_cpc(cpc_files)
+        preview_response = self.preview_cpc_annotations(
+            self.user, self.source, cpc_files)
 
         self.assertDictEqual(
             preview_response.json(),
@@ -1302,13 +1206,12 @@ class UploadAnnotationsContentsTest(UploadAnnotationsBaseTest):
         """
         The import data has no filenames that can be found in the source.
         """
-        self.client.force_login(self.user)
-
         csv_file = self.make_csv_file('A.csv', [
             ['Name', 'Column', 'Row'],
             ['3.png', 50, 50],
             ['4.png', 60, 40]])
-        preview_response = self.preview_csv(csv_file)
+        preview_response = self.preview_csv_annotations(
+            self.user, self.source, csv_file)
 
         self.assertDictEqual(
             preview_response.json(),
@@ -1318,8 +1221,6 @@ class UploadAnnotationsContentsTest(UploadAnnotationsBaseTest):
         )
 
     def test_no_specified_images_found_in_source_cpc(self):
-        self.client.force_login(self.user)
-
         cpc_files = [
             self.make_cpc_file(
                 '3.cpc', r"C:\My Photos\2017-05-13 GBR\3.png", [
@@ -1328,7 +1229,8 @@ class UploadAnnotationsContentsTest(UploadAnnotationsBaseTest):
                 '4.cpc', r"C:\My Photos\2017-05-13 GBR\4.png", [
                     (59*15, 39*15, '')]),
         ]
-        preview_response = self.preview_cpc(cpc_files)
+        preview_response = self.preview_cpc_annotations(
+            self.user, self.source, cpc_files)
 
         self.assertDictEqual(
             preview_response.json(),
@@ -1360,15 +1262,14 @@ class UploadAnnotationsCSVFormatTest(UploadAnnotationsBaseTest):
         The CSV can have column names that we don't recognize. Those columns
         will just be ignored.
         """
-        self.client.force_login(self.user)
-
         rows = [
             ['Name', 'Column', 'Row', 'Annotator', 'Label'],
             ['1.png', 60, 40, 'Jane', 'A'],
         ]
         csv_file = self.make_csv_file('A.csv', rows)
-        preview_response = self.preview_csv(csv_file)
-        self.upload()
+        preview_response = self.preview_csv_annotations(
+            self.user, self.source, csv_file)
+        self.upload_annotations(self.user, self.source)
 
         self.assertDictEqual(
             preview_response.json(),
@@ -1413,15 +1314,14 @@ class UploadAnnotationsCSVFormatTest(UploadAnnotationsBaseTest):
         """
         The CSV columns can be in a different order.
         """
-        self.client.force_login(self.user)
-
         rows = [
             ['Row', 'Name', 'Label', 'Column'],
             [40, '1.png', 'A', 60],
         ]
         csv_file = self.make_csv_file('A.csv', rows)
-        preview_response = self.preview_csv(csv_file)
-        self.upload()
+        preview_response = self.preview_csv_annotations(
+            self.user, self.source, csv_file)
+        self.upload_annotations(self.user, self.source)
 
         self.assertDictEqual(
             preview_response.json(),
@@ -1467,15 +1367,14 @@ class UploadAnnotationsCSVFormatTest(UploadAnnotationsBaseTest):
         The CSV column names can use different upper/lower case and still
         be matched to the expected column names.
         """
-        self.client.force_login(self.user)
-
         rows = [
             ['name', 'coLUmN', 'ROW', 'Label'],
             ['1.png', 60, 40, 'A'],
         ]
         csv_file = self.make_csv_file('A.csv', rows)
-        preview_response = self.preview_csv(csv_file)
-        upload_response = self.upload()
+        preview_response = self.preview_csv_annotations(
+            self.user, self.source, csv_file)
+        upload_response = self.upload_annotations(self.user, self.source)
 
         self.assertDictEqual(
             preview_response.json(),
@@ -1520,15 +1419,14 @@ class UploadAnnotationsCSVFormatTest(UploadAnnotationsBaseTest):
 
     def test_surrounding_whitespace(self):
         """Strip whitespace surrounding the CSV values."""
-        self.client.force_login(self.user)
-
         rows = [
             ['Name ', '\tColumn\t', '  Row', '\tLabel    '],
             ['\t1.png', '    60   ', ' 40', 'A'],
         ]
         csv_file = self.make_csv_file('A.csv', rows)
-        preview_response = self.preview_csv(csv_file)
-        upload_response = self.upload()
+        preview_response = self.preview_csv_annotations(
+            self.user, self.source, csv_file)
+        upload_response = self.upload_annotations(self.user, self.source)
 
         self.assertDictEqual(
             preview_response.json(),
@@ -1575,15 +1473,14 @@ class UploadAnnotationsCSVFormatTest(UploadAnnotationsBaseTest):
         """
         No CSV columns correspond to the name field.
         """
-        self.client.force_login(self.user)
-
         rows = [
             ['Column', 'Row', 'Label'],
             [50, 50, 'A'],
             [60, 40, 'B'],
         ]
         csv_file = self.make_csv_file('A.csv', rows)
-        preview_response = self.preview_csv(csv_file)
+        preview_response = self.preview_csv_annotations(
+            self.user, self.source, csv_file)
 
         self.assertDictEqual(
             preview_response.json(),
@@ -1594,15 +1491,14 @@ class UploadAnnotationsCSVFormatTest(UploadAnnotationsBaseTest):
         """
         No CSV columns correspond to the row field.
         """
-        self.client.force_login(self.user)
-
         rows = [
             ['Name', 'Column', 'Label'],
             ['1.png', 50, 'A'],
             ['1.png', 60, 'B'],
         ]
         csv_file = self.make_csv_file('A.csv', rows)
-        preview_response = self.preview_csv(csv_file)
+        preview_response = self.preview_csv_annotations(
+            self.user, self.source, csv_file)
 
         self.assertDictEqual(
             preview_response.json(),
@@ -1613,15 +1509,14 @@ class UploadAnnotationsCSVFormatTest(UploadAnnotationsBaseTest):
         """
         No CSV columns correspond to the column field.
         """
-        self.client.force_login(self.user)
-
         rows = [
             ['Name', 'Row'],
             ['1.png', 50],
             ['1.png', 40],
         ]
         csv_file = self.make_csv_file('A.csv', rows)
-        preview_response = self.preview_csv(csv_file)
+        preview_response = self.preview_csv_annotations(
+            self.user, self.source, csv_file)
 
         self.assertDictEqual(
             preview_response.json(),
@@ -1632,15 +1527,14 @@ class UploadAnnotationsCSVFormatTest(UploadAnnotationsBaseTest):
         """
         A row is missing the row field.
         """
-        self.client.force_login(self.user)
-
         rows = [
             ['Name', 'Column', 'Row'],
             ['1.png', 50, 50],
             ['1.png', 60, ''],
         ]
         csv_file = self.make_csv_file('A.csv', rows)
-        preview_response = self.preview_csv(csv_file)
+        preview_response = self.preview_csv_annotations(
+            self.user, self.source, csv_file)
 
         self.assertDictEqual(
             preview_response.json(),
@@ -1651,15 +1545,14 @@ class UploadAnnotationsCSVFormatTest(UploadAnnotationsBaseTest):
         """
         A row is missing the column field.
         """
-        self.client.force_login(self.user)
-
         rows = [
             ['Name', 'Column', 'Row'],
             ['1.png', '', 50],
             ['1.png', 60, 40],
         ]
         csv_file = self.make_csv_file('A.csv', rows)
-        preview_response = self.preview_csv(csv_file)
+        preview_response = self.preview_csv_annotations(
+            self.user, self.source, csv_file)
 
         self.assertDictEqual(
             preview_response.json(),
@@ -1670,10 +1563,9 @@ class UploadAnnotationsCSVFormatTest(UploadAnnotationsBaseTest):
         """
         Do at least basic detection of non-CSV files.
         """
-        self.client.force_login(self.user)
-
         f = sample_image_as_file('A.jpg')
-        preview_response = self.preview_csv(f)
+        preview_response = self.preview_csv_annotations(
+            self.user, self.source, f)
 
         self.assertDictEqual(
             preview_response.json(),
@@ -1701,26 +1593,24 @@ class UploadAnnotationsCPCFormatTest(UploadAnnotationsBaseTest):
             image_options=dict(filename='1.png', width=100, height=100))
 
     def test_one_line(self):
-        self.client.force_login(self.user)
-
         stream = StringIO()
         # Line 1
         stream.writelines(['a,b,c,d,e,f\n'])
         cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
-        preview_response = self.preview_cpc([cpc_file])
+        preview_response = self.preview_cpc_annotations(
+            self.user, self.source, [cpc_file])
 
         self.assertDictEqual(
             preview_response.json(),
             dict(error="File 1.cpc seems to have too few lines."))
 
     def test_line_1_not_enough_tokens(self):
-        self.client.force_login(self.user)
-
         stream = StringIO()
         # Line 1
         stream.writelines(['abc\n'])
         cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
-        preview_response = self.preview_cpc([cpc_file])
+        preview_response = self.preview_cpc_annotations(
+            self.user, self.source, [cpc_file])
 
         self.assertDictEqual(
             preview_response.json(),
@@ -1730,13 +1620,12 @@ class UploadAnnotationsCPCFormatTest(UploadAnnotationsBaseTest):
                 " 6 were expected.")))
 
     def test_line_1_too_many_tokens(self):
-        self.client.force_login(self.user)
-
         stream = StringIO()
         # Line 1
         stream.writelines(['ab,cd,ef,gh,ij,kl,mn\n'])
         cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
-        preview_response = self.preview_cpc([cpc_file])
+        preview_response = self.preview_cpc_annotations(
+            self.user, self.source, [cpc_file])
 
         self.assertDictEqual(
             preview_response.json(),
@@ -1748,13 +1637,12 @@ class UploadAnnotationsCPCFormatTest(UploadAnnotationsBaseTest):
     def test_line_1_quoted_commas_accepted(self):
         """Any commas between quotes should be considered part of a
         token, instead of a token separator."""
-        self.client.force_login(self.user)
-
         stream = StringIO()
         # Line 1
         stream.writelines(['ab,cd,ef,"gh,ij",kl,mn\n'])
         cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
-        preview_response = self.preview_cpc([cpc_file])
+        preview_response = self.preview_cpc_annotations(
+            self.user, self.source, [cpc_file])
 
         # Should get past line 1 just fine, and then error due to not
         # having more lines.
@@ -1763,15 +1651,14 @@ class UploadAnnotationsCPCFormatTest(UploadAnnotationsBaseTest):
             dict(error="File 1.cpc seems to have too few lines."))
 
     def test_line_2_wrong_number_of_tokens(self):
-        self.client.force_login(self.user)
-
         stream = StringIO()
         # Line 1
         stream.writelines(['a,b,c,d,e,f\n'])
         # Line 2
         stream.writelines(['1,2,3\n'])
         cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
-        preview_response = self.preview_cpc([cpc_file])
+        preview_response = self.preview_cpc_annotations(
+            self.user, self.source, [cpc_file])
 
         self.assertDictEqual(
             preview_response.json(),
@@ -1781,8 +1668,6 @@ class UploadAnnotationsCPCFormatTest(UploadAnnotationsBaseTest):
                 " 2 were expected.")))
 
     def test_line_6_wrong_number_of_tokens(self):
-        self.client.force_login(self.user)
-
         stream = StringIO()
         # Line 1
         stream.writelines(['a,b,c,d,e,f\n'])
@@ -1791,7 +1676,8 @@ class UploadAnnotationsCPCFormatTest(UploadAnnotationsBaseTest):
         # Line 6
         stream.writelines(['abc,def\n'])
         cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
-        preview_response = self.preview_cpc([cpc_file])
+        preview_response = self.preview_cpc_annotations(
+            self.user, self.source, [cpc_file])
 
         self.assertDictEqual(
             preview_response.json(),
@@ -1801,8 +1687,6 @@ class UploadAnnotationsCPCFormatTest(UploadAnnotationsBaseTest):
                 " 1 were expected.")))
 
     def test_line_6_not_number(self):
-        self.client.force_login(self.user)
-
         stream = StringIO()
         # Line 1
         stream.writelines(['a,b,c,d,e,f\n'])
@@ -1811,7 +1695,8 @@ class UploadAnnotationsCPCFormatTest(UploadAnnotationsBaseTest):
         # Line 6
         stream.writelines(['abc\n'])
         cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
-        preview_response = self.preview_cpc([cpc_file])
+        preview_response = self.preview_cpc_annotations(
+            self.user, self.source, [cpc_file])
 
         self.assertDictEqual(
             preview_response.json(),
@@ -1821,8 +1706,6 @@ class UploadAnnotationsCPCFormatTest(UploadAnnotationsBaseTest):
                 " positive integer: abc")))
 
     def test_line_6_number_below_1(self):
-        self.client.force_login(self.user)
-
         stream = StringIO()
         # Line 1
         stream.writelines(['a,b,c,d,e,f\n'])
@@ -1831,7 +1714,8 @@ class UploadAnnotationsCPCFormatTest(UploadAnnotationsBaseTest):
         # Line 6
         stream.writelines(['0\n'])
         cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
-        preview_response = self.preview_cpc([cpc_file])
+        preview_response = self.preview_cpc_annotations(
+            self.user, self.source, [cpc_file])
 
         self.assertDictEqual(
             preview_response.json(),
@@ -1841,8 +1725,6 @@ class UploadAnnotationsCPCFormatTest(UploadAnnotationsBaseTest):
                 " positive integer: 0")))
 
     def test_point_position_line_wrong_number_of_tokens(self):
-        self.client.force_login(self.user)
-
         stream = StringIO()
         # Line 1
         stream.writelines(['a,b,c,d,e,f\n'])
@@ -1856,7 +1738,8 @@ class UploadAnnotationsCPCFormatTest(UploadAnnotationsBaseTest):
         # Line 16: labels
         stream.writelines(['a,b,c,d\n'])
         cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
-        preview_response = self.preview_cpc([cpc_file])
+        preview_response = self.preview_cpc_annotations(
+            self.user, self.source, [cpc_file])
 
         self.assertDictEqual(
             preview_response.json(),
@@ -1866,8 +1749,6 @@ class UploadAnnotationsCPCFormatTest(UploadAnnotationsBaseTest):
                 " 2 were expected.")))
 
     def test_label_line_wrong_number_of_tokens(self):
-        self.client.force_login(self.user)
-
         stream = StringIO()
         # Line 1
         stream.writelines(['a,b,c,d,e,f\n'])
@@ -1879,7 +1760,8 @@ class UploadAnnotationsCPCFormatTest(UploadAnnotationsBaseTest):
         stream.writelines([
             '{n},{n}\n'.format(n=n*15) for n in range(1, 11+1)])
         cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
-        preview_response = self.preview_cpc([cpc_file])
+        preview_response = self.preview_cpc_annotations(
+            self.user, self.source, [cpc_file])
 
         self.assertDictEqual(
             preview_response.json(),
@@ -1889,8 +1771,6 @@ class UploadAnnotationsCPCFormatTest(UploadAnnotationsBaseTest):
                 " 4 were expected.")))
 
     def test_not_enough_label_lines(self):
-        self.client.force_login(self.user)
-
         stream = StringIO()
         # Line 1
         stream.writelines(['a,b,c,d,e,f\n'])
@@ -1904,15 +1784,14 @@ class UploadAnnotationsCPCFormatTest(UploadAnnotationsBaseTest):
         # Line 17-25: labels (one line too few)
         stream.writelines(['a,b,c,d\n']*9)
         cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
-        preview_response = self.preview_cpc([cpc_file])
+        preview_response = self.preview_cpc_annotations(
+            self.user, self.source, [cpc_file])
 
         self.assertDictEqual(
             preview_response.json(),
             dict(error="File 1.cpc seems to have too few lines."))
 
     def test_multiple_cpcs_for_one_image(self):
-        self.client.force_login(self.user)
-
         stream = StringIO()
         # Line 1
         stream.writelines(['a,"D:\\Panama transects\\1.png",c,d,e,f\n'])
@@ -1943,7 +1822,8 @@ class UploadAnnotationsCPCFormatTest(UploadAnnotationsBaseTest):
         stream.writelines(['a,b,c,d\n']*10)
         cpc_file_2 = ContentFile(stream.getvalue(), name='2.cpc')
 
-        preview_response = self.preview_cpc([cpc_file_1, cpc_file_2])
+        preview_response = self.preview_cpc_annotations(
+            self.user, self.source, [cpc_file_1, cpc_file_2])
 
         self.assertDictEqual(
             preview_response.json(),
@@ -1974,9 +1854,6 @@ class UploadAnnotationsSaveCPCInfoTest(UploadAnnotationsBaseTest):
             image_options=dict(filename='2.jpg', width=100, height=100))
 
     def test_cpc_content_one_image(self):
-
-        self.client.force_login(self.user)
-
         cpc_files = [
             self.make_cpc_file(
                 '1.cpc',
@@ -1989,8 +1866,8 @@ class UploadAnnotationsSaveCPCInfoTest(UploadAnnotationsBaseTest):
         # Reset the file pointer so that the views can read from the start.
         cpc_files[0].seek(0)
 
-        self.preview_cpc(cpc_files)
-        self.upload()
+        self.preview_cpc_annotations(self.user, self.source, cpc_files)
+        self.upload_annotations(self.user, self.source)
 
         self.img1.refresh_from_db()
         self.assertEqual(self.img1.cpc_content, img1_expected_cpc_content)
@@ -2000,9 +1877,6 @@ class UploadAnnotationsSaveCPCInfoTest(UploadAnnotationsBaseTest):
         self.assertEqual(self.img2.cpc_filename, '')
 
     def test_cpc_content_multiple_images(self):
-
-        self.client.force_login(self.user)
-
         cpc_files = [
             self.make_cpc_file(
                 'GBR_1.cpc',
@@ -2022,8 +1896,8 @@ class UploadAnnotationsSaveCPCInfoTest(UploadAnnotationsBaseTest):
         cpc_files[0].seek(0)
         cpc_files[1].seek(0)
 
-        self.preview_cpc(cpc_files)
-        self.upload()
+        self.preview_cpc_annotations(self.user, self.source, cpc_files)
+        self.upload_annotations(self.user, self.source)
 
         self.img1.refresh_from_db()
         self.assertEqual(self.img1.cpc_content, img1_expected_cpc_content)
@@ -2033,9 +1907,6 @@ class UploadAnnotationsSaveCPCInfoTest(UploadAnnotationsBaseTest):
         self.assertEqual(self.img2.cpc_filename, 'GBR_2.cpc')
 
     def test_source_fields(self):
-
-        self.client.force_login(self.user)
-
         cpc_files = [
             self.make_cpc_file(
                 '1.cpc',
@@ -2050,8 +1921,8 @@ class UploadAnnotationsSaveCPCInfoTest(UploadAnnotationsBaseTest):
                     (79*15, 19*15, 'A')],
                 codes_filepath=r'C:\My Photos\CPCe codefiles\GBR codes.txt'),
         ]
-        self.preview_cpc(cpc_files)
-        self.upload()
+        self.preview_cpc_annotations(self.user, self.source, cpc_files)
+        self.upload_annotations(self.user, self.source)
 
         self.source.refresh_from_db()
         # Although it's an implementation detail and not part of spec,

@@ -450,16 +450,17 @@ def upload_annotations_ajax(request, source_id):
             if 'label' in point_dict:
                 label_obj = source.labelset.get_global_by_code(
                     point_dict['label'])
+                # TODO: Django 1.10 can set database IDs on newly created
+                # objects, so re-fetching the points may not be needed:
+                # https://docs.djangoproject.com/en/dev/releases/1.10/#database-backends
                 new_annotations.append(Annotation(
                     point=Point.objects.get(point_number=num, image=img),
                     image=img, source=source,
                     label=label_obj, user=get_imported_user()))
-        # Save to DB with an efficient bulk operation.
-        # TODO: It may be possible to merge the Point and Annotation
-        # creation code more cleanly in Django 1.10, which can set
-        # database IDs on newly created objects:
-        # https://docs.djangoproject.com/en/dev/releases/1.10/#database-backends
-        Annotation.objects.bulk_create(new_annotations)
+        # Do NOT bulk-create the annotations so that the versioning signals
+        # (for annotation history) do not get bypassed. Create them one by one.
+        for annotation in new_annotations:
+            annotation.save()
 
         # Update relevant image/metadata fields.
         img.point_generation_method = PointGen.args_to_db_format(

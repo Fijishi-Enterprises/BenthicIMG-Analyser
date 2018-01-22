@@ -51,6 +51,9 @@ boto==2.40.0
 # Requires boto
 django-storages==1.4.1
 
+# HTML parsing
+beautifulsoup4==4.6.0
+
 # Fancy math
 numpy==1.11.1
 

@@ -1,0 +1,42 @@
+/* Custom rules for jQuery UI widgets. This is separate from jquery-ui so
+we can track our changes vs. the "official" rules separately. And this is
+separate from master.css so that we can apply rules in the order of
+master -> jQuery UI official -> jQuery UI custom (by putting the stylesheet
+link elements in that order). */
+
+
+/* jQuery UI widgets, mostly help dialogs shown by clicking "?" buttons */
+.ui-widget {
+    /* Use global font-family rather than jQuery UI's default */
+    font-family: inherit;
+    font-size: 0.9em;
+}
+.ui-widget input, .ui-widget select, .ui-widget textarea, .ui-widget button {
+    /* Use global font-family rather than jQuery UI's default */
+    font-family: inherit;
+    font-size: 0.9em;
+}
+.ui-widget ul li {
+    /* Make help-dialog lists bulleted */
+    list-style-type: disc;
+    list-style-position: outside;
+
+    line-height: 1.2em;
+
+    margin: 10px 0 10px 20px;   /* t r b l */
+}
+.ui-dialog.ui-widget-content {
+    /* Make dialogs faintly transparent; useful when the dialog is talking
+     about some page content that it's sitting on top of */
+    background: rgba(255,255,255,0.9);
+}
+.ui-dialog.ui-dialog-form.ui-widget-content {
+    /* We don't need the dialog transparency for forms, though. And it makes
+     form fields look weird (at least on the Add/Remove Labels page) */
+    background: rgb(255,255,255);
+}
+.ui-dialog.ui-widget-content a {
+    /* Use global link color instead of jQuery UI default (inherit doesn't
+     seem to work here, so we just hard-code the color again) */
+    color: #880e00;
+}

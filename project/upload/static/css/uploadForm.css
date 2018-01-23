@@ -126,21 +126,3 @@ form {
 label {
     width: auto;
 }
-
-
-/* Override defaults for jQuery UI widgets. */
-
-.ui-widget {
-    font-family: inherit;
-    font-size: 0.9em;
-}
-
-.ui-widget ul li {
-    /* Make help-dialog lists bulleted */
-    list-style-type: disc;
-    list-style-position: outside;
-
-    line-height: 1.2em;
-
-    margin: 10px 0 10px 20px;   /* t r b l */
-}

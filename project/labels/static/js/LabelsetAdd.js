@@ -348,7 +348,11 @@ var LabelsetAdd = (function() {
                 $('#new-label-form-popup').dialog({
                     width: 600,
                     height: 400,
-                    modal: false
+                    modal: false,
+                    // This option adds an extra CSS class to the dialog.
+                    // But this way of doing it is deprecated in jQuery 1.12+:
+                    // http://api.jqueryui.com/dialog/#option-dialogClass
+                    dialogClass: 'ui-dialog-form'
                 });
             });
 

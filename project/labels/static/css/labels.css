@@ -142,16 +142,3 @@ p {
     margin: 0.5em 0;  /* top/bottom left/right */
     line-height: 1.0em;
 }
-
-
-/* jQuery-UI stuff like dialogs */
-.ui-widget {
-    /* Override jQuery UI defaults */
-    font-family: inherit;
-    font-size: 0.9em;
-}
-
-.ui-widget-content a {
-    /* Override jQuery UI defaults */
-    color: inherit;
-}

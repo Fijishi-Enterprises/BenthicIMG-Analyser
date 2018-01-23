@@ -3,11 +3,20 @@
 <p>You can select multiple files, but you can only select files within a single folder. Tip: When selecting files, click inside the folder area and then hit <kbd>Ctrl</kbd>+<kbd>A</kbd> in Windows / <kbd>Cmd</kbd>+<kbd>A</kbd> in Mac to select all files in that folder.</p>
 
 <ul>
-  <li>The image filenames used by the CPC files must match existing image filenames in your CoralNet source. The names of your folders do not matter.</li>
+  <li>The image filenames used by the CPC files must match existing image filenames in your CoralNet source. So if your CPC file looks for DSC_0048.JPG, then the image name on CoralNet should be DSC_0048.JPG as well. This is how CoralNet figures out which CPC file belongs to which image. The name of the folder containing your image file does not matter.</li>
 
-  <li>When you upload a CPC file for an image, all existing points and annotations for that image will be overwritten. The preview will warn you if you are overwriting any confirmed annotations.</li>
+  <li>When you upload a CPC file for an image, that image's existing points and annotations on CoralNet will be overwritten. After you select your CPC files, you'll see a preview that will warn you if you're about to overwrite confirmed annotations.</li>
 
   <li>Each CPC file is allowed to contain labels for all, some, or none of the points.</li>
 
-  <li>Label codes used in the CPC file must match a label code in your source's labelset. Codes are case-insensitive. If your labelset has a label code <code>PORIT</code>, and the CPC file has <code>Porit</code>, then these codes will match.</li>
+  <li>
+    Label short codes used in the CPC file must match a label code in your source's labelset.
+    <ul>
+      <li>If you haven't created a labelset for your source yet, <a href="{% url 'labelset_main' source.pk %}" target="_blank">you can do so here</a>.</li>
+      <li>Although labels are site-wide in CoralNet, you can customize the labels' short codes for your source. To do this, go to your source's "Labelset" page, then from there go to the "Edit label entries" page.</li>
+      <li>Codes are case-insensitive. If your labelset has a label code <code>PORIT</code>, and the CPC file has <code>Porit</code>, then these codes will match.</li>
+    </ul>
+  </li>
 </ul>
+
+<p>CPC files contain other information besides points and labels, such as header data and notes codes. When you upload CPC files, CoralNet retains this information on a per-image basis, and you can get this information back by exporting annotations to CPC format. (The Export feature is available at the bottom of the "Images" page.)</p>

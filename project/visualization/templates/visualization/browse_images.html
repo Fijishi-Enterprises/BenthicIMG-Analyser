@@ -75,6 +75,12 @@
     {# Fields to perform an action on one or more images #}
     <div id="action-box" class="box">
 
+      <legend>Image Actions</legend>
+
+      <div class="tutorial-message">
+        {% include "visualization/help_browse_actions.html" %}
+      </div>
+
       {% get_obj_perms user for source as 'source_perms' %}
 
       <select name="browse_action" title="Action">
@@ -196,9 +202,9 @@
             {% if previous_cpcs_status == 'all' %}
               All of the images in this search have previously-uploaded CPC files available. Their environment info, notes, and header values will be preserved when exporting to CPC.
             {% elif previous_cpcs_status == 'some' %}
-              Some of the images in this search have previously-uploaded CPC files available. Their environment info, notes, and header values will be preserved when exporting to CPC. The other images will use the environment info in the text fields below, and will not have notes or header values.
+              Some of the images in this search have previously-uploaded CPC files available. Their environment info, notes, and header values will be preserved when exporting to CPC. The other images will use the environment info in the text fields below, and will not have notes or header values. Click the "?" help button for more information.
             {% elif previous_cpcs_status == 'none' %}
-              None of the images in this search have previously-uploaded CPC files available. They will use the environment info in the text fields below, and will not have notes or header values.
+              None of the images in this search have previously-uploaded CPC files available. They will use the environment info in the text fields below, and will not have notes or header values. Click the "?" help button for more information.
             {% endif %}
           </div>
           <span id="cpc-prefs-fields-container">

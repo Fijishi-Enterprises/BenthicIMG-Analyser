@@ -6,10 +6,10 @@ from zipfile import ZipFile
 
 try:
     # Python 3.4+
-    from pathlib import Path
+    from pathlib import PureWindowsPath
 except ImportError:
     # Python 2.x with pathlib2 package
-    from pathlib2 import Path
+    from pathlib2 import PureWindowsPath
 
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse
@@ -102,7 +102,7 @@ def image_filename_to_cpc_filename(image_filename):
     my_image.bmp -> my_image.cpc
     another_image.gif -> another_image.cpc
     """
-    cpc_filename = Path(image_filename).stem + '.cpc'
+    cpc_filename = PureWindowsPath(image_filename).stem + '.cpc'
     return cpc_filename
 
 
@@ -126,7 +126,8 @@ def write_annotations_cpc(cpc_stream, img, cpc_prefs):
     writer = csv.writer(cpc_stream, quotechar=None, quoting=csv.QUOTE_NONE)
 
     # Line 1: Environment info and image dimensions
-    local_image_path = Path(cpc_prefs[u'local_image_dir'], img.metadata.name)
+    local_image_path = PureWindowsPath(
+        cpc_prefs[u'local_image_dir'], img.metadata.name)
     row = [
         u'"' + cpc_prefs[u'local_code_filepath'] + u'"',
         u'"' + str(local_image_path) + u'"',

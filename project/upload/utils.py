@@ -8,10 +8,10 @@ import functools
 
 try:
     # Python 3.4+
-    from pathlib import Path
+    from pathlib import PureWindowsPath
 except ImportError:
     # Python 2.x with pathlib2 package
-    from pathlib2 import Path
+    from pathlib2 import PureWindowsPath
 
 from six import next, viewitems
 from six.moves import range
@@ -418,8 +418,14 @@ def annotations_cpcs_to_dict(cpc_files, source):
         code_filepath, image_filepath, _, _, _, _ = read_csv_row_curried(6)
         # Assumption: image name on CoralNet == image filename from their
         # local machine. This is how we match up images with CPC files.
-        cpc_dict['image_filename'] = Path(image_filepath).name
-        image_dir = str(Path(image_filepath).parent)
+        #
+        # The filepath follows the rules of the OS running CPCe,
+        # not the rules of the server OS. So we don't use Path.
+        # CPCe only runs on Windows, so we can assume it's a Windows
+        # path. That means using PureWindowsPath (WindowsPath can only
+        # be instantiated on a Windows OS).
+        cpc_dict['image_filename'] = PureWindowsPath(image_filepath).name
+        image_dir = str(PureWindowsPath(image_filepath).parent)
 
         # Lines 2-5; don't need any info from these,
         # but they should have 2 tokens each

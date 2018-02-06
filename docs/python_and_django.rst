@@ -119,7 +119,7 @@ Look under ``project/config/settings``.
   - Any settings values you want to customize for your environment specifically
 
 - The production server should use ``production.py``.
-- The staging server should use ``staging.py``.
+- The staging server should use ``staging.py`` when running similarly to production, or ``staging_debug.py`` when using the runserver command.
 
 Django normally expects the settings to be in a ``settings.py`` at the project root, so we have to tell it otherwise. One way is with the ``DJANGO_SETTINGS_MODULE`` environment variable. Set this variable to ``config.settings.<module name>``, where ``<module name>`` is ``dev_<name>``, ``production``, etc.
 

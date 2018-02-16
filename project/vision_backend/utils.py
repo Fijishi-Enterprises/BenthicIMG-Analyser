@@ -26,14 +26,20 @@ def acc(gt, est):
 
 def get_label_probabilities_for_image(image_id):
     """
-    Returns the full label probabilities for an image in this format:
-    {1: [{'label':'Acrop', 'score':0.148928}, {'label': Porit', 'score': 0.213792}, ...], 2: [...], ...}
+    Returns all the saved label probabilities for an image in this format:
+    {1: [{'label': 'Acrop', 'score': 14},
+         {'label': 'Porit', 'score': 21},
+         ...],
+     2: [...], ...}
+
+    There are NBR_SCORES_PER_ANNOTATION scores per point.
     """
     lpdict = {}
     for point in Point.objects.filter(image_id = image_id).order_by('id'):
         lpdict[point.point_number] = []
         for score in Score.objects.filter(point = point):
-            lpdict[point.point_number].append({'label': score.label_code, 'score':score.score})
+            lpdict[point.point_number].append(
+                {'label': score.label_code, 'score': score.score})
     return lpdict
 
 

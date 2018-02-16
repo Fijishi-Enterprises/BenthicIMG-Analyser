@@ -44,7 +44,16 @@ def _submit_job(messagebody):
 def _add_annotations(image_id, scores, label_objs, classifier):
     """
     Adds annotations objects using the classifier scores.
+
+    :param image_id: Database ID of the Image to add scores for.
+    :param scores: List of lists of score numbers. Same as in _add_scores().
+    :param label_objs: Iterable of Label DB objects, one per label in the
+      source's labelset.
+
     NOTE: this function is SLOW.
+    Note that bulk-saving annotations would skip the signal firing,
+    and thus would not trigger django-reversion's revision creation.
+    So we must save annotations one by one.
     """
     user = get_robot_user()
     img = Image.objects.get(pk = image_id)
@@ -84,7 +93,19 @@ def _add_annotations(image_id, scores, label_objs, classifier):
 
 def _add_scores(image_id, scores, label_objs):
     """
-    Adds score objects using the classifier scores. 
+    Adds score objects using the classifier scores.
+
+    :param image_id: Database ID of the Image to add scores for.
+    :param scores: List of lists of score numbers.
+      Each score number is a float; 0.65 to represent 65% probability. Will be
+      rounded as needed.
+      Each inner list consists of the scores for ALL labels in the source's
+      labelset, for one particular point. The scores should be in the same
+      order as label_objs.
+      The outer list consists of one score list per point in the image. The
+      points are assumed to be in database ID order.
+    :param label_objs: Iterable of Label DB objects, one per label in the
+      source's labelset.
     """
     img = Image.objects.get(pk = image_id)
 

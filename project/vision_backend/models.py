@@ -86,12 +86,18 @@ class Features(models.Model):
 
 class Score(models.Model):
     """
-    Tracks scores for each point in each image.
+    Tracks scores for each point in each image. For each point,
+    scores for only the top NBR_SCORES_PER_ANNOTATION labels are saved.
     """
     label = models.ForeignKey(Label, on_delete = models.CASCADE)
     point = models.ForeignKey('images.Point', on_delete = models.CASCADE)
     source = models.ForeignKey('images.Source', on_delete = models.CASCADE)
     image = models.ForeignKey('images.Image', on_delete = models.CASCADE)
+
+    # Integer between 0 and 99, representing the percent probability
+    # that this point is this label according to the backend. Although
+    # scores are only saved for the top NBR_SCORES_PER_ANNOTATION labels,
+    # this is the probability among all labels in the labelset.
     score = models.IntegerField(default = 0)
 
     @property

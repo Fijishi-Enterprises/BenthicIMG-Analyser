@@ -1,9 +1,11 @@
 # Utility classes and functions for tests.
+from __future__ import division
 from abc import ABCMeta
 from contextlib import contextmanager
 import datetime
 from io import BytesIO
 import json
+import math
 import os
 import posixpath
 import pytz
@@ -26,15 +28,13 @@ from django.core.urlresolvers import reverse
 from django.test import override_settings, skipIfDBFeature, TestCase
 from django.test.client import Client
 from django.utils import timezone
-from reversion import revisions
 
-from accounts.utils import get_robot_user
-from annotations.models import Annotation
 from images.model_utils import PointGen
 from images.models import Source, Point, Image
 from labels.models import LabelGroup, Label
 from lib.exceptions import TestfileDirectoryError
 from vision_backend.models import Classifier as Robot
+import vision_backend.task_helpers as backend_task_helpers
 
 
 # Settings to override in all of our unit tests.
@@ -175,10 +175,15 @@ class ClientUtilsMixin(object):
         post_dict['name'] = name
 
         cls.client.force_login(user)
+        # Create source.
         cls.client.post(reverse('source_new'), post_dict)
+        source = Source.objects.get(name=name)
+        # Edit source; confidence_threshold is only reachable from source_edit.
+        cls.client.post(reverse('source_edit', args=[source.pk]), post_dict)
+        source.refresh_from_db()
         cls.client.logout()
 
-        return Source.objects.get(name=name)
+        return source
 
     @classmethod
     def add_source_member(cls, admin, source, member, perm):
@@ -328,64 +333,19 @@ class ClientUtilsMixin(object):
         )
         cls.client.logout()
 
-    @classmethod
-    def create_robot(cls, source):
+    @staticmethod
+    def create_robot(source):
         """
         Add a robot to a source.
-        NOTE: This does not use any standard task or utility function
-        for adding a robot, so standard assumptions might not hold.
-        :param source: Source to add a robot for.
-        :return: The new Robot.
         """
-        robot = Robot(
-            source=source,
-            nbr_train_images=50,
-            runtime_train=100,
-            accuracy=0.50,
-            valid=True,
-        )
-        robot.save()
-        return robot
+        return create_robot(source)
 
-    @classmethod
-    @revisions.create_revision()
-    def add_robot_annotations(cls, robot, image, annotations):
+    @staticmethod
+    def add_robot_annotations(robot, image, annotations=None):
         """
         Add robot annotations to an image.
-        NOTE: This does not use any standard view or utility function
-        for adding robot annotations, so standard assumptions might not hold:
-        overwriting old annotations, setting statuses, etc. Use with caution.
-        :param robot: Robot model object to use for annotation.
-        :param image: Image to add annotations for.
-        :param annotations: Annotations to add, as a dict of point
-            numbers to label codes, e.g.: {1: 'labelA', 2: 'labelB'}
-        :return: None.
         """
-        num_points = Point.objects.filter(image=image).count()
-
-        # Note that bulk-saving annotations would skip the signal firing,
-        # and thus would not trigger django-reversion's revision creation.
-        # So we must save annotations one by one.
-        for point_num in range(1, num_points+1):
-            label_code = annotations.get(point_num, '')
-            if not label_code:
-                continue
-
-            point = Point.objects.get(image=image, point_number=point_num)
-            annotation = Annotation(
-                image=image,
-                source=image.source,
-                point=point,
-                label=image.source.labelset.get_global_by_code(label_code),
-                user=get_robot_user(),
-                robot_version=robot,
-            )
-            annotation.save()
-
-        if all([n in annotations for n in range(1, num_points+1)]):
-            # Annotations passed in for all points
-            image.features.classified = True
-            image.features.save()
+        add_robot_annotations(robot, image, annotations)
 
 
 class StorageChecker(object):
@@ -852,8 +812,8 @@ def create_sample_image(width=200, height=200, cols=10, rows=10):
     y_max_color = random.choice([0.7, 0.8, 0.9, 1.0])
     const_color = random.choice([0.3, 0.4, 0.5, 0.6, 0.7])
 
-    col_width = width / float(cols)
-    row_height = height / float(rows)
+    col_width = width / cols
+    row_height = height / rows
     min_rgb = 0
     max_rgb = 255
 
@@ -869,7 +829,7 @@ def create_sample_image(width=200, height=200, cols=10, rows=10):
         right_x = int(round((x+1)*col_width))
 
         x_varying_color_value = int(round(
-            (x/float(cols))*(x_max_color - x_min_color)*(max_rgb - min_rgb)
+            (x/cols)*(x_max_color - x_min_color)*(max_rgb - min_rgb)
             + (x_min_color*min_rgb)
         ))
 
@@ -879,7 +839,7 @@ def create_sample_image(width=200, height=200, cols=10, rows=10):
             lower_y = int(round((y+1)*row_height))
 
             y_varying_color_value = int(round(
-                (y/float(rows))*(y_max_color - y_min_color)*(max_rgb - min_rgb)
+                (y/rows)*(y_max_color - y_min_color)*(max_rgb - min_rgb)
                 + (y_min_color*min_rgb)
             ))
 
@@ -918,3 +878,132 @@ def sample_image_as_file(filename, filetype=None, image_options=None):
         # http://stackoverflow.com/a/28209277/
         image_file = ContentFile(stream.getvalue(), name=filename)
     return image_file
+
+
+def create_robot(source):
+    """
+    Add a robot to a source.
+    NOTE: This does not use any standard task or utility function
+    for adding a robot, so standard assumptions might not hold.
+    :param source: Source to add a robot for.
+    :return: The new Robot.
+    """
+    robot = Robot(
+        source=source,
+        nbr_train_images=50,
+        runtime_train=100,
+        accuracy=0.50,
+        valid=True,
+    )
+    robot.save()
+    return robot
+
+
+def add_robot_annotations(robot, image, annotations=None):
+    """
+    Add robot annotations and scores to an image, without touching any
+    computer vision algorithms.
+
+    NOTE: This only uses helper functions for adding robot annotations,
+    not an entire view or task. So the regular assumptions might not hold,
+    like setting statuses, etc. Use with slight caution.
+
+    :param robot: Robot model object to use for annotation.
+    :param image: Image to add annotations for.
+    :param annotations: Annotations to add,
+      as a dict of point numbers to label codes like: {1: 'AB', 2: 'CD'}
+      OR dict of point numbers to label code / confidence value tuples:
+      {1: ('AB', 85), 2: ('CD', 47)}
+      You must specify annotations for ALL points in the image, because
+      that's the expectation of the helper function called from here.
+      Alternatively, you can skip specifying this parameter and let this
+      function assign random labels.
+    :return: None.
+    """
+    # This is the same way _add_annotations() orders points.
+    # This is the order that the scores list should follow.
+    points = Point.objects.filter(image=image).order_by('id')
+
+    # Labels can be in any order, as long as the order stays consistent
+    # throughout annotation adding.
+    local_labels = list(image.source.labelset.get_labels())
+    label_count = len(local_labels)
+
+    if annotations is None:
+        # Pick random labels.
+        point_count = points.count()
+        point_numbers = range(1, point_count + 1)
+        label_codes = [
+            random.choice(local_labels).code
+            for _ in range(point_count)]
+        annotations = dict(zip(point_numbers, label_codes))
+
+    # Make label scores. The specified label should come out on top,
+    # and that label's confidence value (if specified) should be respected.
+    # The rest is arbitrary.
+    scores = []
+    for point in points:
+        try:
+            annotation = annotations[point.point_number]
+        except KeyError:
+            raise ValueError((
+                "No annotation specified for point {num}. You must specify"
+                " annotations for all points in this image.").format(
+                    num=point.point_number))
+
+        if isinstance(annotation, six.string_types):
+            # Only top label specified
+            label_code = annotation
+            # Pick a top score, which is possible to be an UNTIED top score
+            # given the label count (if tied, then the top label is ambiguous).
+            # min with 100 to cover the 1-label-count case.
+            lowest_possible_confidence = min(
+                100, math.ceil(100 / label_count) + 1)
+            top_score = random.randint(lowest_possible_confidence, 100)
+        else:
+            # Top label and top confidence specified
+            label_code, top_score = annotation
+
+        remaining_total = 100 - top_score
+        quotient = remaining_total // (label_count - 1)
+        remainder = remaining_total % (label_count - 1)
+        other_scores = [quotient + 1] * remainder
+        other_scores += [quotient] * (label_count - 1 - remainder)
+
+        # We just tried to make the max of other_scores as small as
+        # possible (given a total of 100), so if that didn't work,
+        # then we'll conclude the confidence value is unreasonably low
+        # given the label count. (Example: 33% confidence, 2 labels)
+        if max(other_scores) >= top_score:
+            raise ValueError((
+                "Could not create {label_count} label scores with a"
+                " top confidence value of {top_score}. Try lowering"
+                " the confidence or adding more labels.").format(
+                    label_count=label_count, top_score=top_score))
+
+        scores_for_point = []
+        # List of scores for a point and list of labels should be in
+        # the same order. In particular, if the nth label is the top one,
+        # then the nth score should be the top one too.
+        for local_label in local_labels:
+            if local_label.code == label_code:
+                scores_for_point.append(top_score)
+            else:
+                scores_for_point.append(other_scores.pop())
+
+        # Up to now we've represented 65% as the integer 65, for easier math.
+        # But the utility functions we'll call actually expect the float 0.65.
+        # So divide by 100.
+        scores.append([s / 100 for s in scores_for_point])
+
+    global_labels = [ll.global_label for ll in local_labels]
+
+    # Add scores. Note that this function expects scores for all labels, but
+    # will only save the top NBR_SCORES_PER_ANNOTATION per point.
+    backend_task_helpers._add_scores(image.pk, scores, global_labels)
+    # Add annotations.
+    backend_task_helpers._add_annotations(
+        image.pk, scores, global_labels, robot)
+
+    image.features.classified = True
+    image.features.save()

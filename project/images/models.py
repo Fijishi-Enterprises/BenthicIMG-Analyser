@@ -1,3 +1,4 @@
+from __future__ import division
 import posixpath
 
 from django.conf import settings
@@ -9,6 +10,7 @@ from easy_thumbnails.fields import ThumbnailerImageField
 from guardian.shortcuts import get_objects_for_user, get_users_with_perms, get_perms, assign, remove_perm
 
 from .model_utils import PointGen
+from accounts.utils import is_robot_user
 from annotations.model_utils import AnnotationAreaUtils
 from labels.models import LabelSet
 from lib.utils import rand_string
@@ -578,8 +580,20 @@ class Point(models.Model):
     row = models.IntegerField()
     column = models.IntegerField()
     point_number = models.IntegerField()
+    # TODO: Is this even used anywhere? If not, delete this and rename
+    # annotation_status_property to annotation_status.
     annotation_status = models.CharField(max_length=1, blank=True)
     image = models.ForeignKey(Image, on_delete=models.CASCADE)
+
+    @property
+    def annotation_status_property(self):
+        if self.annotation_set.count() == 0:
+            return 'unclassified'
+
+        annotation = self.annotation_set.first()
+        if is_robot_user(annotation.user):
+            return 'unconfirmed'
+        return 'confirmed'
 
     @property
     def label_code(self):
@@ -590,6 +604,15 @@ class Point(models.Model):
             # Annotated point
             annotation = self.annotation_set.first()
             return annotation.label_code
+
+    @property
+    def machine_confidence(self):
+        try:
+            scores = [s.score for s in self.score_set.all()]
+            return max(scores)
+        except ValueError:
+            # No scores means max(scores) will raise this
+            return 0
 
     def __unicode__(self):
         """

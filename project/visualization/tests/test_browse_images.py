@@ -201,7 +201,7 @@ class SearchTest(ClientTest):
         # confirmed, confirmed, unconfirmed, partial
         self.add_annotations(self.user, self.imgs[0], {1: 'A', 2: 'B'})
         self.add_annotations(self.user, self.imgs[1], {1: 'B', 2: 'A'})
-        self.add_robot_annotations(robot, self.imgs[2], {1: 'A', 2: 'B'})
+        self.add_robot_annotations(robot, self.imgs[2])
         self.add_annotations(self.user, self.imgs[3], {1: 'B'})
 
         self.client.force_login(self.user)
@@ -214,8 +214,8 @@ class SearchTest(ClientTest):
         # 2 points per image
         # confirmed, unconfirmed, unconfirmed, partial
         self.add_annotations(self.user, self.imgs[0], {1: 'A', 2: 'B'})
-        self.add_robot_annotations(robot, self.imgs[1], {1: 'B', 2: 'A'})
-        self.add_robot_annotations(robot, self.imgs[2], {1: 'A', 2: 'B'})
+        self.add_robot_annotations(robot, self.imgs[1])
+        self.add_robot_annotations(robot, self.imgs[2])
         self.add_annotations(self.user, self.imgs[3], {1: 'B'})
 
         self.client.force_login(self.user)
@@ -228,7 +228,7 @@ class SearchTest(ClientTest):
         # 2 points per image
         # confirmed, unconfirmed, partial (counts as unclassified)
         self.add_annotations(self.user, self.imgs[0], {1: 'A', 2: 'B'})
-        self.add_robot_annotations(robot, self.imgs[1], {1: 'A', 2: 'B'})
+        self.add_robot_annotations(robot, self.imgs[1])
         self.add_annotations(self.user, self.imgs[2], {1: 'B'})
 
         self.client.force_login(self.user)

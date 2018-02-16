@@ -118,12 +118,11 @@ class SearchTest(ClientTest):
 
     def test_filter_by_annotation_status_confirmed(self):
         robot = self.create_robot(self.source)
+        # 10 points per image
+        self.add_robot_annotations(robot, self.img1)
         self.add_annotations(
             self.user, self.img1,
             {1: 'A', 2: 'A', 3: 'A'})
-        self.add_robot_annotations(
-            robot, self.img1,
-            {4: 'B', 5: 'B'})
 
         post_data = self.default_search_params.copy()
         post_data['annotation_status'] = 'confirmed'
@@ -135,12 +134,11 @@ class SearchTest(ClientTest):
 
     def test_filter_by_annotation_status_unconfirmed(self):
         robot = self.create_robot(self.source)
+        # 10 points per image
+        self.add_robot_annotations(robot, self.img1)
         self.add_annotations(
             self.user, self.img1,
             {1: 'A', 2: 'A', 3: 'A'})
-        self.add_robot_annotations(
-            robot, self.img1,
-            {4: 'B', 5: 'B'})
 
         post_data = self.default_search_params.copy()
         post_data['annotation_status'] = 'unconfirmed'
@@ -148,7 +146,7 @@ class SearchTest(ClientTest):
         self.client.force_login(self.user)
         response = self.client.post(self.url, post_data)
         self.assertEqual(
-            response.context['page_results'].paginator.count, 2)
+            response.context['page_results'].paginator.count, 7)
 
     def test_filter_by_label(self):
         self.add_annotations(

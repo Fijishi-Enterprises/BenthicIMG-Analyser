@@ -29,6 +29,32 @@ it to be False, and pass in anything that'll evaluate to True
     </div>
 
 
+  {% elif field_type == 'radio' %}
+
+    {# The label for this field #}
+    <label for="{{ field.id_for_label }}" class="column_form_text_field">
+        {% if field.field.required and not dont_mark_required %} <span style="color:red;"> * </span> {% endif %}
+        {{ field.label }}:
+    </label>
+
+    <div class="field_wrapper">
+        {# The radio buttons #}
+        <ul>
+        {% for radio in field %}
+          <li>
+            <label for="{{ radio.id_for_label }}">
+              {{ radio.tag }}
+              {# Allow line breaks in the label #}
+              {{ radio.choice_label|linebreaksbr }}
+            </label>
+          </li>
+        {% endfor %}
+        </ul>
+
+        {# Field help text #}
+        {% include "form_generic_one_field_help_text.html" %}
+    </div>
+
   {% else %}
 
     {# The label for this field #}

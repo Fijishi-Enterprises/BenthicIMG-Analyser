@@ -174,7 +174,7 @@
       putting these forms invisibly on the page, because:
       1. The fields can contain semi-sensitive stuff like PC filepaths
       recently used in an uploaded .cpc.
-      2. View level users shouldn't be able to find this form via inspect
+      2. View-permission users shouldn't be able to find this form via inspect
       element and submit that way. The server side will re-check permission
       as an additional guard, but still.
       {% endcomment %}
@@ -197,19 +197,39 @@
 
         <form action="{% url 'export_annotations_cpc_serve' source.pk %}"
         method="post" id="export-annotations-cpc-form">
+          <hr/>
           {% csrf_token %}
+
+          {% if source.confidence_threshold == 100 %}
+            {# Not using Alleviate; this choice doesn't make a difference #}
+            <span style="display:none;">
+              {% include "form_generic_one_field.html" with field=cpc_prefs_form.annotation_filter field_type='radio' %}
+            </span>
+          {% else %}
+            {% include "form_generic_one_field.html" with field=cpc_prefs_form.annotation_filter field_type='radio' %}
+          {% endif %}
+
           <div class="line">
             {% if previous_cpcs_status == 'all' %}
               All of the images in this search have previously-uploaded CPC files available. Their environment info, notes, and header values will be preserved when exporting to CPC.
             {% elif previous_cpcs_status == 'some' %}
-              Some of the images in this search have previously-uploaded CPC files available. Their environment info, notes, and header values will be preserved when exporting to CPC. The other images will use the environment info in the text fields below, and will not have notes or header values. Click the "?" help button for more information.
+              Some of the images in this search have previously-uploaded CPC files available. Their environment info, notes, and header values will be preserved when exporting to CPC. The rest of the images will use the environment info in the text fields below, and will not have notes or header values. Click the "?" help button for more information.
             {% elif previous_cpcs_status == 'none' %}
               None of the images in this search have previously-uploaded CPC files available. They will use the environment info in the text fields below, and will not have notes or header values. Click the "?" help button for more information.
             {% endif %}
           </div>
-          <span id="cpc-prefs-fields-container">
-            {% include "form_generic.html" with form=cpc_prefs_form %}
-          </span>
+
+          {% if previous_cpcs_status == 'all' %}
+            {# All images have CPC environment info; no need to provide that info #}
+            <span style="display:none;">
+              {% include "form_generic_one_field.html" with field=cpc_prefs_form.local_code_filepath %}
+              {% include "form_generic_one_field.html" with field=cpc_prefs_form.local_image_dir %}
+            </span>
+          {% else %}
+            {% include "form_generic_one_field.html" with field=cpc_prefs_form.local_code_filepath %}
+            {% include "form_generic_one_field.html" with field=cpc_prefs_form.local_image_dir %}
+          {% endif %}
+
           <button type="button" class="submit">Go</button>
         </form>
 
@@ -234,8 +254,7 @@
     {% if page_results.paginator.count > 0 %}
       BrowseActionHelper.init({
           pageImageIds: {{ page_image_ids|jsonify }},
-          links: {{ links|jsonify }},
-          previousCpcsStatus: {{ previous_cpcs_status|jsonify }}
+          links: {{ links|jsonify }}
       });
     {% endif %}
 

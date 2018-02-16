@@ -69,7 +69,7 @@ def create_cpc_strings(image_set, cpc_prefs):
 
         if img.cpc_content and img.cpc_filename:
             # A CPC file was uploaded for this image before.
-            write_annotations_cpc_based_on_prev_cpc(cpc_stream, img)
+            write_annotations_cpc_based_on_prev_cpc(cpc_stream, img, cpc_prefs)
             # Use the same CPC filename that was used for this image before.
             cpc_filename = img.cpc_filename
         else:
@@ -104,6 +104,48 @@ def image_filename_to_cpc_filename(image_filename):
     """
     cpc_filename = PureWindowsPath(image_filename).stem + '.cpc'
     return cpc_filename
+
+
+def point_to_cpc_export_label_code(point, annotation_filter=None):
+    """
+    Normally, annotation export will export ALL annotations, including machine
+    annotations of low confidence. This is usually okay because, if users want
+    to exclude Unconfirmed annotations when exporting, they can filter images
+    to just Confirmed and then export from there.
+
+    However, this breaks down in CPC export's use case: CPC import,
+    add confident machine annotations, and then CPC export to continue
+    annotating in CPCe. These users will expect to only export the confident
+    machine annotations, and confidence is on a per-point basis, not per-image.
+    So we need to filter the annotations on a point basis. That's what this
+    function is for.
+
+    :param point: A Point model object.
+    :param annotation_filter:
+      'confirmed_only' to denote that only Confirmed annotations are accepted.
+      'confirmed_and_confident' to denote that Unconfirmed annotations above
+      the source's confidence threshold are also accepted. Normally, these
+      annotations will become Confirmed when you enter the annotation tool for
+      that image... but if you're planning to annotate in CPCe, there's no
+      other reason to enter the annotation tool!
+    :return: Label short code string of the point's annotation, if there is
+      an annotation which is accepted by the annotation_filter. Otherwise, ''.
+    """
+    if annotation_filter is None:
+        return point.label_code
+
+    if point.annotation_status_property == 'confirmed':
+        # Confirmed annotations are always included
+        return point.label_code
+    elif (annotation_filter == 'confirmed_and_confident'
+     and point.annotation_status_property == 'unconfirmed'):
+        # With this annotation_filter, Unconfirmed annotations are included
+        # IF they're above the source's confidence threshold
+        if point.machine_confidence >= point.image.source.confidence_threshold:
+            return point.label_code
+
+    # The annotation filter rejects this annotation, or there is no annotation
+    return ''
 
 
 def write_annotations_cpc(cpc_stream, img, cpc_prefs):
@@ -195,7 +237,10 @@ def write_annotations_cpc(cpc_stream, img, cpc_prefs):
     # Assumption: label code in CoralNet source's labelset == label code
     # in the .cpc file (case insensitive).
     for point in points:
-        row = [point.point_number, point.label_code, u'Notes', u'']
+        row = [point.point_number,
+               point_to_cpc_export_label_code(
+                   point, cpc_prefs[u'annotation_filter']),
+               u'Notes', u'']
         row = [u'"{s}"'.format(s=s) for s in row]
         writer.writerow(row)
 
@@ -204,7 +249,7 @@ def write_annotations_cpc(cpc_stream, img, cpc_prefs):
         writer.writerow([u'" "'])
 
 
-def write_annotations_cpc_based_on_prev_cpc(cpc_stream, img):
+def write_annotations_cpc_based_on_prev_cpc(cpc_stream, img, cpc_prefs):
     old_cpc = StringIO(img.cpc_content)
 
     # Copy first 5 lines
@@ -222,16 +267,15 @@ def write_annotations_cpc_based_on_prev_cpc(cpc_stream, img):
 
     # Next point_count lines have the labels.
     # Replace the label codes with the ones in CoralNet's DB.
-    points_prefetched = list(
-        Point.objects.filter(image=img).order_by('point_number'))
-    points = dict([(p.point_number, p) for p in points_prefetched])
+    points = Point.objects.filter(image=img).order_by('point_number')
 
-    for point_number in range(1, point_count+1):
+    for point in points:
         old_line = old_cpc.next()
         old_tokens = old_line.split(',')
-        # Tokens are: point number, label code, 'Notes', notes code.
-        # All always present (at least an empty str) and all in double-quotes.
-        label_code = points[point_number].label_code
+        # Just change the label code, and ensure it's in double quotes.
+        # The other tokens on this line stay the same (point number, notes).
+        label_code = point_to_cpc_export_label_code(
+            point, cpc_prefs[u'annotation_filter'])
         new_tokens = [
             old_tokens[0], '"{}"'.format(label_code),
             old_tokens[2], old_tokens[3]]

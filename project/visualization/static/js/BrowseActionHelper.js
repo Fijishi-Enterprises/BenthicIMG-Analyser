@@ -178,25 +178,37 @@ var BrowseActionHelper = (function() {
         // on, and disable the button to prevent double submission.
         $actionSubmitButton.disable();
         $actionSubmitButton.text("Getting annotations...");
-        // postArgs will include image-select and CPC-prefs arguments.
-        var postArgs = Object.assign(imageSelectArgs);
-        $('#cpc-prefs-fields-container').find('input').each(function(){
-            postArgs[this.name] = this.value;
+
+        // Submit both CPC-export-form values and image-select values.
+        var formData = new FormData(
+            document.getElementById('export-annotations-cpc-form'));
+        for (var key in imageSelectArgs) {
+            if (!imageSelectArgs.hasOwnProperty(key)) {continue;}
+            formData.append(key, imageSelectArgs[key]);
+        }
+
+        $.ajax({
+            // URL to make request to
+            url: links['export_annotations_cpc_create_ajax'],
+            // Data to send in the request
+            data: formData,
+            // Don't let jQuery auto-set the Content-Type header
+            // if we're using FormData
+            // http://stackoverflow.com/a/5976031/
+            contentType: false,
+            // Don't let jQuery attempt to convert the FormData
+            // to a string, as it will fail
+            // http://stackoverflow.com/a/5976031/
+            processData: false,
+            type: 'POST',
+            success: callback
         });
-        $.post(
-            links['export_annotations_cpc_create_ajax'],
-            postArgs, callback
-        );
     }
 
     return {
         init: function(params) {
             pageImageIds = params['pageImageIds'];
             links = params['links'];
-
-            if (params['previousCpcsStatus'] === 'all') {
-                $('#cpc-prefs-fields-container').hide();
-            }
 
             $actionBox = $('#action-box');
             $actionForms = $actionBox.find('form');

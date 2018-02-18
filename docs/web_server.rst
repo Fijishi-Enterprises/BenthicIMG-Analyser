@@ -99,7 +99,12 @@ Get a free TLS certificate using `Let's Encrypt <https://letsencrypt.org/getting
 
 - Ensure that the server allows all IPs on port 80 and 443
 - ``sudo apt-get install letsencrypt``
-- ``letsencrypt certonly --webroot -w /usr/share/nginx/html -d <domain (FQDN)>``
+- ``sudo letsencrypt certonly --webroot -w /var/www/html -d <domain (FQDN)>``
+
+  - An example of ``<domain (FQDN)>`` would be ``coralnet.ucsd.edu``.
+  - ``/var/www/html`` should be whatever the ``root`` directive specifies in the nginx config file ``/etc/nginx/sites-available/default``.
+  - ``sudo`` is needed so that it can write to the Let's Encrypt log directory.
+  
 - Enter email address if prompted
 - Agree to TOS if prompted
 - Turn the coralnet site back on

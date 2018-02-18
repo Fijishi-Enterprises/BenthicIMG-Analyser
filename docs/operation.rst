@@ -12,9 +12,9 @@ Updating the server code
 
 Steps:
 
+#. :ref:`Set up your Python/Django environment <script_environment_setup>`.
 #. Put up the maintenance message: ``python manage.py maintenanceon``. Ensure the start time gives users some advance warning.
 #. Wait until your specified maintenance time begins.
-#. :ref:`Set up your Python/Django environment <script_environment_setup>`.
 #. :ref:`Stop gunicorn and other services <script_server_stop>`.
 
    - When we're using gunicorn instead of the Django ``runserver`` command, updating code while the server is running can temporarily leave the server code in an inconsistent state, which can lead to some very weird internal server errors.

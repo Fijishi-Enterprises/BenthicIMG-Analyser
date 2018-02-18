@@ -75,7 +75,7 @@ Look under ``requirements`` in the coralnet repository.
 
 - If you are setting up the production machine, you want to use ``requirements/production.txt``.
 
-With your virtualenv activated, run ``pip install -r requirements/<name>.txt``.
+With your virtualenv activated, run ``pip install -r requirements/<name>.txt`` to install the packages. Note that this will install the listed packages as well as any dependencies those packages might have.
 
 A few package/OS combinations may need additional steps:
 
@@ -106,6 +106,10 @@ A few package/OS combinations may need additional steps:
   - Installing SciPy with the requirements file will fail for two reasons. First, NumPy needs to be installed as NumPy+MKL, and the binary for that isn't on PyPI. Second, even after getting the NumPy install right, installing SciPy with pip fails for some reason (the first problem is ``libraries openblas not found in [ ... ] NOT AVAILABLE``).
 
   - What to do: First install NumPy+MKL and then SciPy manually using the .whl files here: http://www.lfd.uci.edu/~gohlke/pythonlibs/ Be sure to pick the appropriate .whl depending on whether your Python is 32 or 64 bit. To install a .whl, run ``pip install <path to .whl>``. Then run the requirements file to install the rest of the packages.
+
+If you think you messed up and want to undo a pip installation, use ``pip uninstall <package-name>``.
+
+From now on, whenever you need to get your packages up to date, activate your virtualenv and rerun ``pip install -r requirements/<name>.txt``.
 
 
 Django settings module

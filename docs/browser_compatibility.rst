@@ -1,9 +1,11 @@
 Browser compatibility
 =====================
 
-This table largely excludes old Firefox/Chrome versions, old mobile browser versions, and IE 6 or earlier. This table may go slightly beyond currently-common versions for informational purposes.
+The tables largely excludes old Firefox/Chrome versions, old mobile browser versions, and Internet Explorer 6 or earlier (`IE 6 usage info <https://developer.microsoft.com/en-us/microsoft-edge/ie6countdown/>`__).
 
-Although we tend to recommend the latest Firefox/Chrome, we should still weigh support of other common browsers versus the usefulness of a particular feature. For Javascript, consider using polyfills if they're not too large.
+Although we tend to recommend the latest Firefox/Chrome, we should still weigh support of other browsers versus the usefulness of a particular feature.
+
+If you want your code to check that the user's browser supports a particular feature, it's highly preferred to try and detect the feature itself, rather than using browser-sniffing. For Javascript properties, detect by checking whether they're defined (if not defined, consider defining a polyfill). For Javascript syntax, `detect using eval() <https://stackoverflow.com/questions/23096064/how-can-i-feature-detect-es6-generators>`__.
 
 .. list-table::
 
@@ -43,3 +45,35 @@ Although we tend to recommend the latest Firefox/Chrome, we should still weigh s
    * - `:not selector <http://caniuse.com/#feat=css-sel3>`__
      - Safari 3.1, IE 8
      -
+
+Here are some features that aren't yet used, but are fairly likely to be used eventually.
+
+.. list-table::
+
+   * - Feature not used on CoralNet (yet)
+     - Incompatible browsers
+     - Usage notes
+   * - `Arrow functions <https://caniuse.com/#feat=arrow-functions>`__
+     - IE 11, Samsung Internet 4, Opera Mini
+     - Example use: `Using forEach() slightly more concisely <https://stackoverflow.com/a/40364002/859858>`__
+   * - `ES6 Classes <https://caniuse.com/#feat=es6-class>`__
+     - IE 11, Samsung Internet 4, Opera Mini
+     -
+   * - `ES6 Generators <https://caniuse.com/#feat=es6-generators>`__
+     - IE 11, Opera Mini
+     - Useful for `asynchronous code <http://exploringjs.com/es6/ch_generators.html#sec_overview-generators>`__
+   * - `ES6 Template Literals (Template Strings) <https://caniuse.com/#feat=template-literals>`__
+     - IE 11, Opera Mini, UC Browser for Android
+     - Our best alternative is ``String.prototype.format()`` defined in ``util.js``
+   * - `for...of <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...of>`__
+     - IE 11
+     - Don't need the hasOwnProperty() check with this, unlike for...in
+   * - `forEach() <https://caniuse.com/#feat=es5>`__
+     - IE 8
+     -
+   * - `let (variable declaration) <https://caniuse.com/#feat=let>`__
+     - Opera Mini
+     -
+   * - `Promises <https://caniuse.com/#feat=promises>`__
+     - IE 11, Opera Mini
+     - For asynchronous code

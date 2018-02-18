@@ -4,44 +4,79 @@ var AnnotationToolAutocomplete = (function() {
     var machineSuggestions = null;
 
 
+    /**
+     * Get machine suggestions for a set of points. That is, given the fact
+     * that these points must all be the same label, we want suggestions
+     * for what that label must be.
+     * Typically, we're interested in the set of currently-selected points.
+     *
+     * @param {Number[]} pointList - The set of points to give suggestions for,
+     *   specified as an array of point numbers.
+     * @return {Object[]} The top suggestions, starting from the best. For each
+     *   Object obj, obj.label is a display string like "Porit [45%]", and
+     *   obj.value is a label code string like "Porit".
+     */
     function getMachineSuggestions(pointList) {
 
-        var i,j;
+        var lc, pn;
+        var label, suggestion, thisPointScore, pointSuggestions;
+        // This will map from label codes to confidence scores
         var labelsToScores = {};
-        var label, item;
 
-        for (i = 0; i < pointList.length; i++) {
-            var pointNumber = pointList[i];
-            var pointSuggestions = machineSuggestions[pointNumber];
-
-            var sumOfScores = 0;
-
-            for (j = 0; j < pointSuggestions.length; j++) {
-                item = pointSuggestions[j];
-                label = item['label'];
-                var score = item['score'];
-                if (labelsToScores.hasOwnProperty(label)) {
-                    // For multiple points, multiply the probabilities
-                    // together to get the overall probability that all of
-                    // those points should be labeled as "label".
-                    labelsToScores[label] = labelsToScores[label] * score;
-                }
-                else {
-                    labelsToScores[label] = score;
-                }
-                sumOfScores += labelsToScores[label];
+        if (pointList.length === 0) {
+            // Ensure that no suggestions show when we un-select the last
+            // selected point
+            return [];
+        }
+        else if (pointList.length === 1) {
+            labelsToScores = machineSuggestions[pointList[0]];
+        }
+        else {
+            // Start off every label with equal scores.
+            // We'll modify the scores gradually as we process each point.
+            var labelCount = labelCodes.length;
+            for (lc = 0; lc < labelCodes.length; lc++) {
+                label = labelCodes[lc];
+                labelsToScores[label] = 100 / labelCount;
             }
 
-            // Normalize the scores so that they add up to 1.
-            //
-            // We do this on each iteration because if we wait until the
-            // end of all the points, after doing all of those decimal
-            // multiplications, we might go beyond the smallest supported
-            // floating point value. (In Chrome 36, that's somewhere
-            // around 1e-320 or so.)
-            for (label in labelsToScores) {
-                if (!labelsToScores.hasOwnProperty(label)) {continue;}
-                labelsToScores[label] = labelsToScores[label] / sumOfScores;
+            // Process one point at a time, multiplying probabilities
+            // at each iteration.
+            for (pn = 0; pn < pointList.length; pn++) {
+                var pointNumber = pointList[pn];
+                pointSuggestions = machineSuggestions[pointNumber];
+
+                var sumOfScores = 0;
+
+                for (lc = 0; lc < labelCodes.length; lc++) {
+                    label = labelCodes[lc];
+
+                    if (pointSuggestions.hasOwnProperty(label)) {
+                        // This label is a top suggestion for this point.
+                        thisPointScore = pointSuggestions[label];
+                    }
+                    else {
+                        // This label isn't a top suggestion for this point.
+                        // We haven't been given the true score, but we'll
+                        // just assume 1 (corresponding to 1%). This should
+                        // make the probabilities accurate enough.
+                        thisPointScore = 1;
+                    }
+                    labelsToScores[label] *= thisPointScore;
+                    sumOfScores += labelsToScores[label];
+                }
+
+                // Normalize the scores so that they add up to 100.
+                //
+                // We do this on each iteration because if we wait until the
+                // end of all the points, after doing all of those decimal
+                // multiplications, we might go beyond the smallest supported
+                // floating point value. (In Chrome 36, that's somewhere
+                // around 1e-320 or so.)
+                for (label in labelsToScores) {
+                    if (!labelsToScores.hasOwnProperty(label)) {continue;}
+                    labelsToScores[label] /= (sumOfScores / 100);
+                }
             }
         }
 
@@ -71,18 +106,18 @@ var AnnotationToolAutocomplete = (function() {
 
         // Format the suggestions for autocomplete
         var suggestionsForWidget = [];
-        for (i = 0; i < suggestionArray.length; i++) {
-            item = suggestionArray[i];
-            // Get an integer percentage score, rounding down (0.36852 -> 36%).
+        var s;
+        for (s = 0; s < suggestionArray.length; s++) {
+            suggestion = suggestionArray[s];
+            // Get an integer percentage score, rounding down (36.852% -> 36%).
             //
             // The round-down is to be consistent with Alleviate. To not
             // mislead the user, it should only say 50% if it's going to
             // satisfy a 50% Alleviate threshold, i.e. it's 50.x%.
-            var floatPercentage = item['score']*100.0;
-            var scoreStr = Math.floor(floatPercentage).toFixed(0);
+            var scoreStr = Math.floor(suggestion['score']).toFixed(0);
             suggestionsForWidget.push({
-                label: '{0} [{1}%]'.format(item['label'], scoreStr),
-                value: item['label']
+                label: '{0} [{1}%]'.format(suggestion['label'], scoreStr),
+                value: suggestion['label']
             });
         }
 
@@ -96,7 +131,25 @@ var AnnotationToolAutocomplete = (function() {
 
             var $annotationField = params.$annotationField;
             labelCodes = params.labelCodes;
-            machineSuggestions = params.machineSuggestions;
+
+            // machineSuggestions param is in the format
+            // [{'label': 'Porit', 'score': 45}, ...] for each point.
+            // We'll convert to the format {'Porit': 45, ...} for convenience.
+            machineSuggestions = {};
+            for (var pointNumber in params.machineSuggestions) {
+                if (!params.machineSuggestions.hasOwnProperty(pointNumber)) {
+                    continue;
+                }
+
+                var oldPointSuggestions = params.machineSuggestions[pointNumber];
+                var ps;
+                var newPointSuggestions = {};
+                for (ps = 0; ps < oldPointSuggestions.length; ps++) {
+                    var s = oldPointSuggestions[ps];
+                    newPointSuggestions[s['label']] = s['score'];
+                }
+                machineSuggestions[pointNumber] = newPointSuggestions;
+            }
 
             // Define a custom autocomplete widget.
             $.widget( 'ui.autocomplete', $.ui.autocomplete, {

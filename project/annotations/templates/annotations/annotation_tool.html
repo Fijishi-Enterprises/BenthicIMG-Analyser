@@ -252,7 +252,7 @@
         IMAGE_AREA_HEIGHT: {{ IMAGE_AREA_HEIGHT }},
         imagePoints: {{ points|jsonify }},
         labels: {{ labels|jsonify }},
-        machineSuggestions: {{ label_probabilities|jsonify }},
+        machineSuggestions: {{ label_scores|jsonify }},
         saveAnnotationsUrl: "{% url 'save_annotations_ajax' image.id %}",
         isAnnotationAllDoneUrl: "{% url 'is_annotation_all_done_ajax' image.id %}"
     });

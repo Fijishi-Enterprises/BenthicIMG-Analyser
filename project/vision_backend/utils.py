@@ -24,15 +24,18 @@ def acc(gt, est):
         return float(sum([(g == e) for (g,e) in zip(gt, est)])) / len(gt)
 
 
-def get_label_probabilities_for_image(image_id):
+def get_label_scores_for_image(image_id):
     """
-    Returns all the saved label probabilities for an image in this format:
+    Return all the saved label scores for an image in this format:
     {1: [{'label': 'Acrop', 'score': 14},
          {'label': 'Porit', 'score': 21},
          ...],
      2: [...], ...}
 
-    There are NBR_SCORES_PER_ANNOTATION scores per point.
+    Only the top NBR_SCORES_PER_ANNOTATION scores are available for each point.
+
+    The reason we don't use a dict like {'Acrop': 14, 'Porit': 21} is to
+    facilitate sorting a point's scores (with e.g. operator.itemgetter).
     """
     lpdict = {}
     for point in Point.objects.filter(image_id = image_id).order_by('id'):

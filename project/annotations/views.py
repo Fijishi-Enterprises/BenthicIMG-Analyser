@@ -22,7 +22,7 @@ from images.utils import generate_points, get_next_image, \
     get_date_and_aux_metadata_table, get_prev_image, get_image_order_placement
 from lib.decorators import image_permission_required, image_annotation_area_must_be_editable, image_labelset_required, login_required_ajax
 from visualization.forms import HiddenForm, create_image_filter_form
-from vision_backend.utils import get_label_probabilities_for_image
+from vision_backend.utils import get_label_scores_for_image
 import vision_backend.tasks as backend_tasks
 
 
@@ -146,20 +146,21 @@ def annotation_tool(request, image_id):
         for label in labels
     ]
 
-    error_message = []
-    # Get the machine's label probabilities, if applicable.
+    # Get the machine's label scores, if applicable.
     if not settings_obj.show_machine_annotations:
-        label_probabilities = None
+        label_scores = None
     elif not image.features.classified:
-        label_probabilities = None
+        label_scores = None
     else:
-        label_probabilities = get_label_probabilities_for_image(image_id)
-        # label_probabilities can still be None here if something goes wrong.
+        label_scores = get_label_scores_for_image(image_id)
+        # label_scores can still be None here if something goes wrong.
         # But if not None, apply Alleviate.
-        if label_probabilities:
-            apply_alleviate(image_id, label_probabilities)
+        if label_scores:
+            apply_alleviate(image_id, label_scores)
         else:
-            error_message.append('Woops! Could not read the label probabilities. Manual annotation still works.')
+            messages.error(
+                request, ("Woops! Could not get the machine annotator's"
+                " scores. Manual annotation still works."))
 
     # Form where you enter annotations' label codes
     form = AnnotationForm(
@@ -219,11 +220,10 @@ def annotation_tool(request, image_id):
         'settings_form': settings_form,
         'image_options_form': image_options_form,
         'points': points,
-        'label_probabilities': label_probabilities,
+        'label_scores': label_scores,
         'IMAGE_AREA_WIDTH': IMAGE_AREA_WIDTH,
         'IMAGE_AREA_HEIGHT': IMAGE_AREA_HEIGHT,
         'source_images': source_images,
-        'messages': error_message,
     })
 
 
@@ -342,7 +342,7 @@ def annotation_tool_settings_save(request):
     Annotation tool Ajax: user clicks the settings Save button.
     Saves annotation tool settings changes to the database.
 
-    :param the settings form contents, in request.POST
+    :param request: request.POST contains the settings form values.
     :returns dict of:
       error: Error message if there was an error
     """

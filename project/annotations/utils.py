@@ -134,19 +134,19 @@ def get_annotation_version_user_display(anno_version, date_created):
         return user.username
 
 
-def apply_alleviate(image_id, label_probabilities):
+def apply_alleviate(image_id, label_scores_all_points):
     """
     Apply alleviate to a particular image: auto-accept top machine suggestions
-    based on the confidence threshold.
+    based on the source's confidence threshold.
 
     :param image_id: id of the image.
-    :param label_probabilities: the machine's assigned label
-           probabilities for each point of the image.
+    :param label_scores_all_points: the machine's assigned label scores for
+      each point of the image. These are confidence scores out of 100,
+      like the source's confidence threshold.
     :return: nothing.
     """
     img = Image.objects.get(id=image_id)
     source = img.source
-    robot = source.get_latest_robot()
     
     if source.confidence_threshold > 99:
         return
@@ -156,7 +156,7 @@ def apply_alleviate(image_id, label_probabilities):
 
     for anno in machine_annos:
         pt_number = anno.point.point_number
-        label_scores = label_probabilities[pt_number]
+        label_scores = label_scores_all_points[pt_number]
         descending_scores = sorted(label_scores, key=operator.itemgetter('score'), reverse=True)
         top_score = descending_scores[0]['score']
         top_confidence = top_score
@@ -175,5 +175,3 @@ def apply_alleviate(image_id, label_probabilities):
         if all_done:
             img.confirmed = True
             img.save()
-
-

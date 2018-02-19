@@ -295,6 +295,7 @@ class ClientUtilsMixin(object):
         filename = image_options.pop('filename', default_filename)
         post_dict['file'] = sample_image_as_file(
             filename, filetype, image_options)
+        post_dict['name'] = filename
 
         # Send the upload form
         cls.client.force_login(user)

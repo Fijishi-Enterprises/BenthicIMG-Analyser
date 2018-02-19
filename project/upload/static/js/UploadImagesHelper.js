@@ -12,6 +12,7 @@ var UploadImagesHelper = (function() {
     var $filesTableAutoScrollCheckboxContainer = null;
 
     var filesField = null;
+    var namePrefixField = null;
 
     var $uploadStartButton = null;
     var $uploadAbortButton = null;
@@ -101,10 +102,9 @@ var UploadImagesHelper = (function() {
     function updateFiles() {
 
         // Clear the table rows
-        var i;
-        for (i = 0; i < files.length; i++) {
-            files[i].$tableRow.remove();
-        }
+        files.forEach(function(f) {
+            f.$tableRow.remove();
+        });
         // Clear the file array
         files.length = 0;
 
@@ -118,47 +118,49 @@ var UploadImagesHelper = (function() {
 
         // Re-build the file array.
         // Set the image files as files[0].file, files[1].file, etc.
-        for (i = 0; i < filesField.files.length; i++) {
-            files.push({'file': filesField.files[i]});
-        }
+        Array.prototype.forEach.call(filesField.files, function(f) {
+            files.push({'file': f});
+        });
+
+        var namePrefix = namePrefixField.value;
 
         // Make a table row for each file
-        for (i = 0; i < files.length; i++) {
+        files.forEach(function(f) {
 
             // Create a table row containing file details
             var $filesTableRow = $("<tr>");
 
             // Filename, filesize
-            $filesTableRow.append($("<td>").text(files[i].file.name));
+            $filesTableRow.append($("<td>").text(namePrefix + f.file.name));
 
             var $sizeCell = $("<td>");
             $sizeCell.addClass('size_cell');
-            $sizeCell.text(util.filesizeDisplay(files[i].file.size));
+            $sizeCell.text(util.filesizeDisplay(f.file.size));
             $filesTableRow.append($sizeCell);
 
             // Filename status, to be filled in with an Ajax response
             var $statusCell = $("<td>");
             $statusCell.addClass('status_cell');
             $filesTableRow.append($statusCell);
-            files[i].$statusCell = $statusCell;
+            f.$statusCell = $statusCell;
 
             // Add the row to the table
             $filesTable.append($filesTableRow);
-            files[i].$tableRow = $filesTableRow;
-        }
+            f.$tableRow = $filesTableRow;
+        });
 
         // Initialize upload statuses to null
-        for (i = 0; i < files.length; i++) {
-            files[i].status = null;
-        }
+        files.forEach(function(f) {
+            f.status = null;
+        });
 
-        var fileInfoForPreviewQuery = new Array(files.length);
-        for (i = 0; i < files.length; i++) {
-            fileInfoForPreviewQuery[i] = {
-                filename: files[i].file.name,
-                size: files[i].file.size
-            }
-        }
+        var fileInfoForPreviewQuery = [];
+        files.forEach(function(f) {
+            fileInfoForPreviewQuery.push({
+                filename: namePrefix + f.file.name,
+                size: f.file.size
+            });
+        });
 
         // Update upload statuses based on the server's info
         $.ajax({
@@ -344,6 +346,10 @@ var UploadImagesHelper = (function() {
                 // Add the file as 'file' so that it can be validated
                 // on the server side with a form field named 'file'.
                 formData.append('file', files[currentFileIndex].file);
+                // Add the name with prefix.
+                formData.append(
+                    'name',
+                    namePrefixField.value + files[currentFileIndex].file.name);
 
                 uploadXHRObject = $.ajax({
                     // URL to make request to
@@ -496,7 +502,8 @@ var UploadImagesHelper = (function() {
             $filesTableAutoScrollCheckboxContainer = $('#files_table_auto_scroll_checkbox_container');
 
             // Field elements.
-            filesField = $('#id_files')[0];
+            filesField = document.getElementById('id_files');
+            namePrefixField = document.getElementById('id_name_prefix');
 
             // Button elements.
             $uploadStartButton = $('#id_upload_submit');
@@ -515,12 +522,15 @@ var UploadImagesHelper = (function() {
             $(filesField).change( function(){
                 updateFiles();
             });
+            $(namePrefixField).change( function(){
+                updateFiles();
+            });
             $uploadStartButton.click(startUpload);
             $uploadAbortButton.click(abortUpload);
 
             // Initialize the page properly regardless of whether
-            // we load the page straight (no files initially) or
-            // refresh the page (browser may keep previous file field value).
+            // we load the page straight (empty fields initially) or
+            // refresh the page (browser may keep previous field values).
             updateFiles();
         }
     }

@@ -26,12 +26,14 @@
     <div class="page_section">
 
       {% comment %}
-      The images_form's multi-file field is only used to let the user pick
-      files to upload. This form isn't directly submitted via Ajax, because we
-      want to submit files one by one.
+      These fields aren't going to get submitted directly,
+      so they're not in a form element.
       {% endcomment %}
       {% with images_form.files as field %}
-        {{ field.label }}: {{ field }}
+        <div>{{ field.label }}: {{ field }}</div>
+      {% endwith %}
+      {% with images_form.name_prefix as field %}
+        <div>{{ field.label }}: {{ field }}</div>
       {% endwith %}
 
       <div class="tutorial-message">

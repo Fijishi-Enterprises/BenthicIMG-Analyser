@@ -17,10 +17,11 @@ from images.utils import metadata_obj_to_dict, get_aux_labels, \
     metadata_field_names_to_labels
 from lib.decorators import source_permission_required, source_labelset_required
 from lib.exceptions import FileProcessError
+from lib.forms import get_one_form_error
 from lib.utils import filesize_display
 from visualization.forms import ImageSpecifyByIdForm
 from .forms import (
-    CPCImportForm, CSVImportForm, ImageUploadForm, MultiImageUploadForm)
+    CPCImportForm, CSVImportForm, ImageUploadForm, ImageUploadFrontendForm)
 from .utils import (
     annotations_cpcs_to_dict, annotations_csv_to_dict,
     annotations_preview, find_dupe_image, metadata_csv_to_dict,
@@ -61,7 +62,7 @@ def upload_images(request, source_id):
     """
     source = get_object_or_404(Source, id=source_id)
 
-    images_form = MultiImageUploadForm()
+    images_form = ImageUploadFrontendForm()
     proceed_to_manage_metadata_form = ImageSpecifyByIdForm(source=source)
 
     auto_generate_points_message = (
@@ -147,19 +148,23 @@ def upload_images_ajax(request, source_id):
     # Check for validity of the file (filetype and non-corruptness) and
     # the options forms.
     if not image_form.is_valid():
-        # File error: filetype is not an image,
+        # Examples of errors: filetype is not an image,
         # file is corrupt, file is empty, etc.
         return JsonResponse(dict(
-            error=image_form.errors['file'][0],
+            error=get_one_form_error(image_form),
         ))
 
     img = upload_image_process(
-        imageFile=image_form.cleaned_data['file'],
+        image_file=image_form.cleaned_data['file'],
+        image_name=image_form.cleaned_data['name'],
         source=source,
-        currentUser=request.user,
+        current_user=request.user,
     )
 
-    backend_tasks.submit_features.apply_async(args = [img.id], eta = now() + timedelta(seconds = 10))
+    backend_tasks.submit_features.apply_async(
+        args=[img.id],
+        eta=(now() + timedelta(seconds=10)),
+    )
 
     return JsonResponse(dict(
         success=True,

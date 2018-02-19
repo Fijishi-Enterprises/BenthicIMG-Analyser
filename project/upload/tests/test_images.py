@@ -1,5 +1,6 @@
-import json
+from __future__ import unicode_literals
 from io import BytesIO
+import json
 import re
 
 from django.conf import settings
@@ -106,7 +107,7 @@ class UploadImageTest(ClientTest):
         self.client.force_login(self.user)
         response = self.client.post(
             reverse('upload_images_ajax', args=[self.source.pk]),
-            dict(file=sample_image_as_file('1.png'))
+            dict(file=sample_image_as_file('1.png'), name='1.png')
         )
 
         response_json = response.json()
@@ -120,7 +121,7 @@ class UploadImageTest(ClientTest):
         self.client.force_login(self.user)
         response = self.client.post(
             reverse('upload_images_ajax', args=[self.source.pk]),
-            dict(file=sample_image_as_file('A.jpg'))
+            dict(file=sample_image_as_file('A.jpg'), name='A.jpg')
         )
 
         response_json = response.json()
@@ -143,7 +144,7 @@ class UploadImageTest(ClientTest):
         )
 
         self.client.force_login(self.user)
-        post_dict = dict(file=image_file)
+        post_dict = dict(file=image_file, name=image_file.name)
         response = self.client.post(
             reverse('upload_images_ajax', args=[self.source.pk]),
             post_dict,
@@ -189,14 +190,14 @@ class UploadImageFormatTest(ClientTest):
         self.client.force_login(self.user)
         response = self.client.post(
             reverse('upload_images_ajax', args=[self.source.pk]),
-            dict(file=ContentFile('here is some text', name='1.txt')),
+            dict(file=ContentFile('some text', name='1.txt'), name='1.txt'),
         )
 
         response_json = response.json()
         self.assertDictEqual(
             response_json,
             dict(error=(
-                "The file is either a corrupt image,"
+                "Image file: The file is either a corrupt image,"
                 " or in a file format that we don't support."
             ))
         )
@@ -212,13 +213,13 @@ class UploadImageFormatTest(ClientTest):
 
         response = self.client.post(
             reverse('upload_images_ajax', args=[self.source.pk]),
-            dict(file=bmp_file),
+            dict(file=bmp_file, name=bmp_file.name),
         )
 
         response_json = response.json()
         self.assertDictEqual(
             response_json,
-            dict(error=("This image file format isn't supported."))
+            dict(error="Image file: This image file format isn't supported.")
         )
 
     def test_empty_file(self):
@@ -226,13 +227,13 @@ class UploadImageFormatTest(ClientTest):
         self.client.force_login(self.user)
         response = self.client.post(
             reverse('upload_images_ajax', args=[self.source.pk]),
-            dict(file=ContentFile(bytes(), name='1.png')),
+            dict(file=ContentFile(bytes(), name='1.png'), name='1.png'),
         )
 
         response_json = response.json()
         self.assertDictEqual(
             response_json,
-            dict(error=("The submitted file is empty."))
+            dict(error="Image file: The submitted file is empty.")
         )
 
     def test_max_image_dimensions_1(self):
@@ -242,7 +243,7 @@ class UploadImageFormatTest(ClientTest):
         )
 
         self.client.force_login(self.user)
-        post_dict = dict(file=image_file)
+        post_dict = dict(file=image_file, name=image_file.name)
         with self.settings(IMAGE_UPLOAD_MAX_DIMENSIONS=(599, 1000)):
             response = self.client.post(
                 reverse('upload_images_ajax', args=[self.source.pk]),
@@ -252,7 +253,9 @@ class UploadImageFormatTest(ClientTest):
         response_json = response.json()
         self.assertDictEqual(
             response_json,
-            dict(error=("Ensure the image dimensions are at most 599 x 1000."))
+            dict(error=(
+                "Image file: Ensure the image dimensions"
+                " are at most 599 x 1000."))
         )
 
     def test_max_image_dimensions_2(self):
@@ -262,7 +265,7 @@ class UploadImageFormatTest(ClientTest):
         )
 
         self.client.force_login(self.user)
-        post_dict = dict(file=image_file)
+        post_dict = dict(file=image_file, name=image_file.name)
         with self.settings(IMAGE_UPLOAD_MAX_DIMENSIONS=(1000, 449)):
             response = self.client.post(
                 reverse('upload_images_ajax', args=[self.source.pk]),
@@ -272,7 +275,9 @@ class UploadImageFormatTest(ClientTest):
         response_json = response.json()
         self.assertDictEqual(
             response_json,
-            dict(error=("Ensure the image dimensions are at most 1000 x 449."))
+            dict(error=(
+                "Image file: Ensure the image dimensions"
+                " are at most 1000 x 449."))
         )
 
     def test_max_filesize(self):
@@ -302,7 +307,7 @@ class UploadImageFormatTest(ClientTest):
         )
 
         self.client.force_login(self.user)
-        post_dict = dict(file=image_file)
+        post_dict = dict(file=image_file, name=image_file.name)
 
         # Use an upload max memory size of 200 bytes; as long as the image has
         # some color variation, no way it'll be smaller than that

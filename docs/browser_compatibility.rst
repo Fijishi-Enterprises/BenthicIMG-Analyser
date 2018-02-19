@@ -39,6 +39,9 @@ If you want your code to check that the user's browser supports a particular fea
    * - `Flexbox <http://caniuse.com/#feat=flexbox>`__
      - Safari 8, IE 10
      - Single usage of ``display: flex; align-items: center;`` in map code. Used without ``webkit-`` prefix. (2016.11)
+   * - `forEach() <https://caniuse.com/#feat=es5>`__
+     - IE 8
+     - Replaces the old array for-loop syntax of ``for (i = 0; i < arr.length; i++)``
    * - `input type="number" <http://caniuse.com/#feat=input-number>`__
      - iOS Safari, Android, Chrome for Android, Opera Mini, IE 9
      - Not necessarily broken if not supported, just less robust against arbitrary input.
@@ -68,9 +71,6 @@ Here are some features that aren't yet used, but are fairly likely to be used ev
    * - `for...of <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...of>`__
      - IE 11
      - Don't need the hasOwnProperty() check with this, unlike for...in
-   * - `forEach() <https://caniuse.com/#feat=es5>`__
-     - IE 8
-     -
    * - `let (variable declaration) <https://caniuse.com/#feat=let>`__
      - Opera Mini
      -

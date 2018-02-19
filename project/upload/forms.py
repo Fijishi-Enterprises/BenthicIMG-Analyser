@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.files.images import get_image_dimensions
-from django.forms import ImageField, Form, FileField
+from django.forms import CharField, ImageField, Form, FileField
 from django.forms.widgets import FileInput
 
 
@@ -84,29 +84,27 @@ class MultipleImageField(ImageField):
         return data_out
 
 
-class MultiImageUploadForm(Form):
+class ImageUploadFrontendForm(Form):
     """
-    Takes multiple image files.
-
     This is used only for the frontend of the image upload form,
     not the backend.
-    That is, the user selects multiple images in the browser,
-    but the images are sent to the server one by one.
+    That is, the user interacts with this form to select multiple images
+    in the browser, but the images are sent to the server one by one
+    with Ajax.
     """
     files = MultipleImageField(
-        label='Image files',
+        label="Image files",
         widget=MultipleFileInput(),
+    )
+    name_prefix = CharField(
+        label="Name prefix (optional)",
     )
 
 
 class ImageUploadForm(Form):
     """
-    Takes a single image file.
-
     This is used only for the backend of the image upload form,
-    not the frontend.
-    That is, the user selects multiple images in the browser,
-    but the images are sent to the server one by one.
+    not the frontend. Unlike the frontend form, this only takes one image.
     """
     file = ImageField(
         label='Image file',
@@ -118,12 +116,13 @@ class ImageUploadForm(Form):
             ),
         },
     )
+    name = CharField(label='Image name')
 
     def clean_file(self):
         image_file = self.cleaned_data['file']
 
         if image_file.content_type not in \
-         settings.IMAGE_UPLOAD_ACCEPTED_CONTENT_TYPES:
+           settings.IMAGE_UPLOAD_ACCEPTED_CONTENT_TYPES:
             raise ValidationError(
                 "This image file format isn't supported.",
                 code='image_file_format',

@@ -264,6 +264,7 @@ class RegressionTest(ClientTest):
         """
         post_dict = dict()        
         post_dict['file'] = ContentFile(direct_s3_read(imfile, 'none', bucketname = settings.REGTEST_BUCKET), name=imfile)
+        post_dict['name'] = post_dict['file'].name
 
         # Send the upload form
         self.client.force_login(self.user)

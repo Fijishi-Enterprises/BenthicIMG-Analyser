@@ -674,11 +674,10 @@ def annotations_preview(csv_annotations, source):
     return table, details
 
 
-def upload_image_process(imageFile, source, currentUser):
+def upload_image_process(image_file, image_name, source, current_user):
 
-    filename = imageFile.name
     metadata_obj = Metadata(
-        name=filename,
+        name=image_name,
         annotation_area=source.image_annotation_area,
     )
     metadata_obj.save()
@@ -688,8 +687,8 @@ def upload_image_process(imageFile, source, currentUser):
 
     # Save the image into the DB
     img = Image(
-        original_file=imageFile,
-        uploaded_by=currentUser,
+        original_file=image_file,
+        uploaded_by=current_user,
         point_generation_method=source.default_point_generation_method,
         metadata=metadata_obj,
         source=source,

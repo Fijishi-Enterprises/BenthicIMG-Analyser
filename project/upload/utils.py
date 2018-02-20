@@ -5,6 +5,7 @@ import codecs
 from collections import OrderedDict
 import csv
 import functools
+import re
 
 try:
     # Python 3.4+
@@ -400,7 +401,6 @@ def annotations_cpcs_to_dict(cpc_files, source):
 
     cpc_dicts = []
     code_filepath = None
-    image_dir = None
 
     for cpc_file in cpc_files:
 
@@ -416,16 +416,7 @@ def annotations_cpcs_to_dict(cpc_files, source):
 
         # Line 1
         code_filepath, image_filepath, _, _, _, _ = read_csv_row_curried(6)
-        # Assumption: image name on CoralNet == image filename from their
-        # local machine. This is how we match up images with CPC files.
-        #
-        # The filepath follows the rules of the OS running CPCe,
-        # not the rules of the server OS. So we don't use Path.
-        # CPCe only runs on Windows, so we can assume it's a Windows
-        # path. That means using PureWindowsPath (WindowsPath can only
-        # be instantiated on a Windows OS).
-        cpc_dict['image_filename'] = PureWindowsPath(image_filepath).name
-        image_dir = str(PureWindowsPath(image_filepath).parent)
+        cpc_dict['image_filepath'] = image_filepath
 
         # Lines 2-5; don't need any info from these,
         # but they should have 2 tokens each
@@ -473,7 +464,7 @@ def annotations_cpcs_to_dict(cpc_files, source):
 
     # So far we've checked the .cpc formatting. Now check the validity
     # of the contents.
-    cpc_annotations, cpc_contents, cpc_filenames = \
+    cpc_annotations, cpc_contents, cpc_filenames, image_dir = \
         annotations_cpc_verify_contents(cpc_dicts, source)
 
     return dict(
@@ -498,19 +489,79 @@ def annotations_cpc_verify_contents(cpc_dicts, source):
     cpc_contents = OrderedDict()
     cpc_filenames = OrderedDict()
     image_names_to_cpc_filenames = dict()
+    image_dir = None
 
     for cpc_dict in cpc_dicts:
-        image_name = cpc_dict['image_filename']
+
         cpc_filename = cpc_dict['cpc_filename']
 
-        try:
-            img = Image.objects.get(metadata__name=image_name, source=source)
-        except Image.DoesNotExist:
-            # This filename isn't in the source. Just skip it
+        # The image filepath follows the rules of the OS running CPCe,
+        # not the rules of the server OS. So we don't use Path.
+        # CPCe only runs on Windows, so we can assume it's a Windows
+        # path. That means using PureWindowsPath (WindowsPath can only
+        # be instantiated on a Windows OS).
+        cpc_image_filepath = PureWindowsPath(cpc_dict['image_filepath'])
+        image_filename = cpc_image_filepath.name
+
+        # Match up the CPCe image filepath to an image name on CoralNet.
+        #
+        # Let's say the image filepath is D:\Site A\Transect 1\01.jpg
+        # Example image names:
+        # D:\Site A\Transect 1\01.jpg: best match
+        # Site A\Transect 1\01.jpg: 2nd best match
+        # Transect 1\01.jpg: 3rd best match
+        # 01.jpg: 4th best match
+        # Transect 1/01.jpg: same as with backslash
+        # /Transect 1/01.jpg: same as without leading slash
+        # 23.jpg: non-match 1
+        # 4501.jpg: non-match 2
+        # sect 1\01.jpg: non-match 3
+        #
+        # First get names consisting of 01.jpg preceded by /, \, or nothing.
+        # This avoids non-match 1 and non-match 2.
+        regex_escaped_filename = re.escape(image_filename)
+        name_regex = r'^(.*[\\|/])?{fn}$'.format(fn=regex_escaped_filename)
+        image_candidates = source.image_set.filter(
+            metadata__name__regex=name_regex)
+        # Find the best match while avoiding non-match 3.
+        img = None
+        for image_candidate in image_candidates:
+            # Passing through PWP ensures we consistently use backslashes
+            # instead of forward slashes
+            image_name = str(PureWindowsPath(image_candidate.metadata.name))
+            if image_name == str(cpc_image_filepath):
+                # Best possible match
+                img = image_candidate
+                image_dir = ''
+                break
+
+            # Iterate over parents, from top (D:\)
+            # to bottom (D:\Site A\Transect 1).
+            # If a parent combines with image_name to form the full path, then
+            # we have a match.
+            # TODO: This won't work if image_name starts with a slash; do we
+            # want to accommodate that or not?
+            for parent in cpc_image_filepath.parents:
+                if PureWindowsPath(parent, image_name) == cpc_image_filepath:
+                    # It's a match
+                    if img and len(img.metadata.name) > len(image_name):
+                        # There's already a longer match
+                        pass
+                    else:
+                        # This is the best match so far
+                        img = image_candidate
+                        image_dir = str(parent)
+                    # Move onto the next candidate
+                    break
+
+        if img is None:
+            # No matching image names in the source. Just skip this CPC
             # without raising an error. It could be an image the user is
             # planning to upload later, or an image they're not planning
             # to upload but are still tracking in their records.
             continue
+
+        image_name = img.metadata.name
 
         if image_name in image_names_to_cpc_filenames:
             raise FileProcessError((
@@ -625,7 +676,9 @@ def annotations_cpc_verify_contents(cpc_dicts, source):
     if len(annotations) == 0:
         raise FileProcessError("No matching image names found in the source")
 
-    return annotations, cpc_contents, cpc_filenames
+    # Note that image_dir was set the last time we picked an image match.
+    # So image_dir corresponds to an image match; that's all we want.
+    return annotations, cpc_contents, cpc_filenames, image_dir
 
 
 def annotations_preview(csv_annotations, source):

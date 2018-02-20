@@ -76,12 +76,20 @@ def create_cpc_strings(image_set, cpc_prefs):
             # No CPC file was uploaded for this image before.
             write_annotations_cpc(cpc_stream, img, cpc_prefs)
             # Make a CPC filename based on the image filename, like CPCe does.
-            cpc_filename = image_filename_to_cpc_filename(img.metadata.name)
+            cpc_filename = image_filename_to_cpc_filename(
+                PureWindowsPath(img.metadata.name).name)
+
+        # If the image name seems to be a relative path (not just a filename),
+        # then use those path directories on the CPC .zip filepath as well.
+        image_parent = PureWindowsPath(img.metadata.name).parent
+        # If it's a relative path, this appends the directories, else this
+        # appends nothing.
+        cpc_filepath = str(PureWindowsPath(image_parent, cpc_filename))
 
         # Convert the stream contents to a string.
-        # TODO: If cpc_filename is already in the cpc_strings dict, then we
+        # TODO: If cpc_filepath is already in the cpc_strings dict, then we
         # have a name conflict and need to warn / disambiguate.
-        cpc_strings[cpc_filename] = cpc_stream.getvalue()
+        cpc_strings[cpc_filepath] = cpc_stream.getvalue()
 
     return cpc_strings
 
@@ -138,7 +146,7 @@ def point_to_cpc_export_label_code(point, annotation_filter=None):
         # Confirmed annotations are always included
         return point.label_code
     elif (annotation_filter == 'confirmed_and_confident'
-     and point.annotation_status_property == 'unconfirmed'):
+          and point.annotation_status_property == 'unconfirmed'):
         # With this annotation_filter, Unconfirmed annotations are included
         # IF they're above the source's confidence threshold
         if point.machine_confidence >= point.image.source.confidence_threshold:
@@ -306,15 +314,15 @@ def write_zip(zip_stream, file_strings):
     :param zip_stream:
       The file stream to write the zip file to.
     :param file_strings:
-      Zip contents as a dict of filenames to byte strings (e.g. result of
+      Zip contents as a dict of filepaths to byte strings (e.g. result of
       getvalue() on a byte stream).
-      Filename is the name that the file will have in the zip archive.
+      Filepath is the path that the file will have in the zip archive.
     :return:
       None.
     """
     zip_file = ZipFile(zip_stream, 'w')
-    for filename, cpc_string in six.iteritems(file_strings):
-        zip_file.writestr(filename, cpc_string)
+    for filepath, cpc_string in six.iteritems(file_strings):
+        zip_file.writestr(filepath, cpc_string)
 
 
 def write_annotations_csv(writer, image_set, full):

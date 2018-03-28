@@ -1,4 +1,4 @@
-import os
+import posixpath
 
 import boto
 import json
@@ -28,7 +28,7 @@ class Command(BaseCommand):
         dst = c.get_bucket(options['bucket'])
         for img in images:
 
-            full_image_path = os.path.join(settings.AWS_LOCATION, img.original_file.name)
+            full_image_path = posixpath.join(settings.AWS_LOCATION, img.original_file.name)
             from_name = settings.FEATURE_VECTOR_FILE_PATTERN.format(full_image_path=full_image_path)
             to_name = img.metadata.name + '.features.json'
             dst.copy_key(to_name, settings.AWS_STORAGE_BUCKET_NAME, from_name)

@@ -99,12 +99,15 @@ class ClientUtilsMixin(object):
 
     user_count = 0
     @classmethod
-    def create_user(cls, username=None, password='SamplePassword', email=None):
+    def create_user(
+            cls, username=None, password='SamplePassword', email=None,
+            activate=True):
         """
         Create a user.
         :param username: New user's username. 'user<number>' if not given.
         :param password: New user's password.
         :param email: New user's email. '<username>@example.com' if not given.
+        :param activate: Whether to activate the user or not.
         :return: The new user.
         """
         cls.user_count += 1
@@ -124,13 +127,14 @@ class ClientUtilsMixin(object):
             agree_to_data_policy=True,
         ))
 
-        activation_email = mail.outbox[-1]
-        activation_link = None
-        for word in activation_email.body.split():
-            if '://' in word:
-                activation_link = word
-                break
-        cls.client.get(activation_link)
+        if activate:
+            activation_email = mail.outbox[-1]
+            activation_link = None
+            for word in activation_email.body.split():
+                if '://' in word:
+                    activation_link = word
+                    break
+            cls.client.get(activation_link)
 
         User = get_user_model()
         return User.objects.get(username=username)

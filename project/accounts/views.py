@@ -364,9 +364,9 @@ def email_all(request):
         form = EmailAllForm(request.POST)
 
         if form.is_valid():
-            all_users = User.objects.all()
+            active_users = User.objects.filter(is_active=True)
             email_list = []
-            for u in all_users:
+            for u in active_users:
                 if u.email:
                     email_list.append(u.email)
 

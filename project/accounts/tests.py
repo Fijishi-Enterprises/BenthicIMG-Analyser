@@ -719,6 +719,7 @@ class EmailAllTest(ClientTest):
         super(EmailAllTest, cls).setUpTestData()
 
         cls.user = cls.create_user()
+        cls.inactive_user = cls.create_user(activate=False)
 
     def test_load_page_anonymous(self):
         """Load page while logged out -> login page."""
@@ -753,14 +754,18 @@ class EmailAllTest(ClientTest):
 
         # Check that an email was sent.
         self.assertEqual(len(mail.outbox), 1)
-        # Check that the email has the expected number of recipients:
-        # the number of users with an email address.
-        # (Special users like 'robot' don't have emails.)
-        num_of_users = User.objects.all().exclude(email='').count()
-        self.assertEqual(len(mail.outbox[-1].bcc), num_of_users)
+        sent_email = mail.outbox[-1]
 
-        # TODO: Check the emails in more detail: subject, message, and
-        # possibly checking at least some of the bcc addresses.
+        # Check that the email has the expected recipients:
+        # the superuser and the active user.
+        # The inactive user, and special users like robot, should be excluded.
+        self.assertSetEqual(
+            set(sent_email.bcc),
+            {self.user.email, self.superuser.email})
+
+        # Check subject and message.
+        self.assertEqual(sent_email.subject, "Subject goes here")
+        self.assertEqual(sent_email.body, "Body\ngoes here.")
 
 
 class ProfileListTest(ClientTest):

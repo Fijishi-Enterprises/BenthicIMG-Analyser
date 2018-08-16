@@ -9,7 +9,7 @@ from django.template import loader, TemplateDoesNotExist
 from django.template.loader import render_to_string
 from django.utils.safestring import mark_safe
 
-from annotations.models import Annotation
+from annotations.utils import get_sitewide_annotation_count
 from images.models import Image, Source
 from images.utils import get_map_sources, get_carousel_images
 from lib.forms import ContactForm
@@ -91,7 +91,7 @@ def index(request):
     # Gather some stats
     total_sources = Source.objects.all().count()
     total_images = Image.objects.all().count()
-    total_annotations = Annotation.objects.all().count()
+    total_annotations = get_sitewide_annotation_count()
 
     return render(request, 'lib/index.html', {
         'map_sources': map_sources,

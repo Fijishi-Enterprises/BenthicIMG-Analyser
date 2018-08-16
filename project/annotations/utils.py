@@ -3,9 +3,10 @@ import operator
 import pytz
 
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.utils import timezone
 from accounts.utils import get_robot_user, is_robot_user, get_alleviate_user
-from annotations.models import Annotation
+from .models import Annotation
 from images.model_utils import PointGen
 from images.models import Image, Point
 from labels.models import Label
@@ -175,3 +176,28 @@ def apply_alleviate(image_id, label_scores_all_points):
         if all_done:
             img.confirmed = True
             img.save()
+
+
+def update_sitewide_annotation_count():
+    """
+    Cache the count of total annotations on the entire site. As of
+    2018.08.15, this may take about 35 seconds to run in production.
+
+    This should be run periodically. If it doesn't get run for some reason,
+    the value will last 30 days before being evicted from the cache, at which
+    point this will be run on-demand.
+    """
+    cache_key = 'sitewide_annotation_count'
+    thirty_days = 60*60*24*30
+    cache.set(
+        key=cache_key, value=Annotation.objects.all().count(),
+        timeout=thirty_days)
+
+
+def get_sitewide_annotation_count():
+    cache_key = 'sitewide_annotation_count'
+    count = cache.get(cache_key)
+    if count is None:
+        update_sitewide_annotation_count()
+        count = cache.get(cache_key)
+    return count

@@ -1,6 +1,7 @@
 from django.core.urlresolvers import reverse
 from annotations.model_utils import AnnotationAreaUtils
-from annotations.utils import purge_annotations
+from annotations.tasks import update_sitewide_annotation_count_task
+from annotations.utils import get_sitewide_annotation_count, purge_annotations
 from images.model_utils import PointGen
 from images.models import Source, Image, Point
 from annotations.models import Annotation, Label
@@ -41,6 +42,41 @@ class PurgeAnnotationTest(ClientTest):
         self.assertEqual(Annotation.objects.filter(point=points[0]).count(), 2)
         purge_annotations(self.img.id)
         self.assertEqual(Annotation.objects.filter(point=points[0]).count(), 1)
+
+
+class SitewideAnnotationCountTest(ClientTest):
+    """
+    Test the task which computes the site-wide annotation count.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super(SitewideAnnotationCountTest, cls).setUpTestData()
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(cls.user)
+        labels = cls.create_labels(cls.user, ['A', 'B'], "Group1")
+        cls.create_labelset(cls.user, cls.source, labels)
+        cls.img = cls.upload_image(cls.user, cls.source)
+        cls.add_annotations(cls.user, cls.img, {1: 'A', 2: 'B', 3: 'A'})
+
+    def test_set_on_demand(self):
+        self.assertEqual(get_sitewide_annotation_count(), 3)
+
+    def test_set_in_advance(self):
+        update_sitewide_annotation_count_task.delay()
+        self.assertEqual(get_sitewide_annotation_count(), 3)
+
+    def test_set_then_update(self):
+        update_sitewide_annotation_count_task.delay()
+        self.assertEqual(get_sitewide_annotation_count(), 3)
+        self.add_annotations(self.user, self.img, {4: 'B'})
+        update_sitewide_annotation_count_task.delay()
+        self.assertEqual(get_sitewide_annotation_count(), 4)
+
+    def test_caching(self):
+        update_sitewide_annotation_count_task.delay()
+        self.assertEqual(get_sitewide_annotation_count(), 3)
+        self.add_annotations(self.user, self.img, {4: 'B'})
+        self.assertEqual(get_sitewide_annotation_count(), 3)
 
 
 class AnnotationAreaEditTest(ClientTest):

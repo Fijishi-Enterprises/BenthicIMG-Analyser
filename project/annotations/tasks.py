@@ -1,11 +1,12 @@
-from celery.decorators import task, periodic_task
-
 import logging
 from datetime import timedelta
 
+from celery.decorators import task, periodic_task
+
 from images.models import Point, Image
 from annotations.models import Annotation
-from annotations.utils import purge_annotations
+from annotations.utils import (
+    purge_annotations, update_sitewide_annotation_count)
 
 logger = logging.getLogger(__name__)
 
@@ -30,3 +31,6 @@ def clean_annotations():
             logger.info("Purged annotations for image {}.".format(image_id))
 
 
+@periodic_task(run_every=timedelta(days=1), name='Update Sitewide Annotation Count', ignore_result=True)
+def update_sitewide_annotation_count_task():
+    update_sitewide_annotation_count()

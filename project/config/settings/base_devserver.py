@@ -24,3 +24,22 @@ ALLOWED_HOSTS = []
 SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False
 SECURE_PROXY_SSL_HEADER = None
+
+# [Custom setting]
+# Front page carousel images.
+# Count = number of images in the carousel each time you load the front page.
+# Pool = list of image IDs to randomly choose from, e.g. [26, 79, 104].
+# The pool size must be at least as large as count.
+#
+# Two reasons why we hardcode a pool here, instead of randomly picking
+# public images from the whole site:
+# 1. It's easier to guarantee in-advance thumbnail generation for a small
+# pool of images. We don't want new visitors coming to the front page and waiting for those thumbnails to generate.
+# 2. Ensuring a good variety and at least decent quality among carousel
+# images.
+#
+# If you don't have any images to use in the carousel (e.g. you're just
+# setting up a new dev environment, or you're in some test environment), set
+# count to 0 and set pool to [].
+CAROUSEL_IMAGE_COUNT = 0
+CAROUSEL_IMAGE_POOL = []

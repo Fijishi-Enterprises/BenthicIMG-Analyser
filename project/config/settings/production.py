@@ -25,3 +25,18 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
+# [Custom setting]
+# Front page carousel images.
+CAROUSEL_IMAGE_COUNT = 5
+CAROUSEL_IMAGE_POOL = [
+    115688,  # AIMS LTMP
+    25563,  # Catlin Seaview Survey
+    469367,  # Colby Bermuda
+    7069,  # CVCE Bocas del Toro
+    848173,  # Israel
+    686881,  # Okinawa
+    168582,  # MarineGEO Belize
+    675333,  # NOAA ESD CAU
+    68923,  # USS Guardian wreck
+    686128,  # Vavau
+]

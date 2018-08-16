@@ -84,9 +84,7 @@ def index(request):
         return HttpResponseRedirect(reverse('source_list'))
 
     map_sources = get_map_sources()
-
-    # Images for the carousel
-    images = get_carousel_images(5)
+    carousel_images = get_carousel_images()
 
     # Gather some stats
     total_sources = Source.objects.all().count()
@@ -98,7 +96,7 @@ def index(request):
         'total_sources': total_sources,
         'total_images': total_images,
         'total_annotations': total_annotations,
-        'images': images,
+        'carousel_images': carousel_images,
     })
 
 

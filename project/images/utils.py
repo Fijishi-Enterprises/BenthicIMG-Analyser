@@ -427,46 +427,16 @@ def get_map_sources():
     return map_sources
 
 
-def get_carousel_images(count):
+def get_carousel_images():
     """
-    Return <count> random images that are from public sources only.
+    Get images for the front page carousel.
+
+    We randomly pick <image_count> images out of a pool. The pool is specified
+    in settings, and should be hand-picked from public sources.
     """
-    cache_key = 'carousel_image_pks'
-    cached_image_pks = cache.get(cache_key)
-    if cached_image_pks is not None:
-        return Image.objects.filter(pk__in=cached_image_pks)
-
-    public_sources = Source.get_public_sources()
-
-    # Return empty queryset if no public sources
-    if not public_sources.exists():
-        return Image.objects.none()
-
-    random_image_list = []
-
-    # Get <count> random public sources and pick 1 random image from each.
-    # This allows equal representation of sources regardless of image volume.
-    #
-    # Note that optimization of random selection isn't always obvious.
-    # In particular, random.choice() MAY be faster than order_by('?').
-    # http://stackoverflow.com/questions/962619/
-    for i in range(count):
-        random_source = random.choice(public_sources)
-        source_images = Image.objects.filter(source=random_source)
-
-        # Source has no images
-        if not source_images.exists():
-            continue
-
-        random_image = random.choice(source_images)
-        random_image_list.append(random_image)
-
-    # Cache the carousel images for 1 day.
-    # This improves performance by reducing the number of times
-    # carousel thumbnails must be generated.
-    cache.set(cache_key, [img.pk for img in random_image_list], 60*60*24)
-
-    return random_image_list
+    image_count = settings.CAROUSEL_IMAGE_COUNT
+    image_pks = random.sample(settings.CAROUSEL_IMAGE_POOL, image_count)
+    return Image.objects.filter(pk__in=image_pks)
 
 
 # Functions to encapsulate the auxiliary metadata

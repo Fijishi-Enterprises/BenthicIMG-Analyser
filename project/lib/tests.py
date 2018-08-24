@@ -1,13 +1,19 @@
-# Tests for non-app-specific pages.
+# -*- coding: utf-8 -*-
+#
+# Lib tests and non-app-specific tests.
+from __future__ import unicode_literals
 from unittest import skipIf
 from unittest import skip 
 from django.conf import settings
 from django.core import mail
 from django.core.urlresolvers import reverse
+from django import forms
 from django.shortcuts import resolve_url
 from django.utils.html import escape
+from django.test.client import Client
 from django.test.utils import override_settings
 
+from .forms import get_one_form_error, get_one_formset_error
 from .test_utils import BaseTest, ClientTest
 from .utils import direct_s3_write, direct_s3_read
 
@@ -317,3 +323,79 @@ class GoogleAnalyticsTest(ClientTest):
         self.client.force_login(self.user)
         response = self.client.get(resolve_url('browse_images', self.source.pk))
         self.assertContains(response, 'google-analytics.com/ga.js')
+
+
+class FormUtilsTest(ClientTest):
+    """
+    Test the utility functions in forms.py.
+    """
+    class MyForm(forms.Form):
+        my_field = forms.CharField(
+            required=True,
+            label="My Field",
+            error_messages=dict(
+                # Custom message for the 'field is required' error
+                required="あいうえお",
+            ),
+        )
+    MyFormSet = forms.formset_factory(MyForm)
+
+    @classmethod
+    def setUpTestData(cls):
+        super(FormUtilsTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(cls.user)
+
+    def test_get_one_form_error_with_unicode(self):
+        # Instantiate the form with no fields filled in (i.e. a blank dict in
+        # place of request.POST), thus triggering a 'field is required' error
+        my_form = self.MyForm(dict())
+        self.assertFalse(my_form.is_valid())
+        self.assertEqual(get_one_form_error(my_form), "My Field: あいうえお")
+
+    def test_get_one_formset_error_with_unicode(self):
+        # We need to at least pass in valid formset-management values so that
+        # our actual form field can be validated
+        my_formset = self.MyFormSet({
+            'form-TOTAL_FORMS': 1,
+            'form-INITIAL_FORMS': 1,
+            'form-MAX_NUM_FORMS': '',
+        })
+        self.assertFalse(my_formset.is_valid())
+        self.assertEqual(
+            get_one_formset_error(
+                formset=my_formset, get_form_name=lambda _: "My Form"),
+            "My Form: My Field: あいうえお")
+
+
+class InternationalizationTest(ClientTest):
+    """
+    Test internationalization in general.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super(InternationalizationTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(cls.user)
+
+    def setUp(self):
+        # Set the web client's preferred language to Japanese.
+        # We do this with an Accept-Language HTTP header value of 'ja'.
+        # https://docs.djangoproject.com/en/dev/topics/testing/tools/#django.test.Client
+        self.client = Client(HTTP_ACCEPT_LANGUAGE='ja')
+
+    def test_builtin_form_error(self):
+        """
+        Test one of the Django built-in form errors, in this case 'This field
+        is required.' Common errors like these should have translations
+        available out of the box (these translations can be found at
+        django/conf/locale).
+        Here we check that the message is indeed translated according to the
+        client's preferred language.
+        """
+        # Submit empty form fields on the Contact page
+        response = self.client.post(reverse('contact'))
+        required_error = response.context['contact_form'].errors['subject'][0]
+        self.assertEqual(required_error, "このフィールドは必須です。")

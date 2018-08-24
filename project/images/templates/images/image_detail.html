@@ -1,5 +1,4 @@
 {% extends "images/base_image.html" %}
-{% load i18n %}
 {% load thumbnail %}
 {% load guardian_tags %}
 {% load common_tags %}
@@ -140,7 +139,7 @@
         {% endfor %}
         </ul>
         {% if "source_edit" in source_perms %}
-            <a href="{% url 'image_detail_edit' image.id %}">{% trans 'Edit Image Details' %}</a>
+            <a href="{% url 'image_detail_edit' image.id %}">Edit Image Details</a>
         {% endif %}
 
         {% if "source_edit" in source_perms %}

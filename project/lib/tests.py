@@ -389,13 +389,16 @@ class InternationalizationTest(ClientTest):
     def test_builtin_form_error(self):
         """
         Test one of the Django built-in form errors, in this case 'This field
-        is required.' Common errors like these should have translations
+        is required.'
+        Common errors like these should have translations
         available out of the box (these translations can be found at
-        django/conf/locale).
-        Here we check that the message is indeed translated according to the
-        client's preferred language.
+        django/conf/locale). However, it's more confusing than useful when
+        these are the only translated strings in the entire site, as is the
+        case for us since we haven't had the resources for fuller translation.
+        So, here we check that the message is NOT translated according to the
+        client's preferred non-English language, i.e. it stays as English.
         """
         # Submit empty form fields on the Contact page
         response = self.client.post(reverse('contact'))
         required_error = response.context['contact_form'].errors['subject'][0]
-        self.assertEqual(required_error, "このフィールドは必須です。")
+        self.assertEqual(required_error, "This field is required.")

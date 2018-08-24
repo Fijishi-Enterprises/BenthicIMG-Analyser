@@ -68,9 +68,15 @@ TIME_ZONE = 'America/Los_Angeles'
 # http://www.i18nguy.com/unicode/language-identifiers.html
 LANGUAGE_CODE = 'en-us'
 
+# Supported languages for text translation.
+# 'en' includes sublanguages like 'en-us'.
+LANGUAGES = [
+    ('en', 'English'),
+]
+
 # If you set this to False, Django will make some optimizations so as not
 # to load the internationalization machinery.
-USE_I18N = True
+USE_I18N = False
 
 # If you set this to True, Django will format dates, numbers and calendars
 # according to user current locale.

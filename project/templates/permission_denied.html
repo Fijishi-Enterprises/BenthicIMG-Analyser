@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-{% load i18n %}
 
 {% comment %}
 This template can be used whenever the user doesn't have
@@ -19,12 +18,12 @@ https://code.djangoproject.com/changeset/16606
 https://docs.djangoproject.com/en/dev/topics/http/views/#the-403-http-forbidden-view
 {% endcomment %}
 
-{% block content_title %}<h2>{% trans "Permission denied" %}</h2>{% endblock %}
+{% block content_title %}<h2>Permission denied</h2>{% endblock %}
 
 {% block content %}
   {% if message %}
   <p>{{ message|linebreaks }}</p>
   {% else %}
-  <p>{% trans "Sorry, you don't have permission to access this page."%}</p>
+  <p>Sorry, you don't have permission to access this page. Are you signed in?</p>
   {% endif %}
 {% endblock %}

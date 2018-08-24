@@ -1,4 +1,3 @@
-{% load i18n %}
 {% load static from staticfiles %}
 {% load googleanalytics_tag %}
 <!DOCTYPE html>
@@ -82,17 +81,17 @@
         {% block nav %}
         <div class="nav_container" id="nav_main_container">
           <ul class="nav nav_left" id="nav_main">
-            <li><a href="{% url 'index' %}"><span>{% trans 'Home' %}</span></a></li>
-            <li><a href="{% url 'label_list' %}"><span>{% trans 'Labels' %}</span></a></li>
+            <li><a href="{% url 'index' %}"><span>Home</span></a></li>
+            <li><a href="{% url 'label_list' %}"><span>Labels</span></a></li>
           </ul>
           <ul class="nav nav_right" id="nav_user">
             {% if user.is_authenticated %}
 
               {% with num_invites_received=user.invites_received.count %}
                 {% if num_invites_received > 0 %}
-                <li class="button_prominent"><a href="{% url 'invites_manage' %}"><span>{% trans 'Invites' %} ({{ num_invites_received }})</span></a></li>
+                <li class="button_prominent"><a href="{% url 'invites_manage' %}"><span>Invites ({{ num_invites_received }})</span></a></li>
                 {% else %}
-                <li><a href="{% url 'invites_manage' %}"><span>{% trans 'Invites' %}</span></a></li>
+                <li><a href="{% url 'invites_manage' %}"><span>Invites</span></a></li>
                 {% endif %}
               {% endwith %}
 
@@ -122,10 +121,10 @@
       <div id="footer">
         <div class="nav_container" id="nav_footer_container">
           <ul class="nav nav_left" id="nav_footer">
-            <li><a href="{% url 'about' %}"><span>{% trans 'About' %}</span></a></li>
-            <li><a href="{% url 'contact' %}"><span>{% trans 'Contact Us' %}</span></a></li>
+            <li><a href="{% url 'about' %}"><span>About</span></a></li>
+            <li><a href="{% url 'contact' %}"><span>Contact Us</span></a></li>
             {% if user.is_authenticated %}
-            <li><a href="{% url 'feedback_form' %}?ref={{ request.get_full_path }}"><span>{% trans 'Site Feedback' %}</span></a></li>
+            <li><a href="{% url 'feedback_form' %}?ref={{ request.get_full_path }}"><span>Site Feedback</span></a></li>
             {% endif %}
           </ul>
         </div>

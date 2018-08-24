@@ -47,3 +47,8 @@ if 'test' in sys.argv:
 #ALLOWED_HOSTS = ['*']
 #MEDIA_URL = 'http://127.0.0.1:8070/'
 #STATIC_URL = 'http://127.0.0.1:8080/'
+
+CAROUSEL_IMAGE_COUNT = 2
+CAROUSEL_IMAGE_POOL = [
+    516, 515, 514
+]

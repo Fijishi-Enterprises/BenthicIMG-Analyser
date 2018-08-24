@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+from __future__ import unicode_literals
 import datetime
 
 from django.core.urlresolvers import reverse
@@ -417,3 +419,46 @@ class SubmitEditsTest(ClientTest):
         # No edits should have gone through.
         self.img4.metadata.refresh_from_db()
         self.assertEqual(self.img4.metadata.photo_date, None)
+
+    def test_error_messages_containing_unicode(self):
+        """
+        Ensure error messages containing Unicode characters can be processed
+        properly. For example, include Unicode in an image's name and trigger
+        an error for that image.
+        """
+        post_data = {
+            'form-TOTAL_FORMS': 1,
+            'form-INITIAL_FORMS': 1,
+            'form-MAX_NUM_FORMS': '',
+            'form-0-id': self.img1.metadata.pk,
+            'form-0-name': 'あ.png',
+            'form-0-photo_date': '2004',
+            'form-0-height_in_cm': 325,
+            'form-0-latitude': '68',
+            'form-0-longitude': '-25.908',
+            'form-0-depth': "57.1m",
+            'form-0-camera': "Canon ABC94",
+            'form-0-photographer': "",
+            'form-0-water_quality': "",
+            'form-0-strobes': "",
+            'form-0-framing': "",
+            'form-0-balance': "Balance card A",
+            'form-0-comments': "These, are; some<\n test/ comments.",
+        }
+
+        self.client.force_login(self.user)
+        response = self.client.post(self.url, post_data)
+        response_json = response.json()
+
+        # The error order is undefined, so we won't check for order.
+        response_error_dict = dict([
+            (e['fieldId'], e['errorMessage'])
+            for e in response_json['errors']
+        ])
+        expected_error_dict = dict()
+        expected_error_dict['id_form-0-photo_date'] = (
+            "あ.png"
+            + " | Date"
+            + " | Enter a valid date."
+        )
+        self.assertDictEqual(response_error_dict, expected_error_dict)

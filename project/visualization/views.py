@@ -1,3 +1,6 @@
+from __future__ import unicode_literals
+import six
+
 from django.conf import settings
 from django.contrib import messages
 from django.core.urlresolvers import reverse
@@ -254,7 +257,7 @@ def edit_metadata_ajax(request, source_id):
 
             # TODO: Would be nice to list the errors in the order they
             # appear in the form
-            for field_name, error_messages in form.errors.iteritems():
+            for field_name, error_messages in six.iteritems(form.errors):
 
                 # The form prefix looks something like form-2. The id of the
                 # form field element is expected to look like id_form-2-date.

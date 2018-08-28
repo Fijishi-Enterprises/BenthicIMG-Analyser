@@ -1,9 +1,6 @@
 """
 This file contains helper functions to vision_backend.tasks.
 """
-import boto.sqs
-import os
-import json
 import logging
 
 import numpy as np
@@ -11,6 +8,7 @@ import numpy as np
 from sklearn import linear_model
 
 from django.conf import settings
+from django.core.files.storage import get_storage_class
 from django.utils import timezone
 from django.db.models import F
 from django.db import transaction
@@ -22,19 +20,6 @@ from annotations.models import Annotation
 from .models import Classifier, Score
 
 logger = logging.getLogger(__name__)
-
-
-def _submit_job(messagebody):
-    """
-    Submits message to the SQS spacer_jobs
-    """
-    conn = boto.sqs.connect_to_region("us-west-2",
-        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY)
-    queue = conn.get_queue('spacer_jobs')
-    m = boto.sqs.message.Message()
-    m.set_body(json.dumps(messagebody))
-    queue.write(m)
 
 
 # Must explicitly turn on history creation when RevisionMiddleware is
@@ -120,32 +105,15 @@ def _make_dataset(images):
     Helper funtion for classifier_submit. Assemples all features and ground truth annotations
     for training and evaluation of the robot classifier.
     """
+    storage = get_storage_class()()
     gtdict = {}
     for img in images:
-        full_image_path = os.path.join(settings.AWS_LOCATION, img.original_file.name)
+        full_image_path = storage.path(img.original_file.name)
         feature_key = settings.FEATURE_VECTOR_FILE_PATTERN.format(full_image_path = full_image_path)
         anns = Annotation.objects.filter(image = img).order_by('point__id').annotate(gt = F('label__id'))
         gtlabels = [int(ann.gt) for ann in anns]
         gtdict[feature_key] = gtlabels
     return gtdict
-
-
-def _read_message(queue_name):
-    """
-    helper function for reading messages from AWS SQS.
-    """
-
-    conn = boto.sqs.connect_to_region("us-west-2",
-        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY)
-
-    queue = conn.get_queue(queue_name)
-
-    message = queue.read()
-    if message is None:
-        return None
-    else:
-        return message
 
 
 def _featurecollector(messagebody):

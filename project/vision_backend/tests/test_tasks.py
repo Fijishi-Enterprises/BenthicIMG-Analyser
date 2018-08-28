@@ -2,6 +2,9 @@ import numpy as np
 
 from django.urls import reverse
 
+from django.core.urlresolvers import reverse
+from django.test import override_settings
+
 from lib.tests.utils import ClientTest
 
 from images.models import Image, Point
@@ -10,6 +13,12 @@ from annotations.models import Annotation
 from accounts.utils import is_robot_user
 from vision_backend.models import Score, Classifier
 from vision_backend.tasks import reset_after_labelset_change
+
+from .models import Score, Classifier
+from .tasks import (
+    classify_image, collect_all_jobs, reset_after_labelset_change,
+    submit_classifier, submit_features)
+
 
 import vision_backend.task_helpers as th
 
@@ -214,4 +223,114 @@ class ClassifyUtilsTest(ClientTest):
             ann = point.annotation
             scores = Score.objects.filter(point=point)
             posteriors = [score.score for score in scores]
-            self.assertEqual(scores[int(np.argmax(posteriors))].label, ann.label)
+            self.assertEqual(scores[np.argmax(posteriors)].label, ann.label)
+
+
+@override_settings(FORCE_NO_BACKEND_SUBMIT=False)
+class ExtractFeaturesTest(ClientTest):
+
+    @classmethod
+    def setUpTestData(cls):
+        super(ExtractFeaturesTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(cls.user)
+
+    def test_success(self):
+        # After an image upload, features are ready to be submitted.
+        img = self.upload_image(self.user, self.source)
+
+        # Image upload already triggers feature submission to run after a
+        # delay, but for testing purposes we'll run the task immediately.
+        submit_features(img.id)
+
+        # Then assuming we're using the mock backend, the result should be
+        # available for collection immediately.
+        collect_all_jobs()
+
+        # Features should be successfully extracted.
+        self.assertTrue(img.features.extracted)
+
+
+@override_settings(FORCE_NO_BACKEND_SUBMIT=False, MIN_NBR_ANNOTATED_IMAGES=1)
+class TrainClassifierTest(ClientTest):
+
+    @classmethod
+    def setUpTestData(cls):
+        super(TrainClassifierTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(
+            cls.user,
+            point_generation_type=PointGen.Types.SIMPLE,
+            simple_number_of_points=5)
+
+        labels = cls.create_labels(cls.user, ['A', 'B'], "Group1")
+        cls.create_labelset(cls.user, cls.source, labels)
+
+        # Have an image with features
+        cls.img = cls.upload_image(cls.user, cls.source)
+        submit_features(cls.img.id)
+        collect_all_jobs()
+
+    def test_train_success(self):
+        # Fully annotate the image
+        self.add_annotations(
+            self.user, self.img, {1: 'A', 2: 'B', 3: 'A', 4: 'A', 5: 'B'})
+        # Now we have the minimum number of annotated images,
+        # create a classifier
+        submit_classifier(self.source.id)
+
+        # This source should now have a classifier (though not trained yet)
+        self.assertTrue(
+            Classifier.objects.filter(source=self.source).count() > 0)
+
+        # Process training result
+        collect_all_jobs()
+
+        # Now we should have a trained classifier whose accuracy is the best so
+        # far (due to having no previous classifiers), and thus it should have
+        # been marked as valid
+        latest_classifier = self.source.get_latest_robot()
+        self.assertTrue(latest_classifier.valid)
+
+
+@override_settings(FORCE_NO_BACKEND_SUBMIT=False, MIN_NBR_ANNOTATED_IMAGES=1)
+class ClassifyImageTest(ClientTest):
+
+    @classmethod
+    def setUpTestData(cls):
+        super(ClassifyImageTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(
+            cls.user,
+            point_generation_type=PointGen.Types.SIMPLE,
+            simple_number_of_points=5)
+
+        labels = cls.create_labels(cls.user, ['A', 'B'], "Group1")
+        cls.create_labelset(cls.user, cls.source, labels)
+
+        # Two images with features
+        cls.img1 = cls.upload_image(cls.user, cls.source)
+        submit_features(cls.img1.id)
+        cls.img2 = cls.upload_image(cls.user, cls.source)
+        submit_features(cls.img2.id)
+        collect_all_jobs()
+        # One image annotated, one not
+        cls.add_annotations(
+            cls.user, cls.img1, {1: 'A', 2: 'B', 3: 'A', 4: 'A', 5: 'B'})
+
+        # Train classifier
+        submit_classifier(cls.source.id)
+        collect_all_jobs()
+
+    def test_classify_unannotated_image(self):
+        # TODO: This task call does not work using the MockBackend because
+        # that backend doesn't actually create feature, model, and valresult
+        # files yet. So this test fails.
+        classify_image(self.img2.id)
+
+        self.assertEqual(
+            Annotation.objects.filter(image__id=self.img2.id).count(), 5)
+

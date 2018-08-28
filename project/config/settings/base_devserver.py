@@ -32,6 +32,10 @@ CSRF_COOKIE_SECURE = False
 SECURE_PROXY_SSL_HEADER = None
 
 # [Custom setting]
+# Which vision backend to use.
+VISION_BACKEND_CHOICE = 'vision_backend.backends.MockBackend'
+
+# [Custom setting]
 # Front page carousel images.
 # Count = number of images in the carousel each time you load the front page.
 # Pool = list of image IDs to randomly choose from, e.g. [26, 79, 104].

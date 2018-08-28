@@ -1,10 +1,12 @@
-import posixpath
 import logging
 import json
+import pickle
+from six import StringIO
 
 from celery.decorators import task, periodic_task
 from django.conf import settings
 from django.db import IntegrityError
+from django.core.files.storage import get_storage_class
 from django.utils.timezone import now
 
 from datetime import timedelta
@@ -17,7 +19,7 @@ from images.models import Source, Image, Point
 from labels.models import LabelSet, Label
 from api_core.models import ApiJobUnit
 
-from lib.utils import direct_s3_read, direct_s3_write
+from .backends import get_backend_class
 from accounts.utils import get_robot_user
 
 logger = logging.getLogger(__name__)
@@ -28,9 +30,10 @@ def submit_features(image_id, force=False):
     """
     Submits a job to SQS for extracting features for an image.
     """
-    # Do some initial checks
-    if not settings.DEFAULT_FILE_STORAGE == 'lib.storage_backends.MediaStorageS3' or settings.FORCE_NO_BACKEND_SUBMIT:
-        logger.info("Can't use vision backend if media is stored locally.")
+    if settings.FORCE_NO_BACKEND_SUBMIT:
+        logger.info(
+            "VB task was called, but not run because backend submissions are"
+            " off.")
         return
 
     try:
@@ -50,9 +53,9 @@ def submit_features(image_id, force=False):
         rowcols.append([point.row, point.column])
     
     # Setup the job payload.
-    full_image_path = posixpath.join(settings.AWS_LOCATION, img.original_file.name)
+    storage = get_storage_class()()
+    full_image_path = storage.path(img.original_file.name)
     payload = {
-        'bucketname': settings.AWS_STORAGE_BUCKET_NAME,
         'imkey': full_image_path,
         'outputkey': settings.FEATURE_VECTOR_FILE_PATTERN.format(full_image_path=full_image_path),
         'modelname': 'vgg16_coralnet_ver1',
@@ -67,7 +70,8 @@ def submit_features(image_id, force=False):
     }
 
     # Submit.
-    th._submit_job(messagebody)
+    backend = get_backend_class()()
+    backend.submit_job(messagebody)
 
     logger.info(u"Submitted feature extraction for {}".format(logstr))
     logger.debug(u"Submitted feature extraction for {}. Message: {}".format(logstr, messagebody))
@@ -84,9 +88,10 @@ def submit_all_classifiers():
 @task(name="Submit Classifier")
 def submit_classifier(source_id, nbr_images=1e5, force=False):
 
-    # Do some initial checks
-    if not settings.DEFAULT_FILE_STORAGE == 'lib.storage_backends.MediaStorageS3' or settings.FORCE_NO_BACKEND_SUBMIT:
-        logger.info("Can't use vision backend if media is stored locally.")
+    if settings.FORCE_NO_BACKEND_SUBMIT:
+        logger.info(
+            "VB task was called, but not run because backend submissions are"
+            " off.")
         return
 
     try:
@@ -106,32 +111,28 @@ def submit_classifier(source_id, nbr_images=1e5, force=False):
     classifier = Classifier(source = source, nbr_train_images = len(images))
     classifier.save()
 
-    # Write traindict to S3
-    direct_s3_write(
-        settings.ROBOT_MODEL_TRAINDATA_PATTERN.format(pk = classifier.pk, media = settings.AWS_LOCATION),
-        'json',
-        th._make_dataset([image for image in images if image.trainset])
-    )
+    # Write traindict to file storage
+    storage = get_storage_class()()
+    traindict = th._make_dataset([image for image in images if image.trainset])
+    traindict_path = storage.path(settings.ROBOT_MODEL_TRAINDATA_PATTERN.format(pk = classifier.pk))
+    storage.save(traindict_path, StringIO(json.dumps(traindict)))
 
-    # Write valdict to S3
-    direct_s3_write(
-        settings.ROBOT_MODEL_VALDATA_PATTERN.format(pk = classifier.pk, media = settings.AWS_LOCATION),
-        'json',
-        th._make_dataset([image for image in images if image.valset])
-    )
+    # Write valdict to file storage
+    valdict = th._make_dataset([image for image in images if image.valset])
+    valdict_path = storage.path(settings.ROBOT_MODEL_VALDATA_PATTERN.format(pk = classifier.pk))
+    storage.save(valdict_path, StringIO(json.dumps(valdict)))
         
     # Prepare information for the message payload
     previous_classifiers = Classifier.objects.filter(source=source, valid=True) # This will not include the current.
-    pc_models = [settings.ROBOT_MODEL_FILE_PATTERN.format(pk=pc.pk, media=settings.AWS_LOCATION) for pc in previous_classifiers]
+    pc_models = [storage.path(settings.ROBOT_MODEL_FILE_PATTERN.format(pk=pc.pk)) for pc in previous_classifiers]
     pc_pks = [pc.pk for pc in previous_classifiers]  # Primary keys needed for collect task.
 
     # Create payload
     payload = {
-        'bucketname': settings.AWS_STORAGE_BUCKET_NAME,
-        'model': settings.ROBOT_MODEL_FILE_PATTERN.format(pk = classifier.pk, media = settings.AWS_LOCATION),
-        'traindata': settings.ROBOT_MODEL_TRAINDATA_PATTERN.format(pk = classifier.pk, media = settings.AWS_LOCATION),
-        'valdata': settings.ROBOT_MODEL_VALDATA_PATTERN.format(pk = classifier.pk, media = settings.AWS_LOCATION),
-        'valresult': settings.ROBOT_MODEL_VALRESULT_PATTERN.format(pk = classifier.pk, media = settings.AWS_LOCATION),
+        'model': storage.path(settings.ROBOT_MODEL_FILE_PATTERN.format(pk = classifier.pk)),
+        'traindata': storage.path(settings.ROBOT_MODEL_TRAINDATA_PATTERN.format(pk = classifier.pk)),
+        'valdata': storage.path(settings.ROBOT_MODEL_VALDATA_PATTERN.format(pk = classifier.pk)),
+        'valresult': storage.path(settings.ROBOT_MODEL_VALRESULT_PATTERN.format(pk = classifier.pk)),
         'pk': classifier.pk,
         'nbr_epochs': settings.NBR_TRAINING_EPOCHS,
         'pc_models': pc_models,
@@ -145,7 +146,8 @@ def submit_classifier(source_id, nbr_images=1e5, force=False):
     }
 
     # Submit.
-    th._submit_job(messagebody)
+    backend = get_backend_class()()
+    backend.submit_job(messagebody)
 
     logger.info(u"Submitted classifier for source {} [{}] with {} images.".format(source.name, source.id, len(images)))
     logger.debug(u"Submitted classifier for source {} [{}] with {} images. Message: {}".format(source.name, source.id, len(images), messagebody))
@@ -212,14 +214,15 @@ def classify_image(image_id):
         return
 
     # Load model
-    classifier_model = direct_s3_read(
-        settings.ROBOT_MODEL_FILE_PATTERN.format(
-            pk=classifier.pk, media=settings.AWS_LOCATION), 'pickle')
-    
-    feats = direct_s3_read(
-        settings.FEATURE_VECTOR_FILE_PATTERN.format(
-            full_image_path=posixpath.join(settings.AWS_LOCATION,
-                                         img.original_file.name)), 'json')
+    storage = get_storage_class()()
+    classifier_model_path = settings.ROBOT_MODEL_FILE_PATTERN.format(pk=classifier.pk)
+    with storage.open(classifier_model_path) as classifier_model_file:
+        classifier_model = pickle.load(classifier_model_file)
+
+    feats_path = settings.FEATURE_VECTOR_FILE_PATTERN.format(full_image_path = img.original_file.name)
+    with storage.open(feats_path) as feats_file:
+        feats = json.load(feats_file)
+
 
     # Classify.
     scores = classifier_model.predict_proba(feats)
@@ -256,48 +259,27 @@ def classify_image(image_id):
 @periodic_task(run_every=timedelta(seconds=60), name='Collect all jobs', ignore_result=True)
 def collect_all_jobs():
     """
-    Runs collectjob until queue is empty.
+    Collects and handles job results until the job result queue is empty.
     """
     logger.info('Collecting all jobs in result queue.')
-    while collectjob():
-        pass
+    backend = get_backend_class()()
+    while True:
+        messagebody = backend.collect_job()
+        if messagebody:
+            _handle_job_result(messagebody)
+        else:
+            break
     logger.info('Done collecting all jobs in result queue.')
 
-
-def collectjob():
-    """
-    main task for collecting jobs from AWS SQS.
-    """
-    
-    # Grab a message
-    message = th._read_message('spacer_results')
-    if message is None:
-        return 0
-    messagebody = json.loads(message.get_body())
-
-    # Check that the message pertains to this server
-    if not messagebody['original_job']['payload']['bucketname'] == \
-            settings.AWS_STORAGE_BUCKET_NAME:
-        logger.info("Job pertains to wrong bucket. This: {}, expected: {}".
-                    format(settings.AWS_STORAGE_BUCKET_NAME,
-                           messagebody['original_job']['payload']['bucketname']
-                           ))
-        return 1
-
-    # Delete message (at this point, if it is not handled correctly,
-    # we still want to delete it from queue.)
-    message.delete()
+def _handle_job_result(messagebody):
 
     # Handle message
     task = messagebody['original_job']['task']
-    pk = messagebody['original_job']['payload']['pk']
-
-    logger.debug("Collecting job with messagebody: {}".format(messagebody))
     if task == 'extract_features':
-        if th._featurecollector(messagebody): 
+        if th._featurecollector(messagebody):
             # If job was entered into DB, submit a classify job.
             classify_image.apply_async(args=[pk], eta=now() + timedelta(seconds=10))
- 
+
     elif task == 'train_classifier':
         if th._classifiercollector(messagebody):
             # If job was entered into DB, submit a classify job for all images in source.
@@ -310,11 +292,10 @@ def collectjob():
 
     else:
         logger.error('Job task type {} not recognized'.format(task))
-    
+
     # Conclude
     logger.info("job {}, pk: {} collected successfully".format(task, pk))
     logger.debug("Collected job with messagebody: {}".format(messagebody))
-    return 1
 
 
 @task(name="Reset Source")
@@ -354,7 +335,3 @@ def reset_features(image_id):
 
     # Re-submit feature extraction.
     submit_features.apply_async(args = [img.id], eta = now() + timedelta(seconds = 10))
-
-
-
-

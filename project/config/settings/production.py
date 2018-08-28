@@ -31,6 +31,10 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 WSGI_APPLICATION = 'config.wsgi.application'
 
 # [Custom setting]
+# Which vision backend to use.
+VISION_BACKEND_CHOICE = 'vision_backend.backends.SpacerBackend'
+
+# [Custom setting]
 # Front page carousel images.
 CAROUSEL_IMAGE_COUNT = 5
 CAROUSEL_IMAGE_POOL = [

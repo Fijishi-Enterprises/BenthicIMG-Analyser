@@ -49,7 +49,7 @@ class AnnotationToolAccess(models.Model):
 
 class AnnotationToolSettings(models.Model):
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE,
+    user = models.OneToOneField(User, on_delete=models.CASCADE,
         editable=False)
 
     POINT_MARKER_CHOICES = (

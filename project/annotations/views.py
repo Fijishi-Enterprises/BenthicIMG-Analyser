@@ -4,7 +4,7 @@ from datetime import timedelta
 
 from django.contrib import messages
 from django.core.urlresolvers import reverse
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import render, get_object_or_404
 from django.utils.timezone import now
@@ -12,15 +12,23 @@ from django.utils.timezone import now
 from easy_thumbnails.files import get_thumbnailer
 from reversion.models import Version, Revision
 
-from .forms import AnnotationForm, AnnotationAreaPixelsForm, AnnotationToolSettingsForm, AnnotationImageOptionsForm
+from .forms import (
+    AnnotationForm, AnnotationAreaPixelsForm, AnnotationToolSettingsForm,
+    AnnotationImageOptionsForm)
 from .model_utils import AnnotationAreaUtils
 from .models import Annotation, AnnotationToolAccess, AnnotationToolSettings
-from .utils import get_annotation_version_user_display, image_annotation_all_done, apply_alleviate
+from .utils import (
+    get_annotation_version_user_display, image_annotation_all_done,
+    apply_alleviate)
 from accounts.utils import is_robot_user
 from images.models import Source, Image, Point
-from images.utils import generate_points, get_next_image, \
-    get_date_and_aux_metadata_table, get_prev_image, get_image_order_placement
-from lib.decorators import image_permission_required, image_annotation_area_must_be_editable, image_labelset_required, login_required_ajax
+from images.utils import (
+    generate_points, get_next_image, get_date_and_aux_metadata_table,
+    get_prev_image, get_image_order_placement)
+from lib.decorators import (
+    image_permission_required, image_annotation_area_must_be_editable,
+    image_labelset_required, login_required_ajax)
+from lib.forms import get_one_form_error
 from visualization.forms import HiddenForm, create_image_filter_form
 from vision_backend.utils import get_label_scores_for_image
 import vision_backend.tasks as backend_tasks
@@ -134,8 +142,12 @@ def annotation_tool(request, image_id):
         image_set, ('metadata__name', image.metadata.name, False))
 
     # Get the settings object for this user.
-    # If there is no such settings object, then create it.
-    settings_obj, created = AnnotationToolSettings.objects.get_or_create(user=request.user)
+    # If there is no such settings object, then populate the form with
+    # the default settings.
+    try:
+        settings_obj = AnnotationToolSettings.objects.get(user=request.user)
+    except AnnotationToolSettings.DoesNotExist:
+        settings_obj = AnnotationToolSettings()
     settings_form = AnnotationToolSettingsForm(instance=settings_obj)
 
     # Get labels in the form
@@ -350,17 +362,44 @@ def annotation_tool_settings_save(request):
     if request.method != 'POST':
         return JsonResponse(dict(error="Not a POST request"))
 
-    settings_obj = AnnotationToolSettings.objects.get(user=request.user)
-    settings_form = AnnotationToolSettingsForm(request.POST, instance=settings_obj)
+    try:
+        settings_obj = AnnotationToolSettings.objects.get(user=request.user)
+        # If no exception, this user already has a settings object
+        settings_form = AnnotationToolSettingsForm(
+            request.POST, instance=settings_obj)
+    except AnnotationToolSettings.DoesNotExist:
+        # No settings object for this user yet; saving the form will create one
+        settings_form = AnnotationToolSettingsForm(request.POST)
 
     if settings_form.is_valid():
-        settings_form.save()
-        return JsonResponse(dict())
+        try:
+            # Save the form, but don't commit to the DB yet
+            settings_obj = settings_form.save(commit=False)
+            # In the case of a new settings object, this assigns the user to
+            # it. In the case of an existing settings object, this makes no
+            # change.
+            settings_obj.user = request.user
+            # Now we commit to the DB
+            settings_obj.save()
+            return JsonResponse(dict())
+        except IntegrityError:
+            # This may indicate a race condition, in which the user just had a
+            # settings object created in another thread.
+            # Not the end of the world, it just means this save failed and the
+            # user should try again if they didn't end up with the desired
+            # settings.
+            error_detail = "IntegrityError when trying to save the form"
     else:
-        # Some form values weren't correct.
+        # Some form values weren't valid.
         # This can happen if the form's JavaScript input checking isn't
         # foolproof, or if the user messed with form values using FireBug.
-        return JsonResponse(dict(error="Part of the form wasn't valid"))
+        error_detail = get_one_form_error(settings_form)
+
+    error_message = (
+        "Settings form failed to save. Perhaps refresh the page and try"
+        " again? If the problem persists, please report to the site admins."
+        " (Error detail: {error_detail})").format(error_detail=error_detail)
+    return JsonResponse(dict(error=error_message))
 
 
 @image_permission_required('image_id', perm=Source.PermTypes.EDIT.code)

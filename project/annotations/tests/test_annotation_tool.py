@@ -1,4 +1,9 @@
+from __future__ import unicode_literals
+import six
+
+from bs4 import BeautifulSoup
 from django.core.urlresolvers import reverse
+
 from annotations.models import Annotation, AnnotationToolSettings
 from images.model_utils import PointGen
 from images.models import Source
@@ -423,14 +428,20 @@ class SettingsTest(ClientTest):
         cls.tool_url = reverse('annotation_tool', args=[cls.img.pk])
         cls.settings_url = reverse('annotation_tool_settings_save')
 
-    def test_save_settings(self):
-        # First visit the annotation tool
-        # so that this user gets a settings object created in the DB.
-        self.client.force_login(self.user)
-        self.client.get(self.tool_url)
+        cls.field_names_to_types = dict(
+            point_marker='choice',
+            point_marker_size='integer',
+            point_marker_is_scaled='boolean',
+            point_number_size='integer',
+            point_number_is_scaled='boolean',
+            unannotated_point_color='color',
+            robot_annotated_point_color='color',
+            human_annotated_point_color='color',
+            selected_point_color='color',
+            show_machine_annotations='boolean',
+        )
 
-        # Set settings.
-        data = dict(
+        cls.sample_settings = dict(
             point_marker='box',
             point_marker_size=19,
             point_marker_is_scaled=True,
@@ -442,23 +453,209 @@ class SettingsTest(ClientTest):
             selected_point_color='FFBBBB',
             show_machine_annotations=False,
         )
+
+        cls.field_names_to_defaults = dict()
+        for field_name in six.iterkeys(cls.field_names_to_types):
+            field_meta = AnnotationToolSettings._meta.get_field(field_name)
+            cls.field_names_to_defaults[field_name] = field_meta.default
+
+    def get_field_value_from_soup(self, field_name, form_soup):
+        field_type = self.field_names_to_types[field_name]
+
+        if field_type == 'choice':
+            field_soup = form_soup.find('select', dict(name=field_name))
+            option_soup = field_soup.find('option', dict(selected='selected'))
+            field_value = option_soup.attrs['value']
+        elif field_type == 'integer':
+            field_soup = form_soup.find('input', dict(name=field_name))
+            field_value = int(field_soup.attrs['value'])
+        elif field_type == 'color':
+            field_soup = form_soup.find('input', dict(name=field_name))
+            field_value = field_soup.attrs['value']
+        elif field_type == 'boolean':
+            field_soup = form_soup.find('input', dict(name=field_name))
+            field_value = (field_soup.attrs.get('checked') == 'checked')
+        else:
+            raise ValueError("Not a recognized field type.")
+
+        return field_value
+
+    def test_tool_uses_defaults_if_never_saved_settings(self):
+        self.client.force_login(self.user)
+        response = self.client.get(self.tool_url)
+
+        # Scrape the annotation tool's HTML to ensure the settings values are
+        # as expected.
+        response_soup = BeautifulSoup(response.content, 'html.parser')
+        form_soup = response_soup.find(
+            'form', dict(id='annotationToolSettingsForm'))
+
+        for field_name, field_type in six.iteritems(self.field_names_to_types):
+            field_value = self.get_field_value_from_soup(field_name, form_soup)
+            field_meta = AnnotationToolSettings._meta.get_field(field_name)
+            expected_value = field_meta.default
+            self.assertEqual(field_value, expected_value)
+
+    def test_tool_uses_saved_settings_when_present(self):
+        self.client.force_login(self.user)
+        response = self.client.get(self.tool_url)
+
+        # Scrape the annotation tool's HTML to ensure the settings values are
+        # as expected.
+        response_soup = BeautifulSoup(response.content, 'html.parser')
+        form_soup = response_soup.find(
+            'form', dict(id='annotationToolSettingsForm'))
+
+        for field_name, field_type in six.iteritems(self.field_names_to_types):
+            field_value = self.get_field_value_from_soup(field_name, form_soup)
+            field_meta = AnnotationToolSettings._meta.get_field(field_name)
+            expected_value = field_meta.default
+            self.assertEqual(field_value, expected_value)
+
+    def test_save_settings_for_first_time(self):
+        self.client.force_login(self.user)
+
+        # Set settings.
+        data = self.sample_settings
         response = self.client.post(self.settings_url, data).json()
 
         # Check response
         self.assertTrue('error' not in response)
 
-        # Check settings
+        # Check settings in database
         settings = AnnotationToolSettings.objects.get(user=self.user)
-        self.assertEqual(settings.point_marker, 'box')
-        self.assertEqual(settings.point_marker_size, 19)
-        self.assertEqual(settings.point_marker_is_scaled, True)
-        self.assertEqual(settings.point_number_size, 9)
-        self.assertEqual(settings.point_number_is_scaled, True)
-        self.assertEqual(settings.unannotated_point_color, 'FF0000')
-        self.assertEqual(settings.robot_annotated_point_color, 'ABCDEF')
-        self.assertEqual(settings.human_annotated_point_color, '012345')
-        self.assertEqual(settings.selected_point_color, 'FFBBBB')
-        self.assertEqual(settings.show_machine_annotations, False)
+        for field_name, setting in six.iteritems(self.sample_settings):
+            self.assertEqual(getattr(settings, field_name), setting)
 
-    # TODO: Test loading the settings form on the annotation tool page
-    # with the correct form field values.
+    def test_update_existing_settings(self):
+        self.client.force_login(self.user)
+
+        # Set settings.
+        data = self.sample_settings
+        self.client.post(self.settings_url, data).json()
+        # Update settings.
+        data = self.sample_settings.copy()
+        data.update(point_marker='crosshair and circle')
+        response = self.client.post(self.settings_url, data).json()
+
+        # Check response
+        self.assertTrue('error' not in response)
+
+        # Check settings in database
+        settings = AnnotationToolSettings.objects.get(user=self.user)
+        for field_name, sample_setting in six.iteritems(self.sample_settings):
+            if field_name == 'point_marker':
+                self.assertEqual(
+                    getattr(settings, field_name), 'crosshair and circle')
+            else:
+                self.assertEqual(getattr(settings, field_name), sample_setting)
+
+    def test_missing_setting(self):
+        self.client.force_login(self.user)
+
+        data = self.sample_settings.copy()
+        data.pop('point_marker')
+        response = self.client.post(self.settings_url, data).json()
+
+        self.assertTrue('error' in response)
+        self.assertTrue(
+            "Point marker: This field is required."
+            in response['error'],
+            msg=response['error'])
+
+    def test_point_marker_not_recognized(self):
+        self.client.force_login(self.user)
+
+        data = self.sample_settings.copy()
+        data['point_marker'] = 'Crosshair and box'
+        response = self.client.post(self.settings_url, data).json()
+
+        self.assertTrue('error' in response)
+        self.assertTrue(
+            "Point marker: Select a valid choice. Crosshair and box is not"
+            " one of the available choices."
+            in response['error'],
+            msg=response['error'])
+
+    def test_point_marker_size_not_an_integer(self):
+        self.client.force_login(self.user)
+
+        data = self.sample_settings.copy()
+        data['point_marker_size'] = '15.5'
+        response = self.client.post(self.settings_url, data).json()
+
+        self.assertTrue('error' in response)
+        self.assertTrue(
+            "Point marker size: Enter a whole number."
+            in response['error'],
+            msg=response['error'])
+
+    def test_point_marker_size_too_small(self):
+        self.client.force_login(self.user)
+
+        data = self.sample_settings.copy()
+        data['point_marker_size'] = 0
+        response = self.client.post(self.settings_url, data).json()
+
+        self.assertTrue('error' in response)
+        self.assertTrue(
+            "Point marker size: Ensure this value is greater than or equal"
+            " to 1."
+            in response['error'],
+            msg=response['error'])
+
+    def test_point_marker_size_too_large(self):
+        self.client.force_login(self.user)
+
+        data = self.sample_settings.copy()
+        data['point_marker_size'] = 31
+        response = self.client.post(self.settings_url, data).json()
+
+        self.assertTrue('error' in response)
+        self.assertTrue(
+            "Point marker size: Ensure this value is less than or equal to 30."
+            in response['error'],
+            msg=response['error'])
+
+    def test_point_number_size_not_an_integer(self):
+        self.client.force_login(self.user)
+
+        data = self.sample_settings.copy()
+        data['point_number_size'] = '0a'
+        response = self.client.post(self.settings_url, data).json()
+
+        self.assertTrue('error' in response)
+        self.assertTrue(
+            "Point number size: Enter a whole number."
+            in response['error'],
+            msg=response['error'])
+
+    def test_point_number_size_too_small(self):
+        self.client.force_login(self.user)
+
+        data = self.sample_settings.copy()
+        data['point_number_size'] = 0
+        response = self.client.post(self.settings_url, data).json()
+
+        self.assertTrue('error' in response)
+        self.assertTrue(
+            "Point number size: Ensure this value is greater than or equal"
+            " to 1."
+            in response['error'],
+            msg=response['error'])
+
+    def test_point_number_size_too_large(self):
+        self.client.force_login(self.user)
+
+        data = self.sample_settings.copy()
+        data['point_number_size'] = 41
+        response = self.client.post(self.settings_url, data).json()
+
+        self.assertTrue('error' in response)
+        self.assertTrue(
+            "Point number size: Ensure this value is less than or equal to 40."
+            in response['error'],
+            msg=response['error'])
+
+    # TODO: Implement color validation (6 digit uppercase hex string)
+    # and test it here.

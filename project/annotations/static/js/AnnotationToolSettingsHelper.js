@@ -163,7 +163,7 @@ var ATS = {
     saveSettingsAjaxCallback: function(returnDict) {
         if (returnDict.error) {
             ATS.$saveButton.text("Error");
-            console.log("Settings save error: "+returnDict.error);
+            alert(returnDict.error);
             return;
         }
 

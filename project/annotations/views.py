@@ -398,7 +398,7 @@ def annotation_tool_settings_save(request):
     error_message = (
         "Settings form failed to save. Perhaps refresh the page and try"
         " again? If the problem persists, please report to the site admins."
-        " (Error detail: {error_detail})").format(error_detail=error_detail)
+        " (Error detail: \"{error_detail}\")").format(error_detail=error_detail)
     return JsonResponse(dict(error=error_message))
 
 

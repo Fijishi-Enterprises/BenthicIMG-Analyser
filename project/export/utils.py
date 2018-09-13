@@ -30,7 +30,7 @@ def get_request_images(request, source):
             # This is an unusual error case where the current image search
             # worked for the Browse-images page load, but not for the
             # subsequent export.
-            raise ValidationError
+            raise ValidationError("Image-search parameters were invalid.")
     else:
         image_set = Image.objects.filter(source=source)
 

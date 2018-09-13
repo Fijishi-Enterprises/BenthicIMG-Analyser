@@ -29,8 +29,8 @@ def export_metadata(request, source_id):
 
     try:
         image_set = get_request_images(request, source)
-    except ValidationError:
-        messages.error(request, "Search parameters were invalid.")
+    except ValidationError as e:
+        messages.error(request, e.message)
         return HttpResponseRedirect(
             reverse('browse_images', args=[source_id]))
 
@@ -65,8 +65,8 @@ def export_annotations_simple(request, source_id):
 
     try:
         image_set = get_request_images(request, source)
-    except ValidationError:
-        messages.error(request, "Search parameters were invalid.")
+    except ValidationError as e:
+        messages.error(request, e.message)
         return HttpResponseRedirect(
             reverse('browse_images', args=[source_id]))
 
@@ -84,8 +84,8 @@ def export_annotations_full(request, source_id):
 
     try:
         image_set = get_request_images(request, source)
-    except ValidationError:
-        messages.error(request, "Search parameters were invalid.")
+    except ValidationError as e:
+        messages.error(request, e.message)
         return HttpResponseRedirect(
             reverse('browse_images', args=[source_id]))
 
@@ -113,9 +113,9 @@ def export_annotations_cpc_create_ajax(request, source_id):
 
     try:
         image_set = get_request_images(request, source)
-    except ValidationError:
+    except ValidationError as e:
         return JsonResponse(dict(
-            error="Image-search parameters were invalid."
+            error=e.message
         ))
 
     cpc_prefs_form = CpcPrefsForm(request.POST)
@@ -177,8 +177,8 @@ def export_image_covers(request, source_id):
 
     try:
         image_set = get_request_images(request, source)
-    except ValidationError:
-        messages.error(request, "Search parameters were invalid.")
+    except ValidationError as e:
+        messages.error(request, e.message)
         return HttpResponseRedirect(
             reverse('browse_images', args=[source_id]))
 

@@ -273,12 +273,28 @@ def save_annotations_ajax(request, image_id):
         if label_code is None:
             return JsonResponse(
                 dict(error="Missing label field for point %s." % point_num))
+        if label_code == '':
+            # Label code is blank; nothing to do. We don't allow deleting
+            # existing annotations.
+            continue
 
-        # Does the form field have a non-human-confirmed robot annotation?
         is_unconfirmed_in_form_raw = request.POST.get('robot_'+str(point_num))
         if is_unconfirmed_in_form_raw is None:
             return JsonResponse(
                 dict(error="Missing robot field for point %s." % point_num))
+        if is_unconfirmed_in_form_raw == 'null':
+            # This field uses null and false interchangeably, including on the
+            # Javascript side. It's sloppy, but we have to handle it for now.
+            # Possible future change in JS: if the user fills a blank label
+            # field, then the JS should change robot from null to false.
+            is_unconfirmed_in_form_raw = 'false'
+        if is_unconfirmed_in_form_raw not in ['true', 'false']:
+            return JsonResponse(dict(
+                error="Invalid robot field value: {v}".format(
+                    v=is_unconfirmed_in_form_raw)))
+        # json-load result is True or False.
+        # True means this point has a non-human-confirmed robot annotation
+        # in the form.
         is_unconfirmed_in_form = json.loads(is_unconfirmed_in_form_raw)
 
         # Get the label that the form field value refers to.

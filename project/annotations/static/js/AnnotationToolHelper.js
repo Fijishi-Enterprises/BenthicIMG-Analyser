@@ -1031,7 +1031,7 @@ var AnnotationToolHelper = (function() {
     function ajaxSaveButtonCallback(returnDict) {
         if (returnDict.error) {
             setSaveButtonText("Error");
-            console.log("Annotation save error: {0}".format(returnDict.error));
+            alert("Annotation save error: {0}".format(returnDict.error));
             return;
         }
 

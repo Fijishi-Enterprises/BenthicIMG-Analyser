@@ -1,15 +1,19 @@
 from django.contrib.auth.models import User
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+
+from .managers import AnnotationManager
 from images.models import Image, Point, Source
 from labels.models import Label, LocalLabel
 from vision_backend.models import Classifier
 
 
 class Annotation(models.Model):
+    objects = AnnotationManager()
+
     annotation_date = models.DateTimeField(
         blank=True, auto_now=True, editable=False)
-    point = models.ForeignKey(Point, on_delete=models.CASCADE,
+    point = models.OneToOneField(Point, on_delete=models.CASCADE,
         editable=False)
     image = models.ForeignKey(Image, on_delete=models.CASCADE,
         editable=False)

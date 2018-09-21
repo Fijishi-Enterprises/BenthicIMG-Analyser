@@ -1,14 +1,13 @@
 import numpy as np
 
-from django.conf import settings
 from django.core.urlresolvers import reverse
 
 from lib.test_utils import ClientTest
 
-from labels.models import Label
-from images.models import Source, Image, Point
+from images.models import Image, Point
+from images.model_utils import PointGen
 from annotations.models import Annotation
-from accounts.utils import get_robot_user
+from accounts.utils import is_robot_user
 from .models import Score, Classifier
 from .tasks import reset_after_labelset_change
 
@@ -96,101 +95,122 @@ class ResetTaskTest(ClientTest):
         self.assertFalse(Image.objects.get(id = img.id).features.classified)
 
 
-class ClassifyImageTask(ClientTest):
+class ClassifyUtilsTest(ClientTest):
+    """Test helper/utility functions used by the classify-image task."""
 
     @classmethod
     def setUpTestData(cls):
-        super(ClassifyImageTask, cls).setUpTestData()
+        super(ClassifyUtilsTest, cls).setUpTestData()
 
         cls.user = cls.create_user()
-        cls.source = cls.create_source(cls.user)
-
-        labels = cls.create_labels(cls.user, ['A', 'B', 'C', 'D', 'E', 'F', 'G'], "Group1")
-
-        cls.create_labelset(cls.user, cls.source, labels.filter(
-            name__in=['A', 'B', 'C', 'D', 'E', 'F', 'G'])
+        cls.points_per_image = 3
+        cls.source = cls.create_source(
+            cls.user,
+            point_generation_type=PointGen.Types.SIMPLE,
+            simple_number_of_points=cls.points_per_image,
         )
 
-        cls.dummy_annotations = dict(
-            label_1='A', label_2='B', label_3='C',label_4='D', label_5='E', label_6='F',
-            robot_1='false', robot_2='false', robot_3='false', robot_4='false', robot_5='false', robot_6='false',
-        )
+        cls.labels = cls.create_labels(
+            cls.user, ['A', 'B', 'C', 'D'], "Group1")
+        cls.create_labelset(cls.user, cls.source, cls.labels)
+        # Make the order predictable so that we can specify scores easily
+        cls.labels.order_by('default_code')
 
-        cls.partial_dummy_annotations = dict(
-            label_1='A',
-            robot_1='false',
-        )
-    
     @classmethod
-    def annotate(self, img_id, user, data):
-        self.client.force_login(user)
-        url = reverse('save_annotations_ajax', kwargs=dict(image_id = img_id))
-        return self.client.post(url, data).json()
+    def classify(cls, img, classifier=None, scores=None):
+        if not classifier:
+            classifier = Classifier(source=cls.source, valid=True)
+            classifier.save()
+        if not scores:
+            scores = [
+                np.random.rand(cls.labels.count())
+                for _ in range(cls.points_per_image)]
+        th._add_scores(img.pk, scores, cls.labels)
+        th._add_annotations(img.pk, scores, cls.labels, classifier)
+        img.features.extracted = True
+        img.features.classified = True
+        img.features.save()
 
+    def test_classify_for_unannotated_image(self):
+        """Classify an image which has no annotations yet."""
+        img = self.upload_image(self.user, self.source)
+        self.classify(img)
 
-    def test_classify_image(self):
-        """
-        Test basic dynamics of image upload.
-        """
-        # Upload three images
-        img1 = self.upload_image(self.user, self.source)
-        img2 = self.upload_image(self.user, self.source)
-        img3 = self.upload_image(self.user, self.source)
-        
-        # Annotate the second one partially and the third fully
-        self.annotate(img2.id, self.user, self.partial_dummy_annotations)
-        self.annotate(img3.id, self.user, self.dummy_annotations)
+        # Should have only robot annotations
+        for ann in Annotation.objects.filter(image_id=img.id):
+            self.assertTrue(is_robot_user(ann.user))
 
-        # Remember which were annotated for img2
-        human_anns = list(Annotation.objects.filter(image_id = img2.id))
+    def test_classify_for_unconfirmed_image(self):
+        """Classify an image where all points have unconfirmed annotations.
+        We'll assume we have a robot which is better than the previous (it's
+        not _add_annotations()'s job to determine this)."""
+        img = self.upload_image(self.user, self.source)
 
-        
-        # Pretent that all images were classified
-        for img in [img1, img2, img3]:
-            img.features.extracted = True
-            img.features.classified = True
-            img.features.save()
+        classifier_1 = Classifier(source=self.source, valid=True)
+        classifier_1.save()
+        scores = [
+            [0.8, 0.5, 0.5, 0.5],  # Point 1: A
+            [0.5, 0.5, 0.5, 0.8],  # Point 2: D
+            [0.5, 0.8, 0.5, 0.5],  # Point 3: B
+        ]
+        self.classify(img, classifier=classifier_1, scores=scores)
 
-        clf = Classifier(source = self.source)
-        clf.valid = True
-        clf.save()
+        classifier_2 = Classifier(source=self.source, valid=True)
+        classifier_2.save()
+        scores = [
+            [0.6, 0.6, 0.7, 0.6],  # Point 1: C
+            [0.6, 0.6, 0.6, 0.7],  # Point 2: D (same as before)
+            [0.7, 0.6, 0.6, 0.6],  # Point 3: A
+        ]
+        self.classify(img, classifier=classifier_2, scores=scores)
 
-        # Pre-fetch label objects
-        label_objs = self.source.labelset.get_globals()
-
-        # Check number of points per image
-        nbr_points = Point.objects.filter(image = img1).count()
-
-        # Fake creation of scores.
-        scores = []
-        for i in range(nbr_points):
-            scores.append(np.random.rand(label_objs.count()))
-
-        for img in [img1, img2, img3]:    
-            th._add_scores(img.pk, scores, label_objs)
-            th._add_annotations(img.pk, scores, label_objs, clf)
-
-        # Check the annotations. 
-        r = self.source.get_latest_robot()
-
-        # Img1 whould have only robot annotations
-        for ann in Annotation.objects.filter(image_id = img1.id):
-            self.assertTrue(ann.user == get_robot_user())
-
-        # Img2 should have a mix.
-        for ann in Annotation.objects.filter(image_id = img2.id):
-            if ann in human_anns:
-                self.assertFalse(ann.user == get_robot_user())
+        # Should have only robot annotations, with point 2 still being from
+        # classifier 1
+        for ann in Annotation.objects.filter(image_id=img.id):
+            # Should be robot
+            self.assertTrue(is_robot_user(ann.user))
+            if ann.point.point_number == 2:
+                self.assertTrue(ann.robot_version.pk == classifier_1.pk)
             else:
-                self.assertTrue(ann.user == get_robot_user())
+                self.assertTrue(ann.robot_version.pk == classifier_2.pk)
 
-        # Img3 should have only manual annotations.    
-        for ann in Annotation.objects.filter(image_id = img3.id):
-            self.assertFalse(ann.user == get_robot_user())
+    def test_classify_for_partially_confirmed_image(self):
+        """Classify an image where some, but not all points have confirmed
+        annotations."""
+        img = self.upload_image(self.user, self.source)
+        # Human annotations
+        self.add_annotations(self.user, img, {1: 'A'})
+        # Robot annotations
+        self.classify(img)
 
-        # Check that max score label corresponds to the annotation for each point for img1.
-        for point in Point.objects.filter(image = img1):
-            ann = Annotation.objects.get(point = point)
-            scores = Score.objects.filter(point = point)
+        for ann in Annotation.objects.filter(image_id=img.id):
+            if ann.point.point_number == 1:
+                # Should still be human
+                self.assertFalse(is_robot_user(ann.user))
+            else:
+                # Should be robot
+                self.assertTrue(is_robot_user(ann.user))
+
+    def test_classify_for_fully_confirmed_image(self):
+        """Classify an image where all points have confirmed annotations."""
+        img = self.upload_image(self.user, self.source)
+        # Human annotations
+        self.add_annotations(
+            self.user, img, {1: 'A', 2: 'B', 3: 'C'})
+        # Robot annotations
+        self.classify(img)
+
+        # Should have only human annotations
+        for ann in Annotation.objects.filter(image_id=img.id):
+            self.assertFalse(is_robot_user(ann.user))
+
+    def test_classify_scores_and_labels_match(self):
+        img = self.upload_image(self.user, self.source)
+        self.classify(img)
+
+        # Check that the max score label matches the annotation label.
+        for point in Point.objects.filter(image=img):
+            ann = point.annotation
+            scores = Score.objects.filter(point=point)
             posteriors = [score.score for score in scores]
             self.assertEqual(scores[np.argmax(posteriors)].label, ann.label)

@@ -1,13 +1,12 @@
 from decimal import Decimal
 import json
-from django.core.exceptions import ValidationError, MultipleObjectsReturned
-from django.core.mail import mail_admins
+from django.core.exceptions import ValidationError
 from django import forms
 from django.forms import Form
 from django.forms.fields import BooleanField, CharField, DecimalField, IntegerField
 from django.forms.models import ModelForm
 from django.forms.widgets import TextInput, HiddenInput, NumberInput
-from accounts.utils import is_robot_user, get_robot_user
+from accounts.utils import is_robot_user
 from annotations.model_utils import AnnotationAreaUtils
 from annotations.models import Annotation, AnnotationToolSettings
 from images.models import Point, Source, Metadata
@@ -23,28 +22,23 @@ class AnnotationForm(forms.Form):
 
         labelFieldMaxLength = LocalLabel._meta.get_field('code').max_length
 
-
         for point in Point.objects.filter(image=image).order_by('point_number'):
 
             try:
-                if show_machine_annotations:
-                    existingAnnotation = Annotation.objects.get(point=point)
-                else:
-                    existingAnnotation = Annotation.objects.exclude(user=get_robot_user()).get(point=point)
+                annotation = point.annotation
             except Annotation.DoesNotExist:
-                existingAnnotation = None
-            except MultipleObjectsReturned:
-                existingAnnotation = None
-                mail_admins('Multiple annotations returned for a point object',
-                            'Multiple annotations returned for query: Annotations.objects.get(point=point) '
-                            'for image_id:' + str(image.id) + ', point_id:' + str(point.id) + '. Please investigate.')
-
-            if existingAnnotation:
-                existingAnnoCode = existingAnnotation.label_code
-                isRobotAnnotation = is_robot_user(existingAnnotation.user)
-            else:
+                # This point doesn't have an annotation
                 existingAnnoCode = ''
                 isRobotAnnotation = None
+            else:
+                # This point has an annotation
+                existingAnnoCode = annotation.label_code
+                isRobotAnnotation = is_robot_user(annotation.user)
+
+                if isRobotAnnotation and not show_machine_annotations:
+                    # Is machine annotation and we're not including those
+                    existingAnnoCode = ''
+                    isRobotAnnotation = None
 
             pointNum = point.point_number
 

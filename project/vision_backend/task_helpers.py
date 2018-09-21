@@ -18,7 +18,6 @@ from reversion import revisions
 
 from images.models import Image, Point
 from annotations.models import Annotation
-from accounts.utils import get_robot_user, is_robot_user
 
 from .models import Classifier, Score
 
@@ -55,40 +54,18 @@ def _add_annotations(image_id, scores, label_objs, classifier):
     and thus would not trigger django-reversion's revision creation.
     So we must save annotations one by one.
     """
-    user = get_robot_user()
     img = Image.objects.get(pk = image_id)
     points = Point.objects.filter(image = img).order_by('id')
     estlabels = [np.argmax(score) for score in scores]
-    anno_objs = []
     with transaction.atomic():
         for pt, estlabel in zip(points, estlabels):
             
             label = label_objs[estlabel]
 
-            # If there's an existing annotation for this point, get it.
-            # Otherwise, create a new annotation.
-            try:
-                anno = Annotation.objects.get(image=img, point=pt)
-
-            except Annotation.DoesNotExist:
-                # No existing annotation. Create a new one.
-                new_anno = Annotation(
-                    image=img, label=label, point=pt,
-                    user=user, robot_version=classifier, source=img.source
-                )
-                new_anno.save()
-
-            else:
-                # Got an existing annotation.
-                if is_robot_user(anno.user):
-                    # It's an existing robot annotation. Update it as necessary.
-                    if anno.label.id != label.id:
-                        anno.label = label
-                        anno.robot_version = classifier
-                        anno.save()
-
-                # Else, it's an existing confirmed annotation, and we don't want
-                # to overwrite it. So do nothing in this case.
+            Annotation.objects.update_point_annotation_if_applicable(
+                point=pt, label=label,
+                now_confirmed=False,
+                user_or_robot_version=classifier)
 
 
 def _add_scores(image_id, scores, label_objs):

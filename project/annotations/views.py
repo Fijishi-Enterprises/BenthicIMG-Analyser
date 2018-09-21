@@ -18,9 +18,8 @@ from .forms import (
 from .model_utils import AnnotationAreaUtils
 from .models import Annotation, AnnotationToolAccess, AnnotationToolSettings
 from .utils import (
-    get_annotation_version_user_display, image_annotation_all_done,
-    apply_alleviate)
-from accounts.utils import is_robot_user
+    after_saving_annotations, apply_alleviate,
+    get_annotation_version_user_display, image_annotation_all_done)
 from images.models import Source, Image, Point
 from images.utils import (
     generate_points, get_next_image, get_date_and_aux_metadata_table,
@@ -263,10 +262,6 @@ def save_annotations_ajax(request, image_id):
     points_list = list(Point.objects.filter(image=image))
     points = dict([(p.point_number, p) for p in points_list])
 
-    annotations_list = list(
-        Annotation.objects.filter(image=image, source=source))
-    annotations = dict([(a.point_id, a) for a in annotations_list])
-
     for point_num, point in points.items():
 
         label_code = request.POST.get('label_'+str(point_num), None)
@@ -299,56 +294,21 @@ def save_annotations_ajax(request, image_id):
 
         # Get the label that the form field value refers to.
         # Anticipate errors, even if we plan to check input with JS.
-        if label_code == '':
-            label = None
-        else:
-            label = source.labelset.get_global_by_code(label_code)
-            if not label:
-                return JsonResponse(dict(error=(
-                    "The labelset has no label with code %s." % label_code)))
+        label = source.labelset.get_global_by_code(label_code)
+        if not label:
+            return JsonResponse(dict(error=(
+                "The labelset has no label with code %s." % label_code)))
 
-        # An annotation of this point number exists in the database
-        if point.pk in annotations:
-            anno = annotations[point.pk]
-            # Label field is now blank.
-            # We're not allowing label deletions,
-            # so don't do anything in this case.
-            if label is None:
-                pass
-            # Label was robot annotated, and then the human user
-            # confirmed or changed it
-            elif is_robot_user(anno.user) and not is_unconfirmed_in_form:
-                anno.label = label
-                anno.user = request.user
-                anno.save()
-            # Label was otherwise changed
-            elif label != anno.label:
-                anno.label = label
-                anno.user = request.user
-                anno.save()
-            # Else, there's nothing to save, so don't do anything.
+        # We only save confirmed annotations with the annotation form.
+        if not is_unconfirmed_in_form:
+            Annotation.objects.update_point_annotation_if_applicable(
+                point=point, label=label,
+                now_confirmed=(not is_unconfirmed_in_form),
+                user_or_robot_version=request.user)
 
-        # No annotation of this point number in the database yet
-        else:
-            if label is not None:
-                new_anno = Annotation(
-                    point=point, user=request.user,
-                    image=image, source=source, label=label)
-                new_anno.save()
+    after_saving_annotations(image)
 
-    # Are all points human annotated?
     all_done = image_annotation_all_done(image)
-
-    # Update image status, if needed
-    if image.confirmed != all_done:
-        image.confirmed = all_done
-        image.save()
-
-    # Finally, with a new image confirmed, let's try to train a new robot.
-    # It will simply exit if there is not enough new images or if one is 
-    # already being trained.
-    backend_tasks.submit_classifier.apply_async(args = [source.id], eta = now() + timedelta(seconds = 10))
-
     return JsonResponse(dict(all_done=all_done))
 
 

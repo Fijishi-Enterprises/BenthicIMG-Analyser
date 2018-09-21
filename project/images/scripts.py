@@ -9,28 +9,8 @@ import subprocess
 import numpy as np
 
 from django.conf import settings
-from django.core.exceptions import MultipleObjectsReturned
 
-from images.models import Source, Image, Point
-from annotations.models import Annotation
-
-
-def find_duplicate_annotations():
-    """
-    This script goes through all point and check if there are duplicate annotations. We had some problems with this so are trying to debug.
-    """
-    n = len(Point.objects.filter())
-    for itt, p in enumerate(Point.objects.filter()):
-        if(itt % 500000 == 0):
-            print 'Processed ' + str(itt) + ' out of ' + str(n) + 'annotations.'
-        try:
-            a = Annotation.objects.get(point = p)
-        except MultipleObjectsReturned:
-            print 'Multiple annotation objects for Imageid:' + str(p.image_id) + ', pointid:' + str(p.id)
-        except Annotation.DoesNotExist:
-            d = 1
-    print "done."
-
+from images.models import Source, Image
 
 
 def export_imgage_and_annotations(source_idlist, outdir):

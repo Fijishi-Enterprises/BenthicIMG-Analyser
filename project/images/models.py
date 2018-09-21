@@ -3,6 +3,7 @@ import posixpath
 
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.core.exceptions import ObjectDoesNotExist
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
@@ -587,23 +588,27 @@ class Point(models.Model):
 
     @property
     def annotation_status_property(self):
-        if self.annotation_set.count() == 0:
+        try:
+            annotation = self.annotation
+        except ObjectDoesNotExist:
+            # We use ObjectDoesNotExist instead of Annotation.DoesNotExist
+            # to avoid having to import annotations.models.
             return 'unclassified'
 
-        annotation = self.annotation_set.first()
         if is_robot_user(annotation.user):
             return 'unconfirmed'
         return 'confirmed'
 
     @property
     def label_code(self):
-        if self.annotation_set.count() == 0:
+        try:
+            annotation = self.annotation
+        except ObjectDoesNotExist:
             # Unannotated point
             return ''
-        else:
-            # Annotated point
-            annotation = self.annotation_set.first()
-            return annotation.label_code
+
+        # Annotated point
+        return annotation.label_code
 
     @property
     def machine_confidence(self):

@@ -10,33 +10,7 @@ from .models import Annotation
 from images.model_utils import PointGen
 from images.models import Image, Point
 from labels.models import Label
-
-
-def purge_annotations(image_id):
-    """
-    Goes through all point for this image and cleans up duplicate annotations.
-    This should not be needed, but due to race-conditions of the backend and annotation tools
-    it happens sometimes. When we catch it, this method can be called to clean up the mess.
-    """
-    image = Image.objects.get(pk=image_id)
-
-    for point in Point.objects.filter(image=image):
-        anns = Annotation.objects.filter(point=point)
-        if len(anns) > 1:
-            # Iterate through and remove any robot annotations
-            for ann in anns:
-                if ann.user == get_robot_user():
-                    ann.delete()
-
-            # If there are still excess annotations, simply remove the human annotations one by one.
-            anns = Annotation.objects.filter(point=point)
-            while anns.count() > 1:
-                anns[0].delete()
-                anns = Annotation.objects.filter(point=point)
-
-    # Update the image status
-    image.confirmed = image_annotation_all_done(image)
-    image.save()
+from vision_backend.tasks import submit_classifier
 
 
 def image_annotation_all_done(image):
@@ -170,12 +144,29 @@ def apply_alleviate(image_id, label_scores_all_points):
             alleviate_was_applied = True
 
     if alleviate_was_applied:
-        # Are all points human annotated now?
-        all_done = image_annotation_all_done(img)
-        # Update image status, if needed
-        if all_done:
-            img.confirmed = True
-            img.save()
+        after_saving_annotations(img)
+
+
+def after_saving_annotations(image):
+    """
+    Run this function after saving a batch of Annotations for an Image.
+    :param image: Image for which Annotations were saved
+    """
+    # Are all points human annotated?
+    all_done = image_annotation_all_done(image)
+
+    # Update image status, if needed
+    if image.confirmed != all_done:
+        image.confirmed = all_done
+        image.save()
+
+        if image.confirmed:
+            # With a new image confirmed, let's try to train a new
+            # robot. The task will simply exit if there are not enough new
+            # images or if a robot is already being trained.
+            submit_classifier.apply_async(
+                args=[image.source.id],
+                eta=timezone.now()+datetime.timedelta(seconds=10))
 
 
 def update_sitewide_annotation_count():

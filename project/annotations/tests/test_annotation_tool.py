@@ -3,7 +3,9 @@ import six
 
 from bs4 import BeautifulSoup
 from django.core.urlresolvers import reverse
+from django.db import IntegrityError
 from django.shortcuts import resolve_url
+from mock import patch
 
 from accounts.utils import is_alleviate_user, is_robot_user
 from annotations.models import Annotation, AnnotationToolSettings
@@ -445,6 +447,10 @@ class SaveAnnotationsTest(ClientTest):
         cls.url = reverse(
             'save_annotations_ajax', kwargs=dict(image_id=cls.img.pk))
 
+    def assert_didnt_save_anything(self):
+        self.assertEqual(
+            Annotation.objects.filter(image__pk=self.img.pk).count(), 0)
+
     def test_cant_delete_existing_annotation(self):
         """If a point already has an annotation in the DB, submitting a blank
         field has no effect on that annotation."""
@@ -664,7 +670,11 @@ class SaveAnnotationsTest(ClientTest):
 
     def test_label_code_missing(self):
         """This isn't supposed to happen unless we screwed up or the user
-        crafted POST data."""
+        crafted POST data.
+        Note: for these error cases, we make the error case involve a point
+        other than the first point (the second point in this case), so that
+        we can test whether the first point got saved or not. (Saving and
+        checking happens in point order.)"""
         data = dict(
             label_1='A', label_3='B',
             robot_1='false', robot_2='false', robot_3='false',
@@ -674,6 +684,7 @@ class SaveAnnotationsTest(ClientTest):
 
         self.assertTrue('error' in response)
         self.assertEqual(response['error'], "Missing label field for point 2.")
+        self.assert_didnt_save_anything()
 
     def test_label_code_invalid(self):
         """This isn't supposed to happen unless we screwed up, the user
@@ -688,6 +699,7 @@ class SaveAnnotationsTest(ClientTest):
         self.assertTrue('error' in response)
         self.assertEqual(
             response['error'], "The labelset has no label with code C.")
+        self.assert_didnt_save_anything()
 
     def test_robot_value_missing(self):
         """This isn't supposed to happen unless we screwed up or the user
@@ -701,6 +713,7 @@ class SaveAnnotationsTest(ClientTest):
 
         self.assertTrue('error' in response)
         self.assertEqual(response['error'], "Missing robot field for point 3.")
+        self.assert_didnt_save_anything()
 
     def test_robot_value_invalid(self):
         """This isn't supposed to happen unless we screwed up or the user
@@ -714,6 +727,51 @@ class SaveAnnotationsTest(ClientTest):
 
         self.assertTrue('error' in response)
         self.assertEqual(response['error'], "Invalid robot field value: asdf")
+        self.assert_didnt_save_anything()
+
+    def mock_update_annotation(point, label, now_confirmed, user_or_robot_version):
+        """
+        When the save_annotations_ajax view tries to actually save the
+        annotations to the DB, this patched function should raise an
+        IntegrityError for point 2, making the view return an appropriate
+        error message.
+
+        We'll let point 1 save normally, so that we can confirm that point 1
+        doesn't get committed if point 2 fails.
+
+        We use a mock.patch approach for this because raising IntegrityError
+        legitimately involves replicating a race condition, which is much
+        trickier to do reliably.
+        """
+        if point.point_number == 2:
+            raise IntegrityError
+
+        # This is a simple saving case (for brevity) which works for this
+        # particular test.
+        new_annotation = Annotation(
+            point=point, image=point.image,
+            source=point.image.source, label=label, user=user_or_robot_version)
+        new_annotation.save()
+
+    @patch(
+        'annotations.models.Annotation.objects.update_point_annotation_if_applicable',
+        mock_update_annotation)
+    def test_integrity_error_when_saving(self):
+        data = dict(
+            label_1='A', label_2='B', label_3='B',
+            robot_1='false', robot_2='false', robot_3='false',
+        )
+        self.client.force_login(self.user)
+        response = self.client.post(self.url, data).json()
+
+        self.assertTrue('error' in response)
+        self.assertEqual(
+            response['error'],
+            "Failed to save annotations. It's possible that the"
+            " annotations changed at the same time that you submitted."
+            " Try again and see if it works.")
+
+        self.assert_didnt_save_anything()
 
 
 class AlleviateTest(ClientTest):

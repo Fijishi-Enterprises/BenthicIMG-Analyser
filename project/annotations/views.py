@@ -262,6 +262,14 @@ def save_annotations_ajax(request, image_id):
     points_list = list(Point.objects.filter(image=image))
     points = dict([(p.point_number, p) for p in points_list])
 
+    annotations_to_try_updating = []
+
+    # Here we are basically doing form validation, but without a Form or
+    # Formset.
+    # TODO: This validation should be done in a formset class for
+    # cleaner/clearer code. But this is important and nuanced functionality,
+    # so change it only when we have integration tests (Django + Javascript
+    # being tested together) for the annotation form.
     for point_num, point in points.items():
 
         label_code = request.POST.get('label_'+str(point_num), None)
@@ -301,10 +309,26 @@ def save_annotations_ajax(request, image_id):
 
         # We only save confirmed annotations with the annotation form.
         if not is_unconfirmed_in_form:
-            Annotation.objects.update_point_annotation_if_applicable(
+            # Prepare to save, but don't actually save yet.
+            annotations_to_try_updating.append(dict(
                 point=point, label=label,
                 now_confirmed=(not is_unconfirmed_in_form),
-                user_or_robot_version=request.user)
+                user_or_robot_version=request.user
+            ))
+
+    try:
+        # If anything in this block gets an exception, we'll roll back
+        # the DB changes. This way we don't have partial saves, which can be
+        # confusing.
+        with transaction.atomic():
+            for annotation_kwargs in annotations_to_try_updating:
+                Annotation.objects.update_point_annotation_if_applicable(
+                    **annotation_kwargs)
+    except IntegrityError:
+        return JsonResponse(dict(error=(
+            "Failed to save annotations. It's possible that the"
+            " annotations changed at the same time that you submitted."
+            " Try again and see if it works.")))
 
     after_saving_annotations(image)
 

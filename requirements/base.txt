@@ -57,6 +57,11 @@ beautifulsoup4==4.6.0
 # Fancy math
 numpy==1.11.1
 
+# Library for testing; can replace parts of the system under test with
+# mock objects.
+# Can be replaced with Python standard library's mock from Python 3.3 onward.
+mock==2.0.0
+
 # World timezone definitions
 pytz==2016.3
 

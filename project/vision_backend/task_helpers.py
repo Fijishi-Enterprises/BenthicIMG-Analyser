@@ -49,6 +49,10 @@ def _add_annotations(image_id, scores, label_objs, classifier):
     :param label_objs: Iterable of Label DB objects, one per label in the
       source's labelset.
 
+    May throw an IntegrityError when trying to save annotations. The caller is
+    responsible for handling the error. In this error case, no annotations
+    are saved due to the transaction.atomic() context manager.
+
     NOTE: this function is SLOW.
     Note that bulk-saving annotations would skip the signal firing,
     and thus would not trigger django-reversion's revision creation.

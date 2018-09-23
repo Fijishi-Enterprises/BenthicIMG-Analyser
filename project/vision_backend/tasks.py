@@ -4,6 +4,7 @@ import json
 
 from celery.decorators import task, periodic_task
 from django.conf import settings
+from django.db import IntegrityError
 from django.utils.timezone import now
 
 from datetime import timedelta
@@ -185,7 +186,12 @@ def classify_image(image_id):
 
     # Add annotations if image isn't already confirmed    
     if not img.confirmed:
-        th._add_annotations(image_id, scores, label_objs, classifier)
+        try:
+            th._add_annotations(image_id, scores, label_objs, classifier)
+        except IntegrityError:
+            logger.info("Failed to classify Image {} [Source: {} [{}] with classifier {}. There might have been a race condition when trying to save annotations. Will try again later.".format(img.id, img.source, img.source_id, classifier.id))
+            classify_image.apply_async(args=[image_id], eta=now() + timedelta(seconds=10))
+            return
     
     # Always add scores
     th._add_scores(image_id, scores, label_objs)

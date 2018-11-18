@@ -1,4 +1,4 @@
-<p>Select an action with the left dropdown box. Then use the right dropdown box to specify whether to apply the action to all images in the search, or just the images on this page. Click "Go" to run the action.</p>
+<p>Select an action with the left dropdown box. Then use the right dropdown box to specify whether to apply the action to all images in the search, or just the images on this page. Depending on the action, additional options may appear as well. Click "Go" to run the action.</p>
 
 <p>The available actions are:</p>
 
@@ -12,17 +12,29 @@
 
 <p>Each export type uses CSV format unless explained otherwise. A CSV (comma-separated values) file can be opened in a spreadsheet program like Excel.</p>
 
+<p>Note that the exported file may take a while to generate, particularly for sources with many images and points. After you click "Go", be sure to stay on this page until your browser starts downloading the file (or prompts you to choose a download location). If you are exporting data for thousands of images, you might have to wait for a few minutes.</p>
+
 <p>The available types of export data are:</p>
 
 <ul>
-  <li><strong>Metadata:</strong> This contains anything you would see in the "Edit Metadata" page: image date, auxiliary metadata, and so on.</li>
+  <li><strong>Metadata:</strong> Spreadsheet containing anything you would see in the "Edit Metadata" page: image date, auxiliary metadata, camera, and so on. One row per image.</li>
 
-  <li><strong>Annotations, CSV, Simple:</strong> Image name, Pixel row, Pixel column, and Label for each annotation point in the image set. TIP: If you are only interested in Confirmed annotations, then first do an image search with "Annotation status" set to "Confirmed".</li>
+  <li><strong>Annotations, CSV:</strong> Spreadsheet containing one row per annotation in the image set. By default, includes columns for: Image name, Pixel row (Y), Pixel column (X), and Label. There are also optional sets of columns available:
 
-  <li><strong>Annotations, CSV, Full:</strong> The fields of "Annotations, CSV, Simple" plus the annotator, annotation date, and the machine annotator's top suggestions for the point.</li>
+    <ul>
+      <li>Annotator info: The username of the user who made the annotation, and the date the annotation was made. Imported annotations show as "Imported" and machine annotations show as "robot".</li>
+
+      <li>Machine suggestions: Labels and confidence scores for the machine's top 5 suggestions.</li>
+
+      <li>Image metadata - date and auxiliary fields: The image's date field and 5 auxiliary metadata fields.</li>
+
+      <li>Image metadata - other fields: Other image metadata fields such as depth, camera, and white balance.</li>
+    </ul>
+
+   TIP: If you are only interested in Confirmed annotations, then first do an image search with "Annotation status" set to "Confirmed", and then export annotations.</li>
 
   <li>
-    <strong>Annotations, CPCe:</strong> (Requires source Edit permissions) Export .cpc files which can be opened in Coral Point Count. There will be one .cpc file per image, and the .cpc files will be contained in a .zip archive file. If you're not familiar with opening .zip files, see <a href="https://www.wikihow.com/Open-a-Zip-File" target="_blank">this WikiHow article</a>. The .cpc file format contains several pieces of information besides point positions and labels; here's how we handle each one:
+    <strong>Annotations, CPCe:</strong> (Requires source Edit permissions) Annotations as .cpc files which can be opened in Coral Point Count. There will be one .cpc file per image, and the .cpc files will be contained in a .zip archive file. If you're not familiar with opening .zip files, see <a href="https://www.wikihow.com/Open-a-Zip-File" target="_blank">this WikiHow article</a>. The .cpc file format contains several pieces of information besides point positions and labels; here's how we handle each one:
 
     <ul>
       <li>Notes codes: Coral Point Count has a Notes column in the list of points, and the Notes codes you enter in this column are saved in the .cpc file. This info is available based on .cpc files you've previously uploaded. If you have uploaded a .cpc file for a particular CoralNet image, that .cpc file's Notes codes will be retained, and those Notes codes will be used when you request a .cpc export for that image. If you have never uploaded a .cpc file for this CoralNet image, the Notes codes will be blank.</li>
@@ -44,8 +56,6 @@
 
   <li><strong>Image Covers:</strong> Coverage statistics for each image in the set; for example, this image consists of 5% label A, 10% label B, etc. based on the annotations. Also included is the image's "annotation area", which is the area of the image where the random points are scattered.</li>
 </ul>
-
-<p>Note that the exported file may take a while to generate, particularly for sources with many images and points. After you click "Go", be sure to stay on this page until your browser starts downloading the file (or prompts you to choose a download location). If you are exporting data for thousands of images, you might have to wait for a few minutes.</p>
 
 <h3>Delete</h3>
 

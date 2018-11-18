@@ -11,12 +11,15 @@ except ImportError:
     # Python 2.x with pathlib2 package
     from pathlib2 import PureWindowsPath
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse
 
 from annotations.model_utils import AnnotationAreaUtils
 from annotations.models import Annotation
 from images.models import Image, Point
+from images.utils import metadata_field_names_to_labels
+from vision_backend.utils import get_label_scores_for_point
 from visualization.forms import create_image_filter_form
 
 
@@ -325,12 +328,64 @@ def write_zip(zip_stream, file_strings):
         zip_file.writestr(filepath, cpc_string)
 
 
-def write_annotations_csv(writer, image_set, full):
-    # Header row
-    row = ["Name", "Row", "Column", "Label"]
-    if full:
-        row.extend(["Annotator", "Date annotated"])
-    writer.writerow(row)
+def write_annotations_csv(response, source, image_set, optional_columns):
+    """
+    :param response: Stream response object which we can write file content to.
+    :param source: The source we're exporting annotations for.
+    :param image_set: Non-empty queryset of images to write annotations for.
+        Images should all be from the source which was also passed in.
+    :param optional_columns: List of string keys indicating optional column sets
+        to add.
+    :return: None. This function simply writes CSV file content to the
+        response argument.
+    """
+    metadata_field_labels = metadata_field_names_to_labels(source)
+    metadata_date_aux_fields = [
+        'photo_date', 'aux1', 'aux2', 'aux3', 'aux4', 'aux5']
+    metadata_other_fields = [
+        f for f in metadata_field_labels.keys()
+        if f not in [
+            'name', 'photo_date', 'aux1', 'aux2', 'aux3', 'aux4', 'aux5']
+    ]
+
+    fieldnames = ["Name", "Row", "Column", "Label"]
+
+    if 'annotator_info' in optional_columns:
+        fieldnames.extend(["Annotator", "Date annotated"])
+
+    if 'machine_suggestions' in optional_columns:
+        for n in range(1, settings.NBR_SCORES_PER_ANNOTATION+1):
+            fieldnames.extend([
+                "Machine suggestion {n}".format(n=n),
+                "Machine confidence {n}".format(n=n),
+            ])
+
+    if 'metadata_date_aux' in optional_columns:
+        date_aux_labels = [
+            metadata_field_labels[name]
+            for name in metadata_date_aux_fields
+        ]
+        # Insert these columns before the Row column
+        insert_index = fieldnames.index("Row")
+        fieldnames = (
+            fieldnames[:insert_index]
+            + date_aux_labels
+            + fieldnames[insert_index:])
+
+    if 'metadata_other' in optional_columns:
+        other_meta_labels = [
+            metadata_field_labels[name]
+            for name in metadata_other_fields
+        ]
+        # Insert these columns before the Row column
+        insert_index = fieldnames.index("Row")
+        fieldnames = (
+            fieldnames[:insert_index]
+            + other_meta_labels
+            + fieldnames[insert_index:])
+
+    writer = csv.DictWriter(response, fieldnames)
+    writer.writeheader()
 
     # Annotation data for the image set, one row per annotation
     # Order by image name, then point number
@@ -339,18 +394,59 @@ def write_annotations_csv(writer, image_set, full):
         .order_by('image__metadata__name', 'point__point_number')
 
     for annotation in annotations:
-        row = [
-            annotation.image.metadata.name,
-            annotation.point.row,
-            annotation.point.column,
-            annotation.label_code,
-        ]
-        if full:
-            row.extend([
-                annotation.user.username,
-                # Truncate date precision at seconds
-                annotation.annotation_date.replace(microsecond=0),
-            ])
+        row = {
+            "Name": annotation.image.metadata.name,
+            "Row": annotation.point.row,
+            "Column": annotation.point.column,
+            "Label": annotation.label_code,
+        }
+
+        if 'annotator_info' in optional_columns:
+            # Truncate date precision at seconds
+            date_annotated = annotation.annotation_date.replace(microsecond=0)
+            row.update({
+                "Annotator": annotation.user.username,
+                "Date annotated": date_annotated,
+            })
+
+        if 'machine_suggestions' in optional_columns:
+            label_scores = get_label_scores_for_point(
+                annotation.point, ordered=True)
+            for i in range(settings.NBR_SCORES_PER_ANNOTATION):
+                try:
+                    score = label_scores[i]
+                except IndexError:
+                    # We might need to fill in some blank scores. For example,
+                    # when the classification system hasn't annotated these
+                    # points yet, or when the labelset has fewer than
+                    # NBR_SCORES_PER_ANNOTATION labels.
+                    score = {'label': "", 'score': ""}
+                n = i + 1
+                row.update({
+                    "Machine suggestion {n}".format(n=n): score['label'],
+                    "Machine confidence {n}".format(n=n): score['score'],
+                })
+
+        if 'metadata_date_aux' in optional_columns:
+            label_value_tuples = []
+            for field_name in metadata_date_aux_fields:
+                label = metadata_field_labels[field_name]
+                value = getattr(annotation.image.metadata, field_name)
+                if value is None:
+                    value = ""
+                label_value_tuples.append((label, value))
+            row.update(dict(label_value_tuples))
+
+        if 'metadata_other' in optional_columns:
+            label_value_tuples = []
+            for field_name in metadata_other_fields:
+                label = metadata_field_labels[field_name]
+                value = getattr(annotation.image.metadata, field_name)
+                if value is None:
+                    value = ""
+                label_value_tuples.append((label, value))
+            row.update(dict(label_value_tuples))
+
         writer.writerow(row)
 
 

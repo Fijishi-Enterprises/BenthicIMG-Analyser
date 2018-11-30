@@ -24,6 +24,24 @@ def acc(gt, est):
         return float(sum([(g == e) for (g,e) in zip(gt, est)])) / len(gt)
 
 
+def get_label_scores_for_point(point, ordered=False):
+    """
+    :param point: The Point object to get label scores for. Only the top
+        NBR_SCORES_PER_ANNOTATION scores are available for each point.
+    :param ordered: If True, return the scores in descending order of score
+        value. If False, return in arbitrary order (for performance).
+    :return: {'label': <label code>, 'score': <score number>} for each Score
+        available for this Point.
+    """
+    scores = Score.objects.filter(point=point)
+    if ordered:
+        scores = scores.order_by('-score')
+    return [
+        {'label': score.label_code, 'score': score.score}
+        for score in scores
+    ]
+
+
 def get_label_scores_for_image(image_id):
     """
     Return all the saved label scores for an image in this format:
@@ -31,18 +49,11 @@ def get_label_scores_for_image(image_id):
          {'label': 'Porit', 'score': 21},
          ...],
      2: [...], ...}
-
-    Only the top NBR_SCORES_PER_ANNOTATION scores are available for each point.
-
-    The reason we don't use a dict like {'Acrop': 14, 'Porit': 21} is to
-    facilitate sorting a point's scores (with e.g. operator.itemgetter).
+    Where the top-level dict's keys are the point numbers.
     """
     lpdict = {}
     for point in Point.objects.filter(image_id = image_id).order_by('id'):
-        lpdict[point.point_number] = []
-        for score in Score.objects.filter(point = point):
-            lpdict[point.point_number].append(
-                {'label': score.label_code, 'score': score.score})
+        lpdict[point.point_number] = get_label_scores_for_point(point)
     return lpdict
 
 

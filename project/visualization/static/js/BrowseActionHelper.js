@@ -37,11 +37,8 @@ var BrowseActionHelper = (function() {
         else if (action === 'export' && export_type === 'metadata') {
             $currentActionForm = $('#export-metadata-form');
         }
-        else if (action === 'export' && export_type === 'annotations_simple') {
-            $currentActionForm = $('#export-annotations-simple-form');
-        }
-        else if (action === 'export' && export_type === 'annotations_full') {
-            $currentActionForm = $('#export-annotations-full-form');
+        else if (action === 'export' && export_type === 'annotations') {
+            $currentActionForm = $('#export-annotations-form');
         }
         else if (action === 'export' && export_type === 'annotations_cpc') {
             $currentActionForm = $('#export-annotations-cpc-form');

@@ -4,10 +4,8 @@ from . import views
 urlpatterns = [
     url(r'^metadata/$',
         views.export_metadata, name="export_metadata"),
-    url(r'^annotations_simple/$',
-        views.export_annotations_simple, name="export_annotations_simple"),
-    url(r'^annotations_full/$',
-        views.export_annotations_full, name="export_annotations_full"),
+    url(r'^annotations/$',
+        views.export_annotations, name="export_annotations"),
     url(r'^annotations_cpc_create_ajax/$',
         views.export_annotations_cpc_create_ajax,
         name="export_annotations_cpc_create_ajax"),

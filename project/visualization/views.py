@@ -15,7 +15,7 @@ from .forms import CheckboxForm, StatisticsSearchForm, ImageSearchForm, \
     PatchSearchOptionsForm, HiddenForm, create_image_filter_form
 from accounts.utils import get_robot_user
 from annotations.models import Annotation
-from export.forms import CpcPrefsForm
+from export.forms import CpcPrefsForm, ExportAnnotationsForm
 from export.utils import get_previous_cpcs_status
 from images.forms import MetadataFormForGrid, BaseMetadataFormSet
 from images.models import Source, Image, Metadata
@@ -93,6 +93,7 @@ def browse_images(request, source_id):
         'page_image_ids': page_image_ids,
         'links': links,
         'hidden_image_form': hidden_image_form,
+        'export_annotations_form': ExportAnnotationsForm(),
         'cpc_prefs_form': CpcPrefsForm(source=source),
         'previous_cpcs_status': previous_cpcs_status,
         'empty_message': empty_message,

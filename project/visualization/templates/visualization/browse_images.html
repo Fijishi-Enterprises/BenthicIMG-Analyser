@@ -101,8 +101,7 @@
       <span id="action_box_export_specifics">
         <select name="export_type" title="Export type">
           <option value="metadata">Metadata</option>
-          <option value="annotations_simple">Annotations, CSV, Simple</option>
-          <option value="annotations_full">Annotations, CSV, Full</option>
+          <option value="annotations">Annotations, CSV</option>
           {% if 'source_edit' in source_perms %}
             <option value="annotations_cpc">Annotations, CPCe</option>
           {% endif %}
@@ -148,17 +147,11 @@
         <button type="button" class="submit">Go</button>
       </form>
 
-      <form action="{% url 'export_annotations_simple' source.pk %}"
-      method="post" id="export-annotations-simple-form">
+      <form action="{% url 'export_annotations' source.pk %}"
+      method="post" id="export-annotations-form">
         {% csrf_token %}
         <span class="image-select-field-container"></span>
-        <button type="button" class="submit">Go</button>
-      </form>
-
-      <form action="{% url 'export_annotations_full' source.pk %}"
-      method="post" id="export-annotations-full-form">
-        {% csrf_token %}
-        <span class="image-select-field-container"></span>
+        {% include "form_generic.html" with form=export_annotations_form %}
         <button type="button" class="submit">Go</button>
       </form>
 

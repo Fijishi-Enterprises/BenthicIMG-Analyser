@@ -54,8 +54,10 @@ def create_stream_response(content_type, filename):
         'attachment;filename="{filename}"'.format(filename=filename)
     return response
 
+
 def create_csv_stream_response(filename):
     return create_stream_response('text/csv', filename)
+
 
 def create_zip_stream_response(filename):
     # https://stackoverflow.com/a/29539722/

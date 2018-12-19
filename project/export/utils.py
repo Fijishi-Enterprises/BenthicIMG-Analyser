@@ -1,7 +1,8 @@
-import csv
+from __future__ import unicode_literals
+from backports import csv
+from io import StringIO
 import six
 from six.moves import range
-from six import StringIO
 from zipfile import ZipFile
 
 try:
@@ -99,9 +100,14 @@ def create_cpc_strings(image_set, cpc_prefs):
     return cpc_strings
 
 
-def create_zipped_cpcs_stream_response(cpc_strings, filename):
-    response = create_zip_stream_response(filename)
-    write_zip(response, cpc_strings)
+def create_zipped_cpcs_stream_response(cpc_strings, zip_filename):
+    response = create_zip_stream_response(zip_filename)
+    # Convert Unicode strings to byte strings
+    cpc_byte_strings = dict([
+        (cpc_filename, cpc_content.encode('utf-8'))
+        for cpc_filename, cpc_content in six.iteritems(cpc_strings)
+    ])
+    write_zip(response, cpc_byte_strings)
     return response
 
 
@@ -326,8 +332,8 @@ def write_zip(zip_stream, file_strings):
       None.
     """
     zip_file = ZipFile(zip_stream, 'w')
-    for filepath, cpc_string in six.iteritems(file_strings):
-        zip_file.writestr(filepath, cpc_string)
+    for filepath, content_string in six.iteritems(file_strings):
+        zip_file.writestr(filepath, content_string)
 
 
 def write_annotations_csv(response, source, image_set, optional_columns):

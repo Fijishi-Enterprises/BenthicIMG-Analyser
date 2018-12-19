@@ -1,4 +1,5 @@
-import csv
+from __future__ import unicode_literals
+from backports import csv
 
 from django.contrib import messages
 from django.core.exceptions import ValidationError
@@ -200,6 +201,8 @@ def export_image_covers(request, source_id):
                     image_annotations.filter(label=global_label).count()
                     / float(image_annotation_count)
                 )
+            # Python 2.x: PyCharm might complain here about expecting type str
+            # but getting unicode. Don't worry about it; unicode works too.
             coverage_percent_str = format(coverage_fraction * 100.0, '.3f')
             row.append(coverage_percent_str)
         writer.writerow(row)

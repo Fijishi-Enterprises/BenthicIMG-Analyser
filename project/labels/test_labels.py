@@ -31,7 +31,7 @@ class LabelTest(ClientTest):
                 group=group.pk,
                 description="Description",
                 # A new filename will be generated, and the uploaded
-                # filename will be discarded, so it doesn't matter.
+                # filename will be discarded, so this filename doesn't matter.
                 thumbnail=sample_image_as_file('_.png'),
             )
         )

@@ -1,5 +1,7 @@
+# -*- coding: utf-8 -*-
 from __future__ import unicode_literals
-from six import StringIO
+import codecs
+from io import StringIO
 
 from django.core.files.base import ContentFile
 from django.core.urlresolvers import reverse
@@ -1240,6 +1242,215 @@ class UploadAnnotationsContentsTest(UploadAnnotationsBaseTest):
         )
 
 
+class UploadAnnotationsFormatTest(UploadAnnotationsBaseTest):
+    """
+    Tests (mostly error cases) related to file format, which apply to both CSV
+    and CPC.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super(UploadAnnotationsFormatTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(cls.user)
+        labels = cls.create_labels(cls.user, ['A', 'い'], 'Group1')
+        cls.create_labelset(cls.user, cls.source, labels)
+
+        cls.img1 = cls.upload_image(
+            cls.user, cls.source,
+            image_options=dict(filename='1.png', width=100, height=100))
+        cls.imgA = cls.upload_image(
+            cls.user, cls.source,
+            image_options=dict(filename='あ.png', width=100, height=100))
+
+    def check(self, preview_response, upload_response, img, label_code):
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                success=True,
+                previewTable=[
+                    dict(
+                        name=img.metadata.name,
+                        link=reverse(
+                            'annotation_tool',
+                            kwargs=dict(image_id=img.pk)),
+                        createInfo="Will create 1 points, 1 annotations",
+                    ),
+                ],
+                previewDetails=dict(
+                    numImages=1,
+                    totalPoints=1,
+                    totalAnnotations=1,
+                    numImagesWithExistingAnnotations=0,
+                ),
+            ),
+        )
+
+        self.assertDictEqual(upload_response.json(), dict(success=True))
+
+        values_set = set(
+            Point.objects.filter(image__in=[img])
+            .values_list('column', 'row', 'point_number', 'image_id'))
+        self.assertSetEqual(values_set, {
+            (50, 50, 1, img.pk),
+        })
+
+        annotations = Annotation.objects.filter(image__in=[img])
+        values_set = set(
+            (a.label_code, a.point.pk, a.image.pk)
+            for a in annotations
+        )
+        self.assertSetEqual(values_set, {
+            (label_code, Point.objects.get(
+                point_number=1, image=img).pk, img.pk),
+        })
+
+    def test_unicode_csv(self):
+        content = (
+            'Name,Column,Row,Label\n'
+            'あ.png,50,50,い\n'
+        )
+        csv_file = ContentFile(content, name='A.csv')
+
+        preview_response = self.preview_csv_annotations(
+            self.user, self.source, csv_file)
+        upload_response = self.upload_annotations(self.user, self.source)
+
+        self.check(preview_response, upload_response, self.imgA, 'い')
+
+    def test_unicode_cpc(self):
+        """Don't know if CPC with non-ASCII is possible in practice, but
+        might as well test that it works."""
+        # The local image filepath gets path-manipulated at some point, and in
+        # Python 2.x, pathlib2 doesn't support Unicode. So we'll only test
+        # Unicode on the label code, not the filepath.
+        cpc_files = [
+            self.make_cpc_file(
+                '1.cpc', r"C:\My Photos\2017-05-13 GBR\1.png",
+                [(49*15, 49*15, 'い')]),
+        ]
+        preview_response = self.preview_cpc_annotations(
+            self.user, self.source, cpc_files)
+        upload_response = self.upload_annotations(self.user, self.source)
+
+        self.check(preview_response, upload_response, self.img1, 'い')
+
+    def test_crlf_csv(self):
+        content = (
+            'Name,Column,Row,Label\r\n'
+            '1.png,50,50,A\r\n'
+        )
+        csv_file = ContentFile(content, name='A.csv')
+
+        preview_response = self.preview_csv_annotations(
+            self.user, self.source, csv_file)
+        upload_response = self.upload_annotations(self.user, self.source)
+
+        self.check(preview_response, upload_response, self.img1, 'A')
+
+    def test_crlf_cpc(self):
+        """Don't know if CPC with crlf newlines is possible in practice, but
+        might as well test that it works."""
+        cpc_file_lf = self.make_cpc_file(
+            '1.cpc', r"C:\My Photos\2017-05-13 GBR\1.png",
+            [(49*15, 49*15, 'A')])
+        cpc_file_crlf_content = cpc_file_lf.read().replace('\n', '\r\n')
+        cpc_files = [
+            ContentFile(cpc_file_crlf_content, name='1.cpc'),
+        ]
+        preview_response = self.preview_cpc_annotations(
+            self.user, self.source, cpc_files)
+        upload_response = self.upload_annotations(self.user, self.source)
+
+        self.check(preview_response, upload_response, self.img1, 'A')
+
+    def test_cr_csv(self):
+        content = (
+            'Name,Column,Row,Label\r'
+            '1.png,50,50,A\r'
+        )
+        csv_file = ContentFile(content, name='A.csv')
+
+        preview_response = self.preview_csv_annotations(
+            self.user, self.source, csv_file)
+        upload_response = self.upload_annotations(self.user, self.source)
+
+        self.check(preview_response, upload_response, self.img1, 'A')
+
+    def test_cr_cpc(self):
+        """Don't know if CPC with cr newlines is possible in practice, but
+        might as well test that it works."""
+        cpc_file_lf = self.make_cpc_file(
+            '1.cpc', r"C:\My Photos\2017-05-13 GBR\1.png",
+            [(49*15, 49*15, 'A')])
+        cpc_file_crlf_content = cpc_file_lf.read().replace('\n', '\r')
+        cpc_files = [
+            ContentFile(cpc_file_crlf_content, name='1.cpc'),
+        ]
+        preview_response = self.preview_cpc_annotations(
+            self.user, self.source, cpc_files)
+        upload_response = self.upload_annotations(self.user, self.source)
+
+        self.check(preview_response, upload_response, self.img1, 'A')
+
+    def test_utf8_bom_csv(self):
+        content = (
+            codecs.BOM_UTF8.decode('utf-8') + 'Name,Column,Row,Label\n'
+            '1.png,50,50,A\n'
+        )
+        csv_file = ContentFile(content, name='A.csv')
+
+        preview_response = self.preview_csv_annotations(
+            self.user, self.source, csv_file)
+        upload_response = self.upload_annotations(self.user, self.source)
+
+        self.check(preview_response, upload_response, self.img1, 'A')
+
+    def test_utf8_bom_cpc(self):
+        """Don't know if CPC with UTF-8 BOM is possible in practice, but
+        might as well test that it works."""
+        cpc_file_lf = self.make_cpc_file(
+            '1.cpc', r"C:\My Photos\2017-05-13 GBR\1.png",
+            [(49*15, 49*15, 'A')])
+        cpc_file_crlf_content = (
+            codecs.BOM_UTF8.decode('utf-8') + cpc_file_lf.read())
+        cpc_files = [
+            ContentFile(cpc_file_crlf_content, name='1.cpc'),
+        ]
+        preview_response = self.preview_cpc_annotations(
+            self.user, self.source, cpc_files)
+        upload_response = self.upload_annotations(self.user, self.source)
+
+        self.check(preview_response, upload_response, self.img1, 'A')
+
+    def test_empty_file_csv(self):
+        csv_file = ContentFile('', name='A.csv')
+
+        preview_response = self.preview_csv_annotations(
+            self.user, self.source, csv_file)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(error="The submitted file is empty."),
+        )
+
+    def test_empty_file_cpc(self):
+        cpc_files = [
+            ContentFile('', name='1.cpc')
+        ]
+
+        preview_response = self.preview_cpc_annotations(
+            self.user, self.source, cpc_files)
+
+        # TODO: The form's error handling should be improved so that the
+        # message is "1.cpc: The submitted file is empty." instead.
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(error="The submitted file is empty."),
+        )
+
+
 class UploadAnnotationsCSVFormatTest(UploadAnnotationsBaseTest):
     """
     Tests (mostly error cases) specific to CSV format.
@@ -1257,6 +1468,48 @@ class UploadAnnotationsCSVFormatTest(UploadAnnotationsBaseTest):
             cls.user, cls.source,
             image_options=dict(filename='1.png', width=100, height=100))
 
+    def check(self, preview_response, upload_response):
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                success=True,
+                previewTable=[
+                    dict(
+                        name=self.img1.metadata.name,
+                        link=reverse(
+                            'annotation_tool',
+                            kwargs=dict(image_id=self.img1.pk)),
+                        createInfo="Will create 1 points, 1 annotations",
+                    ),
+                ],
+                previewDetails=dict(
+                    numImages=1,
+                    totalPoints=1,
+                    totalAnnotations=1,
+                    numImagesWithExistingAnnotations=0,
+                ),
+            ),
+        )
+        self.assertDictEqual(upload_response.json(), dict(success=True))
+
+        values_set = set(
+            Point.objects.filter(image__in=[self.img1])
+            .values_list('column', 'row', 'point_number', 'image_id'))
+        self.assertSetEqual(values_set, {
+            (60, 40, 1, self.img1.pk),
+        })
+
+        annotations = Annotation.objects.filter(image__in=[self.img1])
+        values_set = set(
+            (a.label_code, a.point.pk, a.image.pk)
+            for a in annotations
+        )
+        self.assertSetEqual(values_set, {
+            ('A', Point.objects.get(
+                point_number=1, image=self.img1).pk, self.img1.pk),
+        })
+
     def test_skipped_csv_columns(self):
         """
         The CSV can have column names that we don't recognize. Those columns
@@ -1269,46 +1522,9 @@ class UploadAnnotationsCSVFormatTest(UploadAnnotationsBaseTest):
         csv_file = self.make_csv_file('A.csv', rows)
         preview_response = self.preview_csv_annotations(
             self.user, self.source, csv_file)
-        self.upload_annotations(self.user, self.source)
+        upload_response = self.upload_annotations(self.user, self.source)
 
-        self.assertDictEqual(
-            preview_response.json(),
-            dict(
-                success=True,
-                previewTable=[
-                    dict(
-                        name=self.img1.metadata.name,
-                        link=reverse(
-                            'annotation_tool',
-                            kwargs=dict(image_id=self.img1.pk)),
-                        createInfo="Will create 1 points, 1 annotations",
-                    ),
-                ],
-                previewDetails=dict(
-                    numImages=1,
-                    totalPoints=1,
-                    totalAnnotations=1,
-                    numImagesWithExistingAnnotations=0,
-                ),
-            ),
-        )
-
-        values_set = set(
-            Point.objects.filter(image__in=[self.img1])
-            .values_list('column', 'row', 'point_number', 'image_id'))
-        self.assertSetEqual(values_set, {
-            (60, 40, 1, self.img1.pk),
-        })
-
-        annotations = Annotation.objects.filter(image__in=[self.img1])
-        values_set = set(
-            (a.label_code, a.point.pk, a.image.pk)
-            for a in annotations
-        )
-        self.assertSetEqual(values_set, {
-            ('A', Point.objects.get(
-                point_number=1, image=self.img1).pk, self.img1.pk),
-        })
+        self.check(preview_response, upload_response)
 
     def test_columns_different_order(self):
         """
@@ -1321,46 +1537,9 @@ class UploadAnnotationsCSVFormatTest(UploadAnnotationsBaseTest):
         csv_file = self.make_csv_file('A.csv', rows)
         preview_response = self.preview_csv_annotations(
             self.user, self.source, csv_file)
-        self.upload_annotations(self.user, self.source)
+        upload_response = self.upload_annotations(self.user, self.source)
 
-        self.assertDictEqual(
-            preview_response.json(),
-            dict(
-                success=True,
-                previewTable=[
-                    dict(
-                        name=self.img1.metadata.name,
-                        link=reverse(
-                            'annotation_tool',
-                            kwargs=dict(image_id=self.img1.pk)),
-                        createInfo="Will create 1 points, 1 annotations",
-                    ),
-                ],
-                previewDetails=dict(
-                    numImages=1,
-                    totalPoints=1,
-                    totalAnnotations=1,
-                    numImagesWithExistingAnnotations=0,
-                ),
-            ),
-        )
-
-        values_set = set(
-            Point.objects.filter(image__in=[self.img1])
-            .values_list('column', 'row', 'point_number', 'image_id'))
-        self.assertSetEqual(values_set, {
-            (60, 40, 1, self.img1.pk),
-        })
-
-        annotations = Annotation.objects.filter(image__in=[self.img1])
-        values_set = set(
-            (a.label_code, a.point.pk, a.image.pk)
-            for a in annotations
-        )
-        self.assertSetEqual(values_set, {
-            ('A', Point.objects.get(
-                point_number=1, image=self.img1).pk, self.img1.pk),
-        })
+        self.check(preview_response, upload_response)
 
     def test_columns_different_case(self):
         """
@@ -1376,98 +1555,7 @@ class UploadAnnotationsCSVFormatTest(UploadAnnotationsBaseTest):
             self.user, self.source, csv_file)
         upload_response = self.upload_annotations(self.user, self.source)
 
-        self.assertDictEqual(
-            preview_response.json(),
-            dict(
-                success=True,
-                previewTable=[
-                    dict(
-                        name=self.img1.metadata.name,
-                        link=reverse(
-                            'annotation_tool',
-                            kwargs=dict(image_id=self.img1.pk)),
-                        createInfo="Will create 1 points, 1 annotations",
-                    ),
-                ],
-                previewDetails=dict(
-                    numImages=1,
-                    totalPoints=1,
-                    totalAnnotations=1,
-                    numImagesWithExistingAnnotations=0,
-                ),
-            ),
-        )
-
-        self.assertDictEqual(upload_response.json(), dict(success=True))
-
-        values_set = set(
-            Point.objects.filter(image__in=[self.img1])
-            .values_list('column', 'row', 'point_number', 'image_id'))
-        self.assertSetEqual(values_set, {
-            (60, 40, 1, self.img1.pk),
-        })
-
-        annotations = Annotation.objects.filter(image__in=[self.img1])
-        values_set = set(
-            (a.label_code, a.point.pk, a.image.pk)
-            for a in annotations
-        )
-        self.assertSetEqual(values_set, {
-            ('A', Point.objects.get(
-                point_number=1, image=self.img1).pk, self.img1.pk),
-        })
-
-    def test_surrounding_whitespace(self):
-        """Strip whitespace surrounding the CSV values."""
-        rows = [
-            ['Name ', '\tColumn\t', '  Row', '\tLabel    '],
-            ['\t1.png', '    60   ', ' 40', 'A'],
-        ]
-        csv_file = self.make_csv_file('A.csv', rows)
-        preview_response = self.preview_csv_annotations(
-            self.user, self.source, csv_file)
-        upload_response = self.upload_annotations(self.user, self.source)
-
-        self.assertDictEqual(
-            preview_response.json(),
-            dict(
-                success=True,
-                previewTable=[
-                    dict(
-                        name=self.img1.metadata.name,
-                        link=reverse(
-                            'annotation_tool',
-                            kwargs=dict(image_id=self.img1.pk)),
-                        createInfo="Will create 1 points, 1 annotations",
-                    ),
-                ],
-                previewDetails=dict(
-                    numImages=1,
-                    totalPoints=1,
-                    totalAnnotations=1,
-                    numImagesWithExistingAnnotations=0,
-                ),
-            ),
-        )
-
-        self.assertDictEqual(upload_response.json(), dict(success=True))
-
-        values_set = set(
-            Point.objects.filter(image__in=[self.img1])
-            .values_list('column', 'row', 'point_number', 'image_id'))
-        self.assertSetEqual(values_set, {
-            (60, 40, 1, self.img1.pk),
-        })
-
-        annotations = Annotation.objects.filter(image__in=[self.img1])
-        values_set = set(
-            (a.label_code, a.point.pk, a.image.pk)
-            for a in annotations
-        )
-        self.assertSetEqual(values_set, {
-            ('A', Point.objects.get(
-                point_number=1, image=self.img1).pk, self.img1.pk),
-        })
+        self.check(preview_response, upload_response)
 
     def test_no_name_column(self):
         """
@@ -1558,6 +1646,46 @@ class UploadAnnotationsCSVFormatTest(UploadAnnotationsBaseTest):
             preview_response.json(),
             dict(error="CSV row 2 is missing a Column value"),
         )
+
+    def test_field_with_newline(self):
+        """Field value with a newline character in it (within quotation marks).
+        There's no reason to have this in any of the recognized columns, so we
+        use an extra ignored column to test."""
+        content = (
+            'Name,Column,Row,Comments,Label'
+            '\n1.png,60,40,"Here are\nsome comments.",A'
+        )
+        csv_file = ContentFile(content, name='A.csv')
+        preview_response = self.preview_csv_annotations(
+            self.user, self.source, csv_file)
+        upload_response = self.upload_annotations(self.user, self.source)
+
+        self.check(preview_response, upload_response)
+
+    def test_field_with_surrounding_quotes(self):
+        content = (
+            'Name,Column,Row,Label'
+            '\n"1.png","60","40","A"'
+        )
+        csv_file = ContentFile(content, name='A.csv')
+        preview_response = self.preview_csv_annotations(
+            self.user, self.source, csv_file)
+        upload_response = self.upload_annotations(self.user, self.source)
+
+        self.check(preview_response, upload_response)
+
+    def test_field_with_surrounding_whitespace(self):
+        """Strip whitespace surrounding the CSV values."""
+        content = (
+            'Name ,\tColumn\t,  Row,\tLabel    '
+            '\n\t1.png,    60   , 40,A'
+        )
+        csv_file = ContentFile(content, name='A.csv')
+        preview_response = self.preview_csv_annotations(
+            self.user, self.source, csv_file)
+        upload_response = self.upload_annotations(self.user, self.source)
+
+        self.check(preview_response, upload_response)
 
     def test_non_csv(self):
         """

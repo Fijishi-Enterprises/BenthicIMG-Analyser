@@ -1,6 +1,8 @@
-import csv
+# -*- coding: utf-8 -*-
+from __future__ import unicode_literals
+from backports import csv
 import datetime
-from io import BytesIO
+from io import StringIO
 
 from django.core.files.base import ContentFile
 from django.core.urlresolvers import reverse
@@ -55,53 +57,53 @@ class UploadMetadataTest(ClientTest):
         """
         self.client.force_login(self.user)
 
-        with BytesIO() as stream:
-            writer = csv.DictWriter(stream, self.standard_column_order)
-            writer.writeheader()
-            writer.writerow({
-                'Name': '1.png',
-                'Date': '2016-07-18',
-                'Site': 'SiteA',
-                'Habitat': 'Fringing Reef',
-                'Transect': '2-4',
-                'Aux4': 'Q5',
-                'Aux5': '28',
-                'Height (cm)': '50',
-                'Latitude': '20.18',
-                'Longitude': '-59.64',
-                'Depth': '30m',
-                'Camera': 'Canon',
-                'Photographer': 'Bob Doe',
-                'Water quality': 'Mostly clear',
-                'Strobes': '2x blue',
-                'Framing gear used': 'FG-16',
-                'White balance card': 'WB-03',
-                'Comments': 'A bit off to the left from the transect line.',
-            })
-            writer.writerow({
-                'Name': '2.png',
-                'Date': '',
-                'Site': 'SiteB',
-                'Habitat': '10m out',
-                'Transect': '',
-                'Aux4': '',
-                'Aux5': '',
-                'Height (cm)': '50',
-                'Latitude': '',
-                'Longitude': '',
-                'Depth': '',
-                'Camera': 'Canon',
-                'Photographer': '',
-                'Water quality': '',
-                'Strobes': '',
-                'Framing gear used': 'FG-15',
-                'White balance card': '',
-                'Comments': '',
-            })
+        stream = StringIO()
+        writer = csv.DictWriter(stream, self.standard_column_order)
+        writer.writeheader()
+        writer.writerow({
+            'Name': '1.png',
+            'Date': '2016-07-18',
+            'Site': 'SiteA',
+            'Habitat': 'Fringing Reef',
+            'Transect': '2-4',
+            'Aux4': 'Q5',
+            'Aux5': '28',
+            'Height (cm)': '50',
+            'Latitude': '20.18',
+            'Longitude': '-59.64',
+            'Depth': '30m',
+            'Camera': 'Canon',
+            'Photographer': 'Bob Doe',
+            'Water quality': 'Mostly clear',
+            'Strobes': '2x blue',
+            'Framing gear used': 'FG-16',
+            'White balance card': 'WB-03',
+            'Comments': 'A bit off to the left from the transect line.',
+        })
+        writer.writerow({
+            'Name': '2.png',
+            'Date': '',
+            'Site': 'SiteB',
+            'Habitat': '10m out',
+            'Transect': '',
+            'Aux4': '',
+            'Aux5': '',
+            'Height (cm)': '50',
+            'Latitude': '',
+            'Longitude': '',
+            'Depth': '',
+            'Camera': 'Canon',
+            'Photographer': '',
+            'Water quality': '',
+            'Strobes': '',
+            'Framing gear used': 'FG-15',
+            'White balance card': '',
+            'Comments': '',
+        })
 
-            f = ContentFile(stream.getvalue(), name='A.csv')
-            preview_response = self.preview(f)
-            upload_response = self.upload()
+        f = ContentFile(stream.getvalue(), name='A.csv')
+        preview_response = self.preview(f)
+        upload_response = self.upload()
 
         self.assertDictEqual(
             preview_response.json(),
@@ -127,7 +129,7 @@ class UploadMetadataTest(ClientTest):
 
         meta1 = Image.objects.get(pk=self.img1.pk).metadata
         self.assertEqual(meta1.name, '1.png')
-        self.assertEqual(meta1.photo_date, datetime.date(2016,7,18))
+        self.assertEqual(meta1.photo_date, datetime.date(2016, 7, 18))
         self.assertEqual(meta1.aux1, 'SiteA')
         self.assertEqual(meta1.aux2, 'Fringing Reef')
         self.assertEqual(meta1.aux3, '2-4')
@@ -174,38 +176,38 @@ class UploadMetadataTest(ClientTest):
         self.client.force_login(self.user)
 
         meta1 = self.img1.metadata
-        meta1.photo_date = datetime.date(2016,7,18)
+        meta1.photo_date = datetime.date(2016, 7, 18)
         meta1.aux1 = 'SiteA'
         meta1.camera = 'Canon'
         meta1.save()
 
-        with BytesIO() as stream:
-            writer = csv.DictWriter(stream, self.standard_column_order)
-            writer.writeheader()
-            writer.writerow({
-                'Name': '1.png',
-                'Date': '2016-07-18',
-                'Site': 'SiteA',
-                'Habitat': 'Fringing Reef',
-                'Transect': '2-4',
-                'Aux4': 'Q5',
-                'Aux5': '28',
-                'Height (cm)': '50',
-                'Latitude': '20.18',
-                'Longitude': '-59.64',
-                'Depth': '30m',
-                'Camera': 'Canon',
-                'Photographer': '',
-                'Water quality': '',
-                'Strobes': '',
-                'Framing gear used': '',
-                'White balance card': '',
-                'Comments': '',
-            })
+        stream = StringIO()
+        writer = csv.DictWriter(stream, self.standard_column_order)
+        writer.writeheader()
+        writer.writerow({
+            'Name': '1.png',
+            'Date': '2016-07-18',
+            'Site': 'SiteA',
+            'Habitat': 'Fringing Reef',
+            'Transect': '2-4',
+            'Aux4': 'Q5',
+            'Aux5': '28',
+            'Height (cm)': '50',
+            'Latitude': '20.18',
+            'Longitude': '-59.64',
+            'Depth': '30m',
+            'Camera': 'Canon',
+            'Photographer': '',
+            'Water quality': '',
+            'Strobes': '',
+            'Framing gear used': '',
+            'White balance card': '',
+            'Comments': '',
+        })
 
-            f = ContentFile(stream.getvalue(), name='A.csv')
-            preview_response = self.preview(f)
-            upload_response = self.upload()
+        f = ContentFile(stream.getvalue(), name='A.csv')
+        preview_response = self.preview(f)
+        upload_response = self.upload()
 
         self.assertDictEqual(
             preview_response.json(),
@@ -229,7 +231,7 @@ class UploadMetadataTest(ClientTest):
 
         meta1 = Image.objects.get(pk=self.img1.pk).metadata
         self.assertEqual(meta1.name, '1.png')
-        self.assertEqual(meta1.photo_date, datetime.date(2016,7,18))
+        self.assertEqual(meta1.photo_date, datetime.date(2016, 7, 18))
         self.assertEqual(meta1.aux1, 'SiteA')
         self.assertEqual(meta1.aux2, 'Fringing Reef')
         self.assertEqual(meta1.aux3, '2-4')
@@ -255,38 +257,38 @@ class UploadMetadataTest(ClientTest):
         self.client.force_login(self.user)
 
         meta1 = self.img1.metadata
-        meta1.photo_date = datetime.date(2014,2,27)
+        meta1.photo_date = datetime.date(2014, 2, 27)
         meta1.aux1 = 'SiteC'
         meta1.camera = 'Nikon'
         meta1.save()
 
-        with BytesIO() as stream:
-            writer = csv.DictWriter(stream, self.standard_column_order)
-            writer.writeheader()
-            writer.writerow({
-                'Name': '1.png',
-                'Date': '2016-07-18',
-                'Site': 'SiteA',
-                'Habitat': 'Fringing Reef',
-                'Transect': '2-4',
-                'Aux4': 'Q5',
-                'Aux5': '28',
-                'Height (cm)': '50',
-                'Latitude': '20.18',
-                'Longitude': '-59.64',
-                'Depth': '30m',
-                'Camera': '',
-                'Photographer': '',
-                'Water quality': '',
-                'Strobes': '',
-                'Framing gear used': '',
-                'White balance card': '',
-                'Comments': '',
-            })
+        stream = StringIO()
+        writer = csv.DictWriter(stream, self.standard_column_order)
+        writer.writeheader()
+        writer.writerow({
+            'Name': '1.png',
+            'Date': '2016-07-18',
+            'Site': 'SiteA',
+            'Habitat': 'Fringing Reef',
+            'Transect': '2-4',
+            'Aux4': 'Q5',
+            'Aux5': '28',
+            'Height (cm)': '50',
+            'Latitude': '20.18',
+            'Longitude': '-59.64',
+            'Depth': '30m',
+            'Camera': '',
+            'Photographer': '',
+            'Water quality': '',
+            'Strobes': '',
+            'Framing gear used': '',
+            'White balance card': '',
+            'Comments': '',
+        })
 
-            f = ContentFile(stream.getvalue(), name='A.csv')
-            preview_response = self.preview(f)
-            upload_response = self.upload()
+        f = ContentFile(stream.getvalue(), name='A.csv')
+        preview_response = self.preview(f)
+        upload_response = self.upload()
 
         self.assertDictEqual(
             preview_response.json(),
@@ -310,7 +312,7 @@ class UploadMetadataTest(ClientTest):
 
         meta1 = Image.objects.get(pk=self.img1.pk).metadata
         self.assertEqual(meta1.name, '1.png')
-        self.assertEqual(meta1.photo_date, datetime.date(2016,7,18))
+        self.assertEqual(meta1.photo_date, datetime.date(2016, 7, 18))
         self.assertEqual(meta1.aux1, 'SiteA')
         self.assertEqual(meta1.aux2, 'Fringing Reef')
         self.assertEqual(meta1.aux3, '2-4')
@@ -336,7 +338,7 @@ class UploadMetadataTest(ClientTest):
         self.client.force_login(self.user)
 
         meta1 = self.img1.metadata
-        meta1.photo_date = datetime.date(2014,2,27)
+        meta1.photo_date = datetime.date(2014, 2, 27)
         meta1.aux1 = 'SiteC'
         meta1.camera = 'Nikon'
         meta1.height_in_cm = 50
@@ -344,19 +346,19 @@ class UploadMetadataTest(ClientTest):
 
         column_names = ['Name', 'Site', 'Habitat', 'Transect']
 
-        with BytesIO() as stream:
-            writer = csv.DictWriter(stream, column_names)
-            writer.writeheader()
-            writer.writerow({
-                'Name': '1.png',
-                'Site': 'SiteA',
-                'Habitat': 'Fringing Reef',
-                'Transect': '2-4',
-            })
+        stream = StringIO()
+        writer = csv.DictWriter(stream, column_names)
+        writer.writeheader()
+        writer.writerow({
+            'Name': '1.png',
+            'Site': 'SiteA',
+            'Habitat': 'Fringing Reef',
+            'Transect': '2-4',
+        })
 
-            f = ContentFile(stream.getvalue(), name='A.csv')
-            preview_response = self.preview(f)
-            upload_response = self.upload()
+        f = ContentFile(stream.getvalue(), name='A.csv')
+        preview_response = self.preview(f)
+        upload_response = self.upload()
 
         self.assertDictEqual(
             preview_response.json(),
@@ -378,7 +380,7 @@ class UploadMetadataTest(ClientTest):
 
         meta1 = Image.objects.get(pk=self.img1.pk).metadata
         self.assertEqual(meta1.name, '1.png')
-        self.assertEqual(meta1.photo_date, datetime.date(2014,2,27))
+        self.assertEqual(meta1.photo_date, datetime.date(2014, 2, 27))
         self.assertEqual(meta1.aux1, 'SiteA')
         self.assertEqual(meta1.aux2, 'Fringing Reef')
         self.assertEqual(meta1.aux3, '2-4')
@@ -394,20 +396,20 @@ class UploadMetadataTest(ClientTest):
 
         column_names = ['Name', 'Site', 'Time of day', 'Habitat', 'Transect']
 
-        with BytesIO() as stream:
-            writer = csv.DictWriter(stream, column_names)
-            writer.writeheader()
-            writer.writerow({
-                'Name': '1.png',
-                'Site': 'SiteA',
-                'Time of day': 'Sunset',
-                'Habitat': 'Fringing Reef',
-                'Transect': '2-4',
-            })
+        stream = StringIO()
+        writer = csv.DictWriter(stream, column_names)
+        writer.writeheader()
+        writer.writerow({
+            'Name': '1.png',
+            'Site': 'SiteA',
+            'Time of day': 'Sunset',
+            'Habitat': 'Fringing Reef',
+            'Transect': '2-4',
+        })
 
-            f = ContentFile(stream.getvalue(), name='A.csv')
-            preview_response = self.preview(f)
-            upload_response = self.upload()
+        f = ContentFile(stream.getvalue(), name='A.csv')
+        preview_response = self.preview(f)
+        upload_response = self.upload()
 
         self.assertDictEqual(
             preview_response.json(),
@@ -441,21 +443,21 @@ class UploadMetadataTest(ClientTest):
 
         column_names = ['Name', 'Site']
 
-        with BytesIO() as stream:
-            writer = csv.DictWriter(stream, column_names)
-            writer.writeheader()
-            writer.writerow({
-                'Name': '1.png',
-                'Site': 'SiteA',
-            })
-            writer.writerow({
-                'Name': '10.png',
-                'Site': 'SiteJ',
-            })
+        stream = StringIO()
+        writer = csv.DictWriter(stream, column_names)
+        writer.writeheader()
+        writer.writerow({
+            'Name': '1.png',
+            'Site': 'SiteA',
+        })
+        writer.writerow({
+            'Name': '10.png',
+            'Site': 'SiteJ',
+        })
 
-            f = ContentFile(stream.getvalue(), name='A.csv')
-            preview_response = self.preview(f)
-            upload_response = self.upload()
+        f = ContentFile(stream.getvalue(), name='A.csv')
+        preview_response = self.preview(f)
+        upload_response = self.upload()
 
         self.assertDictEqual(
             preview_response.json(),
@@ -486,18 +488,18 @@ class UploadMetadataTest(ClientTest):
 
         column_names = ['Transect', 'Site', 'Name']
 
-        with BytesIO() as stream:
-            writer = csv.DictWriter(stream, column_names)
-            writer.writeheader()
-            writer.writerow({
-                'Transect': '2-4',
-                'Site': 'SiteA',
-                'Name': '1.png',
-            })
+        stream = StringIO()
+        writer = csv.DictWriter(stream, column_names)
+        writer.writeheader()
+        writer.writerow({
+            'Transect': '2-4',
+            'Site': 'SiteA',
+            'Name': '1.png',
+        })
 
-            f = ContentFile(stream.getvalue(), name='A.csv')
-            preview_response = self.preview(f)
-            upload_response = self.upload()
+        f = ContentFile(stream.getvalue(), name='A.csv')
+        preview_response = self.preview(f)
+        upload_response = self.upload()
 
         self.assertDictEqual(
             preview_response.json(),
@@ -530,18 +532,18 @@ class UploadMetadataTest(ClientTest):
 
         column_names = ['TRANSECT', 'site', 'NaMe']
 
-        with BytesIO() as stream:
-            writer = csv.DictWriter(stream, column_names)
-            writer.writeheader()
-            writer.writerow({
-                'TRANSECT': '2-4',
-                'site': 'SiteA',
-                'NaMe': '1.png',
-            })
+        stream = StringIO()
+        writer = csv.DictWriter(stream, column_names)
+        writer.writeheader()
+        writer.writerow({
+            'TRANSECT': '2-4',
+            'site': 'SiteA',
+            'NaMe': '1.png',
+        })
 
-            f = ContentFile(stream.getvalue(), name='A.csv')
-            preview_response = self.preview(f)
-            upload_response = self.upload()
+        f = ContentFile(stream.getvalue(), name='A.csv')
+        preview_response = self.preview(f)
+        upload_response = self.upload()
 
         self.assertDictEqual(
             preview_response.json(),
@@ -574,18 +576,18 @@ class UploadMetadataTest(ClientTest):
 
         column_names = ['Name', 'Latitude', 'LATITUDE']
 
-        with BytesIO() as stream:
-            writer = csv.DictWriter(stream, column_names)
-            writer.writeheader()
-            writer.writerow({
-                'Name': '1.png',
-                'Latitude': '24.08',
-                'LATITUDE': '42.67',
-            })
+        stream = StringIO()
+        writer = csv.DictWriter(stream, column_names)
+        writer.writeheader()
+        writer.writerow({
+            'Name': '1.png',
+            'Latitude': '24.08',
+            'LATITUDE': '42.67',
+        })
 
-            f = ContentFile(stream.getvalue(), name='A.csv')
-            preview_response = self.preview(f)
-            upload_response = self.upload()
+        f = ContentFile(stream.getvalue(), name='A.csv')
+        preview_response = self.preview(f)
+        upload_response = self.upload()
 
         self.assertDictEqual(
             preview_response.json(),
@@ -660,38 +662,38 @@ class UploadMetadataMultipleSourcesTest(ClientTest):
         column_names = ['Name', 'Aux1']
 
         # Upload to source 2
-        with BytesIO() as stream:
-            writer = csv.DictWriter(stream, column_names)
-            writer.writeheader()
-            writer.writerow({
-                'Name': '1.png',
-                'Aux1': 'SiteA',
-            })
-            writer.writerow({
-                'Name': '2.png',
-                'Aux1': 'SiteB',
-            })
+        stream = StringIO()
+        writer = csv.DictWriter(stream, column_names)
+        writer.writeheader()
+        writer.writerow({
+            'Name': '1.png',
+            'Aux1': 'SiteA',
+        })
+        writer.writerow({
+            'Name': '2.png',
+            'Aux1': 'SiteB',
+        })
 
-            f = ContentFile(stream.getvalue(), name='A.csv')
-            self.preview2(f)
-            self.upload2()
+        f = ContentFile(stream.getvalue(), name='A.csv')
+        self.preview2(f)
+        self.upload2()
 
         # Upload to source 1
-        with BytesIO() as stream:
-            writer = csv.DictWriter(stream, column_names)
-            writer.writeheader()
-            writer.writerow({
-                'Name': '1.png',
-                'Aux1': 'SiteC',
-            })
-            writer.writerow({
-                'Name': '2.png',
-                'Aux1': 'SiteD',
-            })
+        stream = StringIO()
+        writer = csv.DictWriter(stream, column_names)
+        writer.writeheader()
+        writer.writerow({
+            'Name': '1.png',
+            'Aux1': 'SiteC',
+        })
+        writer.writerow({
+            'Name': '2.png',
+            'Aux1': 'SiteD',
+        })
 
-            f = ContentFile(stream.getvalue(), name='B.csv')
-            preview_response = self.preview1(f)
-            upload_response = self.upload1()
+        f = ContentFile(stream.getvalue(), name='B.csv')
+        preview_response = self.preview1(f)
+        upload_response = self.upload1()
 
         # Check source 1 responses
 
@@ -778,22 +780,22 @@ class UploadMetadataPreviewTest(ClientTest):
 
         column_names = ['Name', 'Site']
 
-        with BytesIO() as stream:
-            writer = csv.DictWriter(stream, column_names)
-            writer.writeheader()
-            writer.writerow({'Name': '5.png', 'Site': 'SiteE'})
-            writer.writerow({'Name': '1.png', 'Site': 'SiteA'})
-            writer.writerow({'Name': '2.png', 'Site': 'SiteB'})
-            writer.writerow({'Name': '6.png', 'Site': 'SiteF'})
-            writer.writerow({'Name': '10.png', 'Site': 'SiteJ'})
-            writer.writerow({'Name': '4.png', 'Site': 'SiteD'})
-            writer.writerow({'Name': '7.png', 'Site': 'SiteG'})
-            writer.writerow({'Name': '8.png', 'Site': 'SiteH'})
-            writer.writerow({'Name': '9.png', 'Site': 'SiteI'})
-            writer.writerow({'Name': '3.png', 'Site': 'SiteC'})
+        stream = StringIO()
+        writer = csv.DictWriter(stream, column_names)
+        writer.writeheader()
+        writer.writerow({'Name': '5.png', 'Site': 'SiteE'})
+        writer.writerow({'Name': '1.png', 'Site': 'SiteA'})
+        writer.writerow({'Name': '2.png', 'Site': 'SiteB'})
+        writer.writerow({'Name': '6.png', 'Site': 'SiteF'})
+        writer.writerow({'Name': '10.png', 'Site': 'SiteJ'})
+        writer.writerow({'Name': '4.png', 'Site': 'SiteD'})
+        writer.writerow({'Name': '7.png', 'Site': 'SiteG'})
+        writer.writerow({'Name': '8.png', 'Site': 'SiteH'})
+        writer.writerow({'Name': '9.png', 'Site': 'SiteI'})
+        writer.writerow({'Name': '3.png', 'Site': 'SiteC'})
 
-            f = ContentFile(stream.getvalue(), name='A.csv')
-            preview_response = self.preview(f)
+        f = ContentFile(stream.getvalue(), name='A.csv')
+        preview_response = self.preview(f)
 
         self.assertDictEqual(
             preview_response.json(),
@@ -862,16 +864,16 @@ class UploadMetadataErrorTest(ClientTest):
 
         column_names = ['Name', 'Aux1']
 
-        with BytesIO() as stream:
-            writer = csv.DictWriter(stream, column_names)
-            writer.writeheader()
-            writer.writerow({
-                'Name': '1.png',
-                'Aux1': 'SiteA',
-            })
+        stream = StringIO()
+        writer = csv.DictWriter(stream, column_names)
+        writer.writeheader()
+        writer.writerow({
+            'Name': '1.png',
+            'Aux1': 'SiteA',
+        })
 
-            f = ContentFile(stream.getvalue(), name='A.csv')
-            self.preview(f)
+        f = ContentFile(stream.getvalue(), name='A.csv')
+        self.preview(f)
 
         # Clear the session data
         #
@@ -940,16 +942,16 @@ class UploadMetadataPreviewErrorTest(ClientTest):
 
         column_names = ['Name', 'Aux1']
 
-        with BytesIO() as stream:
-            writer = csv.DictWriter(stream, column_names)
-            writer.writeheader()
-            writer.writerow({
-                'Name': '1.png',
-                'Aux1': 'SiteA',
-            })
+        stream = StringIO()
+        writer = csv.DictWriter(stream, column_names)
+        writer.writeheader()
+        writer.writerow({
+            'Name': '1.png',
+            'Aux1': 'SiteA',
+        })
 
-            f = ContentFile(stream.getvalue(), name='A.csv')
-            preview_response = self.preview(f)
+        f = ContentFile(stream.getvalue(), name='A.csv')
+        preview_response = self.preview(f)
 
         self.assertDictEqual(
             preview_response.json(),
@@ -974,16 +976,16 @@ class UploadMetadataPreviewErrorTest(ClientTest):
 
         column_names = ['Name', 'Site']
 
-        with BytesIO() as stream:
-            writer = csv.DictWriter(stream, column_names)
-            writer.writeheader()
-            writer.writerow({
-                'Name': '1.png',
-                'Site': 'SiteA',
-            })
+        stream = StringIO()
+        writer = csv.DictWriter(stream, column_names)
+        writer.writeheader()
+        writer.writerow({
+            'Name': '1.png',
+            'Site': 'SiteA',
+        })
 
-            f = ContentFile(stream.getvalue(), name='A.csv')
-            preview_response = self.preview(f)
+        f = ContentFile(stream.getvalue(), name='A.csv')
+        preview_response = self.preview(f)
 
         self.assertDictEqual(
             preview_response.json(),
@@ -1004,20 +1006,20 @@ class UploadMetadataPreviewErrorTest(ClientTest):
 
         column_names = ['Name', 'Aux1']
 
-        with BytesIO() as stream:
-            writer = csv.DictWriter(stream, column_names)
-            writer.writeheader()
-            writer.writerow({
-                'Name': '1.png',
-                'Aux1': 'SiteA',
-            })
-            writer.writerow({
-                'Name': '1.png',
-                'Aux1': 'SiteA',
-            })
+        stream = StringIO()
+        writer = csv.DictWriter(stream, column_names)
+        writer.writeheader()
+        writer.writerow({
+            'Name': '1.png',
+            'Aux1': 'SiteA',
+        })
+        writer.writerow({
+            'Name': '1.png',
+            'Aux1': 'SiteA',
+        })
 
-            f = ContentFile(stream.getvalue(), name='A.csv')
-            preview_response = self.preview(f)
+        f = ContentFile(stream.getvalue(), name='A.csv')
+        preview_response = self.preview(f)
 
         self.assertDictEqual(
             preview_response.json(),
@@ -1036,16 +1038,16 @@ class UploadMetadataPreviewErrorTest(ClientTest):
 
         column_names = ['Name', 'Aux1']
 
-        with BytesIO() as stream:
-            writer = csv.DictWriter(stream, column_names)
-            writer.writeheader()
-            writer.writerow({
-                'Name': '3.png',
-                'Aux1': 'SiteA',
-            })
+        stream = StringIO()
+        writer = csv.DictWriter(stream, column_names)
+        writer.writeheader()
+        writer.writerow({
+            'Name': '3.png',
+            'Aux1': 'SiteA',
+        })
 
-            f = ContentFile(stream.getvalue(), name='A.csv')
-            preview_response = self.preview(f)
+        f = ContentFile(stream.getvalue(), name='A.csv')
+        preview_response = self.preview(f)
 
         self.assertDictEqual(
             preview_response.json(),
@@ -1064,16 +1066,16 @@ class UploadMetadataPreviewErrorTest(ClientTest):
 
         column_names = ['Aux1', 'Aux2']
 
-        with BytesIO() as stream:
-            writer = csv.DictWriter(stream, column_names)
-            writer.writeheader()
-            writer.writerow({
-                'Aux1': 'SiteA',
-                'Aux2': 'Fringing Reef',
-            })
+        stream = StringIO()
+        writer = csv.DictWriter(stream, column_names)
+        writer.writeheader()
+        writer.writerow({
+            'Aux1': 'SiteA',
+            'Aux2': 'Fringing Reef',
+        })
 
-            f = ContentFile(stream.getvalue(), name='A.csv')
-            preview_response = self.preview(f)
+        f = ContentFile(stream.getvalue(), name='A.csv')
+        preview_response = self.preview(f)
 
         self.assertDictEqual(
             preview_response.json(),
@@ -1093,16 +1095,16 @@ class UploadMetadataPreviewErrorTest(ClientTest):
 
         column_names = ['Name', 'Time of day']
 
-        with BytesIO() as stream:
-            writer = csv.DictWriter(stream, column_names)
-            writer.writeheader()
-            writer.writerow({
-                'Name': '1.png',
-                'Time of day': 'Sunset',
-            })
+        stream = StringIO()
+        writer = csv.DictWriter(stream, column_names)
+        writer.writeheader()
+        writer.writerow({
+            'Name': '1.png',
+            'Time of day': 'Sunset',
+        })
 
-            f = ContentFile(stream.getvalue(), name='A.csv')
-            preview_response = self.preview(f)
+        f = ContentFile(stream.getvalue(), name='A.csv')
+        preview_response = self.preview(f)
 
         self.assertDictEqual(
             preview_response.json(),
@@ -1119,16 +1121,16 @@ class UploadMetadataPreviewErrorTest(ClientTest):
 
         column_names = ['Name', 'Date']
 
-        with BytesIO() as stream:
-            writer = csv.DictWriter(stream, column_names)
-            writer.writeheader()
-            writer.writerow({
-                'Name': '1.png',
-                'Date': '2015-02-29',  # Nonexistent date
-            })
+        stream = StringIO()
+        writer = csv.DictWriter(stream, column_names)
+        writer.writeheader()
+        writer.writerow({
+            'Name': '1.png',
+            'Date': '2015-02-29',  # Nonexistent date
+        })
 
-            f = ContentFile(stream.getvalue(), name='A.csv')
-            preview_response = self.preview(f)
+        f = ContentFile(stream.getvalue(), name='A.csv')
+        preview_response = self.preview(f)
 
         self.assertDictEqual(
             preview_response.json(),
@@ -1156,6 +1158,35 @@ class UploadMetadataPreviewFormatTest(ClientTest):
         return self.client.post(
             reverse('upload_metadata_preview_ajax', args=[self.source.pk]),
             {'csv_file': csv_file},
+        )
+
+    def test_crlf_newlines(self):
+        """
+        Tolerate carriage return + line feed newlines in the CSV
+        (Windows style).
+        """
+        self.client.force_login(self.user)
+
+        content = (
+            'Name,Aux1'
+            '\r\n1.png,SiteA'
+        )
+        f = ContentFile(content, name='A.csv')
+        preview_response = self.preview(f)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                success=True,
+                previewTable=[
+                    ['Name', 'Aux1'],
+                    ['1.png', 'SiteA'],
+                ],
+                previewDetails=dict(
+                    numImages=1,
+                    numFieldsReplaced=0,
+                ),
+            ),
         )
 
     def test_cr_only_newlines(self):
@@ -1190,17 +1221,11 @@ class UploadMetadataPreviewFormatTest(ClientTest):
         """
         Tolerate non-ASCII UTF-8 characters in the CSV.
         """
-        # TODO: Not sure how to make this work with Python 2 and its CSV module
-        # (getting them to work with non-ASCII is a known pain).
-        # Non-ASCII characters have come up several times in practice (in
-        # server errors). So it should be looked at sooner or later.
-        return
-
         self.client.force_login(self.user)
 
         content = (
             'Name,Aux1'
-            '\r1.png,\xe5\x9c\xb0\xe7\x82\xb9A'
+            '\n1.png,地点A'
         )
         f = ContentFile(content, name='A.csv')
         preview_response = self.preview(f)
@@ -1211,7 +1236,7 @@ class UploadMetadataPreviewFormatTest(ClientTest):
                 success=True,
                 previewTable=[
                     ['Name', 'Aux1'],
-                    ['1.png', '\xe5\x9c\xb0\xe7\x82\xb9A'],
+                    ['1.png', '地点A'],
                 ],
                 previewDetails=dict(
                     numImages=1,
@@ -1227,7 +1252,7 @@ class UploadMetadataPreviewFormatTest(ClientTest):
         self.client.force_login(self.user)
 
         content = (
-            '\xef\xbb\xbfName,Aux1'
+            '\ufeffName,Aux1'
             '\n1.png,SiteA'
         )
         f = ContentFile(content, name='A.csv')
@@ -1240,6 +1265,36 @@ class UploadMetadataPreviewFormatTest(ClientTest):
                 previewTable=[
                     ['Name', 'Aux1'],
                     ['1.png', 'SiteA'],
+                ],
+                previewDetails=dict(
+                    numImages=1,
+                    numFieldsReplaced=0,
+                ),
+            ),
+        )
+
+    def test_field_with_newline(self):
+        """
+        Upload a metadata field value with a newline character in it (within
+        quotation marks). The newline character should be preserved in the
+        saved metadata.
+        """
+        self.client.force_login(self.user)
+
+        content = (
+            'Name,Comments'
+            '\n1.png,"Here are\nsome comments."'
+        )
+        f = ContentFile(content, name='A.csv')
+        preview_response = self.preview(f)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                success=True,
+                previewTable=[
+                    ['Name', 'Comments'],
+                    ['1.png', 'Here are\nsome comments.'],
                 ],
                 previewDetails=dict(
                     numImages=1,
@@ -1320,5 +1375,19 @@ class UploadMetadataPreviewFormatTest(ClientTest):
             preview_response.json(),
             dict(
                 error="The selected file is not a CSV file.",
+            ),
+        )
+
+    def test_empty_file(self):
+        self.client.force_login(self.user)
+
+        content = ''
+        f = ContentFile(content, name='A.csv')
+        preview_response = self.preview(f)
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                error="The submitted file is empty.",
             ),
         )

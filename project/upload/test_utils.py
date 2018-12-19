@@ -1,8 +1,8 @@
 from __future__ import unicode_literals
 from abc import ABCMeta
-import csv
+from backports import csv
+from io import StringIO
 import six
-from six import StringIO
 
 from django.core.files.base import ContentFile
 from django.core.urlresolvers import reverse

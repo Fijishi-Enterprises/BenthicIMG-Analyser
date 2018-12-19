@@ -1,21 +1,18 @@
-# / can result in floats, // only results in ints
-from __future__ import division
-
+from __future__ import division, unicode_literals
 import codecs
 from collections import OrderedDict
-import csv
+from backports import csv
 import functools
 import re
-
+import six
+from six import next, viewitems
+from six.moves import range
 try:
     # Python 3.4+
     from pathlib import PureWindowsPath
 except ImportError:
     # Python 2.x with pathlib2 package
     from pathlib2 import PureWindowsPath
-
-from six import next, viewitems
-from six.moves import range
 
 from django.core.urlresolvers import reverse
 
@@ -29,9 +26,9 @@ from vision_backend.models import Features
 from lib.exceptions import FileProcessError
 
 
-def metadata_csv_to_dict(csv_file, source):
+def metadata_csv_to_dict(csv_stream, source):
     """
-    Go from metadata CSV file to a dict of metadata dicts.
+    Go from metadata CSV file stream to a dict of metadata dicts.
     The first CSV row is assumed to have metadata field labels like
     "Date", "Aux3", and "White balance card".
 
@@ -39,15 +36,13 @@ def metadata_csv_to_dict(csv_file, source):
     and (2) the fact that column names need to be transformed to get the
     dict keys makes usage a bit clunky.
     """
-    # splitlines() is to do system-agnostic handling of newline characters.
-    # The csv module can't do that by default (fails on CR only).
-    reader = csv.reader(csv_file.read().splitlines(), dialect='excel')
+    reader = csv.reader(csv_stream, dialect='excel')
 
     # Read the first row, which should have column names.
     column_names = next(reader)
     # There could be a UTF-8 BOM character at the start of the file.
     # Strip it in that case.
-    column_names[0] = column_names[0].lstrip(codecs.BOM_UTF8)
+    column_names[0] = column_names[0].lstrip(codecs.BOM_UTF8.decode('utf-8'))
     column_names = [n.lower().strip() for n in column_names]
 
     # The column names are field labels (e.g. Date) while we want
@@ -187,8 +182,9 @@ def metadata_preview(csv_metadata, source):
 
         row = []
         for field_name in metadata_for_image.keys():
-            new_value = str(metadata_form.cleaned_data[field_name] or '')
-            old_value = str(metadata_form.initial[field_name] or '')
+            new_value = six.text_type(
+                metadata_form.cleaned_data[field_name] or '')
+            old_value = six.text_type(metadata_form.initial[field_name] or '')
 
             if (not old_value) or (old_value == new_value):
                 # Old value is blank, or old value is equal to new value.
@@ -207,24 +203,22 @@ def metadata_preview(csv_metadata, source):
     return table, details
 
 
-def annotations_csv_to_dict(csv_file, source):
+def annotations_csv_to_dict(csv_stream, source):
     """
-    Go from annotations CSV file to
+    Go from annotations CSV file stream to
     dict of (image ids -> lists of dicts with keys row, column, (opt.) label).
 
     The first CSV row is assumed to have column headers.
     Valid headers: Name, Row, Column, Label (not case sensitive)
     Label is optional.
     """
-    # splitlines() is to do system-agnostic handling of newline characters.
-    # The csv module can't do that by default (fails on CR only).
-    reader = csv.reader(csv_file.read().splitlines(), dialect='excel')
+    reader = csv.reader(csv_stream, dialect='excel')
 
     # Read the first row, which should have column names.
     column_names = next(reader)
     # There could be a UTF-8 BOM character at the start of the file.
     # Strip it in that case.
-    column_names[0] = column_names[0].lstrip(codecs.BOM_UTF8)
+    column_names[0] = column_names[0].lstrip(codecs.BOM_UTF8.decode('utf-8'))
     column_names = [name.lower().strip() for name in column_names]
 
     required_field_names = ['name', 'row', 'column']
@@ -247,7 +241,7 @@ def annotations_csv_to_dict(csv_file, source):
         csv_point_dict = OrderedDict(
             (k, v.strip())
             for (k, v) in zip(fields_of_columns, row)
-            if k is not None and v is not ''
+            if k is not None and v != ''
         )
 
         for name in required_field_names:
@@ -383,10 +377,10 @@ def annotations_cpcs_to_dict_read_csv_row(
     return row_tokens
 
 
-def annotations_cpcs_to_dict(cpc_files, source):
+def annotations_cpcs_to_dict(cpc_names_and_streams, source):
     """
-    :param cpc_files: An iterable of Coral Point Count .cpc files.
-      One .cpc corresponds to one image.
+    :param cpc_names_and_streams: An iterable of Coral Point Count .cpc files
+      as (file name, Unicode stream) tuples. One .cpc corresponds to one image.
     :param source: The source these .cpc files correspond to.
     :return: A dict of relevant info, with the following keys::
       annotations: dict of (image ids -> lists of dicts with keys row,
@@ -402,17 +396,17 @@ def annotations_cpcs_to_dict(cpc_files, source):
     cpc_dicts = []
     code_filepath = None
 
-    for cpc_file in cpc_files:
+    for cpc_name, cpc_stream in cpc_names_and_streams:
 
-        cpc_dict = dict(cpc_filename=cpc_file.name)
+        cpc_dict = dict(cpc_filename=cpc_name)
 
         # Each line of a .cpc file is like a CSV row.
         #
         # But different lines have different kinds of values, so we'll go
         # through the lines with next() instead of with a for loop.
-        reader = csv.reader(cpc_file, delimiter=',', quotechar='"')
+        reader = csv.reader(cpc_stream, delimiter=',', quotechar='"')
         read_csv_row_curried = functools.partial(
-            annotations_cpcs_to_dict_read_csv_row, reader, cpc_file.name)
+            annotations_cpcs_to_dict_read_csv_row, reader, cpc_name)
 
         # Line 1
         code_filepath, image_filepath, _, _, _, _ = read_csv_row_curried(6)
@@ -434,7 +428,7 @@ def annotations_cpcs_to_dict(cpc_files, source):
                 "File {cpc_filename}, line {line_num} is supposed to have"
                 " the number of points, but this line isn't a"
                 " positive integer: {token}").format(
-                    cpc_filename=cpc_file.name,
+                    cpc_filename=cpc_name,
                     line_num=reader.line_num,
                     token=token))
 
@@ -457,8 +451,8 @@ def annotations_cpcs_to_dict(cpc_files, source):
             if label_code:
                 cpc_dict['points'][point_index]['label'] = label_code
 
-        cpc_file.seek(0)
-        cpc_dict['cpc_content'] = cpc_file.read()
+        cpc_stream.seek(0)
+        cpc_dict['cpc_content'] = cpc_stream.read()
 
         cpc_dicts.append(cpc_dict)
 

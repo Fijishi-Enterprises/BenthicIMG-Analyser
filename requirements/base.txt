@@ -51,8 +51,23 @@ boto==2.40.0
 # Requires boto
 django-storages==1.4.1
 
-# HTML parsing
+# Python 2's CSV module has poor support for Unicode and multiplatform
+# newline chars. This backport of Python 3's CSV module is less painful to
+# work with, even in a Python 2 system.
+# Usage: `from backports import csv`
+# This package should also work for Python 3, so no conditional imports should
+# be needed. But after moving to Python-3-only, it would be best to simplify to
+# `import csv`.
+backports.csv==1.0.6
+
+# HTML parsing.
+# Also comes with a character encoding detection tool called "Unicode, Dammit":
+# https://www.crummy.com/software/BeautifulSoup/bs4/doc/#unicode-dammit
 beautifulsoup4==4.6.0
+
+# BeautifulSoup's encoding detection becomes more accurate if chardet or
+# cchardet is installed. chardet is older; cchardet is much faster.
+cchardet==2.1.4
 
 # Fancy math
 numpy==1.11.1
@@ -69,9 +84,12 @@ pytz==2016.3
 PyYAML==3.10
 
 # More elegant filepath calculations compared to os.path.
-# pathlib has become part of the Python 3 standard library. As a Python 2
-# package, it's the best bet for migrating cleanly and idiomatically to
-# Python 3.
+# pathlib has become part of the Python 3 standard library. pathlib2, an
+# unofficial backport of pathlib to Python 2, is the best bet for migrating
+# cleanly and idiomatically to Python 3.
+# However, pathlib2 does have a major flaw: paths with non-ASCII characters
+# are not supported. The only way to support that is to move to Python 3
+# eventually. https://github.com/mcmtroffaes/pathlib2/issues/34
 pathlib2==2.3.0
 # unipath hasn't been updated since early 2015 (as of late 2017).
 # Was formerly recommended by Two Scoops of Django, but they moved to pathlib.

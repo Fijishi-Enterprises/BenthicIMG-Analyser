@@ -36,7 +36,7 @@ class Annotation(models.Model):
         return local_label.code
 
     def __unicode__(self):
-        return "%s - %s - %s" % (
+        return u"%s - %s - %s" % (
             self.image, self.point.point_number, self.label_code)
 
 

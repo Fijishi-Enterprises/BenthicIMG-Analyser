@@ -6,7 +6,7 @@ from django.core.urlresolvers import reverse
 from images.model_utils import PointGen
 from images.models import Source
 from lib.test_utils import ClientTest
-from upload.test_utils import UploadAnnotationsTestMixin
+from upload.tests.utils import UploadAnnotationsTestMixin
 
 
 class AnnotationHistoryTest(ClientTest, UploadAnnotationsTestMixin):

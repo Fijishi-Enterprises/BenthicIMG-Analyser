@@ -12,7 +12,7 @@ from annotations.models import Annotation
 from images.model_utils import PointGen
 from images.models import Point
 from lib.test_utils import ClientTest, sample_image_as_file
-from upload.test_utils import UploadAnnotationsTestMixin
+from upload.tests.utils import UploadAnnotationsTestMixin
 
 
 class UploadAnnotationsNoLabelsetTest(ClientTest):

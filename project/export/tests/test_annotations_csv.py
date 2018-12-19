@@ -7,10 +7,10 @@ from django.shortcuts import resolve_url
 from django.test import override_settings
 
 from annotations.models import Annotation
+from export.tests.utils import BaseExportTest
 from images.model_utils import PointGen
 from lib.test_utils import BasePermissionTest
-from upload.test_utils import UploadAnnotationsTestMixin
-from .utils_testing import BaseExportTest
+from upload.tests.utils import UploadAnnotationsTestMixin
 
 
 class PermissionTest(BasePermissionTest):

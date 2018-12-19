@@ -5,8 +5,8 @@ import datetime
 from django.core.files.base import ContentFile
 from django.shortcuts import resolve_url
 
+from export.tests.utils import BaseExportTest
 from lib.test_utils import BasePermissionTest
-from .utils_testing import BaseExportTest
 
 
 class PermissionTest(BasePermissionTest):

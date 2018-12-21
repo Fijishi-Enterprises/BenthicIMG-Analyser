@@ -603,8 +603,8 @@ def annotations_cpc_verify_contents(cpc_dicts, source):
                         point_number=point_number,
                         x_str=cpc_point_dict['x_str']))
 
-            row = int(round( y/15 + 1 ))
-            column = int(round( x/15 + 1 ))
+            row = int(round(y/15 + 1))
+            column = int(round(x/15 + 1))
             point_dict = dict(
                 row=row,
                 column=column,

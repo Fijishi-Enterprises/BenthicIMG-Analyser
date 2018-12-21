@@ -259,7 +259,8 @@ class LabelForm(ModelForm):
             ))
         raise ValidationError(msg, code='unique')
 
-    def send_label_creation_email(self, request, new_label):
+    @staticmethod
+    def send_label_creation_email(request, new_label):
         """Email the committee about the label creation, and CC the creator."""
         context = dict(label=new_label)
 

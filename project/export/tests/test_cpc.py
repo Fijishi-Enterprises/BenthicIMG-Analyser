@@ -1,13 +1,13 @@
+# -*- coding: utf-8 -*-
 from __future__ import unicode_literals
+from io import BytesIO
 from zipfile import ZipFile
-
-from six import BytesIO, StringIO
 
 from bs4 import BeautifulSoup
 from django.core.files.base import ContentFile
 from django.shortcuts import resolve_url
 
-from .utils import get_previous_cpcs_status, write_zip
+from export.utils import get_previous_cpcs_status, write_zip
 from images.model_utils import PointGen
 from images.models import Image, Source
 from lib.test_utils import ClientTest
@@ -176,7 +176,7 @@ class CPCExportBaseTest(ClientTest):
 
     @staticmethod
     def export_response_to_cpc(response, cpc_filename):
-        zf = ZipFile(StringIO(response.content))
+        zf = ZipFile(BytesIO(response.content))
         return zf.read(cpc_filename)
 
     def upload_cpcs(self, cpc_files):
@@ -820,6 +820,52 @@ class CPCDirectoryTreeTest(CPCExportBaseTest):
         first_line = cpc.splitlines()[0]
         self.assertTrue(first_line.startswith(
             r'"D:\codefile_1.txt","D:\GBR\Site B\Transect III\4.jpg"'))
+
+
+class UnicodeTest(CPCExportBaseTest):
+    """Test that non-ASCII characters don't cause problems. Don't know if CPC
+    with non-ASCII is possible in practice, but might as well test that it
+    works."""
+    @classmethod
+    def setUpTestData(cls):
+        super(UnicodeTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(
+            cls.user,
+            simple_number_of_points=3,
+            confidence_threshold=80,
+        )
+        labels = cls.create_labels(cls.user, ['A', 'い'], 'GroupA')
+        cls.create_labelset(cls.user, cls.source, labels)
+
+        cls.img1 = cls.upload_image(
+            cls.user, cls.source, dict(filename='1.jpg'))
+
+    def test(self):
+        # The local image filepath gets path-manipulated at some point, and in
+        # Python 2.x, pathlib2 doesn't support Unicode. So we'll only test
+        # Unicode on the label code, not the filepath.
+        self.add_annotations(
+            self.user, self.img1, {1: 'い'})
+
+        post_data = self.default_search_params.copy()
+        post_data.update(
+            # CPC prefs
+            local_code_filepath=r'C:\CPCe codefiles\My codes.txt',
+            local_image_dir=r'C:\Panama dataset',
+            annotation_filter='confirmed_only',
+        )
+        response = self.export_cpcs(post_data)
+        actual_cpc_content = self.export_response_to_cpc(response, '1.cpc')
+
+        expected_point_lines = [
+            '"1","い","Notes",""',
+            '"2","","Notes",""',
+            '"3","","Notes",""',
+        ]
+        self.assert_cpc_label_lines_equal(
+            actual_cpc_content.decode('utf-8'), expected_point_lines)
 
 
 class UtilsTest(ClientTest):

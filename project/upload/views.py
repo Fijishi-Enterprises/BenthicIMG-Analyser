@@ -216,7 +216,7 @@ def upload_metadata_preview_ajax(request, source_id):
     try:
         # Dict of (metadata ids -> dicts of (column name -> value))
         csv_metadata = metadata_csv_to_dict(
-            csv_import_form.cleaned_data['csv_file'], source)
+            csv_import_form.get_csv_stream(), source)
     except FileProcessError as error:
         return JsonResponse(dict(
             error=error.message,
@@ -320,7 +320,7 @@ def upload_annotations_csv_preview_ajax(request, source_id):
 
     try:
         csv_annotations = annotations_csv_to_dict(
-            csv_import_form.cleaned_data['csv_file'], source)
+            csv_import_form.get_csv_stream(), source)
     except FileProcessError as error:
         return JsonResponse(dict(
             error=error.message,
@@ -376,9 +376,9 @@ def upload_annotations_cpc_preview_ajax(request, source_id):
             error=cpc_import_form.errors['cpc_files'][0],
         ))
 
-    cpc_files = cpc_import_form.cleaned_data['cpc_files']
     try:
-        cpc_info = annotations_cpcs_to_dict(cpc_files, source)
+        cpc_info = annotations_cpcs_to_dict(
+            cpc_import_form.get_cpc_names_and_streams(), source)
     except FileProcessError as error:
         return JsonResponse(dict(
             error=error.message,

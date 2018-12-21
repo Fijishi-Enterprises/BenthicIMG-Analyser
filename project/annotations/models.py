@@ -13,21 +13,16 @@ class Annotation(models.Model):
 
     annotation_date = models.DateTimeField(
         blank=True, auto_now=True, editable=False)
-    point = models.OneToOneField(Point, on_delete=models.CASCADE,
-        editable=False)
-    image = models.ForeignKey(Image, on_delete=models.CASCADE,
-        editable=False)
+    point = models.OneToOneField(Point, on_delete=models.CASCADE, editable=False)
+    image = models.ForeignKey(Image, on_delete=models.CASCADE, editable=False)
 
     # The user who made this annotation
-    user = models.ForeignKey(User, on_delete=models.SET_NULL,
-        editable=False, null=True)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, editable=False, null=True)
     # Only fill this in if the user is the robot user
-    robot_version = models.ForeignKey(Classifier, on_delete=models.SET_NULL,
-        editable=False, null=True)
+    robot_version = models.ForeignKey(Classifier, on_delete=models.SET_NULL, editable=False, null=True)
 
     label = models.ForeignKey(Label, on_delete=models.PROTECT)
-    source = models.ForeignKey(Source, on_delete=models.CASCADE,
-        editable=False)
+    source = models.ForeignKey(Source, on_delete=models.CASCADE, editable=False)
 
     @property
     def label_code(self):
@@ -36,25 +31,21 @@ class Annotation(models.Model):
         return local_label.code
 
     def __unicode__(self):
-        return "%s - %s - %s" % (
+        return u"%s - %s - %s" % (
             self.image, self.point.point_number, self.label_code)
 
 
 class AnnotationToolAccess(models.Model):
     access_date = models.DateTimeField(
         blank=True, auto_now=True, editable=False)
-    image = models.ForeignKey(Image, on_delete=models.CASCADE,
-        editable=False)
-    source = models.ForeignKey(Source, on_delete=models.CASCADE,
-        editable=False)
-    user = models.ForeignKey(User, on_delete=models.SET_NULL,
-        editable=False, null=True)
+    image = models.ForeignKey(Image, on_delete=models.CASCADE, editable=False)
+    source = models.ForeignKey(Source, on_delete=models.CASCADE, editable=False)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, editable=False, null=True)
 
 
 class AnnotationToolSettings(models.Model):
 
-    user = models.OneToOneField(User, on_delete=models.CASCADE,
-        editable=False)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, editable=False)
 
     POINT_MARKER_CHOICES = (
         ('crosshair', 'Crosshair'),

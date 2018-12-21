@@ -1,5 +1,5 @@
 # Utility classes and functions for tests.
-from __future__ import division
+from __future__ import division, unicode_literals
 from abc import ABCMeta
 from contextlib import contextmanager
 import datetime
@@ -793,6 +793,110 @@ class BrowserTest(ClientUtilsMixin, TestCase, StaticLiveServerTestCase):
         with self.wait_for_page_load():
             self.selenium.find_element_by_css_selector(
                 'input[value="Sign in"]').click()
+
+
+class BasePermissionTest(ClientTest):
+    """
+    Test view permissions.
+
+    To generalize this class to test any view, we might want to add some
+    flexibility on what is created with each source (or just create the minimum
+    and leave further customization to subclasses).
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super(BasePermissionTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+        labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
+
+        cls.public_source = cls.create_source(
+            cls.user, visibility=Source.VisibilityTypes.PUBLIC)
+        cls.create_labelset(cls.user, cls.public_source, labels)
+
+        cls.private_source = cls.create_source(
+            cls.user, visibility=Source.VisibilityTypes.PRIVATE)
+        cls.create_labelset(cls.user, cls.private_source, labels)
+
+        # Not a source member
+        cls.user_outsider = cls.create_user()
+        # View permissions
+        cls.user_viewer = cls.create_user()
+        cls.add_source_member(
+            cls.user, cls.public_source,
+            cls.user_viewer, Source.PermTypes.VIEW.code)
+        cls.add_source_member(
+            cls.user, cls.private_source,
+            cls.user_viewer, Source.PermTypes.VIEW.code)
+        # Edit permissions
+        cls.user_editor = cls.create_user()
+        cls.add_source_member(
+            cls.user, cls.public_source,
+            cls.user_editor, Source.PermTypes.EDIT.code)
+        cls.add_source_member(
+            cls.user, cls.private_source,
+            cls.user_editor, Source.PermTypes.EDIT.code)
+        # Admin permissions
+        cls.user_admin = cls.create_user()
+        cls.add_source_member(
+            cls.user, cls.public_source,
+            cls.user_admin, Source.PermTypes.ADMIN.code)
+        cls.add_source_member(
+            cls.user, cls.private_source,
+            cls.user_admin, Source.PermTypes.ADMIN.code)
+
+    def assertPermissionGranted(self, url, user=None, post_data=None):
+        if user:
+            self.client.force_login(user)
+        else:
+            self.client.logout()
+        if post_data is not None:
+            response = self.client.post(url, post_data)
+        else:
+            response = self.client.get(url)
+        # Response may indicate an error, but if it does, it shouldn't be
+        # about permission
+        self.assertTemplateNotUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+
+    def assertPermissionDenied(self, url, user=None, post_data=None):
+        if user:
+            self.client.force_login(user)
+        else:
+            # Test while logged out
+            self.client.logout()
+        if post_data is not None:
+            response = self.client.post(url, post_data)
+        else:
+            response = self.client.get(url)
+        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+
+    def assertPermissionGrantedAjax(self, url, user=None, post_data=None):
+        if user:
+            self.client.force_login(user)
+        else:
+            self.client.logout()
+        if post_data is not None:
+            response = self.client.post(url, post_data).json()
+        else:
+            response = self.client.get(url).json()
+        # Response may indicate an error, but if it does, it shouldn't be
+        # about permission
+        self.assertFalse(
+            'error' in response and "permission" in response['error'])
+
+    def assertPermissionDeniedAjax(self, url, user=None, post_data=None):
+        if user:
+            self.client.force_login(user)
+        else:
+            # Test while logged out
+            self.client.logout()
+        if post_data is not None:
+            response = self.client.post(url, post_data).json()
+        else:
+            response = self.client.get(url).json()
+        # Response should include an error that contains the word "permission"
+        self.assertIn('error', response)
+        self.assertIn("permission", response['error'])
 
 
 def create_sample_image(width=200, height=200, cols=10, rows=10):

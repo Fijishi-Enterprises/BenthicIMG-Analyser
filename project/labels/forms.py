@@ -1,6 +1,6 @@
 import codecs
 from collections import OrderedDict
-import csv
+from backports import csv
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -22,17 +22,16 @@ from .models import Label, LabelSet, LocalLabel
 
 
 def csv_to_dict(
-        csv_file, required_columns, optional_columns,
+        csv_stream, required_columns, optional_columns,
         key_column, multiple_rows_per_key):
-    # splitlines() is to do system-agnostic handling of newline characters.
-    # The csv module can't do that by default (fails on CR only).
-    reader = csv.reader(csv_file.read().splitlines(), dialect='excel')
+    reader = csv.reader(csv_stream, dialect='excel')
 
     # Read the first row, which should have column headers.
     column_headers = next(reader)
     # There could be a UTF-8 BOM character at the start of the file.
     # Strip it in that case.
-    column_headers[0] = column_headers[0].lstrip(codecs.BOM_UTF8)
+    column_headers[0] = column_headers[0].lstrip(
+        codecs.BOM_UTF8.decode('utf-8'))
     # Strip whitespace in general.
     column_headers = [h.strip() for h in column_headers]
 
@@ -105,9 +104,9 @@ def csv_to_dict(
     return csv_data
 
 
-def labels_csv_process(csv_file, source):
+def labels_csv_process(csv_stream, source):
     csv_data = csv_to_dict(
-        csv_file=csv_file,
+        csv_stream=csv_stream,
         required_columns=[
             ('global_label_id', "Label ID"),
             ('code', "Short code"),
@@ -260,7 +259,8 @@ class LabelForm(ModelForm):
             ))
         raise ValidationError(msg, code='unique')
 
-    def send_label_creation_email(self, request, new_label):
+    @staticmethod
+    def send_label_creation_email(request, new_label):
         """Email the committee about the label creation, and CC the creator."""
         context = dict(label=new_label)
 

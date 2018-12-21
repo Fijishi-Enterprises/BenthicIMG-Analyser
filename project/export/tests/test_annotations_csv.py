@@ -1,78 +1,19 @@
+# -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 import datetime
 
+from django.core.files.base import ContentFile
 from django.shortcuts import resolve_url
 from django.test import override_settings
 
 from annotations.models import Annotation
+from export.tests.utils import BaseExportTest
 from images.model_utils import PointGen
-from images.models import Source
-from lib.test_utils import ClientTest
-from upload.test_utils import UploadAnnotationsTestMixin
+from lib.test_utils import BasePermissionTest
+from upload.tests.utils import UploadAnnotationsTestMixin
 
 
-class PermissionTest(ClientTest):
-
-    @classmethod
-    def setUpTestData(cls):
-        super(PermissionTest, cls).setUpTestData()
-
-        cls.user = cls.create_user()
-        labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
-
-        cls.public_source = cls.create_source(
-            cls.user, visibility=Source.VisibilityTypes.PUBLIC)
-        cls.create_labelset(cls.user, cls.public_source, labels)
-
-        cls.private_source = cls.create_source(
-            cls.user, visibility=Source.VisibilityTypes.PRIVATE)
-        cls.create_labelset(cls.user, cls.private_source, labels)
-
-        # Not a source member
-        cls.user_outsider = cls.create_user()
-        # View permissions
-        cls.user_viewer = cls.create_user()
-        cls.add_source_member(
-            cls.user, cls.public_source,
-            cls.user_viewer, Source.PermTypes.VIEW.code)
-        cls.add_source_member(
-            cls.user, cls.private_source,
-            cls.user_viewer, Source.PermTypes.VIEW.code)
-        # Edit permissions
-        cls.user_editor = cls.create_user()
-        cls.add_source_member(
-            cls.user, cls.public_source,
-            cls.user_editor, Source.PermTypes.EDIT.code)
-        cls.add_source_member(
-            cls.user, cls.private_source,
-            cls.user_editor, Source.PermTypes.EDIT.code)
-        # Admin permissions
-        cls.user_admin = cls.create_user()
-        cls.add_source_member(
-            cls.user, cls.public_source,
-            cls.user_admin, Source.PermTypes.ADMIN.code)
-        cls.add_source_member(
-            cls.user, cls.private_source,
-            cls.user_admin, Source.PermTypes.ADMIN.code)
-
-    def assertPermissionGranted(self, url, user=None):
-        if user:
-            self.client.force_login(user)
-        else:
-            self.client.logout()
-        response = self.client.get(url)
-        # Response may indicate an error, but if it does, it shouldn't be
-        # about permission
-        self.assertTemplateNotUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-
-    def assertPermissionDenied(self, url, user=None):
-        if user:
-            self.client.force_login(user)
-        else:
-            # Test while logged out
-            self.client.logout()
-        response = self.client.get(url)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+class PermissionTest(BasePermissionTest):
 
     def test_annotations_private_source(self):
         url = resolve_url(
@@ -93,71 +34,7 @@ class PermissionTest(ClientTest):
         self.assertPermissionGranted(url, self.user_admin)
 
 
-class ExportBaseTest(ClientTest):
-
-    @classmethod
-    def setUpTestData(cls):
-        super(ExportBaseTest, cls).setUpTestData()
-
-        # Image search parameters
-        cls.default_search_params = dict(
-            image_form_type='search',
-            aux1='', aux2='', aux3='', aux4='', aux5='',
-            height_in_cm='', latitude='', longitude='', depth='',
-            photographer='', framing='', balance='',
-            date_filter_0='year', date_filter_1='',
-            date_filter_2='', date_filter_3='',
-            annotation_status='', image_name='',
-        )
-
-    def export(self, post_data):
-        """
-        :param post_data: The POST data for the CPC-creation Ajax view.
-        :return: The response object from the CPC-serving view. Should be a
-          zip file raw string if the view ran without errors.
-        """
-        self.client.force_login(self.user)
-        return self.client.post(
-            resolve_url('export_annotations', self.source.pk),
-            post_data)
-
-    def assert_csv_content_equal(self, actual_csv_content, expected_lines):
-        """
-        Tests that a CSV's content is as expected.
-
-        :param actual_csv_content: CSV content from the export view's response.
-        :param expected_lines: List of strings, without newline characters,
-          representing the expected line contents. Note that this is a
-          different format from actual_csv_content, just because it's easier
-          to type non-newline strings in Python code.
-        Throws AssertionError if actual and expected CSVs are not equal.
-        """
-        # The Python csv module uses \r\n by default (as part of the Excel
-        # dialect). Due to the way we compare line by line, splitting on
-        # \n would mess up the comparison, so we use split() instead of
-        # splitlines().
-        actual_lines = actual_csv_content.split('\r\n')
-        # Since we're not using splitlines(), we have to deal with ending
-        # newlines manually.
-        if actual_lines[-1] == "":
-            actual_lines.pop()
-        expected_content = '\r\n'.join(expected_lines) + '\r\n'
-
-        # Compare individual lines (so that if we get a mismatch, the error
-        # message will be readable)
-        for line_num, actual_line in enumerate(actual_lines, 1):
-            expected_line = expected_lines[line_num-1]
-            self.assertEqual(actual_line, expected_line, msg=(
-                "Line {line_num} not equal | Actual: {actual_line}"
-                " | Expected: {expected_line}").format(
-                line_num=line_num, actual_line=actual_line,
-                expected_line=expected_line,
-            ))
-        # Compare entire file (to ensure line separator types are correct too)
-        self.assertEqual(actual_csv_content, expected_content)
-
-
-class ImageSetTest(ExportBaseTest):
+class ImageSetTest(BaseExportTest):
     """Test annotations export to CSV for different kinds of image subsets."""
 
     @classmethod
@@ -173,7 +50,7 @@ class ImageSetTest(ExportBaseTest):
         labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
         cls.create_labelset(cls.user, cls.source, labels)
 
-    def all_images_single(self):
+    def test_all_images_single(self):
         """Export for 1 out of 1 images."""
         self.img1 = self.upload_image(
             self.user, self.source,
@@ -181,7 +58,7 @@ class ImageSetTest(ExportBaseTest):
         self.add_annotations(self.user, self.img1, {1: 'A', 2: 'B'})
 
         post_data = self.default_search_params.copy()
-        response = self.export(post_data)
+        response = self.export_annotations(post_data)
 
         expected_lines = [
             'Name,Row,Column,Label',
@@ -190,7 +67,7 @@ class ImageSetTest(ExportBaseTest):
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
-    def all_images_multiple(self):
+    def test_all_images_multiple(self):
         """Export for 3 out of 3 images."""
         self.img1 = self.upload_image(
             self.user, self.source,
@@ -206,7 +83,7 @@ class ImageSetTest(ExportBaseTest):
         self.add_annotations(self.user, self.img3, {1: 'B', 2: 'B'})
 
         post_data = self.default_search_params.copy()
-        response = self.export(post_data)
+        response = self.export_annotations(post_data)
 
         expected_lines = [
             'Name,Row,Column,Label',
@@ -219,7 +96,7 @@ class ImageSetTest(ExportBaseTest):
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
-    def image_subset_by_metadata(self):
+    def test_image_subset_by_metadata(self):
         """Export for some, but not all, images."""
         self.img1 = self.upload_image(
             self.user, self.source,
@@ -242,7 +119,7 @@ class ImageSetTest(ExportBaseTest):
 
         post_data = self.default_search_params.copy()
         post_data['aux1'] = 'X'
-        response = self.export(post_data)
+        response = self.export_annotations(post_data)
 
         expected_lines = [
             'Name,Row,Column,Label',
@@ -253,7 +130,7 @@ class ImageSetTest(ExportBaseTest):
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
-    def image_subset_by_annotation_status(self):
+    def test_image_subset_by_annotation_status(self):
         """Export for some, but not all, images. Different search criteria.
         Just a sanity check to ensure the image filtering is as complete
         as it should be."""
@@ -276,7 +153,7 @@ class ImageSetTest(ExportBaseTest):
 
         post_data = self.default_search_params.copy()
         post_data['annotation_status'] = 'confirmed'
-        response = self.export(post_data)
+        response = self.export_annotations(post_data)
 
         expected_lines = [
             'Name,Row,Column,Label',
@@ -287,7 +164,7 @@ class ImageSetTest(ExportBaseTest):
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
-    def image_empty_set(self):
+    def test_image_empty_set(self):
         """Export for 0 images."""
         self.img1 = self.upload_image(
             self.user, self.source,
@@ -296,7 +173,7 @@ class ImageSetTest(ExportBaseTest):
 
         post_data = self.default_search_params.copy()
         post_data['image_name'] = '5.jpg'
-        response = self.export(post_data)
+        response = self.export_annotations(post_data)
 
         expected_lines = [
             'Name,Row,Column,Label',
@@ -304,7 +181,7 @@ class ImageSetTest(ExportBaseTest):
         self.assert_csv_content_equal(response.content, expected_lines)
 
 
-class AnnotationStatusTest(ExportBaseTest):
+class AnnotationStatusTest(BaseExportTest):
     """Test annotations export to CSV for images of various annotation
     statuses."""
 
@@ -326,7 +203,7 @@ class AnnotationStatusTest(ExportBaseTest):
             dict(filename='1.jpg', width=400, height=300))
 
     def test_not_annotated(self):
-        response = self.export(self.default_search_params)
+        response = self.export_annotations(self.default_search_params)
 
         expected_lines = [
             'Name,Row,Column,Label',
@@ -335,7 +212,7 @@ class AnnotationStatusTest(ExportBaseTest):
 
     def test_partially_annotated(self):
         self.add_annotations(self.user, self.img1, {1: 'B'})
-        response = self.export(self.default_search_params)
+        response = self.export_annotations(self.default_search_params)
 
         expected_lines = [
             'Name,Row,Column,Label',
@@ -345,7 +222,7 @@ class AnnotationStatusTest(ExportBaseTest):
 
     def test_fully_annotated(self):
         self.add_annotations(self.user, self.img1, {1: 'B', 2: 'A'})
-        response = self.export(self.default_search_params)
+        response = self.export_annotations(self.default_search_params)
 
         expected_lines = [
             'Name,Row,Column,Label',
@@ -357,7 +234,7 @@ class AnnotationStatusTest(ExportBaseTest):
     def test_machine_annotated(self):
         robot = self.create_robot(self.source)
         self.add_robot_annotations(robot, self.img1, {1: 'B', 2: 'A'})
-        response = self.export(self.default_search_params)
+        response = self.export_annotations(self.default_search_params)
 
         expected_lines = [
             'Name,Row,Column,Label',
@@ -370,7 +247,7 @@ class AnnotationStatusTest(ExportBaseTest):
         robot = self.create_robot(self.source)
         self.add_robot_annotations(robot, self.img1, {1: 'B', 2: 'A'})
         self.add_annotations(self.user, self.img1, {2: 'A'})
-        response = self.export(self.default_search_params)
+        response = self.export_annotations(self.default_search_params)
 
         expected_lines = [
             'Name,Row,Column,Label',
@@ -380,7 +257,7 @@ class AnnotationStatusTest(ExportBaseTest):
         self.assert_csv_content_equal(response.content, expected_lines)
 
 
-class AnnotatorInfoColumnsTest(ExportBaseTest, UploadAnnotationsTestMixin):
+class AnnotatorInfoColumnsTest(BaseExportTest, UploadAnnotationsTestMixin):
     """Test the optional annotation info columns."""
 
     @classmethod
@@ -404,7 +281,7 @@ class AnnotatorInfoColumnsTest(ExportBaseTest, UploadAnnotationsTestMixin):
         self.add_annotations(self.user, self.img1, {1: 'B'})
         post_data = self.default_search_params.copy()
         post_data['optional_columns'] = ['annotator_info']
-        response = self.export(post_data)
+        response = self.export_annotations(post_data)
 
         annotation_date = \
             Annotation.objects.get(image=self.img1).annotation_date
@@ -430,7 +307,7 @@ class AnnotatorInfoColumnsTest(ExportBaseTest, UploadAnnotationsTestMixin):
 
         post_data = self.default_search_params.copy()
         post_data['optional_columns'] = ['annotator_info']
-        response = self.export(post_data)
+        response = self.export_annotations(post_data)
 
         annotation_date = \
             Annotation.objects.get(image=self.img1).annotation_date
@@ -447,7 +324,7 @@ class AnnotatorInfoColumnsTest(ExportBaseTest, UploadAnnotationsTestMixin):
         self.add_robot_annotations(robot, self.img1, {1: 'B'})
         post_data = self.default_search_params.copy()
         post_data['optional_columns'] = ['annotator_info']
-        response = self.export(post_data)
+        response = self.export_annotations(post_data)
 
         annotation_date = \
             Annotation.objects.get(image=self.img1).annotation_date
@@ -460,7 +337,7 @@ class AnnotatorInfoColumnsTest(ExportBaseTest, UploadAnnotationsTestMixin):
         self.assert_csv_content_equal(response.content, expected_lines)
 
 
-class MachineSuggestionColumnsTest(ExportBaseTest):
+class MachineSuggestionColumnsTest(BaseExportTest):
     """Test the optional machine suggestion columns."""
 
     @classmethod
@@ -485,7 +362,7 @@ class MachineSuggestionColumnsTest(ExportBaseTest):
         self.add_annotations(self.user, self.img1, {1: 'B'})
         post_data = self.default_search_params.copy()
         post_data['optional_columns'] = ['machine_suggestions']
-        response = self.export(post_data)
+        response = self.export_annotations(post_data)
 
         expected_lines = [
             'Name,Row,Column,Label'
@@ -506,7 +383,7 @@ class MachineSuggestionColumnsTest(ExportBaseTest):
 
         post_data = self.default_search_params.copy()
         post_data['optional_columns'] = ['machine_suggestions']
-        response = self.export(post_data)
+        response = self.export_annotations(post_data)
 
         expected_lines = [
             'Name,Row,Column,Label'
@@ -524,7 +401,7 @@ class MachineSuggestionColumnsTest(ExportBaseTest):
 
         post_data = self.default_search_params.copy()
         post_data['optional_columns'] = ['machine_suggestions']
-        response = self.export(post_data)
+        response = self.export_annotations(post_data)
 
         expected_lines = [
             'Name,Row,Column,Label'
@@ -536,7 +413,7 @@ class MachineSuggestionColumnsTest(ExportBaseTest):
         self.assert_csv_content_equal(response.content, expected_lines)
 
 
-class MetadataAuxColumnsTest(ExportBaseTest):
+class MetadataAuxColumnsTest(BaseExportTest):
     """Test the optional aux. metadata columns."""
 
     @classmethod
@@ -560,7 +437,7 @@ class MetadataAuxColumnsTest(ExportBaseTest):
         self.add_annotations(self.user, self.img1, {1: 'B'})
         post_data = self.default_search_params.copy()
         post_data['optional_columns'] = ['metadata_date_aux']
-        response = self.export(post_data)
+        response = self.export_annotations(post_data)
 
         expected_lines = [
             'Name,Date,Aux1,Aux2,Aux3,Aux4,Aux5,Row,Column,Label',
@@ -578,7 +455,7 @@ class MetadataAuxColumnsTest(ExportBaseTest):
 
         post_data = self.default_search_params.copy()
         post_data['optional_columns'] = ['metadata_date_aux']
-        response = self.export(post_data)
+        response = self.export_annotations(post_data)
 
         expected_lines = [
             'Name,Date,Aux1,Aux2,Aux3,Aux4,Aux5,Row,Column,Label',
@@ -600,7 +477,7 @@ class MetadataAuxColumnsTest(ExportBaseTest):
 
         post_data = self.default_search_params.copy()
         post_data['optional_columns'] = ['metadata_date_aux']
-        response = self.export(post_data)
+        response = self.export_annotations(post_data)
 
         expected_lines = [
             'Name,Date,Site,Transect,Quadrant,Aux4,Aux5,Row,Column,Label',
@@ -609,7 +486,7 @@ class MetadataAuxColumnsTest(ExportBaseTest):
         self.assert_csv_content_equal(response.content, expected_lines)
 
 
-class MetadataOtherColumnsTest(ExportBaseTest):
+class MetadataOtherColumnsTest(BaseExportTest):
     """Test the optional other metadata columns."""
 
     @classmethod
@@ -633,7 +510,7 @@ class MetadataOtherColumnsTest(ExportBaseTest):
         self.add_annotations(self.user, self.img1, {1: 'B'})
         post_data = self.default_search_params.copy()
         post_data['optional_columns'] = ['metadata_other']
-        response = self.export(post_data)
+        response = self.export_annotations(post_data)
 
         expected_lines = [
             'Name,Height (cm),Latitude,Longitude,Depth,Camera,Photographer'
@@ -660,7 +537,7 @@ class MetadataOtherColumnsTest(ExportBaseTest):
 
         post_data = self.default_search_params.copy()
         post_data['optional_columns'] = ['metadata_other']
-        response = self.export(post_data)
+        response = self.export_annotations(post_data)
 
         expected_lines = [
             'Name,Height (cm),Latitude,Longitude,Depth,Camera,Photographer'
@@ -673,7 +550,7 @@ class MetadataOtherColumnsTest(ExportBaseTest):
         self.assert_csv_content_equal(response.content, expected_lines)
 
 
-class CombinationsOfOptionalColumnsTest(ExportBaseTest):
+class CombinationsOfOptionalColumnsTest(BaseExportTest):
     """Test combinations of optional column sets."""
 
     @classmethod
@@ -718,7 +595,7 @@ class CombinationsOfOptionalColumnsTest(ExportBaseTest):
 
         post_data = self.default_search_params.copy()
         post_data['optional_columns'] = ['metadata_date_aux', 'metadata_other']
-        response = self.export(post_data)
+        response = self.export_annotations(post_data)
 
         expected_lines = [
             'Name,Date,Site,Transect,Quadrant,Aux4,Aux5'
@@ -746,7 +623,7 @@ class CombinationsOfOptionalColumnsTest(ExportBaseTest):
 
         post_data = self.default_search_params.copy()
         post_data['optional_columns'] = ['annotator_info', 'metadata_date_aux']
-        response = self.export(post_data)
+        response = self.export_annotations(post_data)
 
         annotation_date = \
             Annotation.objects.get(image=self.img1).annotation_date
@@ -792,7 +669,7 @@ class CombinationsOfOptionalColumnsTest(ExportBaseTest):
         post_data['optional_columns'] = [
             'annotator_info', 'machine_suggestions',
             'metadata_date_aux', 'metadata_other']
-        response = self.export(post_data)
+        response = self.export_annotations(post_data)
 
         annotation_date = \
             Annotation.objects.get(image=self.img1).annotation_date
@@ -814,3 +691,84 @@ class CombinationsOfOptionalColumnsTest(ExportBaseTest):
                 username=self.user.username, date=date_str),
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
+
+
+class UnicodeTest(BaseExportTest):
+    """Test that non-ASCII characters don't cause problems."""
+
+    @classmethod
+    def setUpTestData(cls):
+        super(UnicodeTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(
+            cls.user,
+            point_generation_type=PointGen.Types.UNIFORM,
+            number_of_cell_rows=1, number_of_cell_columns=1,
+        )
+        labels = cls.create_labels(cls.user, ['A', 'い'], 'GroupA')
+        cls.create_labelset(cls.user, cls.source, labels)
+
+        cls.img1 = cls.upload_image(
+            cls.user, cls.source,
+            dict(filename='あ.jpg', width=400, height=300))
+
+    def test(self):
+        self.add_annotations(self.user, self.img1, {1: 'い'})
+
+        post_data = self.default_search_params.copy()
+        response = self.export_annotations(post_data)
+
+        expected_lines = [
+            'Name,Row,Column,Label',
+            'あ.jpg,150,200,い',
+        ]
+        self.assert_csv_content_equal(
+            response.content.decode('utf-8'), expected_lines)
+
+
+class UploadAndExportSameDataTest(BaseExportTest):
+    """Test that we can upload a CSV and then export the exact same CSV."""
+
+    @classmethod
+    def setUpTestData(cls):
+        super(UploadAndExportSameDataTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(
+            cls.user,
+            point_generation_type=PointGen.Types.UNIFORM,
+            number_of_cell_rows=1, number_of_cell_columns=1,
+        )
+        labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
+        cls.create_labelset(cls.user, cls.source, labels)
+
+    def test(self):
+        self.img1 = self.upload_image(
+            self.user, self.source,
+            dict(filename='1.jpg', width=400, height=300))
+
+        # Upload annotations
+        content = ''
+        csv_lines = [
+            'Name,Row,Column,Label',
+            '1.jpg,150,200,A',
+        ]
+        for line in csv_lines:
+            content += (line + '\n')
+        csv_file = ContentFile(content, name='annotations.csv')
+
+        self.client.force_login(self.user)
+        self.client.post(
+            resolve_url('upload_annotations_csv_preview_ajax', self.source.pk),
+            {'csv_file': csv_file},
+        )
+        self.client.post(
+            resolve_url('upload_annotations_ajax', self.source.pk),
+        )
+
+        # Export annotations
+        post_data = self.default_search_params.copy()
+        response = self.export_annotations(post_data)
+
+        self.assert_csv_content_equal(response.content, csv_lines)

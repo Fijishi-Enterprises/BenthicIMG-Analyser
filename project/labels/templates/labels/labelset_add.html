@@ -25,6 +25,10 @@
     {% endif %}
   </legend>
 
+  <div class="line">
+    Use this page to select which of CoralNet's labels will be included in your labelset. Afterward, you'll be able to edit (customize) the label codes you use for each label.
+  </div>
+
   <label for="label-search-field">Search labels by name: </label>
   <input type="text" id="label-search-field" name="search"
     data-url="{% url 'labelset_add_search_ajax' %}"/>

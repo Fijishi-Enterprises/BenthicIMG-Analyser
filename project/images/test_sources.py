@@ -264,7 +264,8 @@ class SourceNewTest(ClientTest):
         self.assertEqual(new_source.enable_robot_classifier, True)
 
         # Check that the source creation date is reasonable:
-        # - a timestamp taken before creation should be before the creation date.
+        # - a timestamp taken before creation should be before the creation
+        #   date.
         # - a timestamp taken after creation should be after the creation date.
         self.assertTrue(datetime_before_creation <= new_source.create_date)
         self.assertTrue(new_source.create_date <= timezone.now())
@@ -463,13 +464,16 @@ class SourceEditTest(ClientTest):
 
         # Source members
         cls.user_admin = cls.create_user()
-        cls.add_source_member(cls.user_creator, cls.source,
+        cls.add_source_member(
+            cls.user_creator, cls.source,
             cls.user_admin, Source.PermTypes.ADMIN.code)
         cls.user_editor = cls.create_user()
-        cls.add_source_member(cls.user_creator, cls.source,
+        cls.add_source_member(
+            cls.user_creator, cls.source,
             cls.user_editor, Source.PermTypes.EDIT.code)
         cls.user_viewer = cls.create_user()
-        cls.add_source_member(cls.user_creator, cls.source,
+        cls.add_source_member(
+            cls.user_creator, cls.source,
             cls.user_viewer, Source.PermTypes.VIEW.code)
         # Non-member
         cls.user_outsider = cls.create_user()

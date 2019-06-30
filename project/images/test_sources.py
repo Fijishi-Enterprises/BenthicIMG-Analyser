@@ -1,3 +1,4 @@
+from __future__ import unicode_literals
 from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.shortcuts import resolve_url
@@ -210,7 +211,7 @@ class SourceNewTest(ClientTest):
 
         form = response.context['sourceForm']
         self.assertEqual(
-            form['visibility'].value(), Source.VisibilityTypes.PRIVATE)
+            form['visibility'].value(), Source.VisibilityTypes.PUBLIC)
         self.assertEqual(form['key1'].value(), 'Aux1')
         self.assertEqual(form['key2'].value(), 'Aux2')
         self.assertEqual(form['key3'].value(), 'Aux3')

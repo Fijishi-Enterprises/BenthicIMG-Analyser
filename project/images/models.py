@@ -45,7 +45,7 @@ class Source(models.Model):
     )
     visibility = models.CharField(
         max_length=1, choices=VISIBILITY_CHOICES,
-        default=VisibilityTypes.PRIVATE)
+        default=VisibilityTypes.PUBLIC)
 
     # Automatically set to the date and time of creation.
     create_date = models.DateTimeField('Date created',

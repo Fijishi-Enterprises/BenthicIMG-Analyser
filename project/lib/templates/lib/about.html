@@ -25,7 +25,7 @@
     <li><a href="#press">press</a></li>
     </ul>
 
-    <h2>Background<a class="section-anchor" data-scroll-name="#background"></a></h2>
+    <h2 id="background">Background<a class="section-anchor" data-scroll-name="#background"></a></h2>
     <p>Global and local stressors have caused a rapid decline of coral reefs across the world.
     To monitor the changes and take appropriate action large spatio-temporal surveys are needed. Data
     collection speeds are typically sufficient to meet this need but the subsequent image analysis remains slow as manual inspection of each photo is required. This creates a 'manual annotation bottleneck'.</p>
@@ -33,12 +33,11 @@
 
     <p class="uparrow border"><a href="#main">&#9650</a></p>
 
-    <h2>The site<a class="section-anchor" data-scroll-name="#site"></a></h2>
+    <h2 id="site">The site<a class="section-anchor" data-scroll-name="#site"></a></h2>
     <p>
         The CoralNet website consist of several modules outlined below. For some (slightly outdated) information, check out our <a href="http://vimeo.com/channels/coralnet">Vimeo channel</a>.
     </p>
     <p>
-        <a name="source"></a>
         <b>Source:</b> Main organizational element for a benthic survey or image "source". Here you specify your labelset, your privacy settings, and invite collaborators.
     </p>
     <p>
@@ -53,7 +52,7 @@
 
     <p class="uparrow border"><a href="#main">&#9650</a></p>
 
-    <h2>Data Policy<a class="section-anchor" data-scroll-name="#datapolicy"></a></h2>
+    <h2 id="datapolicy">Data Policy<a class="section-anchor" data-scroll-name="#datapolicy"></a></h2>
 
     <p>We at CoralNet highly encourage public sharing of research data for the greater good. However, we realize that data privacy is preferred in some cases, especially for newer projects. So, sources have two visibility options, Public or Private.</p>
     <p>Sources can be Public or Private for only the first year after source creation. Once a Private source becomes 1 year old, it will automatically be converted to Public, unless an exception has been granted for the source by the CoralNet administrators. (Effective July 12, 2019)</p>
@@ -82,19 +81,18 @@
 
     <p class="uparrow border"><a href="#main">&#9650</a></p>
     
-    <h2 id ="acknowledgments">Acknowledgments<a class="section-anchor" data-scroll-name="#acknowledgments"></a></h2>
+    <h2 id="acknowledgments">Acknowledgments<a class="section-anchor" data-scroll-name="#acknowledgments"></a></h2>
     <p> CoralNet development is support by the NSF Computer Vision Coral Ecology grant #ATM-0941760 and by the National Oceanic and Atmospheric Administration (NOAA) grant No. NA10OAR4320156. The following papers are relevant to the development of CoralNet. We ask that you cite the appropriate papers if you use CoralNet in your work.</p>
     <ul>
     <li><p>O. Beijbom, P.J. Edmunds, D.I. Kline, G.B. Mitchell, D. Kriegman. <a href="http://ieeexplore.ieee.org/xpls/abs_all.jsp?arnumber=6247798&tag=1">"Automated Annotation of Coral Reef Survey Images"</a>. IEEE Conference on Computer Vision and Pattern Recognition (CVPR), Providence, Rhode Island, June, 2012.</p></li>
 
     <li><p>O. Beijbom, P. J. Edmunds, C. Roelfsema, J. Smith, D. I. Kline, B. Neal, M. J. Dunlap, V. Moriarty, T-Y. Fan, C-J. Tan, S. Chan, T. Treibitz, A. Gamst, B. G. Mitchell, D. Kriegman. <a href="http://journals.plos.org/plosone/article?id=10.1371/journal.pone.0130312">"Towards automated annotation of benthic survey images: variability of human experts and operational modes of automation"</a>. PLOS One, July 2015.</p></li>
-    </li>   
 
     <li><p>O. Beijbom, <a href="http://roger.ucsd.edu/record=b8984742~S9">"Automated Annotation of Coral Reef Survey Images"</a>. PhD Thesis UCSD, June 2015.</p></li>
     </ul>
 
     <p class="uparrow border"><a href="#main">&#9650</a></p>
-    <h2>People<a class="section-anchor" data-scroll-name="#people"></a></h2>
+    <h2 id="people">People<a class="section-anchor" data-scroll-name="#people"></a></h2>
     
     <ul>        
         <li>Oscar Beijbom - Project Manager [<a href="http://eecs.berkeley.edu/~obeijbom/">www</a>]</li>
@@ -112,7 +110,7 @@
     </ul>
 
     <p class="uparrow border"><a href="#main">&#9650</a></p>
-    <h2>Press<a class="section-anchor" data-scroll-name="#press"></a></h2>
+    <h2 id="press">Press<a class="section-anchor" data-scroll-name="#press"></a></h2>
     <ul >
     <li>January 2017: Our beta launch featured in phys.org [<a href="http://phys.org/news/2017-01-software-coral-reef-images.html">www</a>]. </li>
 
@@ -120,7 +118,7 @@
 
     <li>August 2016: CoralNet featured in the Nature Toolbox section [<a href = "http://www.nature.com/news/computers-on-the-reef-1.20497">www</a>]. </li>
 
-    <li>June 2016: NVIDIA blog post about my work on deep learning for coral ecology [<a href = "https://blogs.nvidia.com/blog/2016/06/22/deep-learning-save-coral-reefs/">www</a>]. </li>
+    <li>June 2016: NVIDIA blog post about Oscar's work on deep learning for coral ecology [<a href = "https://blogs.nvidia.com/blog/2016/06/22/deep-learning-save-coral-reefs/">www</a>]. </li>
 
     <li >Nov 2014: Jonathan Cohen at NVIDIA highlights CoralNet in his talk at the SuperComputer conference. CoralNet section starts at 9.30 [<a href="http://on-demand.gputechconf.com/supercomputing/2014/video/SC411-machine-learning-computational-researchers.html">www</a>].</li>
 
@@ -131,6 +129,8 @@
     </ul>
 
     <p class="uparrow-final border"><a href="#main">&#9650</a></p>
+</div>
+
 <script>
 $("a[href^='#']").click(function(){
     var clicked = $(this).attr("href");

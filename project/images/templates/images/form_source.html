@@ -5,7 +5,7 @@ This form template is meant to be used with the "include" template tag.
 <fieldset>
   <legend class="small">General Information</legend>
 
-  <span class="helptext_long">To learn about the differences between public and private sources, please read our <a href="{% url 'about' %}">data policy</a>.</span>
+  <span class="helptext_long">To learn about the differences between public and private sources, please read our <a href="{% url 'about' %}">data policy</a>. Note that a source can only remain private for up to 1 year.</span>
 
   {% include "form_generic_one_field.html" with field=sourceForm.name %}
   {% include "form_generic_one_field.html" with field=sourceForm.visibility %}

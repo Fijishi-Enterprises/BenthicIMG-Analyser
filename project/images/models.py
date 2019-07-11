@@ -8,7 +8,8 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from easy_thumbnails.fields import ThumbnailerImageField
-from guardian.shortcuts import get_objects_for_user, get_users_with_perms, get_perms, assign, remove_perm
+from guardian.shortcuts import (
+    get_objects_for_user, get_users_with_perms, get_perms, assign, remove_perm)
 
 from .model_utils import PointGen
 from accounts.utils import is_robot_user
@@ -16,7 +17,8 @@ from annotations.model_utils import AnnotationAreaUtils
 from labels.models import LabelSet
 from lib.utils import rand_string
 
-#Unfortunate import b/c risk of circular reference, but wasn't sure how to get rid of it.
+# Unfortunate import b/c risk of circular reference, but wasn't sure how to
+# get rid of it.
 from vision_backend.models import Classifier, Features, Score
 
 
@@ -27,10 +29,11 @@ class SourceManager(models.Manager):
         """
         return self.get(name=name)
 
+
 class Source(models.Model):
     objects = SourceManager()
 
-    class VisibilityTypes():
+    class VisibilityTypes:
         PUBLIC = 'b'
         PUBLIC_VERBOSE = 'Public'
         PRIVATE = 'v'
@@ -45,10 +48,11 @@ class Source(models.Model):
     )
     visibility = models.CharField(
         max_length=1, choices=VISIBILITY_CHOICES,
-        default=VisibilityTypes.PRIVATE)
+        default=VisibilityTypes.PUBLIC)
 
     # Automatically set to the date and time of creation.
-    create_date = models.DateTimeField('Date created',
+    create_date = models.DateTimeField(
+        'Date created',
         auto_now_add=True, editable=False)
 
     description = models.TextField()
@@ -74,7 +78,11 @@ class Source(models.Model):
     )
     default_point_generation_method = models.CharField(
         "Point generation method",
-        help_text="When we create annotation points for uploaded images, this is how we'll generate the point locations. Note that if you change this setting later on, it will NOT apply to images that are already uploaded.",
+        help_text=(
+            "When we create annotation points for uploaded images, this is how"
+            " we'll generate the point locations. Note that if you change this"
+            " setting later on, it will NOT apply to images that are already"
+            " uploaded."),
         max_length=50,
         default=PointGen.args_to_db_format(
                     point_generation_type=PointGen.Types.SIMPLE,
@@ -83,9 +91,15 @@ class Source(models.Model):
 
     image_annotation_area = models.CharField(
         "Default image annotation area",
-        help_text="This defines a rectangle of the image where annotation points are allowed to be generated.\n"
-                  "For example, X boundaries of 10% and 95% mean that the leftmost 10% and the rightmost 5% of the image will not have any points. Decimals like 95.6% are allowed.\n"
-                  "Later, you can also set these boundaries as pixel counts on a per-image basis; for images that don't have a specific value set, these percentages will be used.",
+        help_text=(
+            "This defines a rectangle of the image where annotation points are"
+            " allowed to be generated.\n"
+            "For example, X boundaries of 10% and 95% mean that the leftmost"
+            " 10% and the rightmost 5% of the image will not have any points."
+            " Decimals like 95.6% are allowed.\n"
+            "Later, you can also set these boundaries as pixel counts on a"
+            " per-image basis; for images that don't have a specific value"
+            " set, these percentages will be used."),
         max_length=50,
         null=True
     )
@@ -114,10 +128,12 @@ class Source(models.Model):
     enable_robot_classifier = models.BooleanField(
         "Enable robot classifier",
         default=True,
-        help_text="With this option on, the automatic classification system will "
-                  "go through your images and add unofficial annotations to them. "
-                  "Then when you enter the annotation tool, you will be able to start "
-                  "from the system's suggestions instead of from a blank slate.",
+        help_text=(
+            "With this option on, the automatic classification system will"
+            " go through your images and add unconfirmed annotations to them."
+            " Then when you enter the annotation tool, you will be able to"
+            " start from the system's suggestions instead of from a blank"
+            " slate."),
     )
 
     longitude = models.CharField(max_length=20, blank=True)
@@ -134,17 +150,19 @@ class Source(models.Model):
         )
 
     class PermTypes:
-        class ADMIN():
+        class ADMIN:
             code = 'source_admin'
-            fullCode  = 'images.' + code
+            fullCode = 'images.' + code
             verbose = 'Admin'
-        class EDIT():
+
+        class EDIT:
             code = 'source_edit'
-            fullCode  = 'images.' + code
+            fullCode = 'images.' + code
             verbose = 'Edit'
-        class VIEW():
+
+        class VIEW:
             code = 'source_view'
-            fullCode  = 'images.' + code
+            fullCode = 'images.' + code
             verbose = 'View'
 
     ##########
@@ -152,13 +170,15 @@ class Source(models.Model):
     ##########
     @staticmethod
     def get_public_sources():
-        return Source.objects.filter(visibility=Source.VisibilityTypes.PUBLIC).order_by('name')
+        return Source.objects.filter(visibility=Source.VisibilityTypes.PUBLIC)\
+            .order_by('name')
 
     @staticmethod
     def get_sources_of_user(user):
         # For superusers, this returns ALL sources.
         if user.is_authenticated():
-            return get_objects_for_user(user, Source.PermTypes.VIEW.fullCode).order_by('name')
+            return get_objects_for_user(user, Source.PermTypes.VIEW.fullCode)\
+                .order_by('name')
         else:
             return Source.objects.none()
 
@@ -191,8 +211,8 @@ class Source(models.Model):
                 return permType.verbose
 
     @staticmethod
-    def _member_sort_key(memberAndRole):
-        role = memberAndRole[1]
+    def _member_sort_key(member_and_role):
+        role = member_and_role[1]
         if role == Source.PermTypes.ADMIN.verbose:
             return 1
         elif role == Source.PermTypes.EDIT.verbose:
@@ -211,10 +231,10 @@ class Source(models.Model):
         """
 
         members = self.get_members()
-        membersAndRoles = [(m, self.get_member_role(m)) for m in members]
-        membersAndRoles.sort(key=Source._member_sort_key)
-        orderedMembers = [mr[0] for mr in membersAndRoles]
-        return orderedMembers
+        members_and_roles = [(m, self.get_member_role(m)) for m in members]
+        members_and_roles.sort(key=Source._member_sort_key)
+        ordered_members = [mr[0] for mr in members_and_roles]
+        return ordered_members
 
     def assign_role(self, user, role):
         """
@@ -271,21 +291,24 @@ class Source(models.Model):
         Display the annotation-area parameters in templates.
         Usage: {{ mysource.annotation_area_display }}
         """
-        return AnnotationAreaUtils.db_format_to_display(self.image_annotation_area)
+        return AnnotationAreaUtils.db_format_to_display(
+            self.image_annotation_area)
 
     def point_gen_method_display(self):
         """
         Display the point generation method in templates.
         Usage: {{ mysource.point_gen_method_display }}
         """
-        return PointGen.db_to_readable_format(self.default_point_generation_method)
+        return PointGen.db_to_readable_format(
+            self.default_point_generation_method)
 
     def annotation_area_display(self):
         """
         Display the annotation area parameters in templates.
         Usage: {{ mysource.annotation_area_display }}
         """
-        return AnnotationAreaUtils.db_format_to_display(self.image_annotation_area)
+        return AnnotationAreaUtils.db_format_to_display(
+            self.image_annotation_area)
 
     def get_latest_robot(self):
         """
@@ -302,11 +325,12 @@ class Source(models.Model):
         """
         returns a list of all robots that have valid metadata
         """
-        return Classifier.objects.filter(source = self, valid = True).order_by('-id')
+        return Classifier.objects.filter(source=self, valid=True)\
+            .order_by('-id')
 
     def nbr_images_in_latest_robot(self):
         # NOTE: Here we include also those not valid.
-        robots = Classifier.objects.filter(source = self).order_by('-id')
+        robots = Classifier.objects.filter(source=self).order_by('-id')
         if robots.count() > 0:
             return robots[0].nbr_train_images
         else:
@@ -314,12 +338,22 @@ class Source(models.Model):
 
     def need_new_robot(self):
         """
-        Check whether there are sufficient number of newly annotated images to train a new robot version. 
-        Needs to be settings.NEW_MODEL_THRESHOLD more than used in the previous model and > settings.MIN_NBR_ANNOTATED_IMAGES
+        Check whether there are sufficient number of newly annotated images to
+        train a new robot version.
+        Needs to be settings.NEW_MODEL_THRESHOLD more than used in the previous
+        model and > settings.MIN_NBR_ANNOTATED_IMAGES
         """
         
-        nbr_verified_images_with_features = Image.objects.filter(source=self, confirmed = True, features__extracted = True).count()
-        return nbr_verified_images_with_features > settings.NEW_CLASSIFIER_TRAIN_TH * self.nbr_images_in_latest_robot() and nbr_verified_images_with_features >= settings.MIN_NBR_ANNOTATED_IMAGES and self.enable_robot_classifier
+        nbr_verified_images_with_features = Image.objects.filter(
+            source=self, confirmed=True, features__extracted=True).count()
+        return (
+            nbr_verified_images_with_features >
+            settings.NEW_CLASSIFIER_TRAIN_TH * self.nbr_images_in_latest_robot()
+            and
+            nbr_verified_images_with_features >=
+            settings.MIN_NBR_ANNOTATED_IMAGES
+            and
+            self.enable_robot_classifier)
 
     def has_robot(self):
         """
@@ -329,7 +363,9 @@ class Source(models.Model):
         
     def all_image_names_are_unique(self):
         """
-        Return true if all images in the source have unique names. NOTE: this will be enforced during import moving forward, but it wasn't originally.
+        Return true if all images in the source have unique names.
+        NOTE: this will be enforced during import moving forward, but it
+        wasn't originally.
         """
         images = Image.objects.filter(source=self)
         nimages = images.count()
@@ -338,7 +374,10 @@ class Source(models.Model):
 
     def get_nonunique_image_names(self):
         """
-        returns a list of image names which occur for multiple images in the source. NOTE: there is probably a fancy SQL way to do this, but I found it cleaner with a python solution. It's not time critical.
+        returns a list of image names which occur for multiple images in the
+        source.
+        NOTE: there is probably a fancy SQL way to do this, but I found it
+        cleaner with a python solution. It's not time critical.
         """
         imnames = [i.metadata.name for i in Image.objects.filter(source=self)] 
         return list(set([name for name in imnames if imnames.count(name) > 1]))
@@ -349,15 +388,19 @@ class Source(models.Model):
         """
         return self.name
 
+
 class SourceInvite(models.Model):
     """
     Invites will be deleted once they're accepted.
     """
-    sender = models.ForeignKey(User, on_delete=models.CASCADE,
+    sender = models.ForeignKey(
+        User, on_delete=models.CASCADE,
         related_name='invites_sent', editable=False)
-    recipient = models.ForeignKey(User, on_delete=models.CASCADE,
+    recipient = models.ForeignKey(
+        User, on_delete=models.CASCADE,
         related_name='invites_received')
-    source = models.ForeignKey(Source, on_delete=models.CASCADE,
+    source = models.ForeignKey(
+        Source, on_delete=models.CASCADE,
         editable=False)
     source_perm = models.CharField(
         max_length=50, choices=Source._meta.permissions)
@@ -397,8 +440,11 @@ class Metadata(models.Model):
 
     annotation_area = models.CharField(
         "Annotation area",
-        help_text="This defines a rectangle of the image where annotation points are allowed to be generated. "
-                  "If you change this, then new points will be generated for this image, and the old points will be deleted.",
+        help_text=(
+            "This defines a rectangle of the image where annotation points are"
+            " allowed to be generated."
+            " If you change this, then new points will be generated for this"
+            " image, and the old points will be deleted."),
         max_length=50,
         null=True, blank=True
     )
@@ -432,6 +478,7 @@ class Metadata(models.Model):
     def __unicode__(self):
         return "Metadata of " + self.name
 
+
 def get_original_image_upload_path(instance, filename):
     """
     Generate a destination path (on the server filesystem) for
@@ -445,7 +492,8 @@ def get_original_image_upload_path(instance, filename):
     return settings.IMAGE_FILE_PATTERN.format(
         name=rand_string(10),
         extension=posixpath.splitext(filename)[-1])
-    
+
+
 class Image(models.Model):
     # width_field and height_field allow Django to cache the
     # width and height values, so that the image file doesn't have
@@ -459,14 +507,17 @@ class Image(models.Model):
     original_width = models.IntegerField()
     original_height = models.IntegerField()
 
-    upload_date = models.DateTimeField('Upload date',
+    upload_date = models.DateTimeField(
+        'Upload date',
         auto_now_add=True, editable=False)
-    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL,
+    uploaded_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL,
         editable=False, null=True)
 
-    features = models.ForeignKey('vision_backend.Features', on_delete = models.PROTECT, editable = False)
+    features = models.ForeignKey(
+        'vision_backend.Features', on_delete=models.PROTECT, editable=False)
 
-    confirmed = models.BooleanField(default = False)
+    confirmed = models.BooleanField(default=False)
 
     POINT_GENERATION_CHOICES = (
         (PointGen.Types.SIMPLE, PointGen.Types.SIMPLE_VERBOSE),
@@ -497,7 +548,6 @@ class Image(models.Model):
     metadata = models.ForeignKey(Metadata, on_delete=models.PROTECT)
 
     source = models.ForeignKey(Source, on_delete=models.CASCADE)
-
 
     def _isvalset(self):
         return self.pk % 8 == 0
@@ -565,7 +615,8 @@ class Image(models.Model):
         Display the annotation area parameters in templates.
         Usage: {{ myimage.annotation_area_display }}
         """
-        return AnnotationAreaUtils.db_format_to_display(self.metadata.annotation_area)
+        return AnnotationAreaUtils.db_format_to_display(
+            self.metadata.annotation_area)
 
     def get_process_date_short_str(self):
         """
@@ -574,7 +625,9 @@ class Image(models.Model):
         Advantage over YYYY-(M)M-(D)D: alphabetized = sorted by date
         Advantage over YYYY(M)M(D)D: date is unambiguous
         """
-        return "{0}-{1:02}-{2:02}".format(self.process_date.year, self.process_date.month, self.process_date.day)
+        return "{0}-{1:02}-{2:02}".format(
+            self.process_date.year, self.process_date.month,
+            self.process_date.day)
 
 
 class Point(models.Model):

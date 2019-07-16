@@ -211,6 +211,35 @@ class AnnotationHistoryTest(ClientTest, UploadAnnotationsTestMixin):
             ]
         )
 
+    def test_alleviate(self):
+        self.source.confidence_threshold = 80
+        self.source.save()
+
+        robot = self.create_robot(self.source)
+        self.add_robot_annotations(
+            robot, self.img,
+            {1: ('A', 81), 2: ('B', 79), 3: ('B', 95)})
+
+        # Access the annotation tool to trigger Alleviate
+        self.client.force_login(self.user)
+        self.client.get(reverse('annotation_tool', args=[self.img.pk]))
+
+        response = self.view_history(self.user)
+        self.assert_history_table_equals(
+            response,
+            [
+                # 3rd: Alleviate should have triggered for points 1 and 3
+                ['Point 1: A<br/>Point 3: B',
+                 'Alleviate'],
+                # 2nd: Access event
+                ['Accessed annotation tool',
+                 '{name}'.format(name=self.user.username)],
+                # 1st: Robot annotation
+                ['Point 1: A<br/>Point 2: B<br/>Point 3: B',
+                 'Robot {ver}'.format(ver=robot.pk)],
+            ]
+        )
+
     def test_csv_import(self):
         rows = [
             ['Name', 'Column', 'Row', 'Label'],

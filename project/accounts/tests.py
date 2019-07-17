@@ -1,3 +1,6 @@
+# -*- coding: utf-8 -*-
+from __future__ import unicode_literals
+
 import hashlib
 import time
 from django.conf import settings
@@ -262,6 +265,42 @@ class RegisterTest(BaseRegisterTest):
                 " Note that once you've registered, you'll be able to"
                 " sign in with your username or your email address."))
 
+    def test_username_reject_non_ascii(self):
+        """
+        Reject non-ASCII Unicode characters in usernames. First/last name
+        fields can be more flexible, but usernames should be simple and easy
+        to read/type/differentiate for everyone.
+        """
+        response = self.register(
+            username='Béatrice',
+            email='beatrice123@example.com',
+        )
+
+        # We should still be at the registration page with an error.
+        self.assertTemplateUsed(
+            response, 'registration/registration_form.html')
+        self.assertContains(
+            response, escape("Enter a valid username."))
+
+    def test_username_reject_unicode_confusables(self):
+        """
+        Reject Unicode characters which are 'confusable', i.e. often look
+        the same as other characters.
+        This should be default behavior in django-registration 2.3+, even if
+        Unicode characters were generally allowed.
+        """
+        response = self.register(
+            # The 'a' in 'alice' here is a CYRILLIC SMALL LETTER A
+            username='аlice123',
+            email='alice123@example.com',
+        )
+
+        # We should still be at the registration page with an error.
+        self.assertTemplateUsed(
+            response, 'registration/registration_form.html')
+        self.assertContains(
+            response, escape("Enter a valid username."))
+
     def test_email_already_exists(self):
         # Register once.
         self.register()
@@ -326,6 +365,25 @@ class RegisterTest(BaseRegisterTest):
         self.assertIn(existing_user.username, already_exists_email.body)
         # Sanity check that this is the correct email template.
         self.assertIn("already", already_exists_email.body)
+
+    def test_email_reject_unicode_confusables(self):
+        """
+        Reject Unicode characters which are 'confusable', i.e. often look
+        the same as other characters.
+        This should be default behavior in django-registration 2.3+, even if
+        Unicode characters were generally allowed.
+        """
+        response = self.register(
+            username='alice123',
+            # The 'a' in 'alice' here is a CYRILLIC SMALL LETTER A
+            email='аlice123@example.com',
+        )
+
+        # We should still be at the registration page with an error.
+        self.assertTemplateUsed(
+            response, 'registration/registration_form.html')
+        self.assertContains(
+            response, escape("Enter a valid email address."))
 
     def test_password_fields_do_not_match(self):
         response = self.register(

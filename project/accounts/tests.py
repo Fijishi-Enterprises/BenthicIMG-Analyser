@@ -265,6 +265,23 @@ class RegisterTest(BaseRegisterTest):
                 " Note that once you've registered, you'll be able to"
                 " sign in with your username or your email address."))
 
+    def test_username_reject_too_long(self):
+        """
+        Reject usernames longer than 30 characters.
+        """
+        response = self.register(
+            username='alice67890123456789012345678901',
+            email='alice67890123456789012345678901@example.com',
+        )
+
+        # We should still be at the registration page with an error.
+        self.assertTemplateUsed(
+            response, 'registration/registration_form.html')
+        self.assertContains(
+            response,
+            escape(
+                "Ensure this value has at most 30 characters (it has 31)."))
+
     def test_username_reject_non_ascii(self):
         """
         Reject non-ASCII Unicode characters in usernames. First/last name

@@ -10,29 +10,27 @@
 # http://python-future.org/compatible_idioms.html
 six==1.10.0
 
-Django==1.9.11
+Django==1.10.8
 
 # Per-object permissions
 # e.g. "can edit this source" not just "can edit sources"
-# Requires django, six
-django-guardian==1.4.1
+# Requires: django, six
+django-guardian==1.4.9
 
 # Python Imaging Library
 # (A currently active, package friendly fork of it; also endorsed by Django)
 Pillow==4.1.1
 
-# System for generating smaller versions of images
-# Requires django, Pillow
-easy-thumbnails==2.3
+# System for generating smaller versions of images.
+# Requires: django, Pillow
+easy-thumbnails==2.5.0
 
 # Add email activation to user registration process;
-# unlike in userena, this is implemented without additional models
-django-registration==2.1.2
+# unlike in userena, this is implemented without additional models.
+django-registration==2.4.1
 
-# Versioning of database objects
-# Has a fine-grained Django compatibility table; 1.10.1 is for Django 1.7+
-# Requires django
-django-reversion==1.10.1
+# Versioning of database objects. Requires django.
+django-reversion==2.0.13
 
 # Allow Django to connect to a PostgreSQL database.
 # See here for versions Django supports:
@@ -45,11 +43,11 @@ psycopg2==2.6.2
 boto==2.40.0
 
 # Nicer interface for AWS S3 compared to using boto alone; also supports
-# many other storage systems
+# many other storage systems.
 # Even if a dev machine doesn't use S3, we still want this installed to make
-# module imports work
-# Requires boto
-django-storages==1.4.1
+# module imports work.
+# Requires: boto
+django-storages==1.6.5
 
 # Python 2's CSV module has poor support for Unicode and multiplatform
 # newline chars. This backport of Python 3's CSV module is less painful to

@@ -176,7 +176,7 @@ INSTALLED_APPS = [
 
 # The order of middleware classes is important!
 # https://docs.djangoproject.com/en/dev/topics/http/middleware/
-MIDDLEWARE_CLASSES = [
+MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     # Manages sessions across requests; required for auth
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -355,15 +355,6 @@ AUTH_PASSWORD_VALIDATORS = [
 # production server. Each developer's settings module can override this
 # as needed.
 FILE_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50 MB
-
-
-
-# django-guardian setting
-ANONYMOUS_USER_ID = -1
-# For whatever reason, when running tests in Postgres, it errors when
-# this ID is 0 or negative.
-if 'test' in sys.argv:
-    ANONYMOUS_USER_ID = 99999999
 
 
 

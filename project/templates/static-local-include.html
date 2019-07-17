@@ -3,16 +3,14 @@ Usage:
 {% include "static-local-include.html" with type="css" path="css/source.css" %}
 {% endcomment %}
 
-{% load common_tags %}
+{% load static %}
 
 {% if type == 'css' %}
-    {% if media_type and media_type != 'all' %}
-        <link rel="stylesheet" type="text/css" media="{{ media_type }}" href="{% versioned_static path %}" />
-    {% else %}
-        <link rel="stylesheet" type="text/css" href="{% versioned_static path %}" />
-    {% endif %}
-{% else %}
-{% if type == 'js' %}
-    <script src="{% versioned_static path %}" type="text/javascript"></script>
-{% endif %}
+  {% if media_type and media_type != 'all' %}
+    <link rel="stylesheet" type="text/css" media="{{ media_type }}" href="{% static path %}" />
+  {% else %}
+    <link rel="stylesheet" type="text/css" href="{% static path %}" />
+  {% endif %}
+{% elif type == 'js' %}
+  <script src="{% static path %}" type="text/javascript"></script>
 {% endif %}

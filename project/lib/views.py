@@ -80,7 +80,7 @@ def index(request):
     """
     This view renders the front page.
     """
-    if request.user.is_authenticated():
+    if request.user.is_authenticated:
         return HttpResponseRedirect(reverse('source_list'))
 
     map_sources = get_map_sources()

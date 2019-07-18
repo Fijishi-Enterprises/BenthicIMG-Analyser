@@ -56,7 +56,7 @@ def source_about(request):
     Page that explains what Sources are and how to use them.
     """
 
-    if request.user.is_authenticated():
+    if request.user.is_authenticated:
         if Source.get_sources_of_user(request.user):
             user_status = 'has_sources'
         else:

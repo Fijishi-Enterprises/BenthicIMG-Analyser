@@ -58,7 +58,7 @@ def set_async_media_request(details_dict, request):
     # async media. We want to make it impossible for a different user
     # (or anonymous user) to access arbitrary media by guessing hashes.
     details_dict['user_id'] = (
-        request.user.pk if request.user.is_authenticated() else None)
+        request.user.pk if request.user.is_authenticated else None)
 
     cache.set(
         cache_key, details_dict, CACHE_EXPIRATION_SECONDS)

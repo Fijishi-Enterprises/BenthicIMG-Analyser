@@ -228,12 +228,12 @@ class AnnotationHistoryTest(ClientTest, UploadAnnotationsTestMixin):
         self.assert_history_table_equals(
             response,
             [
-                # 3rd: Alleviate should have triggered for points 1 and 3
-                ['Point 1: A<br/>Point 3: B',
-                 'Alleviate'],
-                # 2nd: Access event
+                # 3rd: Access event
                 ['Accessed annotation tool',
                  '{name}'.format(name=self.user.username)],
+                # 2nd: Alleviate should have triggered for points 1 and 3
+                ['Point 1: A<br/>Point 3: B',
+                 'Alleviate'],
                 # 1st: Robot annotation
                 ['Point 1: A<br/>Point 2: B<br/>Point 3: B',
                  'Robot {ver}'.format(ver=robot.pk)],

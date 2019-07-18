@@ -10,6 +10,8 @@ from django.shortcuts import render, get_object_or_404
 from django.utils.timezone import now
 
 from easy_thumbnails.files import get_thumbnailer
+import reversion
+from reversion.revisions import create_revision
 from reversion.models import Version, Revision
 
 from .forms import (
@@ -167,7 +169,19 @@ def annotation_tool(request, image_id):
         # label_scores can still be None here if something goes wrong.
         # But if not None, apply Alleviate.
         if label_scores:
-            apply_alleviate(image_id, label_scores)
+            # reversion's revision-creating context manager is active here if
+            # the request is POST. If it's GET, it won't be active, and thus
+            # we need to activate it ourselves. We check because we don't want
+            # to double-activate it.
+            # TODO: Ideally the request triggering Alleviate should always be
+            # POST, since data-changing requests shouldn't be GET.
+            # Accomplishing this may or may not involve moving Alleviate
+            # to a separate request from the main annotation tool request.
+            if reversion.is_active():
+                apply_alleviate(image_id, label_scores)
+            else:
+                with create_revision():
+                    apply_alleviate(image_id, label_scores)
         else:
             messages.error(
                 request, ("Woops! Could not get the machine annotator's"
@@ -414,11 +428,11 @@ def annotation_history(request, image_id):
     source = image.source
 
     annotations = Annotation.objects.filter(image=image)
-    versions = Version.objects.filter(object_id_int__in=annotations)
+    versions = Version.objects.filter(object_id__in=annotations)
     revisions = Revision.objects.filter(version__in=versions).distinct()
 
     def version_to_point_number(v):
-        return Annotation.objects.get(pk=v.object_id_int).point.point_number
+        return Annotation.objects.get(pk=v.object_id).point.point_number
     event_log = []
 
     for rev in revisions:
@@ -433,7 +447,7 @@ def annotation_history(request, image_id):
         events = []
         for v in rev_versions:
             point_number = version_to_point_number(v)
-            global_label_pk = v.field_dict['label']
+            global_label_pk = v.field_dict['label_id']
             label_code = source.labelset.global_pk_to_code(global_label_pk)
 
             events.append("Point {num}: {code}".format(

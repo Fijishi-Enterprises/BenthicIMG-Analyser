@@ -76,7 +76,7 @@ def get_annotation_version_user_display(anno_version, date_created):
 
     Returns a string representing the user who made the annotation.
     """
-    user_id = anno_version.field_dict['user']
+    user_id = anno_version.field_dict['user_id']
     user = User.objects.get(pk=user_id)
 
     if not user:
@@ -85,10 +85,10 @@ def get_annotation_version_user_display(anno_version, date_created):
     elif is_robot_user(user):
         # This check may be needed because Annotation didn't
         # originally save robot versions.
-        if not anno_version.field_dict.has_key('robot_version'):
+        if not anno_version.field_dict.has_key('robot_version_id'):
             return "(Robot, unknown version)"
 
-        robot_version_id = anno_version.field_dict['robot_version']
+        robot_version_id = anno_version.field_dict['robot_version_id']
         if not robot_version_id:
             return "(Robot, unknown version)"
 

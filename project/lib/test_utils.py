@@ -24,9 +24,9 @@ from django.core import mail, management
 from django.core.files.base import ContentFile
 from django.core.files.storage import get_storage_class
 from django.conf import settings
-from django.core.urlresolvers import reverse
 from django.test import override_settings, skipIfDBFeature, TestCase
 from django.test.client import Client
+from django.urls import reverse
 from django.utils import timezone
 
 from images.model_utils import PointGen

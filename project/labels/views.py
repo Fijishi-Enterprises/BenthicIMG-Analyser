@@ -5,14 +5,14 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core import serializers
 from django.core.paginator import Paginator, EmptyPage, InvalidPage
-from django.core.urlresolvers import reverse
 from django.db.models import Count
 from django.forms import modelformset_factory
 from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import render, get_object_or_404
 from django.template.loader import render_to_string
-from django.views.decorators.http import require_POST, require_GET
+from django.urls import reverse
 from django.utils.timezone import now
+from django.views.decorators.http import require_POST, require_GET
 
 from accounts.utils import get_robot_user
 from annotations.models import Annotation

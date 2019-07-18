@@ -6,8 +6,8 @@ import time
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core import mail
-from django.core.urlresolvers import reverse
 from django.shortcuts import resolve_url
+from django.urls import reverse
 from django.utils.html import escape
 from lib.test_utils import ClientTest, sample_image_as_file
 

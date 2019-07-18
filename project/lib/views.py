@@ -2,11 +2,11 @@ from django.contrib import messages
 from django.contrib.auth.decorators import permission_required
 from django.core.mail import mail_admins
 from django.core.mail.message import BadHeaderError
-from django.core.urlresolvers import reverse
 from django.http import HttpResponseRedirect, HttpResponseServerError
 from django.shortcuts import render, get_object_or_404
 from django.template import loader, TemplateDoesNotExist
 from django.template.loader import render_to_string
+from django.urls import reverse
 from django.utils.safestring import mark_safe
 
 from annotations.utils import get_sitewide_annotation_count

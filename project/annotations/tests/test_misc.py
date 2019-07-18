@@ -1,4 +1,5 @@
-from django.core.urlresolvers import reverse
+from django.urls import reverse
+
 from annotations.model_utils import AnnotationAreaUtils
 from annotations.tasks import update_sitewide_annotation_count_task
 from annotations.utils import get_sitewide_annotation_count

@@ -4,7 +4,7 @@ import codecs
 from io import StringIO
 
 from django.core.files.base import ContentFile
-from django.core.urlresolvers import reverse
+from django.urls import reverse
 
 from accounts.utils import get_imported_user
 from annotations.model_utils import AnnotationAreaUtils

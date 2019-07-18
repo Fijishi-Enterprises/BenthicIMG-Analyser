@@ -1,8 +1,9 @@
 from __future__ import unicode_literals
 from django.conf import settings
-from django.core.urlresolvers import reverse
 from django.shortcuts import resolve_url
+from django.urls import reverse
 from django.utils import timezone
+
 from annotations.model_utils import AnnotationAreaUtils
 from images.model_utils import PointGen
 from images.models import Source

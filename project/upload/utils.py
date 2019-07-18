@@ -14,7 +14,7 @@ except ImportError:
     # Python 2.x with pathlib2 package
     from pathlib2 import PureWindowsPath
 
-from django.core.urlresolvers import reverse
+from django.urls import reverse
 
 from accounts.utils import get_robot_user
 from annotations.models import Annotation

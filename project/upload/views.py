@@ -2,9 +2,9 @@ import json
 from datetime import timedelta
 
 from django.conf import settings
-from django.core.urlresolvers import reverse
 from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, render
+from django.urls import reverse
 from django.utils.timezone import now
 
 from accounts.utils import get_imported_user

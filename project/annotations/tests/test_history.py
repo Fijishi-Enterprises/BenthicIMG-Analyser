@@ -1,7 +1,7 @@
 from __future__ import unicode_literals
 
 from bs4 import BeautifulSoup
-from django.core.urlresolvers import reverse
+from django.urls import reverse
 
 from images.model_utils import PointGen
 from images.models import Source

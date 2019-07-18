@@ -5,13 +5,13 @@ from backports import csv
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.mail import EmailMessage
-from django.core.urlresolvers import reverse
 from django.core.validators import validate_comma_separated_integer_list
 from django.forms import Form
 from django.forms.fields import CharField
 from django.forms.models import ModelForm, BaseModelFormSet
 from django.forms.widgets import TextInput, HiddenInput
 from django.template.loader import render_to_string
+from django.urls import reverse
 from django.utils.html import escape
 from django.utils.safestring import mark_safe
 

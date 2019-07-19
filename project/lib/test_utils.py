@@ -8,7 +8,6 @@ import json
 import math
 import os
 import posixpath
-import pytz
 import random
 import six
 from six.moves.urllib.parse import urljoin
@@ -488,9 +487,7 @@ class StorageChecker(object):
 
             leftover_file_path = storage.path_join(directory, filename)
 
-            file_naive_datetime = storage.modified_time(leftover_file_path)
-            file_aware_datetime = timezone.make_aware(
-                file_naive_datetime, pytz.timezone(storage.timezone))
+            file_aware_datetime = storage.get_modified_time(leftover_file_path)
 
             if file_aware_datetime + datetime.timedelta(0,60*10) \
              < self.timestamp_before_tests:

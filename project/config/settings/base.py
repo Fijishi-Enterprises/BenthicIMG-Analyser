@@ -323,7 +323,6 @@ SESSION_COOKIE_AGE = 60 * 60 * 24 * 30
 SECRET_KEY = get_secret("DJANGO_SECRET_KEY")
 
 LOGIN_URL = 'auth_login'
-LOGOUT_URL = 'auth_logout'
 LOGIN_REDIRECT_URL = 'source_list'
 
 # Custom setting.

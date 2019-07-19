@@ -9,20 +9,31 @@ MAP_IMAGE_COUNT_TIERS = [5, 20, 50]
 
 MIN_NBR_ANNOTATED_IMAGES = 5
 
+# For now, only the first specified browser gets used for Selenium tests.
 SELENIUM_BROWSERS = [
-    # Haven't got ghostdriver set up yet.
-    # {
-    #     'name': 'PhantomJS',
-    #     'webdriver': r'C:\Programs_non_installed\phantomjs-2.1.1-windows\bin\phantomjs.exe',
-    # },
+    # Headless Chrome
+    {
+        'name': 'Chrome',
+        'webdriver': r'C:\Programs_non_installed\Webdrivers\chromedriver.exe',
+        'options': ['--headless'],
+    },
+    # Headless Firefox
     {
         'name': 'Firefox',
         'webdriver': r'C:\Programs_non_installed\Webdrivers\geckodriver.exe',
         'browser_binary': r'C:\Programs_non_installed\FirefoxPortable\S\App\firefox64\firefox.exe',
+        'options': ['-headless'],
     },
+    # Regular Chrome
     {
         'name': 'Chrome',
         'webdriver': r'C:\Programs_non_installed\Webdrivers\chromedriver.exe',
+    },
+    # Regular Firefox
+    {
+        'name': 'Firefox',
+        'webdriver': r'C:\Programs_non_installed\Webdrivers\geckodriver.exe',
+        'browser_binary': r'C:\Programs_non_installed\FirefoxPortable\S\App\firefox64\firefox.exe',
     },
 ]
 

@@ -15,6 +15,8 @@ from six.moves.urllib.parse import urljoin
 from PIL import Image as PILImage
 from selenium import webdriver
 from selenium.common.exceptions import NoAlertPresentException
+from selenium.webdriver.chrome.options import Options as ChromeOptions
+from selenium.webdriver.firefox.options import Options as FirefoxOptions
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from django.contrib.auth import get_user_model
@@ -23,7 +25,7 @@ from django.core import mail, management
 from django.core.files.base import ContentFile
 from django.core.files.storage import get_storage_class
 from django.conf import settings
-from django.test import override_settings, skipIfDBFeature, TestCase
+from django.test import override_settings, skipIfDBFeature, tag, TestCase
 from django.test.client import Client
 from django.urls import reverse
 from django.utils import timezone
@@ -616,12 +618,15 @@ class EC_javascript_global_var_value(object):
                 self.var_name, self.expected_value))
 
 
+@tag('selenium')
 @skipIfDBFeature('test_db_allows_multiple_connections')
 @override_settings(**test_settings)
 class BrowserTest(ClientUtilsMixin, TestCase, StaticLiveServerTestCase):
     """
     Unit testing class for running tests in the browser with Selenium.
     Selenium reference: https://selenium-python.readthedocs.io/api.html
+
+    You can skip these tests like `manage.py test --exclude-tag selenium`.
 
     Explanation of the inheritance scheme and
     @skipIfDBFeature('test_db_allows_multiple_connections'):
@@ -676,8 +681,7 @@ class BrowserTest(ClientUtilsMixin, TestCase, StaticLiveServerTestCase):
 
         # Selenium driver.
         # TODO: Look into running tests with multiple browsers. Right now it
-        # just runs Firefox OR Chrome (whichever is first in
-        # SELENIUM_BROWSERS).
+        # just runs the first specified browser in SELENIUM_BROWSERS.
         # Test parametrization idea 1:
         # https://docs.pytest.org/en/latest/parametrize.html
         # https://twitter.com/audreyr/status/702540511425396736
@@ -685,19 +689,30 @@ class BrowserTest(ClientUtilsMixin, TestCase, StaticLiveServerTestCase):
         # Decorator idea: https://stackoverflow.com/a/26821662/
         for browser in settings.SELENIUM_BROWSERS:
             browser_name_lower = browser['name'].lower()
+
             if browser_name_lower == 'firefox':
+                options = FirefoxOptions()
+                for option in browser.get('options', []):
+                    options.add_argument(option)
                 cls.selenium = webdriver.Firefox(
                     firefox_binary=browser.get('browser_binary', None),
                     executable_path=browser.get('webdriver', 'geckodriver'),
+                    firefox_options=options,
                 )
                 break
+
             if browser_name_lower == 'chrome':
+                options = ChromeOptions()
+                for option in browser.get('options', []):
+                    options.add_argument(option)
                 # Seems like the Chrome driver doesn't support a browser
-                # binary option.
+                # binary argument.
                 cls.selenium = webdriver.Chrome(
                     executable_path=browser.get('webdriver', 'chromedriver'),
+                    chrome_options=options,
                 )
                 break
+
             if browser_name_lower == 'phantomjs':
                 cls.selenium = webdriver.PhantomJS(
                     executable_path=browser.get('webdriver', 'phantomjs'),

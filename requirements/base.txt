@@ -49,6 +49,9 @@ boto==2.40.0
 # Requires: boto
 django-storages==1.6.5
 
+# Writing tests for database migrations.
+django-migration-testcase==0.0.14
+
 # Python 2's CSV module has poor support for Unicode and multiplatform
 # newline chars. This backport of Python 3's CSV module is less painful to
 # work with, even in a Python 2 system.

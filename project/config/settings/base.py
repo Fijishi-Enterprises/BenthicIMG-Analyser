@@ -347,6 +347,15 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+PASSWORD_HASHERS = [
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
+    # This hasher assists in strengthening security for users who haven't
+    # logged in since PBKDF2 became the default.
+    'accounts.hashers.PBKDF2WrappedSHA1PasswordHasher',
+    'django.contrib.auth.hashers.Argon2PasswordHasher',
+    'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',
+]
 
 # The maximum size (in bytes) that an upload will be before it
 # gets streamed to the file system.

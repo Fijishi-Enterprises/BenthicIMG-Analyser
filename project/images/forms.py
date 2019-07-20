@@ -349,32 +349,33 @@ class PointGenForm(Form):
     )
 
     # The following fields may or may not be required depending on the
-    # point_generation_type. We'll make all of them required by default,
-    # then in clean(), we'll ignore the errors for fields that
-    # we decide are not required.
+    # point_generation_type. We'll make all of them not required by default
+    # (so that browser-side required field checks don't block form submission),
+    # Then in clean(), we'll account for errors on fields that
+    # we decide are required.
 
     # For simple random
     simple_number_of_points = IntegerField(
-        label='Number of annotation points', required=True,
+        label='Number of annotation points', required=False,
         min_value=1, max_value=MAX_NUM_POINTS,
         widget=NumberInput(attrs={'size': 3}),
     )
 
     # For stratified random and uniform grid
     number_of_cell_rows = IntegerField(
-        label='Number of cell rows', required=True,
+        label='Number of cell rows', required=False,
         min_value=1, max_value=MAX_NUM_POINTS,
         widget=NumberInput(attrs={'size': 3}),
     )
     number_of_cell_columns = IntegerField(
-        label='Number of cell columns', required=True,
+        label='Number of cell columns', required=False,
         min_value=1, max_value=MAX_NUM_POINTS,
         widget=NumberInput(attrs={'size': 3}),
     )
 
     # For stratified random
     stratified_points_per_cell = IntegerField(
-        label='Points per cell', required=True,
+        label='Points per cell', required=False,
         min_value=1, max_value=MAX_NUM_POINTS,
         widget=NumberInput(attrs={'size': 3}),
     )
@@ -394,41 +395,73 @@ class PointGenForm(Form):
         super(PointGenForm, self).__init__(*args, **kwargs)
 
     def clean(self):
-        data = self.cleaned_data
-        type = data['point_generation_type']
+        cleaned_data = super(PointGenForm, self).clean()
+        point_gen_type = cleaned_data.get('point_generation_type')
+        if not point_gen_type:
+            # Already have an error on the type, no need to clean further
+            return
+
+        point_gen_number_fields = {
+            'simple_number_of_points', 'number_of_cell_rows',
+            'number_of_cell_columns', 'stratified_points_per_cell'}
 
         # Depending on the point generation type that was picked, different
         # fields are going to be required or not. Identify the required fields
         # (other than the point-gen type).
-        additional_required_fields = []
-        if type == PointGen.Types.SIMPLE:
-            additional_required_fields = ['simple_number_of_points']
-        elif type == PointGen.Types.STRATIFIED:
-            additional_required_fields = ['number_of_cell_rows', 'number_of_cell_columns', 'stratified_points_per_cell']
-        elif type == PointGen.Types.UNIFORM:
-            additional_required_fields = ['number_of_cell_rows', 'number_of_cell_columns']
+        required_number_fields = set()
+        if point_gen_type == PointGen.Types.SIMPLE:
+            required_number_fields = {'simple_number_of_points'}
+        elif point_gen_type == PointGen.Types.STRATIFIED:
+            required_number_fields = {
+                'number_of_cell_rows', 'number_of_cell_columns',
+                'stratified_points_per_cell'}
+        elif point_gen_type == PointGen.Types.UNIFORM:
+            required_number_fields = {
+                'number_of_cell_rows', 'number_of_cell_columns'}
 
-        # Get rid of errors for the fields we don't care about.
-        required_fields = ['point_generation_type'] + additional_required_fields
+        non_applicable_fields = point_gen_number_fields - required_number_fields
+
+        # Delete errors on the non-applicable fields. It would be
+        # confusing if these errors counted, since the fields would be
+        # invisible.
         for key in self._errors.keys():
-            if key not in required_fields:
+            if key in non_applicable_fields:
                 del self._errors[key]
 
-        # If there are no errors so far, do a final check of
-        # the total number of points specified.
-        # It should be between 1 and MAX_NUM_POINTS.
-        if len(self._errors) == 0:
+        # Add 'required' errors to blank applicable fields.
+        for field_name in required_number_fields:
+            if field_name not in cleaned_data:
+                # The field is non-blank with an invalid value.
+                continue
+            if cleaned_data[field_name] is None:
+                # The field is blank.
+                self.add_error(
+                    field_name,
+                    ValidationError("This field is required.", code='required'))
 
+        if not self._errors:
+            # No errors so far, so do a final check of
+            # the total number of points specified.
+            # It should be between 1 and MAX_NUM_POINTS.
             num_points = 0
-            if type == PointGen.Types.SIMPLE:
-                num_points = data['simple_number_of_points']
-            elif type == PointGen.Types.STRATIFIED:
-                num_points = data['number_of_cell_rows'] * data['number_of_cell_columns'] * data['stratified_points_per_cell']
-            elif type == PointGen.Types.UNIFORM:
-                num_points = data['number_of_cell_rows'] * data['number_of_cell_columns']
+
+            if point_gen_type == PointGen.Types.SIMPLE:
+                num_points = cleaned_data['simple_number_of_points']
+            elif point_gen_type == PointGen.Types.STRATIFIED:
+                num_points = (
+                    cleaned_data['number_of_cell_rows']
+                    * cleaned_data['number_of_cell_columns']
+                    * cleaned_data['stratified_points_per_cell'])
+            elif point_gen_type == PointGen.Types.UNIFORM:
+                num_points = (
+                    cleaned_data['number_of_cell_rows']
+                    * cleaned_data['number_of_cell_columns'])
 
             if num_points > PointGenForm.MAX_NUM_POINTS:
-                raise ValidationError("You specified %s points total. Please make it no more than %s." % (num_points, PointGenForm.MAX_NUM_POINTS))
-
-        self.cleaned_data = data
-        super(PointGenForm, self).clean()
+                # Raise a non-field error (error applying to the form as a
+                # whole).
+                raise ValidationError(
+                    "You specified {num_points} points total."
+                    " Please make it no more than {max_points}.".format(
+                        num_points=num_points,
+                        max_points=PointGenForm.MAX_NUM_POINTS))

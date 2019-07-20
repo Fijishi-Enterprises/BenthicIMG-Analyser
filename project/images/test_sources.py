@@ -179,8 +179,8 @@ class SourceNewTest(ClientTest):
             key1="Aux1", key2="Aux2", key3="Aux3", key4="Aux4", key5="Aux5",
             min_x=10, max_x=90, min_y=10, max_y=90,
             point_generation_type=PointGen.Types.SIMPLE,
-            simple_number_of_points=16, number_of_cell_rows=None,
-            number_of_cell_columns=None, stratified_points_per_cell=None,
+            simple_number_of_points=16, number_of_cell_rows='',
+            number_of_cell_columns='', stratified_points_per_cell='',
             latitude='-17.3776', longitude='25.1982')
         data.update(**kwargs)
         response = self.client.post(
@@ -434,6 +434,202 @@ class SourceNewTest(ClientTest):
         self.assertContains(response, "This field is required.")
 
         self.assertEqual(Source.objects.all().count(), 0)
+
+    def test_pointgen_type_required(self):
+        self.client.force_login(self.user)
+
+        response = self.create_source(point_generation_type="")
+        self.assertTemplateUsed(response, 'images/source_new.html')
+        self.assertContains(response, "This field is required.")
+
+    def test_pointgen_type_invalid(self):
+        self.client.force_login(self.user)
+
+        response = self.create_source(point_generation_type="straight line")
+        self.assertTemplateUsed(response, 'images/source_new.html')
+        self.assertContains(
+            response,
+            "Select a valid choice. straight line is not one of the available"
+            " choices.")
+
+    def test_pointgen_simple_success(self):
+        self.client.force_login(self.user)
+
+        response = self.create_source(
+            point_generation_type=PointGen.Types.SIMPLE,
+            simple_number_of_points=50, number_of_cell_rows='',
+            number_of_cell_columns='', stratified_points_per_cell='')
+
+        new_source = Source.objects.latest('create_date')
+        self.assertTemplateUsed('images/source_main.html')
+        self.assertEqual(response.context['source'], new_source)
+
+        self.assertEqual(
+            new_source.default_point_generation_method,
+            PointGen.args_to_db_format(
+                point_generation_type=PointGen.Types.SIMPLE,
+                simple_number_of_points=50))
+
+    def test_pointgen_stratified_success(self):
+        self.client.force_login(self.user)
+
+        response = self.create_source(
+            point_generation_type=PointGen.Types.STRATIFIED,
+            simple_number_of_points='', number_of_cell_rows=4,
+            number_of_cell_columns=5, stratified_points_per_cell=6)
+
+        new_source = Source.objects.latest('create_date')
+        self.assertTemplateUsed('images/source_main.html')
+        self.assertEqual(response.context['source'], new_source)
+
+        self.assertEqual(
+            new_source.default_point_generation_method,
+            PointGen.args_to_db_format(
+                point_generation_type=PointGen.Types.STRATIFIED,
+                number_of_cell_rows=4, number_of_cell_columns=5,
+                stratified_points_per_cell=6))
+
+    def test_pointgen_uniform_grid_success(self):
+        self.client.force_login(self.user)
+
+        response = self.create_source(
+            point_generation_type=PointGen.Types.UNIFORM,
+            simple_number_of_points='', number_of_cell_rows=4,
+            number_of_cell_columns=7, stratified_points_per_cell='')
+
+        new_source = Source.objects.latest('create_date')
+        self.assertTemplateUsed('images/source_main.html')
+        self.assertEqual(response.context['source'], new_source)
+
+        self.assertEqual(
+            new_source.default_point_generation_method,
+            PointGen.args_to_db_format(
+                point_generation_type=PointGen.Types.UNIFORM,
+                number_of_cell_rows=4, number_of_cell_columns=7))
+
+    def test_pointgen_filling_extra_fields_ok(self):
+        self.client.force_login(self.user)
+
+        # Filling more fields than necessary here, even with values that
+        # would be invalid
+        response = self.create_source(
+            point_generation_type=PointGen.Types.UNIFORM,
+            simple_number_of_points=-2, number_of_cell_rows=4,
+            number_of_cell_columns=7, stratified_points_per_cell=10000)
+
+        new_source = Source.objects.latest('create_date')
+        self.assertTemplateUsed('images/source_main.html')
+        self.assertEqual(response.context['source'], new_source)
+
+        self.assertEqual(
+            new_source.default_point_generation_method,
+            PointGen.args_to_db_format(
+                point_generation_type=PointGen.Types.UNIFORM,
+                number_of_cell_rows=4, number_of_cell_columns=7))
+
+    def test_pointgen_simple_missing_required_fields(self):
+        self.client.force_login(self.user)
+
+        response = self.create_source(
+            point_generation_type=PointGen.Types.SIMPLE,
+            simple_number_of_points='', number_of_cell_rows='',
+            number_of_cell_columns='', stratified_points_per_cell='')
+
+        self.assertTemplateUsed(response, 'images/source_new.html')
+        self.assertDictEqual(
+            response.context['pointGenForm'].errors,
+            dict(
+                simple_number_of_points=["This field is required."],
+            )
+        )
+
+    def test_pointgen_stratified_missing_required_fields(self):
+        self.client.force_login(self.user)
+
+        response = self.create_source(
+            point_generation_type=PointGen.Types.STRATIFIED,
+            simple_number_of_points='', number_of_cell_rows='',
+            number_of_cell_columns='', stratified_points_per_cell='')
+
+        self.assertTemplateUsed(response, 'images/source_new.html')
+        self.assertDictEqual(
+            response.context['pointGenForm'].errors,
+            dict(
+                number_of_cell_rows=["This field is required."],
+                number_of_cell_columns=["This field is required."],
+                stratified_points_per_cell=["This field is required."],
+            )
+        )
+
+    def test_pointgen_uniform_missing_required_fields(self):
+        self.client.force_login(self.user)
+
+        response = self.create_source(
+            point_generation_type=PointGen.Types.UNIFORM,
+            simple_number_of_points='', number_of_cell_rows='',
+            number_of_cell_columns='', stratified_points_per_cell='')
+
+        self.assertTemplateUsed(response, 'images/source_new.html')
+        self.assertDictEqual(
+            response.context['pointGenForm'].errors,
+            dict(
+                number_of_cell_rows=["This field is required."],
+                number_of_cell_columns=["This field is required."],
+            )
+        )
+
+    def test_pointgen_too_few_simple_points(self):
+        self.client.force_login(self.user)
+
+        response = self.create_source(
+            point_generation_type=PointGen.Types.SIMPLE,
+            simple_number_of_points=0, number_of_cell_rows='',
+            number_of_cell_columns='', stratified_points_per_cell='')
+        self.assertTemplateUsed(response, 'images/source_new.html')
+        self.assertDictEqual(
+            response.context['pointGenForm'].errors,
+            dict(
+                simple_number_of_points=[
+                    "Ensure this value is greater than or equal to 1."],
+            )
+        )
+
+    def test_pointgen_too_few_rows_columns_per_cell(self):
+        self.client.force_login(self.user)
+
+        response = self.create_source(
+            point_generation_type=PointGen.Types.STRATIFIED,
+            simple_number_of_points='', number_of_cell_rows=0,
+            number_of_cell_columns=0, stratified_points_per_cell=0)
+        self.assertTemplateUsed(response, 'images/source_new.html')
+        self.assertDictEqual(
+            response.context['pointGenForm'].errors,
+            dict(
+                number_of_cell_rows=[
+                    "Ensure this value is greater than or equal to 1."],
+                number_of_cell_columns=[
+                    "Ensure this value is greater than or equal to 1."],
+                stratified_points_per_cell=[
+                    "Ensure this value is greater than or equal to 1."],
+            )
+        )
+
+    def test_pointgen_too_many_points(self):
+        self.client.force_login(self.user)
+
+        response = self.create_source(
+            point_generation_type=PointGen.Types.STRATIFIED,
+            simple_number_of_points='', number_of_cell_rows=10,
+            number_of_cell_columns=10, stratified_points_per_cell=11)
+        self.assertTemplateUsed(response, 'images/source_new.html')
+        self.assertDictEqual(
+            response.context['pointGenForm'].errors,
+            dict(
+                __all__=[
+                    "You specified 1100 points total."
+                    " Please make it no more than 1000."],
+            )
+        )
 
     def test_latitude_longitude_required(self):
         self.client.force_login(self.user)

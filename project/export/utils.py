@@ -82,6 +82,8 @@ def create_cpc_strings(image_set, cpc_prefs):
             # No CPC file was uploaded for this image before.
             write_annotations_cpc(cpc_stream, img, cpc_prefs)
             # Make a CPC filename based on the image filename, like CPCe does.
+            # PWP ensures that both forward slashes and backslashes are counted
+            # as path separators.
             cpc_filename = image_filename_to_cpc_filename(
                 PureWindowsPath(img.metadata.name).name)
 
@@ -91,6 +93,13 @@ def create_cpc_strings(image_set, cpc_prefs):
         # If it's a relative path, this appends the directories, else this
         # appends nothing.
         cpc_filepath = str(PureWindowsPath(image_parent, cpc_filename))
+        # We've used Windows paths for path-separator flexibility up to this
+        # point. Now that we're finished with path manipulations, we'll make
+        # sure all separators are forward slashes for .zip export purposes.
+        # This makes zip directory tree structures work on every OS. Forward
+        # slashes are also required by the .ZIP File Format Specification.
+        # https://superuser.com/a/1382853/
+        cpc_filepath = cpc_filepath.replace('\\', '/')
 
         # Convert the stream contents to a string.
         # TODO: If cpc_filepath is already in the cpc_strings dict, then we

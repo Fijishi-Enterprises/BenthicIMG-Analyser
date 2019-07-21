@@ -101,6 +101,12 @@ unipath==1.1
 scipy==0.18.1
 scikit-learn==0.17.1
 
+# Browser-side testing.
+# Also requires installing drivers for specific browsers, and putting the
+# drivers on your PATH:
+# https://selenium-python.readthedocs.io/installation.html#drivers
+selenium==3.141.0
+
 # Async job tools
 amqp==1.4.9
 anyjson==0.3.3

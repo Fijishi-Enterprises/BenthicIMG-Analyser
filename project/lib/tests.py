@@ -26,19 +26,23 @@ class IndexTest(ClientTest):
         response = self.client.get(reverse('index'))
         self.assertTemplateUsed(response, 'lib/index.html')
 
-    @override_settings(
-        CAROUSEL_IMAGE_COUNT=3, CAROUSEL_IMAGE_POOL=[1, 2, 3, 4])
     def test_load_with_carousel(self):
         user = self.create_user()
         source = self.create_source(user)
-        for _ in range(4):
-            # We're assuming that image IDs start with 1 and increment from
-            # there.
-            self.upload_image(user, source)
 
-        response = self.client.get(reverse('index'))
-        self.assertEqual(
-            len(list(response.context['carousel_images'])), 3)
+        # Upload 4 images.
+        for _ in range(4):
+            self.upload_image(user, source)
+        # Get the IDs of the uploaded images.
+        uploaded_image_ids = list(source.image_set.values_list('pk', flat=True))
+
+        # Override carousel settings.
+        with self.settings(
+                CAROUSEL_IMAGE_COUNT=3, CAROUSEL_IMAGE_POOL=uploaded_image_ids):
+            response = self.client.get(reverse('index'))
+            # Check for correct carousel image count.
+            self.assertEqual(
+                len(list(response.context['carousel_images'])), 3)
 
 
 @skipIf(not settings.DEFAULT_FILE_STORAGE == 'lib.storage_backends.MediaStorageS3', "Can't run backend tests locally")

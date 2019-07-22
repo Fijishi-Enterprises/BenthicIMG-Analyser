@@ -512,3 +512,6 @@ SELENIUM_TIMEOUTS = {
     # get an error.
     'page_load': 20,
 }
+
+# We filter on sources that contains these strings for map and some exports.
+LIKELY_TEST_SOURCE_NAMES = ['test', 'sandbox', 'dummy', 'tmp', 'temp', 'check']

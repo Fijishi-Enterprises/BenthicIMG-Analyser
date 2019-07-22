@@ -19,7 +19,7 @@ class Command(BaseCommand):
         parser.add_argument('--min_required_imgs', type=int, nargs='?', default=200,
                             help="Min number of confirmed images required to include a source.")
         parser.add_argument('--bucket', type=str, default='spacer-trainingdata', help="bucket name to export to")
-        parser.add_argument('--name', type=str, default='beta_export', help="Export name")
+        parser.add_argument('--name', type=str, default='debug-export', help="Export name")
 
     @property
     def labelset_json(self):

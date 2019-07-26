@@ -364,6 +364,16 @@ PASSWORD_HASHERS = [
 # as needed.
 FILE_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50 MB
 
+# The maximum size for a request body (not counting file uploads).
+# Due to metadata-edit not having an image limit yet, this needs to be quite
+# big.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50 MB
+
+# Maximum number of GET/POST parameters that are parsed from a single request.
+# Due to metadata-edit not having an image limit yet, this needs to be quite
+# large (each image would have about 20 fields).
+DATA_UPLOAD_MAX_NUMBER_FIELDS  = 1000000
+
 
 
 # django-registration setting

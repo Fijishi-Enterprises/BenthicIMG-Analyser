@@ -819,11 +819,15 @@ class EmailChangeTest(ClientTest):
 
         # Navigate to the confirmation link while signed out.
         # Should show sign-in page.
-        self.client.logout()
+        email_change_confirm_url = reverse(
+            'email_change_confirm', args=[confirmation_key])
+        email_change_confirm_url_escaped = \
+            email_change_confirm_url.replace(':', '%3A')
         sign_in_url = (
             reverse(settings.LOGIN_URL) + '?next='
-            + reverse('email_change_confirm', args=[confirmation_key])
-                .replace(':', '%3A'))
+            + email_change_confirm_url_escaped)
+
+        self.client.logout()
         response = self.client.get(confirmation_link)
         self.assertRedirects(response, sign_in_url)
         # The email should not have changed.

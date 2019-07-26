@@ -1,10 +1,11 @@
 # General-use custom template tags and filters.
 
 from __future__ import unicode_literals
+from datetime import datetime
 import json
 import pytz
 import urllib
-from datetime import datetime
+
 from django import template
 from django.conf import settings
 from django.utils import timezone
@@ -44,8 +45,8 @@ def google_maps_api_url(callback):
 # Basic idea from:
 # http://djangosnippets.org/snippets/201/
 @register.filter
-def jsonify(object):
-    return mark_safe(json.dumps(object))
+def jsonify(obj):
+    return mark_safe(json.dumps(obj))
 
 
 @register.simple_tag

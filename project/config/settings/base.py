@@ -1,6 +1,6 @@
 # Base settings for any type of server.
 
-import json, sys, os
+import json
 
 from unipath import Path
 
@@ -28,19 +28,20 @@ LOG_DIR = SITE_DIR.child('log')
 # JSON-based secrets module, expected to be in the SETTINGS_DIR
 with open(SETTINGS_DIR.child('secrets.json')) as f:
     secrets = json.loads(f.read())
-    def get_secret(setting, secrets=secrets, required=True):
+
+    def get_secret(setting, secrets_=secrets, required=True):
         """
         Get the secret variable. If the variable is required,
         raise an error if it's not present.
         """
         try:
-            return secrets[setting]
+            return secrets_[setting]
         except KeyError:
             if required:
-                error_msg = "Set the {0} setting in secrets.json".format(setting)
+                error_msg = "Set the {setting} setting in secrets.json".format(
+                    setting=setting)
                 raise ImproperlyConfigured(error_msg)
             return ""
-
 
 
 # In general, first come Django settings, then 3rd-party app settings,
@@ -48,7 +49,6 @@ with open(SETTINGS_DIR.child('secrets.json')) as f:
 #
 # The Django settings' comments are mainly from
 # django.conf.global_settings. (Not all Django settings are there though...)
-
 
 
 # If you set this to True, Django will use timezone-aware datetimes.
@@ -372,8 +372,7 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50 MB
 # Maximum number of GET/POST parameters that are parsed from a single request.
 # Due to metadata-edit not having an image limit yet, this needs to be quite
 # large (each image would have about 20 fields).
-DATA_UPLOAD_MAX_NUMBER_FIELDS  = 1000000
-
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000000
 
 
 # django-registration setting
@@ -387,7 +386,6 @@ ACCOUNT_ACTIVATION_DAYS = 7
 # The number of hours users will have to confirm an email change after
 # requesting one.
 EMAIL_CHANGE_CONFIRMATION_HOURS = 24
-
 
 
 # [Custom settings]

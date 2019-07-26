@@ -1,6 +1,6 @@
-import json
-
+from __future__ import unicode_literals
 from datetime import timedelta
+import json
 
 from django.contrib import messages
 from django.db import IntegrityError, transaction
@@ -54,26 +54,32 @@ def annotation_area_edit(request, image_id):
         cancel = request.POST.get('cancel', None)
         if cancel:
             messages.success(request, 'Edit cancelled.')
-            return HttpResponseRedirect(reverse('image_detail', args=[image.id]))
+            return HttpResponseRedirect(
+                reverse('image_detail', args=[image.id]))
 
         # Submit
-        annotationAreaForm = AnnotationAreaPixelsForm(request.POST, image=image)
+        annotation_area_form = AnnotationAreaPixelsForm(
+            request.POST, image=image)
 
-        if annotationAreaForm.is_valid():
-            metadata.annotation_area = AnnotationAreaUtils.pixels_to_db_format(**annotationAreaForm.cleaned_data)
+        if annotation_area_form.is_valid():
+            metadata.annotation_area = AnnotationAreaUtils.pixels_to_db_format(
+                **annotation_area_form.cleaned_data)
             metadata.save()
 
             if metadata.annotation_area != old_annotation_area:
                 generate_points(image, usesourcemethod=False)
-                backend_tasks.reset_features.apply_async(args = [image_id], eta = now() + timedelta(seconds = 10))
+                backend_tasks.reset_features.apply_async(
+                    args=[image_id],
+                    eta=now()+timedelta(seconds=10))
 
             messages.success(request, 'Annotation area successfully edited.')
-            return HttpResponseRedirect(reverse('image_detail', args=[image.id]))
+            return HttpResponseRedirect(
+                reverse('image_detail', args=[image.id]))
         else:
             messages.error(request, 'Please correct the errors below.')
     else:
         # Just reached this form page
-        annotationAreaForm = AnnotationAreaPixelsForm(image=image)
+        annotation_area_form = AnnotationAreaPixelsForm(image=image)
 
     # Scale down the image to have a max width of 800 pixels.
     MAX_DISPLAY_WIDTH = 800
@@ -87,12 +93,12 @@ def annotation_area_edit(request, image_id):
     height_scale_factor = float(display_height) / image.original_height
 
     dimensions = dict(
-        displayWidth = display_width,
-        displayHeight = display_height,
-        fullWidth = image.original_width,
-        fullHeight = image.original_height,
-        widthScaleFactor = width_scale_factor,
-        heightScaleFactor = height_scale_factor,
+        displayWidth=display_width,
+        displayHeight=display_height,
+        fullWidth=image.original_width,
+        fullHeight=image.original_height,
+        widthScaleFactor=width_scale_factor,
+        heightScaleFactor=height_scale_factor,
     )
     thumbnail_dimensions = (display_width, display_height)
 
@@ -101,7 +107,7 @@ def annotation_area_edit(request, image_id):
         'image': image,
         'dimensions': json.dumps(dimensions),
         'thumbnail_dimensions': thumbnail_dimensions,
-        'annotationAreaForm': annotationAreaForm,
+        'annotationAreaForm': annotation_area_form,
     })
 
 
@@ -184,8 +190,9 @@ def annotation_tool(request, image_id):
                     apply_alleviate(image_id, label_scores)
         else:
             messages.error(
-                request, ("Woops! Could not get the machine annotator's"
-                " scores. Manual annotation still works."))
+                request,
+                "Woops! Could not get the machine annotator's"
+                " scores. Manual annotation still works.")
 
     # Form where you enter annotations' label codes
     form = AnnotationForm(
@@ -212,10 +219,12 @@ def annotation_tool(request, image_id):
         height=image.original_file.height,
     ))
     if image.original_width > IMAGE_AREA_WIDTH:
-        # Set scaled image's dimensions (Specific width, height that keeps the aspect ratio)
+        # Set scaled image's dimensions
+        # (Specific width, height that keeps the aspect ratio)
         thumbnail_dimensions = (IMAGE_AREA_WIDTH, 0)
 
-        # Generate the thumbnail if it doesn't exist, and get the thumbnail's URL and dimensions.
+        # Generate the thumbnail if it doesn't exist,
+        # and get the thumbnail's URL and dimensions.
         thumbnailer = get_thumbnailer(image.original_file)
         thumb = thumbnailer.get_thumbnail(dict(size=thumbnail_dimensions))
         source_images.update(dict(scaled=dict(
@@ -223,7 +232,6 @@ def annotation_tool(request, image_id):
             width=thumb.width,
             height=thumb.height,
         )))
-
 
     # Record this access of the annotation tool page.
     access = AnnotationToolAccess(image=image, source=source, user=request.user)
@@ -431,8 +439,10 @@ def annotation_history(request, image_id):
     versions = Version.objects.filter(object_id__in=annotations)
     revisions = Revision.objects.filter(version__in=versions).distinct()
 
-    def version_to_point_number(v):
-        return Annotation.objects.get(pk=v.object_id).point.point_number
+    def version_to_point_number(v_):
+        # We name the arg v_ to avoid shadowing the outer scope's v.
+        return Annotation.objects.get(pk=v_.object_id).point.point_number
+
     event_log = []
 
     for rev in revisions:

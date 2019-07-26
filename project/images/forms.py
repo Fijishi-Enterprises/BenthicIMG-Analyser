@@ -1,7 +1,9 @@
+from __future__ import unicode_literals
+
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.forms import Form, ModelForm, BaseModelFormSet
-from django.forms.fields import CharField, ChoiceField, FileField, IntegerField
+from django.forms.fields import CharField, ChoiceField, IntegerField
 from django.forms.widgets import Select, TextInput, NumberInput
 
 from .models import Source, Metadata, SourceInvite
@@ -122,7 +124,8 @@ class ImageSourceForm(ModelForm):
 
 class SourceChangePermissionForm(Form):
 
-    perm_change = ChoiceField(label='Permission Level', choices=Source._meta.permissions)
+    perm_change = ChoiceField(
+        label='Permission Level', choices=Source._meta.permissions)
 
     def __init__(self, *args, **kwargs):
         self.source_id = kwargs.pop('source_id')
@@ -130,12 +133,16 @@ class SourceChangePermissionForm(Form):
         super(SourceChangePermissionForm, self).__init__(*args, **kwargs)
         source = Source.objects.get(pk=self.source_id)
         members = source.get_members_ordered_by_role()
-        memberList = [(member.id,member.username) for member in members]
+        member_list = [(member.id, member.username) for member in members]
 
-        # This removes the current user from users that can have their permission changed
-        if (user.id,user.username) in memberList:
-            memberList.remove((user.id,user.username))
-        self.fields['user'] = ChoiceField(label='User', choices=[member for member in memberList], required=True)
+        # This removes the current user from users that can have their
+        # permission changed
+        if (user.id, user.username) in member_list:
+            member_list.remove((user.id, user.username))
+        self.fields['user'] = ChoiceField(
+            label='User', choices=[member for member in member_list],
+            required=True)
+
 
 class SourceRemoveUserForm(Form):
 
@@ -145,12 +152,16 @@ class SourceRemoveUserForm(Form):
         super(SourceRemoveUserForm, self).__init__(*args, **kwargs)
         source = Source.objects.get(pk=self.source_id)
         members = source.get_members_ordered_by_role()
-        memberList = [(member.id,member.username) for member in members]
+        member_list = [(member.id, member.username) for member in members]
 
-        # This removes the current user from users that can have their permission changed
-        if (self.user.id,self.user.username) in memberList:
-            memberList.remove((self.user.id,self.user.username))
-        self.fields['user'] = ChoiceField(label='User', choices=[member for member in memberList], required=True)
+        # This removes the current user from users that can have their
+        # permission changed
+        if (self.user.id, self.user.username) in member_list:
+            member_list.remove((self.user.id, self.user.username))
+        self.fields['user'] = ChoiceField(
+            label='User', choices=[member for member in member_list],
+            required=True)
+
 
 class SourceInviteForm(Form):
     # This is not a ModelForm, because a ModelForm would by default
@@ -160,10 +171,12 @@ class SourceInviteForm(Form):
     # want a text box for the recipient field, so it's easier
     # to just use a Form.
 
-    recipient = CharField(max_length=User._meta.get_field('username').max_length,
-                          help_text="The recipient's username.")
-    source_perm = ChoiceField(label='Permission level',
-                              choices=SourceInvite._meta.get_field('source_perm').choices)
+    recipient = CharField(
+        max_length=User._meta.get_field('username').max_length,
+        help_text="The recipient's username.")
+    source_perm = ChoiceField(
+        label='Permission level',
+        choices=SourceInvite._meta.get_field('source_perm').choices)
 
     def __init__(self, *args, **kwargs):
         self.source_id = kwargs.pop('source_id')
@@ -180,15 +193,15 @@ class SourceInviteForm(Form):
         If not, throw an error.
         """
 
-        recipientUsername = self.cleaned_data['recipient']
-        recipientUsername = recipientUsername.strip()
+        recipient_username = self.cleaned_data['recipient']
+        recipient_username = recipient_username.strip()
 
         try:
-            User.objects.get(username=recipientUsername)
+            User.objects.get(username=recipient_username)
         except User.DoesNotExist:
             raise ValidationError("There is no user with this username.")
 
-        return recipientUsername
+        return recipient_username
 
     def clean(self):
         """
@@ -198,23 +211,26 @@ class SourceInviteForm(Form):
         (2) The recipient has already been invited to the source.
         """
 
-        if not self.cleaned_data.has_key('recipient'):
+        if 'recipient' not in self.cleaned_data:
             return super(SourceInviteForm, self).clean()
 
-        recipientUser = User.objects.get(username=self.cleaned_data['recipient'])
+        recipient_user = User.objects.get(
+            username=self.cleaned_data['recipient'])
         source = Source.objects.get(pk=self.source_id)
 
-        if source.has_member(recipientUser):
-            msg = u"%s is already in this Source." % recipientUser.username
+        if source.has_member(recipient_user):
+            msg = "{username} is already in this Source.".format(
+                username=recipient_user.username)
             self.add_error('recipient', msg)
             return super(SourceInviteForm, self).clean()
 
         try:
-            SourceInvite.objects.get(recipient=recipientUser, source=source)
+            SourceInvite.objects.get(recipient=recipient_user, source=source)
         except SourceInvite.DoesNotExist:
             pass
         else:
-            msg = u"%s has already been invited to this Source." % recipientUser.username
+            msg = "{username} has already been invited to this Source.".format(
+                username=recipient_user.username)
             self.add_error('recipient', msg)
 
         super(SourceInviteForm, self).clean()
@@ -283,7 +299,7 @@ class MetadataFormForGrid(MetadataForm):
             # actually is filled with an erroneous value.
             # Only change this to NumberInput if we have a good solution
             # for this issue.
-            'height_in_cm': TextInput(attrs={'size': 10,}),
+            'height_in_cm': TextInput(attrs={'size': 10}),
         }
 
 
@@ -345,7 +361,8 @@ class PointGenForm(Form):
     point_generation_type = ChoiceField(
         label='Point generation type',
         choices=Source.POINT_GENERATION_CHOICES,
-        widget=Select(attrs={'onchange': 'PointGenFormHelper.showOnlyRelevantFields()'}),
+        widget=Select(
+            attrs={'onchange': 'PointGenFormHelper.showOnlyRelevantFields()'}),
     )
 
     # The following fields may or may not be required depending on the
@@ -386,11 +403,13 @@ class PointGenForm(Form):
         the point generation method of that Source,
         and use that to fill the form fields' initial values.
         """
-        if kwargs.has_key('source'):
+        if 'source' in kwargs:
             source = kwargs.pop('source')
-            kwargs['initial'] = PointGen.db_to_args_format(source.default_point_generation_method)
+            kwargs['initial'] = PointGen.db_to_args_format(
+                source.default_point_generation_method)
 
-        self.form_help_text = Source._meta.get_field('default_point_generation_method').help_text
+        self.form_help_text = \
+            Source._meta.get_field('default_point_generation_method').help_text
 
         super(PointGenForm, self).__init__(*args, **kwargs)
 

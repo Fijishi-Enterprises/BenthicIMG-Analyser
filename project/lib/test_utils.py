@@ -938,7 +938,7 @@ def create_sample_image(width=200, height=200, cols=10, rows=10):
     min_rgb = 0
     max_rgb = 255
 
-    im = PILImage.new('RGB', (width,height))
+    im = PILImage.new('RGB', (width, height))
 
     const_color_value = int(round(
         const_color*(max_rgb - min_rgb) + min_rgb

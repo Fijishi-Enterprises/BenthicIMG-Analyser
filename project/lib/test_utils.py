@@ -796,12 +796,19 @@ class BrowserTest(ClientUtilsMixin, TestCase, StaticLiveServerTestCase):
         """
         self.selenium.get('{}{}'.format(self.live_server_url, url))
 
-    def login(self, username, password):
+    def login(self, username, password, stay_signed_in=False):
         self.get_url(reverse('auth_login'))
         username_input = self.selenium.find_element_by_name("username")
         username_input.send_keys(username)
         password_input = self.selenium.find_element_by_name("password")
         password_input.send_keys(password)
+
+        if stay_signed_in:
+            # Tick the checkbox
+            stay_signed_in_input = \
+                self.selenium.find_element_by_name("stay_signed_in")
+            stay_signed_in_input.click()
+
         with self.wait_for_page_load():
             self.selenium.find_element_by_css_selector(
                 'input[value="Sign in"]').click()

@@ -9,9 +9,10 @@ urlpatterns = [
     # These come before the django-registration URL include, because
     # in urlpatterns, URLs that come first take precedence.
     url(r'^login/$',
-        views.login,
-        {'template_name': 'registration/login.html',
-         'authentication_form': AuthenticationForm},
+        views.LoginView.as_view(
+            template_name='registration/login.html',
+            authentication_form=AuthenticationForm,
+        ),
         name='auth_login'),
     url(r'^register/$',
         views.register,

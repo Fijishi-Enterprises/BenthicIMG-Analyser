@@ -3,13 +3,11 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.contrib.auth.views import login as default_login_view
+from django.contrib.auth.views import LoginView as DefaultLoginView
 from django.core import signing
 from django.core.mail import EmailMessage
 from django.shortcuts import redirect, render, get_object_or_404
 from django.template.loader import render_to_string
-from django.views.decorators.cache import never_cache
-from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.debug import sensitive_post_parameters
 from django.views.generic.base import TemplateView
 from django.views.generic.edit import FormView
@@ -28,27 +26,22 @@ from .utils import can_view_profile
 User = get_user_model()
 
 
-@sensitive_post_parameters()
-@csrf_protect
-@never_cache
-def login(request, *args, **kwargs):
-    """
-    If the stay_signed_in checkbox is NOT checked, make the session
-    expire on browser close.
-    Otherwise, the session's duration is defined by SESSION_COOKIE_AGE.
-    https://docs.djangoproject.com/en/dev/topics/http/sessions/#django.contrib.sessions.backends.base.SessionBase.set_expiry
-    http://stackoverflow.com/questions/15100400/
+class LoginView(DefaultLoginView):
 
-    The rest of the logic is taken care of by Django's default login view.
-    The only things we duplicate from Django's login view are
-    the decorators. This ensures that, if we got an error before
-    even reaching Django's login view, we would still get the effects
-    of those decorators.
-    """
-    if request.method == 'POST':
-        if not request.POST.get('stay_signed_in', None):
-            request.session.set_expiry(0)
-    return default_login_view(request, *args, **kwargs)
+    def form_valid(self, form):
+        """Action to take when the form is valid."""
+        # Log in and create a redirect response.
+        response = super(LoginView, self).form_valid(form)
+
+        if not form.cleaned_data.get('stay_signed_in'):
+            # stay_signed_in checkbox is NOT checked, so make the session
+            # expire on browser close. Otherwise, the session's
+            # duration is defined by SESSION_COOKIE_AGE.
+            # https://docs.djangoproject.com/en/dev/topics/http/sessions/#django.contrib.sessions.backends.base.SessionBase.set_expiry
+            # http://stackoverflow.com/questions/15100400/
+            self.request.session.set_expiry(0)
+
+        return response
 
 
 class BaseRegistrationView(ThirdPartyRegistrationView):

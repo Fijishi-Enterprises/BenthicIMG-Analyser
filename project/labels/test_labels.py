@@ -11,6 +11,8 @@ from images.models import Source
 from lib.test_utils import ClientTest, sample_image_as_file
 from .models import LabelGroup, Label
 
+User = get_user_model()
+
 
 class LabelTest(ClientTest):
 
@@ -579,7 +581,6 @@ class EditLabelPermissionTest(ClientTest):
         self.assertTemplateUsed(response, 'labels/label_edit.html')
 
     def test_superuser(self):
-        User = get_user_model()
         self.client.force_login(User.objects.get(username='superuser'))
         response = self.client.get(self.url_verified)
         self.assertTemplateUsed(response, 'labels/label_edit.html')

@@ -37,6 +37,8 @@ from lib.exceptions import TestfileDirectoryError
 from vision_backend.models import Classifier as Robot
 import vision_backend.task_helpers as backend_task_helpers
 
+User = get_user_model()
+
 
 # Settings to override in all of our unit tests.
 test_settings = dict()
@@ -95,7 +97,6 @@ class ClientUtilsMixin(object):
         management.call_command(
             'createsuperuser', '--noinput',
             username='superuser', email='superuser@example.com', verbosity=0)
-        User = get_user_model()
         return User.objects.get(username='superuser')
 
     user_count = 0
@@ -137,7 +138,6 @@ class ClientUtilsMixin(object):
                     break
             cls.client.get(activation_link)
 
-        User = get_user_model()
         return User.objects.get(username=username)
 
     source_count = 0

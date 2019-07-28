@@ -19,6 +19,8 @@ from images.models import Source
 from labels.models import LabelGroup, Label, LabelSet, LocalLabel
 from lib.utils import direct_s3_read
 
+User = get_user_model()
+
 
 class VisionBackendRegressionTest(ClientTest):
     """
@@ -30,7 +32,6 @@ class VisionBackendRegressionTest(ClientTest):
 
         self.client = Client()
         # Create a superuser.
-        User = get_user_model()
         if not User.objects.filter(username='superuser').exists():
             management.call_command(
                 'createsuperuser',

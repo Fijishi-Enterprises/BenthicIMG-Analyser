@@ -296,7 +296,7 @@ def profile_list(request):
 
 
 def profile_detail(request, user_id):
-    profile_user = get_object_or_404(get_user_model(), pk=user_id)
+    profile_user = get_object_or_404(User, pk=user_id)
     profile = profile_user.profile
 
     can_view = can_view_profile(request, profile)

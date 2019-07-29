@@ -436,7 +436,16 @@ def annotation_history(request, image_id):
     source = image.source
 
     annotations = Annotation.objects.filter(image=image)
-    versions = Version.objects.filter(object_id__in=annotations)
+    # Get the annotation Versions whose annotation PKs correspond to the
+    # relevant image.
+    # Version.object_id is a character-varying field; we convert integer
+    # primary keys to strings in order to compare with this field.
+    annotation_id_strs = [
+        str(pk) for pk in annotations.values_list('pk', flat=True)]
+    versions = Version.objects.filter(
+        object_id__in=annotation_id_strs,
+        content_type__model='annotation')
+    # Get the Revisions associated with these annotation Versions.
     revisions = Revision.objects.filter(version__in=versions).distinct()
 
     def version_to_point_number(v_):

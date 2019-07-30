@@ -166,6 +166,12 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.messages',
     'django.contrib.sessions',
+    # Sites framework:
+    # https://docs.djangoproject.com/en/dev/ref/contrib/sites/
+    # Required by django-andablog. Also "strongly encouraged" to use by the
+    # Django docs, even if we only have one site:
+    # https://docs.djangoproject.com/en/dev/ref/contrib/sites/#how-django-uses-the-sites-framework
+    'django.contrib.sites',
     'django.contrib.staticfiles',
 
     'easy_thumbnails',
@@ -365,6 +371,9 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50 MB
 # Due to metadata-edit not having an image limit yet, this needs to be quite
 # large (each image would have about 20 fields).
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000000
+
+# For the Django sites framework
+SITE_ID = 1
 
 
 # django-registration setting

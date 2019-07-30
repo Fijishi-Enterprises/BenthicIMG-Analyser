@@ -931,7 +931,9 @@ class SettingsTest(ClientTest):
 
         if field_type == 'choice':
             field_soup = form_soup.find('select', dict(name=field_name))
-            option_soup = field_soup.find('option', dict(selected='selected'))
+            # `selected=True` checks for presence of the `selected` attribute.
+            # https://stackoverflow.com/questions/14863495/find-the-selected-option-using-beautifulsoup
+            option_soup = field_soup.find('option', dict(selected=True))
             field_value = option_soup.attrs['value']
         elif field_type == 'integer':
             field_soup = form_soup.find('input', dict(name=field_name))
@@ -941,7 +943,7 @@ class SettingsTest(ClientTest):
             field_value = field_soup.attrs['value']
         elif field_type == 'boolean':
             field_soup = form_soup.find('input', dict(name=field_name))
-            field_value = (field_soup.attrs.get('checked') == 'checked')
+            field_value = 'checked' in field_soup.attrs
         else:
             raise ValueError("Not a recognized field type.")
 
@@ -961,7 +963,9 @@ class SettingsTest(ClientTest):
             field_value = self.get_field_value_from_soup(field_name, form_soup)
             field_meta = AnnotationToolSettings._meta.get_field(field_name)
             expected_value = field_meta.default
-            self.assertEqual(field_value, expected_value)
+            self.assertEqual(
+                field_value, expected_value,
+                field_name + " has the expected value")
 
     def test_tool_uses_saved_settings_when_present(self):
         self.client.force_login(self.user)
@@ -977,7 +981,9 @@ class SettingsTest(ClientTest):
             field_value = self.get_field_value_from_soup(field_name, form_soup)
             field_meta = AnnotationToolSettings._meta.get_field(field_name)
             expected_value = field_meta.default
-            self.assertEqual(field_value, expected_value)
+            self.assertEqual(
+                field_value, expected_value,
+                field_name + " has the expected value")
 
     def test_save_settings_for_first_time(self):
         self.client.force_login(self.user)

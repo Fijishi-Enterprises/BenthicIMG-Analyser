@@ -436,15 +436,21 @@ def annotation_history(request, image_id):
     source = image.source
 
     annotations = Annotation.objects.filter(image=image)
+
     # Get the annotation Versions whose annotation PKs correspond to the
     # relevant image.
-    # Version.object_id is a character-varying field; we convert integer
-    # primary keys to strings in order to compare with this field.
+    # Version.object_id is a character-varying field, so we have to convert
+    # integer primary keys to strings in order to compare with this field.
+    #
+    # This part is PERFORMANCE SENSITIVE. Historically, it has taken 1 second
+    # to 10 minutes for the same data depending on the implementation. Re-test
+    # on the staging server (which has a large Version table) after changing
+    # anything here.
     annotation_id_strs = [
         str(pk) for pk in annotations.values_list('pk', flat=True)]
-    versions = Version.objects.filter(
-        object_id__in=annotation_id_strs,
-        content_type__model='annotation')
+    versions = Version.objects.get_for_model(Annotation).filter(
+        object_id__in=annotation_id_strs)
+
     # Get the Revisions associated with these annotation Versions.
     revisions = Revision.objects.filter(version__in=versions).distinct()
 

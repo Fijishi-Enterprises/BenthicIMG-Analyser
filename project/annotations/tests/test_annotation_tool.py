@@ -422,6 +422,31 @@ class IsAnnotationAllDoneTest(ClientTest):
         self.assertTrue(response['all_done'])
 
 
+def mock_update_annotation(point, label, now_confirmed, user_or_robot_version):
+    """
+    When the save_annotations_ajax view tries to actually save the
+    annotations to the DB, this patched function should raise an
+    IntegrityError for point 2, making the view return an appropriate
+    error message.
+
+    We'll let other points save normally, so that we can confirm that those
+    points' annotations don't get committed if point 2 fails.
+
+    We use a mock.patch approach for this because raising IntegrityError
+    legitimately involves replicating a race condition, which is much
+    trickier to do reliably.
+    """
+    if point.point_number == 2:
+        raise IntegrityError
+
+    # This is a simple saving case (for brevity) which works for this
+    # particular test.
+    new_annotation = Annotation(
+        point=point, image=point.image,
+        source=point.image.source, label=label, user=user_or_robot_version)
+    new_annotation.save()
+
+
 class SaveAnnotationsTest(ClientTest):
     """Test submitting the annotation form which is available at the right side
     of the annotation tool."""
@@ -729,30 +754,6 @@ class SaveAnnotationsTest(ClientTest):
         self.assertEqual(response['error'], "Invalid robot field value: asdf")
         self.assert_didnt_save_anything()
 
-    def mock_update_annotation(point, label, now_confirmed, user_or_robot_version):
-        """
-        When the save_annotations_ajax view tries to actually save the
-        annotations to the DB, this patched function should raise an
-        IntegrityError for point 2, making the view return an appropriate
-        error message.
-
-        We'll let point 1 save normally, so that we can confirm that point 1
-        doesn't get committed if point 2 fails.
-
-        We use a mock.patch approach for this because raising IntegrityError
-        legitimately involves replicating a race condition, which is much
-        trickier to do reliably.
-        """
-        if point.point_number == 2:
-            raise IntegrityError
-
-        # This is a simple saving case (for brevity) which works for this
-        # particular test.
-        new_annotation = Annotation(
-            point=point, image=point.image,
-            source=point.image.source, label=label, user=user_or_robot_version)
-        new_annotation.save()
-
     @patch(
         'annotations.models.Annotation.objects.update_point_annotation_if_applicable',
         mock_update_annotation)
@@ -761,6 +762,8 @@ class SaveAnnotationsTest(ClientTest):
             label_1='A', label_2='B', label_3='B',
             robot_1='false', robot_2='false', robot_3='false',
         )
+        # Due to the mocked method, this should get an IntegrityError when
+        # trying to save point 2.
         self.client.force_login(self.user)
         response = self.client.post(self.url, data).json()
 
@@ -771,6 +774,8 @@ class SaveAnnotationsTest(ClientTest):
             " annotations changed at the same time that you submitted."
             " Try again and see if it works.")
 
+        # Although the error occurred on point 2, nothing should have been
+        # saved, including point 1.
         self.assert_didnt_save_anything()
 
 

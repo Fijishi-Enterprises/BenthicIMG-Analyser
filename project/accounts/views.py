@@ -1,3 +1,5 @@
+from __future__ import unicode_literals
+
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model
@@ -65,6 +67,7 @@ class BaseRegistrationView(ThirdPartyRegistrationView):
 @sensitive_post_parameters()
 def register(request, *args, **kwargs):
     return RegistrationView.as_view()(request, *args, **kwargs)
+
 
 class RegistrationView(BaseRegistrationView):
     success_url = 'registration_complete'
@@ -193,7 +196,8 @@ class EmailChangeView(LoginRequiredMixin, FormView):
         )
         confirmation_email.send()
 
-    def get_confirmation_key(self, user, pending_email_address):
+    @staticmethod
+    def get_confirmation_key(user, pending_email_address):
         return signing.dumps(obj=dict(
             pk=user.pk,
             email=pending_email_address,

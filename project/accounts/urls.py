@@ -1,3 +1,5 @@
+from __future__ import unicode_literals
+
 from django.conf.urls import include, url
 from django.views.generic.base import TemplateView
 from . import views

@@ -5,7 +5,7 @@ from io import StringIO
 import six
 
 from django.core.files.base import ContentFile
-from django.core.urlresolvers import reverse
+from django.urls import reverse
 
 
 # Abstract class

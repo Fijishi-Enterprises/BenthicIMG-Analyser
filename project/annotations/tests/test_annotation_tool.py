@@ -2,9 +2,9 @@ from __future__ import unicode_literals
 import six
 
 from bs4 import BeautifulSoup
-from django.core.urlresolvers import reverse
 from django.db import IntegrityError
 from django.shortcuts import resolve_url
+from django.urls import reverse
 from mock import patch
 
 from accounts.utils import is_alleviate_user, is_robot_user

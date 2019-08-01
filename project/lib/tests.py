@@ -2,13 +2,12 @@
 #
 # Lib tests and non-app-specific tests.
 from __future__ import unicode_literals
-from unittest import skipIf
-from unittest import skip 
+from unittest import skip, skipIf
 from django.conf import settings
 from django.core import mail
-from django.core.urlresolvers import reverse
 from django import forms
 from django.shortcuts import resolve_url
+from django.urls import reverse
 from django.utils.html import escape
 from django.test.client import Client
 from django.test.utils import override_settings

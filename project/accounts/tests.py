@@ -1,12 +1,20 @@
+# -*- coding: utf-8 -*-
+from __future__ import unicode_literals
 import hashlib
 import time
+
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.hashers import (
+    make_password, PBKDF2PasswordHasher, SHA1PasswordHasher)
 from django.core import mail
-from django.core.urlresolvers import reverse
 from django.shortcuts import resolve_url
+from django.urls import reverse
 from django.utils.html import escape
+from django_migration_testcase import MigrationTest
+
 from lib.test_utils import ClientTest, sample_image_as_file
+from .hashers import PBKDF2WrappedSHA1PasswordHasher
 
 User = get_user_model()
 
@@ -59,6 +67,16 @@ class BaseRegisterTest(ClientTest):
 
         return activation_link
 
+    def assert_sign_in_success(self, response, user):
+        # We should be past the sign-in page now.
+        self.assertTemplateNotUsed(response, 'registration/login.html')
+
+        # Check that we're signed in as the expected user.
+        # From http://stackoverflow.com/a/6013115
+        self.assertIn('_auth_user_id', self.client.session)
+        self.assertEqual(
+            int(self.client.session['_auth_user_id']), user.pk)
+
 
 class SignInTest(BaseRegisterTest):
 
@@ -89,27 +107,14 @@ class SignInTest(BaseRegisterTest):
             username='testUsername', password='testPassword',
         ))
 
-        # We should be past the sign-in page now.
-        self.assertTemplateNotUsed(response, 'registration/login.html')
-
-        # Check that we're signed in as the expected user.
-        # From http://stackoverflow.com/a/6013115
-        self.assertIn('_auth_user_id', self.client.session)
-        self.assertEqual(
-            int(self.client.session['_auth_user_id']), self.user.pk)
+        self.assert_sign_in_success(response, self.user)
 
     def test_sign_in_by_email(self):
         response = self.client.post(reverse('auth_login'), dict(
             username='tester@example.org', password='testPassword',
         ))
 
-        # We should be past the sign-in page now.
-        self.assertTemplateNotUsed(response, 'registration/login.html')
-
-        # Check that we're signed in as the expected user.
-        self.assertIn('_auth_user_id', self.client.session)
-        self.assertEqual(
-            int(self.client.session['_auth_user_id']), self.user.pk)
+        self.assert_sign_in_success(response, self.user)
 
     def test_nonexistent_username(self):
         response = self.client.post(reverse('auth_login'), dict(
@@ -126,11 +131,8 @@ class SignInTest(BaseRegisterTest):
         response = self.client.post(reverse('auth_login'), dict(
             username='TESTUSERNAME', password='testPassword',
         ))
-        self.assertTemplateNotUsed(response, 'registration/login.html')
 
-        self.assertIn('_auth_user_id', self.client.session)
-        self.assertEqual(
-            int(self.client.session['_auth_user_id']), self.user.pk)
+        self.assert_sign_in_success(response, self.user)
 
     def test_nonexistent_email(self):
         response = self.client.post(reverse('auth_login'), dict(
@@ -181,9 +183,103 @@ class SignInTest(BaseRegisterTest):
         self.assertTemplateUsed(response, 'registration/login.html')
         self.assertContains(response, "This account is inactive.")
 
+    def test_pbkdf2_is_default_hasher(self):
+        self.assertTrue(self.user.password.startswith('pbkdf2_sha256$'))
+
+    def test_pbkdf2_password(self):
+        self.user.password = make_password(
+            'testPassword', hasher='pbkdf2_sha256')
+        self.user.save()
+
+        # Sign in.
+        response = self.client.post(
+            reverse('auth_login'),
+            dict(username='testUsername', password='testPassword'))
+
+        self.assert_sign_in_success(response, self.user)
+
+    def test_sha1_password_fail(self):
+        """SHA1 is too weak, so it's unsupported, as per Django 1.10+
+        defaults."""
+        # Hashers not specified in the settings have to be passed by class
+        # instance, rather than by algorithm string.
+        self.user.password = make_password(
+            'testPassword', hasher=SHA1PasswordHasher())
+        self.user.save()
+
+        # Sign in.
+        response = self.client.post(
+            reverse('auth_login'),
+            dict(username='testUsername', password='testPassword'))
+
+        self.assertTemplateUsed(response, 'registration/login.html')
+        self.assertContains(
+            response,
+            "The credentials you entered did not match our records."
+            " Note that both fields may be case-sensitive.")
+
+    def test_pbkdf2_wrapped_sha1_password(self):
+        self.user.password = make_password(
+            'testPassword', hasher='pbkdf2_wrapped_sha1')
+        self.user.save()
+
+        # Sign in.
+        response = self.client.post(
+            reverse('auth_login'),
+            dict(username='testUsername', password='testPassword'))
+
+        self.assert_sign_in_success(response, self.user)
+
     # TODO: Add tests for getting redirected to the expected page
     # (about sources, source list, or whatever was in the 'next' URL
     # parameter).
+
+
+class WrapSHA1PasswordsMigrationTest(MigrationTest):
+
+    app_name = 'accounts'
+    before = '0010_make_distinct_gravatar_hashes'
+    after = '0011_wrap_sha1_passwords'
+
+    def test_sha1_password_migration_to_pbkdf2_wrapped_sha1(self):
+        sha1_hasher = SHA1PasswordHasher()
+        pbkdf2_hasher = PBKDF2PasswordHasher()
+        wrapped_hasher = PBKDF2WrappedSHA1PasswordHasher()
+
+        # SHA1 algorithm for user1
+        user1 = User(
+            username='user1',
+            password=make_password(
+                'testPassword1', hasher=sha1_hasher),
+            email='user1@example.org')
+        user1.save()
+
+        # Default PBKDF2 algorithm for user2
+        user2 = User(
+            username='user2',
+            password=make_password(
+                'testPassword2', hasher=pbkdf2_hasher),
+            email='user2@example.org')
+        user2.save()
+
+        user2_original_hash = user2.password
+
+        # Convert SHA1 to PBKDF2 with migration
+        self.run_migration()
+
+        user1 = User.objects.get(username='user1')
+        user2 = User.objects.get(username='user2')
+
+        # user1 should now have a wrapped password
+        self.assertTrue(user1.password.startswith('pbkdf2_wrapped_sha1$'))
+        # user2's password should be the same
+        self.assertTrue(user2.password.startswith('pbkdf2_sha256$'))
+        self.assertEqual(user2.password, user2_original_hash)
+
+        # user1's password should work with the wrapped hasher
+        self.assertTrue(wrapped_hasher.verify('testPassword1', user1.password))
+        # user2's password should work with the default hasher
+        self.assertTrue(pbkdf2_hasher.verify('testPassword2', user2.password))
 
 
 class RegisterTest(BaseRegisterTest):
@@ -262,6 +358,59 @@ class RegisterTest(BaseRegisterTest):
                 " Note that once you've registered, you'll be able to"
                 " sign in with your username or your email address."))
 
+    def test_username_reject_too_long(self):
+        """
+        Reject usernames longer than 30 characters.
+        """
+        response = self.register(
+            username='alice67890123456789012345678901',
+            email='alice67890123456789012345678901@example.com',
+        )
+
+        # We should still be at the registration page with an error.
+        self.assertTemplateUsed(
+            response, 'registration/registration_form.html')
+        self.assertContains(
+            response,
+            escape(
+                "Ensure this value has at most 30 characters (it has 31)."))
+
+    def test_username_reject_non_ascii(self):
+        """
+        Reject non-ASCII Unicode characters in usernames. First/last name
+        fields can be more flexible, but usernames should be simple and easy
+        to read/type/differentiate for everyone.
+        """
+        response = self.register(
+            username='Béatrice',
+            email='beatrice123@example.com',
+        )
+
+        # We should still be at the registration page with an error.
+        self.assertTemplateUsed(
+            response, 'registration/registration_form.html')
+        self.assertContains(
+            response, escape("Enter a valid username."))
+
+    def test_username_reject_unicode_confusables(self):
+        """
+        Reject Unicode characters which are 'confusable', i.e. often look
+        the same as other characters.
+        This should be default behavior in django-registration 2.3+, even if
+        Unicode characters were generally allowed.
+        """
+        response = self.register(
+            # The 'a' in 'alice' here is a CYRILLIC SMALL LETTER A
+            username='аlice123',
+            email='alice123@example.com',
+        )
+
+        # We should still be at the registration page with an error.
+        self.assertTemplateUsed(
+            response, 'registration/registration_form.html')
+        self.assertContains(
+            response, escape("Enter a valid username."))
+
     def test_email_already_exists(self):
         # Register once.
         self.register()
@@ -326,6 +475,25 @@ class RegisterTest(BaseRegisterTest):
         self.assertIn(existing_user.username, already_exists_email.body)
         # Sanity check that this is the correct email template.
         self.assertIn("already", already_exists_email.body)
+
+    def test_email_reject_unicode_confusables(self):
+        """
+        Reject Unicode characters which are 'confusable', i.e. often look
+        the same as other characters.
+        This should be default behavior in django-registration 2.3+, even if
+        Unicode characters were generally allowed.
+        """
+        response = self.register(
+            username='alice123',
+            # The 'a' in 'alice' here is a CYRILLIC SMALL LETTER A
+            email='аlice123@example.com',
+        )
+
+        # We should still be at the registration page with an error.
+        self.assertTemplateUsed(
+            response, 'registration/registration_form.html')
+        self.assertContains(
+            response, escape("Enter a valid email address."))
 
     def test_password_fields_do_not_match(self):
         response = self.register(
@@ -651,11 +819,15 @@ class EmailChangeTest(ClientTest):
 
         # Navigate to the confirmation link while signed out.
         # Should show sign-in page.
-        self.client.logout()
+        email_change_confirm_url = reverse(
+            'email_change_confirm', args=[confirmation_key])
+        email_change_confirm_url_escaped = \
+            email_change_confirm_url.replace(':', '%3A')
         sign_in_url = (
             reverse(settings.LOGIN_URL) + '?next='
-            + reverse('email_change_confirm', args=[confirmation_key])
-                .replace(':', '%3A'))
+            + email_change_confirm_url_escaped)
+
+        self.client.logout()
         response = self.client.get(confirmation_link)
         self.assertRedirects(response, sign_in_url)
         # The email should not have changed.

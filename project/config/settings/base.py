@@ -1,6 +1,6 @@
 # Base settings for any type of server.
 
-import json, sys, os
+import json
 
 from unipath import Path
 
@@ -28,19 +28,20 @@ LOG_DIR = SITE_DIR.child('log')
 # JSON-based secrets module, expected to be in the SETTINGS_DIR
 with open(SETTINGS_DIR.child('secrets.json')) as f:
     secrets = json.loads(f.read())
-    def get_secret(setting, secrets=secrets, required=True):
+
+    def get_secret(setting, secrets_=secrets, required=True):
         """
         Get the secret variable. If the variable is required,
         raise an error if it's not present.
         """
         try:
-            return secrets[setting]
+            return secrets_[setting]
         except KeyError:
             if required:
-                error_msg = "Set the {0} setting in secrets.json".format(setting)
+                error_msg = "Set the {setting} setting in secrets.json".format(
+                    setting=setting)
                 raise ImproperlyConfigured(error_msg)
             return ""
-
 
 
 # In general, first come Django settings, then 3rd-party app settings,
@@ -48,7 +49,6 @@ with open(SETTINGS_DIR.child('secrets.json')) as f:
 #
 # The Django settings' comments are mainly from
 # django.conf.global_settings. (Not all Django settings are there though...)
-
 
 
 # If you set this to True, Django will use timezone-aware datetimes.
@@ -176,7 +176,7 @@ INSTALLED_APPS = [
 
 # The order of middleware classes is important!
 # https://docs.djangoproject.com/en/dev/topics/http/middleware/
-MIDDLEWARE_CLASSES = [
+MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     # Manages sessions across requests; required for auth
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -273,14 +273,6 @@ STATICFILES_DIRS = [
 STATICFILES_STORAGE = \
     'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
 
-# List of finder classes that know how to find static files in
-# various locations.
-STATICFILES_FINDERS = [
-    'django.contrib.staticfiles.finders.FileSystemFinder',
-    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
-#    'django.contrib.staticfiles.finders.DefaultStorageFinder',
-]
-
 # Absolute path to the directory which static files should be collected to.
 # Example: "/home/media/media.lawrence.com/static/"
 #
@@ -323,7 +315,6 @@ SESSION_COOKIE_AGE = 60 * 60 * 24 * 30
 SECRET_KEY = get_secret("DJANGO_SECRET_KEY")
 
 LOGIN_URL = 'auth_login'
-LOGOUT_URL = 'auth_logout'
 LOGIN_REDIRECT_URL = 'source_list'
 
 # Custom setting.
@@ -347,6 +338,15 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+PASSWORD_HASHERS = [
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
+    # This hasher assists in strengthening security for users who haven't
+    # logged in since PBKDF2 became the default.
+    'accounts.hashers.PBKDF2WrappedSHA1PasswordHasher',
+    'django.contrib.auth.hashers.Argon2PasswordHasher',
+    'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',
+]
 
 # The maximum size (in bytes) that an upload will be before it
 # gets streamed to the file system.
@@ -356,15 +356,15 @@ AUTH_PASSWORD_VALIDATORS = [
 # as needed.
 FILE_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50 MB
 
+# The maximum size for a request body (not counting file uploads).
+# Due to metadata-edit not having an image limit yet, this needs to be quite
+# big.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50 MB
 
-
-# django-guardian setting
-ANONYMOUS_USER_ID = -1
-# For whatever reason, when running tests in Postgres, it errors when
-# this ID is 0 or negative.
-if 'test' in sys.argv:
-    ANONYMOUS_USER_ID = 99999999
-
+# Maximum number of GET/POST parameters that are parsed from a single request.
+# Due to metadata-edit not having an image limit yet, this needs to be quite
+# large (each image would have about 20 fields).
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000000
 
 
 # django-registration setting
@@ -378,7 +378,6 @@ ACCOUNT_ACTIVATION_DAYS = 7
 # The number of hours users will have to confirm an email change after
 # requesting one.
 EMAIL_CHANGE_CONFIRMATION_HOURS = 24
-
 
 
 # [Custom settings]

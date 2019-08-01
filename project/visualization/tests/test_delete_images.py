@@ -1,4 +1,4 @@
-from django.core.urlresolvers import reverse
+from django.urls import reverse
 
 from images.models import Source, Image, Metadata
 from vision_backend.models import Features

@@ -4,8 +4,8 @@ from backports import csv
 from io import StringIO
 
 from django.core.files.base import ContentFile
-from django.core.urlresolvers import reverse
 from django.shortcuts import resolve_url
+from django.urls import reverse
 from django.utils.html import escape
 
 from lib.test_utils import BasePermissionTest, sample_image_as_file

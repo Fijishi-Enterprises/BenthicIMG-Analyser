@@ -7,9 +7,9 @@ from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.contrib import messages
-from django.core.urlresolvers import reverse
-from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponseRedirect
+from django.shortcuts import render, get_object_or_404
+from django.urls import reverse
 from django.utils.timezone import now
 
 from . import utils
@@ -56,7 +56,7 @@ def source_about(request):
     Page that explains what Sources are and how to use them.
     """
 
-    if request.user.is_authenticated():
+    if request.user.is_authenticated:
         if Source.get_sources_of_user(request.user):
             user_status = 'has_sources'
         else:

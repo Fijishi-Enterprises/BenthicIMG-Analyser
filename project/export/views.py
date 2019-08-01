@@ -3,10 +3,10 @@ from backports import csv
 
 from django.contrib import messages
 from django.core.exceptions import ValidationError
-from django.core.urlresolvers import reverse
 from django.db import transaction
 from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404
+from django.urls import reverse
 
 from .forms import CpcPrefsForm, ExportAnnotationsForm
 from .utils import create_cpc_strings, \

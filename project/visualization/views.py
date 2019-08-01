@@ -3,12 +3,12 @@ import six
 
 from django.conf import settings
 from django.contrib import messages
-from django.core.urlresolvers import reverse
 from django.db import transaction
 from django.forms import modelformset_factory
 from django.forms.formsets import formset_factory
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from .forms import CheckboxForm, StatisticsSearchForm, ImageSearchForm, \

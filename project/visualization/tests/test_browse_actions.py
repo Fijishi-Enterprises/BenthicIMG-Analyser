@@ -5,8 +5,8 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.select import Select
 from selenium.webdriver.support.ui import WebDriverWait
-from django.core.urlresolvers import reverse
 from django.test import override_settings
+from django.urls import reverse
 
 from images.models import Image
 from images.model_utils import PointGen

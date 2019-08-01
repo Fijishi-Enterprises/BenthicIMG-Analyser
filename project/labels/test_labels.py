@@ -2,9 +2,9 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core import mail
-from django.core.urlresolvers import reverse
 from django.shortcuts import resolve_url
 from django.test import override_settings
+from django.urls import reverse
 
 from images.model_utils import PointGen
 from images.models import Source

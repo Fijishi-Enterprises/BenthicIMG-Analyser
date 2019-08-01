@@ -4,8 +4,8 @@ import math
 import random
 
 from django.conf import settings
-from django.core.urlresolvers import reverse
 from django.db.models import Count
+from django.urls import reverse
 
 from accounts.utils import get_robot_user, get_alleviate_user
 from annotations.model_utils import AnnotationAreaUtils

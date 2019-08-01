@@ -8,10 +8,9 @@ from io import BytesIO
 
 from django.core import management
 from django.core.files.base import ContentFile
-from django.core.urlresolvers import reverse
-
 from django.conf import settings
 from django.test.client import Client
+from django.urls import reverse
 from django.contrib.auth import get_user_model
 
 from test_utils import ClientTest

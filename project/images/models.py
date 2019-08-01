@@ -176,7 +176,7 @@ class Source(models.Model):
     @staticmethod
     def get_sources_of_user(user):
         # For superusers, this returns ALL sources.
-        if user.is_authenticated():
+        if user.is_authenticated:
             return get_objects_for_user(user, Source.PermTypes.VIEW.fullCode)\
                 .order_by('name')
         else:

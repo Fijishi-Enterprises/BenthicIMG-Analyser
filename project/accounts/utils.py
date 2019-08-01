@@ -31,6 +31,6 @@ def can_view_profile(request, profile):
         # Anyone can view a public profile.
         return True
     if profile.privacy == 'registered':
-        return request.user.is_authenticated()
+        return request.user.is_authenticated
     # profile.privacy == 'closed'
     return False

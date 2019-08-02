@@ -1,0 +1,24 @@
+/*
+ * List of blog posts (entry_list)
+ */
+
+.blog-entry-row {
+  margin-top: 60px;
+  margin-bottom: 60px;
+}
+.blog-entry-content-preview > p {
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+/*
+ * Blog posts (entry_detail)
+ */
+
+.blog-entry-content {
+  margin-top: 60px;
+  margin-bottom: 60px;
+}
+.blog-entry-meta {
+  color: #999;
+}

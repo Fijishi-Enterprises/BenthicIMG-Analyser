@@ -1,0 +1,20 @@
+{% extends "andablog/base.html" %}
+{% load andablog_tags %}
+
+{% block content %}
+  <h1>
+    {{ entry.title }}
+    {% if not entry.is_published %}(Draft){% endif %}
+  </h1>
+
+  <div class="blog-entry-meta">
+    {{ entry.published_timestamp|date:"DATE_FORMAT" }}
+    {% if entry.author %}
+      by {{ entry.author|authordisplay }}
+    {% endif %}
+  </div>
+
+  <div class="blog-entry-content">
+    {{ entry.content }}
+  </div>
+{% endblock %}

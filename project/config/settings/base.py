@@ -143,6 +143,7 @@ INSTALLED_APPS = [
     'accounts',
     'annotations',
     'async_media',
+    'blog',
     'bug_reporting',
     # Saves internal server error messages for viewing in the admin site
     'errorlogs.apps.ErrorlogsConfig',
@@ -174,10 +175,13 @@ INSTALLED_APPS = [
     'django.contrib.sites',
     'django.contrib.staticfiles',
 
+    'andablog',
     'easy_thumbnails',
     'guardian',
     'reversion',
     'storages',
+    # For andablog's entry tags
+    'taggit',
 ]
 
 # The order of middleware classes is important!

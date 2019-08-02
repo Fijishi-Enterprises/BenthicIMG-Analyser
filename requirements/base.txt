@@ -21,6 +21,13 @@ django-guardian==1.4.9
 # (A currently active, package friendly fork of it; also endorsed by Django)
 Pillow==4.1.1
 
+# For Markdown support in django-andablog
+Markdown>=3.1.1,<4
+
+# Simple blog.
+# Requires: django, Pillow, six
+django-andablog==3.0.0
+
 # System for generating smaller versions of images.
 # Requires: django, Pillow
 easy-thumbnails==2.5.0

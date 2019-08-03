@@ -16,3 +16,8 @@ class EntryManager(models.Manager):
 
         # Drafts first, then latest to earliest publish date.
         return queryset.order_by('is_published', '-published_timestamp')
+
+    def get_published(self):
+        default_queryset = super(EntryManager, self).get_queryset()
+        published = default_queryset.filter(is_published=True)
+        return published.order_by('-published_timestamp')

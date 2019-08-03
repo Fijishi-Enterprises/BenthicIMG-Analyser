@@ -17,8 +17,7 @@ urlpatterns = [
     url(r'^accounts/', include('accounts.urls')),
     url(r'^async_media/',
         include('async_media.urls', namespace='async_media')),
-    # These blog URLs end up under the 'andablog:' namespace.
-    url(r'^blog/', include('blog.urls')),
+    url(r'^blog/', include('blog.urls', namespace='blog')),
     url(r'^feedback/', include('bug_reporting.urls')),
     url(r'^source/(?P<source_id>\d+)/browse/', include('visualization.urls')),
     url(r'^source/(?P<source_id>\d+)/export/', include('export.urls')),

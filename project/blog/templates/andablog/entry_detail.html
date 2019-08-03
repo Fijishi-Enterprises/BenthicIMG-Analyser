@@ -1,5 +1,5 @@
 {% extends "andablog/base.html" %}
-{% load andablog_tags %}
+{% load blog_tags %}
 
 {% block content %}
   <h1>
@@ -10,7 +10,7 @@
   <div class="blog-entry-meta">
     {{ entry.published_timestamp|date:"DATE_FORMAT" }}
     {% if entry.author %}
-      by {{ entry.author|authordisplay }}
+      by {{ entry.author|author_display }}
     {% endif %}
   </div>
 

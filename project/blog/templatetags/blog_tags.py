@@ -1,4 +1,8 @@
+from __future__ import unicode_literals
+
 from django import template
+
+from ..models import Entry
 
 register = template.Library()
 
@@ -14,3 +18,11 @@ def author_display(author, *args):
         return author.get_full_name()
     else:
         return author.username
+
+
+@register.simple_tag
+def blog_latest_entries(count):
+    """
+    Return the <count> latest published blog entries, ordered latest-first.
+    """
+    return Entry.objects.get_published()[:count]

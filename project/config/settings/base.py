@@ -165,6 +165,9 @@ INSTALLED_APPS = [
     'django.contrib.auth',
     # Allows permissions to be associated with models you create
     'django.contrib.contenttypes',
+    # Has Django template filters to 'humanize' data, like adding thousands
+    # separators to numbers
+    'django.contrib.humanize',
     'django.contrib.messages',
     'django.contrib.sessions',
     # Sites framework:

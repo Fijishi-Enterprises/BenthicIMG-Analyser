@@ -52,13 +52,28 @@
 }
 
 
-/* Front page carousel */
+/* Other index page elements */
 
 #myCarousel{
     position: absolute;
     overflow: hidden;
     width: 440px;
     margin: 0 0 0 10px;
+}
+
+p.map-explanation {
+    text-align: center;
+    margin: 0.9em 0;    /* top/bottom left/right */
+}
+
+div.index-container-after-map {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-evenly;
+}
+
+div.site-stats > ul > li {
+    margin: 0.75em 0;    /* top/bottom left/right */
 }
 
 

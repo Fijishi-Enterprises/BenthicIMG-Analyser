@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 
+{% load humanize %}
 {% load thumbnail %}
 
 {% block js-includes %}
@@ -57,22 +58,24 @@
 
 </div><!-- /intro-->
 
-<br>
-
-{# TODO: This doesn't fit well with the rest of the layout. It's a narrow box in between two full-page-width boxes. How to lay this out better? #}
-{% include 'lib/site_news_box.html' %}
-
-<br>
+<p class="map-explanation">Visit data sources from around the world using the map below.</p>
+<p class="map-explanation">Click on public sources (green) and browse their image and annotation data.</p>
 
 {% include 'lib/map.html' %}
 
-<br>
+<div class="index-container-after-map">
+  <div class="site-stats">
+    <h2>Sitewide Statistics</h2>
+    <ul>
+      <li>Number of sources: {{ total_sources|intcomma }}</li>
+      <li>Number of images: {{ total_images|intcomma }}</li>
+      <li>Number of point annotations: {{ total_annotations|intcomma }}</li>
+    </ul>
+  </div>
 
-<div id="site-stats">
-    <p>Visit data sources from around the world by clicking on public sources
-        to explore images, labels, and coverage statistics.</p>
-    <p>There are currently {{ total_sources }} sources on CoralNet, with a combined total of {{ total_images }} images and {{ total_annotations }} point annotations.
-    </p>
+  <div>
+    {% include 'lib/site_news_box.html' %}
+  </div>
 </div>
 
 {% include 'lib/map_scripts.html' with map_sources=map_sources %}

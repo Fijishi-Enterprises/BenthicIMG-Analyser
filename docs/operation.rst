@@ -51,13 +51,14 @@ At the Andablog Entries listing, click "Add Entry +" at the top right to start w
 - Title is the entry's title.
 - Content is the entry's body text.
 - You can select a "Content markup type", but Markdown is recommended to be consistent.
-- To add an image, first scroll to the Entry Images section at the bottom, and select an image to upload. Once uploaded, the image's URL will be shown in the Entry Images section. Use this image URL to embed the image in your article - here's a Markdown example: ``![Alt text goes here](/media/andablog/images/my_image.png)``
 
-You need to Save your entry in order to preview it. Make sure you leave "Is published" unchecked to save your entry as a private draft. Then go to the main site's Blog section and find your draft (drafts are only viewable by admins). If you think it's ready to publish, check "Is published" and Save again.
+You need to Save your entry in order to preview it. Make sure you leave "Is published" unchecked to save your entry as a private draft (only viewable by site admins). Then go to the main site's Blog section, find your draft, and look over it. If you think it's ready to publish, check "Is published" and Save again.
 
-We'll use Google Groups for blog comments, so we don't have to maintain a separate blog comments system. After publishing a blog entry, you'll want to create a Google Groups thread for discussion of the new entry, which links to that entry. Then you'll also want to edit the blog entry to link to that Google Groups thread, like: ``Discuss this article here: <link>``. Later, we might come up with a way to automatically create the Google Groups thread (using a CoralNet email address), but for now it has to be done manually.
+To add an image to a blog entry, first scroll to the Entry Images section at the bottom, and select an image to upload. Click "Save and continue editing" to save the image (this also saves the blog entry). Once saved, the image's URL will be shown in the Entry Images section. Use this image URL to embed the image in your article - here's a Markdown example: ``![Alt text goes here](/media/andablog/images/my_image.png)``
 
-Optional fields for blog entries:
+We'll use Google Groups for blog comments, so we don't have to maintain a separate blog comments system. This also doubles as a simple way to announce blog posts (for those subscribed to the Google Group). After publishing a blog entry, you'll want to create a Google Groups thread for discussion of the new entry, which links to that entry. Then you'll also want to edit the blog entry to link to that Google Groups thread, like: ``Discuss this article here: <link>``. Later, we might come up with a way to automatically create the Google Groups thread (using a CoralNet email address), but for now it has to be done manually.
+
+Optional fields when editing blog entries:
 
 - Tags aren't used yet, but we might use them later when we have more articles and want to make them searchable. It's up to you if you want to add tags for now.
 - Preview Content allows you to customize the text that appears for this article in the Blog section's entry listing. Normally the listing just shows the first X words of the article, but if Preview Content is specified for the article, then Preview Content is used instead. You can further customize the entry-listing preview with Preview Image.

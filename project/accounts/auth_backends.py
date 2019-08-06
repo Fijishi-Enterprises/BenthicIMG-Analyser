@@ -1,6 +1,10 @@
+from __future__ import unicode_literals
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.backends import ModelBackend
 from django.core.validators import validate_email, ValidationError
+
+UserModel = get_user_model()
 
 
 class UsernameOrEmailModelBackend(ModelBackend):
@@ -12,7 +16,6 @@ class UsernameOrEmailModelBackend(ModelBackend):
     userena's auth backend.
     """
     def authenticate(self, username=None, password=None, **kwargs):
-        UserModel = get_user_model()
 
         # The default authentication form just passes the first field as
         # 'username', but we'll interpret it as username or email.

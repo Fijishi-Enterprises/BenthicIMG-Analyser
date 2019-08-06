@@ -10,7 +10,7 @@
 # http://python-future.org/compatible_idioms.html
 six==1.10.0
 
-Django==1.10.8
+Django>=1.11.23,<2
 
 # Per-object permissions
 # e.g. "can edit this source" not just "can edit sources"
@@ -77,9 +77,6 @@ numpy==1.11.1
 # mock objects.
 # Can be replaced with Python standard library's mock from Python 3.3 onward.
 mock==2.0.0
-
-# World timezone definitions
-pytz==2016.3
 
 # More elegant filepath calculations compared to os.path.
 # pathlib has become part of the Python 3 standard library. pathlib2, an

@@ -37,6 +37,8 @@ from lib.exceptions import TestfileDirectoryError
 from vision_backend.models import Classifier as Robot
 import vision_backend.task_helpers as backend_task_helpers
 
+User = get_user_model()
+
 
 # Settings to override in all of our unit tests.
 test_settings = dict()
@@ -95,7 +97,6 @@ class ClientUtilsMixin(object):
         management.call_command(
             'createsuperuser', '--noinput',
             username='superuser', email='superuser@example.com', verbosity=0)
-        User = get_user_model()
         return User.objects.get(username='superuser')
 
     user_count = 0
@@ -137,7 +138,6 @@ class ClientUtilsMixin(object):
                     break
             cls.client.get(activation_link)
 
-        User = get_user_model()
         return User.objects.get(username=username)
 
     source_count = 0
@@ -796,12 +796,19 @@ class BrowserTest(ClientUtilsMixin, TestCase, StaticLiveServerTestCase):
         """
         self.selenium.get('{}{}'.format(self.live_server_url, url))
 
-    def login(self, username, password):
+    def login(self, username, password, stay_signed_in=False):
         self.get_url(reverse('auth_login'))
         username_input = self.selenium.find_element_by_name("username")
         username_input.send_keys(username)
         password_input = self.selenium.find_element_by_name("password")
         password_input.send_keys(password)
+
+        if stay_signed_in:
+            # Tick the checkbox
+            stay_signed_in_input = \
+                self.selenium.find_element_by_name("stay_signed_in")
+            stay_signed_in_input.click()
+
         with self.wait_for_page_load():
             self.selenium.find_element_by_css_selector(
                 'input[value="Sign in"]').click()

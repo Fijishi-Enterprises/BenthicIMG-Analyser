@@ -13,7 +13,7 @@ from django.urls import reverse
 from django.utils.html import escape
 from django_migration_testcase import MigrationTest
 
-from lib.test_utils import ClientTest, sample_image_as_file
+from lib.test_utils import BrowserTest, ClientTest, sample_image_as_file
 from .hashers import PBKDF2WrappedSHA1PasswordHasher
 
 User = get_user_model()
@@ -183,6 +183,92 @@ class SignInTest(BaseRegisterTest):
         self.assertTemplateUsed(response, 'registration/login.html')
         self.assertContains(response, "This account is inactive.")
 
+
+class StaySignedInTest(BrowserTest):
+
+    @classmethod
+    def setUpTestData(cls):
+        # Call the parent's setup (while still using this class as cls)
+        super(StaySignedInTest, cls).setUpTestData()
+
+        cls.user = cls.create_user(
+            username='testUsername', password='testPassword',
+            email='tester@example.org')
+
+    def test_stay_signed_in_true(self):
+        self.login('testUsername', 'testPassword', stay_signed_in=True)
+        session_cookie = self.selenium.get_cookie('sessionid')
+        self.assertIn(
+            'expiry', session_cookie, "Session cookie has an expiry time")
+
+    def test_stay_signed_in_false(self):
+        self.login('testUsername', 'testPassword', stay_signed_in=False)
+        session_cookie = self.selenium.get_cookie('sessionid')
+        self.assertNotIn(
+            'expiry', session_cookie,
+            "Session cookie doesn't have an expiry time,"
+            " so the session will expire on browser close")
+
+
+class SignInRedirectTest(BaseRegisterTest):
+
+    @classmethod
+    def setUpTestData(cls):
+        # Call the parent's setup (while still using this class as cls)
+        super(SignInRedirectTest, cls).setUpTestData()
+
+        cls.user = cls.create_user(
+            username='testUsername', password='testPassword',
+            email='tester@example.org')
+
+    def test_sign_in_no_sources(self):
+        response = self.client.post(
+            reverse('auth_login'),
+            dict(username='testUsername', password='testPassword'),
+            follow=True)
+
+        self.assert_sign_in_success(response, self.user)
+        self.assertTemplateUsed(
+            response, 'images/source_about.html',
+            "Redirected to the About Sources page")
+
+    def test_sign_in_with_sources(self):
+        # Ensure the user is a member of at least one source
+        self.create_source(self.user)
+        # Sign in
+        response = self.client.post(
+            reverse('auth_login'),
+            dict(username='testUsername', password='testPassword'),
+            follow=True)
+
+        self.assert_sign_in_success(response, self.user)
+        self.assertTemplateUsed(
+            response, 'images/source_list.html',
+            "Redirected to the page that lists your sources")
+
+    def test_sign_in_with_redirect_in_url(self):
+        response = self.client.post(
+            reverse('auth_login') + '?next=' + reverse('profile_edit'),
+            dict(username='testUsername', password='testPassword'),
+            follow=True)
+
+        self.assert_sign_in_success(response, self.user)
+        self.assertTemplateUsed(
+            response, 'profiles/profile_form.html',
+            "Redirected to the location specified in the URL")
+
+
+class PasswordTest(BaseRegisterTest):
+
+    @classmethod
+    def setUpTestData(cls):
+        # Call the parent's setup (while still using this class as cls)
+        super(PasswordTest, cls).setUpTestData()
+
+        cls.user = cls.create_user(
+            username='testUsername', password='testPassword',
+            email='tester@example.org')
+
     def test_pbkdf2_is_default_hasher(self):
         self.assertTrue(self.user.password.startswith('pbkdf2_sha256$'))
 
@@ -229,10 +315,6 @@ class SignInTest(BaseRegisterTest):
             dict(username='testUsername', password='testPassword'))
 
         self.assert_sign_in_success(response, self.user)
-
-    # TODO: Add tests for getting redirected to the expected page
-    # (about sources, source list, or whatever was in the 'next' URL
-    # parameter).
 
 
 class WrapSHA1PasswordsMigrationTest(MigrationTest):

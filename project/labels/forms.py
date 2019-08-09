@@ -293,8 +293,7 @@ class LabelFormWithVerified(LabelForm):
     class Meta:
         model = Label
         fields = [
-            'name', 'default_code', 'group', 'description', 'thumbnail',
-            'verified'
+            'name', 'default_code', 'group', 'description', 'thumbnail', 'verified', 'duplicate'
         ]
 
 

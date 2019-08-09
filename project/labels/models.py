@@ -4,6 +4,7 @@ import random
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
 from django.db import models
 from easy_thumbnails.fields import ThumbnailerImageField
 from lib.utils import rand_string
@@ -62,6 +63,9 @@ class Label(models.Model):
         LabelGroup, on_delete=models.PROTECT, verbose_name='Functional Group')
     description = models.TextField(null=True)
     verified = models.BooleanField(default=False)
+    duplicate = models.ForeignKey("Label", on_delete=models.SET_NULL,
+                                  blank=True, null=True,
+                                  limit_choices_to={'verified': True})
 
     # easy_thumbnails reference:
     # http://packages.python.org/easy-thumbnails/ref/processors.html
@@ -86,6 +90,14 @@ class Label(models.Model):
         User, on_delete=models.SET_NULL,
         verbose_name='Created by', editable=False, null=True)
 
+    def clean(self):
+        if self.duplicate is not None and not self.duplicate.verified:
+            raise ValidationError("A label can only be a Duplicate of a Verified label")
+        if self.duplicate is not None and self.verified:
+            raise ValidationError("A label can not both be a Duplicate and Verified.")
+        if self.duplicate is not None and self.duplicate == self:
+            raise ValidationError("A label can not be a duplicate of itself.")
+
     def __unicode__(self):
         """
         To-string method.
@@ -100,13 +112,18 @@ class Label(models.Model):
             return cached_value
         return self._compute_popularity()
 
+    @property
+    def ann_count(self):
+        """ Returns the number of annotations for this label """
+        return self.annotation_set.count()
+
     def _compute_popularity(self):
         # TODO: This formula is most likely garbage; make a better one
         raw_score = (
             # Labelset count
             self.locallabel_set.count()
             # Square root of annotation count
-            * math.sqrt(self.annotation_set.count())
+            * math.sqrt(self.ann_count)
         )
 
         if raw_score == 0:

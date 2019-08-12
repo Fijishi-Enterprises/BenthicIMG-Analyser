@@ -289,15 +289,16 @@ class LabelForm(ModelForm):
         return label
 
 
-class LabelFormWithVerified(LabelForm):
+class LabelFormForCurators(LabelForm):
     class Meta:
         model = Label
         fields = [
-            'name', 'default_code', 'group', 'description', 'thumbnail', 'verified', 'duplicate'
+            'name', 'default_code', 'group', 'description', 'thumbnail',
+            'verified', 'duplicate'
         ]
 
     def __init__(self, *args, **kwargs):
-        super(LabelFormWithVerified, self).__init__(*args, **kwargs)
+        super(LabelFormForCurators, self).__init__(*args, **kwargs)
 
         # Order the 'is duplicate of' candidate labels alphabetically
         # by label name.

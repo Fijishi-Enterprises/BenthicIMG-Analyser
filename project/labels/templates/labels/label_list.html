@@ -18,7 +18,10 @@
 
   {% if can_edit_labels %}
     <div class="line">
-      <a href="{% url 'label_new' %}">Create a new label</a>
+      <a href="{% url 'label_new' %}">+ Create a new label</a>
+    </div>
+    <div class="line">
+      <a href="{% url 'labelset_duplicates' %}">List of duplicate labels</a>
     </div>
   {% endif %}
 

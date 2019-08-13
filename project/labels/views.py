@@ -28,7 +28,7 @@ from visualization.utils import generate_patch_if_doesnt_exist, get_patch_url
 from vision_backend import tasks as backend_tasks
 from .decorators import label_edit_permission_required
 from .forms import LabelForm, LabelSetForm, LocalLabelForm, \
-    BaseLocalLabelFormSet, labels_csv_process, LabelFormWithVerified
+    BaseLocalLabelFormSet, labels_csv_process, LabelFormForCurators
 from .models import Label, LocalLabel, LabelSet
 from .utils import search_labels_by_text, is_label_editable_by_user
 
@@ -97,7 +97,7 @@ def label_edit(request, label_id):
     label = get_object_or_404(Label, id=label_id)
 
     if request.user.has_perm('labels.verify_label'):
-        FormClass = LabelFormWithVerified
+        FormClass = LabelFormForCurators
     else:
         FormClass = LabelForm
 

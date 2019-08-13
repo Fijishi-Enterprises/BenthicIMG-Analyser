@@ -289,12 +289,24 @@ class LabelForm(ModelForm):
         return label
 
 
-class LabelFormWithVerified(LabelForm):
+class LabelFormForCurators(LabelForm):
     class Meta:
         model = Label
         fields = [
-            'name', 'default_code', 'group', 'description', 'thumbnail', 'verified', 'duplicate'
+            'name', 'default_code', 'group', 'description', 'thumbnail',
+            'verified', 'duplicate'
         ]
+
+    def __init__(self, *args, **kwargs):
+        super(LabelFormForCurators, self).__init__(*args, **kwargs)
+
+        # Order the 'is duplicate of' candidate labels alphabetically
+        # by label name.
+        # There's a model-level alternative of specifying Meta.ordering in the
+        # model class, but that would mean all usages of Labels become
+        # name-ordered by default, which we might not want.
+        self.fields['duplicate'].queryset = \
+            self.fields['duplicate'].queryset.order_by('name')
 
 
 class LabelSetForm(Form):

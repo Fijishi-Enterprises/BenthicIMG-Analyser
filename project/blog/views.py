@@ -1,3 +1,5 @@
+from __future__ import unicode_literals
+
 from andablog.views import (
     EntriesList as AndablogEntriesList,
     EntryDetail as AndablogEntryDetail)

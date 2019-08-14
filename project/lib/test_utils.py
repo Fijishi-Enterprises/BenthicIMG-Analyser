@@ -85,6 +85,7 @@ class ClientUtilsMixin(object):
     different built-in test classes: TestCase and LiveServerTestCase.
     """
     PERMISSION_DENIED_TEMPLATE = 'permission_denied.html'
+    NOT_FOUND_TEMPLATE = '404.html'
 
     def assertStatusOK(self, response):
         """Assert that an HTTP response's status is 200 OK."""
@@ -888,6 +889,18 @@ class BasePermissionTest(ClientTest):
         else:
             response = self.client.get(url)
         self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+
+    def assertNotFound(self, url, user=None, post_data=None):
+        if user:
+            self.client.force_login(user)
+        else:
+            # Test while logged out
+            self.client.logout()
+        if post_data is not None:
+            response = self.client.post(url, post_data)
+        else:
+            response = self.client.get(url)
+        self.assertTemplateUsed(response, self.NOT_FOUND_TEMPLATE)
 
     def assertPermissionGrantedAjax(self, url, user=None, post_data=None):
         if user:

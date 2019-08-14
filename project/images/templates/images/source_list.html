@@ -4,24 +4,38 @@
   {% include "javascript-includes.html" with map="yes" %}
 {% endblock %}
 
+{% block page-specific-includes %}
+  {% include "static-local-include.html" with type="css" path="css/index.css" %}
+{% endblock %}
+
 {% block content %}
 
-  <h2>Your Sources</h2>
-  <table class="detail_table">
-    <tr>
-      <th>Source</th>
-      <th>Your Role</th>
-    </tr>
-      {% for source in your_sources %}
+  <div class="source-list-page-top-container">
+
+    <div class="your-sources">
+      <h2>Your Sources</h2>
+
+      <table class="detail_table">
         <tr>
-          <td><a href="{% url 'source_main' source.id %}">
-            {{ source.name }}</a></td>
-          <td>{{ source.your_role }}</td>
+          <th>Source</th>
+          <th>Your Role</th>
         </tr>
-      {% endfor %}
-  </table>
-  <br />
-  <p><a href="{% url 'source_new' %}">+ Create a new Source</a></p>
+        {% for source in your_sources %}
+          <tr>
+            <td><a href="{% url 'source_main' source.id %}">
+              {{ source.name }}</a></td>
+            <td>{{ source.your_role }}</td>
+          </tr>
+        {% endfor %}
+      </table>
+
+      <a href="{% url 'source_new' %}" class="create-source-link">
+        + Create a new Source</a>
+    </div>
+
+    {% include 'lib/site_news_box.html' %}
+
+  </div>
 
   <hr />
   <h2>Other Public Sources</h2>

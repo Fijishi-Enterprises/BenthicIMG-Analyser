@@ -58,6 +58,7 @@ class Migration(migrations.Migration):
         # (if that app is used) run first.
         # https://code.djangoproject.com/ticket/23422#comment:25
         ('contenttypes', '__latest__'),
+        ('sites', '__latest__'),
     ]
 
     operations = [

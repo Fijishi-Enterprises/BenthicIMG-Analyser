@@ -1,0 +1,11 @@
+{% load blog_tags %}
+
+<div class="site-news">
+  <h2>Site News</h2>
+  <ul>
+    {% blog_latest_entries 3 as blog_entries %}
+    {% for entry in blog_entries %}
+      <li><a href="{{ entry.get_absolute_url }}">{{ entry.title }}</a></li>
+    {% endfor %}
+  </ul>
+</div>

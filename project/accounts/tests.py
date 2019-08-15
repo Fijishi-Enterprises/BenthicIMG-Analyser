@@ -90,7 +90,7 @@ class SignInTest(BaseRegisterTest):
             email='tester@example.org')
 
     def test_load_page(self):
-        response = self.client.get(reverse('auth_login'))
+        response = self.client.get(reverse('login'))
         self.assertTemplateUsed(response, 'registration/login.html')
 
     def test_load_page_when_signed_in(self):
@@ -99,25 +99,25 @@ class SignInTest(BaseRegisterTest):
         a major use case, but nothing inherently wrong with it either.
         """
         self.client.force_login(self.user)
-        response = self.client.get(reverse('auth_login'))
+        response = self.client.get(reverse('login'))
         self.assertTemplateUsed(response, 'registration/login.html')
 
     def test_sign_in_by_username(self):
-        response = self.client.post(reverse('auth_login'), dict(
+        response = self.client.post(reverse('login'), dict(
             username='testUsername', password='testPassword',
         ))
 
         self.assert_sign_in_success(response, self.user)
 
     def test_sign_in_by_email(self):
-        response = self.client.post(reverse('auth_login'), dict(
+        response = self.client.post(reverse('login'), dict(
             username='tester@example.org', password='testPassword',
         ))
 
         self.assert_sign_in_success(response, self.user)
 
     def test_nonexistent_username(self):
-        response = self.client.post(reverse('auth_login'), dict(
+        response = self.client.post(reverse('login'), dict(
             username='notAUsername', password='testPassword',
         ))
         self.assertTemplateUsed(response, 'registration/login.html')
@@ -128,14 +128,14 @@ class SignInTest(BaseRegisterTest):
 
     def test_username_case_insensitive(self):
         # Different case on username = still succeeds.
-        response = self.client.post(reverse('auth_login'), dict(
+        response = self.client.post(reverse('login'), dict(
             username='TESTUSERNAME', password='testPassword',
         ))
 
         self.assert_sign_in_success(response, self.user)
 
     def test_nonexistent_email(self):
-        response = self.client.post(reverse('auth_login'), dict(
+        response = self.client.post(reverse('login'), dict(
             username='notanemail@example.org', password='testPassword',
         ))
         self.assertTemplateUsed(response, 'registration/login.html')
@@ -146,7 +146,7 @@ class SignInTest(BaseRegisterTest):
 
     def test_email_case_sensitive(self):
         # Different case on email = failure.
-        response = self.client.post(reverse('auth_login'), dict(
+        response = self.client.post(reverse('login'), dict(
             username='TESTER@example.org', password='testPassword',
         ))
         self.assertTemplateUsed(response, 'registration/login.html')
@@ -156,7 +156,7 @@ class SignInTest(BaseRegisterTest):
             " Note that both fields may be case-sensitive.")
 
     def test_wrong_password(self):
-        response = self.client.post(reverse('auth_login'), dict(
+        response = self.client.post(reverse('login'), dict(
             username='testUsername', password='testPassWORD',
         ))
         self.assertTemplateUsed(response, 'registration/login.html')
@@ -175,7 +175,7 @@ class SignInTest(BaseRegisterTest):
         )
 
         # Attempt to sign in as the new user.
-        response = self.client.post(reverse('auth_login'), dict(
+        response = self.client.post(reverse('login'), dict(
             username='alice',
             password='GreatBarrier',
         ))
@@ -223,7 +223,7 @@ class SignInRedirectTest(BaseRegisterTest):
 
     def test_sign_in_no_sources(self):
         response = self.client.post(
-            reverse('auth_login'),
+            reverse('login'),
             dict(username='testUsername', password='testPassword'),
             follow=True)
 
@@ -237,7 +237,7 @@ class SignInRedirectTest(BaseRegisterTest):
         self.create_source(self.user)
         # Sign in
         response = self.client.post(
-            reverse('auth_login'),
+            reverse('login'),
             dict(username='testUsername', password='testPassword'),
             follow=True)
 
@@ -248,7 +248,7 @@ class SignInRedirectTest(BaseRegisterTest):
 
     def test_sign_in_with_redirect_in_url(self):
         response = self.client.post(
-            reverse('auth_login') + '?next=' + reverse('profile_edit'),
+            reverse('login') + '?next=' + reverse('profile_edit'),
             dict(username='testUsername', password='testPassword'),
             follow=True)
 
@@ -279,7 +279,7 @@ class PasswordTest(BaseRegisterTest):
 
         # Sign in.
         response = self.client.post(
-            reverse('auth_login'),
+            reverse('login'),
             dict(username='testUsername', password='testPassword'))
 
         self.assert_sign_in_success(response, self.user)
@@ -295,7 +295,7 @@ class PasswordTest(BaseRegisterTest):
 
         # Sign in.
         response = self.client.post(
-            reverse('auth_login'),
+            reverse('login'),
             dict(username='testUsername', password='testPassword'))
 
         self.assertTemplateUsed(response, 'registration/login.html')
@@ -311,7 +311,7 @@ class PasswordTest(BaseRegisterTest):
 
         # Sign in.
         response = self.client.post(
-            reverse('auth_login'),
+            reverse('login'),
             dict(username='testUsername', password='testPassword'))
 
         self.assert_sign_in_success(response, self.user)

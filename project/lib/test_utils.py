@@ -798,7 +798,7 @@ class BrowserTest(ClientUtilsMixin, TestCase, StaticLiveServerTestCase):
         self.selenium.get('{}{}'.format(self.live_server_url, url))
 
     def login(self, username, password, stay_signed_in=False):
-        self.get_url(reverse('auth_login'))
+        self.get_url(reverse('login'))
         username_input = self.selenium.find_element_by_name("username")
         username_input.send_keys(username)
         password_input = self.selenium.find_element_by_name("password")

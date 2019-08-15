@@ -100,11 +100,11 @@
               {% endif %}
 
               <li><a href="{% url 'profile_detail' user.pk %}"><span>Account ({{ user.username }})</span></a></li>
-              <li><a href="{% url 'auth_logout' %}"><span>Sign out</span></a></li>
+              <li><a href="{% url 'logout' %}"><span>Sign out</span></a></li>
 
             {% else %}
 
-              <li><a href="{% url 'auth_login' %}"><span>Sign in</span></a></li>
+              <li><a href="{% url 'login' %}"><span>Sign in</span></a></li>
               <li><a href="{% url 'registration_register' %}"><span>Register</span></a></li>
 
             {% endif %}

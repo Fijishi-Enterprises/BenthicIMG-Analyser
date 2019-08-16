@@ -25,7 +25,10 @@ var LabelList = (function() {
             // (Using $.ajax() instead of $.get() should allow us to pass a
             // FormData, but for some reason I couldn't get that use case to
             // work with a GET request. -Stephen)
-            {'name_search': formData.get('name_search')},
+            {'name_search': formData.get('name_search'),
+             'status': formData.get('status'),
+             'functional_group': formData.get('functional_group'),
+             'min_popularity': formData.get('min_popularity')},
             // Callbacks
             handleSearchResponse
         ).fail(util.handleServerError);
@@ -71,11 +74,17 @@ var LabelList = (function() {
             $searchForm = $('#search-form');
 
             // Update search results 0.75s after changing a field
-            var timeout = 750;
-            $searchForm.find('input').keyup(function() {
+            var afterChange = function() {
                 clearTimeout(searchFieldTypingTimer);
-                searchFieldTypingTimer = setTimeout(submitSearch, timeout);
-            });
+                searchFieldTypingTimer = setTimeout(submitSearch, 750);
+            };
+            // Typing in text fields
+            $searchForm.find('input').keyup(afterChange);
+            // Changing and then unfocusing from text fields (e.g. using
+            // up/down arrows on a number field)
+            $searchForm.find('input').change(afterChange);
+            // Changing dropdown values
+            $searchForm.find('select').change(afterChange);
         }
     }
 })();

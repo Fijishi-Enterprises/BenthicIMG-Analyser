@@ -7,8 +7,8 @@ from django.core.exceptions import ValidationError
 from django.core.mail import EmailMessage
 from django.core.validators import validate_comma_separated_integer_list
 from django.forms import Form
-from django.forms.fields import CharField
-from django.forms.models import ModelForm, BaseModelFormSet
+from django.forms.fields import CharField, ChoiceField, IntegerField
+from django.forms.models import ModelChoiceField, ModelForm, BaseModelFormSet
 from django.forms.widgets import TextInput, HiddenInput
 from django.template.loader import render_to_string
 from django.urls import reverse
@@ -18,7 +18,7 @@ from django.utils.safestring import mark_safe
 from annotations.utils import get_labels_with_annotations_in_source
 from lib.exceptions import FileProcessError
 from lib.forms import get_one_form_error
-from .models import Label, LabelSet, LocalLabel
+from .models import Label, LabelGroup, LabelSet, LocalLabel
 from .utils import search_labels_by_text
 
 
@@ -317,13 +317,56 @@ class LabelSearchForm(Form):
         max_length=Label._meta.get_field('name').max_length,
         required=False)
 
+    status = ChoiceField(
+        choices=(
+            ('', "All"),
+            ('verified', "Verified"),
+            ('duplicate', "Duplicate"),
+            # Not verified, not duplicate
+            ('no_special', "No special status")),
+        required=False)
+
+    functional_group = ModelChoiceField(
+        queryset=LabelGroup.objects.all(),
+        empty_label="All",
+        required=False)
+
+    min_popularity = IntegerField(
+        label="Minimum popularity (0-100)",
+        required=False,
+        min_value=0, max_value=100)
+
     def get_labels(self):
-        """After validating the form, call this method to get the labels
-        corresponding to the search parameters."""
+        """
+        After validating the form, call this method to get the labels
+        corresponding to the search parameters.
+        Returns an ITERABLE of Labels, not necessarily a queryset (because
+        the popularity filter can't be implemented on the database side).
+        """
         if self.cleaned_data['name_search']:
             labels = search_labels_by_text(self.cleaned_data['name_search'])
         else:
             labels = Label.objects.all()
+
+        if self.cleaned_data['status']:
+            status = self.cleaned_data['status']
+            if status == 'verified':
+                labels = labels.filter(verified=True)
+            elif status == 'duplicate':
+                labels = labels.filter(duplicate__isnull=False)
+            elif status == 'no_special':
+                labels = labels.filter(verified=False, duplicate__isnull=True)
+
+        if self.cleaned_data['functional_group']:
+            labels = labels.filter(group=self.cleaned_data['functional_group'])
+
+        if self.cleaned_data['min_popularity']:
+            min_popularity = int(self.cleaned_data['min_popularity'])
+            # Popularity isn't a database field, so we'll have to convert to a
+            # list here.
+            labels = [
+                label for label in labels
+                if label.popularity >= min_popularity]
 
         return labels
 

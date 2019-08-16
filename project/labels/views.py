@@ -508,4 +508,4 @@ def label_list_search_ajax(request):
             error=get_one_form_error(search_form)))
 
     return JsonResponse(dict(
-        label_ids=list(labels.values_list('pk', flat=True))))
+        label_ids=[label.pk for label in labels]))

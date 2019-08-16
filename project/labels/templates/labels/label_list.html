@@ -25,9 +25,19 @@
     </div>
   {% endif %}
 
-  <label for="label-search-field">Search labels by name: </label>
-  <input type="text" id="label-search-field" name="search"
-    data-url="{% url 'label_list_search_ajax' %}"/>
+  {# Search form #}
+  <div id="search-form-box" class="box">
+    <form id="search-form" data-url="{% url 'label_list_search_ajax' %}">
+
+      {% for field in search_form %}
+        {# Put label+field in a div to ensure they stay on the same line. #}
+        <div style="display: inline-block">
+          {{ field.label }}: {{ field }} </div>
+      {% endfor %}
+
+    </form>
+  </div>
+
   <div id="label-search-status" class="line"></div>
 
   <table id="label-table" class="detail_table">

@@ -142,3 +142,26 @@ p {
     margin: 0.5em 0;  /* top/bottom left/right */
     line-height: 1.0em;
 }
+
+
+/* Label list search box */
+div.box {
+    padding: 10px;
+    margin: 10px 0;
+
+    background-color: #e0e0e0;
+    border: 1px solid #000000;
+    border-radius: 5px;
+}
+div#search-form-box {
+    width: 800px;
+}
+div#search-form-box form {
+    display: inline-block;
+    margin: 0;
+    padding: 0;
+    width: auto;
+}
+div#search-form-box label {
+    width: auto;
+}

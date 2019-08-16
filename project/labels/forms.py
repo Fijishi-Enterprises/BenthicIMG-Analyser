@@ -19,6 +19,7 @@ from annotations.utils import get_labels_with_annotations_in_source
 from lib.exceptions import FileProcessError
 from lib.forms import get_one_form_error
 from .models import Label, LabelSet, LocalLabel
+from .utils import search_labels_by_text
 
 
 def csv_to_dict(
@@ -307,6 +308,24 @@ class LabelFormForCurators(LabelForm):
         # name-ordered by default, which we might not want.
         self.fields['duplicate'].queryset = \
             self.fields['duplicate'].queryset.order_by('name')
+
+
+class LabelSearchForm(Form):
+
+    name_search = CharField(
+        label="Search by name",
+        max_length=Label._meta.get_field('name').max_length,
+        required=False)
+
+    def get_labels(self):
+        """After validating the form, call this method to get the labels
+        corresponding to the search parameters."""
+        if self.cleaned_data['name_search']:
+            labels = search_labels_by_text(self.cleaned_data['name_search'])
+        else:
+            labels = Label.objects.all()
+
+        return labels
 
 
 class LabelSetForm(Form):

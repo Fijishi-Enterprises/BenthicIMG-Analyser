@@ -22,7 +22,7 @@ def popularity_bar(label, short=False):
     # float -> int to truncate decimal, then int -> str
     bar_width = str(int(label.popularity)) + '%'
     return mark_safe(
-        '<div class="{meter_class}">'
+        '<div class="{meter_class}" title="{bar_width}">'
         '  <span class="{color}" style="width: {bar_width};"></span>'
         '</div>'.format(
             meter_class=meter_class, color=color, bar_width=bar_width)

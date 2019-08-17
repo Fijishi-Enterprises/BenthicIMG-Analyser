@@ -115,7 +115,11 @@ class ClientUtilsMixin(object):
         """
         cls.user_count += 1
         if not username:
-            username = 'user{n}'.format(n=cls.user_count)
+            # Generate a username. If some tests check for string matching
+            # of usernames, then having both 'user1' and 'user10' could be
+            # problematic; so we add leading zeroes to the number suffix, like
+            # 'user0001'.
+            username = 'user{n:04d}'.format(n=cls.user_count)
         if not email:
             email = '{username}@example.com'.format(username=username)
 
@@ -173,7 +177,7 @@ class ClientUtilsMixin(object):
         """
         cls.source_count += 1
         if not name:
-            name = 'Source {n}'.format(n=cls.source_count)
+            name = 'Source {n:04d}'.format(n=cls.source_count)
 
         post_dict = dict()
         post_dict.update(cls.source_defaults)
@@ -296,7 +300,7 @@ class ClientUtilsMixin(object):
         # Get an image file
         image_options = image_options or dict()
         filetype = image_options.pop('filetype', 'PNG')
-        default_filename = "file_{count}.{filetype}".format(
+        default_filename = "file_{count:04d}.{filetype}".format(
             count=cls.image_count, filetype=filetype.lower())
         filename = image_options.pop('filename', default_filename)
         post_dict['file'] = sample_image_as_file(
@@ -878,7 +882,8 @@ class BasePermissionTest(ClientTest):
         # about permission
         self.assertTemplateNotUsed(response, self.PERMISSION_DENIED_TEMPLATE)
 
-    def assertPermissionDenied(self, url, user=None, post_data=None):
+    def assertPermissionDenied(
+            self, url, user=None, post_data=None, deny_message=None):
         if user:
             self.client.force_login(user)
         else:
@@ -888,7 +893,10 @@ class BasePermissionTest(ClientTest):
             response = self.client.post(url, post_data)
         else:
             response = self.client.get(url)
+
         self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+        if deny_message:
+            self.assertContains(response, deny_message)
 
     def assertNotFound(self, url, user=None, post_data=None):
         if user:

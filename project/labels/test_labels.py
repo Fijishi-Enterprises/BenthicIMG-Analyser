@@ -100,21 +100,21 @@ class LabelSearchTest(ClientTest):
         self.create_labels(self.user, ["Red", "Blue"], "Group1")
 
         self.client.force_login(self.user)
-        response = self.client.get(self.url, dict(search="Red"))
+        response = self.client.get(self.url, dict(name_search="Red"))
         self.assertLabels(response, ["Red"])
 
     def test_match_part_of_name(self):
         self.create_labels(self.user, ["Red", "Blue"], "Group1")
 
         self.client.force_login(self.user)
-        response = self.client.get(self.url, dict(search="Blu"))
+        response = self.client.get(self.url, dict(name_search="Blu"))
         self.assertLabels(response, ["Blue"])
 
     def test_match_case_insensitive(self):
         self.create_labels(self.user, ["Red", "Blue"], "Group1")
 
         self.client.force_login(self.user)
-        response = self.client.get(self.url, dict(search="BLUE"))
+        response = self.client.get(self.url, dict(name_search="BLUE"))
         self.assertLabels(response, ["Blue"])
 
     def test_match_multiple_labels(self):
@@ -122,7 +122,7 @@ class LabelSearchTest(ClientTest):
             self.user, ["Red", "Light Blue", "Dark Blue"], "Group1")
 
         self.client.force_login(self.user)
-        response = self.client.get(self.url, dict(search="Blue"))
+        response = self.client.get(self.url, dict(name_search="Blue"))
         self.assertLabels(response, ["Light Blue", "Dark Blue"])
 
     def test_multiple_words(self):
@@ -130,21 +130,21 @@ class LabelSearchTest(ClientTest):
             self.user, ["Light Blue", "Dark Blue", "Dark Red"], "Group1")
 
         self.client.force_login(self.user)
-        response = self.client.get(self.url, dict(search="Dark Blue"))
+        response = self.client.get(self.url, dict(name_search="Dark Blue"))
         self.assertLabels(response, ["Dark Blue"])
 
     def test_no_match(self):
         self.create_labels(self.user, ["Red", "Blue"], "Group1")
 
         self.client.force_login(self.user)
-        response = self.client.get(self.url, dict(search="Green"))
+        response = self.client.get(self.url, dict(name_search="Green"))
         self.assertLabels(response, [])
 
     def test_strip_whitespace(self):
         self.create_labels(self.user, ["Blue", "Red"], "Group1")
 
         self.client.force_login(self.user)
-        response = self.client.get(self.url, dict(search="  Blue "))
+        response = self.client.get(self.url, dict(name_search="  Blue "))
         self.assertLabels(response, ["Blue"])
 
     def test_normalize_multiple_spaces(self):
@@ -152,7 +152,7 @@ class LabelSearchTest(ClientTest):
             self.user, ["Light Blue", "Dark Blue", "Dark Red"], "Group1")
 
         self.client.force_login(self.user)
-        response = self.client.get(self.url, dict(search="Dark   Blue"))
+        response = self.client.get(self.url, dict(name_search="Dark   Blue"))
         self.assertLabels(response, ["Dark Blue"])
 
     def test_treat_punctuation_as_spaces(self):
@@ -160,7 +160,8 @@ class LabelSearchTest(ClientTest):
             self.user, ["Light Blue", "Dark Blue", "Dark Red"], "Group1")
 
         self.client.force_login(self.user)
-        response = self.client.get(self.url, dict(search=";'Dark_/Blue=-"))
+        response = self.client.get(
+            self.url, dict(name_search=";'Dark_/Blue=-"))
         self.assertLabels(response, ["Dark Blue"])
 
     def test_no_tokens(self):
@@ -168,8 +169,10 @@ class LabelSearchTest(ClientTest):
             self.user, ["Light Blue", "Dark Blue", "Dark Red"], "Group1")
 
         self.client.force_login(self.user)
-        response = self.client.get(self.url, dict(search=";'_/=-"))
+        response = self.client.get(self.url, dict(name_search=";'_/=-"))
         self.assertLabels(response, [])
+
+    # TODO: Test filtering on other fields besides name_search
 
 
 class LabelDetailTest(ClientTest):

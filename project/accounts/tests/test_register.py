@@ -15,8 +15,9 @@ User = get_user_model()
 class RegisterTest(BaseAccountsTest):
 
     def test_load_page(self):
-        response = self.client.get(reverse('registration_register'))
-        self.assertTemplateUsed(response, 'registration/registration_form.html')
+        response = self.client.get(reverse('django_registration_register'))
+        self.assertTemplateUsed(
+            response, 'django_registration/registration_form.html')
 
     def test_load_page_when_signed_in(self):
         """
@@ -24,13 +25,14 @@ class RegisterTest(BaseAccountsTest):
         a major use case, but nothing inherently wrong with it either.
         """
         self.client.force_login(self.user)
-        response = self.client.get(reverse('registration_register'))
-        self.assertTemplateUsed(response, 'registration/registration_form.html')
+        response = self.client.get(reverse('django_registration_register'))
+        self.assertTemplateUsed(
+            response, 'django_registration/registration_form.html')
 
     def test_success(self):
         response = self.register()
         self.assertTemplateUsed(
-            response, 'registration/registration_complete.html')
+            response, 'django_registration/registration_complete.html')
 
         # Check that an activation email was sent.
         self.assertEqual(len(mail.outbox), 1)
@@ -56,7 +58,7 @@ class RegisterTest(BaseAccountsTest):
 
         # We should still be at the registration page with an error.
         self.assertTemplateUsed(
-            response, 'registration/registration_form.html')
+            response, 'django_registration/registration_form.html')
         self.assertContains(
             response, "A user with that username already exists.")
 
@@ -70,7 +72,7 @@ class RegisterTest(BaseAccountsTest):
 
         # We should still be at the registration page with an error.
         self.assertTemplateUsed(
-            response, 'registration/registration_form.html')
+            response, 'django_registration/registration_form.html')
         self.assertContains(
             response, "A user with that username already exists.")
 
@@ -81,7 +83,7 @@ class RegisterTest(BaseAccountsTest):
 
         # We should still be at the registration page with an error.
         self.assertTemplateUsed(
-            response, 'registration/registration_form.html')
+            response, 'django_registration/registration_form.html')
         self.assertContains(
             response, escape(
                 "Your username can't be an email address."
@@ -99,7 +101,7 @@ class RegisterTest(BaseAccountsTest):
 
         # We should still be at the registration page with an error.
         self.assertTemplateUsed(
-            response, 'registration/registration_form.html')
+            response, 'django_registration/registration_form.html')
         self.assertContains(
             response,
             escape(
@@ -118,7 +120,7 @@ class RegisterTest(BaseAccountsTest):
 
         # We should still be at the registration page with an error.
         self.assertTemplateUsed(
-            response, 'registration/registration_form.html')
+            response, 'django_registration/registration_form.html')
         self.assertContains(
             response, escape("Enter a valid username."))
 
@@ -137,7 +139,7 @@ class RegisterTest(BaseAccountsTest):
 
         # We should still be at the registration page with an error.
         self.assertTemplateUsed(
-            response, 'registration/registration_form.html')
+            response, 'django_registration/registration_form.html')
         self.assertContains(
             response, escape("Enter a valid username."))
 
@@ -153,7 +155,7 @@ class RegisterTest(BaseAccountsTest):
         )
         # Should not get an error.
         self.assertTemplateUsed(
-            response, 'registration/registration_complete.html')
+            response, 'django_registration/registration_complete.html')
 
         # 2 emails should've been sent: 1 for first registration and
         # 1 for second registration attempt.
@@ -173,7 +175,7 @@ class RegisterTest(BaseAccountsTest):
         )
         # Should not get an error.
         self.assertTemplateUsed(
-            response, 'registration/registration_complete.html')
+            response, 'django_registration/registration_complete.html')
 
         # 2 emails, 1 for each registration (notably, the 2nd registration
         # went through).
@@ -221,7 +223,7 @@ class RegisterTest(BaseAccountsTest):
 
         # We should still be at the registration page with an error.
         self.assertTemplateUsed(
-            response, 'registration/registration_form.html')
+            response, 'django_registration/registration_form.html')
         self.assertContains(
             response, escape("Enter a valid email address."))
 
@@ -233,7 +235,7 @@ class RegisterTest(BaseAccountsTest):
 
         # We should still be at the registration page with an error.
         self.assertTemplateUsed(
-            response, 'registration/registration_form.html')
+            response, 'django_registration/registration_form.html')
         self.assertContains(
             response, escape("The two password fields didn't match."))
 
@@ -249,7 +251,7 @@ class RegisterTest(BaseAccountsTest):
 
         # We should still be at the registration page with an error.
         self.assertTemplateUsed(
-            response, 'registration/registration_form.html')
+            response, 'django_registration/registration_form.html')
         self.assertContains(
             response, "This password is too short.")
 
@@ -257,56 +259,56 @@ class RegisterTest(BaseAccountsTest):
         response = self.register(first_name='')
 
         self.assertTemplateUsed(
-            response, 'registration/registration_form.html')
+            response, 'django_registration/registration_form.html')
         self.assertContains(response, "This field is required.")
 
     def test_last_name_required(self):
         response = self.register(last_name='')
 
         self.assertTemplateUsed(
-            response, 'registration/registration_form.html')
+            response, 'django_registration/registration_form.html')
         self.assertContains(response, "This field is required.")
 
     def test_affiliation_required(self):
         response = self.register(affiliation='')
 
         self.assertTemplateUsed(
-            response, 'registration/registration_form.html')
+            response, 'django_registration/registration_form.html')
         self.assertContains(response, "This field is required.")
 
     def test_reason_for_registering_required(self):
         response = self.register(reason_for_registering='')
 
         self.assertTemplateUsed(
-            response, 'registration/registration_form.html')
+            response, 'django_registration/registration_form.html')
         self.assertContains(response, "This field is required.")
 
     def test_project_description_required(self):
         response = self.register(project_description='')
 
         self.assertTemplateUsed(
-            response, 'registration/registration_form.html')
+            response, 'django_registration/registration_form.html')
         self.assertContains(response, "This field is required.")
 
     def test_how_did_you_hear_about_us_required(self):
         response = self.register(how_did_you_hear_about_us='')
 
         self.assertTemplateUsed(
-            response, 'registration/registration_form.html')
+            response, 'django_registration/registration_form.html')
         self.assertContains(response, "This field is required.")
 
     def test_did_not_agree_to_policy(self):
         response = self.register(agree_to_data_policy=False)
 
         self.assertTemplateUsed(
-            response, 'registration/registration_form.html')
+            response, 'django_registration/registration_form.html')
         self.assertContains(response, "This field is required.")
 
     def test_honeypot(self):
         response = self.register(username2='a')
 
         self.assertTemplateUsed(
-            response, 'registration/registration_form.html')
+            response, 'django_registration/registration_form.html')
         self.assertContains(
             response,
             escape("If you're human, don't fill in the hidden trap field."))
@@ -336,7 +338,7 @@ class ActivateTest(BaseAccountsTest):
         # Navigate to the activation link.
         response = self.client.get(activation_link, follow=True)
         self.assertTemplateUsed(
-            response, 'registration/activation_complete.html')
+            response, 'django_registration/activation_complete.html')
 
         # The user should be active.
         user = User.objects.get(username='alice')
@@ -349,7 +351,8 @@ class ActivateTest(BaseAccountsTest):
         # (Note that the last char is a slash, so must chop at least 2.)
         response = self.client.get(activation_link[:-3], follow=True)
         # Should get the activation failure template.
-        self.assertTemplateUsed(response, 'registration/activate.html')
+        self.assertTemplateUsed(
+            response, 'django_registration/activation_failed.html')
 
         # The user should still be inactive.
         user = User.objects.get(username='alice')
@@ -363,7 +366,8 @@ class ActivateTest(BaseAccountsTest):
             # Wait 1 second before using the confirmation link
             time.sleep(1)
             response = self.client.get(activation_link, follow=True)
-            self.assertTemplateUsed(response, 'registration/activate.html')
+            self.assertTemplateUsed(
+                response, 'django_registration/activation_failed.html')
 
         # The user should still be inactive.
         user = User.objects.get(username='alice')
@@ -382,7 +386,8 @@ class ActivateTest(BaseAccountsTest):
         # Attempt to activate again. Should get the failure template because
         # the user is already active. (This is django-registration's behavior.)
         response = self.client.get(activation_link, follow=True)
-        self.assertTemplateUsed(response, 'registration/activate.html')
+        self.assertTemplateUsed(
+            response, 'django_registration/activation_failed.html')
 
 
 class ActivationResendTest(BaseAccountsTest):
@@ -390,7 +395,7 @@ class ActivationResendTest(BaseAccountsTest):
     def test_load_page(self):
         response = self.client.get(reverse('activation_resend'))
         self.assertTemplateUsed(
-            response, 'registration/activation_resend_form.html')
+            response, 'django_registration/activation_resend_form.html')
 
     def test_success(self):
         # Register. This sends an email.
@@ -401,7 +406,7 @@ class ActivationResendTest(BaseAccountsTest):
             reverse('activation_resend'),
             dict(email='alice123@example.com'), follow=True)
         self.assertTemplateUsed(
-            response, 'registration/activation_resend_complete.html')
+            response, 'django_registration/activation_resend_complete.html')
 
         # Should have 2 emails now.
         self.assertEqual(len(mail.outbox), 2)

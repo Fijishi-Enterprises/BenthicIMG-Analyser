@@ -9,7 +9,8 @@ from django.core.validators import (
 from django.forms import Form, ModelForm
 from django.forms.fields import BooleanField, CharField, EmailField
 from django.forms.widgets import Textarea, TextInput
-from registration.forms import RegistrationForm as DefaultRegistrationForm
+from django_registration.forms import (
+    RegistrationForm as DefaultRegistrationForm)
 
 from .models import Profile
 

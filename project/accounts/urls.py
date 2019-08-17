@@ -18,25 +18,13 @@ urlpatterns = [
         name='login'),
     url(r'^register/$',
         views.register,
-        name='registration_register'),
+        name='django_registration_register'),
+
+    # django-registration URLs, such as account activation.
+    url(r'', include('django_registration.backends.activation.urls')),
 
     # django.contrib.auth URLs, such as login and password reset.
     url(r'', include('django.contrib.auth.urls')),
-
-    # django-registration URLs, such as account activation.
-    #
-    # These are included AFTER django.contrib.auth URLs so that
-    # django.contrib.auth wins out in case of URL pattern conflicts.
-    # This is key because this registration include also includes the auth
-    # URLs, except with different names that make things break.
-    # The one thing that django-registration truly overrides is the
-    # register view, but we have our own customization on top of that, so
-    # we define register above auth anyway.
-    #
-    # (TODO: The above comment would no longer apply once we upgrade to
-    # django-registration 3.0, which no longer tries to include the auth URLs
-    # for us.)
-    url(r'', include('registration.backends.hmac.urls')),
 
     # Views for re-sending an activation email, in case it expired or got lost.
     url(r'^activation/resend/$',
@@ -44,7 +32,7 @@ urlpatterns = [
         name='activation_resend'),
     url(r'^activation/resend/complete/$',
         TemplateView.as_view(
-            template_name='registration/activation_resend_complete.html'
+            template_name='django_registration/activation_resend_complete.html'
         ),
         name='activation_resend_complete'),
 

@@ -123,7 +123,7 @@ class ClientUtilsMixin(object):
         if not email:
             email = '{username}@example.com'.format(username=username)
 
-        cls.client.post(reverse('registration_register'), dict(
+        cls.client.post(reverse('django_registration_register'), dict(
             username=username, email=email,
             password1=password, password2=password,
             first_name="-", last_name="-",

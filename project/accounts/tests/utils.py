@@ -35,7 +35,7 @@ class BaseAccountsTest(ClientTest):
             agree_to_data_policy=agree_to_data_policy,
             username2=username2)
         response = self.client.post(
-            reverse('registration_register'), data, follow=True)
+            reverse('django_registration_register'), data, follow=True)
         return response
 
     def register_and_get_activation_link(self):

@@ -168,3 +168,30 @@ div#search-form-box input[name="min_popularity"] {
 div#search-form-box label {
     width: auto;
 }
+
+
+/* Label detail page */
+div.label-basic-info-and-thumbnail-wrapper {
+    display: flex;
+}
+
+div.label-basic-info {
+    max-width: 400px;
+    margin-right: 30px;
+}
+
+img.label-thumbnail {
+    /* Depending on container rules, the image might get stretched out of
+     aspect ratio unless we specify size explicitly. */
+    width: 150px;
+    height: 150px;
+}
+
+span.label-description {
+    display: block;
+    margin-left: 30px;
+}
+
+div#patches-container {
+    margin: 0.5em 0;
+}

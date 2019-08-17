@@ -138,7 +138,6 @@ class ListedEntriesTest(ClientTest, BlogTestMixin):
         row_divs = response_soup.find_all('div', class_='blog-entry-row')
         listed_titles = [
             row_div.find('h3').find('a').contents[0] for row_div in row_divs]
-        print(listed_titles)
         self.assertListEqual(
             ["Entry 2", "Entry 3", "Entry 1"], listed_titles,
             "Draft first, then newer public entry, then older public entry")

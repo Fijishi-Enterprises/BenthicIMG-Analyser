@@ -91,8 +91,20 @@ class PasswordResetTest(ClientTest):
 
         instructions_email = mail.outbox[-1]
         self.assertListEqual(
-            instructions_email.to, ['email.address@example.com'])
-        self.assertIn(self.user.username, instructions_email.body)
+            instructions_email.to, ['email.address@example.com'],
+            "Recipients should be correct")
+        self.assertListEqual(instructions_email.cc, [], "cc should be empty")
+        self.assertListEqual(instructions_email.bcc, [], "bcc should be empty")
+        self.assertIn(
+            "Reset your password", instructions_email.subject,
+            "Subject template should be correct, based on subject text")
+        self.assertIn(
+            "you requested a password reset",
+            instructions_email.body,
+            "Email body template should be correct, based on body text")
+        self.assertIn(
+            self.user.username, instructions_email.body,
+            "Username should be in the email body")
 
     def test_reset(self):
         reset_link = self.submit_and_get_reset_link()

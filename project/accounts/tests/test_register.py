@@ -36,10 +36,23 @@ class RegisterTest(BaseAccountsTest):
 
         # Check that an activation email was sent.
         self.assertEqual(len(mail.outbox), 1)
-        # Check that the intended recipient is the only recipient.
         activation_email = mail.outbox[-1]
-        self.assertEqual(len(activation_email.to), 1)
-        self.assertEqual(activation_email.to[0], 'alice123@example.com')
+
+        self.assertListEqual(
+            activation_email.to, ['alice123@example.com'],
+            "Recipients should be correct")
+        self.assertListEqual(activation_email.cc, [], "cc should be empty")
+        self.assertListEqual(activation_email.bcc, [], "bcc should be empty")
+        self.assertIn(
+            "Activate your new CoralNet account", activation_email.subject,
+            "Subject template should be correct, based on subject text")
+        self.assertIn(
+            "Please activate your new account using this link",
+            activation_email.body,
+            "Email body template should be correct, based on body text")
+        self.assertIn(
+            "7 days", activation_email.body,
+            "Link validity period should be in the email body")
 
         # Check that the new user exists, but is inactive.
         user = User.objects.get(username='alice', email='alice123@example.com')
@@ -198,15 +211,25 @@ class RegisterTest(BaseAccountsTest):
             email='alice123@example.com',
         )
 
-        already_exists_email = mail.outbox[-1]
-        # Check that the intended recipient is the only recipient.
-        self.assertEqual(len(already_exists_email.to), 1)
-        self.assertEqual(already_exists_email.to[0], 'alice123@example.com')
-        # Should mention the existing username somewhere in the email.
+        exists_email = mail.outbox[-1]
+
+        self.assertListEqual(
+            exists_email.to, ['alice123@example.com'],
+            "Recipients should be correct")
+        self.assertListEqual(exists_email.cc, [], "cc should be empty")
+        self.assertListEqual(exists_email.bcc, [], "bcc should be empty")
+        self.assertIn(
+            "About your CoralNet account request", exists_email.subject,
+            "Subject template should be correct, based on subject text")
+        self.assertIn(
+            "tried to register a CoralNet account with this email address."
+            " However, there is already",
+            exists_email.body,
+            "Email body template should be correct, based on body text")
         existing_user = User.objects.get(email='alice123@example.com')
-        self.assertIn(existing_user.username, already_exists_email.body)
-        # Sanity check that this is the correct email template.
-        self.assertIn("already", already_exists_email.body)
+        self.assertIn(
+            existing_user.username, exists_email.body,
+            "Username should be in the email body")
 
     def test_email_reject_unicode_confusables(self):
         """

@@ -67,11 +67,24 @@ class EmailChangeTest(ClientTest):
 
         confirmation_email = mail.outbox[-2]
         self.assertListEqual(
-            confirmation_email.to, ['new.email.address@example.com'])
-        self.assertIn(self.user.username, confirmation_email.body)
+            confirmation_email.to, ['new.email.address@example.com'],
+            "Recipients should be correct")
+        self.assertListEqual(confirmation_email.cc, [], "cc should be empty")
+        self.assertListEqual(confirmation_email.bcc, [], "bcc should be empty")
+        self.assertIn(
+            "Confirm your email change", confirmation_email.subject,
+            "Subject template should be correct, based on subject text")
+        self.assertIn(
+            "Click this link to confirm usage of this email address",
+            confirmation_email.body,
+            "Email body template should be correct, based on body text")
+        self.assertIn(
+            self.user.username, confirmation_email.body,
+            "Username should be in the email body")
         self.assertIn(
             "{h} hours".format(h=settings.EMAIL_CHANGE_CONFIRMATION_HOURS),
-            confirmation_email.body)
+            confirmation_email.body,
+            "Link validity period should be in the email body")
 
     def test_submit_notice_email_details(self):
         self.client.force_login(self.user)
@@ -80,12 +93,28 @@ class EmailChangeTest(ClientTest):
 
         notice_email = mail.outbox[-1]
         self.assertListEqual(
-            notice_email.to, ['old.email.address@example.com'])
-        self.assertIn(self.user.username, notice_email.body)
-        self.assertIn('new.email.address@example.com', notice_email.body)
+            notice_email.to, ['old.email.address@example.com'],
+            "Recipients should be correct")
+        self.assertListEqual(notice_email.cc, [], "cc should be empty")
+        self.assertListEqual(notice_email.bcc, [], "bcc should be empty")
+        self.assertIn(
+            "Email change requested for your", notice_email.subject,
+            "Subject template should be correct, based on subject text")
+        self.assertIn(
+            "The existing email address is this one, and the pending new email"
+            " address is",
+            notice_email.body,
+            "Email body template should be correct, based on body text")
+        self.assertIn(
+            self.user.username, notice_email.body,
+            "Username should be in the email body")
+        self.assertIn(
+            'new.email.address@example.com', notice_email.body,
+            "New email address should be in the email body")
         self.assertIn(
             "{h} hours".format(h=settings.EMAIL_CHANGE_CONFIRMATION_HOURS),
-            notice_email.body)
+            notice_email.body,
+            "Link validity period should be in the email body")
 
     def test_confirm(self):
         confirmation_link = self.submit_and_get_confirmation_link()
@@ -116,14 +145,23 @@ class EmailChangeTest(ClientTest):
         # Only 1 email should've been sent, to the new address.
         self.assertEqual(len(mail.outbox), 1)
 
-        already_exists_email = mail.outbox[-1]
-        # Check that the intended recipient is the only recipient.
-        self.assertEqual(len(already_exists_email.to), 1)
-        self.assertEqual(already_exists_email.to[0], self.user2.email)
-        # Should mention the existing username somewhere in the email.
-        self.assertIn(self.user2.username, already_exists_email.body)
-        # Sanity check that this is the correct email template.
-        self.assertIn("already", already_exists_email.body)
+        exists_email = mail.outbox[-1]
+        self.assertListEqual(
+            exists_email.to, [self.user2.email],
+            "Recipients should be correct")
+        self.assertListEqual(exists_email.cc, [], "cc should be empty")
+        self.assertListEqual(exists_email.bcc, [], "bcc should be empty")
+        self.assertIn(
+            "About your email change request", exists_email.subject,
+            "Subject template should be correct, based on subject text")
+        self.assertIn(
+            "tried to change a CoralNet account's email address to this"
+            " address. However, there is already",
+            exists_email.body,
+            "Email body template should be correct, based on body text")
+        self.assertIn(
+            self.user2.username, exists_email.body,
+            "Username should be in the email body")
 
     def test_confirm_signed_out(self):
         confirmation_link = self.submit_and_get_confirmation_link()

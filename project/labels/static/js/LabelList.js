@@ -92,6 +92,9 @@ var LabelList = (function() {
             $searchForm.find('input').change(afterChange);
             // Changing dropdown values
             $searchForm.find('select').change(afterChange);
+
+            // Submit a search at the outset to apply the default filters
+            submitSearch();
         }
     }
 })();

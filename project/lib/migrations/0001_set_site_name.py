@@ -32,6 +32,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('sites', '0002_alter_domain_unique'),
+        ('taggit', '0002_auto_20150616_2121')
     ]
 
     operations = [

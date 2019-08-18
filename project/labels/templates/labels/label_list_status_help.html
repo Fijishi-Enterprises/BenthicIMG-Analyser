@@ -1,0 +1,48 @@
+{% load static %}
+
+<p>
+  Verified:
+  <img class="label-status-image" alt="Verified"
+       src="{% static 'img/label-icon-verified__16x16.png' %}" />
+</p>
+
+<p>
+  Duplicate:
+  <img class="label-status-image" alt="Duplicate"
+       src="{% static 'img/label-icon-duplicate__16x16.png' %}" />
+</p>
+
+</p>
+  If possible, please compose your source's label-set with verified labels, and avoid duplicate labels.
+  This will ensure more studies are compatible across sources.
+  Verified labels will be updated as the scientific literature evolves.
+</p>
+
+<h4>Verified</h4>
+
+<p>
+  A label is <strong>verified</strong> after it has been inspected by our label-set <a href="{% url 'about' %}#people">curator</a>.
+  It needs to comply with the following criteria:
+</p>
+
+<ul class="simple">
+  <li>Correct spelling.</li>
+  <li>Default Short Code formatting consistent with other labels.</li>
+  <li>Satisfactory description.</li>
+  <li>Not an exact duplicate of another label.</li>
+</ul>
+
+<h4>Duplicate</h4>
+<p>
+  If a non-verified label semantically represents the same thing as a verified label, it may be marked as a <strong>duplicate</strong>.
+</p>
+
+<h4>Neither</h4>
+<p>
+  If a label is neither <strong>verified</strong> nor <strong>duplicate</strong> it means that either
+  <ul class="simple">
+  <li>The label is unique but bespoke to a certain study.</li>
+  <li>It has not yet been inspected by the label-set curator.</li>
+</ul>
+
+

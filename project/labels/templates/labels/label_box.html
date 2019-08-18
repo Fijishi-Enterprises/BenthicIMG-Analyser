@@ -1,4 +1,4 @@
-{% load popularity_bar verified_icon from labels %}
+{% load popularity_bar status_icon from labels %}
 
 {% if type == 'add' %}
   <span class="add-remove-button add"> + </span>
@@ -9,6 +9,6 @@
 <span class="detail-button" title="View label details">
   <span class="label-name">{{ label.name }}</span>
 
-  {% verified_icon label %}
+  {% status_icon label %}
   {% popularity_bar label short=True %}
 </span>

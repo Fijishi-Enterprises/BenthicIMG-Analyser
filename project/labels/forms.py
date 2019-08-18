@@ -7,8 +7,8 @@ from django.core.exceptions import ValidationError
 from django.core.mail import EmailMessage
 from django.core.validators import validate_comma_separated_integer_list
 from django.forms import Form
-from django.forms.fields import CharField
-from django.forms.models import ModelForm, BaseModelFormSet
+from django.forms.fields import BooleanField, CharField, IntegerField
+from django.forms.models import ModelChoiceField, ModelForm, BaseModelFormSet
 from django.forms.widgets import TextInput, HiddenInput
 from django.template.loader import render_to_string
 from django.urls import reverse
@@ -18,7 +18,8 @@ from django.utils.safestring import mark_safe
 from annotations.utils import get_labels_with_annotations_in_source
 from lib.exceptions import FileProcessError
 from lib.forms import get_one_form_error
-from .models import Label, LabelSet, LocalLabel
+from .models import Label, LabelGroup, LabelSet, LocalLabel
+from .utils import search_labels_by_text
 
 
 def csv_to_dict(
@@ -307,6 +308,63 @@ class LabelFormForCurators(LabelForm):
         # name-ordered by default, which we might not want.
         self.fields['duplicate'].queryset = \
             self.fields['duplicate'].queryset.order_by('name')
+
+
+class LabelSearchForm(Form):
+
+    name_search = CharField(
+        label="Search by name",
+        max_length=Label._meta.get_field('name').max_length,
+        required=False)
+
+    show_verified = BooleanField(
+        label="Verified", initial=True, required=False)
+    show_regular = BooleanField(
+        label="Regular", initial=True, required=False)
+    show_duplicate = BooleanField(
+        label="Duplicate", initial=False, required=False)
+
+    functional_group = ModelChoiceField(
+        queryset=LabelGroup.objects.all(),
+        empty_label="All",
+        required=False)
+
+    min_popularity = IntegerField(
+        label="Minimum popularity (0-100)",
+        required=False,
+        min_value=0, max_value=100)
+
+    def get_labels(self):
+        """
+        After validating the form, call this method to get the labels
+        corresponding to the search parameters.
+        Returns an ITERABLE of Labels, not necessarily a queryset (because
+        the popularity filter can't be implemented on the database side).
+        """
+        if self.cleaned_data['name_search']:
+            labels = search_labels_by_text(self.cleaned_data['name_search'])
+        else:
+            labels = Label.objects.all()
+
+        if not self.cleaned_data['show_verified']:
+            labels = labels.exclude(verified=True)
+        if not self.cleaned_data['show_regular']:
+            labels = labels.exclude(verified=False, duplicate__isnull=True)
+        if not self.cleaned_data['show_duplicate']:
+            labels = labels.exclude(duplicate__isnull=False)
+
+        if self.cleaned_data['functional_group']:
+            labels = labels.filter(group=self.cleaned_data['functional_group'])
+
+        if self.cleaned_data['min_popularity']:
+            min_popularity = int(self.cleaned_data['min_popularity'])
+            # Popularity isn't a database field, so we'll have to convert to a
+            # list here.
+            labels = [
+                label for label in labels
+                if label.popularity >= min_popularity]
+
+        return labels
 
 
 class LabelSetForm(Form):

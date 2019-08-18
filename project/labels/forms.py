@@ -7,7 +7,7 @@ from django.core.exceptions import ValidationError
 from django.core.mail import EmailMessage
 from django.core.validators import validate_comma_separated_integer_list
 from django.forms import Form
-from django.forms.fields import CharField, ChoiceField, IntegerField
+from django.forms.fields import BooleanField, CharField, IntegerField
 from django.forms.models import ModelChoiceField, ModelForm, BaseModelFormSet
 from django.forms.widgets import TextInput, HiddenInput
 from django.template.loader import render_to_string
@@ -317,14 +317,12 @@ class LabelSearchForm(Form):
         max_length=Label._meta.get_field('name').max_length,
         required=False)
 
-    status = ChoiceField(
-        choices=(
-            ('', "All"),
-            ('verified', "Verified"),
-            ('duplicate', "Duplicate"),
-            # Not verified, not duplicate
-            ('no_special', "No special status")),
-        required=False)
+    show_verified = BooleanField(
+        label="Verified", initial=True, required=False)
+    show_regular = BooleanField(
+        label="Regular", initial=True, required=False)
+    show_duplicate = BooleanField(
+        label="Duplicate", initial=False, required=False)
 
     functional_group = ModelChoiceField(
         queryset=LabelGroup.objects.all(),
@@ -348,14 +346,12 @@ class LabelSearchForm(Form):
         else:
             labels = Label.objects.all()
 
-        if self.cleaned_data['status']:
-            status = self.cleaned_data['status']
-            if status == 'verified':
-                labels = labels.filter(verified=True)
-            elif status == 'duplicate':
-                labels = labels.filter(duplicate__isnull=False)
-            elif status == 'no_special':
-                labels = labels.filter(verified=False, duplicate__isnull=True)
+        if not self.cleaned_data['show_verified']:
+            labels = labels.exclude(verified=True)
+        if not self.cleaned_data['show_regular']:
+            labels = labels.exclude(verified=False, duplicate__isnull=True)
+        if not self.cleaned_data['show_duplicate']:
+            labels = labels.exclude(duplicate__isnull=False)
 
         if self.cleaned_data['functional_group']:
             labels = labels.filter(group=self.cleaned_data['functional_group'])

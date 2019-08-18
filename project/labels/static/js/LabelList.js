@@ -25,8 +25,15 @@ var LabelList = (function() {
             // (Using $.ajax() instead of $.get() should allow us to pass a
             // FormData, but for some reason I couldn't get that use case to
             // work with a GET request. -Stephen)
+            //
+            // Additionally, if we just use formData's value for checkboxes -
+            // 'on' or null - then Django interprets both as True. We convert
+            // to Javascript true or false instead, so that Django can tell
+            // the difference.
             {'name_search': formData.get('name_search'),
-             'status': formData.get('status'),
+             'show_verified': formData.get('show_verified') === 'on',
+             'show_regular': formData.get('show_regular') === 'on',
+             'show_duplicate': formData.get('show_duplicate') === 'on',
              'functional_group': formData.get('functional_group'),
              'min_popularity': formData.get('min_popularity')},
             // Callbacks
@@ -80,8 +87,8 @@ var LabelList = (function() {
             };
             // Typing in text fields
             $searchForm.find('input').keyup(afterChange);
-            // Changing and then unfocusing from text fields (e.g. using
-            // up/down arrows on a number field)
+            // Changing and then unfocusing from input fields (e.g. using
+            // up/down arrows on a number field, or clicking checkboxes)
             $searchForm.find('input').change(afterChange);
             // Changing dropdown values
             $searchForm.find('select').change(afterChange);

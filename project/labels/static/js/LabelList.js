@@ -3,15 +3,13 @@
  */
 var LabelList = (function() {
 
-    var $labelTable = null;
+    var labelTable = null;
+    var labelRows = null;
+    var labelIdsToRowIndices = {};
+
     var $searchStatus = null;
     var $searchForm = null;
     var searchFieldTypingTimer = null;
-
-
-    function get$row(labelId) {
-        return $labelTable.find('tr[data-label-id="{0}"]'.format(labelId));
-    }
 
 
     function submitSearch() {
@@ -46,20 +44,19 @@ var LabelList = (function() {
 
     function handleSearchResponse(jsonResponse) {
         // Hide all rows (except the table header row)
-        $labelTable.find('tr:not(:first-child)').hide();
+        $(labelRows).hide();
 
         if (jsonResponse['error']) {
             $searchStatus.text(jsonResponse['error']);
             return;
         }
 
-        var labelIds = jsonResponse['label_ids'];
-
         // Show matching rows
-        var i;
-        for (i = 0; i < labelIds.length; i++) {
-            get$row(labelIds[i]).show();
-        }
+        var labelIds = jsonResponse['label_ids'];
+        labelIds.forEach(function(labelId) {
+            var rowIndex = labelIdsToRowIndices[labelId];
+            $(labelRows[rowIndex]).show();
+        });
 
         if (labelIds.length > 0) {
             $searchStatus.text("{0} results found:".format(labelIds.length));
@@ -75,7 +72,17 @@ var LabelList = (function() {
      * <SingletonClassName>.<methodName>. */
     return {
         init: function() {
-            $labelTable = $('#label-table');
+            labelTable = document.getElementById('label-table');
+            // All table rows except the header row.
+            labelRows = labelTable.querySelectorAll('tr:not(:first-child)');
+
+            labelIdsToRowIndices = {};
+            // Populate a map of label IDs to row indices, for faster
+            // lookups later.
+            labelRows.forEach(function(row, rowIndex){
+                var labelId = row.getAttribute('data-label-id');
+                labelIdsToRowIndices[labelId] = rowIndex;
+            });
 
             $searchStatus = $('#label-search-status');
             $searchForm = $('#search-form');

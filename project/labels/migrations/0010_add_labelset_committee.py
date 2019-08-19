@@ -53,12 +53,39 @@ class Migration(migrations.Migration):
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
         ('labels', '0009_add_verified_field_and_permission'),
+
         # The manual call of the post-migration signal may fail
         # unless the contenttypes migrations and sites migrations
         # (if that app is used) run first.
         # https://code.djangoproject.com/ticket/23422#comment:25
-        ('contenttypes', '__latest__'),
-        ('sites', '__latest__'),
+        #
+        # Although the linked comment uses __latest__ as the dependency, that
+        # is not a good idea because if contenttypes or sites gets a new
+        # migration down the road, then we'll get an
+        # InconsistentMigrationHistory error: labels 0010 was already run, but
+        # something it depends on has not yet run.
+        #
+        # Also, during CoralNet's development, we had the Django sites app
+        # originally, then we removed the dependency, then we re-added it for
+        # the blog app. Somewhere during all of that, we moved from South
+        # migrations to Django's built-in migrations. So depending on the
+        # history of your CoralNet site instance + database, you may need to do
+        # something weird with the sites dependency below:
+        #
+        # - If your DB has no sites table, and you have already run this
+        #   labels 0010 migration, you'll want to:
+        #   - Comment out the sites dependency below
+        #   - `manage.py migrate`
+        #   - Uncomment the dependency
+        #
+        # - If your DB has the sites table, but no sites migration history, and
+        #   you have already run this labels 0010 migration, you'll want to:
+        #   - Comment out the sites dependency below
+        #   - `manage.py migrate sites 0001 --fake`
+        #   - `manage.py migrate`
+        #   - Uncomment the dependency
+        ('contenttypes', '0002_remove_content_type_name'),
+        ('sites', '0001_initial'),
     ]
 
     operations = [

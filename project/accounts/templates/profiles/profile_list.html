@@ -1,5 +1,4 @@
 {% extends 'accounts/base_accounts.html' %}
-{% load get_media_prefix from static %}
 
 {% block title %}Profile list - CoralNet{% endblock %}
 
@@ -48,8 +47,13 @@
   <ul id="account_list">
     {% for profile in page_results.object_list %}
     <li>
-      <a href="{% url 'profile_detail' profile.user.pk %}"><img src="{{ profile.get_avatar_url }}" /></a>
-      <a href="{% url 'profile_detail' profile.user.pk %}">{{ profile.user.username }}</a>
+      <a href="{% url 'profile_detail' profile.user.pk %}">
+        <img src="{{ profile.get_avatar_url }}"
+             alt="{{ profile.user.username }}'s avatar" />
+      </a>
+      <a href="{% url 'profile_detail' profile.user.pk %}">
+        {{ profile.user.username }}
+      </a>
     </li>
     {% endfor %}
   </ul>

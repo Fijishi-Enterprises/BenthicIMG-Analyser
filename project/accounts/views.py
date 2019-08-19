@@ -14,7 +14,7 @@ from django.views.decorators.debug import sensitive_post_parameters
 from django.views.generic.base import TemplateView
 from django.views.generic.edit import FormView
 
-from registration.backends.hmac.views \
+from django_registration.backends.activation.views \
     import RegistrationView as ThirdPartyRegistrationView
 
 from lib.utils import paginate
@@ -70,7 +70,7 @@ def register(request, *args, **kwargs):
 
 
 class RegistrationView(BaseRegistrationView):
-    success_url = 'registration_complete'
+    success_url = 'django_registration_complete'
 
     def get_context_data(self, **kwargs):
         if 'main_form' not in kwargs:
@@ -125,11 +125,12 @@ class RegistrationView(BaseRegistrationView):
         context = dict(username=existing_user.username)
 
         subject = render_to_string(
-            'registration/registration_email_exists_subject.txt', context)
+            'django_registration/registration_email_exists_subject.txt',
+            context)
         # Force subject to a single line to avoid header-injection issues.
         subject = ''.join(subject.splitlines())
         message = render_to_string(
-            'registration/registration_email_exists_email.txt',
+            'django_registration/registration_email_exists_email.txt',
             context, request=self.request)
 
         already_exists_email = EmailMessage(
@@ -143,7 +144,7 @@ class RegistrationView(BaseRegistrationView):
 class ActivationResendView(BaseRegistrationView):
     form_class = ActivationResendForm
     success_url = 'activation_resend_complete'
-    template_name = 'registration/activation_resend_form.html'
+    template_name = 'django_registration/activation_resend_form.html'
 
     def form_valid(self, form):
         email = form.cleaned_data['email']

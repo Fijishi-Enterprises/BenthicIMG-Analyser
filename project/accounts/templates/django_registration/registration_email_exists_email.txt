@@ -1,7 +1,7 @@
 {% autoescape off %}
 You (or someone else) tried to register a CoralNet account with this email address. However, there is already a CoralNet account with this email address (username {{ username }}). We only allow one account per email address.
 
-If you forgot your password to your existing account, try using our password reset form: {{ request.scheme }}://{{ request.get_host }}{% url 'auth_password_reset' %}
+If you forgot your password to your existing account, try using our password reset form: {{ request.scheme }}://{{ request.get_host }}{% url 'password_reset' %}
 
 
 If you didn't request an account at CoralNet, you may safely ignore this email. Someone might have typed in your email address by mistake. If you keep getting these emails without having requested them, we can look into it if you let us know here: {{ request.scheme }}://{{ request.get_host }}{% url 'contact' %}

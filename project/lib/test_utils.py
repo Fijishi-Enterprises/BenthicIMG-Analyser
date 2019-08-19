@@ -115,11 +115,15 @@ class ClientUtilsMixin(object):
         """
         cls.user_count += 1
         if not username:
-            username = 'user{n}'.format(n=cls.user_count)
+            # Generate a username. If some tests check for string matching
+            # of usernames, then having both 'user1' and 'user10' could be
+            # problematic; so we add leading zeroes to the number suffix, like
+            # 'user0001'.
+            username = 'user{n:04d}'.format(n=cls.user_count)
         if not email:
             email = '{username}@example.com'.format(username=username)
 
-        cls.client.post(reverse('registration_register'), dict(
+        cls.client.post(reverse('django_registration_register'), dict(
             username=username, email=email,
             password1=password, password2=password,
             first_name="-", last_name="-",
@@ -173,7 +177,7 @@ class ClientUtilsMixin(object):
         """
         cls.source_count += 1
         if not name:
-            name = 'Source {n}'.format(n=cls.source_count)
+            name = 'Source {n:04d}'.format(n=cls.source_count)
 
         post_dict = dict()
         post_dict.update(cls.source_defaults)
@@ -296,7 +300,7 @@ class ClientUtilsMixin(object):
         # Get an image file
         image_options = image_options or dict()
         filetype = image_options.pop('filetype', 'PNG')
-        default_filename = "file_{count}.{filetype}".format(
+        default_filename = "file_{count:04d}.{filetype}".format(
             count=cls.image_count, filetype=filetype.lower())
         filename = image_options.pop('filename', default_filename)
         post_dict['file'] = sample_image_as_file(
@@ -655,24 +659,6 @@ class BrowserTest(ClientUtilsMixin, TestCase, StaticLiveServerTestCase):
     Related discussions:
     https://code.djangoproject.com/ticket/23640
     https://stackoverflow.com/questions/29378328/
-
-    TIP: Specify a range of ports to run the live server on. If you have
-    multiple test classes running in a row, one test might deprive the next
-    test of using the same port. Use something like:
-    `manage.py test --liveserver=127.0.0.1:9200-9300`
-    Also, in some error cases, you must specify a different range of ports
-    from the previous attempt to not have port conflicts.
-    Remember that you can check on your OS if a port is in use
-    (e.g. on Windows, `netstat -a -b`, and look for something like
-    127.0.0.1:<port> on the left column) to get a better idea of what's
-    happening.
-    TODO: This advice might become obsolete in Django 1.11:
-    https://docs.djangoproject.com/en/1.11/topics/testing/tools/#django.test.LiveServerTestCase
-    Also related: https://code.djangoproject.com/ticket/20238
-
-    TODO: In Django 1.10, tag these tests so that we can specify skipping
-    them with a command line option.
-    They are slow and may be a pain to get working in certain environments.
     """
     selenium = None
 
@@ -798,7 +784,7 @@ class BrowserTest(ClientUtilsMixin, TestCase, StaticLiveServerTestCase):
         self.selenium.get('{}{}'.format(self.live_server_url, url))
 
     def login(self, username, password, stay_signed_in=False):
-        self.get_url(reverse('auth_login'))
+        self.get_url(reverse('login'))
         username_input = self.selenium.find_element_by_name("username")
         username_input.send_keys(username)
         password_input = self.selenium.find_element_by_name("password")
@@ -878,7 +864,8 @@ class BasePermissionTest(ClientTest):
         # about permission
         self.assertTemplateNotUsed(response, self.PERMISSION_DENIED_TEMPLATE)
 
-    def assertPermissionDenied(self, url, user=None, post_data=None):
+    def assertPermissionDenied(
+            self, url, user=None, post_data=None, deny_message=None):
         if user:
             self.client.force_login(user)
         else:
@@ -888,7 +875,10 @@ class BasePermissionTest(ClientTest):
             response = self.client.post(url, post_data)
         else:
             response = self.client.get(url)
+
         self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+        if deny_message:
+            self.assertContains(response, deny_message)
 
     def assertNotFound(self, url, user=None, post_data=None):
         if user:

@@ -659,24 +659,6 @@ class BrowserTest(ClientUtilsMixin, TestCase, StaticLiveServerTestCase):
     Related discussions:
     https://code.djangoproject.com/ticket/23640
     https://stackoverflow.com/questions/29378328/
-
-    TIP: Specify a range of ports to run the live server on. If you have
-    multiple test classes running in a row, one test might deprive the next
-    test of using the same port. Use something like:
-    `manage.py test --liveserver=127.0.0.1:9200-9300`
-    Also, in some error cases, you must specify a different range of ports
-    from the previous attempt to not have port conflicts.
-    Remember that you can check on your OS if a port is in use
-    (e.g. on Windows, `netstat -a -b`, and look for something like
-    127.0.0.1:<port> on the left column) to get a better idea of what's
-    happening.
-    TODO: This advice might become obsolete in Django 1.11:
-    https://docs.djangoproject.com/en/1.11/topics/testing/tools/#django.test.LiveServerTestCase
-    Also related: https://code.djangoproject.com/ticket/20238
-
-    TODO: In Django 1.10, tag these tests so that we can specify skipping
-    them with a command line option.
-    They are slow and may be a pain to get working in certain environments.
     """
     selenium = None
 

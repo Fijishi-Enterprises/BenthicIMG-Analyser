@@ -7,13 +7,19 @@ from .storage_s3 import *
 
 DEBUG = False
 
+# [Custom setting]
+# The site domain, for the Django sites framework. This is used in places
+# such as links in password reset emails, and 'view on site' links in the
+# admin site's blog post edit view.
+SITE_DOMAIN = 'coralnet.ucsd.edu'
+
 # Hosts/domain names that are valid for this site.
 # "*" matches anything, ".example.com" matches example.com and all subdomains
 #
 # Although it doesn't seem to apply to us currently, here's some info about
 # configuring this setting if unit tests have some special domain name logic:
 # https://docs.djangoproject.com/en/dev/topics/testing/advanced/#topics-testing-advanced-multiple-hosts
-ALLOWED_HOSTS = ['coralnet.ucsd.edu']
+ALLOWED_HOSTS = [SITE_DOMAIN]
 
 # Use HTTPS.
 SESSION_COOKIE_SECURE = True

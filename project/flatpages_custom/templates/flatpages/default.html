@@ -1,9 +1,10 @@
 {% extends "base.html" %}
+{% load markdown_to_html %}
 
 {% block title %}{{ flatpage.title }} | CoralNet{% endblock %}
 
 {% block content %}
 
-{{ flatpage.content }}
+{{ flatpage.content|markdown_to_html }}
 
 {% endblock %}

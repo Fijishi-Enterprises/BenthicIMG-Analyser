@@ -148,6 +148,8 @@ INSTALLED_APPS = [
     # Saves internal server error messages for viewing in the admin site
     'errorlogs.apps.ErrorlogsConfig',
     'export',
+    # Flatpages-related customizations
+    'flatpages_custom',
     'images',
     'labels',
     # Miscellaneous stuff
@@ -166,6 +168,9 @@ INSTALLED_APPS = [
     'django.contrib.auth',
     # Allows permissions to be associated with models you create
     'django.contrib.contenttypes',
+    # Store "flat" content pages like Help and FAQ in the database, and edit
+    # them via the admin interface
+    'django.contrib.flatpages',
     # Has Django template filters to 'humanize' data, like adding thousands
     # separators to numbers
     'django.contrib.humanize',

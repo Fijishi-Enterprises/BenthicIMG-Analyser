@@ -39,6 +39,9 @@ urlpatterns = [
     ),
     url(r'^contact/$', lib_views.contact, name='contact'),
 
+    # Flatpages, such as the help page
+    url(r'^pages/', include('flatpages_custom.urls', namespace='pages')),
+
     # "Secret" dev views
     url(r'^nav_test/(?P<source_id>\d+)/$', lib_views.nav_test, name="nav_test"),
     url(r'^backend_overview$', backend_views.backend_overview, name="backend_overview"),

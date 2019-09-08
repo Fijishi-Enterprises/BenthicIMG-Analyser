@@ -6,6 +6,7 @@ from django.contrib.flatpages.admin import (
 from django.contrib.flatpages.forms import FlatpageForm as DefaultFlatPageForm
 from django.contrib.flatpages.models import FlatPage
 from markdownx.widgets import AdminMarkdownxWidget
+from reversion.admin import VersionAdmin
 
 
 # Since FlatPage is already admin-registered by Django, we have to
@@ -21,6 +22,8 @@ class FlatPageForm(DefaultFlatPageForm):
         )
 
 
+# With VersionAdmin, saving flatpages via site views (admin or otherwise)
+# should trigger saving of django-reversion Versions.
 @admin.register(FlatPage)
-class FlatPageAdmin(DefaultFlatPageAdmin):
+class FlatPageAdmin(DefaultFlatPageAdmin, VersionAdmin):
     form = FlatPageForm

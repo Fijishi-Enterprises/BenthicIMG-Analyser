@@ -6,6 +6,7 @@ from django.conf import settings
 from django.contrib.flatpages.models import FlatPage
 from django.contrib.sites.models import Site
 from django.urls import reverse
+from reversion.models import Version
 
 from lib.test_utils import ClientTest, sample_image_as_file
 
@@ -55,6 +56,21 @@ class FlatpagesTest(ClientTest):
             '<div id="content-container">'
             '<p><strong>FAQ contents</strong> go <em>here.</em></p>'
             '</div>')
+
+    def test_versioning(self):
+        """django-reversion should create versions of flatpages when saving
+        via the admin interface."""
+        self.client.force_login(self.superuser)
+        data = dict(
+            url='/help/faq/', title="FAQ", content="FAQ contents go here.",
+            sites=str(settings.SITE_ID))
+        self.client.post('/admin/flatpages/flatpage/add/', data, follow=True)
+
+        version = Version.objects.get_for_model(FlatPage).latest('id')
+        self.assertEqual(version.field_dict['title'], "FAQ", "Title matches")
+        self.assertEqual(
+            version.field_dict['content'], "FAQ contents go here.",
+            "Content matches")
 
 
 class FlatpageEditTest(ClientTest):

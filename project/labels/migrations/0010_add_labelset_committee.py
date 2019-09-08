@@ -30,8 +30,8 @@ def create_labelset_committee_user_group(
             # We will trigger this signal manually to create the perms/ctypes.
             # https://code.djangoproject.com/ticket/23422#comment:20
 
-            # This particular function signature may change in some Django
-            # versions, but it works in Django 1.9.5 at least.
+            # This function may or may not be private API, and thus its
+            # behavior or signature may change without notice.
             emit_post_migrate_signal(0, False, 'default')
 
             # Try getting the perm again

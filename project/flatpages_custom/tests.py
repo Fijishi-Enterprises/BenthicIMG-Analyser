@@ -6,6 +6,7 @@ from django.conf import settings
 from django.contrib.flatpages.models import FlatPage
 from django.contrib.sites.models import Site
 from django.urls import reverse
+from django_migration_testcase import MigrationTest
 from reversion.models import Version
 
 from lib.test_utils import ClientTest, sample_image_as_file
@@ -72,6 +73,11 @@ class FlatpagesTest(ClientTest):
             version.field_dict['content'], "FAQ contents go here.",
             "Content matches")
 
+    def test_help_page(self):
+        """Help flatpage should exist."""
+        response = self.client.get(reverse('pages:help'))
+        self.assertTemplateUsed(response, 'flatpages/default.html')
+
 
 class FlatpageEditTest(ClientTest):
     """
@@ -105,3 +111,46 @@ class FlatpageEditTest(ClientTest):
         self.assertRegexpMatches(
             image_code, image_code_regex,
             "markdownx should return a valid image code")
+
+
+class HardcodedFlatpagesMigrationTest(MigrationTest):
+
+    before = [('flatpages', '0001_initial'), ('sites', '0001_initial')]
+    after = [('flatpages_custom', '0001_add_help_page_if_not_present')]
+    # app_name = 'flatpages_custom'
+    # before = 'zero'
+    # after = '0001'
+
+    def test_migration_when_help_flatpage_already_exists(self):
+        FlatPage = self.get_model_before('flatpages.FlatPage')
+        Site = self.get_model_before('sites.Site')
+
+        # This here is a little confusing - although flatpages_custom's
+        # migration state should be zero, it's possible that 0001 was already
+        # run and then rolled back so that we're back in the zero state.
+        # However, 0001's reverse operation doesn't do anything, so in this
+        # case we'd still have the effects of 0001: a help flatpage was already
+        # created.
+        # In any case, our goal before run_migration() is to ensure we have
+        # a help page with a known content string.
+        try:
+            page = FlatPage.objects.get(url='/help/')
+        except FlatPage.DoesNotExist:
+            page = FlatPage(url='/help/')
+        page.title = "Help"
+        page.content = "Old help contents go here."
+        page.save()
+        page.sites.add(Site.objects.get(pk=settings.SITE_ID))
+        page.save()
+
+        old_flatpage_count = FlatPage.objects.all().count()
+        self.run_migration()
+
+        FlatPage = self.get_model_after('flatpages.FlatPage')
+        self.assertEqual(
+            FlatPage.objects.all().count(), old_flatpage_count,
+            "No new FlatPage was created")
+        page = FlatPage.objects.get(url='/help/')
+        self.assertEqual(
+            page.content, "Old help contents go here.",
+            "Old FlatPage was not modified")

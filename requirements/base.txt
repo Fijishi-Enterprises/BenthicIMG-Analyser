@@ -21,11 +21,11 @@ django-guardian==1.4.9
 # (A currently active, package friendly fork of it; also endorsed by Django)
 Pillow==4.1.1
 
-# For Markdown support in django-andablog
+# Markdown support in the blog and other places.
 Markdown>=3.1.1,<4
 
 # Simple blog.
-# Requires: django, Pillow, six
+# Requires: django, Pillow, six, and Markdown (for blog Markdown support)
 django-andablog==3.0.0
 
 # System for generating smaller versions of images.
@@ -125,5 +125,8 @@ supervisor==3.3.1
 # Progress bar for CLI
 tqdm==4.32.2
 
-# Support for rendering markdown as HTML 
+# Support for rendering markdown as HTML, with extra rendering features over
+# the Markdown package (such as tables). Also includes a fancy Markdown editor,
+# with live preview and drag-and-drop image uploads.
+# Requires: Markdown
 django-markdownx==2.0.28

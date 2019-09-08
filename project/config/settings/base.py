@@ -187,6 +187,7 @@ INSTALLED_APPS = [
     'andablog',
     'easy_thumbnails',
     'guardian',
+    'markdownx',
     'reversion',
     'storages',
     # For andablog's entry tags
@@ -400,6 +401,21 @@ ACCOUNT_ACTIVATION_DAYS = 7
 # The number of hours users will have to confirm an email change after
 # requesting one.
 EMAIL_CHANGE_CONFIRMATION_HOURS = 24
+
+
+# markdownx setting (used on the admin site's flatpage editor).
+# Max size for images uploaded through a markdownx widget via drag and drop.
+#
+# Note that in Markdown, you can use HTML to make an image appear a different
+# size from its original size: <img src="image.png" width="900"/>
+MARKDOWNX_IMAGE_MAX_SIZE = {
+    # Max resolution
+    'size': (2000, 2000),
+}
+
+# markdownx setting.
+# Media path where drag-and-drop image uploads get stored.
+MARKDOWNX_MEDIA_PATH = 'article_images/'
 
 
 # [Custom settings]

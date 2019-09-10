@@ -47,21 +47,15 @@ class LoginView(DefaultLoginView):
 
 
 class BaseRegistrationView(ThirdPartyRegistrationView):
-    def send_activation_email(self, user):
-        """Override the superclass to pass the request to the template."""
-        activation_key = self.get_activation_key(user)
-        context = self.get_email_context(activation_key)
-        context.update({
-            'user': user
-        })
-        subject = render_to_string(self.email_subject_template,
-                                   context)
-        # Force subject to a single line to avoid header-injection
-        # issues.
-        subject = ''.join(subject.splitlines())
-        message = render_to_string(self.email_body_template,
-                                   context, request=self.request)
-        user.email_user(subject, message, settings.DEFAULT_FROM_EMAIL)
+    def get_email_context(self, activation_key):
+        """
+        Build the template context used for the activation email.
+        """
+        context = \
+            super(BaseRegistrationView, self).get_email_context(activation_key)
+        context['account_questions_link'] = settings.ACCOUNT_QUESTIONS_LINK
+        context['forum_link'] = settings.FORUM_LINK
+        return context
 
 
 @sensitive_post_parameters()

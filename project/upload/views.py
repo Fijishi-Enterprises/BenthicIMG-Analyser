@@ -256,7 +256,7 @@ def upload_metadata_ajax(request, source_id):
             error=(
                 "We couldn't find the expected data in your session."
                 " Please try loading this page again. If the problem persists,"
-                " contact a site admin."
+                " let us know on the forum."
             ),
         ))
 
@@ -421,7 +421,7 @@ def upload_annotations_ajax(request, source_id):
             error=(
                 "We couldn't find the expected data in your session."
                 " Please try loading this page again. If the problem persists,"
-                " contact a site admin."
+                " let us know on the forum."
             ),
         ))
 

@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+from django.conf import settings
 from django.core import mail
 from django.urls import reverse
 from django.utils.html import escape
@@ -105,6 +106,9 @@ class PasswordResetTest(ClientTest):
         self.assertIn(
             self.user.username, instructions_email.body,
             "Username should be in the email body")
+        self.assertIn(
+            settings.ACCOUNT_QUESTIONS_LINK, instructions_email.body,
+            "Account questions link should be in the email body")
 
     def test_reset(self):
         reset_link = self.submit_and_get_reset_link()

@@ -67,7 +67,7 @@ var util = {
         alert(
             "There was a server error:" +
             "\n{0} / {1}".format(textStatus, errorThrown) +
-            "\nIf the problem persists, please contact the site admins."
+            "\nIf the problem persists, please let us know on the forum."
         )
     },
 

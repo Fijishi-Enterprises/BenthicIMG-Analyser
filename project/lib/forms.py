@@ -54,7 +54,9 @@ def get_one_form_error(form, include_field_name=True):
 
     # This function was called under the assumption that there was a
     # form error, but if we got here, then we couldn't find that form error.
-    return "Unknown error. If the problem persists, please contact the admins."
+    return (
+        "Unknown error. If the problem persists, please let us know on the"
+        " forum.")
 
 
 def get_one_formset_error(formset, get_form_name, include_field_name=True):
@@ -70,4 +72,6 @@ def get_one_formset_error(formset, get_form_name, include_field_name=True):
     for error_message in formset.non_form_errors():
         return error_message
 
-    return "Unknown error. If the problem persists, please contact the admins."
+    return (
+        "Unknown error. If the problem persists, please let us know on the"
+        " forum.")

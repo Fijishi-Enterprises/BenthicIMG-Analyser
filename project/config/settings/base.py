@@ -272,6 +272,8 @@ TEMPLATES = [
                 'django.template.context_processors.static',
                 'django.template.context_processors.tz',
                 'django.contrib.messages.context_processors.messages',
+                # Adds CoralNet help links to the context.
+                'lib.context_processors.help_links',
             ],
         },
     },
@@ -401,6 +403,10 @@ ACCOUNT_ACTIVATION_DAYS = 7
 # The number of hours users will have to confirm an email change after
 # requesting one.
 EMAIL_CHANGE_CONFIRMATION_HOURS = 24
+
+# [Custom settings]
+ACCOUNT_QUESTIONS_LINK = "TODO"  # TODO
+FORUM_LINK = "https://groups.google.com/forum/#!forum/coralnet-users"
 
 
 # markdownx setting (used on the admin site's flatpage editor).

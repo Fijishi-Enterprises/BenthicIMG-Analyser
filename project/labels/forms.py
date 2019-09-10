@@ -405,7 +405,7 @@ class LabelSetForm(Form):
                     " Either we messed up, or one of the"
                     " labels you selected just got deleted."
                     " If the problem persists,"
-                    " please contact the site admins.").format(
+                    " please let us know on the forum.").format(
                         bad_id=label_id,
                     )
                 raise ValidationError(msg, code='bad_label_id')
@@ -424,7 +424,7 @@ class LabelSetForm(Form):
                     " Either we messed up, or some annotations have"
                     " changed since you reached this page."
                     " If the problem persists,"
-                    " please contact the site admins.").format(
+                    " please let us know on the forum.").format(
                         name=label.name,
                     )
                 raise ValidationError(msg, code='deleting_in_use_label')

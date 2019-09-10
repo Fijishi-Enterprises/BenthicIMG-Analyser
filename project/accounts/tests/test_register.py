@@ -2,6 +2,7 @@
 from __future__ import unicode_literals
 import time
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core import mail
 from django.urls import reverse
@@ -18,6 +19,9 @@ class RegisterTest(BaseAccountsTest):
         response = self.client.get(reverse('django_registration_register'))
         self.assertTemplateUsed(
             response, 'django_registration/registration_form.html')
+        self.assertContains(
+            response, settings.ACCOUNT_QUESTIONS_LINK,
+            msg_prefix="Account questions link should be on the page")
 
     def test_load_page_when_signed_in(self):
         """
@@ -36,8 +40,15 @@ class RegisterTest(BaseAccountsTest):
 
         # Check that an activation email was sent.
         self.assertEqual(len(mail.outbox), 1)
-        activation_email = mail.outbox[-1]
 
+        # Check that the new user exists, but is inactive.
+        user = User.objects.get(username='alice', email='alice123@example.com')
+        self.assertFalse(user.is_active)
+
+    def test_email_details(self):
+        self.register()
+
+        activation_email = mail.outbox[-1]
         self.assertListEqual(
             activation_email.to, ['alice123@example.com'],
             "Recipients should be correct")
@@ -51,12 +62,21 @@ class RegisterTest(BaseAccountsTest):
             activation_email.body,
             "Email body template should be correct, based on body text")
         self.assertIn(
-            "7 days", activation_email.body,
+            'alice', activation_email.body,
+            "Newly registered username should be in the email body")
+        self.assertIn(
+            "valid for {days} days".format(
+                days=settings.ACCOUNT_ACTIVATION_DAYS),
+            activation_email.body,
             "Link validity period should be in the email body")
-
-        # Check that the new user exists, but is inactive.
-        user = User.objects.get(username='alice', email='alice123@example.com')
-        self.assertFalse(user.is_active)
+        self.assertIn(
+            settings.ACCOUNT_QUESTIONS_LINK, activation_email.body,
+            "Account questions link should be in the email body")
+        self.assertIn(
+            settings.FORUM_LINK, activation_email.body,
+            "Forum link should be in the email body")
+        # Other tests should already test activation via the email's activation
+        # link, so we won't check for the activation link here.
 
     def test_username_already_exists(self):
         # Register once.
@@ -230,6 +250,9 @@ class RegisterTest(BaseAccountsTest):
         self.assertIn(
             existing_user.username, exists_email.body,
             "Username should be in the email body")
+        self.assertIn(
+            settings.ACCOUNT_QUESTIONS_LINK, exists_email.body,
+            "Account questions link should be in the email body")
 
     def test_email_reject_unicode_confusables(self):
         """

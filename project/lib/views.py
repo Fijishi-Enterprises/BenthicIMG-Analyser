@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import permission_required
 from django.core.mail import mail_admins
@@ -108,6 +109,7 @@ def handler500(request, template_name='500.html'):
             '<h1>Server Error (500)</h1>', content_type='text/html')
     return HttpResponseServerError(template.render({
         'request': request,
+        'forum_link': settings.FORUM_LINK,
     }))
 
 

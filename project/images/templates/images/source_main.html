@@ -80,7 +80,7 @@ $(document).ready(function() {
             <ul>
                 <li>Source created: {{ source.create_date }}</li>
                 {% if not source.enable_robot_classifier %}
-                    <li>Machine annotator: Disabled (can enable upon <a href="{% url 'contact' %}">request</a>)</li>
+                    <li>Machine annotator: Disabled (can enable upon <a href="{{ forum_link }}">request</a>)</li>
                 {% else %}
                 {% if robot_stats.has_robot %}
                     <li>Last classifier trained: {{robot_stats.create_date}}</li>

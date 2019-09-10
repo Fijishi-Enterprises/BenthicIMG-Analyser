@@ -125,7 +125,6 @@
             <li><a href="{{ forum_link }}"><span>Forum</span></a></li>
             <li><a href="{% url 'blog:entry_list' %}"><span>Blog</span></a></li>
             <li><a href="{% url 'about' %}"><span>About</span></a></li>
-            <li><a href="{% url 'contact' %}"><span>Contact Us</span></a></li>
             {% if user.is_authenticated %}
             <li><a href="{% url 'feedback_form' %}?ref={{ request.get_full_path }}"><span>Site Feedback</span></a></li>
             {% endif %}

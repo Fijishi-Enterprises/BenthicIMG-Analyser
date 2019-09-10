@@ -37,7 +37,6 @@ urlpatterns = [
         TemplateView.as_view(template_name='lib/release_notes.html'),
         name='release',
     ),
-    url(r'^contact/$', lib_views.contact, name='contact'),
 
     # Flatpages, such as the help page
     url(r'^pages/', include('flatpages_custom.urls', namespace='pages')),

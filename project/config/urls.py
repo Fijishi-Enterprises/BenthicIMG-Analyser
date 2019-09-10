@@ -19,7 +19,6 @@ urlpatterns = [
     url(r'^async_media/',
         include('async_media.urls', namespace='async_media')),
     url(r'^blog/', include('blog.urls', namespace='blog')),
-    url(r'^feedback/', include('bug_reporting.urls')),
     url(r'^source/(?P<source_id>\d+)/browse/', include('visualization.urls')),
     url(r'^source/(?P<source_id>\d+)/export/', include('export.urls')),
     url(r'^source/(?P<source_id>\d+)/upload/', include('upload.urls')),

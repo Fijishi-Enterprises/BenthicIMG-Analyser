@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% load markdown_to_html %}
+
+{% block content %}
+
+<table class="detail_table_scroll">
+    <tr>
+        <th>time</th>
+        <th>category</th>
+        <th>user</th>
+        <th>source</th>
+        <th>event</th>
+    </tr>
+    {% for news in news_items %}
+        <tr>
+            <td> <a href="{% url 'newsfeed_details' news.id %}">{{news.datetime}}</a></td>
+            <td> {{ news.category }} </td>
+
+            {% if news.user_exists %}
+                <td> <a href="{% url 'profile_detail' news.user_id %}">{{news.user_username}}</a></td>
+            {% else %}
+                <td> {{ news.user_name }} (deleted) </td>
+            {% endif %}
+
+            {% if news.source_exists %}
+                <td> <a href="{% url 'source_main' news.source_id %}">{{news.source_name}}</a></td>
+            {% else %}
+                <td> {{ news.source_name }} (deleted) </td>
+            {% endif %}
+            <td> {{ news.message | markdown_to_html }} </td>
+        </tr>
+    {% endfor %}
+</table>
+
+{% endblock %}

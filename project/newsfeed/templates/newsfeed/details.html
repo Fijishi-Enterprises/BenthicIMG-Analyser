@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% load markdown_to_html %}
+
+{% block content %}
+
+<h3>Main event</h3>
+<table class="detail_table_popup">
+    <tr>
+        <th>time</th>
+        <th>category</th>
+        <th>user</th>
+        <th>source</th>
+        <th>event</th>
+    </tr>
+
+    <tr>
+        <td> {{ main.datetime }} </td>
+        <td> {{ main.category }} </td>
+        {% if main.user_exists %}
+            <td> <a href="{% url 'profile_detail' main.user_id %}">{{main.user_username}}</a></td>
+        {% else %}
+            <td> {{ main.user_name }} (deleted) </td>
+        {% endif %}
+        {% if main.source_exists %}
+            <td> <a href="{% url 'source_main' main.source_id %}">{{main.source_name}}</a></td>
+        {% else %}
+            <td> {{ main.source_name }} (deleted) </td>
+        {% endif %}
+        <td> {{ main.message | markdown_to_html }} </td>
+    </tr>
+</table>
+<h3>Sub events</h3>
+<table class="detail_table_popup">
+    <tr>
+        <th>time</th>
+        <th>event</th>
+    </tr>
+    {% for sub in subs %}
+    <tr>
+        <td> {{ sub.datetime }} </td>
+        <td> {{ sub.message | markdown_to_html }} </td>
+    </tr>
+    {% endfor %}
+</table>
+
+{% endblock %}

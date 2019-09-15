@@ -15,6 +15,7 @@ urlpatterns = [
     url(r'', include('labels.urls')),
 
     url(r'^accounts/', include('accounts.urls')),
+    url(r'^newsfeed/', include('newsfeed.urls')),
     url(r'^async_media/',
         include('async_media.urls', namespace='async_media')),
     url(r'^blog/', include('blog.urls', namespace='blog')),

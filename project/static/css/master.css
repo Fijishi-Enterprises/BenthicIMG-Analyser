@@ -164,60 +164,6 @@ ul.nav li.button_prominent a:active span {
     background-color: #f0f0a8;
 }
 
-#nav_messages li a{
-    background: #e8d8c0;
-}
-#nav_messages li a:hover span {
-    background-color: #f0e0b0;
-}
-#nav_messages li a:active span {
-    background-color: #f0e0b0;
-}
-
-
-
-#xtra-info{
-    text-align: center;
-    padding: 10px;
-    margin: 0;
-    font-weight: bold;
-    text-shadow: #000 -1px -1px 0;
-    color: #c1bcb9;
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-	background-image: url(../img/trans.png);
-	-moz-border-radius-topleft: 0px;
--moz-border-radius-topright: 0px;
--moz-border-radius-bottomright: 8px;
--moz-border-radius-bottomleft: 8px;
-border-top-left-radius: 0px;
-border-top-right-radius: 0px;
-border-bottom-right-radius: 8px;
-border-bottom-left-radius: 8px;
- -moz-box-shadow: 0 -2px 3px #ccc;
-    -webkit-box-shadow: 0 -2px 3px #ccc;
-    box-shadow: 0 -2px 3px #ccc;
-}
-
-#xtra-info a{
-	color: #fff;
-}
-
-.white-box{
-    margin: 15px auto 20px;
-    padding: 12px 0;
-    -moz-border-radius: 8px;
-    -webkit-border-radius: 8px;
-    border-radius: 8px;
-    background-color: #efebe8;
-    width: 506px;
-    -moz-box-shadow: inset 0 0 3px #999;
-    -webkit-box-shadow: inset 0 0 3px #999;
-    box-shadow:  inset 0 0 3px #999;
-    overflow: auto;
-}
 
 /*	Type
 ................................... */
@@ -241,11 +187,6 @@ div.line {
 div.narrow_column {
     width: 800px;
     margin: 0 auto;  /* top/bottom left/right */
-}
-
-.white-box p{
-    margin: 0 12px 5px;
-    color: #000;
 }
 
 h1{
@@ -276,17 +217,6 @@ h2.content-title{
 h2 span.subheader{
     font-size: 0.7em;
     text-transform: none;
-}
-
-.white-box h2{
-    width: 482px;
-    padding: 5px 12px 6px;
-    font-size: 1.9em;
-    font-weight: bold;
-    text-transform: none;
-    border-bottom: 1px solid #f1edeb;
-    color: #ab292a;
-    background-image: none;
 }
 
 h3{
@@ -389,15 +319,6 @@ a.prev-next-page {
     display: inline-block;
 }
 
-
-
-.white-box img{
-    float: right;
-    border: 3px double #f1edeb;
-    padding: 4px;
-    background-color: #fff;
-    margin: 0 10px;
-}
 
 hr.light {
     background-color: #dddddd;

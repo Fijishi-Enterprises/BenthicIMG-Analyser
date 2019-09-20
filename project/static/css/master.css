@@ -343,6 +343,17 @@ table.generic td {
     padding: 5px;
 }
 
+/* Styling to indicate keyboard keys */
+kbd {
+    font: inherit;    /* No monospaced font, just the usual font */
+    font-size: 0.9em;
+    line-height: 1.4em;
+    padding: 0 2px;    /* 2px of horizontal padding */
+    background-color: #DDDDDD;
+
+    border: 1px solid black;
+    border-radius: 3px;
+}
 
 
 /*	Forms
@@ -855,17 +866,4 @@ img.thumb {
 
 img.thumb_small {
     vertical-align: middle;  /* This works as long as the thumbnail isn't in a wrapper element... */
-}
-
-
-/* Styling to indicate keyboard keys */
-kbd {
-    font: inherit;    /* No monospaced font, just the usual font */
-    font-size: 0.9em;
-    line-height: 1.4em;
-    padding: 0 2px;    /* 2px of horizontal padding */
-    background-color: #DDDDDD;
-
-    border: 1px solid black;
-    border-radius: 3px;
 }

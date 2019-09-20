@@ -245,28 +245,9 @@ td.annotationFormLabelCell {
     display: none;
 }
 
-/* Help/Controls */
-
-div.help_section {
-    margin-bottom: 10px;
-}
-
-div.help_section ul {
-    list-style: disc none inside;
-}
-div.help_section li {
-    line-height: 1.2em;
-}
-div.help_section ul li ul {
-    padding-left: 20px;
-}
-
-div.help_section span.help_header {
-    font-weight: bold;
-    line-height: 2.0em;
-}
 
 
+/* Brightness and contrast controls */
 
 #image-tools-wrapper {
     text-align: center;

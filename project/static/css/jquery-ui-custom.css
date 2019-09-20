@@ -16,15 +16,7 @@ link elements in that order). */
     font-family: inherit;
     font-size: 0.9em;
 }
-.ui-widget ul li {
-    /* Make help-dialog lists bulleted */
-    list-style-type: disc;
-    list-style-position: outside;
 
-    line-height: 1.2em;
-
-    margin: 10px 0 10px 20px;   /* t r b l */
-}
 .ui-dialog.ui-widget-content {
     /* Make dialogs faintly transparent; useful when the dialog is talking
      about some page content that it's sitting on top of */

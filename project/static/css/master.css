@@ -867,3 +867,36 @@ img.thumb {
 img.thumb_small {
     vertical-align: middle;  /* This works as long as the thumbnail isn't in a wrapper element... */
 }
+
+
+/* articles: blog posts, help dialogs, etc.
+................................... */
+
+div.article-body {
+    line-height: 1.4em;
+}
+
+div.article-body ul {
+    /* disc is the W3-standard default */
+    list-style-type: disc;
+    /* If the list item has multiple lines, this makes all the lines start
+       at the same horizontal position, NOT counting the disc */
+    list-style-position: outside;
+    margin-left: 20px;
+}
+div.article-body ul li {
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+}
+
+div.article-body h1, div.article-body h2,
+div.article-body h3, div.article-body h4 {
+    margin-top: 1em;
+    margin-bottom: 1em;
+}
+
+div.article-body p {
+    line-height: 1.5em;
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+}

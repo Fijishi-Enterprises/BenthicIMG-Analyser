@@ -40,14 +40,19 @@ html, body{
 	padding: 0 10px;
 }
 
-#header{
-    /* Consider styling the header here */
-}
-
-
 #content-container{
     padding: 12px;
     position: relative;
+}
+
+
+/*	Navigation bars
+................................... */
+
+#header h1{
+    width: 150px;
+    height: 112px;
+    margin: 0;
 }
 
 div.nav_container{
@@ -170,11 +175,6 @@ ul.nav li.button_prominent a:active span {
 }
 
 
-div.narrow_column {
-    width: 800px;
-    margin: 0 auto;  /* top/bottom left/right */
-}
-
 
 #xtra-info{
     text-align: center;
@@ -236,6 +236,11 @@ p{
   p cannot contain div, but div can contain almost anything. */
 div.line {
     margin: 0.5em 0;  /* top/bottom left/right */
+}
+
+div.narrow_column {
+    width: 800px;
+    margin: 0 auto;  /* top/bottom left/right */
 }
 
 .white-box p{
@@ -756,15 +761,6 @@ legend.smaller {
 .checkbox_row.selected.disabled td.clickable_cell{
     cursor: default;
     background-color: #aaaaaa;
-}
-
-/*	Nav
-................................... */
-
-#header h1{
-    width: 150px;
-    height: 112px;
-    margin: 0;
 }
 
 

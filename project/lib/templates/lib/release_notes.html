@@ -7,7 +7,7 @@
 
 {% block content %}
 
-<div class="center">
+<div class="article-body center">
 
 <h1>CoralNet Release Notes</h1>
 
@@ -37,7 +37,7 @@
 <p>The computer vision back-end system is rebuilt from scratch. The new system relies on deep convolutional neural networks and is deployed using a scalable cluster hosted at AWS. We have also modified some of the processing and interface logic. </p>
 
 <p>Major changes as a result of the redesign are:</p>
-<ul class="simple">
+<ul>
 <li>Orders of magnitude faster processing. </li>
 <li>Dedicated back-end analytics page. </li>
 <li>We have changed back to letting users directly specify the confidence threshold instead of the previous "alleviate" threshold. </li>
@@ -48,7 +48,7 @@
 
 <h3>Labelset logic</h3>
 <p>We have made several update to the way labels are handled in CoralNet.</p>
-<ul class="simple">
+<ul>
 <li>While the labels themselves remain global, we now allow users to set the label-codes on a source level. This allows a uniform set of codes for everyone while still sharing the labels themselves.</li>
 <li>Labels can now be edited if (and only if) (1) no-one else is using the label and (2) the labelset-committee hasn't already verified it [see below].
 <li>Source label-sets, including the custom label-codes, can be exported into a simple CSV file format and then re-uploaded to another source.</li>
@@ -59,7 +59,7 @@
 <p>We have created a special group of users called the labelset committee (LSC). The long-term goal of the LSC to encourage and shepherd the community towards a unified set of global labels.</p>
 
 <p>In practice, the LSC will be responsible for maintaining the global labelset with emphasis on:</p>
-<ul class="simple">
+<ul>
 <li>Ensuring consistent label names.</li>
 <li>Ensuring that label descriptions are sufficient.</li>
 <li>Updating species and genera as the scientific literature evolves.</li>

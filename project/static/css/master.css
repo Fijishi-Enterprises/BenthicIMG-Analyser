@@ -827,6 +827,18 @@ table.detail_table_popup.horizontal td {
     padding: 3px 5px;  /* vertical horizontal */
 }
 
+/* Newsfeed messages may contain lists. Style these similarly to lists in
+ * articles. */
+table.newsfeed_table ul {
+    list-style-type: disc;
+    list-style-position: outside;
+    margin-left: 20px;
+}
+table.newsfeed_table ul li {
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+}
+
 
 /* thumbnails and thumbnail wrappers
 ................................... */

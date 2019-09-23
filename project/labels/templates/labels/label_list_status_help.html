@@ -1,5 +1,7 @@
 {% load static %}
 
+<div class="article-body">
+
 <p>
   Verified:
   <img class="label-status-image" alt="Verified"
@@ -12,7 +14,7 @@
        src="{% static 'img/label-icon-duplicate__16x16.png' %}" />
 </p>
 
-</p>
+<p>
   If possible, please compose your source's label-set with verified labels, and avoid duplicate labels.
   This will ensure more studies are compatible across sources.
   Verified labels will be updated as the scientific literature evolves.
@@ -25,7 +27,7 @@
   It needs to comply with the following criteria:
 </p>
 
-<ul class="simple">
+<ul>
   <li>Correct spelling.</li>
   <li>Default Short Code formatting consistent with other labels.</li>
   <li>Satisfactory description.</li>
@@ -40,9 +42,11 @@
 <h4>Neither</h4>
 <p>
   If a label is neither <strong>verified</strong> nor <strong>duplicate</strong> it means that either
-  <ul class="simple">
+</p>
+
+<ul>
   <li>The label is unique but bespoke to a certain study.</li>
   <li>It has not yet been inspected by the label-set curator.</li>
 </ul>
 
-
+</div>

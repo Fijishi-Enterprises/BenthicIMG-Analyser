@@ -832,7 +832,7 @@ table.detail_table_popup.horizontal td {
 table.newsfeed_table ul {
     list-style-type: disc;
     list-style-position: outside;
-    margin-left: 20px;
+    padding-left: 2em;
 }
 table.newsfeed_table ul li {
     margin-top: 0.5em;
@@ -894,7 +894,9 @@ div.article-body ul {
     /* If the list item has multiple lines, this makes all the lines start
        at the same horizontal position, NOT counting the disc */
     list-style-position: outside;
-    margin-left: 20px;
+    /* Indentation. This matches GitHub. For comparison, Wikipedia uses
+       1.6em of left margin. */
+    padding-left: 2em;
 }
 div.article-body ul li {
     margin-top: 0.5em;

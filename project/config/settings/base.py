@@ -423,6 +423,13 @@ MARKDOWNX_IMAGE_MAX_SIZE = {
 # Media path where drag-and-drop image uploads get stored.
 MARKDOWNX_MEDIA_PATH = 'article_images/'
 
+# markdownx setting.
+# Markdown extensions. 'extra' features are listed here:
+# https://python-markdown.github.io/extensions/extra/
+MARKDOWNX_MARKDOWN_EXTENSIONS = [
+    'markdown.extensions.extra'
+]
+
 
 # [Custom settings]
 # Media filepath patterns

@@ -15,6 +15,10 @@ admin.site.unregister(FlatPage)
 
 
 class FlatPageForm(DefaultFlatPageForm):
+    class Media:
+        css = {
+            'all': ("css/markdownx_editor.css",)
+        }
     class Meta:
         # Use the markdownx widget for the content field.
         widgets = dict(

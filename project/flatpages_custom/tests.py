@@ -55,7 +55,9 @@ class FlatpagesTest(ClientTest):
         self.assertHTMLEqual(
             str(container_soup),
             '<div id="content-container">'
+            '<div class="article-body">'
             '<p><strong>FAQ contents</strong> go <em>here.</em></p>'
+            '</div>'
             '</div>')
 
     def test_versioning(self):

@@ -5,6 +5,8 @@
 
 {% block content %}
 
-{{ flatpage.content|markdown_to_html }}
+<div class="article-body">
+  {{ flatpage.content|markdown_to_html }}
+</div>
 
 {% endblock %}

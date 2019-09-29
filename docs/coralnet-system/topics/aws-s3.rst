@@ -1,21 +1,11 @@
-.. _file_serving:
+Amazon S3
+=========
 
-File serving - Media files, static files, and S3
-================================================
-
-This page covers serving of media files and static files.
+This page describes how to set up serving of media files through Amazon S3. It also outlines a few other useful S3 procedures.
 
 
 S3 bucket setup
 ---------------
-- *Production/staging*
-- *Local server with S3 storage*
-
-
-.. _s3_bucket_setup:
-
-Setup steps
-...........
 
 - Go to the Amazon S3 console.
 - Create a bucket.
@@ -43,11 +33,13 @@ Setup steps
     ]
   }
 
-- TODO: Should production `enable bucket versioning <https://docs.aws.amazon.com/AmazonS3/latest/UG/enable-bucket-versioning.html>`__?
+Even if this bucket is just for a development copy of the website, the bucket generally has to be public to serve to the website. So, this bucket policy has a simple security measure that requires the Referer to be the website domain. This means that one cannot access the bucket resources simply by typing in URLs.
+
+Production should `enable bucket versioning <https://docs.aws.amazon.com/AmazonS3/latest/UG/enable-bucket-versioning.html>`__.
 
 
-Explanation on setup steps
-..........................
+Explanation on CORS and bucket policy
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The default CORS configuration should allow any website domain to include bucket objects in their webpages, provided that they have read access to those bucket objects in the first place. CORS is required because our actual website isn't on S3; therefore including an S3 resource on our website is cross-origin sharing.
 
@@ -64,14 +56,12 @@ One potential security hole is the fact that ``HTTP_REFERER`` can be set by the 
 See `this blog post <https://aws.amazon.com/blogs/security/iam-policies-and-bucket-policies-and-acls-oh-my-controlling-access-to-s3-resources/>`__ for info on bucket policies, `this docs page <http://docs.aws.amazon.com/AmazonS3/latest/dev/manage-acls-using-console.html>`__ for info on ACLs, and `this docs page <http://docs.aws.amazon.com/AmazonS3/latest/dev/example-bucket-policies.html#example-bucket-policies-use-case-4>`__ for the referer check.
 
 
-.. _s3cmd_install:
+.. _s3cmd:
 
 Installing s3cmd
 ----------------
 
-- *Install as needed*
-
-s3cmd is a third-party utility for Amazon S3 which provides some functionality that the AWS CLI lacks.
+s3cmd is a third-party utility for Amazon S3 which provides some functionality that the AWS CLI lacks. This shouldn't be needed for normal website operation, but it can be useful if you need to reorganize S3 buckets for any reason. So, install this when needed.
 
 Install with ``pip install s3cmd``.
 
@@ -83,27 +73,20 @@ If you're on an EC2 instance, just make sure the instance is associated with an 
 If you're not on an EC2 instance, use ``s3cmd --configure`` to set your AWS access and secret keys. The configuration gets saved in ``~/.s3cfg``.
 
 
-.. _sync_between_s3_buckets:
-
-Syncing media from an S3 bucket to another S3 bucket
+Syncing files from an S3 bucket to another S3 bucket
 ----------------------------------------------------
 
-- *Staging server*
-- *Alpha to beta server migration*
+From an EC2 instance :ref:`with the AWS CLI installed <aws-cli>`, simply run: ``aws s3 sync s3://<source bucket> s3://<destination bucket>``
 
-From an EC2 instance :ref:`with the AWS CLI installed <aws_cli_install>`, simply run: ``aws s3 sync s3://<source bucket> s3://<destination bucket>``
+Note that S3 buckets cannot be renamed, so that boils down to a sync procedure as well: create a new bucket, sync files from the old bucket to the new one, and delete the old bucket.
 
 
-.. _sync_filesystem_to_s3:
+Syncing files from a server's local filesystem to S3
+----------------------------------------------------
 
-Syncing media from a server filesystem to S3
---------------------------------------------
+The :ref:`AWS CLI <aws-cli>` can sync from a filesystem to S3 with the ``aws s3 sync`` command. However, it seems to hang without transferring anything in some cases with large directories. (`Related GitHub issue <https://github.com/aws/aws-cli/issues/1775>`__)
 
-- *Alpha to beta server migration*
-
-The :ref:`AWS CLI <aws_cli_install>` can sync from a filesystem to S3 with the ``aws s3 sync`` command. However, it seems to hang without transferring anything in some cases with large directories. (`Related GitHub issue <https://github.com/aws/aws-cli/issues/1775>`__)
-
-To avoid hanging, use :ref:`s3cmd <s3cmd_install>` instead. The syntax is ``s3cmd sync LOCAL_DIR s3://BUCKET[/PREFIX]``.
+To avoid hanging, use s3cmd instead. The syntax is ``s3cmd sync LOCAL_DIR s3://BUCKET[/PREFIX]``.
 
 - As the `s3cmd usage reference <http://s3tools.org/usage>`__ says, this "checks files freshness using size and md5 checksum, unless overridden by options". Add the option ``--no-check-md5`` to skip checking the md5 checksum, which should speed up the sync significantly. This should be a safe option for our image data, since the website doesn't have any way to edit previously uploaded image files.
 
@@ -130,10 +113,10 @@ For the alpha to beta migration, you'll want to mind the mappings between the ol
 On 2016.11, re-syncing images took about 11 hours: 1 hour to get the remote file listing, and 10 hours to transfer the files. There were 772386 files total and 110223 files to transfer.
 
 
-Failed attempt: Running s3cmd from an EC2 instance
-..................................................
+Failed attempt: Syncing files from a remote filesystem to S3
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-This was the original idea for the sync: running s3cmd from the EC2 instance which is already associated with an IAM Role, thus making it unnecessary to explicitly give s3cmd the AWS keys.
+During the alpha to beta migration, we had to sync files from the non-AWS alpha server to S3. One idea was to run s3cmd from an AWS EC2 instance which was already associated with an IAM Role, thus saving the step of explicitly giving s3cmd the AWS keys. However, it didn't work out due to a hanging issue. The attempted procedure is described below:
 
 SSH into an EC2 instance. Mount the CoralNet alpha server's filesystem using SSHFS.
 
@@ -152,16 +135,14 @@ The sync commands become:
 For ``images``, there is a chance that the sync will hang at the first step, compiling a list of local files. (Use ``--verbose`` to see whether it's on this step or not.) When doing the sync in 2016.07, this chance was maybe around 50%, but unfortunately in 2016.11 it seems to be 100%, making this syncing method no longer possible. The cause is unknown.
 
 - Even ``sudo du -sh /mnt/cnalpha/mnt/CoralNet/media/data/original`` (this calculates the total filesize of the directory) cannot ever seem to complete, despite finishing in a few seconds when run directly on the alpha server.
-- Also tried keeping the ``sshfs`` connection alive with ``-o reconnect,ServerAliveInterval=15,ServerAliveCountMax=3`` as suggested `here <http://stackoverflow.com/a/26584116/859858>`__, but it didn't help.
+- Also tried keeping the ``sshfs`` connection alive with ``-o reconnect,ServerAliveInterval=15,ServerAliveCountMax=3`` as suggested `here <http://stackoverflow.com/a/26584116/>`__, but it didn't help.
 
-
-.. _s3_reset_file_permissions:
 
 Resetting S3 file permissions
 -----------------------------
 
 Explanation
-...........
+^^^^^^^^^^^
 
 All S3 files should only be shown to a user if the website explicitly serves that file to a user (e.g. an image is displayed as part of a page). Otherwise, S3 files should be private to our AWS account.
 
@@ -175,9 +156,15 @@ To be clear:
 
 - Bucket policy says website referral required + File ACL allows public download = File can be publicly downloaded without website referral.
 
-Resetting permissions
-.....................
+How to reset permissions
+^^^^^^^^^^^^^^^^^^^^^^^^
 
-If you notice or suspect that some bucket files have public-granting ACLs, this functionality from :ref:`s3cmd <s3cmd_install>` will reset all media files to private ACLs: ``s3cmd setacl --acl-private --recursive s3://<bucket-name>/media/``
+If you notice or suspect that some bucket files have public-granting ACLs, this functionality from :ref:`s3cmd <s3cmd>` will reset all media files to private ACLs: ``s3cmd setacl --acl-private --recursive s3://<bucket-name>/media/``
 
 As of 2016.11, this seems to take roughly 4-6 hours to complete.
+
+
+Deleting an S3 bucket
+---------------------
+
+If you attempt to delete a large bucket from the S3 console, you'll get an error: ``There are more than 100000 objects (including versions) in <bucket name>.`` You need to use one of the methods `here <https://docs.aws.amazon.com/AmazonS3/latest/dev/delete-or-empty-bucket.html>`__ to delete the buckets. For a bucket that doesn't have versioning enabled, ``aws s3 rb s3://<bucket-name> --force`` should work.

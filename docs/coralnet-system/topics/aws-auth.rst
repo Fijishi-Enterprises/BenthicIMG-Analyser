@@ -1,16 +1,11 @@
-.. _aws:
-
-Amazon Web Services
+AWS authentication
 ===================
 
-This page contains setup procedures for miscellaneous components of Amazon Web Services (AWS).
+This page describes authentication-related setup procedures for Amazon Web Services (AWS).
 
 
 IAM user setup
 --------------
-
-- *Production/staging server*
-- *Development server with S3 media storage*
 
 The project only has one AWS root account, but it can have multiple IAM users - for example, one IAM user per team member.
 
@@ -22,8 +17,6 @@ Create an IAM user. See `this Amazon docs page <http://docs.aws.amazon.com/AWSEC
 
 Now you can log into AWS using your IAM user credentials, rather than your AWS root account credentials. The IAM login page can be found at `https://<12 digit account number>.signin.aws.amazon.com/console/`. You should also see the page if you visit one of the AWS console pages after not logging in for a while.
 
-
-.. _aws_key_pair:
 
 Key pair
 --------

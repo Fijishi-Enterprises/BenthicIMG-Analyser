@@ -405,7 +405,8 @@ ACCOUNT_ACTIVATION_DAYS = 7
 EMAIL_CHANGE_CONFIRMATION_HOURS = 24
 
 # [Custom settings]
-ACCOUNT_QUESTIONS_LINK = "TODO"  # TODO
+ACCOUNT_QUESTIONS_LINK = \
+    "https://groups.google.com/forum/#!topic/coralnet-users/PsU3x-Ubrdc"
 FORUM_LINK = "https://groups.google.com/forum/#!forum/coralnet-users"
 
 

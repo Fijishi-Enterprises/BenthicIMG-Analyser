@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% load markdown_to_html %}
+
+{% block title %}{{ flatpage.title }} | CoralNet{% endblock %}
+
+{% block content %}
+
+<div class="article-body">
+  {{ flatpage.content|markdown_to_html }}
+</div>
+
+{% endblock %}

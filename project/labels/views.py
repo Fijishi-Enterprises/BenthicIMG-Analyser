@@ -320,7 +320,7 @@ def labelset_import_ajax(request, source_id):
             error=(
                 "We couldn't find the expected data in your session."
                 " Please try loading this page again. If the problem persists,"
-                " contact a site admin."
+                " let us know on the forum."
             ),
         ))
     csv_labels = serializers.deserialize('json', serialized_labels)

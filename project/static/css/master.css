@@ -832,7 +832,7 @@ table.detail_table_popup.horizontal td {
 table.newsfeed_table ul {
     list-style-type: disc;
     list-style-position: outside;
-    margin-left: 20px;
+    padding-left: 2em;
 }
 table.newsfeed_table ul li {
     margin-top: 0.5em;
@@ -894,7 +894,9 @@ div.article-body ul {
     /* If the list item has multiple lines, this makes all the lines start
        at the same horizontal position, NOT counting the disc */
     list-style-position: outside;
-    margin-left: 20px;
+    /* Indentation. This matches GitHub. For comparison, Wikipedia uses
+       1.6em of left margin. */
+    padding-left: 2em;
 }
 div.article-body ul li {
     margin-top: 0.5em;
@@ -911,4 +913,36 @@ div.article-body p {
     line-height: 1.5em;
     margin-top: 0.5em;
     margin-bottom: 0.5em;
+}
+
+div.article-body table {
+    border: 1px solid #999999;
+    /* Firefox seems to make border widths inconsistent
+     if border-collapse: collapse */
+    border-collapse: separate;
+    margin: 5px;
+}
+div.article-body table th,
+div.article-body table td {
+    border: 1px solid #999999;
+    padding: 5px;
+}
+
+div.article-body img {
+    /* Add a border around images by default. In site articles, many
+       of these images are site screenshots, whose backgrounds would
+       blend in with the article background if there were no border. */
+    border: 2px solid #ccc;
+}
+div.article-body img[alt$="icon"] {
+    /* Do not add a border around images whose alt attribute ends with
+       'icon'. In some cases we'll add a site icon in-line when explaining
+       something. A border can cause confusion in this case, making people
+       think the border is part of the icon.
+
+       The reason we detect icons from alt text, rather than from CSS
+       class, is that it's not always convenient to specify CSS classes
+       when writing Markdown (this requires specifying the image using HTML
+       rather than using Markdown syntax). */
+    border: none;
 }

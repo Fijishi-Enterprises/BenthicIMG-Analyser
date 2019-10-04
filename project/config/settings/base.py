@@ -148,6 +148,8 @@ INSTALLED_APPS = [
     # Saves internal server error messages for viewing in the admin site
     'errorlogs.apps.ErrorlogsConfig',
     'export',
+    # Flatpages-related customizations
+    'flatpages_custom',
     'images',
     'labels',
     # Miscellaneous stuff
@@ -166,6 +168,9 @@ INSTALLED_APPS = [
     'django.contrib.auth',
     # Allows permissions to be associated with models you create
     'django.contrib.contenttypes',
+    # Store "flat" content pages like Help and FAQ in the database, and edit
+    # them via the admin interface
+    'django.contrib.flatpages',
     # Has Django template filters to 'humanize' data, like adding thousands
     # separators to numbers
     'django.contrib.humanize',
@@ -182,6 +187,7 @@ INSTALLED_APPS = [
     'andablog',
     'easy_thumbnails',
     'guardian',
+    'markdownx',
     'reversion',
     'storages',
     # For andablog's entry tags
@@ -266,6 +272,8 @@ TEMPLATES = [
                 'django.template.context_processors.static',
                 'django.template.context_processors.tz',
                 'django.contrib.messages.context_processors.messages',
+                # Adds CoralNet help links to the context.
+                'lib.context_processors.help_links',
             ],
         },
     },
@@ -395,6 +403,33 @@ ACCOUNT_ACTIVATION_DAYS = 7
 # The number of hours users will have to confirm an email change after
 # requesting one.
 EMAIL_CHANGE_CONFIRMATION_HOURS = 24
+
+# [Custom settings]
+ACCOUNT_QUESTIONS_LINK = \
+    "https://groups.google.com/forum/#!topic/coralnet-users/PsU3x-Ubrdc"
+FORUM_LINK = "https://groups.google.com/forum/#!forum/coralnet-users"
+
+
+# markdownx setting (used on the admin site's flatpage editor).
+# Max size for images uploaded through a markdownx widget via drag and drop.
+#
+# Note that in Markdown, you can use HTML to make an image appear a different
+# size from its original size: <img src="image.png" width="900"/>
+MARKDOWNX_IMAGE_MAX_SIZE = {
+    # Max resolution
+    'size': (2000, 2000),
+}
+
+# markdownx setting.
+# Media path where drag-and-drop image uploads get stored.
+MARKDOWNX_MEDIA_PATH = 'article_images/'
+
+# markdownx setting.
+# Markdown extensions. 'extra' features are listed here:
+# https://python-markdown.github.io/extensions/extra/
+MARKDOWNX_MARKDOWN_EXTENSIONS = [
+    'markdown.extensions.extra'
+]
 
 
 # [Custom settings]

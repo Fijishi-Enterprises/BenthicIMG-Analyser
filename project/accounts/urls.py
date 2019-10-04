@@ -1,6 +1,8 @@
 from __future__ import unicode_literals
 
+from django.conf import settings
 from django.conf.urls import include, url
+from django.contrib.auth import views as auth_views
 from django.views.generic.base import TemplateView
 from . import views
 from .forms import AuthenticationForm
@@ -16,6 +18,13 @@ urlpatterns = [
             authentication_form=AuthenticationForm,
         ),
         name='login'),
+    url(r'^password_reset/$',
+        auth_views.PasswordResetView.as_view(
+            extra_email_context=dict(
+                account_questions_link=settings.ACCOUNT_QUESTIONS_LINK
+            ),
+        ),
+        name='password_reset'),
     url(r'^register/$',
         views.register,
         name='django_registration_register'),

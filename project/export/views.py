@@ -148,7 +148,7 @@ def export_annotations_cpc_serve(request, source_id):
                 "Export failed; we couldn't find the expected data in"
                 " your session."
                 " Please try the export again. If the problem persists,"
-                " contact a site admin."
+                " let us know on the forum."
             ),
         )
         return HttpResponseRedirect(

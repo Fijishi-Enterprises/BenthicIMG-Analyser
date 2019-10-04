@@ -398,7 +398,7 @@ class LabelsetImportCreateTest(LabelsetImportBaseTest):
             response,
             "We couldn't find the expected data in your session."
             " Please try loading this page again. If the problem persists,"
-            " contact a site admin.")
+            " let us know on the forum.")
 
     def test_zero_data_rows(self):
         csv_rows = [

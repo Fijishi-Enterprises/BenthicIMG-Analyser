@@ -32,6 +32,9 @@ class Migration(migrations.Migration):
         ('lib', '0001_set_site_name'),
     ]
 
+    # Reverse operation is a no-op. The forward operation doesn't care if the
+    # domain is already set correctly.
     operations = [
-        migrations.RunPython(set_site_domain_based_on_setting),
+        migrations.RunPython(
+            set_site_domain_based_on_setting, migrations.RunPython.noop),
     ]

@@ -85,6 +85,9 @@ class EmailChangeTest(ClientTest):
             "{h} hours".format(h=settings.EMAIL_CHANGE_CONFIRMATION_HOURS),
             confirmation_email.body,
             "Link validity period should be in the email body")
+        self.assertIn(
+            settings.ACCOUNT_QUESTIONS_LINK, confirmation_email.body,
+            "Account questions link should be in the email body")
 
     def test_submit_notice_email_details(self):
         self.client.force_login(self.user)
@@ -115,6 +118,9 @@ class EmailChangeTest(ClientTest):
             "{h} hours".format(h=settings.EMAIL_CHANGE_CONFIRMATION_HOURS),
             notice_email.body,
             "Link validity period should be in the email body")
+        self.assertIn(
+            settings.ACCOUNT_QUESTIONS_LINK, notice_email.body,
+            "Account questions link should be in the email body")
 
     def test_confirm(self):
         confirmation_link = self.submit_and_get_confirmation_link()
@@ -162,6 +168,9 @@ class EmailChangeTest(ClientTest):
         self.assertIn(
             self.user2.username, exists_email.body,
             "Username should be in the email body")
+        self.assertIn(
+            settings.ACCOUNT_QUESTIONS_LINK, exists_email.body,
+            "Account questions link should be in the email body")
 
     def test_confirm_signed_out(self):
         confirmation_link = self.submit_and_get_confirmation_link()

@@ -35,6 +35,8 @@ class Migration(migrations.Migration):
         ('taggit', '0002_auto_20150616_2121')
     ]
 
+    # Reverse operation is a no-op. The forward operation doesn't care if the
+    # site name is already set correctly.
     operations = [
-        migrations.RunPython(set_site_name),
+        migrations.RunPython(set_site_name, migrations.RunPython.noop),
     ]

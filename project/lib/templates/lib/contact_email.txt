@@ -1,6 +1,0 @@
-This email was sent using the Contact Us form.
-
-Username: {{ username }}
-User's email: {{ user_email }}
-
-{{ base_message }}

@@ -16,6 +16,7 @@ This repository is for CoralNet parts which are specific to the production serve
 
 ## Building and viewing the documentation
 
+- Make sure you have Python and Sphinx installed.
 - Open a terminal/command line, cd to the `docs` directory of this repository, and run `make html`. (This command is cross platform, since there's a `Makefile` as well as a `make.bat`.)
 - Open `docs/_build/html/index.html` in a web browser to start browsing the documentation.
 - It's also possible to output in formats other than HTML, if you use `make <format>` with a different format. See [Sphinx's docs](http://www.sphinx-doc.org/en/master/usage/quickstart.html#running-the-build).

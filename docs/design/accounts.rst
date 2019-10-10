@@ -1,5 +1,5 @@
-Design decisions - Accounts
-===========================
+Accounts design notes
+=====================
 
 
 Terminology: Sign in, Sign out, Register

@@ -58,7 +58,7 @@ Here are some features that aren't yet used, but are fairly likely to be used ev
      - Usage notes
    * - `Arrow functions <https://caniuse.com/#feat=arrow-functions>`__
      - IE 11, Samsung Internet 4, Opera Mini
-     - Example use: `Using forEach() slightly more concisely <https://stackoverflow.com/a/40364002/859858>`__
+     - Example use: `Using forEach() slightly more concisely <https://stackoverflow.com/a/40364002/>`__
    * - `ES6 Classes <https://caniuse.com/#feat=es6-class>`__
      - IE 11, Samsung Internet 4, Opera Mini
      -

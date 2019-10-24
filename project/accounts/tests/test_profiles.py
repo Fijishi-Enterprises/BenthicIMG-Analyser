@@ -40,7 +40,7 @@ class ProfileListPermissionTest(ProfilePermissionTest):
         else:
             self.client.logout()
         response = self.client.get(resolve_url('profile_list'))
-        response_soup = BeautifulSoup(response.content)
+        response_soup = BeautifulSoup(response.content, 'html.parser')
         # We make sure to exclude the page header, which has the current
         # user's username.
         main_content_soup = response_soup.find('div', id='content-container')
@@ -54,7 +54,7 @@ class ProfileListPermissionTest(ProfilePermissionTest):
         else:
             self.client.logout()
         response = self.client.get(resolve_url('profile_list'))
-        response_soup = BeautifulSoup(response.content)
+        response_soup = BeautifulSoup(response.content, 'html.parser')
         main_content_soup = response_soup.find('div', id='content-container')
         self.assertNotIn(
             profile_name, str(main_content_soup),
@@ -130,14 +130,14 @@ class ProfileListItemCountsTest(ClientTest):
         self.client.force_login(self.superuser)
 
         response = self.client.get(self.url)
-        response_soup = BeautifulSoup(response.content)
+        response_soup = BeautifulSoup(response.content, 'html.parser')
         account_list_soup = response_soup.find('ul', id='account_list')
         self.assertEqual(
             len(account_list_soup.find_all('li')), 50,
             "Page 1 has 50 profiles")
 
         response = self.client.get(self.url + '?page=2')
-        response_soup = BeautifulSoup(response.content)
+        response_soup = BeautifulSoup(response.content, 'html.parser')
         account_list_soup = response_soup.find('ul', id='account_list')
         self.assertEqual(
             len(account_list_soup.find_all('li')), 1,

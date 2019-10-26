@@ -82,12 +82,6 @@ With your virtualenv activated, run ``pip install -r requirements/local.txt`` to
 
 A few package/OS combinations may need additional steps:
 
-- ``psycopg2`` on Linux
-
-  - If you get ``Error: pg_config executable not found``, you may have to install a Linux package first: ``postgresql<version>-devel`` on Red Hat/CentOS, ``libpq-dev`` on Debian/Ubuntu, ``libpq-devel`` on Cygwin/Babun. (`Source <http://stackoverflow.com/questions/11618898/pg-config-executable-not-found>`__)
-
-  - The correct version of the package may not be in your package directory by default. See PostgreSQL's `Downloads <http://www.postgresql.org/download/>`__ page and follow instructions to get binary packages for your Linux distro.
-
 - ``Pillow`` on Linux
 
   - You'll get errors if you don't have certain packages:

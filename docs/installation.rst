@@ -5,12 +5,12 @@ Installation
 PostgreSQL installation
 -----------------------
 
-Download and install the PostgreSQL server/core, 9.6.x. 32 or 64 bit shouldn't matter.
+Download and install the PostgreSQL server/core, 10.x. 32 or 64 bit shouldn't matter.
 
-- On Linux, the package will probably be ``postgresql-<version number>``.
+- On Linux, the package will probably be ``postgresql-10``.
 - During the setup process, make sure you keep track of the root password.
 
-Locate and open the client program that came with PostgreSQL. Windows has pgAdmin, while Linux should have the command-line ``postgresql-client-<version number>`` or the GUI pgAdmin as options (may be distributed separately).
+Locate and open the client program that came with PostgreSQL. Windows has pgAdmin, while Linux should have the command-line ``postgresql-client`` or the GUI pgAdmin as options (may be distributed separately).
 
 Using the client program, check that you can connect to the PostgreSQL server.
 

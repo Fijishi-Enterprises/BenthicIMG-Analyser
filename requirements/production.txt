@@ -2,4 +2,5 @@
 
 # WSGI HTTP server - The layer above Django, and below the overall web
 # server (e.g. nginx)
+# Changelog: http://docs.gunicorn.org/en/stable/news.html
 gunicorn==19.6.0

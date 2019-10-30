@@ -117,9 +117,19 @@ mock==2.0.0
 # are not supported. The only way to support that is to move to Python 3
 # eventually. https://github.com/mcmtroffaes/pathlib2/issues/34
 pathlib2==2.3.5
+
+# Another filepath calculations module.
+#
 # unipath hasn't been updated since early 2015 (as of late 2017).
-# Was formerly recommended by Two Scoops of Django, but they moved to pathlib.
+# Was formerly recommended by Two Scoops of Django for specifying Django
+# settings, but they moved to pathlib.
 # https://github.com/twoscoops/two-scoops-of-django-1.8/issues/150
+# https://github.com/twoscoops/two-scoops-of-django-1.11/blob/master/code/chapter_05_example_30.py
+#
+# However, as of Python 2.7 + Django 1.11, most settings don't accept
+# pathlib.Path objects. This makes it tricky to replace our usage of unipath
+# for settings with pathlib. So, until we upgrade Python/Django, this package
+# will have to stay.
 unipath==1.1
 
 # Machine Learning tools.

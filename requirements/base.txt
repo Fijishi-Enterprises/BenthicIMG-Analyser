@@ -9,7 +9,7 @@
 # (https://youtrack.jetbrains.com/issue/PY-15538).
 # Nevertheless, future's cheat sheet is useful:
 # http://python-future.org/compatible_idioms.html
-six==1.10.0
+six==1.12.0
 
 Django>=1.11.23,<2
 
@@ -22,7 +22,9 @@ django-guardian==1.4.9
 # Python Imaging Library
 # (A currently active, package friendly fork of it; also endorsed by Django)
 # Changelog: https://pillow.readthedocs.io/en/stable/releasenotes/index.html
-Pillow==4.1.1
+#
+# django-andablog, as of 3.1.0, still needs Pillow 4.x instead of >= 5
+Pillow==4.3.0
 
 # Markdown support in the blog and other places.
 # Changelog: https://github.com/Python-Markdown/markdown/blob/master/docs/change_log/index.md
@@ -81,14 +83,14 @@ django-migration-testcase==0.0.14
 # This package should also work for Python 3, so no conditional imports should
 # be needed. But after moving to Python-3-only, it would be best to simplify to
 # `import csv`.
-backports.csv==1.0.6
+backports.csv==1.0.7
 
 # HTML parsing.
 # Changelog: https://bazaar.launchpad.net/~leonardr/beautifulsoup/bs4/view/head:/CHANGELOG
 #
 # Also comes with a character encoding detection tool called "Unicode, Dammit":
 # https://www.crummy.com/software/BeautifulSoup/bs4/doc/#unicode-dammit
-beautifulsoup4==4.6.0
+beautifulsoup4>=4.8.1,<4.9
 
 # BeautifulSoup's encoding detection becomes more accurate if chardet or
 # cchardet is installed. chardet is older; cchardet is much faster.
@@ -114,7 +116,7 @@ mock==2.0.0
 # However, pathlib2 does have a major flaw: paths with non-ASCII characters
 # are not supported. The only way to support that is to move to Python 3
 # eventually. https://github.com/mcmtroffaes/pathlib2/issues/34
-pathlib2==2.3.0
+pathlib2==2.3.5
 # unipath hasn't been updated since early 2015 (as of late 2017).
 # Was formerly recommended by Two Scoops of Django, but they moved to pathlib.
 # https://github.com/twoscoops/two-scoops-of-django-1.8/issues/150
@@ -148,7 +150,7 @@ redis==2.10.5
 
 # Supervisord to manage celery.
 # Changelog: https://github.com/Supervisor/supervisor/blob/master/CHANGES.rst
-supervisor==3.3.1
+supervisor>=4.1.0,<4.2
 
 # Progress bar for CLI
 # Changelog: https://tqdm.github.io/releases/

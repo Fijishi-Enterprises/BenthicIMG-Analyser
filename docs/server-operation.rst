@@ -19,6 +19,23 @@ Updating to the latest repository code
 #. If there are any new Django migrations to run, then run those: ``python manage.py migrate``. New migrations should be tested in staging before being run in production.
 
 
+Upgrading PostgreSQL
+--------------------
+See the `PostgreSQL docs <https://www.postgresql.org/docs/10/upgrading.html>`__. Basically:
+
+- Install the new PostgreSQL server version alongside the existing version.
+
+  - Note that if both server versions use the same port number (e.g. 5432, the default), they won't be able to run simultaneously.
+
+- Check the release notes for the major version (9.5, 9.6, 10, 11, 12...), particularly the 'Migration' section, to see if version-specific steps are necessary to upgrade.
+
+  - `Upgrading to version 10: <https://www.postgresql.org/docs/10/release-10.html>`__ No extra steps needed for CoralNet. If you happen to connect to your development server remotely, though, ``ssl_dh_params_file`` could be helpful for security.
+
+- Either manually dump your databases from the old server (``dumpall``) and restore them to the new server (``psql`` with ``--file`` option), or use ``pg_upgrade`` to do it.
+
+  - If you get prompted for the password several times during the process, just enter the password each time and it should work.
+
+
 Server scripts
 --------------
 

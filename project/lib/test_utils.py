@@ -66,6 +66,22 @@ if hasattr(settings, 'AWS_LOCATION'):
 test_settings['STATICFILES_STORAGE'] = \
     'django.contrib.staticfiles.storage.StaticFilesStorage'
 
+# Use a local memory cache instead of a filesystem cache, because:
+# - In testing, there's no reason to persist the cache after a particular
+#   test is over. It's also more files we'd have to clean up after testing.
+# - By using the same file-based cache setting as the actual server, we
+#   clutter the actual server's cache folder with test cache files, which
+#   is strange at best (if not actually harmful). Also, there can be file
+#   access annoyances: if production/staging run the server as www-data,
+#   then tests on those instances may also have to run as www-data to
+#   access cache files.
+test_settings['CACHES'] = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'test',
+    }
+}
+
 # Bypass the .delay() call to make the tasks run synchronously. 
 # This is needed since the celery agent runs in a different 
 # context (e.g. Database)

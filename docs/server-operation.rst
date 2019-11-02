@@ -16,7 +16,7 @@ Updating to the latest repository code
 
 #. Check changes to settings files. If there are any new secret settings to specify in ``secrets.json``, then do that.
 
-#. If there are any new Django migrations to run, then run those: ``python manage.py migrate``. New migrations should be tested in staging before being run in production.
+#. If there are any new Django migrations to run, then run those: ``python manage.py migrate``.
 
 
 Upgrading PostgreSQL

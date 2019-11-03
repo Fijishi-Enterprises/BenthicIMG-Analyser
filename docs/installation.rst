@@ -63,6 +63,8 @@ This project uses the latest Python 2.7.x, so download and install that.
 Since this project has many third-party dependencies, and may require specific versions of those dependencies, it's highly recommended to use something like virtualenv to keep those dependencies separate from other Python projects.
 
 
+.. _virtualenv:
+
 Virtualenv
 ^^^^^^^^^^
 Install virtualenv: ``pip install virtualenv`` (Be sure that you're using the ``pip`` from the Python installation you're using for CoralNet.)
@@ -75,6 +77,8 @@ Activate your virtualenv: ``source <path to virtualenv you created>/bin/activate
 
 You should ensure that your virtual environment is activated when installing Python packages or running Django management commands for the CoralNet project. From here on out, these instructions will assume you have your virtual environment (also referred to as virtualenv) activated.
 
+
+.. _python-packages:
 
 Python packages
 ---------------

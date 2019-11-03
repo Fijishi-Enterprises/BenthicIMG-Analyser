@@ -1,8 +1,6 @@
 # Specific files which are unique per machine or generated somehow
 project/config/settings/secrets.json
-project/config/nginx.conf
 project/templates/maintenance_notice.html
-supervisor.conf
 
 # Coverage output files
 .coverage

@@ -110,6 +110,13 @@ start worker
   celery flower -A config
 
 
+Checking test coverage
+----------------------
+We have the ``coverage`` Python package in our local requirements for this purpose. Follow the instructions in `the coverage docs <https://coverage.readthedocs.io/en/stable/>`__ to run it and view the results.
+
+- To run our Django tests with coverage, run ``coverage run manage.py test`` from the ``project`` directory.
+
+
 Admin-only website functionality
 --------------------------------
 

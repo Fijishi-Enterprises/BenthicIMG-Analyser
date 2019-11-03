@@ -1,6 +1,12 @@
 -r base.txt # includes the base.txt requirements file
 
 
+# Output info on test coverage - how much of the Python codebase is covered
+# by the unit tests.
+# The version shouldn't really matter here, as it's not part of the running
+# Django project.
+coverage
+
 # Documentation.
 # The version shouldn't really matter here, as it's not part of the running
 # Django project.

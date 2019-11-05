@@ -63,6 +63,8 @@ This project uses the latest Python 2.7.x, so download and install that.
 Since this project has many third-party dependencies, and may require specific versions of those dependencies, it's highly recommended to use something like virtualenv to keep those dependencies separate from other Python projects.
 
 
+.. _virtualenv:
+
 Virtualenv
 ^^^^^^^^^^
 Install virtualenv: ``pip install virtualenv`` (Be sure that you're using the ``pip`` from the Python installation you're using for CoralNet.)
@@ -75,6 +77,8 @@ Activate your virtualenv: ``source <path to virtualenv you created>/bin/activate
 
 You should ensure that your virtual environment is activated when installing Python packages or running Django management commands for the CoralNet project. From here on out, these instructions will assume you have your virtual environment (also referred to as virtualenv) activated.
 
+
+.. _python-packages:
 
 Python packages
 ---------------
@@ -121,7 +125,7 @@ Look under ``project/config/settings``.
   - An import of either ``storage_local`` or ``storage_s3``, depending on whether you want to store media files locally or in an S3 bucket. Local storage works fine for most functionality, but the vision backend requires S3.
   - Any settings values you want to customize for your environment specifically
 
-By default, Django expects the settings to be in a ``settings.py`` at the project root, so we have to tell it otherwise. One way is with the ``DJANGO_SETTINGS_MODULE`` environment variable. Set this variable to ``config.settings.<module name>``, where ``<module name>`` is ``dev_<name>``, ``production``, etc.
+By default, Django expects the settings to be in a ``settings.py`` at the project root, so we have to tell it otherwise. One way is with the ``DJANGO_SETTINGS_MODULE`` environment variable. Set this variable to ``config.settings.<module name>``, where ``<module name>`` is ``dev_stephen``, ``dev_oscar``, etc.
 
 - For example, in Linux (bash and most other shells): ``export DJANGO_SETTINGS_MODULE=config.settings.dev_stephen``
 
@@ -173,7 +177,7 @@ Navigate to your localhost web server, e.g. ``http://127.0.0.1:8000/``, in your 
 
 Testing that it works
 ---------------------
-Register and activate a user using the website's views. If you're using the development server, you should see the activation email in the console running Django. If you're using the staging server, the activation email should be in the directory specified by the ``EMAIL_FILE_PATH`` setting.
+Register and activate a user using the website's views. If you're using the development server, you should see the activation email in the console running Django.
 
 Try creating a source, uploading images, making a labelset, making annotations, checking annotation history, and browsing patches. Test any other pages that come to mind.
 

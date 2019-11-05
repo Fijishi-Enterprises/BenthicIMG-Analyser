@@ -16,7 +16,16 @@ Updating to the latest repository code
 
 #. Check changes to settings files. If there are any new secret settings to specify in ``secrets.json``, then do that.
 
-#. If there are any new Django migrations to run, then run those: ``python manage.py migrate``. New migrations should be tested in staging before being run in production.
+#. If there are any new Django migrations to run, then run those: ``python manage.py migrate``.
+
+
+Upgrading Python
+----------------
+If you are just upgrading the patch version (2.7.15 -> 2.7.16), you should be able to just download and install the new version, allowing it to overwrite your old version. (`Source <https://stackoverflow.com/a/17954487/>`__)
+
+- If using Windows, you should also create a new virtualenv using the new version, because virtualenv on Windows copies core files/scripts over instead of using symlinks.
+
+If you are upgrading the major version (2 -> 3) or minor version (2.6 -> 2.7), first download and install the new version. It should install in a separate location, such as ``python27`` instead of ``python26``. You'll then want to :ref:`create a new virtualenv <virtualenv>` using the new Python version, and :ref:`reinstall packages <python-packages>` to that new virtualenv.
 
 
 Upgrading PostgreSQL
@@ -99,6 +108,13 @@ start worker
 (optionally) also run the celery task viewer:
 ::
   celery flower -A config
+
+
+Checking test coverage
+----------------------
+We have the ``coverage`` Python package in our local requirements for this purpose. Follow the instructions in `the coverage docs <https://coverage.readthedocs.io/en/stable/>`__ to run it and view the results.
+
+- To run our Django tests with coverage, run ``coverage run manage.py test`` from the ``project`` directory.
 
 
 Admin-only website functionality

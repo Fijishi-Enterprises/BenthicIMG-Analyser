@@ -7,7 +7,7 @@ from django.utils import timezone
 from annotations.model_utils import AnnotationAreaUtils
 from images.model_utils import PointGen
 from images.models import Source
-from lib.test_utils import ClientTest
+from lib.tests.utils import ClientTest
 
 
 class SourceAboutTest(ClientTest):

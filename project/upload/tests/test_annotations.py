@@ -11,7 +11,7 @@ from annotations.model_utils import AnnotationAreaUtils
 from annotations.models import Annotation
 from images.model_utils import PointGen
 from images.models import Point
-from lib.test_utils import ClientTest, sample_image_as_file
+from lib.tests.utils import ClientTest, sample_image_as_file
 from upload.tests.utils import UploadAnnotationsTestMixin
 
 

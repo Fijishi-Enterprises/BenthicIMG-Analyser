@@ -8,7 +8,7 @@ from django.core.files.base import ContentFile
 from django.urls import reverse
 
 from images.models import Image
-from lib.test_utils import ClientTest, sample_image_as_file
+from lib.tests.utils import ClientTest, sample_image_as_file
 
 
 class UploadMetadataTest(ClientTest):

@@ -13,7 +13,7 @@ from django.test.client import Client
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 
-from test_utils import ClientTest
+from tests.utils import ClientTest
 
 from images.models import Source
 from labels.models import LabelGroup, Label, LabelSet, LocalLabel

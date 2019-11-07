@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 from django.core import mail
 from django.urls import reverse
 
-from lib.test_utils import ClientTest
+from lib.tests.utils import ClientTest
 
 
 class BaseAccountsTest(ClientTest):

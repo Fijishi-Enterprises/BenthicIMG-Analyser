@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 from django.shortcuts import resolve_url
 from django.utils.html import escape
 
-from lib.test_utils import BasePermissionTest, ClientTest, sample_image_as_file
+from lib.tests.utils import BasePermissionTest, ClientTest, sample_image_as_file
 from ..models import Profile
 
 

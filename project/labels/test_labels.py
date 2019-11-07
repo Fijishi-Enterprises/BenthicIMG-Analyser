@@ -10,7 +10,7 @@ from django.urls import reverse
 
 from images.model_utils import PointGen
 from images.models import Source
-from lib.test_utils import ClientTest, sample_image_as_file
+from lib.tests.utils import ClientTest, sample_image_as_file
 from .models import LabelGroup, Label
 
 User = get_user_model()

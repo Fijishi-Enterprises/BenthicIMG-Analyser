@@ -5,7 +5,7 @@ from django.conf import settings
 from django.core import mail
 from django.urls import reverse
 
-from lib.test_utils import ClientTest
+from lib.tests.utils import ClientTest
 
 
 class EmailChangeTest(ClientTest):

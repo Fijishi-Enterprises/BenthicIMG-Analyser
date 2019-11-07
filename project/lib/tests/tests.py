@@ -2,19 +2,17 @@
 #
 # Lib tests and non-app-specific tests.
 from __future__ import unicode_literals
-from unittest import skip, skipIf
+from unittest import skipIf
 from django.conf import settings
-from django.core import mail
 from django import forms
 from django.shortcuts import resolve_url
 from django.urls import reverse
-from django.utils.html import escape
 from django.test.client import Client
 from django.test.utils import override_settings
 
-from .forms import get_one_form_error, get_one_formset_error
-from .test_utils import BaseTest, ClientTest
-from .utils import direct_s3_write, direct_s3_read
+from ..forms import get_one_form_error, get_one_formset_error
+from ..utils import direct_s3_write, direct_s3_read
+from .utils import BaseTest, ClientTest
 
 
 class IndexTest(ClientTest):

@@ -5,7 +5,7 @@ from annotations.tasks import update_sitewide_annotation_count_task
 from annotations.utils import get_sitewide_annotation_count
 from images.model_utils import PointGen
 from images.models import Source, Image, Point
-from lib.test_utils import ClientTest
+from lib.tests.utils import ClientTest
 
 
 class SitewideAnnotationCountTest(ClientTest):

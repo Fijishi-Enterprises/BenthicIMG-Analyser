@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 
 from django.shortcuts import resolve_url
 
-from lib.test_utils import ClientTest
+from lib.tests.utils import ClientTest
 
 
 class BaseExportTest(ClientTest):

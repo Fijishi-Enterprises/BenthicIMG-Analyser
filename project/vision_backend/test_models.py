@@ -2,7 +2,7 @@ import numpy as np
 
 from django.conf import settings
 
-from lib.test_utils import ClientTest
+from lib.tests.utils import ClientTest
 from labels.models import Label
 from images.models import Source, Point
 from .models import Score

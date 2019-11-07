@@ -10,7 +10,7 @@ from django.urls import reverse
 
 from images.models import Image
 from images.model_utils import PointGen
-from lib.test_utils import (
+from lib.tests.utils import (
     BrowserTest, EC_alert_is_not_present, EC_javascript_global_var_value)
 
 

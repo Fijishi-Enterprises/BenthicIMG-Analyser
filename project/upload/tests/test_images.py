@@ -9,7 +9,8 @@ from django.urls import reverse
 from django.utils import timezone
 
 from images.models import Image
-from lib.test_utils import ClientTest, sample_image_as_file, create_sample_image
+from lib.tests.utils import (
+    ClientTest, sample_image_as_file, create_sample_image)
 
 
 class UploadImagePreviewTest(ClientTest):

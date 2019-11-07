@@ -5,7 +5,7 @@ from django.core import mail
 from django.urls import reverse
 from django.utils.html import escape
 
-from lib.test_utils import ClientTest
+from lib.tests.utils import ClientTest
 
 
 class SignOutTest(ClientTest):

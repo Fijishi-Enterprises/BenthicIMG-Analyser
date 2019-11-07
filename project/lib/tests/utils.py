@@ -34,7 +34,7 @@ from images.model_utils import PointGen
 from images.models import Source, Point, Image
 from labels.models import LabelGroup, Label
 from lib.exceptions import TestfileDirectoryError
-from vision_backend.models import Classifier as Robot
+from vision_backend.models import Classifier
 import vision_backend.task_helpers as backend_task_helpers
 
 User = get_user_model()
@@ -1029,21 +1029,21 @@ def sample_image_as_file(filename, filetype=None, image_options=None):
 
 def create_robot(source):
     """
-    Add a robot to a source.
+    Add a robot (Classifier) to a source.
     NOTE: This does not use any standard task or utility function
     for adding a robot, so standard assumptions might not hold.
     :param source: Source to add a robot for.
-    :return: The new Robot.
+    :return: The new robot.
     """
-    robot = Robot(
+    classifier = Classifier(
         source=source,
         nbr_train_images=50,
         runtime_train=100,
         accuracy=0.50,
         valid=True,
     )
-    robot.save()
-    return robot
+    classifier.save()
+    return classifier
 
 
 def add_robot_annotations(robot, image, annotations=None):
@@ -1055,7 +1055,7 @@ def add_robot_annotations(robot, image, annotations=None):
     not an entire view or task. So the regular assumptions might not hold,
     like setting statuses, etc. Use with slight caution.
 
-    :param robot: Robot model object to use for annotation.
+    :param robot: Classifier model object to use for annotation.
     :param image: Image to add annotations for.
     :param annotations: Annotations to add,
       as a dict of point numbers to label codes like: {1: 'AB', 2: 'CD'}

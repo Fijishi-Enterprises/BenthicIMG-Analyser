@@ -1,6 +1,9 @@
 from __future__ import unicode_literals
+from distutils.dir_util import copy_tree
 import os
 import posixpath
+import shutil
+import tempfile
 
 from django.core.files.storage import FileSystemStorage
 from storages.backends.s3boto import S3BotoStorage
@@ -13,10 +16,19 @@ class MediaStorageS3(S3BotoStorage):
     def __init__(self, **kwargs):
         super(MediaStorageS3, self).__init__(**kwargs)
 
+    def copy_dir(self, src, dst):
+        raise NotImplementedError
+
+    def create_temp_dir(self):
+        raise NotImplementedError
+
     @staticmethod
     def path_join(*args):
         # For S3 paths, we join with forward slashes.
         return posixpath.join(*args)
+
+    def remove_dir(self):
+        raise NotImplementedError
 
 
 class MediaStorageLocal(FileSystemStorage):
@@ -27,7 +39,16 @@ class MediaStorageLocal(FileSystemStorage):
     def __init__(self, **kwargs):
         super(MediaStorageLocal, self).__init__(**kwargs)
 
+    def copy_dir(self, src, dst):
+        copy_tree(src, dst)
+
+    def create_temp_dir(self):
+        return tempfile.mkdtemp()
+
     @staticmethod
     def path_join(*args):
         # For local storage, we join paths depending on the OS rules.
         return os.path.join(*args)
+
+    def remove_dir(self, dir_to_remove):
+        shutil.rmtree(dir_to_remove)

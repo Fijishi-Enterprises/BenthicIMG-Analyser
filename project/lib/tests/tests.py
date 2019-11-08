@@ -4,6 +4,7 @@
 from __future__ import unicode_literals
 from unittest import skipIf
 from django.conf import settings
+from django.core.files.storage import get_storage_class
 from django import forms
 from django.shortcuts import resolve_url
 from django.urls import reverse
@@ -12,7 +13,7 @@ from django.test.utils import override_settings
 
 from ..forms import get_one_form_error, get_one_formset_error
 from ..utils import direct_s3_write, direct_s3_read
-from .utils import BaseTest, ClientTest
+from .utils import BaseTest, ClientTest, sample_image_as_file
 
 
 class IndexTest(ClientTest):
@@ -196,3 +197,38 @@ class InternationalizationTest(ClientTest):
             reverse('login'), dict(username='', password=''))
         required_error = response.context['form'].errors['username'][0]
         self.assertEqual(required_error, "This field is required.")
+
+
+class TestFileStorageTest(ClientTest):
+    """
+    Test the file storage logic used during unit tests.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super(TestFileStorageTest, cls).setUpTestData()
+
+        cls.storage = get_storage_class()()
+        cls.storage.save('1.png', sample_image_as_file('1.png'))
+        cls.storage.save('2.png', sample_image_as_file('2.png'))
+
+    def test_add_file(self):
+        self.storage.save('3.png', sample_image_as_file('3.png'))
+
+        # Files added from setUpTestData(), plus the file added just now,
+        # should all be present.
+        # And if test_delete_file() ran before this, that shouldn't affect
+        # the result.
+        self.assertTrue(self.storage.exists('1.png'))
+        self.assertTrue(self.storage.exists('2.png'))
+        self.assertTrue(self.storage.exists('3.png'))
+
+    def test_delete_file(self):
+        self.storage.delete('1.png')
+
+        # Files added from setUpTestData(), except the file deleted just now,
+        # should be present.
+        # And if test_add_file() ran before this, that shouldn't affect
+        # the result.
+        self.assertFalse(self.storage.exists('1.png'))
+        self.assertTrue(self.storage.exists('2.png'))
+        self.assertFalse(self.storage.exists('3.png'))

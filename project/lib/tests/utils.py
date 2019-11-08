@@ -2,15 +2,12 @@
 from __future__ import division, unicode_literals
 from abc import ABCMeta
 from contextlib import contextmanager
-import datetime
 from io import BytesIO
 import json
 import math
-import os
 import posixpath
 import random
 import six
-from six.moves.urllib.parse import urljoin
 
 from PIL import Image as PILImage
 from selenium import webdriver
@@ -28,12 +25,10 @@ from django.conf import settings
 from django.test import override_settings, skipIfDBFeature, tag, TestCase
 from django.test.client import Client
 from django.urls import reverse
-from django.utils import timezone
 
 from images.model_utils import PointGen
 from images.models import Source, Point, Image
 from labels.models import LabelGroup, Label
-from lib.exceptions import TestfileDirectoryError
 from vision_backend.models import Classifier
 import vision_backend.task_helpers as backend_task_helpers
 
@@ -42,22 +37,6 @@ User = get_user_model()
 
 # Settings to override in all of our unit tests.
 test_settings = dict()
-
-# Store media in a 'unittests' subdir of the usual location.
-
-# MEDIA_ROOT is only defined for local storage,
-# so use hasattr() to catch the undefined case (to avoid exceptions).
-if hasattr(settings, 'MEDIA_ROOT'):
-    test_settings['MEDIA_ROOT'] = os.path.join(
-        settings.MEDIA_ROOT, 'unittests')
-
-# AWS_LOCATION is only defined for S3 storage. In this case, a change of the
-# media location also needs a corresponding change in the MEDIA_URL.
-if hasattr(settings, 'AWS_LOCATION'):
-    test_settings['AWS_LOCATION'] = posixpath.join(
-        settings.AWS_LOCATION, 'unittests')
-    test_settings['MEDIA_URL'] = urljoin(
-        settings.MEDIA_URL, 'unittests/')
 
 # ManifestStaticFilesStorage shouldn't be used during testing.
 # https://docs.djangoproject.com/en/dev/ref/contrib/staticfiles/#manifeststaticfilesstorage
@@ -375,186 +354,6 @@ class ClientUtilsMixin(object):
         add_robot_annotations(robot, image, annotations)
 
 
-class StorageChecker(object):
-    """
-    Provide functions that (1) check that file storage for tests is empty
-    before tests, and (2) clean up test file storage after tests.
-    """
-    # Filenames we can safely ignore during setup and teardown.
-    ignorable_filenames = [
-        'vision_backend.log',
-        # It seems S3 is silly, and will sometimes think there's a file with
-        # an empty filename in a directory. These 'files' can be deleted but
-        # it may be tricky. Best to just ignore these files, as it shouldn't
-        # hurt to leave them in between tests.
-        '',
-    ]
-
-    def __init__(self):
-        self.timestamp_before_tests = None
-        self.unexpected_filenames = None
-
-    def check_storage_pre_test(self):
-        """
-        Pre-test check for files in the test file directories.
-        """
-        self.unexpected_filenames = []
-
-        storages = [
-            # Media
-            get_storage_class()(),
-        ]
-
-        for storage in storages:
-            # Check for files, starting at the storage's base directory.
-            self._check_directory_pre_test(storage, '')
-
-            if self.unexpected_filenames:
-                format_str = (
-                    "The test setup routine found files in {dir}:"
-                    "\n{filenames}"
-                    "\nPlease ensure that:"
-                    "\n1. The directory is empty prior to testing"
-                    "\n2. Files were cleaned properly after previous tests"
-                )
-                filenames_str = '\n'.join(self.unexpected_filenames[:10])
-                if len(self.unexpected_filenames) > 10:
-                    filenames_str += "\n(And others)"
-
-                raise TestfileDirectoryError(format_str.format(
-                    dir=storage.location, filenames=filenames_str))
-
-        # Save a timestamp just before the tests start.
-        # This will allow an extra sanity check when tearing down tests.
-        self.timestamp_before_tests = timezone.now()
-
-    def _check_directory_pre_test(self, storage, directory):
-        # If we found enough unexpected files, just abort.
-        # No need to burn resources listing all the unexpected files.
-        if len(self.unexpected_filenames) > 10:
-            return
-
-        dirnames, filenames = storage.listdir(directory)
-
-        for dirname in dirnames:
-            self._check_directory_pre_test(
-                storage, storage.path_join(directory, dirname))
-
-        for filename in filenames:
-            # If we found enough unexpected files, just abort.
-            # No need to burn resources listing all the unexpected files.
-            if len(self.unexpected_filenames) > 10:
-                return
-            # Ignore certain filenames.
-            if filename in self.ignorable_filenames:
-                continue
-
-            self.unexpected_filenames.append(
-                storage.path_join(directory, filename))
-
-    def clean_storage_post_test(self):
-        """
-        Post-test file cleanup of the test file directories.
-        """
-        self.unexpected_filenames = []
-
-        storages = [
-            # Media
-            get_storage_class()(),
-        ]
-        
-        for storage in storages:
-
-            # Look for files, starting at the storage's base directory.
-            # Delete files that were generated by the test. Raise an error
-            # if unidentified files are found.
-            self._clean_directory_post_test(storage, '')
-
-            if self.unexpected_filenames:
-                format_str = (
-                    "The test teardown routine found unexpected files"
-                    " in {dir}:"
-                    "\n{filenames}"
-                    "\nThese files seem to have been created prior to the test."
-                    " Please make sure this directory isn't being used for"
-                    " anything else during testing."
-                )
-                filenames_str = '\n'.join(self.unexpected_filenames[:10])
-                if len(self.unexpected_filenames) > 10:
-                    filenames_str += "\n(And others)"
-
-                raise TestfileDirectoryError(format_str.format(
-                    dir=storage.location, filenames=filenames_str))
-
-    def _clean_directory_post_test(self, storage, directory):
-        # If we found enough unexpected files, just abort.
-        # No need to burn resources listing all the unexpected files.
-
-        if len(self.unexpected_filenames) > 10:
-            return
-
-        dirnames, filenames = storage.listdir(directory)
-
-        for dirname in dirnames:
-            self._clean_directory_post_test(
-                storage, storage.path_join(directory, dirname))
-
-        for filename in filenames:
-            # If we found enough unexpected files, just abort.
-            # No need to burn resources listing all the unexpected files.
-            if len(self.unexpected_filenames) > 10:
-                return
-            # Ignore certain filenames.
-            if filename in self.ignorable_filenames:
-                continue
-
-            leftover_file_path = storage.path_join(directory, filename)
-
-            file_aware_datetime = storage.get_modified_time(leftover_file_path)
-
-            if file_aware_datetime + datetime.timedelta(0,60*10) \
-             < self.timestamp_before_tests:
-                # The file was created before the test started.
-                # So it must not have been created by the test...
-                # something's wrong.
-                # Prepare to throw an error instead of deleting the file.
-                #
-                # (This is a real corner case because the file needs to
-                # materialize in the directory AFTER the pre-test check...
-                # but we want to be really careful about file deletions.)
-                #
-                # The 10-minute cushion in the time comparison is to allow
-                # for discrepancies between the timekeeping used by Django
-                # and the timekeeping used by the file storage system.
-                # Even on Stephen's local Windows setup, where both Django
-                # and the file storage are on the same machine, discrepancies
-                # of ~6 seconds have been observed. Not sure why.
-                # In any case, our compensation for the discrepancy doesn't
-                # significantly decrease the safety of our mystery-files check.
-                self.unexpected_filenames.append(leftover_file_path)
-            else:
-                # Timestamps indicate that it's almost certainly a file
-                # generated by the test; remove it.
-                storage.delete(leftover_file_path)
-
-        # We don't try to delete directories anymore because:
-        #
-        # (1) Amazon S3 doesn't actually have directories/folders.
-        # A directory should get auto-deleted after deleting all
-        # of its contents.
-        # http://stackoverflow.com/a/22669537
-        # (In practice, I didn't observe this auto-deletion when using
-        # the S3 file browser or Django's manage.py shell, yet it
-        # worked during actual test runs. Well, if it works, it works.
-        # -Stephen)
-        #
-        # (2) With local storage, deleting a folder on Windows seems to
-        # get 'Access is denied' even if the directories were created
-        # during that same test run. Not sure how it is on Linux, but
-        # overall it seems like directory cleanup is more trouble than
-        # it's worth.
-
-
 @override_settings(**test_settings)
 class BaseTest(TestCase):
     """
@@ -564,20 +363,84 @@ class BaseTest(TestCase):
     storage is empty.
     Then after running all of the class's tests, cleans up the file storage.
     """
+    @staticmethod
+    def create_filepath_settings_override(temp_dir):
+        filepath_settings_override = dict()
+        storage = get_storage_class()()
+
+        # MEDIA_ROOT is only defined for local storage,
+        # so use hasattr() to catch the undefined case (to avoid exceptions).
+        if hasattr(settings, 'MEDIA_ROOT'):
+
+            filepath_settings_override['MEDIA_ROOT'] = \
+                storage.path_join(temp_dir, 'media')
+
+        # AWS_LOCATION is only defined for S3 storage. In this case, a change
+        # of the media location also needs a corresponding change in the
+        # MEDIA_URL.
+        if hasattr(settings, 'AWS_LOCATION'):
+
+            filepath_settings_override['AWS_LOCATION'] = \
+                storage.path_join(temp_dir, 'media')
+
+            filepath_settings_override['MEDIA_URL'] = \
+                'https://{domain}/{dir1}/{dir2}/'.format(
+                    domain=settings.AWS_S3_DOMAIN,
+                    dir1=temp_dir, dir2='media')
+
+        return filepath_settings_override
+
     @classmethod
-    def setUpTestData(cls):
-        super(BaseTest, cls).setUpTestData()
-        cls.storage_checker = StorageChecker()
-        cls.storage_checker.check_storage_pre_test()
+    def setUpClass(cls):
+        # Create a temp dir to use when setting up data.
+        storage = get_storage_class()()
+        cls.class_temp_dir = storage.create_temp_dir()
+        print("Test class dir:", cls.class_temp_dir)    # TODO: Remove
+
+        # Call the super setUpClass(), which includes the call to
+        # setUpTestData(), using the temp dir in the appropriate settings.
+        filepath_settings_override = \
+            cls.create_filepath_settings_override(cls.class_temp_dir)
+
+        # self.settings() context manager is not available when we don't have
+        # a class instance. So, we use override_settings() instead, which can
+        # be used as either a decorator or a context manager.
+        with override_settings(**filepath_settings_override):
+            super(BaseTest, cls).setUpClass()
+
+    def run(self, result=None):
+        """
+        This method wraps an individual test run: setUp(), the test itself, and
+        tearDown().
+        Overriding this method allows us to use a context manager on
+        a single test, with dynamically defined context values.
+        """
+        # Create a temp dir for this individual test.
+        storage = get_storage_class()()
+        single_test_temp_dir = storage.create_temp_dir()
+        print("Test func dir:", single_test_temp_dir)    # TODO: Remove
+
+        # Copy class temp dir contents (the contents right after setUpTestData)
+        # to individual test temp dir.
+        storage.copy_dir(self.class_temp_dir, single_test_temp_dir)
+
+        # Call the super setUpClass(), which includes the call to setUp() and
+        # the call to the test function itself, using the temp dir in the
+        # appropriate settings.
+        filepath_settings_override = \
+            self.create_filepath_settings_override(single_test_temp_dir)
+
+        with self.settings(**filepath_settings_override):
+            super(BaseTest, self).run(result=result)
+
+        # Clean up the temp dir after the test is done.
+        storage.remove_dir(single_test_temp_dir)
 
     @classmethod
     def tearDownClass(cls):
-        # TODO: It's possible that files created by one test will interfere
-        # with the next test (in the same class), and this timing doesn't
-        # account for that because it doesn't run between tests. We may need
-        # a more clever solution which tracks 2 sets of files: 1 for the
-        # whole class and 1 for the individual test.
-        cls.storage_checker.clean_storage_post_test()
+        # Clean up the class's temp dir.
+        storage = get_storage_class()()
+        storage.remove_dir(cls.class_temp_dir)
 
         # Reset so that only tests that explicitly need the backend calls it.
         test_settings['FORCE_NO_BACKEND_SUBMIT'] = True
@@ -678,6 +541,8 @@ class BrowserTest(ClientUtilsMixin, TestCase, StaticLiveServerTestCase):
     """
     selenium = None
 
+    # TODO: Add temp dir file storage functionality to this class
+
     @classmethod
     def setUpClass(cls):
         super(BrowserTest, cls).setUpClass()
@@ -736,9 +601,6 @@ class BrowserTest(ClientUtilsMixin, TestCase, StaticLiveServerTestCase):
     def setUpTestData(cls):
         super(BrowserTest, cls).setUpTestData()
 
-        cls.storage_checker = StorageChecker()
-        cls.storage_checker.check_storage_pre_test()
-
         # Test client. Subclasses' setUpTestData() calls can use this client
         # to set up more data before running the class's test functions.
         cls.client = Client()
@@ -759,7 +621,6 @@ class BrowserTest(ClientUtilsMixin, TestCase, StaticLiveServerTestCase):
 
     @classmethod
     def tearDownClass(cls):
-        cls.storage_checker.clean_storage_post_test()
         cls.selenium.quit()
         test_settings['FORCE_NO_BACKEND_SUBMIT'] = True
 

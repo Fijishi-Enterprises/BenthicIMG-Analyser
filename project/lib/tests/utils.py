@@ -354,7 +354,6 @@ class ClientUtilsMixin(object):
         add_robot_annotations(robot, image, annotations)
 
 
-@override_settings(**test_settings)
 class BaseTest(TestCase):
     """
     Basic unit testing class.
@@ -363,6 +362,9 @@ class BaseTest(TestCase):
     storage is empty.
     Then after running all of the class's tests, cleans up the file storage.
     """
+    all_tests_overridden_settings = None
+    class_temp_dir = None
+
     @staticmethod
     def create_filepath_settings_override(temp_dir):
         filepath_settings_override = dict()
@@ -392,6 +394,14 @@ class BaseTest(TestCase):
 
     @classmethod
     def setUpClass(cls):
+        # Override settings here in lieu of overriding via a class decorator.
+        # This way the override doesn't overlap badly with the filepath
+        # settings override we're going to do.
+        # (We want enable 1 -> enable 2 -> disable 2 -> disable 1. Like a
+        # stack. Not enable 1 -> enable 2 -> disable 1 -> disable 2.)
+        cls.all_tests_overridden_settings = override_settings(**test_settings)
+        cls.all_tests_overridden_settings.enable()
+
         # Create a temp dir to use when setting up data.
         storage = get_storage_class()()
         cls.class_temp_dir = storage.create_temp_dir()
@@ -444,6 +454,8 @@ class BaseTest(TestCase):
 
         # Reset so that only tests that explicitly need the backend calls it.
         test_settings['FORCE_NO_BACKEND_SUBMIT'] = True
+
+        cls.all_tests_overridden_settings.disable()
 
         super(BaseTest, cls).tearDownClass()
 
@@ -504,8 +516,7 @@ class EC_javascript_global_var_value(object):
 
 @tag('selenium')
 @skipIfDBFeature('test_db_allows_multiple_connections')
-@override_settings(**test_settings)
-class BrowserTest(ClientUtilsMixin, TestCase, StaticLiveServerTestCase):
+class BrowserTest(StaticLiveServerTestCase, ClientTest):
     """
     Unit testing class for running tests in the browser with Selenium.
     Selenium reference: https://selenium-python.readthedocs.io/api.html
@@ -515,13 +526,13 @@ class BrowserTest(ClientUtilsMixin, TestCase, StaticLiveServerTestCase):
     Explanation of the inheritance scheme and
     @skipIfDBFeature('test_db_allows_multiple_connections'):
     This class inherits StaticLiveServerTestCase for the live-server
-    functionality, and TestCase to achieve test-function isolation using
-    uncommitted transactions.
+    functionality, and (a subclass of) TestCase to achieve test-function
+    isolation using uncommitted transactions.
     StaticLiveServerTestCase does not have the latter feature. The reason is
     that live server tests use separate threads, which may use separate
     DB connections, which may end up in inconsistent states. To avoid
-    this, TransactionTestCase is used, which makes each connection commit
-    all their transactions.
+    this, it inherits from TransactionTestCase, which makes each connection
+    commit all their transactions.
     But if there is only one DB connection possible, like with SQLite
     (which is in-memory for Django tests), then this inconsistency concern
     is not present, and we can use TestCase's feature. Hence the decorator:
@@ -540,8 +551,6 @@ class BrowserTest(ClientUtilsMixin, TestCase, StaticLiveServerTestCase):
     https://stackoverflow.com/questions/29378328/
     """
     selenium = None
-
-    # TODO: Add temp dir file storage functionality to this class
 
     @classmethod
     def setUpClass(cls):
@@ -598,31 +607,8 @@ class BrowserTest(ClientUtilsMixin, TestCase, StaticLiveServerTestCase):
         cls.selenium.set_page_load_timeout(cls.TIMEOUT_PAGE_LOAD)
 
     @classmethod
-    def setUpTestData(cls):
-        super(BrowserTest, cls).setUpTestData()
-
-        # Test client. Subclasses' setUpTestData() calls can use this client
-        # to set up more data before running the class's test functions.
-        cls.client = Client()
-
-        # Create a superuser.
-        cls.superuser = cls.create_superuser()
-
-    def setUp(self):
-        super(BrowserTest, self).setUp()
-
-        # Test client. By setting this in setUp(), we initialize this before
-        # each test function, so that stuff like login status gets reset
-        # between tests.
-        self.client = Client()
-
-    def tearDown(self):
-        super(BrowserTest, self).tearDown()
-
-    @classmethod
     def tearDownClass(cls):
         cls.selenium.quit()
-        test_settings['FORCE_NO_BACKEND_SUBMIT'] = True
 
         super(BrowserTest, cls).tearDownClass()
 

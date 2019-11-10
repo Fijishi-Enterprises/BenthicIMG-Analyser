@@ -354,6 +354,7 @@ class ClientUtilsMixin(object):
         add_robot_annotations(robot, image, annotations)
 
 
+@override_settings(**test_settings)
 class BaseTest(TestCase):
     """
     Basic unit testing class.
@@ -362,7 +363,7 @@ class BaseTest(TestCase):
     storage is empty.
     Then after running all of the class's tests, cleans up the file storage.
     """
-    all_tests_overridden_settings = None
+    class_level_overridden_file_settings = None
     class_temp_dir = None
 
     @staticmethod
@@ -394,14 +395,6 @@ class BaseTest(TestCase):
 
     @classmethod
     def setUpClass(cls):
-        # Override settings here in lieu of overriding via a class decorator.
-        # This way the override doesn't overlap badly with the filepath
-        # settings override we're going to do.
-        # (We want enable 1 -> enable 2 -> disable 2 -> disable 1. Like a
-        # stack. Not enable 1 -> enable 2 -> disable 1 -> disable 2.)
-        cls.all_tests_overridden_settings = override_settings(**test_settings)
-        cls.all_tests_overridden_settings.enable()
-
         # Create a temp dir to use when setting up data.
         storage = get_storage_class()()
         cls.class_temp_dir = storage.create_temp_dir()
@@ -409,14 +402,20 @@ class BaseTest(TestCase):
 
         # Call the super setUpClass(), which includes the call to
         # setUpTestData(), using the temp dir in the appropriate settings.
-        filepath_settings_override = \
+        class_level_file_settings = \
             cls.create_filepath_settings_override(cls.class_temp_dir)
 
-        # self.settings() context manager is not available when we don't have
-        # a class instance. So, we use override_settings() instead, which can
-        # be used as either a decorator or a context manager.
-        with override_settings(**filepath_settings_override):
-            super(BaseTest, cls).setUpClass()
+        # Override settings here in lieu of overriding via a class decorator.
+        # We couldn't use the decorator because we had to generate the temp dir
+        # dynamically just now.
+        #
+        # Note that this needs to come BEFORE the super call, so that
+        # setUpTestData() can run with these overridden file settings.
+        cls.class_level_overridden_file_settings = \
+            override_settings(**class_level_file_settings)
+        cls.class_level_overridden_file_settings.enable()
+
+        super(BaseTest, cls).setUpClass()
 
     def run(self, result=None):
         """
@@ -425,6 +424,19 @@ class BaseTest(TestCase):
         Overriding this method allows us to use a context manager on
         a single test, with dynamically defined context values.
         """
+        # We'll still reach this code if the test is being skipped.
+        # Don't bother with the method-level temp dir code if we're skipping
+        # the test. (That code will cause an error anyway because the
+        # class-level temp dir wasn't created.)
+        testMethod = getattr(self, self._testMethodName)
+        skipped = (
+            getattr(self.__class__, "__unittest_skip__", False) or
+            getattr(testMethod, "__unittest_skip__", False)
+        )
+        if skipped:
+            super(BaseTest, self).run(result=result)
+            return
+
         # Create a temp dir for this individual test.
         storage = get_storage_class()()
         single_test_temp_dir = storage.create_temp_dir()
@@ -437,10 +449,10 @@ class BaseTest(TestCase):
         # Call the super setUpClass(), which includes the call to setUp() and
         # the call to the test function itself, using the temp dir in the
         # appropriate settings.
-        filepath_settings_override = \
+        method_level_file_settings = \
             self.create_filepath_settings_override(single_test_temp_dir)
 
-        with self.settings(**filepath_settings_override):
+        with self.settings(**method_level_file_settings):
             super(BaseTest, self).run(result=result)
 
         # Clean up the temp dir after the test is done.
@@ -448,16 +460,15 @@ class BaseTest(TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        # Clean up the class's temp dir.
-        storage = get_storage_class()()
-        storage.remove_dir(cls.class_temp_dir)
-
         # Reset so that only tests that explicitly need the backend calls it.
         test_settings['FORCE_NO_BACKEND_SUBMIT'] = True
 
-        cls.all_tests_overridden_settings.disable()
-
         super(BaseTest, cls).tearDownClass()
+
+        # Clean up the class's temp dir.
+        cls.class_level_overridden_file_settings.disable()
+        storage = get_storage_class()()
+        storage.remove_dir(cls.class_temp_dir)
 
 
 class ClientTest(ClientUtilsMixin, BaseTest):

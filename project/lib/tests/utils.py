@@ -20,7 +20,6 @@ from django.contrib.auth import get_user_model
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.core import mail, management
 from django.core.files.base import ContentFile
-from django.core.files.storage import get_storage_class
 from django.conf import settings
 from django.test import override_settings, skipIfDBFeature, tag, TestCase
 from django.test.client import Client
@@ -31,6 +30,7 @@ from images.models import Source, Point, Image
 from labels.models import LabelGroup, Label
 from vision_backend.models import Classifier
 import vision_backend.task_helpers as backend_task_helpers
+from ..storage_backends import get_storage_manager
 
 User = get_user_model()
 
@@ -363,47 +363,15 @@ class BaseTest(TestCase):
     storage is empty.
     Then after running all of the class's tests, cleans up the file storage.
     """
-    class_level_overridden_file_settings = None
+    class_level_overridden_storage_settings = None
     class_temp_dir = None
-
-    @staticmethod
-    def create_filepath_settings_override(temp_dir):
-        filepath_settings_override = dict()
-        storage = get_storage_class()()
-
-        # MEDIA_ROOT is only defined for local storage,
-        # so use hasattr() to catch the undefined case (to avoid exceptions).
-        if hasattr(settings, 'MEDIA_ROOT'):
-
-            filepath_settings_override['MEDIA_ROOT'] = \
-                storage.path_join(temp_dir, 'media')
-
-        # AWS_LOCATION is only defined for S3 storage. In this case, a change
-        # of the media location also needs a corresponding change in the
-        # MEDIA_URL.
-        if hasattr(settings, 'AWS_LOCATION'):
-
-            filepath_settings_override['AWS_LOCATION'] = \
-                storage.path_join(temp_dir, 'media')
-
-            filepath_settings_override['MEDIA_URL'] = \
-                'https://{domain}/{dir1}/{dir2}/'.format(
-                    domain=settings.AWS_S3_DOMAIN,
-                    dir1=temp_dir, dir2='media')
-
-        return filepath_settings_override
 
     @classmethod
     def setUpClass(cls):
         # Create a temp dir to use when setting up data.
-        storage = get_storage_class()()
-        cls.class_temp_dir = storage.create_temp_dir()
+        storage_manager = get_storage_manager()
+        cls.class_temp_dir = storage_manager.create_temp_dir()
         print("Test class dir:", cls.class_temp_dir)    # TODO: Remove
-
-        # Call the super setUpClass(), which includes the call to
-        # setUpTestData(), using the temp dir in the appropriate settings.
-        class_level_file_settings = \
-            cls.create_filepath_settings_override(cls.class_temp_dir)
 
         # Override settings here in lieu of overriding via a class decorator.
         # We couldn't use the decorator because we had to generate the temp dir
@@ -411,10 +379,14 @@ class BaseTest(TestCase):
         #
         # Note that this needs to come BEFORE the super call, so that
         # setUpTestData() can run with these overridden file settings.
-        cls.class_level_overridden_file_settings = \
-            override_settings(**class_level_file_settings)
-        cls.class_level_overridden_file_settings.enable()
+        class_level_storage_settings = \
+            storage_manager.create_settings_override(cls.class_temp_dir)
+        cls.class_level_overridden_storage_settings = \
+            override_settings(**class_level_storage_settings)
+        cls.class_level_overridden_storage_settings.enable()
 
+        # Call the super setUpClass(), which includes the call to
+        # setUpTestData(), using the temp dir as the storage location.
         super(BaseTest, cls).setUpClass()
 
     def run(self, result=None):
@@ -438,25 +410,25 @@ class BaseTest(TestCase):
             return
 
         # Create a temp dir for this individual test.
-        storage = get_storage_class()()
-        single_test_temp_dir = storage.create_temp_dir()
+        storage_manager = get_storage_manager()
+        single_test_temp_dir = storage_manager.create_temp_dir()
         print("Test func dir:", single_test_temp_dir)    # TODO: Remove
 
         # Copy class temp dir contents (the contents right after setUpTestData)
         # to individual test temp dir.
-        storage.copy_dir(self.class_temp_dir, single_test_temp_dir)
+        storage_manager.copy_dir(self.class_temp_dir, single_test_temp_dir)
 
-        # Call the super setUpClass(), which includes the call to setUp() and
-        # the call to the test function itself, using the temp dir in the
-        # appropriate settings.
-        method_level_file_settings = \
-            self.create_filepath_settings_override(single_test_temp_dir)
+        method_level_storage_settings = \
+            storage_manager.create_settings_override(single_test_temp_dir)
 
-        with self.settings(**method_level_file_settings):
+        # Call the super run(), which includes the call to setUp() and
+        # the call to the test function itself, using the temp dir as the
+        # storage location.
+        with self.settings(**method_level_storage_settings):
             super(BaseTest, self).run(result=result)
 
         # Clean up the temp dir after the test is done.
-        storage.remove_dir(single_test_temp_dir)
+        storage_manager.remove_temp_dir(single_test_temp_dir)
 
     @classmethod
     def tearDownClass(cls):
@@ -466,9 +438,9 @@ class BaseTest(TestCase):
         super(BaseTest, cls).tearDownClass()
 
         # Clean up the class's temp dir.
-        cls.class_level_overridden_file_settings.disable()
-        storage = get_storage_class()()
-        storage.remove_dir(cls.class_temp_dir)
+        cls.class_level_overridden_storage_settings.disable()
+        storage_manager = get_storage_manager()
+        storage_manager.remove_temp_dir(cls.class_temp_dir)
 
 
 class ClientTest(ClientUtilsMixin, BaseTest):

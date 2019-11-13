@@ -6,13 +6,14 @@ from pathlib2 import Path
 from unittest import skipIf
 
 from django.conf import settings
-from django.core.files.storage import get_storage_class
+from django.core.files.storage import DefaultStorage
 from django import forms
 from django.shortcuts import resolve_url
 from django.urls import reverse
 from django.test.client import Client
 from django.test.utils import override_settings
 
+from lib.storage_backends import get_s3_root_storage
 from ..forms import get_one_form_error, get_one_formset_error
 from ..utils import direct_s3_write, direct_s3_read
 from .utils import BaseTest, ClientTest, sample_image_as_file
@@ -209,12 +210,14 @@ class TestSettingsStorageTest(BaseTest):
     def setUpTestData(cls):
         super(TestSettingsStorageTest, cls).setUpTestData()
 
-        cls.storage = get_storage_class()()
-        cls.storage.save('1.png', sample_image_as_file('1.png'))
-        cls.storage.save('2.png', sample_image_as_file('2.png'))
+        storage = DefaultStorage()
+        storage.save('1.png', sample_image_as_file('1.png'))
+        storage.save('2.png', sample_image_as_file('2.png'))
 
     def test_storage_locations(self):
-        if hasattr(settings, 'MEDIA_ROOT'):
+        if settings.DEFAULT_FILE_STORAGE \
+                == 'lib.storage_backends.MediaStorageLocal':
+
             # Class setup temp dir should have been used
             self.assertTrue(
                 Path(self.class_temp_dir, 'media', '1.png').exists())
@@ -222,32 +225,48 @@ class TestSettingsStorageTest(BaseTest):
                 Path(self.class_temp_dir, 'media', '2.png').exists())
             # Should be currently using a method-specific temp dir, not the
             # class one
-            self.assertNotEqual(settings.MEDIA_ROOT, self.class_temp_dir)
-        if hasattr(settings, 'AWS_LOCATION'):
-            # TODO: AWS equivalent
-            pass
+            self.assertNotIn(self.class_temp_dir, settings.MEDIA_ROOT)
+
+        elif settings.DEFAULT_FILE_STORAGE \
+                == 'lib.storage_backends.MediaStorageS3':
+
+            s3_root_storage = get_s3_root_storage()
+
+            # Class setup temp dir should have been used
+            filepath = s3_root_storage.path_join(
+                self.class_temp_dir, 'media', '1.png')
+            self.assertTrue(s3_root_storage.exists(filepath))
+            filepath = s3_root_storage.path_join(
+                self.class_temp_dir, 'media', '2.png')
+            self.assertTrue(s3_root_storage.exists(filepath))
+
+            # Should be currently using a method-specific temp dir, not the
+            # class one
+            self.assertNotIn(self.class_temp_dir, settings.AWS_LOCATION)
 
     def test_add_file(self):
-        self.storage.save('3.png', sample_image_as_file('3.png'))
+        storage = DefaultStorage()
+        storage.save('3.png', sample_image_as_file('3.png'))
 
         # Files added from setUpTestData(), plus the file added just now,
         # should all be present.
         # And if test_delete_file() ran before this, that shouldn't affect
         # the result.
-        self.assertTrue(self.storage.exists('1.png'))
-        self.assertTrue(self.storage.exists('2.png'))
-        self.assertTrue(self.storage.exists('3.png'))
+        self.assertTrue(storage.exists('1.png'))
+        self.assertTrue(storage.exists('2.png'))
+        self.assertTrue(storage.exists('3.png'))
 
     def test_delete_file(self):
-        self.storage.delete('1.png')
+        storage = DefaultStorage()
+        storage.delete('1.png')
 
         # Files added from setUpTestData(), except the file deleted just now,
         # should be present.
         # And if test_add_file() ran before this, that shouldn't affect
         # the result.
-        self.assertFalse(self.storage.exists('1.png'))
-        self.assertTrue(self.storage.exists('2.png'))
-        self.assertFalse(self.storage.exists('3.png'))
+        self.assertFalse(storage.exists('1.png'))
+        self.assertTrue(storage.exists('2.png'))
+        self.assertFalse(storage.exists('3.png'))
 
 
 @override_settings(IMPORTED_USERNAME='class_override')

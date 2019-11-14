@@ -55,6 +55,10 @@ test_settings['STATICFILES_STORAGE'] = \
 #   access annoyances: if production/staging run the server as www-data,
 #   then tests on those instances may also have to run as www-data to
 #   access cache files.
+#
+# Note that the Django docs have a warning on overriding the CACHES setting.
+# For example, tests that use cached sessions may need some extra care.
+# https://docs.djangoproject.com/en/dev/topics/testing/tools/#overriding-settings
 test_settings['CACHES'] = {
     'default': {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',

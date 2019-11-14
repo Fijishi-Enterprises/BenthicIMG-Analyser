@@ -23,6 +23,7 @@ from django.core.files.base import ContentFile
 from django.conf import settings
 from django.test import override_settings, skipIfDBFeature, tag, TestCase
 from django.test.client import Client
+from django.test.runner import DiscoverRunner
 from django.urls import reverse
 
 from images.model_utils import PointGen
@@ -354,93 +355,76 @@ class ClientUtilsMixin(object):
         add_robot_annotations(robot, image, annotations)
 
 
+class TempStorageTestRunner(DiscoverRunner):
+    """
+    Test runner class which sets up temporary directories for the tests' file
+    storage.
+    """
+    def run_tests(self, test_labels, extra_tests=None, **kwargs):
+        storage_manager = get_storage_manager()
+
+        # Create temp directories: One for file storage during tests. One
+        # for saving the storage state after a setUpTestData() call, so that
+        # the state can be reverted between test methods of a class.
+        test_storage_dir = storage_manager.create_temp_dir()
+        post_setuptestdata_state_dir = storage_manager.create_temp_dir()
+
+        # Create settings that establish the dirs accordingly.
+        test_storage_settings = \
+            storage_manager.create_storage_dir_settings(test_storage_dir)
+        test_storage_settings['TEST_STORAGE_DIR'] = test_storage_dir
+        test_storage_settings['POST_SETUPTESTDATA_STATE_DIR'] = \
+            post_setuptestdata_state_dir
+
+        # Run tests with the above storage settings applied.
+        with override_settings(**test_storage_settings):
+            super(TempStorageTestRunner, self).run_tests(
+                test_labels, extra_tests=extra_tests, **kwargs)
+
+        # Clean up the temp dirs after the tests are done.
+        storage_manager.remove_temp_dir(test_storage_dir)
+        storage_manager.remove_temp_dir(post_setuptestdata_state_dir)
+
+
 @override_settings(**test_settings)
 class BaseTest(TestCase):
     """
-    Basic unit testing class.
+    Base automated-test class.
 
-    Before running the class's tests or setting up any data, checks that file
-    storage is empty.
-    Then after running all of the class's tests, cleans up the file storage.
+    Ensures that the test storage directories defined in the test runner
+    are used as they should be.
     """
-    class_level_overridden_storage_settings = None
-    class_temp_dir = None
-
     @classmethod
     def setUpClass(cls):
-        # Create a temp dir to use when setting up data.
-        storage_manager = get_storage_manager()
-        cls.class_temp_dir = storage_manager.create_temp_dir()
-        print("Test class dir:", cls.class_temp_dir)    # TODO: Remove
-
-        # Override settings here in lieu of overriding via a class decorator.
-        # We couldn't use the decorator because we had to generate the temp dir
-        # dynamically just now.
-        #
-        # Note that this needs to come BEFORE the super call, so that
-        # setUpTestData() can run with these overridden file settings.
-        class_level_storage_settings = \
-            storage_manager.create_settings_override(cls.class_temp_dir)
-        cls.class_level_overridden_storage_settings = \
-            override_settings(**class_level_storage_settings)
-        cls.class_level_overridden_storage_settings.enable()
-
-        # Call the super setUpClass(), which includes the call to
-        # setUpTestData(), using the temp dir as the storage location.
-        super(BaseTest, cls).setUpClass()
-
-    def run(self, result=None):
-        """
-        This method wraps an individual test run: setUp(), the test itself, and
-        tearDown().
-        Overriding this method allows us to use a context manager on
-        a single test, with dynamically defined context values.
-        """
-        # We'll still reach this code if the test is being skipped.
-        # Don't bother with the method-level temp dir code if we're skipping
-        # the test. (That code will cause an error anyway because the
-        # class-level temp dir wasn't created.)
-        testMethod = getattr(self, self._testMethodName)
-        skipped = (
-            getattr(self.__class__, "__unittest_skip__", False) or
-            getattr(testMethod, "__unittest_skip__", False)
-        )
+        skipped = getattr(cls, "__unittest_skip__", False)
         if skipped:
-            super(BaseTest, self).run(result=result)
+            # This test class is being skipped. Don't bother with storage dirs.
+            super(BaseTest, cls).setUpClass()
             return
 
-        # Create a temp dir for this individual test.
+        # Empty contents of the test storage dir.
         storage_manager = get_storage_manager()
-        single_test_temp_dir = storage_manager.create_temp_dir()
-        print("Test func dir:", single_test_temp_dir)    # TODO: Remove
+        storage_manager.empty_temp_dir(settings.TEST_STORAGE_DIR)
 
-        # Copy class temp dir contents (the contents right after setUpTestData)
-        # to individual test temp dir.
-        storage_manager.copy_dir(self.class_temp_dir, single_test_temp_dir)
+        # Call the super setUpClass(), which includes the call to
+        # setUpTestData().
+        super(BaseTest, cls).setUpClass()
 
-        method_level_storage_settings = \
-            storage_manager.create_settings_override(single_test_temp_dir)
+        # Now that setUpTestData() is done, save the contents of the test
+        # storage dir.
+        storage_manager.empty_temp_dir(settings.POST_SETUPTESTDATA_STATE_DIR)
+        storage_manager.copy_dir(
+            settings.TEST_STORAGE_DIR, settings.POST_SETUPTESTDATA_STATE_DIR)
 
-        # Call the super run(), which includes the call to setUp() and
-        # the call to the test function itself, using the temp dir as the
-        # storage location.
-        with self.settings(**method_level_storage_settings):
-            super(BaseTest, self).run(result=result)
-
-        # Clean up the temp dir after the test is done.
-        storage_manager.remove_temp_dir(single_test_temp_dir)
-
-    @classmethod
-    def tearDownClass(cls):
-        # Reset so that only tests that explicitly need the backend calls it.
-        test_settings['FORCE_NO_BACKEND_SUBMIT'] = True
-
-        super(BaseTest, cls).tearDownClass()
-
-        # Clean up the class's temp dir.
-        cls.class_level_overridden_storage_settings.disable()
+    def setUp(self):
+        # Reset the storage dir contents to the post-setUpTestData contents,
+        # thus undoing any changes from previous test methods.
         storage_manager = get_storage_manager()
-        storage_manager.remove_temp_dir(cls.class_temp_dir)
+        storage_manager.empty_temp_dir(settings.TEST_STORAGE_DIR)
+        storage_manager.copy_dir(
+            settings.POST_SETUPTESTDATA_STATE_DIR, settings.TEST_STORAGE_DIR)
+
+        super(BaseTest, self).setUp()
 
 
 class ClientTest(ClientUtilsMixin, BaseTest):

@@ -214,35 +214,11 @@ class TestSettingsStorageTest(BaseTest):
         storage.save('1.png', sample_image_as_file('1.png'))
         storage.save('2.png', sample_image_as_file('2.png'))
 
-    def test_storage_locations(self):
-        if settings.DEFAULT_FILE_STORAGE \
-                == 'lib.storage_backends.MediaStorageLocal':
+    def test_storage_location_is_temporary(self):
+        storage = DefaultStorage()
 
-            # Class setup temp dir should have been used
-            self.assertTrue(
-                Path(self.class_temp_dir, 'media', '1.png').exists())
-            self.assertTrue(
-                Path(self.class_temp_dir, 'media', '2.png').exists())
-            # Should be currently using a method-specific temp dir, not the
-            # class one
-            self.assertNotIn(self.class_temp_dir, settings.MEDIA_ROOT)
-
-        elif settings.DEFAULT_FILE_STORAGE \
-                == 'lib.storage_backends.MediaStorageS3':
-
-            s3_root_storage = get_s3_root_storage()
-
-            # Class setup temp dir should have been used
-            filepath = s3_root_storage.path_join(
-                self.class_temp_dir, 'media', '1.png')
-            self.assertTrue(s3_root_storage.exists(filepath))
-            filepath = s3_root_storage.path_join(
-                self.class_temp_dir, 'media', '2.png')
-            self.assertTrue(s3_root_storage.exists(filepath))
-
-            # Should be currently using a method-specific temp dir, not the
-            # class one
-            self.assertNotIn(self.class_temp_dir, settings.AWS_LOCATION)
+        # Should be using a temporary directory.
+        self.assertTrue('tmp' in storage.location or 'temp' in storage.location)
 
     def test_add_file(self):
         storage = DefaultStorage()

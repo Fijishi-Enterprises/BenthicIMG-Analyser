@@ -28,13 +28,11 @@ class StorageManager(object):
         """
         raise NotImplementedError
 
-    def create_settings_override(self, temp_dir):
+    def create_storage_dir_settings(self, storage_dir):
         """
-        :param temp_dir: Absolute path / path from bucket root of the temp dir
-          that we're creating a settings override for.
-        :return: A dict of file storage settings, allowing us to use temp_dir
-          for storage. Can be used in an override_settings decorator or
-          similar.
+        Create a Django settings dict which establishes storage_dir (an
+        absolute path / path from bucket root) as the storage root. Can be
+        used in an override_settings decorator or similar.
         """
         raise NotImplementedError
 
@@ -45,6 +43,37 @@ class StorageManager(object):
         """
         raise NotImplementedError
 
+    def _empty_dir(self, dir_to_empty):
+        """
+        Empty the directory at the given path, without actually removing the
+        directory itself.
+        """
+        raise NotImplementedError
+
+    def empty_temp_dir(self, dir_to_empty):
+        """
+        Check that a directory is most likely a temporary directory, then
+        empty it. This is a safety check to prevent data loss.
+        """
+        if not self.is_temp_dir(dir_to_empty):
+            raise FileStorageUsageError(
+                self.not_temp_dir_explanation
+                + " So we're not sure if it's safe to"
+                + " empty this directory or not.")
+
+        self._empty_dir(dir_to_empty)
+
+    not_temp_dir_explanation = \
+        "The dir path doesn't contain a 'tmp' or 'temp' dir (case insensitive)."
+
+    @staticmethod
+    def is_temp_dir(dir_to_check):
+        """Check whether a directory is most likely a temporary directory."""
+        parts = [part.lower() for part in Path(dir_to_check).parts]
+        # If there are other possible temporary-directory name patterns,
+        # add them here.
+        return 'tmp' in parts or 'temp' in parts
+
     def _remove_dir(self, dir_to_remove):
         """Remove the directory at the given path."""
         raise NotImplementedError
@@ -52,17 +81,13 @@ class StorageManager(object):
     def remove_temp_dir(self, dir_to_remove):
         """
         Check that a directory is most likely a temporary directory, then
-        remove it.
+        remove it. This is a safety check to prevent data loss.
         """
-        # Sanity check to prevent data loss.
-        parts = [part.lower() for part in Path(dir_to_remove).parts]
-        # If there are other possible temporary-directory name patterns,
-        # add them here.
-        if not ('tmp' in parts or 'temp' in parts):
+        if not self.is_temp_dir(dir_to_remove):
             raise FileStorageUsageError(
-                "The dir path doesn't contain a 'tmp' or 'temp' dir"
-                " (case insensitive), so we're not sure if it's a temporary"
-                " directory or not.")
+                self.not_temp_dir_explanation
+                + " So we're not sure if it's safe to"
+                + " remove this directory or not.")
 
         self._remove_dir(dir_to_remove)
 
@@ -84,20 +109,21 @@ class StorageManagerS3(StorageManager):
                 s3_root_storage.path_join(src, subdir),
                 s3_root_storage.path_join(dst, subdir))
 
-    def create_settings_override(self, temp_dir):
-        filepath_settings_override = dict()
+    def create_storage_dir_settings(self, storage_dir):
+        storage_settings = dict()
         storage = DefaultStorage()
 
-        filepath_settings_override['AWS_LOCATION'] = \
-            storage.path_join(temp_dir, settings.AWS_S3_MEDIA_SUBDIR)
+        storage_settings['AWS_LOCATION'] = \
+            storage.path_join(storage_dir, settings.AWS_S3_MEDIA_SUBDIR)
 
-        filepath_settings_override['MEDIA_URL'] = \
-            posixpath.join(
-                'https://{domain}'.format(domain=settings.AWS_S3_DOMAIN),
-                temp_dir,
-                settings.AWS_S3_MEDIA_SUBDIR)
+        # MEDIA_URL must end in a slash.
+        storage_settings['MEDIA_URL'] = \
+            'https://{domain}/{storage_dir}/{subdir}/'.format(
+                domain=settings.AWS_S3_DOMAIN,
+                storage_dir=storage_dir.strip('/'),
+                subdir=settings.AWS_S3_MEDIA_SUBDIR)
 
-        return filepath_settings_override
+        return storage_settings
 
     def create_temp_dir(self):
         s3_root_storage = get_s3_root_storage()
@@ -111,19 +137,22 @@ class StorageManagerS3(StorageManager):
         # later. We just have to identify a free directory name to create files
         # in.
         #
-        # get_available_name() already adds a suffix as necessary
+        # get_available_name() already adds a random suffix as necessary
         # (like `_123abCD`) to avoid clashing with an existing name.
-        # However, it's still possible that this directory gets taken by
-        # a different thread (e.g. when running tests in parallel), or even by
-        # a subsequent temp-dir call in the same thread (e.g. class temp dir
-        # followed by method temp dir) if we don't create a file in this dir
-        # immediately.
-        # So, we also add our own suffix here to minimize chance of conflict.
+        # However, since S3 directories don't 'exist' until they contain files,
+        # clashing can easily happen if we start off trying to create 2 temp
+        # directories in a row (both will be be the non-suffixed name).
+        # So, we just add our own random suffix to begin with.
         suffix = ''.join([
             random.choice(string.digits + string.ascii_letters)
             for _ in range(10)])
         dir_path = 'tmp/tmp_' + suffix
         return s3_root_storage.get_available_name(dir_path)
+
+    def _empty_dir(self, dir_to_empty):
+        # Emptying an S3 dir is equivalent to removing the dir. Empty dirs
+        # shouldn't persist.
+        self._remove_dir(dir_to_empty)
 
     def _remove_dir(self, dir_to_remove):
         # List directories and files in this directory.
@@ -145,18 +174,29 @@ class StorageManagerLocal(StorageManager):
     def copy_dir(self, src, dst):
         copy_tree(src, dst)
 
-    def create_settings_override(self, temp_dir):
-        filepath_settings_override = dict()
+    def create_storage_dir_settings(self, storage_dir):
+        storage_settings = dict()
         storage = DefaultStorage()
 
-        filepath_settings_override['MEDIA_ROOT'] = \
-            storage.path_join(temp_dir, 'media')
+        storage_settings['MEDIA_ROOT'] = \
+            storage.path_join(storage_dir, 'media')
 
-        return filepath_settings_override
+        return storage_settings
 
     def create_temp_dir(self):
         # We'll use an OS-designated temp dir.
         return tempfile.mkdtemp()
+
+    def _empty_dir(self, dir_to_empty):
+        # It seems that repeatedly removing and re-creating dirs can cause
+        # errors such as 'no such file or directory', so we just remove the
+        # files and keep the subdirs.
+        # Use _remove_dir() to remove subdirs as well.
+        for obj_path in Path(dir_to_empty).iterdir():
+            if obj_path.is_file() or obj_path.is_symlink():
+                obj_path.unlink()
+            else:
+                self._empty_dir(str(obj_path))
 
     def _remove_dir(self, dir_to_remove):
         shutil.rmtree(dir_to_remove)
@@ -235,6 +275,9 @@ def get_s3_root_storage():
 
 
 def get_storage_manager():
+    """
+    Returns the StorageManager applicable to the currently selected storage.
+    """
     if settings.DEFAULT_FILE_STORAGE == 'lib.storage_backends.MediaStorageS3':
         return StorageManagerS3()
     elif settings.DEFAULT_FILE_STORAGE \

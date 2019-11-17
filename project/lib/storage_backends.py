@@ -185,7 +185,13 @@ class StorageManagerLocal(StorageManager):
 
     def create_temp_dir(self):
         # We'll use an OS-designated temp dir.
-        return tempfile.mkdtemp()
+        tmp_root = tempfile.mkdtemp()
+
+        # Adding an extra subfolder just to be sure
+        tmp_dir = os.path.join(tmp_root, 'temp')
+        os.mkdir(tmp_dir)
+
+        return tmp_dir
 
     def _empty_dir(self, dir_to_empty):
         # It seems that repeatedly removing and re-creating dirs can cause

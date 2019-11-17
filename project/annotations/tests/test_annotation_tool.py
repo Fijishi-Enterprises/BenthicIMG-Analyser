@@ -11,7 +11,7 @@ from accounts.utils import is_alleviate_user, is_robot_user
 from annotations.models import Annotation, AnnotationToolSettings
 from images.model_utils import PointGen
 from images.models import Source
-from lib.test_utils import ClientTest
+from lib.tests.utils import ClientTest
 
 
 class PermissionTest(ClientTest):

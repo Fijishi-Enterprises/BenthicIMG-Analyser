@@ -2,19 +2,21 @@
 #
 # Lib tests and non-app-specific tests.
 from __future__ import unicode_literals
-from unittest import skip, skipIf
+from pathlib2 import Path
+from unittest import skipIf
+
 from django.conf import settings
-from django.core import mail
+from django.core.files.storage import DefaultStorage
 from django import forms
 from django.shortcuts import resolve_url
 from django.urls import reverse
-from django.utils.html import escape
 from django.test.client import Client
 from django.test.utils import override_settings
 
-from .forms import get_one_form_error, get_one_formset_error
-from .test_utils import BaseTest, ClientTest
-from .utils import direct_s3_write, direct_s3_read
+from lib.storage_backends import get_s3_root_storage
+from ..forms import get_one_form_error, get_one_formset_error
+from ..utils import direct_s3_write, direct_s3_read
+from .utils import BaseTest, ClientTest, sample_image_as_file
 
 
 class IndexTest(ClientTest):
@@ -198,3 +200,83 @@ class InternationalizationTest(ClientTest):
             reverse('login'), dict(username='', password=''))
         required_error = response.context['form'].errors['username'][0]
         self.assertEqual(required_error, "This field is required.")
+
+
+class TestSettingsStorageTest(BaseTest):
+    """
+    Test the file storage settings logic used during unit tests.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super(TestSettingsStorageTest, cls).setUpTestData()
+
+        storage = DefaultStorage()
+        storage.save('1.png', sample_image_as_file('1.png'))
+        storage.save('2.png', sample_image_as_file('2.png'))
+
+    def test_storage_location_is_temporary(self):
+        storage = DefaultStorage()
+
+        # Should be using a temporary directory.
+        self.assertTrue('tmp' in storage.location or 'temp' in storage.location)
+
+    def test_add_file(self):
+        storage = DefaultStorage()
+        storage.save('3.png', sample_image_as_file('3.png'))
+
+        # Files added from setUpTestData(), plus the file added just now,
+        # should all be present.
+        # And if test_delete_file() ran before this, that shouldn't affect
+        # the result.
+        self.assertTrue(storage.exists('1.png'))
+        self.assertTrue(storage.exists('2.png'))
+        self.assertTrue(storage.exists('3.png'))
+
+    def test_delete_file(self):
+        storage = DefaultStorage()
+        storage.delete('1.png')
+
+        # Files added from setUpTestData(), except the file deleted just now,
+        # should be present.
+        # And if test_add_file() ran before this, that shouldn't affect
+        # the result.
+        self.assertFalse(storage.exists('1.png'))
+        self.assertTrue(storage.exists('2.png'))
+        self.assertFalse(storage.exists('3.png'))
+
+
+@override_settings(IMPORTED_USERNAME='class_override')
+class TestSettingsDecoratorTest(BaseTest):
+    """
+    Test that we can successfully use settings decorators on test classes
+    and test methods.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super(TestSettingsDecoratorTest, cls).setUpTestData()
+
+    def test_class_override(self):
+        # Class decorator should work.
+        self.assertEqual(settings.IMPORTED_USERNAME, 'class_override')
+
+    @override_settings(ROBOT_USERNAME='method_override_1')
+    def test_method_override_1(self):
+        # Class and method decorators should work.
+        # Regardless of whether _1 or _2 runs first, both tests should not be
+        # affected by the other test method's override.
+        self.assertEqual(settings.IMPORTED_USERNAME, 'class_override')
+        self.assertEqual(settings.ROBOT_USERNAME, 'method_override_1')
+        self.assertNotEqual(settings.ALLEVIATE_USERNAME, 'method_override_2')
+
+    @override_settings(ALLEVIATE_USERNAME='method_override_2')
+    def test_method_override_2(self):
+        # Class and method decorators should work.
+        self.assertEqual(settings.IMPORTED_USERNAME, 'class_override')
+        self.assertNotEqual(settings.ROBOT_USERNAME, 'method_override_1')
+        self.assertEqual(settings.ALLEVIATE_USERNAME, 'method_override_2')
+
+    @override_settings(IMPORTED_USERNAME='method_over_class_override')
+    def test_method_over_class_override(self):
+        # Method decorator should take precedence over class decorator.
+        self.assertEqual(
+            settings.IMPORTED_USERNAME, 'method_over_class_override')

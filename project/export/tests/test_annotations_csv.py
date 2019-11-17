@@ -9,7 +9,7 @@ from django.test import override_settings
 from annotations.models import Annotation
 from export.tests.utils import BaseExportTest
 from images.model_utils import PointGen
-from lib.test_utils import BasePermissionTest
+from lib.tests.utils import BasePermissionTest
 from upload.tests.utils import UploadAnnotationsTestMixin
 
 

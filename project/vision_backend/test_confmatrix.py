@@ -1,7 +1,7 @@
 import random
 import string
 
-from lib.test_utils import BaseTest
+from lib.tests.utils import BaseTest
 from .confmatrix import ConfMatrix
 
 

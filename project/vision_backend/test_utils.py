@@ -2,7 +2,7 @@ import random
 
 import numpy as np
 
-from lib.test_utils import BaseTest, ClientTest
+from lib.tests.utils import BaseTest, ClientTest
 from vision_backend import utils
 
 from images.models import Source

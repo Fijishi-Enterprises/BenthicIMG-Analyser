@@ -2,7 +2,7 @@ import numpy as np
 
 from django.urls import reverse
 
-from lib.test_utils import ClientTest
+from lib.tests.utils import ClientTest
 
 from images.models import Image, Point
 from images.model_utils import PointGen

@@ -4,7 +4,7 @@ from __future__ import unicode_literals
 from django.shortcuts import resolve_url
 
 from export.tests.utils import BaseExportTest
-from lib.test_utils import BasePermissionTest
+from lib.tests.utils import BasePermissionTest
 
 
 class PermissionTest(BasePermissionTest):

@@ -4,7 +4,7 @@ import time
 from bs4 import BeautifulSoup
 from django.shortcuts import resolve_url
 
-from lib.test_utils import BasePermissionTest, ClientTest
+from lib.tests.utils import BasePermissionTest, ClientTest
 from .utils import BlogTestMixin
 
 

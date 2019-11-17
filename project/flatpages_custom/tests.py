@@ -9,7 +9,7 @@ from django.urls import reverse
 from django_migration_testcase import MigrationTest
 from reversion.models import Version
 
-from lib.test_utils import ClientTest, sample_image_as_file
+from lib.tests.utils import ClientTest, sample_image_as_file
 
 
 class FlatpagesTest(ClientTest):

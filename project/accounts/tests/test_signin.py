@@ -6,7 +6,7 @@ from django.contrib.auth.hashers import (
 from django.urls import reverse
 from django_migration_testcase import MigrationTest
 
-from lib.test_utils import BrowserTest
+from lib.tests.utils import BrowserTest
 from ..hashers import PBKDF2WrappedSHA1PasswordHasher
 from .utils import BaseAccountsTest
 

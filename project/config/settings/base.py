@@ -517,6 +517,9 @@ LOGGING = {
 
 }
 
+# The name of the class to use for starting the test suite.
+TEST_RUNNER = 'lib.tests.utils.TempStorageTestRunner'
+
 # [Custom setting]
 # Name of the CoralNet regtests S3 bucket.
 REGTEST_BUCKET = 'coralnet-regtest-fixtures'

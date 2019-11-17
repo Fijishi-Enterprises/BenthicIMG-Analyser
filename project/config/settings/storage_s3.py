@@ -28,6 +28,10 @@ AWS_STORAGE_BUCKET_NAME = get_secret('AWS_STORAGE_BUCKET_NAME')
 # one else has permissions. Further permissions can be specified in the bucket
 # policy or in the IAM console.
 AWS_DEFAULT_ACL = 'private'
+# Tell the S3 storage class's get_available_name() method to add a suffix if
+# the file already exists. This is what Django's default storage class does,
+# but the django-storages default behavior is to never add a suffix.
+AWS_S3_FILE_OVERWRITE = False
 
 # Default file storage mechanism that holds media.
 DEFAULT_FILE_STORAGE = 'lib.storage_backends.MediaStorageS3'

@@ -10,7 +10,7 @@ from django.shortcuts import resolve_url
 from export.utils import get_previous_cpcs_status, write_zip
 from images.model_utils import PointGen
 from images.models import Image, Source
-from lib.test_utils import ClientTest
+from lib.tests.utils import ClientTest
 
 
 class PermissionTest(ClientTest):

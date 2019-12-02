@@ -3,45 +3,60 @@
  */
 var LabelList = (function() {
 
-    var $labelTable = null;
+    var labelTable = null;
+    var labelRows = null;
+    var labelIdsToRowIndices = {};
+
     var $searchStatus = null;
-    var $searchField = null;
+    var $searchForm = null;
     var searchFieldTypingTimer = null;
 
 
-    function get$row(labelId) {
-        return $labelTable.find('tr[data-label-id="{0}"]'.format(labelId));
-    }
-
-
-    function submitSearch(searchValue) {
-        if (searchValue.length <= 0) {
-            // Show all rows
-            $labelTable.find('tr').show();
-            $searchStatus.text("");
-            return;
-        }
+    function submitSearch() {
+        var formData = new FormData($searchForm[0]);
 
         $.get(
-            $searchField.attr('data-url'),
-            {'search': searchValue},
+            // URL to make request to
+            $searchForm.attr('data-url'),
+            // Data to send in the request; seems that $.get() can't take a
+            // FormData, so we have to convert to an Object.
+            // (Using $.ajax() instead of $.get() should allow us to pass a
+            // FormData, but for some reason I couldn't get that use case to
+            // work with a GET request. -Stephen)
+            //
+            // Additionally, if we just use formData's value for checkboxes -
+            // 'on' or null - then Django interprets both as True. We convert
+            // to Javascript true or false instead, so that Django can tell
+            // the difference.
+            {'name_search': formData.get('name_search'),
+             'show_verified': formData.get('show_verified') === 'on',
+             'show_regular': formData.get('show_regular') === 'on',
+             'show_duplicate': formData.get('show_duplicate') === 'on',
+             'functional_group': formData.get('functional_group'),
+             'min_popularity': formData.get('min_popularity')},
+            // Callbacks
             handleSearchResponse
         ).fail(util.handleServerError);
+
         $searchStatus.text("Searching...");
     }
 
 
     function handleSearchResponse(jsonResponse) {
-        var labelIds = jsonResponse['label_ids'];
-
         // Hide all rows (except the table header row)
-        $labelTable.find('tr:not(:first-child)').hide();
+        $(labelRows).hide();
+
+        if (jsonResponse['error']) {
+            $searchStatus.text(jsonResponse['error']);
+            return;
+        }
 
         // Show matching rows
-        var i;
-        for (i = 0; i < labelIds.length; i++) {
-            get$row(labelIds[i]).show();
-        }
+        var labelIds = jsonResponse['label_ids'];
+        labelIds.forEach(function(labelId) {
+            var rowIndex = labelIdsToRowIndices[labelId];
+            $(labelRows[rowIndex]).show();
+        });
 
         if (labelIds.length > 0) {
             $searchStatus.text("{0} results found:".format(labelIds.length));
@@ -57,17 +72,36 @@ var LabelList = (function() {
      * <SingletonClassName>.<methodName>. */
     return {
         init: function() {
-            $labelTable = $('#label-table');
+            labelTable = document.getElementById('label-table');
+            // All table rows except the header row.
+            labelRows = labelTable.querySelectorAll('tr:not(:first-child)');
+
+            labelIdsToRowIndices = {};
+            // Populate a map of label IDs to row indices, for faster
+            // lookups later.
+            labelRows.forEach(function(row, rowIndex){
+                var labelId = row.getAttribute('data-label-id');
+                labelIdsToRowIndices[labelId] = rowIndex;
+            });
 
             $searchStatus = $('#label-search-status');
-            $searchField = $('#label-search-field');
+            $searchForm = $('#search-form');
 
-            // Update search results 0.75s after typing in the field
-            $searchField.keyup(function() {
+            // Update search results 0.75s after changing a field
+            var afterChange = function() {
                 clearTimeout(searchFieldTypingTimer);
-                searchFieldTypingTimer = setTimeout(
-                    submitSearch.curry($searchField.val()), 750);
-            });
+                searchFieldTypingTimer = setTimeout(submitSearch, 750);
+            };
+            // Typing in text fields
+            $searchForm.find('input').keyup(afterChange);
+            // Changing and then unfocusing from input fields (e.g. using
+            // up/down arrows on a number field, or clicking checkboxes)
+            $searchForm.find('input').change(afterChange);
+            // Changing dropdown values
+            $searchForm.find('select').change(afterChange);
+
+            // Submit a search at the outset to apply the default filters
+            submitSearch();
         }
     }
 })();

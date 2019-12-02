@@ -7,9 +7,9 @@ from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.contrib import messages
-from django.core.urlresolvers import reverse
-from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponseRedirect
+from django.shortcuts import render, get_object_or_404
+from django.urls import reverse
 from django.utils.timezone import now
 
 from . import utils
@@ -22,6 +22,7 @@ from annotations.model_utils import AnnotationAreaUtils
 from annotations.utils import image_annotation_area_is_editable, image_has_any_human_annotations
 from labels.models import LabelGroup
 from annotations.models import Annotation
+from newsfeed.models import NewsItem
 from lib.decorators import source_permission_required, image_visibility_required, image_permission_required, source_visibility_required
 from visualization.utils import image_search_kwargs_to_queryset
 import vision_backend.tasks as backend_tasks
@@ -56,7 +57,7 @@ def source_about(request):
     Page that explains what Sources are and how to use them.
     """
 
-    if request.user.is_authenticated():
+    if request.user.is_authenticated:
         if Source.get_sources_of_user(request.user):
             user_status = 'has_sources'
         else:
@@ -131,8 +132,6 @@ def source_new(request):
     })
 
 
-
-
 @source_visibility_required('source_id')
 def source_main(request, source_id):
     """
@@ -204,7 +203,10 @@ def source_main(request, source_id):
         'image_stats': image_stats,
         'robot_stats': robot_stats,
         'min_nbr_annotated_images': settings.MIN_NBR_ANNOTATED_IMAGES,
+        'news_items': [item.render_view() for item in
+                       NewsItem.objects.filter(source_id=source.id).order_by('-pk')]
     })
+
 
 @source_permission_required('source_id', perm=Source.PermTypes.ADMIN.code)
 def source_edit(request, source_id):
@@ -271,7 +273,6 @@ def source_detail_box(request, source_id):
         'source': source,
         'example_images': example_images,
     })
-
 
 
 @source_permission_required('source_id', perm=Source.PermTypes.ADMIN.code)

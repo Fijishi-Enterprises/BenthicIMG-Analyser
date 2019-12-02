@@ -1,8 +1,8 @@
-from django.core.urlresolvers import reverse
+from django.urls import reverse
 
 from images.models import Source, Image, Metadata
 from vision_backend.models import Features
-from lib.test_utils import ClientTest
+from lib.tests.utils import ClientTest
 
 
 class PermissionTest(ClientTest):

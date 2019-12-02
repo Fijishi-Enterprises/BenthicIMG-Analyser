@@ -1,13 +1,14 @@
-import csv
+from __future__ import unicode_literals
+from backports import csv
 
 from django.contrib import messages
 from django.core.exceptions import ValidationError
-from django.core.urlresolvers import reverse
 from django.db import transaction
 from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404
+from django.urls import reverse
 
-from .forms import CpcPrefsForm
+from .forms import CpcPrefsForm, ExportAnnotationsForm
 from .utils import create_cpc_strings, \
     create_csv_stream_response, \
     create_zipped_cpcs_stream_response, get_request_images, \
@@ -60,7 +61,7 @@ def export_metadata(request, source_id):
 
 @source_visibility_required('source_id')
 @transaction.non_atomic_requests
-def export_annotations_simple(request, source_id):
+def export_annotations(request, source_id):
     source = get_object_or_404(Source, id=source_id)
 
     try:
@@ -70,28 +71,17 @@ def export_annotations_simple(request, source_id):
         return HttpResponseRedirect(
             reverse('browse_images', args=[source_id]))
 
-    response = create_csv_stream_response('annotations_simple.csv')
-    writer = csv.writer(response)
-    write_annotations_csv(writer, image_set, full=False)
-
-    return response
-
-
-@source_visibility_required('source_id')
-@transaction.non_atomic_requests
-def export_annotations_full(request, source_id):
-    source = get_object_or_404(Source, id=source_id)
-
-    try:
-        image_set = get_request_images(request, source)
-    except ValidationError as e:
-        messages.error(request, e.message)
+    export_annotations_form = ExportAnnotationsForm(request.POST)
+    if not export_annotations_form.is_valid():
+        messages.error(request, get_one_form_error(export_annotations_form))
         return HttpResponseRedirect(
             reverse('browse_images', args=[source_id]))
 
-    response = create_csv_stream_response('annotations_full.csv')
-    writer = csv.writer(response)
-    write_annotations_csv(writer, image_set, full=True)
+    response = create_csv_stream_response('annotations.csv')
+
+    write_annotations_csv(
+        response, source, image_set,
+        export_annotations_form.cleaned_data['optional_columns'])
 
     return response
 
@@ -158,7 +148,7 @@ def export_annotations_cpc_serve(request, source_id):
                 "Export failed; we couldn't find the expected data in"
                 " your session."
                 " Please try the export again. If the problem persists,"
-                " contact a site admin."
+                " let us know on the forum."
             ),
         )
         return HttpResponseRedirect(
@@ -211,6 +201,8 @@ def export_image_covers(request, source_id):
                     image_annotations.filter(label=global_label).count()
                     / float(image_annotation_count)
                 )
+            # Python 2.x: PyCharm might complain here about expecting type str
+            # but getting unicode. Don't worry about it; unicode works too.
             coverage_percent_str = format(coverage_fraction * 100.0, '.3f')
             row.append(coverage_percent_str)
         writer.writerow(row)

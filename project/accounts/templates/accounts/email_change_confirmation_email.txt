@@ -6,7 +6,7 @@ Note that if you're not already signed in to CoralNet, you will have to sign in 
 
 This confirmation link will be valid for {{ expiration_hours }} hours.
 
-If you didn't request an email change at CoralNet, and you don't own a CoralNet account of username {{ username }}, you may safely ignore this email. Someone might have typed in your email address by mistake. If you keep getting these emails without having requested them, we can look into it if you let us know here: {{ request.scheme }}://{{ request.get_host }}{% url 'contact' %}
+If you didn't request an email change at CoralNet, and you don't own a CoralNet account of username {{ username }}, you may safely ignore this email. Someone might have typed in your email address by mistake. If you keep getting these emails without having requested them, we can look into it if you let us know here: {{ account_questions_link }}
 
 Sincerely,
 The CoralNet team

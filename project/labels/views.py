@@ -5,14 +5,14 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core import serializers
 from django.core.paginator import Paginator, EmptyPage, InvalidPage
-from django.core.urlresolvers import reverse
 from django.db.models import Count
 from django.forms import modelformset_factory
 from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import render, get_object_or_404
 from django.template.loader import render_to_string
-from django.views.decorators.http import require_POST, require_GET
+from django.urls import reverse
 from django.utils.timezone import now
+from django.views.decorators.http import require_POST, require_GET
 
 from accounts.utils import get_robot_user
 from annotations.models import Annotation
@@ -27,11 +27,27 @@ from upload.forms import CSVImportForm
 from visualization.utils import generate_patch_if_doesnt_exist, get_patch_url
 from vision_backend import tasks as backend_tasks
 from .decorators import label_edit_permission_required
-from .forms import LabelForm, LabelSetForm, LocalLabelForm, \
-    BaseLocalLabelFormSet, labels_csv_process, LabelFormWithVerified
+from .forms import (
+    LabelForm, LabelSearchForm, LabelSetForm, LocalLabelForm,
+    BaseLocalLabelFormSet, labels_csv_process, LabelFormForCurators)
 from .models import Label, LocalLabel, LabelSet
 from .utils import search_labels_by_text, is_label_editable_by_user
 
+
+@login_required
+def duplicates_overview(request):
+    """
+    Renders the view for the duplicates overview.
+    """
+
+    dups = Label.objects.exclude(duplicate=None)
+    return render(request, 'labels/list_duplicates.html', {
+        'labels': dups,
+        'stats': {
+            'ann_count': sum([dup.ann_count for dup in dups]),
+            'dup_count': len(dups),
+        }
+    })
 
 @login_required
 def label_new(request):
@@ -82,7 +98,7 @@ def label_edit(request, label_id):
     label = get_object_or_404(Label, id=label_id)
 
     if request.user.has_perm('labels.verify_label'):
-        FormClass = LabelFormWithVerified
+        FormClass = LabelFormForCurators
     else:
         FormClass = LabelForm
 
@@ -273,7 +289,7 @@ def labelset_import_preview_ajax(request, source_id):
 
     try:
         csv_labels = labels_csv_process(
-            csv_import_form.cleaned_data['csv_file'], source)
+            csv_import_form.get_csv_stream(), source)
     except FileProcessError as error:
         error_html = '<br>'.join(error.message.splitlines())
         return JsonResponse(dict(error=error_html))
@@ -304,7 +320,7 @@ def labelset_import_ajax(request, source_id):
             error=(
                 "We couldn't find the expected data in your session."
                 " Please try loading this page again. If the problem persists,"
-                " contact a site admin."
+                " let us know on the forum."
             ),
         ))
     csv_labels = serializers.deserialize('json', serialized_labels)
@@ -475,17 +491,21 @@ def label_list(request):
     return render(request, 'labels/label_list.html', {
         'labels': labels,
         'can_edit_labels': request.user.has_perm('labels.change_label'),
+        'search_form': LabelSearchForm(),
     })
 
 
 @require_GET
 def label_list_search_ajax(request):
     """
-    Use a text search value to get a filter of labels (a list of label ids).
+    Takes label search parameters, returns a list of label ids.
     """
-    search_value = request.GET.get('search')
-
-    labels = search_labels_by_text(search_value)
+    search_form = LabelSearchForm(request.GET)
+    if search_form.is_valid():
+        labels = search_form.get_labels()
+    else:
+        return JsonResponse(dict(
+            error=get_one_form_error(search_form)))
 
     return JsonResponse(dict(
-        label_ids=list(labels.values_list('pk', flat=True))))
+        label_ids=[label.pk for label in labels]))

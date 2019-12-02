@@ -1,3 +1,5 @@
+from __future__ import unicode_literals
+
 from django import template
 from django.templatetags.static import static
 from django.utils.safestring import mark_safe
@@ -20,7 +22,7 @@ def popularity_bar(label, short=False):
     # float -> int to truncate decimal, then int -> str
     bar_width = str(int(label.popularity)) + '%'
     return mark_safe(
-        '<div class="{meter_class}">'
+        '<div class="{meter_class}" title="{bar_width}">'
         '  <span class="{color}" style="width: {bar_width};"></span>'
         '</div>'.format(
             meter_class=meter_class, color=color, bar_width=bar_width)
@@ -28,15 +30,26 @@ def popularity_bar(label, short=False):
 
 
 @register.simple_tag
-def verified_icon(label):
+def status_icon(label):
     if label.verified:
-        icon_relative_path = 'img/verified__16x16.png'
+        icon_relative_path = 'img/label-icon-verified__16x16.png'
+        alt_text = "Verified"
+        title_text = "Verified"
+    elif label.duplicate is not None:
+        icon_relative_path = 'img/label-icon-duplicate__16x16.png'
+        alt_text = "Duplicate"
+        title_text = "Duplicate of {name}".format(name=label.duplicate.name)
     else:
-        icon_relative_path = 'img/not-verified__16x16.png'
+        # This blank icon ensures that the 'label box'
+        # (on add/remove labels) is a consistent size.
+        icon_relative_path = 'img/label-icon-neutral__16x16.png'
+        alt_text = ""
+        title_text = ""
 
     # Call the 'static' template tag's code to get the full path.
     icon_full_path = static(icon_relative_path)
 
     return mark_safe(
-        '<img class="verified-image" src="{src}" />'.format(
-            src=icon_full_path))
+        '<img class="label-status-image" src="{src}" alt="{alt}"'
+        ' title="{title}" />'.format(
+            src=icon_full_path, alt=alt_text, title=title_text))

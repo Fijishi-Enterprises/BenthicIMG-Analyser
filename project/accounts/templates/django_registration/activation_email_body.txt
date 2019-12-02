@@ -1,0 +1,44 @@
+{% autoescape off %}
+Thanks for trying out CoralNet! Please activate your new account using this link:
+{{ request.scheme }}://{{ request.get_host }}{% url 'django_registration_activate' activation_key %}
+
+This activation link will be valid for {{ expiration_days }} days.
+
+
+Dear {{ user.username }},
+
+Welcome to CoralNet!
+
+Here are some resources to help get you started with the site:
+
+1) Help portal: {{ request.scheme }}://{{ request.get_host }}{% url 'pages:help' %}
+
+2) Google Group forum for questions, discussion, and site announcements: {{ forum_link }} We highly recommend subscribing to this Google Group. You can also search previous forum threads for common questions.
+
+3) If you have any issues with your CoralNet user account, you can post in this forum thread instead of creating a new thread: {{ account_questions_link }}
+
+4) Data policy and general information about CoralNet: {{ request.scheme }}://{{ request.get_host }}{% url 'about' %}
+
+
+A few other things to keep in mind:
+
+1) Please be aware that the site is in 'Beta' mode, and things are not yet optimized for the best user experience. We are working hard on making the site better and better, and we appreciate your feedback.
+
+2) Please make your data public if possible. The more public data on the site, the better for the community.
+
+3) If you found this email in your Spam folder, you should add "noreply@coralnet.ucsd.edu" to your contact list to ensure you receive future emails from us without problems. We will use email for account-related concerns (such as password-reset requests) and for major site announcements.
+
+4) Finally, we ask that you cite the following papers if you use CoralNet in your work:
+
+Oscar Beijbom, Peter. J. Edmunds, David. I. Kline, B. Greg Mitchell and David Kriegman. "Automated Annotation of Coral Reef Survey Images". Proceedings of the Conference on Computer Vision and Pattern Recognition (CVPR), June 2012.
+
+Oscar Beijbom, Peter J. Edmunds, Chris Roelfsema, Jennifer Smith, David I. Kline, Benjamin Neal, Matthew J. Dunlap, Vincent Moriarty, Tung-Yung Fan, Chih-Jui Tan, Stephen Chan, Tali Treibitz, A. Gamst, B. Greg Mitchell, David Kriegman. "Towards automated annotation of benthic survey images: variability of human experts and operational modes of automation". PLoS ONE, July 2015.
+
+Happy CoralNetting!
+
+/the CoralNet Development Team
+
+
+If you didn't request an account at CoralNet, you may safely ignore this email. Someone might have typed in your email address by mistake.
+
+{% endautoescape %}

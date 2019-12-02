@@ -16,17 +16,18 @@
             {{ field }}
           {% endfor %}
 
-      {% else %}
-
-        <form action="" method="get" class="inline">
-
-      {% endif %}
-
           <input type="hidden" name="page"
             value="{{ page_results.previous_page_number }}" />
           <input type="submit" class="gray"
             value="<" title="Previous page" />
         </form>
+
+      {% else %}
+
+        <a href="?page={{ page_results.previous_page_number }}"
+           class="prev-next-page" title="Previous page"> &lt; </a>
+
+      {% endif %}
 
     {% endif %}
 
@@ -45,17 +46,18 @@
             {{ field }}
           {% endfor %}
 
-      {% else %}
-
-        <form action="" method="get" class="inline">
-
-      {% endif %}
-
           <input type="hidden" name="page"
             value="{{ page_results.next_page_number }}" />
           <input type="submit" class="gray"
             value=">" title="Next page" />
         </form>
+
+      {% else %}
+
+        <a href="?page={{ page_results.next_page_number }}"
+           class="prev-next-page" title="Next page"> &gt; </a>
+
+      {% endif %}
 
     {% endif %}
 

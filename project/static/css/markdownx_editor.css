@@ -1,0 +1,5 @@
+div.markdownx-preview ul li {
+    /* We don't care too much about admin-only previews, but at least
+     make bullet lists look obviously like bullet lists. */
+    list-style-type: disc;
+}

@@ -1,10 +1,10 @@
 import datetime
-from django.core.urlresolvers import reverse
 from django.test import override_settings
+from django.urls import reverse
 
 from images.model_utils import PointGen
 from images.models import Source
-from lib.test_utils import ClientTest
+from lib.tests.utils import ClientTest
 
 
 class PermissionTest(ClientTest):

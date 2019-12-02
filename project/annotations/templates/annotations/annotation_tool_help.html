@@ -1,172 +1,164 @@
 {% load static from staticfiles %}
 
-<div class="help_section">
-    <span class="help_header">Compatibility</span>
-    <table class="detail_table">
-        <tr>
-            <th>Windows</th><th>Mac</th><th>Linux</th>
-        </tr>
-        <tr>
-            <td>OK</td><td>OK</td><td>Unknown</td>
-        </tr>
-    </table>
-    <br/>
-    <table class="detail_table">
-        <tr>
-            <th>Firefox</th><th>Chrome</th><th>Safari</th><th>IE</th><th>Opera</th>
-        </tr>
-        <tr>
-            <td>OK</td><td>OK</td><td>OK</td><td>Unknown</td><td>Possible keyboard issues</td>
-        </tr>
-    </table>
-</div>
+<div class="article-body">
 
-<div class="help_section">
-    <span class="help_header">Basics</span>
+  <h3>Compatibility</h3>
+  <table>
+      <tr>
+          <th>Windows</th><th>Mac</th><th>Linux</th>
+      </tr>
+      <tr>
+          <td>OK</td><td>OK</td><td>Unknown</td>
+      </tr>
+  </table>
+  <br/>
+  <table>
+      <tr>
+          <th>Firefox</th><th>Chrome</th><th>Safari</th><th>IE</th><th>Opera</th>
+      </tr>
+      <tr>
+          <td>OK</td><td>OK</td><td>OK</td><td>Unknown</td><td>Possible keyboard issues</td>
+      </tr>
+  </table>
 
-    <p>This is a point-count image annotation tool.</p>
 
-    <p>The image shows the locations of the points.
-        The points are colored depending on their status:
-        unannotated, machine-annotated, human-annotated, or selected.</p>
+  <h3>Basics</h3>
 
-    <p>The text field list on the right show the current labels for each point.</p>
-        <ul>
-        <li>If the label is in black text, the point is human-annotated. Once all points
-        are human-annotated and saved, you'll see an "ALL DONE" indicator below the list, indicating
-        that you are done annotating the image.</li>
-        <li>If the label is in <span style='color:#888888'>gray text</span>,
-        the point is machine-annotated. Machine labels are just there to give you
-        guidance; you need to confirm these labels (thus making them human-annotated)
-        before they are counted in your source's statistics.</li>
-        </ul>
-</div>
+  <p>This is a point-count image annotation tool.</p>
 
-<div class="help_section">
-    <span class="help_header">Selecting a point to label</span>
-    <ul>
-        <li>Click on one of the text fields on the right, or <kbd>Shift</kbd>-click on the image to select a point.</li>
-        <li>Press the <kbd>.</kbd> key to go to the first point needing annotation.</li>
-        <li>Move to the next or previous point with <kbd>Tab</kbd> and <kbd>Shift</kbd>+<kbd>Tab</kbd>.</li>
-    </ul>
-</div>
+  <p>The image shows the locations of the points.
+      The points are colored depending on their status:
+      unannotated, machine-annotated, human-annotated, or selected.</p>
 
-<div class="help_section">
-    <span class="help_header">Labeling the chosen point</span>
-    <p>Once you have chosen a point, a text field will appear over the image.
-        Type a label code in this text field and hit
-        <span class='key_non_mac'><kbd>Enter</kbd></span><span class='key_mac'><kbd>Return</kbd></span>
-        to confirm it.</p>
-    <p>If you have machine annotations enabled in your Settings and your source,
-        you may see a list of ranked machine suggestions along with probability scores
-        (for example, "Favia [25%]") before you even start typing. From here, you can
-        either pick a suggestion or just start typing your own label. Note that if you
-        want to pick the first suggestion (the same as the light gray text), all you
-        have to do is hit
-        <span class='key_non_mac'><kbd>Enter</kbd></span><span class='key_mac'><kbd>Return</kbd></span>
-        .</p>
-    <p>Alternatively, below the image is a grid of label buttons; there's one button for each
-        label in your Source's labelset. You can label the current point by
-        clicking the corresponding button.</p>
-</div>
+  <p>The text field list on the right show the current labels for each point.</p>
+      <ul>
+      <li>If the label is in black text, the point is human-annotated. Once all points
+      are human-annotated and saved, you'll see an "ALL DONE" indicator below the list, indicating
+      that you are done annotating the image.</li>
+      <li>If the label is in <span style='color:#888888'>gray text</span>,
+      the point is machine-annotated. Machine labels are just there to give you
+      guidance; you need to confirm these labels (thus making them human-annotated)
+      before they are counted in your source's statistics.</li>
+      </ul>
 
-<div class="help_section">
-    <span class="help_header">Saving your work</span>
-    <p>To save your work, click the "Save Progress" button on the lower right, or hit
-        <span class='key_non_mac'><kbd>Ctrl</kbd>+<kbd>S</kbd></span>
-        <span class='key_mac'><kbd>Cmd</kbd>+<kbd>S</kbd></span>.
-        There are two cases where you won't be able to save:</p>
-        <ul>
-            <li>When no changes have been made. In this case, the button text
-                will say "Saved".</li>
-            <li>In certain circumstances, a point may somehow get labeled with
-                an invalid label code. In this case, the button text will say "Error".</li>
-        </ul>
-</div>
 
-<div class="help_section">
-    <span class="help_header">Selecting multiple points</span>
-    <ul>
-        <li>Select multiple points by
-            <span class='key_non_mac'><kbd>Ctrl</kbd>-clicking</span>
-            <span class='key_mac'><kbd>Cmd</kbd>-clicking</span>
-            the points on the image.</li>
-        <li>You may also click the numbers next to the text field list.</li>
-        <li>For some quick select options, use these buttons on the upper right:
-            <img src="{% static "img/Icon_select-none.png" %}"/>,
-            <img src="{% static "img/Icon_select-unannotated.png" %}"/>,
-            and <img src="{% static "img/Icon_select-inversion.png" %}"/>.
-            Hover your mouse over them to see what they do.</li>
-        <li>To use the rectangle select <img src="{% static "img/Icon_rectangle-select.png" %}"/> tool,
-            click the rectangle select icon, then click and drag on the image to
-            draw a rectangle. The points contained in that rectangle will be added
-            to your current selection.</li>
-        <li>Once multiple points are selected, you can assign a label to them
-            in the same ways as before: by typing in the text field, picking
-            a suggestion, or clicking a label button.</li>
-        <li>Note: Selecting multiple points will give you more accurate
-            machine suggestions!</li>
-    </ul>
-</div>
+  <h3>Selecting a point to label</h3>
+  <ul>
+      <li>Click on one of the text fields on the right, or <kbd>Shift</kbd>-click on the image to select a point.</li>
+      <li>Press the <kbd>.</kbd> key to go to the first point needing annotation.</li>
+      <li>Move to the next or previous point with <kbd>Tab</kbd> and <kbd>Shift</kbd>+<kbd>Tab</kbd>.</li>
+  </ul>
 
-<div class="help_section">
-    <span class="help_header">Getting a better look at a point</span>
-    <ul>
-        <li>To zoom in, left-click on the image or press <kbd>Shift</kbd>+<kbd>&uarr;</kbd>.</li>
-        <li>To zoom out,
-            <span class='key_non_mac'>right-click</span><span class='key_mac'><kbd>Ctrl</kbd>-click</span>
-            on the image or press <kbd>Shift</kbd>+<kbd>&darr;</kbd>.</li>
-        <li>You can also zoom with these buttons on the upper right:
-            <img src="{% static "img/Icon_zoom-in.png" %}"/>,
-            <img src="{% static "img/Icon_zoom-out.png" %}"/>,
-            and <img src="{% static "img/Icon_zoom-fit.png" %}"/>.</li>
-        <li>To toggle between different point display modes, use these buttons on the upper right:
-            <img src="{% static "img/Icon_point-mode-all.png" %}"/>,
-            <img src="{% static "img/Icon_point-mode-selected.png" %}"/>,
-            and <img src="{% static "img/Icon_point-mode-none.png" %}"/>.
-            Hover your mouse over them to see what they do.</li>
-        <li>If the text field on the image is getting in the way, you can move it to
-            a different location by pressing <kbd>Shift</kbd>+<kbd>&rarr;</kbd>.
-            Press these keys again to move it back.</li>
-        <li>There are two ways to adjust the Brightness and Contrast values:
-            use the sliders, or type a value in the text field.
-            Click "Apply" to apply the new values.
-            Click "Reset" to reset both to 0.</li>
-        <li>There are various Settings (see below) that can make it easier
-            for you to find points, and see what's under a point. You can
-            customize point colors, point marker shapes, and the sizes of
-            point markers and numbers.</li>
-    </ul>
-</div>
 
-<div class="help_section">
-    <span class="help_header">Navigate to another image</span>
-    <p>The bottom-right part of the annotation tool has Prev and Next buttons.
-       These buttons take you to the previous or next image in the image set.
-       Images are ordered by filename.</p>
-    <p>If you got here from the Browse Images page,
-       the image set is determined by your last image search.
-       Otherwise, the image set consists of all images in the source.</p>
-    <p>The "Return to Browse" link takes you back to the Browse page for the
-       current image set.</p>
-    <p>Tip: If you want to go through unclassified or unconfirmed images
-       only, use the Browse search form's "Annotation status" field
-       to narrow down the image set.</p>
-</div>
+  <h3>Labeling the chosen point</h3>
+  <p>Once you have chosen a point, a text field will appear over the image.
+      Type a label code in this text field and hit
+      <span class='key_non_mac'><kbd>Enter</kbd></span><span class='key_mac'><kbd>Return</kbd></span>
+      to confirm it.</p>
+  <p>If you have machine annotations enabled in your Settings and your source,
+      you may see a list of ranked machine suggestions along with probability scores
+      (for example, "Favia [25%]") before you even start typing. From here, you can
+      either pick a suggestion or just start typing your own label. Note that if you
+      want to pick the first suggestion (the same as the light gray text), all you
+      have to do is hit
+      <span class='key_non_mac'><kbd>Enter</kbd></span><span class='key_mac'><kbd>Return</kbd></span>
+      .</p>
+  <p>Alternatively, below the image is a grid of label buttons; there's one button for each
+      label in your Source's labelset. You can label the current point by
+      clicking the corresponding button.</p>
 
-<div class="help_section">
-    <span class="help_header">Settings</span>
-    <ul>
-        <li>To open the annotation tool settings,
-            click the "Settings" button at the top.</li>
-        <li>Remember to Save any settings that you want to keep.</li>
-    </ul>
-</div>
 
-<div class="help_section">
-    <span class="help_header">See also</span>
-    <ul>
-        <li>For more keyboard shortcuts and a shorter summary of controls,
-            click the "Controls" button at the top.</li>
-    </ul>
+  <h3>Saving your work</h3>
+  <p>To save your work, click the "Save Progress" button on the lower right, or hit
+      <span class='key_non_mac'><kbd>Ctrl</kbd>+<kbd>S</kbd></span>
+      <span class='key_mac'><kbd>Cmd</kbd>+<kbd>S</kbd></span>.
+      There are two cases where you won't be able to save:</p>
+      <ul>
+          <li>When no changes have been made. In this case, the button text
+              will say "Saved".</li>
+          <li>In certain circumstances, a point may somehow get labeled with
+              an invalid label code. In this case, the button text will say "Error".</li>
+      </ul>
+
+
+  <h3>Selecting multiple points</h3>
+  <ul>
+      <li>Select multiple points by
+          <span class='key_non_mac'><kbd>Ctrl</kbd>-clicking</span>
+          <span class='key_mac'><kbd>Cmd</kbd>-clicking</span>
+          the points on the image.</li>
+      <li>You may also click the numbers next to the text field list.</li>
+      <li>For some quick select options, use these buttons on the upper right:
+          <img alt="Select none icon" src="{% static "img/Icon_select-none.png" %}"/>,
+          <img alt="Select unannotated icon" src="{% static "img/Icon_select-unannotated.png" %}"/>,
+          and <img alt="Selection inversion icon" src="{% static "img/Icon_select-inversion.png" %}"/>.
+          Hover your mouse over them to see what they do.</li>
+      <li>To use the rectangle select <img alt="Rectangle select icon" src="{% static "img/Icon_rectangle-select.png" %}"/> tool,
+          click the rectangle select icon, then click and drag on the image to
+          draw a rectangle. The points contained in that rectangle will be added
+          to your current selection.</li>
+      <li>Once multiple points are selected, you can assign a label to them
+          in the same ways as before: by typing in the text field, picking
+          a suggestion, or clicking a label button.</li>
+      <li>Note: Selecting multiple points will give you more accurate
+          machine suggestions!</li>
+  </ul>
+
+
+  <h3>Getting a better look at a point</h3>
+  <ul>
+      <li>To zoom in, left-click on the image or press <kbd>Shift</kbd>+<kbd>&uarr;</kbd>.</li>
+      <li>To zoom out,
+          <span class='key_non_mac'>right-click</span><span class='key_mac'><kbd>Ctrl</kbd>-click</span>
+          on the image or press <kbd>Shift</kbd>+<kbd>&darr;</kbd>.</li>
+      <li>You can also zoom with these buttons on the upper right:
+          <img alt="Zoom in icon" src="{% static "img/Icon_zoom-in.png" %}"/>,
+          <img alt="Zoom out icon" src="{% static "img/Icon_zoom-out.png" %}"/>,
+          and <img alt="Zoom fit icon" src="{% static "img/Icon_zoom-fit.png" %}"/>.</li>
+      <li>To toggle between different point display modes, use these buttons on the upper right:
+          <img alt="Show all points icon" src="{% static "img/Icon_point-mode-all.png" %}"/>,
+          <img alt="Show selected points icon" src="{% static "img/Icon_point-mode-selected.png" %}"/>,
+          and <img alt="Show no points icon" src="{% static "img/Icon_point-mode-none.png" %}"/>.
+          Hover your mouse over them to see what they do.</li>
+      <li>If the text field on the image is getting in the way, you can move it to
+          a different location by pressing <kbd>Shift</kbd>+<kbd>&rarr;</kbd>.
+          Press these keys again to move it back.</li>
+      <li>There are two ways to adjust the Brightness and Contrast values:
+          use the sliders, or type a value in the text field.
+          Click "Apply" to apply the new values.
+          Click "Reset" to reset both to 0.</li>
+      <li>There are various Settings (see below) that can make it easier
+          for you to find points, and see what's under a point. You can
+          customize point colors, point marker shapes, and the sizes of
+          point markers and numbers.</li>
+  </ul>
+
+
+  <h3>Navigate to another image</h3>
+  <p>The bottom-right part of the annotation tool has Prev and Next buttons.
+     These buttons take you to the previous or next image in the image set.
+     Images are ordered by filename.</p>
+  <p>If you got here from the Browse Images page,
+     the image set is determined by your last image search.
+     Otherwise, the image set consists of all images in the source.</p>
+  <p>The "Return to Browse" link takes you back to the Browse page for the
+     current image set.</p>
+  <p>Tip: If you want to go through unclassified or unconfirmed images
+     only, use the Browse search form's "Annotation status" field
+     to narrow down the image set.</p>
+
+
+  <h3>Settings</h3>
+  <ul>
+      <li>To open the annotation tool settings,
+          click the "Settings" button at the top.</li>
+      <li>Remember to Save any settings that you want to keep.</li>
+  </ul>
+
+
+  <h3>See also</h3>
+  <ul>
+      <li>For more keyboard shortcuts and a shorter summary of controls,
+          click the "Controls" button at the top.</li>
+  </ul>
 </div>

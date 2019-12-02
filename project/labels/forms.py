@@ -1,38 +1,38 @@
 import codecs
 from collections import OrderedDict
-import csv
+from backports import csv
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.mail import EmailMessage
-from django.core.urlresolvers import reverse
 from django.core.validators import validate_comma_separated_integer_list
 from django.forms import Form
-from django.forms.fields import CharField
-from django.forms.models import ModelForm, BaseModelFormSet
+from django.forms.fields import BooleanField, CharField, IntegerField
+from django.forms.models import ModelChoiceField, ModelForm, BaseModelFormSet
 from django.forms.widgets import TextInput, HiddenInput
 from django.template.loader import render_to_string
+from django.urls import reverse
 from django.utils.html import escape
 from django.utils.safestring import mark_safe
 
 from annotations.utils import get_labels_with_annotations_in_source
 from lib.exceptions import FileProcessError
 from lib.forms import get_one_form_error
-from .models import Label, LabelSet, LocalLabel
+from .models import Label, LabelGroup, LabelSet, LocalLabel
+from .utils import search_labels_by_text
 
 
 def csv_to_dict(
-        csv_file, required_columns, optional_columns,
+        csv_stream, required_columns, optional_columns,
         key_column, multiple_rows_per_key):
-    # splitlines() is to do system-agnostic handling of newline characters.
-    # The csv module can't do that by default (fails on CR only).
-    reader = csv.reader(csv_file.read().splitlines(), dialect='excel')
+    reader = csv.reader(csv_stream, dialect='excel')
 
     # Read the first row, which should have column headers.
     column_headers = next(reader)
     # There could be a UTF-8 BOM character at the start of the file.
     # Strip it in that case.
-    column_headers[0] = column_headers[0].lstrip(codecs.BOM_UTF8)
+    column_headers[0] = column_headers[0].lstrip(
+        codecs.BOM_UTF8.decode('utf-8'))
     # Strip whitespace in general.
     column_headers = [h.strip() for h in column_headers]
 
@@ -105,9 +105,9 @@ def csv_to_dict(
     return csv_data
 
 
-def labels_csv_process(csv_file, source):
+def labels_csv_process(csv_stream, source):
     csv_data = csv_to_dict(
-        csv_file=csv_file,
+        csv_stream=csv_stream,
         required_columns=[
             ('global_label_id', "Label ID"),
             ('code', "Short code"),
@@ -260,7 +260,8 @@ class LabelForm(ModelForm):
             ))
         raise ValidationError(msg, code='unique')
 
-    def send_label_creation_email(self, request, new_label):
+    @staticmethod
+    def send_label_creation_email(request, new_label):
         """Email the committee about the label creation, and CC the creator."""
         context = dict(label=new_label)
 
@@ -289,13 +290,81 @@ class LabelForm(ModelForm):
         return label
 
 
-class LabelFormWithVerified(LabelForm):
+class LabelFormForCurators(LabelForm):
     class Meta:
         model = Label
         fields = [
             'name', 'default_code', 'group', 'description', 'thumbnail',
-            'verified'
+            'verified', 'duplicate'
         ]
+
+    def __init__(self, *args, **kwargs):
+        super(LabelFormForCurators, self).__init__(*args, **kwargs)
+
+        # Order the 'is duplicate of' candidate labels alphabetically
+        # by label name.
+        # There's a model-level alternative of specifying Meta.ordering in the
+        # model class, but that would mean all usages of Labels become
+        # name-ordered by default, which we might not want.
+        self.fields['duplicate'].queryset = \
+            self.fields['duplicate'].queryset.order_by('name')
+
+
+class LabelSearchForm(Form):
+
+    name_search = CharField(
+        label="Search by name",
+        max_length=Label._meta.get_field('name').max_length,
+        required=False)
+
+    show_verified = BooleanField(
+        label="Verified", initial=True, required=False)
+    show_regular = BooleanField(
+        label="Regular", initial=True, required=False)
+    show_duplicate = BooleanField(
+        label="Duplicate", initial=False, required=False)
+
+    functional_group = ModelChoiceField(
+        queryset=LabelGroup.objects.all(),
+        empty_label="All",
+        required=False)
+
+    min_popularity = IntegerField(
+        label="Minimum popularity (0-100)",
+        required=False,
+        min_value=0, max_value=100)
+
+    def get_labels(self):
+        """
+        After validating the form, call this method to get the labels
+        corresponding to the search parameters.
+        Returns an ITERABLE of Labels, not necessarily a queryset (because
+        the popularity filter can't be implemented on the database side).
+        """
+        if self.cleaned_data['name_search']:
+            labels = search_labels_by_text(self.cleaned_data['name_search'])
+        else:
+            labels = Label.objects.all()
+
+        if not self.cleaned_data['show_verified']:
+            labels = labels.exclude(verified=True)
+        if not self.cleaned_data['show_regular']:
+            labels = labels.exclude(verified=False, duplicate__isnull=True)
+        if not self.cleaned_data['show_duplicate']:
+            labels = labels.exclude(duplicate__isnull=False)
+
+        if self.cleaned_data['functional_group']:
+            labels = labels.filter(group=self.cleaned_data['functional_group'])
+
+        if self.cleaned_data['min_popularity']:
+            min_popularity = int(self.cleaned_data['min_popularity'])
+            # Popularity isn't a database field, so we'll have to convert to a
+            # list here.
+            labels = [
+                label for label in labels
+                if label.popularity >= min_popularity]
+
+        return labels
 
 
 class LabelSetForm(Form):
@@ -336,7 +405,7 @@ class LabelSetForm(Form):
                     " Either we messed up, or one of the"
                     " labels you selected just got deleted."
                     " If the problem persists,"
-                    " please contact the site admins.").format(
+                    " please let us know on the forum.").format(
                         bad_id=label_id,
                     )
                 raise ValidationError(msg, code='bad_label_id')
@@ -355,7 +424,7 @@ class LabelSetForm(Form):
                     " Either we messed up, or some annotations have"
                     " changed since you reached this page."
                     " If the problem persists,"
-                    " please contact the site admins.").format(
+                    " please let us know on the forum.").format(
                         name=label.name,
                     )
                 raise ValidationError(msg, code='deleting_in_use_label')

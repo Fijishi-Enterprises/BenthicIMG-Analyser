@@ -1,20 +1,20 @@
+from __future__ import unicode_literals
+
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.contrib.auth.views import login as default_login_view
+from django.contrib.auth.views import LoginView as DefaultLoginView
 from django.core import signing
 from django.core.mail import EmailMessage
 from django.shortcuts import redirect, render, get_object_or_404
 from django.template.loader import render_to_string
-from django.views.decorators.cache import never_cache
-from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.debug import sensitive_post_parameters
 from django.views.generic.base import TemplateView
 from django.views.generic.edit import FormView
 
-from registration.backends.hmac.views \
+from django_registration.backends.activation.views \
     import RegistrationView as ThirdPartyRegistrationView
 
 from lib.utils import paginate
@@ -28,53 +28,43 @@ from .utils import can_view_profile
 User = get_user_model()
 
 
-@sensitive_post_parameters()
-@csrf_protect
-@never_cache
-def login(request, *args, **kwargs):
-    """
-    If the stay_signed_in checkbox is NOT checked, make the session
-    expire on browser close.
-    Otherwise, the session's duration is defined by SESSION_COOKIE_AGE.
-    https://docs.djangoproject.com/en/dev/topics/http/sessions/#django.contrib.sessions.backends.base.SessionBase.set_expiry
-    http://stackoverflow.com/questions/15100400/
+class LoginView(DefaultLoginView):
 
-    The rest of the logic is taken care of by Django's default login view.
-    The only things we duplicate from Django's login view are
-    the decorators. This ensures that, if we got an error before
-    even reaching Django's login view, we would still get the effects
-    of those decorators.
-    """
-    if request.method == 'POST':
-        if not request.POST.get('stay_signed_in', None):
-            request.session.set_expiry(0)
-    return default_login_view(request, *args, **kwargs)
+    def form_valid(self, form):
+        """Action to take when the form is valid."""
+        # Log in and create a redirect response.
+        response = super(LoginView, self).form_valid(form)
+
+        if not form.cleaned_data.get('stay_signed_in'):
+            # stay_signed_in checkbox is NOT checked, so make the session
+            # expire on browser close. Otherwise, the session's
+            # duration is defined by SESSION_COOKIE_AGE.
+            # https://docs.djangoproject.com/en/dev/topics/http/sessions/#django.contrib.sessions.backends.base.SessionBase.set_expiry
+            # http://stackoverflow.com/questions/15100400/
+            self.request.session.set_expiry(0)
+
+        return response
 
 
 class BaseRegistrationView(ThirdPartyRegistrationView):
-    def send_activation_email(self, user):
-        """Override the superclass to pass the request to the template."""
-        activation_key = self.get_activation_key(user)
-        context = self.get_email_context(activation_key)
-        context.update({
-            'user': user
-        })
-        subject = render_to_string(self.email_subject_template,
-                                   context)
-        # Force subject to a single line to avoid header-injection
-        # issues.
-        subject = ''.join(subject.splitlines())
-        message = render_to_string(self.email_body_template,
-                                   context, request=self.request)
-        user.email_user(subject, message, settings.DEFAULT_FROM_EMAIL)
+    def get_email_context(self, activation_key):
+        """
+        Build the template context used for the activation email.
+        """
+        context = \
+            super(BaseRegistrationView, self).get_email_context(activation_key)
+        context['account_questions_link'] = settings.ACCOUNT_QUESTIONS_LINK
+        context['forum_link'] = settings.FORUM_LINK
+        return context
 
 
 @sensitive_post_parameters()
 def register(request, *args, **kwargs):
     return RegistrationView.as_view()(request, *args, **kwargs)
 
+
 class RegistrationView(BaseRegistrationView):
-    success_url = 'registration_complete'
+    success_url = 'django_registration_complete'
 
     def get_context_data(self, **kwargs):
         if 'main_form' not in kwargs:
@@ -129,11 +119,12 @@ class RegistrationView(BaseRegistrationView):
         context = dict(username=existing_user.username)
 
         subject = render_to_string(
-            'registration/registration_email_exists_subject.txt', context)
+            'django_registration/registration_email_exists_subject.txt',
+            context)
         # Force subject to a single line to avoid header-injection issues.
         subject = ''.join(subject.splitlines())
         message = render_to_string(
-            'registration/registration_email_exists_email.txt',
+            'django_registration/registration_email_exists_email.txt',
             context, request=self.request)
 
         already_exists_email = EmailMessage(
@@ -147,7 +138,7 @@ class RegistrationView(BaseRegistrationView):
 class ActivationResendView(BaseRegistrationView):
     form_class = ActivationResendForm
     success_url = 'activation_resend_complete'
-    template_name = 'registration/activation_resend_form.html'
+    template_name = 'django_registration/activation_resend_form.html'
 
     def form_valid(self, form):
         email = form.cleaned_data['email']
@@ -200,7 +191,8 @@ class EmailChangeView(LoginRequiredMixin, FormView):
         )
         confirmation_email.send()
 
-    def get_confirmation_key(self, user, pending_email_address):
+    @staticmethod
+    def get_confirmation_key(user, pending_email_address):
         return signing.dumps(obj=dict(
             pk=user.pk,
             email=pending_email_address,
@@ -303,7 +295,7 @@ def profile_list(request):
 
 
 def profile_detail(request, user_id):
-    profile_user = get_object_or_404(get_user_model(), pk=user_id)
+    profile_user = get_object_or_404(User, pk=user_id)
     profile = profile_user.profile
 
     can_view = can_view_profile(request, profile)

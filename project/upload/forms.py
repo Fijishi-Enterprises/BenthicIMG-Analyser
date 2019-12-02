@@ -1,3 +1,9 @@
+from io import StringIO
+
+# PyCharm may warn that this isn't declared in __all__, but this import
+# simply matches BS4's docs as of 2018/12:
+# https://www.crummy.com/software/BeautifulSoup/bs4/doc/#unicode-dammit
+from bs4 import UnicodeDammit
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.files.images import get_image_dimensions
@@ -167,6 +173,15 @@ class CSVImportForm(Form):
 
         return self.cleaned_data['csv_file']
 
+    def get_csv_stream(self):
+        """Get CSV contents as a Unicode stream. Call this after validation."""
+        csv_file = self.cleaned_data['csv_file']
+        # Detect charset and convert to Unicode as needed.
+        csv_unicode_text = UnicodeDammit(csv_file.read()).unicode_markup
+        # Convert the text into a line-by-line stream.
+        csv_unicode_stream = StringIO(csv_unicode_text, newline='')
+        return csv_unicode_stream
+
 
 class CPCImportForm(Form):
     cpc_files = MultipleFileField(
@@ -189,3 +204,13 @@ class CPCImportForm(Form):
                     "This is not a CPC file: {fn}".format(fn=cpc_file.name))
 
         return self.cleaned_data['cpc_files']
+
+    def get_cpc_names_and_streams(self):
+        cpc_names_and_streams = []
+        for cpc_file in self.cleaned_data['cpc_files']:
+            # Detect charset and convert to Unicode as needed.
+            cpc_unicode_text = UnicodeDammit(cpc_file.read()).unicode_markup
+            # Convert the text into a line-by-line stream.
+            cpc_unicode_stream = StringIO(cpc_unicode_text, newline='')
+            cpc_names_and_streams.append((cpc_file.name, cpc_unicode_stream))
+        return cpc_names_and_streams

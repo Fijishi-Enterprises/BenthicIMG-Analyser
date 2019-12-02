@@ -1,7 +1,9 @@
+from __future__ import unicode_literals
+
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.forms import Form, ModelForm, BaseModelFormSet
-from django.forms.fields import CharField, ChoiceField, FileField, IntegerField
+from django.forms.fields import CharField, ChoiceField, IntegerField
 from django.forms.widgets import Select, TextInput, NumberInput
 
 from .models import Source, Metadata, SourceInvite
@@ -122,7 +124,8 @@ class ImageSourceForm(ModelForm):
 
 class SourceChangePermissionForm(Form):
 
-    perm_change = ChoiceField(label='Permission Level', choices=Source._meta.permissions)
+    perm_change = ChoiceField(
+        label='Permission Level', choices=Source._meta.permissions)
 
     def __init__(self, *args, **kwargs):
         self.source_id = kwargs.pop('source_id')
@@ -130,12 +133,16 @@ class SourceChangePermissionForm(Form):
         super(SourceChangePermissionForm, self).__init__(*args, **kwargs)
         source = Source.objects.get(pk=self.source_id)
         members = source.get_members_ordered_by_role()
-        memberList = [(member.id,member.username) for member in members]
+        member_list = [(member.id, member.username) for member in members]
 
-        # This removes the current user from users that can have their permission changed
-        if (user.id,user.username) in memberList:
-            memberList.remove((user.id,user.username))
-        self.fields['user'] = ChoiceField(label='User', choices=[member for member in memberList], required=True)
+        # This removes the current user from users that can have their
+        # permission changed
+        if (user.id, user.username) in member_list:
+            member_list.remove((user.id, user.username))
+        self.fields['user'] = ChoiceField(
+            label='User', choices=[member for member in member_list],
+            required=True)
+
 
 class SourceRemoveUserForm(Form):
 
@@ -145,12 +152,16 @@ class SourceRemoveUserForm(Form):
         super(SourceRemoveUserForm, self).__init__(*args, **kwargs)
         source = Source.objects.get(pk=self.source_id)
         members = source.get_members_ordered_by_role()
-        memberList = [(member.id,member.username) for member in members]
+        member_list = [(member.id, member.username) for member in members]
 
-        # This removes the current user from users that can have their permission changed
-        if (self.user.id,self.user.username) in memberList:
-            memberList.remove((self.user.id,self.user.username))
-        self.fields['user'] = ChoiceField(label='User', choices=[member for member in memberList], required=True)
+        # This removes the current user from users that can have their
+        # permission changed
+        if (self.user.id, self.user.username) in member_list:
+            member_list.remove((self.user.id, self.user.username))
+        self.fields['user'] = ChoiceField(
+            label='User', choices=[member for member in member_list],
+            required=True)
+
 
 class SourceInviteForm(Form):
     # This is not a ModelForm, because a ModelForm would by default
@@ -160,10 +171,12 @@ class SourceInviteForm(Form):
     # want a text box for the recipient field, so it's easier
     # to just use a Form.
 
-    recipient = CharField(max_length=User._meta.get_field('username').max_length,
-                          help_text="The recipient's username.")
-    source_perm = ChoiceField(label='Permission level',
-                              choices=SourceInvite._meta.get_field('source_perm').choices)
+    recipient = CharField(
+        max_length=User._meta.get_field('username').max_length,
+        help_text="The recipient's username.")
+    source_perm = ChoiceField(
+        label='Permission level',
+        choices=SourceInvite._meta.get_field('source_perm').choices)
 
     def __init__(self, *args, **kwargs):
         self.source_id = kwargs.pop('source_id')
@@ -180,15 +193,15 @@ class SourceInviteForm(Form):
         If not, throw an error.
         """
 
-        recipientUsername = self.cleaned_data['recipient']
-        recipientUsername = recipientUsername.strip()
+        recipient_username = self.cleaned_data['recipient']
+        recipient_username = recipient_username.strip()
 
         try:
-            User.objects.get(username=recipientUsername)
+            User.objects.get(username=recipient_username)
         except User.DoesNotExist:
             raise ValidationError("There is no user with this username.")
 
-        return recipientUsername
+        return recipient_username
 
     def clean(self):
         """
@@ -198,23 +211,26 @@ class SourceInviteForm(Form):
         (2) The recipient has already been invited to the source.
         """
 
-        if not self.cleaned_data.has_key('recipient'):
+        if 'recipient' not in self.cleaned_data:
             return super(SourceInviteForm, self).clean()
 
-        recipientUser = User.objects.get(username=self.cleaned_data['recipient'])
+        recipient_user = User.objects.get(
+            username=self.cleaned_data['recipient'])
         source = Source.objects.get(pk=self.source_id)
 
-        if source.has_member(recipientUser):
-            msg = u"%s is already in this Source." % recipientUser.username
+        if source.has_member(recipient_user):
+            msg = "{username} is already in this Source.".format(
+                username=recipient_user.username)
             self.add_error('recipient', msg)
             return super(SourceInviteForm, self).clean()
 
         try:
-            SourceInvite.objects.get(recipient=recipientUser, source=source)
+            SourceInvite.objects.get(recipient=recipient_user, source=source)
         except SourceInvite.DoesNotExist:
             pass
         else:
-            msg = u"%s has already been invited to this Source." % recipientUser.username
+            msg = "{username} has already been invited to this Source.".format(
+                username=recipient_user.username)
             self.add_error('recipient', msg)
 
         super(SourceInviteForm, self).clean()
@@ -283,7 +299,7 @@ class MetadataFormForGrid(MetadataForm):
             # actually is filled with an erroneous value.
             # Only change this to NumberInput if we have a good solution
             # for this issue.
-            'height_in_cm': TextInput(attrs={'size': 10,}),
+            'height_in_cm': TextInput(attrs={'size': 10}),
         }
 
 
@@ -345,36 +361,38 @@ class PointGenForm(Form):
     point_generation_type = ChoiceField(
         label='Point generation type',
         choices=Source.POINT_GENERATION_CHOICES,
-        widget=Select(attrs={'onchange': 'PointGenFormHelper.showOnlyRelevantFields()'}),
+        widget=Select(
+            attrs={'onchange': 'PointGenFormHelper.showOnlyRelevantFields()'}),
     )
 
     # The following fields may or may not be required depending on the
-    # point_generation_type. We'll make all of them required by default,
-    # then in clean(), we'll ignore the errors for fields that
-    # we decide are not required.
+    # point_generation_type. We'll make all of them not required by default
+    # (so that browser-side required field checks don't block form submission),
+    # Then in clean(), we'll account for errors on fields that
+    # we decide are required.
 
     # For simple random
     simple_number_of_points = IntegerField(
-        label='Number of annotation points', required=True,
+        label='Number of annotation points', required=False,
         min_value=1, max_value=MAX_NUM_POINTS,
         widget=NumberInput(attrs={'size': 3}),
     )
 
     # For stratified random and uniform grid
     number_of_cell_rows = IntegerField(
-        label='Number of cell rows', required=True,
+        label='Number of cell rows', required=False,
         min_value=1, max_value=MAX_NUM_POINTS,
         widget=NumberInput(attrs={'size': 3}),
     )
     number_of_cell_columns = IntegerField(
-        label='Number of cell columns', required=True,
+        label='Number of cell columns', required=False,
         min_value=1, max_value=MAX_NUM_POINTS,
         widget=NumberInput(attrs={'size': 3}),
     )
 
     # For stratified random
     stratified_points_per_cell = IntegerField(
-        label='Points per cell', required=True,
+        label='Points per cell', required=False,
         min_value=1, max_value=MAX_NUM_POINTS,
         widget=NumberInput(attrs={'size': 3}),
     )
@@ -385,50 +403,84 @@ class PointGenForm(Form):
         the point generation method of that Source,
         and use that to fill the form fields' initial values.
         """
-        if kwargs.has_key('source'):
+        if 'source' in kwargs:
             source = kwargs.pop('source')
-            kwargs['initial'] = PointGen.db_to_args_format(source.default_point_generation_method)
+            kwargs['initial'] = PointGen.db_to_args_format(
+                source.default_point_generation_method)
 
-        self.form_help_text = Source._meta.get_field('default_point_generation_method').help_text
+        self.form_help_text = \
+            Source._meta.get_field('default_point_generation_method').help_text
 
         super(PointGenForm, self).__init__(*args, **kwargs)
 
     def clean(self):
-        data = self.cleaned_data
-        type = data['point_generation_type']
+        cleaned_data = super(PointGenForm, self).clean()
+        point_gen_type = cleaned_data.get('point_generation_type')
+        if not point_gen_type:
+            # Already have an error on the type, no need to clean further
+            return
+
+        point_gen_number_fields = {
+            'simple_number_of_points', 'number_of_cell_rows',
+            'number_of_cell_columns', 'stratified_points_per_cell'}
 
         # Depending on the point generation type that was picked, different
         # fields are going to be required or not. Identify the required fields
         # (other than the point-gen type).
-        additional_required_fields = []
-        if type == PointGen.Types.SIMPLE:
-            additional_required_fields = ['simple_number_of_points']
-        elif type == PointGen.Types.STRATIFIED:
-            additional_required_fields = ['number_of_cell_rows', 'number_of_cell_columns', 'stratified_points_per_cell']
-        elif type == PointGen.Types.UNIFORM:
-            additional_required_fields = ['number_of_cell_rows', 'number_of_cell_columns']
+        required_number_fields = set()
+        if point_gen_type == PointGen.Types.SIMPLE:
+            required_number_fields = {'simple_number_of_points'}
+        elif point_gen_type == PointGen.Types.STRATIFIED:
+            required_number_fields = {
+                'number_of_cell_rows', 'number_of_cell_columns',
+                'stratified_points_per_cell'}
+        elif point_gen_type == PointGen.Types.UNIFORM:
+            required_number_fields = {
+                'number_of_cell_rows', 'number_of_cell_columns'}
 
-        # Get rid of errors for the fields we don't care about.
-        required_fields = ['point_generation_type'] + additional_required_fields
+        non_applicable_fields = point_gen_number_fields - required_number_fields
+
+        # Delete errors on the non-applicable fields. It would be
+        # confusing if these errors counted, since the fields would be
+        # invisible.
         for key in self._errors.keys():
-            if key not in required_fields:
+            if key in non_applicable_fields:
                 del self._errors[key]
 
-        # If there are no errors so far, do a final check of
-        # the total number of points specified.
-        # It should be between 1 and MAX_NUM_POINTS.
-        if len(self._errors) == 0:
+        # Add 'required' errors to blank applicable fields.
+        for field_name in required_number_fields:
+            if field_name not in cleaned_data:
+                # The field is non-blank with an invalid value.
+                continue
+            if cleaned_data[field_name] is None:
+                # The field is blank.
+                self.add_error(
+                    field_name,
+                    ValidationError("This field is required.", code='required'))
 
+        if not self._errors:
+            # No errors so far, so do a final check of
+            # the total number of points specified.
+            # It should be between 1 and MAX_NUM_POINTS.
             num_points = 0
-            if type == PointGen.Types.SIMPLE:
-                num_points = data['simple_number_of_points']
-            elif type == PointGen.Types.STRATIFIED:
-                num_points = data['number_of_cell_rows'] * data['number_of_cell_columns'] * data['stratified_points_per_cell']
-            elif type == PointGen.Types.UNIFORM:
-                num_points = data['number_of_cell_rows'] * data['number_of_cell_columns']
+
+            if point_gen_type == PointGen.Types.SIMPLE:
+                num_points = cleaned_data['simple_number_of_points']
+            elif point_gen_type == PointGen.Types.STRATIFIED:
+                num_points = (
+                    cleaned_data['number_of_cell_rows']
+                    * cleaned_data['number_of_cell_columns']
+                    * cleaned_data['stratified_points_per_cell'])
+            elif point_gen_type == PointGen.Types.UNIFORM:
+                num_points = (
+                    cleaned_data['number_of_cell_rows']
+                    * cleaned_data['number_of_cell_columns'])
 
             if num_points > PointGenForm.MAX_NUM_POINTS:
-                raise ValidationError("You specified %s points total. Please make it no more than %s." % (num_points, PointGenForm.MAX_NUM_POINTS))
-
-        self.cleaned_data = data
-        super(PointGenForm, self).clean()
+                # Raise a non-field error (error applying to the form as a
+                # whole).
+                raise ValidationError(
+                    "You specified {num_points} points total."
+                    " Please make it no more than {max_points}.".format(
+                        num_points=num_points,
+                        max_points=PointGenForm.MAX_NUM_POINTS))

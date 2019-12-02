@@ -102,7 +102,7 @@ var UploadMetadataHelper = (function() {
             // synced between status get / status set code.
             alert(
                 "Error - Invalid status: {0}".format(newStatus) +
-                "\nIf the problem persists, please contact the site admins."
+                "\nIf the problem persists, please let us know on the forum."
             );
         }
     }

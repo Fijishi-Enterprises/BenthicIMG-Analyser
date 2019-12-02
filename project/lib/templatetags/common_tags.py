@@ -1,13 +1,13 @@
 # General-use custom template tags and filters.
 
-
+from __future__ import unicode_literals
+from datetime import datetime
 import json
 import pytz
 import urllib
-from datetime import datetime
+
 from django import template
 from django.conf import settings
-from django.contrib.staticfiles.templatetags.staticfiles import StaticFilesNode
 from django.utils import timezone
 from django.utils.safestring import mark_safe
 
@@ -45,8 +45,8 @@ def google_maps_api_url(callback):
 # Basic idea from:
 # http://djangosnippets.org/snippets/201/
 @register.filter
-def jsonify(object):
-    return mark_safe(json.dumps(object))
+def jsonify(obj):
+    return mark_safe(json.dumps(obj))
 
 
 @register.simple_tag
@@ -77,22 +77,3 @@ def truncate_float(f):
     "Variables and attributes may not begin with underscores"
     """
     return int(f)
-
-
-# versioned_static
-#
-# Prevent undesired browser caching of static files (CSS, JS, etc.)
-# by adding a version string after the filename in the link/script element.
-# The version string is the last-modified time of the file, as a timezone
-# agnostic Unix timestamp.
-# So the version string changes (and thus, the browser re-fetches)
-# if and only if the file has been modified.
-#
-# Usage: {% versioned_static "js/util.js" %}
-# Example output: {{ STATIC_URL }}js/util.js?version=1035720937
-#
-# TODO: This is obsolete now that we use ManifestStaticFilesStorage.
-# Replace all versioned_static uses with static, and delete this tag.
-@register.tag('versioned_static')
-def do_versioned_static(parser, token):
-    return StaticFilesNode.handle_token(parser, token)

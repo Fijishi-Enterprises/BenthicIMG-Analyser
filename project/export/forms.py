@@ -1,8 +1,21 @@
+from __future__ import unicode_literals
 import six
 
 from django.forms import Form
-from django.forms.fields import CharField, ChoiceField
-from django.forms.widgets import RadioSelect
+from django.forms.fields import CharField, ChoiceField, MultipleChoiceField
+from django.forms.widgets import CheckboxSelectMultiple, RadioSelect
+
+
+class ExportAnnotationsForm(Form):
+    optional_columns_choices = (
+        ('annotator_info', "Annotator info"),
+        ('machine_suggestions', "Machine suggestions"),
+        ('metadata_date_aux', "Image metadata - date and auxiliary fields"),
+        ('metadata_other', "Image metadata - other fields"),
+    )
+    optional_columns = MultipleChoiceField(
+        widget=CheckboxSelectMultiple, choices=optional_columns_choices,
+        required=False)
 
 
 class CpcPrefsForm(Form):

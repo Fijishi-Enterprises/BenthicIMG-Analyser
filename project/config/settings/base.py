@@ -1,6 +1,6 @@
 # Base settings for any type of server.
 
-import json, sys, os
+import json
 
 from unipath import Path
 
@@ -28,19 +28,20 @@ LOG_DIR = SITE_DIR.child('log')
 # JSON-based secrets module, expected to be in the SETTINGS_DIR
 with open(SETTINGS_DIR.child('secrets.json')) as f:
     secrets = json.loads(f.read())
-    def get_secret(setting, secrets=secrets, required=True):
+
+    def get_secret(setting, secrets_=secrets, required=True):
         """
         Get the secret variable. If the variable is required,
         raise an error if it's not present.
         """
         try:
-            return secrets[setting]
+            return secrets_[setting]
         except KeyError:
             if required:
-                error_msg = "Set the {0} setting in secrets.json".format(setting)
+                error_msg = "Set the {setting} setting in secrets.json".format(
+                    setting=setting)
                 raise ImproperlyConfigured(error_msg)
             return ""
-
 
 
 # In general, first come Django settings, then 3rd-party app settings,
@@ -48,7 +49,6 @@ with open(SETTINGS_DIR.child('secrets.json')) as f:
 #
 # The Django settings' comments are mainly from
 # django.conf.global_settings. (Not all Django settings are there though...)
-
 
 
 # If you set this to True, Django will use timezone-aware datetimes.
@@ -143,10 +143,13 @@ INSTALLED_APPS = [
     'accounts',
     'annotations',
     'async_media',
+    'blog',
     'bug_reporting',
     # Saves internal server error messages for viewing in the admin site
     'errorlogs.apps.ErrorlogsConfig',
     'export',
+    # Flatpages-related customizations
+    'flatpages_custom',
     'images',
     'labels',
     # Miscellaneous stuff
@@ -154,6 +157,7 @@ INSTALLED_APPS = [
     'upload',
     'visualization',
     'vision_backend',
+    'newsfeed',
 
     # Admin site (<domain>/admin)
     'django.contrib.admin',
@@ -164,19 +168,35 @@ INSTALLED_APPS = [
     'django.contrib.auth',
     # Allows permissions to be associated with models you create
     'django.contrib.contenttypes',
+    # Store "flat" content pages like Help and FAQ in the database, and edit
+    # them via the admin interface
+    'django.contrib.flatpages',
+    # Has Django template filters to 'humanize' data, like adding thousands
+    # separators to numbers
+    'django.contrib.humanize',
     'django.contrib.messages',
     'django.contrib.sessions',
+    # Sites framework:
+    # https://docs.djangoproject.com/en/dev/ref/contrib/sites/
+    # Required by django-andablog. Also "strongly encouraged" to use by the
+    # Django docs, even if we only have one site:
+    # https://docs.djangoproject.com/en/dev/ref/contrib/sites/#how-django-uses-the-sites-framework
+    'django.contrib.sites',
     'django.contrib.staticfiles',
 
+    'andablog',
     'easy_thumbnails',
     'guardian',
+    'markdownx',
     'reversion',
     'storages',
+    # For andablog's entry tags
+    'taggit',
 ]
 
 # The order of middleware classes is important!
 # https://docs.djangoproject.com/en/dev/topics/http/middleware/
-MIDDLEWARE_CLASSES = [
+MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     # Manages sessions across requests; required for auth
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -252,6 +272,8 @@ TEMPLATES = [
                 'django.template.context_processors.static',
                 'django.template.context_processors.tz',
                 'django.contrib.messages.context_processors.messages',
+                # Adds CoralNet help links to the context.
+                'lib.context_processors.help_links',
             ],
         },
     },
@@ -272,14 +294,6 @@ STATICFILES_DIRS = [
 # https://docs.djangoproject.com/en/dev/ref/contrib/staticfiles/#manifeststaticfilesstorage
 STATICFILES_STORAGE = \
     'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
-
-# List of finder classes that know how to find static files in
-# various locations.
-STATICFILES_FINDERS = [
-    'django.contrib.staticfiles.finders.FileSystemFinder',
-    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
-#    'django.contrib.staticfiles.finders.DefaultStorageFinder',
-]
 
 # Absolute path to the directory which static files should be collected to.
 # Example: "/home/media/media.lawrence.com/static/"
@@ -322,8 +336,7 @@ SESSION_COOKIE_AGE = 60 * 60 * 24 * 30
 # generates a random secret key and puts it in settings, so use that.
 SECRET_KEY = get_secret("DJANGO_SECRET_KEY")
 
-LOGIN_URL = 'auth_login'
-LOGOUT_URL = 'auth_logout'
+LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'source_list'
 
 # Custom setting.
@@ -347,6 +360,15 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+PASSWORD_HASHERS = [
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
+    # This hasher assists in strengthening security for users who haven't
+    # logged in since PBKDF2 became the default.
+    'accounts.hashers.PBKDF2WrappedSHA1PasswordHasher',
+    'django.contrib.auth.hashers.Argon2PasswordHasher',
+    'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',
+]
 
 # The maximum size (in bytes) that an upload will be before it
 # gets streamed to the file system.
@@ -356,15 +378,18 @@ AUTH_PASSWORD_VALIDATORS = [
 # as needed.
 FILE_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50 MB
 
+# The maximum size for a request body (not counting file uploads).
+# Due to metadata-edit not having an image limit yet, this needs to be quite
+# big.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50 MB
 
+# Maximum number of GET/POST parameters that are parsed from a single request.
+# Due to metadata-edit not having an image limit yet, this needs to be quite
+# large (each image would have about 20 fields).
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000000
 
-# django-guardian setting
-ANONYMOUS_USER_ID = -1
-# For whatever reason, when running tests in Postgres, it errors when
-# this ID is 0 or negative.
-if 'test' in sys.argv:
-    ANONYMOUS_USER_ID = 99999999
-
+# For the Django sites framework
+SITE_ID = 1
 
 
 # django-registration setting
@@ -379,6 +404,32 @@ ACCOUNT_ACTIVATION_DAYS = 7
 # requesting one.
 EMAIL_CHANGE_CONFIRMATION_HOURS = 24
 
+# [Custom settings]
+ACCOUNT_QUESTIONS_LINK = \
+    "https://groups.google.com/forum/#!topic/coralnet-users/PsU3x-Ubrdc"
+FORUM_LINK = "https://groups.google.com/forum/#!forum/coralnet-users"
+
+
+# markdownx setting (used on the admin site's flatpage editor).
+# Max size for images uploaded through a markdownx widget via drag and drop.
+#
+# Note that in Markdown, you can use HTML to make an image appear a different
+# size from its original size: <img src="image.png" width="900"/>
+MARKDOWNX_IMAGE_MAX_SIZE = {
+    # Max resolution
+    'size': (2000, 2000),
+}
+
+# markdownx setting.
+# Media path where drag-and-drop image uploads get stored.
+MARKDOWNX_MEDIA_PATH = 'article_images/'
+
+# markdownx setting.
+# Markdown extensions. 'extra' features are listed here:
+# https://python-markdown.github.io/extensions/extra/
+MARKDOWNX_MARKDOWN_EXTENSIONS = [
+    'markdown.extensions.extra'
+]
 
 
 # [Custom settings]
@@ -466,6 +517,9 @@ LOGGING = {
 
 }
 
+# The name of the class to use for starting the test suite.
+TEST_RUNNER = 'lib.tests.utils.TempStorageTestRunner'
+
 # [Custom setting]
 # Name of the CoralNet regtests S3 bucket.
 REGTEST_BUCKET = 'coralnet-regtest-fixtures'
@@ -512,3 +566,9 @@ SELENIUM_TIMEOUTS = {
     # get an error.
     'page_load': 20,
 }
+
+# We filter on sources that contains these strings for map and some exports.
+LIKELY_TEST_SOURCE_NAMES = ['test', 'sandbox', 'dummy', 'tmp', 'temp', 'check']
+
+# NewsItem categories used in NewsItem app.
+NEWS_ITEM_CATEGORIES = ['ml', 'source', 'image', 'annotation', 'account']

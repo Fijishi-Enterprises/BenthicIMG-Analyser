@@ -2,34 +2,58 @@
 {% load truncate_float from common_tags %}
 {% load labels %}
 
-{% if label.thumbnail %}
-  {# Placeholder src to delay loading the actual image until it is shown. #}
-  {# Actual image is in the data-src attribute. #}
-  {# Placeholder is 1x1 transparent, from: http://png-pixel.com/ #}
-  <img
-    src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
-    class="lazy-load" data-src="{{ label.thumbnail.url }}" style="float: right;" />
-{% else %}
-  <img src="{% static "img/placeholders/media-no-image-available__150x150.png" %}" style="float: right;" />
-{% endif %}
 
-<div class="line">Name: <strong>{{ label.name }}</strong></div>
-<div class="line">Functional Group: {{ label.group.name }}</div>
-<div class="line">Default Short Code: {{ label.default_code }}</div>
+<div class="label-basic-info-and-thumbnail-wrapper">
 
-<div class="line">Verified:
-  {{ label.verified|yesno|title }}
-  {% verified_icon label %}
-</div>
-<div class="line">Popularity:
-  {{ label.popularity|truncate_float }}%
-  {% popularity_bar label %}
+  <div class="label-basic-info">
+
+    <p>Name: <strong>{{ label.name }}</strong></p>
+    <p>Functional Group: {{ label.group.name }}</p>
+    <p>Default Short Code: {{ label.default_code }}</p>
+
+    {% if label.duplicate %}
+      <p>
+        <strong>
+          THIS LABEL IS A DUPLICATE OF:
+          <a href="{% url 'label_main' label.duplicate.id %}">
+            {{ label.duplicate }}
+          </a>
+        </strong>
+      </p>
+    {% endif %}
+
+    <div class="line">Verified:
+      {{ label.verified|yesno|title }}
+      {% if label.verified %}
+        {% status_icon label %}
+      {% endif %}
+    </div>
+
+    <div class="line">Popularity:
+      {{ label.popularity|truncate_float }}%
+      {% popularity_bar label %}
+    </div>
+
+  </div>
+
+  {% if label.thumbnail %}
+    {# Placeholder src to delay loading the actual image until it is shown. #}
+    {# Actual image is in the data-src attribute. #}
+    {# Placeholder is 1x1 transparent, from: http://png-pixel.com/ #}
+    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+         data-src="{{ label.thumbnail.url }}"
+         class="label-thumbnail lazy-load" alt="{{ label.name }}"/>
+  {% else %}
+    <img src="{% static "img/placeholders/media-no-image-available__150x150.png" %}"
+         class="label-thumbnail" alt="{{ label.name }}" />
+  {% endif %}
+
 </div>
 
 {% if label.description %}
-  <div class="line">Description: {{ label.description }}</div>
+  <p>Description: {{ label.description|truncatewords:30 }}</p>
 {% else %}
-  <div class="line">Description: (None)</div>
+  <p>Description: (None)</p>
 {% endif %}
 
 <a href="{% url 'label_main' label.pk %}" target="_blank">

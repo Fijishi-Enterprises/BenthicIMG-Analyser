@@ -15,9 +15,10 @@ urlpatterns = [
     url(r'', include('labels.urls')),
 
     url(r'^accounts/', include('accounts.urls')),
+    url(r'^newsfeed/', include('newsfeed.urls')),
     url(r'^async_media/',
         include('async_media.urls', namespace='async_media')),
-    url(r'^feedback/', include('bug_reporting.urls')),
+    url(r'^blog/', include('blog.urls', namespace='blog')),
     url(r'^source/(?P<source_id>\d+)/browse/', include('visualization.urls')),
     url(r'^source/(?P<source_id>\d+)/export/', include('export.urls')),
     url(r'^source/(?P<source_id>\d+)/upload/', include('upload.urls')),
@@ -35,7 +36,12 @@ urlpatterns = [
         TemplateView.as_view(template_name='lib/release_notes.html'),
         name='release',
     ),
-    url(r'^contact/$', lib_views.contact, name='contact'),
+
+    # Flatpages, such as the help page
+    url(r'^pages/', include('flatpages_custom.urls', namespace='pages')),
+
+    # markdownx editor AJAX functionality (content preview and image upload).
+    url(r'^markdownx/', include('markdownx.urls')),
 
     # "Secret" dev views
     url(r'^nav_test/(?P<source_id>\d+)/$', lib_views.nav_test, name="nav_test"),

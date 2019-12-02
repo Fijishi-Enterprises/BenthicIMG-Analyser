@@ -2,88 +2,168 @@
 
 
 # Assist gradual migration from Python 2 to 3.
+# Changelog: https://github.com/benjaminp/six/blob/master/CHANGES
 #
 # An alternative is the 'future' package, but its methods
 # seem to be less well recognized by Python IDEs, at least PyCharm
 # (https://youtrack.jetbrains.com/issue/PY-15538).
 # Nevertheless, future's cheat sheet is useful:
 # http://python-future.org/compatible_idioms.html
-six==1.10.0
+six==1.12.0
 
-Django==1.9.11
+Django>=1.11.23,<2
 
 # Per-object permissions
 # e.g. "can edit this source" not just "can edit sources"
-# Requires django, six
-django-guardian==1.4.1
+# Requires: django, six
+# Changelog: https://github.com/django-guardian/django-guardian/blob/devel/CHANGES
+django-guardian==1.4.9
 
 # Python Imaging Library
 # (A currently active, package friendly fork of it; also endorsed by Django)
-Pillow==4.1.1
+# Changelog: https://pillow.readthedocs.io/en/stable/releasenotes/index.html
+#
+# django-andablog, as of 3.1.0, still needs Pillow 4.x instead of >= 5
+Pillow==4.3.0
 
-# System for generating smaller versions of images
-# Requires django, Pillow
-easy-thumbnails==2.3
+# Markdown support in the blog and other places.
+# Changelog: https://github.com/Python-Markdown/markdown/blob/master/docs/change_log/index.md
+Markdown>=3.1.1,<4
+
+# Simple blog.
+# Requires: django, Pillow, six, and Markdown (for blog Markdown support)
+# Changelog: https://github.com/WimpyAnalytics/django-andablog/blob/master/HISTORY.rst
+django-andablog==3.0.0
+
+# System for generating smaller versions of images.
+# Requires: django, Pillow
+# Changelog: https://github.com/SmileyChris/easy-thumbnails/blob/master/CHANGES.rst
+easy-thumbnails==2.5.0
 
 # Add email activation to user registration process;
-# unlike in userena, this is implemented without additional models
-django-registration==2.1.2
+# unlike in userena, this is implemented without additional models.
+# Changelog: https://django-registration.readthedocs.io/en/stable/upgrade.html
+django-registration>=3.0.1,<3.1
 
-# Versioning of database objects
-# Has a fine-grained Django compatibility table; 1.10.1 is for Django 1.7+
-# Requires django
-django-reversion==1.10.1
+# Versioning of database objects. Requires django.
+# Changelog: https://github.com/etianen/django-reversion/blob/master/CHANGELOG.rst
+django-reversion==2.0.13
 
 # Allow Django to connect to a PostgreSQL database.
+# Changelog: http://initd.org/psycopg/docs/news.html
+#
 # See here for versions Django supports:
 # https://docs.djangoproject.com/en/dev/ref/databases/#postgresql-notes
-psycopg2==2.6.2
+#
+# psycopg2 separates source and binary releases into separate packages
+# (psycopg2 and psycopg2-binary respectively) starting from 2.7, with the
+# intention of emphasizing that they consider the binary unsafe for production.
+# This decision was from a threading-related segfault issue, although not an
+# easily replicated one:
+# https://github.com/psycopg/psycopg2/issues/543
+# And it appears they may have fixed the issue, but are playing it safe until
+# someone who can replicate the issue can confirm it's fixed:
+# https://github.com/psycopg/psycopg2-wheels/pull/8/files
+# All things considered, we'll use the binary in all environments for
+# simplicity of installation. However, if we encounter any segfaults
+# in celery workers, we should revisit this.
+psycopg2-binary>=2.7.7,<2.8
 
 # Amazon Web Services SDK for Python
+# Changelog: https://github.com/boto/boto/tree/develop/docs/source/releasenotes
+#
 # There's a newer package called boto3, but the interface is completely
-# different, and django-storages doesn't support that yet
+# different, so it will take some effort to port it.
 boto==2.40.0
 
 # Nicer interface for AWS S3 compared to using boto alone; also supports
-# many other storage systems
+# many other storage systems.
 # Even if a dev machine doesn't use S3, we still want this installed to make
-# module imports work
-# Requires boto
-django-storages==1.4.1
+# module imports work.
+# Requires: boto
+# Changelog: https://github.com/jschneier/django-storages/blob/master/CHANGELOG.rst
+django-storages==1.6.5
 
-# HTML parsing
-beautifulsoup4==4.6.0
+# Writing tests for database migrations.
+django-migration-testcase==0.0.14
 
-# Fancy math
+# Python 2's CSV module has poor support for Unicode and multiplatform
+# newline chars. This backport of Python 3's CSV module is less painful to
+# work with, even in a Python 2 system.
+# Changelog: https://github.com/ryanhiebert/backports.csv/blob/master/HISTORY.rst
+#
+# Usage: `from backports import csv`
+# This package should also work for Python 3, so no conditional imports should
+# be needed. But after moving to Python-3-only, it would be best to simplify to
+# `import csv`.
+backports.csv==1.0.7
+
+# HTML parsing.
+# Changelog: https://bazaar.launchpad.net/~leonardr/beautifulsoup/bs4/view/head:/CHANGELOG
+#
+# Also comes with a character encoding detection tool called "Unicode, Dammit":
+# https://www.crummy.com/software/BeautifulSoup/bs4/doc/#unicode-dammit
+beautifulsoup4>=4.8.1,<4.9
+
+# BeautifulSoup's encoding detection becomes more accurate if chardet or
+# cchardet is installed. chardet is older; cchardet is much faster.
+# Changelog: https://github.com/PyYoshi/cChardet/blob/master/CHANGES.rst
+cchardet==2.1.4
+
+# Scientific computing
+# Changelog: https://numpy.org/devdocs/release.html
 numpy==1.11.1
 
 # Library for testing; can replace parts of the system under test with
 # mock objects.
 # Can be replaced with Python standard library's mock from Python 3.3 onward.
+# Changelog: https://mock.readthedocs.io/en/latest/changelog.html
 mock==2.0.0
 
-# World timezone definitions
-pytz==2016.3
-
-# Handle the YAML format, e.g. for fixtures
-PyYAML==3.10
-
 # More elegant filepath calculations compared to os.path.
-# pathlib has become part of the Python 3 standard library. As a Python 2
-# package, it's the best bet for migrating cleanly and idiomatically to
-# Python 3.
-pathlib2==2.3.0
+# Changelog: https://github.com/mcmtroffaes/pathlib2/blob/develop/CHANGELOG.rst
+#
+# pathlib has become part of the Python 3 standard library. pathlib2, an
+# unofficial backport of pathlib to Python 2, is the best bet for migrating
+# cleanly and idiomatically to Python 3.
+# However, pathlib2 does have a major flaw: paths with non-ASCII characters
+# are not supported. The only way to support that is to move to Python 3
+# eventually. https://github.com/mcmtroffaes/pathlib2/issues/34
+pathlib2==2.3.5
+
+# Another filepath calculations module.
+#
 # unipath hasn't been updated since early 2015 (as of late 2017).
-# Was formerly recommended by Two Scoops of Django, but they moved to pathlib.
+# Was formerly recommended by Two Scoops of Django for specifying Django
+# settings, but they moved to pathlib.
 # https://github.com/twoscoops/two-scoops-of-django-1.8/issues/150
+# https://github.com/twoscoops/two-scoops-of-django-1.11/blob/master/code/chapter_05_example_30.py
+#
+# However, as of Python 2.7 + Django 1.11, most settings don't accept
+# pathlib.Path objects. This makes it tricky to replace our usage of unipath
+# for settings with pathlib. So, until we upgrade Python/Django, this package
+# will have to stay.
 unipath==1.1
 
 # Machine Learning tools.
-# scikit-learn has no Python 3.6 support yet (as of scikit-learn 0.18.1).
+# Changelog: https://docs.scipy.org/doc/scipy/reference/release.html
 scipy==0.18.1
+# Changelog: https://scikit-learn.org/dev/whats_new.html
 scikit-learn==0.17.1
 
+# Browser-side testing.
+# Changelog: https://github.com/SeleniumHQ/selenium/blob/master/py/CHANGES
+#
+# Also requires installing drivers for specific browsers, and putting the
+# drivers on your PATH:
+# https://selenium-python.readthedocs.io/installation.html#drivers
+selenium==3.141.0
+
 # Async job tools
+# Celery changelog: http://docs.celeryproject.org/en/latest/changelog.html
+# (Change the bottom-right version widget to a previous Celery version to see
+# change notes for that version.)
+# Redis changelog: https://github.com/andymccurdy/redis-py/blob/master/CHANGES
 amqp==1.4.9
 anyjson==0.3.3
 billiard==3.3.0.23
@@ -91,14 +171,17 @@ celery==3.1.23
 kombu==3.0.35
 redis==2.10.5
 
-# Task monitor "flower". Not required but a nice monitor.
-backports.ssl-match-hostname==3.5.0.1
-certifi==2016.8.31
-flower==0.9.1
-futures==3.0.5
-tornado==4.2
-
 # Supervisord to manage celery.
-# supervisor has no Python 3.x support yet (as of supervisor 3.3.1);
-# it's planned for supervisor 4.0.
-supervisor==3.3.1
+# Changelog: https://github.com/Supervisor/supervisor/blob/master/CHANGES.rst
+supervisor>=4.1.0,<4.2
+
+# Progress bar for CLI
+# Changelog: https://tqdm.github.io/releases/
+tqdm==4.32.2
+
+# Support for rendering markdown as HTML, with extra rendering features over
+# the Markdown package (such as tables). Also includes a fancy Markdown editor,
+# with live preview and drag-and-drop image uploads.
+# Requires: Markdown
+# Changelog: https://github.com/neutronX/django-markdownx/releases
+django-markdownx==2.0.28

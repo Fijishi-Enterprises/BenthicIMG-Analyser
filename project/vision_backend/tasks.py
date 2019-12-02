@@ -40,10 +40,10 @@ def submit_features(image_id, force=False):
     except:
         logger.info("Image {} does not exist.".format(image_id))
         return
-    logstr = "Image {} [Source: {} [{}]]".format(image_id, img.source, img.source_id)
+    logstr = u"Image {} [Source: {} [{}]]".format(image_id, img.source, img.source_id)
 
     if img.features.extracted and not force:
-        logger.info("{} already has features".format(logstr))
+        logger.info(u"{} already has features".format(logstr))
         return
 
     # Assemble row column information
@@ -56,7 +56,7 @@ def submit_features(image_id, force=False):
     full_image_path = storage.path(img.original_file.name)
     payload = {
         'imkey': full_image_path,
-        'outputkey': settings.FEATURE_VECTOR_FILE_PATTERN.format(full_image_path = full_image_path),
+        'outputkey': settings.FEATURE_VECTOR_FILE_PATTERN.format(full_image_path=full_image_path),
         'modelname': 'vgg16_coralnet_ver1',
         'rowcols': rowcols,
         'pk': image_id
@@ -72,8 +72,8 @@ def submit_features(image_id, force=False):
     backend = get_backend_class()()
     backend.submit_job(messagebody)
 
-    logger.info("Submitted feature extraction for {}".format(logstr))
-    logger.debug("Submitted feature extraction for {}. Message: {}".format(logstr, messagebody))
+    logger.info(u"Submitted feature extraction for {}".format(logstr))
+    logger.debug(u"Submitted feature extraction for {}. Message: {}".format(logstr, messagebody))
     return messagebody
 
 
@@ -100,10 +100,10 @@ def submit_classifier(source_id, nbr_images=1e5, force=False):
         return
     
     if not source.need_new_robot() and not force:
-        logger.info("Source {} [{}] don't need new classifier.".format(source.name, source.pk))
+        logger.info(u"Source {} [{}] don't need new classifier.".format(source.name, source.pk))
         return
 
-    logger.info("Preparing new classifier for {} [{}].".format(source.name, source.pk))    
+    logger.info(u"Preparing new classifier for {} [{}].".format(source.name, source.pk))
     
     # Create new classifier model
     images = Image.objects.filter(source = source, confirmed = True, features__extracted = True)[:nbr_images]
@@ -148,8 +148,8 @@ def submit_classifier(source_id, nbr_images=1e5, force=False):
     backend = get_backend_class()()
     backend.submit_job(messagebody)
 
-    logger.info("Submitted classifier for source {} [{}] with {} images.".format(source.name, source.id, len(images)))
-    logger.debug("Submitted classifier for source {} [{}] with {} images. Message: {}".format(source.name, source.id, len(images), messagebody))
+    logger.info(u"Submitted classifier for source {} [{}] with {} images.".format(source.name, source.id, len(images)))
+    logger.debug(u"Submitted classifier for source {} [{}] with {} images. Message: {}".format(source.name, source.id, len(images), messagebody))
     return messagebody
  
 
@@ -192,7 +192,7 @@ def classify_image(image_id):
         try:
             th._add_annotations(image_id, scores, label_objs, classifier)
         except IntegrityError:
-            logger.info("Failed to classify Image {} [Source: {} [{}] with classifier {}. There might have been a race condition when trying to save annotations. Will try again later.".format(img.id, img.source, img.source_id, classifier.id))
+            logger.info(u"Failed to classify Image {} [Source: {} [{}] with classifier {}. There might have been a race condition when trying to save annotations. Will try again later.".format(img.id, img.source, img.source_id, classifier.id))
             classify_image.apply_async(args=[image_id], eta=now() + timedelta(seconds=10))
             return
     
@@ -202,7 +202,7 @@ def classify_image(image_id):
     img.features.classified = True
     img.features.save()
 
-    logger.info("Classified Image {} [Source: {} [{}]] with classifier {}".format(img.id, img.source, img.source_id, classifier.id))
+    logger.info(u"Classified Image {} [Source: {} [{}]] with classifier {}".format(img.id, img.source, img.source_id, classifier.id))
 
 
 @periodic_task(run_every=timedelta(seconds=60), name='Collect all jobs', ignore_result=True)

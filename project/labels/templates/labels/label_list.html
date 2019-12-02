@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load popularity_bar verified_icon from labels %}
+{% load popularity_bar status_icon from labels %}
 
 {% block title %}Label list - CoralNet{% endblock %}
 
@@ -18,13 +18,26 @@
 
   {% if can_edit_labels %}
     <div class="line">
-      <a href="{% url 'label_new' %}">Create a new label</a>
+      <a href="{% url 'label_new' %}">+ Create a new label</a>
+    </div>
+    <div class="line">
+      <a href="{% url 'labelset_duplicates' %}">List of duplicate labels</a>
     </div>
   {% endif %}
 
-  <label for="label-search-field">Search labels by name: </label>
-  <input type="text" id="label-search-field" name="search"
-    data-url="{% url 'label_list_search_ajax' %}"/>
+  {# Search form #}
+  <div id="search-form-box" class="box">
+    <form id="search-form" data-url="{% url 'label_list_search_ajax' %}">
+
+      {% for field in search_form %}
+        {# Put label+field in a div to ensure they stay on the same line. #}
+        <div style="display: inline-block">
+          {{ field.label }}: {{ field }} </div>
+      {% endfor %}
+
+    </form>
+  </div>
+
   <div id="label-search-status" class="line"></div>
 
   <table id="label-table" class="detail_table">
@@ -32,7 +45,11 @@
       <th>Name</th>
       <th>Functional Group</th>
       <th>Popularity</th>
-      <th>Verified</th>
+      <th>Status
+        <div class="tutorial-message">
+          {% include 'labels/label_list_status_help.html' %}
+        </div>
+      </th>
       <th>Default<br/>Short Code</th>
     </tr>
     {% for label in labels %}
@@ -40,7 +57,7 @@
         <td class="name"><a href="{% url 'label_main' label.id %}">{{ label.name }}</a></td>
         <td>{{ label.group }}</td>
         <td>{% popularity_bar label %}</td>
-        <td>{% verified_icon label %}</td>
+        <td>{% status_icon label %}</td>
         <td>{{ label.default_code }}</td>
       </tr>
     {% endfor %}

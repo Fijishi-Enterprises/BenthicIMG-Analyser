@@ -2,9 +2,9 @@ import json
 from datetime import timedelta
 
 from django.conf import settings
-from django.core.urlresolvers import reverse
 from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, render
+from django.urls import reverse
 from django.utils.timezone import now
 
 from accounts.utils import get_imported_user
@@ -216,7 +216,7 @@ def upload_metadata_preview_ajax(request, source_id):
     try:
         # Dict of (metadata ids -> dicts of (column name -> value))
         csv_metadata = metadata_csv_to_dict(
-            csv_import_form.cleaned_data['csv_file'], source)
+            csv_import_form.get_csv_stream(), source)
     except FileProcessError as error:
         return JsonResponse(dict(
             error=error.message,
@@ -256,7 +256,7 @@ def upload_metadata_ajax(request, source_id):
             error=(
                 "We couldn't find the expected data in your session."
                 " Please try loading this page again. If the problem persists,"
-                " contact a site admin."
+                " let us know on the forum."
             ),
         ))
 
@@ -320,7 +320,7 @@ def upload_annotations_csv_preview_ajax(request, source_id):
 
     try:
         csv_annotations = annotations_csv_to_dict(
-            csv_import_form.cleaned_data['csv_file'], source)
+            csv_import_form.get_csv_stream(), source)
     except FileProcessError as error:
         return JsonResponse(dict(
             error=error.message,
@@ -376,9 +376,9 @@ def upload_annotations_cpc_preview_ajax(request, source_id):
             error=cpc_import_form.errors['cpc_files'][0],
         ))
 
-    cpc_files = cpc_import_form.cleaned_data['cpc_files']
     try:
-        cpc_info = annotations_cpcs_to_dict(cpc_files, source)
+        cpc_info = annotations_cpcs_to_dict(
+            cpc_import_form.get_cpc_names_and_streams(), source)
     except FileProcessError as error:
         return JsonResponse(dict(
             error=error.message,
@@ -421,7 +421,7 @@ def upload_annotations_ajax(request, source_id):
             error=(
                 "We couldn't find the expected data in your session."
                 " Please try loading this page again. If the problem persists,"
-                " contact a site admin."
+                " let us know on the forum."
             ),
         ))
 

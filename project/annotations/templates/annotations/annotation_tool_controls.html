@@ -1,79 +1,67 @@
 {% load static from staticfiles %}
 
-<div class="help_section">
-    <span class="help_header">Choosing a point to label</span>
-    <ul>
-        <li>Click a text field on the right</li>
-        <li><kbd>Shift</kbd>-click on image</li>
-        <li><kbd>Tab</kbd> and <kbd>Shift</kbd>+<kbd>Tab</kbd> : next/previous</li>
-        <li><kbd>.</kbd> : first unannotated point</li>
-    </ul>
-</div>
+<div class="article-body">
+  <h3>Choosing a point to label</h3>
+  <ul>
+      <li>Click a text field on the right</li>
+      <li><kbd>Shift</kbd>-click on image</li>
+      <li><kbd>Tab</kbd> and <kbd>Shift</kbd>+<kbd>Tab</kbd> : next/previous</li>
+      <li><kbd>.</kbd> : first unannotated point</li>
+  </ul>
 
-<div class="help_section">
-    <span class="help_header">Labeling the chosen point</span>
-    <ul>
-        <li>Type a label code in the field and press
-            <span class='key_non_mac'><kbd>Enter</kbd></span>
-            <span class='key_mac'><kbd>Return</kbd></span></li>
-        <li>Accept a machine suggestion (requires machine annotations setting)</li>
-        <li>Click a label button</li>
-    </ul>
-</div>
+  <h3>Labeling the chosen point</h3>
+  <ul>
+      <li>Type a label code in the field and press
+          <span class='key_non_mac'><kbd>Enter</kbd></span>
+          <span class='key_mac'><kbd>Return</kbd></span></li>
+      <li>Accept a machine suggestion (requires machine annotations setting)</li>
+      <li>Click a label button</li>
+  </ul>
 
-<div class="help_section">
-    <span class="help_header">Selecting multiple points</span>
-    <ul>
-        <li><span class='key_non_mac'><kbd>Ctrl</kbd>-click</span>
-            <span class='key_mac'><kbd>Cmd</kbd>-click</span>
-            on image</li>
-        <li>Click the numbers next to the field list</li>
-        <li><img src="{% static "img/Icon_select-none.png" %}"/>,
-            <img src="{% static "img/Icon_select-unannotated.png" %}"/>,
-            <img src="{% static "img/Icon_select-inversion.png" %}"/>,
-            and <img src="{% static "img/Icon_rectangle-select.png" %}"/></li>
-    </ul>
-</div>
+  <h3>Selecting multiple points</h3>
+  <ul>
+      <li><span class='key_non_mac'><kbd>Ctrl</kbd>-click</span>
+          <span class='key_mac'><kbd>Cmd</kbd>-click</span>
+          on image</li>
+      <li>Click the numbers next to the field list</li>
+      <li><img alt="Select none icon" src="{% static "img/Icon_select-none.png" %}"/>,
+          <img alt="Select unannotated icon" src="{% static "img/Icon_select-unannotated.png" %}"/>,
+          <img alt="Selection inversion icon" src="{% static "img/Icon_select-inversion.png" %}"/>,
+          and <img alt="Rectangle select icon" src="{% static "img/Icon_rectangle-select.png" %}"/></li>
+  </ul>
 
-<div class="help_section">
-    <span class="help_header">Image controls</span>
-    <ul>
-        <li>Left-click on image, <kbd>Shift</kbd>+<kbd>&uarr;</kbd> : zoom in</li>
-        <li><span class='key_non_mac'>Right-click</span>
-            <span class='key_mac'><kbd>Ctrl</kbd>-click</span> on image,
-            <kbd>Shift</kbd>+<kbd>&darr;</kbd> : zoom out</li>
-        <li><img src="{% static "img/Icon_zoom-in.png" %}"/>,
-            <img src="{% static "img/Icon_zoom-out.png" %}"/>,
-            and <img src="{% static "img/Icon_zoom-fit.png" %}"/> : zoom buttons</li>
-        <li><img src="{% static "img/Icon_point-mode-all.png" %}"/>,
-            <img src="{% static "img/Icon_point-mode-selected.png" %}"/>,
-            and <img src="{% static "img/Icon_point-mode-none.png" %}"/> : point display buttons</li>
-        <li><kbd>Shift</kbd>+<kbd>&rarr;</kbd> : Move text field off/on the image</li>
-    </ul>
-</div>
+  <h3>Image controls</h3>
+  <ul>
+      <li>Left-click on image, <kbd>Shift</kbd>+<kbd>&uarr;</kbd> : zoom in</li>
+      <li><span class='key_non_mac'>Right-click</span>
+          <span class='key_mac'><kbd>Ctrl</kbd>-click</span> on image,
+          <kbd>Shift</kbd>+<kbd>&darr;</kbd> : zoom out</li>
+      <li><img alt="Zoom in icon" src="{% static "img/Icon_zoom-in.png" %}"/>,
+          <img alt="Zoom out icon" src="{% static "img/Icon_zoom-out.png" %}"/>,
+          and <img alt="Zoom fit icon" src="{% static "img/Icon_zoom-fit.png" %}"/> : zoom buttons</li>
+      <li><img alt="Show all points icon" src="{% static "img/Icon_point-mode-all.png" %}"/>,
+          <img alt="Show selected points icon" src="{% static "img/Icon_point-mode-selected.png" %}"/>,
+          and <img alt="Show no points icon" src="{% static "img/Icon_point-mode-none.png" %}"/> : point display buttons</li>
+      <li><kbd>Shift</kbd>+<kbd>&rarr;</kbd> : Move text field off/on the image</li>
+  </ul>
 
-<div class="help_section">
-    <span class="help_header">Navigate to another image</span>
-    <ul>
-        <li><kbd>g</kbd> then <kbd>n</kbd> : next image</li>
-        <li><kbd>g</kbd> then <kbd>p</kbd> : previous image</li>
-    </ul>
-</div>
+  <h3>Navigate to another image</h3>
+  <ul>
+      <li><kbd>g</kbd> then <kbd>n</kbd> : next image</li>
+      <li><kbd>g</kbd> then <kbd>p</kbd> : previous image</li>
+  </ul>
 
-<div class="help_section">
-    <span class="help_header">Miscellaneous</span>
-    <ul>
-        <li><kbd>Esc</kbd> : get out of the text field</li>
-        <li><span class='key_non_mac'><kbd>Ctrl</kbd>+<kbd>S</kbd></span>
-            <span class='key_mac'><kbd>Cmd</kbd>+<kbd>S</kbd></span> : save progress</li>
-        <li><kbd>?</kbd> : open this controls dialog</li>
-        <li><kbd>Esc</kbd> : close this controls dialog</li>
-    </ul>
-</div>
+  <h3>Miscellaneous</h3>
+  <ul>
+      <li><kbd>Esc</kbd> : get out of the text field</li>
+      <li><span class='key_non_mac'><kbd>Ctrl</kbd>+<kbd>S</kbd></span>
+          <span class='key_mac'><kbd>Cmd</kbd>+<kbd>S</kbd></span> : save progress</li>
+      <li><kbd>?</kbd> : open this controls dialog</li>
+      <li><kbd>Esc</kbd> : close this controls dialog</li>
+  </ul>
 
-<div class="help_section">
-    <span class="help_header">See also</span>
-    <ul>
-        <li>For more detailed explanations, click the "Help" button.</li>
-    </ul>
+  <h3>See also</h3>
+  <ul>
+      <li>For more detailed explanations, click the "Help" button.</li>
+  </ul>
 </div>

@@ -5,11 +5,13 @@ import re
 
 from django.conf import settings
 from django.core.files.base import ContentFile
-from django.core.urlresolvers import reverse
+from django.core.files.storage import DefaultStorage
+from django.urls import reverse
 from django.utils import timezone
 
 from images.models import Image
-from lib.test_utils import ClientTest, sample_image_as_file, create_sample_image
+from lib.tests.utils import (
+    ClientTest, sample_image_as_file, create_sample_image)
 
 
 class UploadImagePreviewTest(ClientTest):
@@ -172,6 +174,22 @@ class UploadImageTest(ClientTest):
         # Check that the user who uploaded the image is the
         # currently logged in user.
         self.assertEqual(img.uploaded_by.pk, self.user.pk)
+
+    def test_file_existence(self):
+        """Uploaded file should exist in storage."""
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse('upload_images_ajax', args=[self.source.pk]),
+            dict(file=sample_image_as_file('1.png'), name='1.png')
+        )
+
+        response_json = response.json()
+        self.assertEqual(response_json['success'], True)
+        image_id = response_json['image_id']
+        img = Image.objects.get(pk=image_id)
+
+        storage = DefaultStorage()
+        self.assertTrue(storage.exists(img.original_file.name))
 
 
 class UploadImageFormatTest(ClientTest):

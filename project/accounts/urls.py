@@ -1,4 +1,8 @@
+from __future__ import unicode_literals
+
+from django.conf import settings
 from django.conf.urls import include, url
+from django.contrib.auth import views as auth_views
 from django.views.generic.base import TemplateView
 from . import views
 from .forms import AuthenticationForm
@@ -9,18 +13,27 @@ urlpatterns = [
     # These come before the django-registration URL include, because
     # in urlpatterns, URLs that come first take precedence.
     url(r'^login/$',
-        views.login,
-        {'template_name': 'registration/login.html',
-         'authentication_form': AuthenticationForm},
-        name='auth_login'),
+        views.LoginView.as_view(
+            template_name='registration/login.html',
+            authentication_form=AuthenticationForm,
+        ),
+        name='login'),
+    url(r'^password_reset/$',
+        auth_views.PasswordResetView.as_view(
+            extra_email_context=dict(
+                account_questions_link=settings.ACCOUNT_QUESTIONS_LINK
+            ),
+        ),
+        name='password_reset'),
     url(r'^register/$',
         views.register,
-        name='registration_register'),
+        name='django_registration_register'),
 
-    # django-registration URLs.
-    # Includes django.contrib.auth pages (e.g. login, password reset)
-    # and django-registration pages (e.g. account activation).
-    url(r'', include('registration.backends.hmac.urls')),
+    # django-registration URLs, such as account activation.
+    url(r'', include('django_registration.backends.activation.urls')),
+
+    # django.contrib.auth URLs, such as login and password reset.
+    url(r'', include('django.contrib.auth.urls')),
 
     # Views for re-sending an activation email, in case it expired or got lost.
     url(r'^activation/resend/$',
@@ -28,7 +41,7 @@ urlpatterns = [
         name='activation_resend'),
     url(r'^activation/resend/complete/$',
         TemplateView.as_view(
-            template_name='registration/activation_resend_complete.html'
+            template_name='django_registration/activation_resend_complete.html'
         ),
         name='activation_resend_complete'),
 

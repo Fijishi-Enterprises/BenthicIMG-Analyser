@@ -4,6 +4,9 @@ This form template is meant to be used with the "include" template tag.
 
 <fieldset>
   <legend class="small">General Information</legend>
+
+  <span class="helptext_long">To learn about the differences between public and private sources, please read our <a href="{% url 'about' %}#datapolicy">data policy</a>.</span>
+
   {% include "form_generic_one_field.html" with field=sourceForm.name %}
   {% include "form_generic_one_field.html" with field=sourceForm.visibility %}
   {% include "form_generic_one_field.html" with field=sourceForm.affiliation %}
@@ -31,13 +34,13 @@ This form template is meant to be used with the "include" template tag.
     <legend class="small">Image Annotation</legend>
 
     <legend class="smaller">Default image annotation area</legend>
-    <span class="helptext">{{ annotationAreaForm.form_help_text|linebreaksbr }}</span>
+    <span class="helptext_long">{{ annotationAreaForm.form_help_text|linebreaksbr }}</span>
     {% include "annotations/form_annotation_area.html" with form=annotationAreaForm type="percent" %}
 
     <hr class="light"/>
 
     <legend class="smaller">Point generation method</legend>
-    <span class="helptext">{{ pointGenForm.form_help_text|linebreaksbr }}</span>
+    <span class="helptext_long">{{ pointGenForm.form_help_text|linebreaksbr }}</span>
     {% include "form_generic.html" with form=pointGenForm %}
 
     {# Careful with boolean short-circuiting - 'source' is only available if we are editing a source. #}
@@ -46,11 +49,11 @@ This form template is meant to be used with the "include" template tag.
         <hr class="light"/>
 
         <legend class="smaller">Machine annotation</legend>
-        <span class="helptext">
+        <span class="helptext_long">
             Status:
             Disabled. If you wish to enable machine annotation for this
             source, please
-            <a href="{% url 'contact' %}" target="_blank">contact us</a>.
+            <a href="{{ forum_link }}" target="_blank">contact us</a>.
         </span>
     {% endif %}
 
@@ -78,7 +81,7 @@ This form template is meant to be used with the "include" template tag.
 
 <fieldset>
   <legend class="small">World Location</legend>
-  <span class="helptext">
+  <span class="helptext_long">
     We'll use this to mark your source on our front-page map.
     <br />
     Your source will be shown on the map if it contains at least

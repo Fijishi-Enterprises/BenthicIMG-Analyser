@@ -1,3 +1,4 @@
+from __future__ import unicode_literals
 import datetime
 import operator
 import pytz
@@ -27,13 +28,18 @@ def image_annotation_all_done(image):
     return (annotations.count() == Point.objects.filter(image=image).count()
             and annotations.filter(user=get_robot_user()).count() == 0)
 
+
 def image_has_any_human_annotations(image):
     """
     Return True if the image has at least one human-made Annotation.
     Return False otherwise.
     """
-    human_annotations = Annotation.objects.filter(image=image).exclude(user=get_robot_user()).exclude(user=get_alleviate_user())
+    human_annotations = (
+        Annotation.objects.filter(image=image)
+        .exclude(user=get_robot_user())
+        .exclude(user=get_alleviate_user()))
     return human_annotations.count() > 0
+
 
 def image_annotation_area_is_editable(image):
     """
@@ -42,8 +48,12 @@ def image_annotation_area_is_editable(image):
     (1) there are no human annotations for the image yet, and
     (2) the points are not imported.
     """
-    return (not image_has_any_human_annotations(image))\
-    and (PointGen.db_to_args_format(image.point_generation_method)['point_generation_type'] != PointGen.Types.IMPORTED)
+    point_gen_method = PointGen.db_to_args_format(image.point_generation_method)
+    return (
+        (not image_has_any_human_annotations(image))
+        and
+        (point_gen_method['point_generation_type'] != PointGen.Types.IMPORTED)
+    )
 
 
 def get_labels_with_annotations_in_source(source):
@@ -76,7 +86,7 @@ def get_annotation_version_user_display(anno_version, date_created):
 
     Returns a string representing the user who made the annotation.
     """
-    user_id = anno_version.field_dict['user']
+    user_id = anno_version.field_dict['user_id']
     user = User.objects.get(pk=user_id)
 
     if not user:
@@ -85,10 +95,10 @@ def get_annotation_version_user_display(anno_version, date_created):
     elif is_robot_user(user):
         # This check may be needed because Annotation didn't
         # originally save robot versions.
-        if not anno_version.field_dict.has_key('robot_version'):
+        if 'robot_version_id' not in anno_version.field_dict:
             return "(Robot, unknown version)"
 
-        robot_version_id = anno_version.field_dict['robot_version']
+        robot_version_id = anno_version.field_dict['robot_version_id']
         if not robot_version_id:
             return "(Robot, unknown version)"
 
@@ -132,13 +142,14 @@ def apply_alleviate(image_id, label_scores_all_points):
     for anno in machine_annos:
         pt_number = anno.point.point_number
         label_scores = label_scores_all_points[pt_number]
-        descending_scores = sorted(label_scores, key=operator.itemgetter('score'), reverse=True)
+        descending_scores = sorted(
+            label_scores, key=operator.itemgetter('score'), reverse=True)
         top_score = descending_scores[0]['score']
         top_confidence = top_score
 
         if top_confidence >= source.confidence_threshold:
-            # Save the annotation under the username Alleviate, so that it's no longer
-            # a robot annotation.
+            # Save the annotation under the username Alleviate, so that it's no
+            # longer a robot annotation.
             anno.user = get_alleviate_user()
             anno.save()
             alleviate_was_applied = True

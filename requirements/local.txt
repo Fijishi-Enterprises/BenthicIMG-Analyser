@@ -1,11 +1,11 @@
 -r base.txt # includes the base.txt requirements file
 
 
-# Browser-side testing.
-# Also requires installing drivers for specific browsers, and putting the
-# drivers on your PATH:
-# https://selenium-python.readthedocs.io/installation.html#drivers
-selenium==3.8.0
+# Output info on test coverage - how much of the Python codebase is covered
+# by the unit tests.
+# The version shouldn't really matter here, as it's not part of the running
+# Django project.
+coverage
 
 # Documentation.
 # The version shouldn't really matter here, as it's not part of the running

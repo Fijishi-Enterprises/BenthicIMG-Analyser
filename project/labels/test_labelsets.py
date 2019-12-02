@@ -1,176 +1,109 @@
-import csv
-from io import BytesIO
+# -*- coding: utf-8 -*-
+from __future__ import unicode_literals
+from backports import csv
+from io import StringIO
 
 from django.core.files.base import ContentFile
-from django.core.urlresolvers import reverse
+from django.shortcuts import resolve_url
+from django.urls import reverse
 from django.utils.html import escape
 
-from images.models import Source
+from lib.tests.utils import BasePermissionTest, sample_image_as_file
 from .models import Label
 from .test_labels import LabelTest
 
 
-class LabelsetPermissionTest(LabelTest):
-    """
-    Test all labelset views for permissions.
-    """
-    @classmethod
-    def setUpTestData(cls):
-        # Call the parent's setup (while still using this class as cls)
-        super(LabelsetPermissionTest, cls).setUpTestData()
+class PermissionTest(BasePermissionTest):
 
-        cls.user = cls.create_user()
+    def test_labelset_add_private_source(self):
+        url = resolve_url(
+            'labelset_add', self.private_source.pk)
+        self.assertPermissionDenied(url, None)
+        self.assertPermissionDenied(url, self.user_outsider)
+        self.assertPermissionDenied(url, self.user_viewer)
+        self.assertPermissionDenied(url, self.user_editor)
+        self.assertPermissionGranted(url, self.user_admin)
 
-        # Create source
-        cls.source = cls.create_source(cls.user)
+    def test_labelset_add_public_source(self):
+        url = resolve_url(
+            'labelset_add', self.public_source.pk)
+        self.assertPermissionDenied(url, None)
+        self.assertPermissionDenied(url, self.user_outsider)
+        self.assertPermissionDenied(url, self.user_viewer)
+        self.assertPermissionDenied(url, self.user_editor)
+        self.assertPermissionGranted(url, self.user_admin)
 
-        cls.user_viewer = cls.create_user()
-        cls.add_source_member(
-            cls.user, cls.source, cls.user_viewer, Source.PermTypes.VIEW.code)
-        cls.user_editor = cls.create_user()
-        cls.add_source_member(
-            cls.user, cls.source, cls.user_editor, Source.PermTypes.EDIT.code)
+    def test_labelset_edit_private_source(self):
+        url = resolve_url(
+            'labelset_edit', self.private_source.pk)
+        self.assertPermissionDenied(url, None)
+        self.assertPermissionDenied(url, self.user_outsider)
+        self.assertPermissionDenied(url, self.user_viewer)
+        self.assertPermissionDenied(url, self.user_editor)
+        self.assertPermissionGranted(url, self.user_admin)
 
-        # Create labels and group
-        cls.create_labels(
-            cls.user, ['A', 'B', 'C'], "Group1")
-        # Create labelset
-        cls.create_labelset(cls.user, cls.source, Label.objects.filter(
-            default_code__in=['A', 'B', 'C']))
+    def test_labelset_edit_public_source(self):
+        url = resolve_url(
+            'labelset_edit', self.public_source.pk)
+        self.assertPermissionDenied(url, None)
+        self.assertPermissionDenied(url, self.user_outsider)
+        self.assertPermissionDenied(url, self.user_viewer)
+        self.assertPermissionDenied(url, self.user_editor)
+        self.assertPermissionGranted(url, self.user_admin)
 
-        cls.add_url = reverse('labelset_add', args=[cls.source.pk])
-        cls.edit_url = reverse('labelset_edit', args=[cls.source.pk])
-        cls.import_url = reverse('labelset_import', args=[cls.source.pk])
-        cls.import_ajax_url = reverse(
-            'labelset_import_ajax', args=[cls.source.pk])
-        cls.import_preview_ajax_url = reverse(
-            'labelset_import_preview_ajax', args=[cls.source.pk])
+    def test_labelset_import_private_source(self):
+        url = resolve_url(
+            'labelset_import', self.private_source.pk)
+        self.assertPermissionDenied(url, None)
+        self.assertPermissionDenied(url, self.user_outsider)
+        self.assertPermissionDenied(url, self.user_viewer)
+        self.assertPermissionDenied(url, self.user_editor)
+        self.assertPermissionGranted(url, self.user_admin)
 
-    def test_add_anonymous(self):
-        """Don't have permission."""
-        response = self.client.get(self.add_url)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+    def test_labelset_import_public_source(self):
+        url = resolve_url(
+            'labelset_import', self.public_source.pk)
+        self.assertPermissionDenied(url, None)
+        self.assertPermissionDenied(url, self.user_outsider)
+        self.assertPermissionDenied(url, self.user_viewer)
+        self.assertPermissionDenied(url, self.user_editor)
+        self.assertPermissionGranted(url, self.user_admin)
 
-    def test_add_as_viewer(self):
-        """Don't have permission."""
-        self.client.force_login(self.user_viewer)
-        response = self.client.get(self.add_url)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+    def test_labelset_import_preview_ajax_private_source(self):
+        url = resolve_url(
+            'labelset_import_preview_ajax', self.private_source.pk)
+        self.assertPermissionDeniedAjax(url, None, post_data={})
+        self.assertPermissionDeniedAjax(url, self.user_outsider, post_data={})
+        self.assertPermissionDeniedAjax(url, self.user_viewer, post_data={})
+        self.assertPermissionDeniedAjax(url, self.user_editor, post_data={})
+        self.assertPermissionGrantedAjax(url, self.user_admin, post_data={})
 
-    def test_add_as_editor(self):
-        """Don't have permission."""
-        self.client.force_login(self.user_editor)
-        response = self.client.get(self.add_url)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+    def test_labelset_import_preview_ajax_public_source(self):
+        url = resolve_url(
+            'labelset_import_preview_ajax', self.public_source.pk)
+        self.assertPermissionDeniedAjax(url, None, post_data={})
+        self.assertPermissionDeniedAjax(url, self.user_outsider, post_data={})
+        self.assertPermissionDeniedAjax(url, self.user_viewer, post_data={})
+        self.assertPermissionDeniedAjax(url, self.user_editor, post_data={})
+        self.assertPermissionGrantedAjax(url, self.user_admin, post_data={})
 
-    def test_add_as_admin(self):
-        """Page loads normally."""
-        self.client.force_login(self.user)
-        response = self.client.get(self.add_url)
-        self.assertTemplateUsed(response, 'labels/labelset_add.html')
+    def test_labelset_import_ajax_private_source(self):
+        url = resolve_url(
+            'labelset_import_ajax', self.private_source.pk)
+        self.assertPermissionDeniedAjax(url, None, post_data={})
+        self.assertPermissionDeniedAjax(url, self.user_outsider, post_data={})
+        self.assertPermissionDeniedAjax(url, self.user_viewer, post_data={})
+        self.assertPermissionDeniedAjax(url, self.user_editor, post_data={})
+        self.assertPermissionGrantedAjax(url, self.user_admin, post_data={})
 
-    def test_edit_anonymous(self):
-        """Don't have permission."""
-        response = self.client.get(self.edit_url)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-
-    def test_edit_as_viewer(self):
-        """Don't have permission."""
-        self.client.force_login(self.user_viewer)
-        response = self.client.get(self.edit_url)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-
-    def test_edit_as_editor(self):
-        """Don't have permission."""
-        self.client.force_login(self.user_editor)
-        response = self.client.get(self.edit_url)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-
-    def test_edit_as_admin(self):
-        """Page loads normally."""
-        self.client.force_login(self.user)
-        response = self.client.get(self.edit_url)
-        self.assertTemplateUsed(response, 'labels/labelset_edit.html')
-
-    def test_import_anonymous(self):
-        """Don't have permission."""
-        response = self.client.get(self.import_url)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-
-    def test_import_as_viewer(self):
-        """Don't have permission."""
-        self.client.force_login(self.user_viewer)
-        response = self.client.get(self.import_url)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-
-    def test_import_as_editor(self):
-        """Don't have permission."""
-        self.client.force_login(self.user_editor)
-        response = self.client.get(self.import_url)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-
-    def test_import_as_admin(self):
-        """Page loads normally."""
-        self.client.force_login(self.user)
-        response = self.client.get(self.import_url)
-        self.assertTemplateUsed(response, 'labels/labelset_import.html')
-
-    def test_import_preview_ajax_anonymous(self):
-        """Don't have permission."""
-        response = self.client.post(self.import_preview_ajax_url).json()
-        # Response should include an error that contains the word "permission"
-        self.assertIn('error', response)
-        self.assertIn("permission", response['error'])
-
-    def test_import_preview_ajax_as_viewer(self):
-        """Don't have permission."""
-        self.client.force_login(self.user_viewer)
-        response = self.client.post(self.import_preview_ajax_url).json()
-        self.assertIn('error', response)
-        self.assertIn("permission", response['error'])
-
-    def test_import_preview_ajax_as_editor(self):
-        """Don't have permission."""
-        self.client.force_login(self.user_editor)
-        response = self.client.post(self.import_preview_ajax_url).json()
-        self.assertIn('error', response)
-        self.assertIn("permission", response['error'])
-
-    def test_import_preview_ajax_as_admin(self):
-        """Maybe post without arguments gets an error, but if so, the error
-        shouldn't be about permissions."""
-        self.client.force_login(self.user)
-        response = self.client.post(self.import_preview_ajax_url).json()
-        self.assertFalse(
-            'error' in response and "permission" in response['error'])
-
-    def test_import_ajax_anonymous(self):
-        """Don't have permission."""
-        response = self.client.post(self.import_ajax_url).json()
-        self.assertIn('error', response)
-        self.assertIn("permission", response['error'])
-
-    def test_import_ajax_as_viewer(self):
-        """Don't have permission."""
-        self.client.force_login(self.user_viewer)
-        response = self.client.post(self.import_ajax_url).json()
-        self.assertIn('error', response)
-        self.assertIn("permission", response['error'])
-
-    def test_import_ajax_as_editor(self):
-        """Don't have permission."""
-        self.client.force_login(self.user_editor)
-        response = self.client.post(self.import_ajax_url).json()
-        self.assertIn('error', response)
-        self.assertIn("permission", response['error'])
-
-    def test_import_ajax_as_admin(self):
-        """Maybe post without arguments gets an error, but if so, the error
-        shouldn't be about permissions."""
-        self.client.force_login(self.user)
-        response = self.client.post(self.import_ajax_url).json()
-        self.assertFalse(
-            'error' in response and "permission" in response['error'])
+    def test_labelset_import_ajax_public_source(self):
+        url = resolve_url(
+            'labelset_import_ajax', self.public_source.pk)
+        self.assertPermissionDeniedAjax(url, None, post_data={})
+        self.assertPermissionDeniedAjax(url, self.user_outsider, post_data={})
+        self.assertPermissionDeniedAjax(url, self.user_viewer, post_data={})
+        self.assertPermissionDeniedAjax(url, self.user_editor, post_data={})
+        self.assertPermissionGrantedAjax(url, self.user_admin, post_data={})
 
 
 class LabelsetCreateTest(LabelTest):
@@ -368,18 +301,21 @@ class LabelsetAddRemoveTest(LabelTest):
 class LabelsetImportBaseTest(LabelTest):
 
     def preview(self, csv_rows):
+        stream = StringIO()
+        writer = csv.writer(stream)
+        for row in csv_rows:
+            writer.writerow(row)
+
+        return self.preview_raw(stream.getvalue())
+
+    def preview_raw(self, csv_string):
         self.client.force_login(self.user)
 
-        with BytesIO() as stream:
-            writer = csv.writer(stream)
-            for row in csv_rows:
-                writer.writerow(row)
-
-            f = ContentFile(stream.getvalue(), name='A.csv')
-            response = self.client.post(
-                reverse('labelset_import_preview_ajax', args=[self.source.pk]),
-                {'csv_file': f},
-            )
+        f = ContentFile(csv_string, name='A.csv')
+        response = self.client.post(
+            reverse('labelset_import_preview_ajax', args=[self.source.pk]),
+            {'csv_file': f},
+        )
 
         return response
 
@@ -462,12 +398,7 @@ class LabelsetImportCreateTest(LabelsetImportBaseTest):
             response,
             "We couldn't find the expected data in your session."
             " Please try loading this page again. If the problem persists,"
-            " contact a site admin.")
-
-    def test_empty_file(self):
-        csv_rows = []
-        response = self.preview(csv_rows)
-        self.assertError(response, "The submitted file is empty.")
+            " let us know on the forum.")
 
     def test_zero_data_rows(self):
         csv_rows = [
@@ -712,6 +643,117 @@ class LabelsetImportModifyTest(LabelsetImportBaseTest):
             response,
             "The resulting labelset would have multiple labels with the code"
             " 'b' (non case sensitive). This is not allowed.")
+
+
+class LabelsetImportFormatTest(LabelsetImportBaseTest):
+    """
+    File format/special character cases during labelset import.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        # Call the parent's setup (while still using this class as cls)
+        super(LabelsetImportFormatTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+
+        # Create labels and group
+        cls.group = cls.create_label_group("Group1")
+        cls.labels = dict(
+            A=cls.create_label(cls.user, "Label A", 'A', cls.group),
+            B=cls.create_label(cls.user, "Label B", 'B', cls.group),
+            C=cls.create_label(cls.user, "Label C", 'C', cls.group),
+            D=cls.create_label(cls.user, "Label D", 'D', cls.group),
+            E=cls.create_label(cls.user, "Label い", 'い', cls.group),
+        )
+
+        # Create source
+        cls.source = cls.create_source(cls.user)
+
+    def test_non_ascii(self):
+        csv_content = (
+            'Label ID,Short code'
+            '\r\n{label_id},い'.format(label_id=self.labels['E'].pk)
+        )
+        self.preview_raw(csv_content)
+        self.upload()
+        self.source.refresh_from_db()
+        self.assertIsNotNone(self.source.labelset)
+
+    def test_crlf(self):
+        csv_content = (
+            'Label ID,Short code'
+            '\r\n{label_id},A'.format(label_id=self.labels['A'].pk)
+        )
+        self.preview_raw(csv_content)
+        self.upload()
+        self.source.refresh_from_db()
+        self.assertIsNotNone(self.source.labelset)
+
+    def test_cr(self):
+        csv_content = (
+            'Label ID,Short code'
+            '\r{label_id},A'.format(label_id=self.labels['A'].pk)
+        )
+        self.preview_raw(csv_content)
+        self.upload()
+        self.source.refresh_from_db()
+        self.assertIsNotNone(self.source.labelset)
+
+    def test_utf8_bom(self):
+        csv_content = (
+            '\ufeffLabel ID,Short code'
+            '\n{label_id},A'.format(label_id=self.labels['A'].pk)
+        )
+        self.preview_raw(csv_content)
+        self.upload()
+        self.source.refresh_from_db()
+        self.assertIsNotNone(self.source.labelset)
+
+    def test_field_with_newline(self):
+        csv_content = (
+            'Label ID,Comments,Short code'
+            '\n{label_id},"These are\nsome comments",A'.format(
+                label_id=self.labels['A'].pk)
+        )
+        self.preview_raw(csv_content)
+        self.upload()
+        self.source.refresh_from_db()
+        self.assertIsNotNone(self.source.labelset)
+
+    def test_field_with_surrounding_quotes(self):
+        csv_content = (
+            'Label ID,Short code'
+            '\n"{label_id}","A"'.format(
+                label_id=self.labels['A'].pk)
+        )
+        self.preview_raw(csv_content)
+        self.upload()
+        self.source.refresh_from_db()
+        self.assertIsNotNone(self.source.labelset)
+
+    def test_field_with_surrounding_whitespace(self):
+        csv_content = (
+            'Label ID ,\tShort code\t'
+            '\n\t{label_id} ,    A   '.format(
+                label_id=self.labels['A'].pk)
+        )
+        self.preview_raw(csv_content)
+        self.upload()
+        self.source.refresh_from_db()
+        self.assertIsNotNone(self.source.labelset)
+
+    def test_non_csv(self):
+        self.client.force_login(self.user)
+        f = sample_image_as_file('A.jpg')
+        response = self.client.post(
+            reverse('labelset_import_preview_ajax', args=[self.source.pk]),
+            {'csv_file': f},
+        )
+        self.assertError(response, "The selected file is not a CSV file.")
+
+    def test_empty_file(self):
+        response = self.preview_raw('')
+        self.assertError(response, "The submitted file is empty.")
 
 
 class LabelsetEditTest(LabelTest):

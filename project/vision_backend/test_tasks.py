@@ -1,9 +1,10 @@
 import numpy as np
 
-from django.core.urlresolvers import reverse
-from django.test import override_settings
 
-from lib.test_utils import ClientTest
+from django.test import override_settings
+from django.urls import reverse
+
+from lib.tests.utils import ClientTest
 
 from images.models import Image, Point
 from images.model_utils import PointGen

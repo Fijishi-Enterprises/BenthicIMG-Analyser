@@ -12,6 +12,14 @@ DEBUG = True
 # just print emails to the console.
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
+# [Custom setting]
+# The site domain, for the Django sites framework. This is used in places
+# such as links in password reset emails, and 'view on site' links in the
+# admin site's blog post edit view.
+# If this is different for your dev server setup (like localhost instead of
+# 127.0.0.1), then redefine SITE_DOMAIN in your dev_<name>.py settings file.
+SITE_DOMAIN = '127.0.0.1:8000'
+
 # Hosts/domain names that are valid for this site.
 # "*" matches anything, ".example.com" matches example.com and all subdomains
 #

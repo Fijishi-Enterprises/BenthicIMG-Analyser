@@ -1,6 +1,6 @@
-from django.core.urlresolvers import reverse
+from django.urls import reverse
 
-from lib.test_utils import ClientTest
+from lib.tests.utils import ClientTest
 
 from images.models import Source
 

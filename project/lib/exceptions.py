@@ -13,6 +13,7 @@ exception, for more self-documenting code.  (It's advised to not go
 overboard and create tons of exception types, though.)
 """
 
+
 class FileProcessError(Exception):
     """
     When file contents are not as expected; either the wrong format or can't
@@ -25,24 +26,9 @@ class FileProcessError(Exception):
     """
     pass
 
-class DirectoryAccessError(Exception):
-    """
-    Raised when a directory is expected to exist, be readable, and/or be
-    writable, and that turns out to not be the case.
-    For example, a directory is specified in a settings file and
-    we now want to create a file in that directory, but that directory
-    doesn't exist.
-    """
-    pass
 
-class TestfileDirectoryError(Exception):
+class FileStorageUsageError(Exception):
     """
-    When there's something wrong with a directory meant to hold
-    temporary test-generated files:
-    (1) The directory already has files in it before a test.
-    (2) After the test, the directory has a file that was created
-        before the test began. (Given (1), this is a serious corner
-        case, but still, we do not want to take chances with file
-        deletions.)
+    Raised upon incorrect/unsupported use of the file storage backend classes.
     """
     pass

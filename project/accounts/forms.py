@@ -1,11 +1,16 @@
+from __future__ import unicode_literals
+
 from django.contrib.auth import get_user_model
-from django.contrib.auth.forms \
-    import AuthenticationForm as DefaultAuthenticationForm
-from django.core.validators import validate_email, ValidationError
+from django.contrib.auth.forms import (
+    AuthenticationForm as DefaultAuthenticationForm)
+from django.contrib.auth.validators import ASCIIUsernameValidator
+from django.core.validators import (
+    MaxLengthValidator, validate_email, ValidationError)
 from django.forms import Form, ModelForm
 from django.forms.fields import BooleanField, CharField, EmailField
 from django.forms.widgets import Textarea, TextInput
-from registration.forms import RegistrationForm as DefaultRegistrationForm
+from django_registration.forms import (
+    RegistrationForm as DefaultRegistrationForm)
 
 from .models import Profile
 
@@ -68,6 +73,11 @@ class RegistrationForm(DefaultRegistrationForm):
         # - The way they enumerate the special characters is not the clearest.
         self.fields[User.USERNAME_FIELD].help_text = (
             "Allowed characters: Letters, numbers, _ - . + @")
+        # The User model restricts the username length to 150 chars as of
+        # Django 1.10. If we want a stricter limit, we have to enforce at Form
+        # level.
+        self.fields[User.USERNAME_FIELD].validators = [
+            ASCIIUsernameValidator(), MaxLengthValidator(30)]
 
         # django-registration's email field has the un-helpful help text
         # 'email address' (in lowercase) - looks like it should've been

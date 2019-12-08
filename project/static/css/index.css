@@ -38,7 +38,6 @@
 #intro a.sign-in{
     font-size: 1.8em;
     margin: 0 20px 0 520px;
-
 }
 
 #intro a.register{
@@ -48,6 +47,7 @@
 }
 
 #intro a.about{
+    font-size: 1.8em;
     margin: 0 0 0 20px;
 }
 
@@ -59,11 +59,6 @@
     overflow: hidden;
     width: 440px;
     margin: 0 0 0 10px;
-}
-
-p.map-explanation {
-    text-align: center;
-    margin: 0.9em 0;    /* top/bottom left/right */
 }
 
 div.index-container-after-map {

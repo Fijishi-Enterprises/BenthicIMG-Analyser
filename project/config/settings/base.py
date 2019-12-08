@@ -1,6 +1,7 @@
 # Base settings for any type of server.
 
 import json
+import os
 
 from unipath import Path
 
@@ -26,22 +27,27 @@ SITE_DIR = PROJECT_DIR.ancestor(2)
 LOG_DIR = SITE_DIR.child('log')
 
 # JSON-based secrets module, expected to be in the SETTINGS_DIR
-with open(SETTINGS_DIR.child('secrets.json')) as f:
-    secrets = json.loads(f.read())
+if os.path.exists(SETTINGS_DIR.child('secrets.json')):
+    with open(SETTINGS_DIR.child('secrets.json')) as f:
+        secrets = json.loads(f.read())
 
-    def get_secret(setting, secrets_=secrets, required=True):
-        """
-        Get the secret variable. If the variable is required,
-        raise an error if it's not present.
-        """
-        try:
-            return secrets_[setting]
-        except KeyError:
-            if required:
-                error_msg = "Set the {setting} setting in secrets.json".format(
-                    setting=setting)
-                raise ImproperlyConfigured(error_msg)
-            return ""
+        def get_secret(setting, secrets_=secrets, required=True):
+            """
+            Get the secret variable. If the variable is required,
+            raise an error if it's not present.
+            """
+            try:
+                return secrets_[setting]
+            except KeyError:
+                if required:
+                    error_msg = "Set the {setting} setting in secrets.json".format(
+                        setting=setting)
+                    raise ImproperlyConfigured(error_msg)
+                return ""
+    has_secrets = True
+else:
+    print("Couldn't find secrets file.")
+    has_secrets = False
 
 
 # In general, first come Django settings, then 3rd-party app settings,
@@ -334,7 +340,10 @@ SESSION_COOKIE_AGE = 60 * 60 * 24 * 30
 # hashing algorithms.
 # Make this unique. Django's manage.py startproject command automatically
 # generates a random secret key and puts it in settings, so use that.
-SECRET_KEY = get_secret("DJANGO_SECRET_KEY")
+if has_secrets:
+    SECRET_KEY = get_secret("DJANGO_SECRET_KEY")
+else:
+    SECRET_KEY = "NOT_SECRET_KEY"
 
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'source_list'
@@ -471,10 +480,16 @@ MAP_IMAGE_COUNT_TIERS = [100, 500, 1500]
 # [Custom setting]
 # https://developers.google.com/maps/faq - "How do I get a new API key?"
 # It seems that development servers don't need an API key though.
-GOOGLE_MAPS_API_KEY = get_secret("GOOGLE_MAPS_API_KEY", required=False)
+if has_secrets:
+    GOOGLE_MAPS_API_KEY = get_secret("GOOGLE_MAPS_API_KEY", required=False)
+else:
+    GOOGLE_MAPS_API_KEY = ""
 
 # [Custom settings]
-GOOGLE_ANALYTICS_CODE = get_secret("GOOGLE_ANALYTICS_CODE", required=False)
+if has_secrets:
+    GOOGLE_ANALYTICS_CODE = get_secret("GOOGLE_ANALYTICS_CODE", required=False)
+else:
+    GOOGLE_ANALYTICS_CODE = ""
 
 # Celery
 BROKER_URL = 'redis://localhost:6379'

@@ -4,6 +4,7 @@ from __future__ import unicode_literals
 from django.shortcuts import resolve_url
 
 from export.tests.utils import BaseExportTest
+from labels.models import LocalLabel
 from lib.tests.utils import BasePermissionTest
 
 
@@ -133,6 +134,53 @@ class ImageSetTest(BaseExportTest):
         self.assert_csv_content_equal(response.content, expected_lines)
 
 
+class ColumnOrderTest(BaseExportTest):
+    """Test column order in the exported covers CSV."""
+
+    @classmethod
+    def setUpTestData(cls):
+        super(ColumnOrderTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(
+            cls.user,
+            min_x=0, max_x=100, min_y=0, max_y=100, simple_number_of_points=5)
+        labels = cls.create_labels(cls.user, ['A', 'B', 'C'], 'GroupA')
+        cls.create_labelset(cls.user, cls.source, labels)
+
+        # Custom codes; ordering by these codes gives a different order from
+        # ordering by name or default code
+        local_a = LocalLabel.objects.get(
+            labelset=cls.source.labelset, code='A')
+        local_a.code = '2'
+        local_a.save()
+        local_b = LocalLabel.objects.get(
+            labelset=cls.source.labelset, code='B')
+        local_b.code = '1'
+        local_b.save()
+        local_c = LocalLabel.objects.get(
+            labelset=cls.source.labelset, code='C')
+        local_c.code = '3'
+        local_c.save()
+
+    def test(self):
+        self.img1 = self.upload_image(
+            self.user, self.source, dict(filename='1.jpg'))
+        self.add_annotations(self.user, self.img1, {
+            1: '3', 2: '1', 3: '2', 4: '1', 5: '3'})
+
+        post_data = self.default_search_params.copy()
+        response = self.export_image_covers(post_data)
+
+        # Columns should be ordered by LocalLabel short code
+        expected_lines = [
+            'Name,Annotation status,Annotation area,1,2,3',
+            '1.jpg,Confirmed,X: 0 - 100% / Y: 0 - 100%,40.000,20.000,40.000',
+        ]
+        self.assert_csv_content_equal(
+            response.content.decode('utf-8'), expected_lines)
+
+
 class UnicodeTest(BaseExportTest):
     """Test that non-ASCII characters don't cause problems."""
 
@@ -144,21 +192,21 @@ class UnicodeTest(BaseExportTest):
         cls.source = cls.create_source(
             cls.user,
             min_x=0, max_x=100, min_y=0, max_y=100, simple_number_of_points=5)
-        labels = cls.create_labels(cls.user, ['A', 'い'], 'GroupA')
+        labels = cls.create_labels(cls.user, ['い'], 'GroupA')
         cls.create_labelset(cls.user, cls.source, labels)
 
     def test(self):
         self.img1 = self.upload_image(
             self.user, self.source, dict(filename='あ.jpg'))
         self.add_annotations(self.user, self.img1, {
-            1: 'A', 2: 'い', 3: 'A', 4: 'い', 5: 'A'})
+            1: 'い', 2: 'い', 3: 'い', 4: 'い', 5: 'い'})
 
         post_data = self.default_search_params.copy()
         response = self.export_image_covers(post_data)
 
         expected_lines = [
-            'Name,Annotation status,Annotation area,い,A',
-            'あ.jpg,Confirmed,X: 0 - 100% / Y: 0 - 100%,40.000,60.000',
+            'Name,Annotation status,Annotation area,い',
+            'あ.jpg,Confirmed,X: 0 - 100% / Y: 0 - 100%,100.000',
         ]
         self.assert_csv_content_equal(
             response.content.decode('utf-8'), expected_lines)

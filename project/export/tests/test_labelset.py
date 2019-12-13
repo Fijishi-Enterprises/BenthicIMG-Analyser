@@ -74,21 +74,57 @@ class GeneralTest(BaseExportTest, LabelTest):
         """Test that non-ASCII characters don't cause issues."""
         # Create labelset
         self.create_labelset(self.user, self.source, Label.objects.filter(
-            default_code__in=['A', 'C']))
-        # Custom code
+            default_code__in=['A']))
+        # Set custom code
         local_a = LocalLabel.objects.get(
             labelset=self.source.labelset, code='A')
         local_a.code = 'あ'
         local_a.save()
 
-        # Export and check
+        # Export
         response = self.client.get(self.export_url)
-        # Lines are sorted by short code
-        expected_lines = [
+
+        # Check
+        expected_lines = ([
             'Label ID,Short Code',
             '{id_A},あ'.format(id_A=self.labels['A'].pk),
-            '{id_C},C'.format(id_C=self.labels['C'].pk),
-        ]
+        ])
+        self.assert_csv_content_equal(
+            response.content.decode('utf-8'), expected_lines)
+
+    def test_rows_sorted_by_locallabel_code(self):
+        """
+        Test that exported CSV rows are sorted by LocalLabel code, not
+        by name or default code.
+        """
+        # Create labelset
+        self.create_labelset(self.user, self.source, Label.objects.filter(
+            default_code__in=['A', 'B', 'C']))
+        # Custom codes; ordering by these codes gives a different order from
+        # ordering by name or default code
+        local_a = LocalLabel.objects.get(
+            labelset=self.source.labelset, code='A')
+        local_a.code = '2'
+        local_a.save()
+        local_b = LocalLabel.objects.get(
+            labelset=self.source.labelset, code='B')
+        local_b.code = '1'
+        local_b.save()
+        local_c = LocalLabel.objects.get(
+            labelset=self.source.labelset, code='C')
+        local_c.code = '3'
+        local_c.save()
+
+        # Export
+        response = self.client.get(self.export_url)
+
+        # Check
+        expected_lines = ([
+            'Label ID,Short Code',
+            '{id_B},1'.format(id_B=self.labels['B'].pk),
+            '{id_A},2'.format(id_A=self.labels['A'].pk),
+            '{id_C},3'.format(id_C=self.labels['C'].pk),
+        ])
         self.assert_csv_content_equal(
             response.content.decode('utf-8'), expected_lines)
 

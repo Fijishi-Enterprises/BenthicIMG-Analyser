@@ -34,8 +34,8 @@ def image_search_kwargs_to_queryset(search_kwargs, source):
             pass
         elif value == '(none)':
             # Get images with an empty value for this field
-            if isinstance(
-              Metadata._meta.get_field(field_name), model_fields.CharField):
+            if isinstance(Metadata._meta.get_field(field_name),
+                          model_fields.CharField):
                 metadata_kwargs['metadata__' + field_name] = ''
             else:
                 metadata_kwargs['metadata__' + field_name] = None
@@ -88,87 +88,58 @@ def get_patch_path(point_id):
         point_pk=point.pk,
     )
 
+
 def get_patch_url(point_id):
     return get_storage_class()().url(get_patch_path(point_id))
+
 
 def generate_patch_if_doesnt_exist(point_id):
     """
     If this point doesn't have an image patch file yet, then
     generate one.
-    :param point: Point object to generate a patch for
+    :param point_id: Primary key to point object to generate a patch for
     :return: None
     """
+
     # Get the storage class, then get an instance of it.
     storage = get_storage_class()()
+
     # Check if patch exists for the point
     patch_relative_path = get_patch_path(point_id)
     if storage.exists(patch_relative_path):
         return
 
-    # Generate the patch
-
-    # Size of patch (after scaling)
-    PATCH_X = 150
-    PATCH_Y = 150
-    # Patch covers this proportion of the original image's greater dimension
-    REDUCE_SIZE = 1.0/5.0
-
+    # Load image and convert to numpy array.
     point = Point.objects.get(pk=point_id)
-    original_image_relative_path = point.image.original_file.name
+    image = point.image
+    original_image_relative_path = image.original_file.name
     original_image_file = storage.open(original_image_relative_path)
-    image = PILImage.open(original_image_file)
 
-    #determine the crop box
-    max_x = point.image.original_width
-    max_y = point.image.original_height
-    #careful; x is the column, y is the row
-    x = point.column
-    y = point.row
+    # Figure out the patch size to crop, and which to resize to.
+    patch_size = int(max(image.original_width, image.original_height)
+                     * settings.LABELPATCH_SIZE_FRACTION)
 
-    # TODO: The division ops here MIGHT be dangerous for Python 3, because
-    # the default has changed from integer to decimal division
-    patchSize = int(max(max_x,max_y)*REDUCE_SIZE)
-    patchSize = (patchSize/2)*2  #force patch size to be even
-    halfPatchSize = patchSize/2
-    scaledPatchSize = (PATCH_X, PATCH_Y)
+    # Load the image convert to RGB.
+    im = PILImage.open(original_image_file)
+    im = im.convert('RGB')
 
-    # If a patch centered on (x,y) would be too far off to the left,
-    # then just take a patch on the left edge of the image.
-    if x - halfPatchSize < 0:
-        left = 0
-        right = patchSize
-    # If too far to the right, take a patch on the right edge
-    elif x + halfPatchSize > max_x:
-        left = max_x - patchSize
-        right = max_x
-    else:
-        left = x - halfPatchSize
-        right = x + halfPatchSize
+    # Crop.
+    region = im.crop((
+        point.column - patch_size // 2,
+        point.row - patch_size // 2,
+        point.column + patch_size // 2,
+        point.row + patch_size // 2
+    ))
 
-    # If too far toward the top, take a patch on the top edge
-    if y - halfPatchSize < 0:
-        upper = 0
-        lower = patchSize
-    # If too far toward the bottom, take a patch on the bottom edge
-    elif y + halfPatchSize > max_y:
-        upper = max_y - patchSize
-        lower = max_y
-    else:
-        upper = y - halfPatchSize
-        lower = y + halfPatchSize
-
-    box = (left,upper,right,lower)
-
-    # Crop the image
-    region = image.crop(box)
-    region = region.resize(scaledPatchSize)
+    # Resize to the desired size.
+    region = region.resize((settings.LABELPATCH_NCOLS,
+                            settings.LABELPATCH_NROWS))
 
     # Save the image.
-    #
-    # First use Pillow's save() method on an IO stream (so we don't have to
-    # create a temporary file).
-    # Then save the image, using the path constructed earlier and the
-    # contents of the stream.
+    # First use Pillow's save() method on an IO stream
+    # (so we don't have to create a temporary file).
+    # Then save the image, using the path constructed earlier
+    # and the contents of the stream.
     # This approach should work with both local and remote storage.
     with BytesIO() as stream:
         region.save(stream, 'JPEG')

@@ -760,6 +760,7 @@ def create_sample_image(width=200, height=200, cols=10, rows=10):
     """
     Create a test image. The image content is a color grid.
     Optionally specify pixel width/height, and the color grid cols/rows.
+    You can also specify the "mode" (see PIL documentation).
     Colors are interpolated along the grid with randomly picked color ranges.
 
     Return as an in-memory PIL image.

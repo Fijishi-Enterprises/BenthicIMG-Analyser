@@ -148,6 +148,7 @@ DATABASES = {
 INSTALLED_APPS = [
     'accounts',
     'annotations',
+    'api_core',
     'async_media',
     'blog',
     'bug_reporting',
@@ -194,6 +195,10 @@ INSTALLED_APPS = [
     'easy_thumbnails',
     'guardian',
     'markdownx',
+    # REST API
+    'rest_framework',
+    # rest_framework's TokenAuthentication
+    'rest_framework.authtoken',
     'reversion',
     'storages',
     # For andablog's entry tags
@@ -439,6 +444,35 @@ MARKDOWNX_MEDIA_PATH = 'article_images/'
 MARKDOWNX_MARKDOWN_EXTENSIONS = [
     'markdown.extensions.extra'
 ]
+
+
+# Django REST Framework setting.
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        # Log in, get cookies, and browse. Like any non-API website. This is
+        # intended for use by the CoralNet website frontend.
+        'rest_framework.authentication.SessionAuthentication',
+        # Token authentication without OAuth. This is intended for use by
+        # non-website applications, such as command line.
+        'rest_framework.authentication.TokenAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        # Must be authenticated to use the API.
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_THROTTLE_CLASSES': [
+        # These classes allow us to define multiple throttle rates. If either
+        # rate is met, subsequent requests are throttled.
+        'api_core.utils.BurstRateThrottle',
+        'api_core.utils.SustainedRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        # Each of these rates are tracked per user. That means per registered
+        # user, or per IP address if not logged in.
+        'burst': '50/min',
+        'sustained': '500/hour',
+    },
+}
 
 
 # [Custom settings]

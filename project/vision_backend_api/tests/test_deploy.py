@@ -8,11 +8,12 @@ from django.test.utils import patch_logger
 from django.urls import reverse
 from mock import patch
 from rest_framework import status
+from unittest import skip
 
 from api_core.models import ApiJob, ApiJobUnit
 from api_core.tests.utils import BaseAPIPermissionTest
 from vision_backend.models import Classifier
-from ..tasks import deploy_extract_features, deploy_classify
+from vision_backend.tasks import deploy
 from .utils import DeployBaseTest, noop_task
 
 
@@ -354,8 +355,8 @@ class SuccessTest(DeployBaseTest):
             reverse('api:deploy_status', args=[deploy_job.pk]),
             "Response should contain status endpoint URL")
 
-    @patch('vision_backend_api.views.deploy_extract_features.run', noop_task)
-    def test_pre_extract(self):
+    @patch('vision_backend_api.views.deploy.run', noop_task)
+    def test_pre_deploy(self):
         """
         Test pre-extract-features state. To do this, we disable the
         extract-features task by patching it.
@@ -386,8 +387,7 @@ class SuccessTest(DeployBaseTest):
         self.assertEqual(
             job_unit.job.pk, deploy_job.pk, "Unit job should be correct")
         self.assertEqual(
-            job_unit.type, 'deploy_extract_features',
-            "Unit type should be feature extraction")
+            job_unit.type, 'deploy', "Unit type should be deploy")
         self.assertEqual(
             job_unit.status, ApiJobUnit.PENDING,
             "Unit status should be pending")
@@ -400,53 +400,7 @@ class SuccessTest(DeployBaseTest):
                 image_order=0),
             "Unit's request_json should be correct")
 
-    @patch('vision_backend_api.tasks.deploy_classify.run', noop_task)
-    def test_pre_classify(self):
-        """
-        Test state after extracting features, but before classifying.
-        To do this, we disable the classify task by patching it.
-        """
-        data = dict(images=json.dumps(
-            [dict(url='URL 1', points=[dict(row=10, column=10)])]
-        ))
-        self.client.post(self.deploy_url, data, **self.token_headers)
-
-        deploy_job = ApiJob.objects.latest('pk')
-
-        # There should be two job units: extracting features, and classify,
-        # for the only image
-        try:
-            extract_unit = ApiJobUnit.objects.filter(
-                type='deploy_extract_features').latest('pk')
-        except ApiJobUnit.DoesNotExist:
-            self.fail("Features job unit should be created")
-
-        self.assertEqual(
-            extract_unit.status, ApiJobUnit.SUCCESS,
-            "Extract unit status should be success")
-
-        try:
-            classify_unit = ApiJobUnit.objects.filter(
-                type='deploy_classify').latest('pk')
-        except ApiJobUnit.DoesNotExist:
-            self.fail("Classify job unit should be created")
-
-        self.assertEqual(
-            classify_unit.job.pk, deploy_job.pk,
-            "Classify unit job should be correct")
-        self.assertEqual(
-            classify_unit.status, ApiJobUnit.PENDING,
-            "Classify unit status should be pending")
-        self.assertDictEqual(
-            classify_unit.request_json,
-            dict(
-                classifier_id=self.classifier.pk,
-                url='URL 1',
-                points=[dict(row=10, column=10)],
-                image_order=0,
-                features_path=''),
-            "Classify unit's request_json should be correct")
-
+    @skip("We need to have a mock backend before we can test this.")
     def test_done(self):
         """
         Test state after both feature extract and classify are done. To do
@@ -460,29 +414,19 @@ class SuccessTest(DeployBaseTest):
         deploy_job = ApiJob.objects.latest('pk')
 
         try:
-            features_unit = ApiJobUnit.objects.filter(
-                type='deploy_extract_features', job=deploy_job).latest('pk')
+            deploy_unit = ApiJobUnit.objects.filter(
+                type='deploy', job=deploy_job).latest('pk')
         except ApiJobUnit.DoesNotExist:
-            self.fail("Features job unit should be created")
+            self.fail("Deploy job unit should be created")
 
-        try:
-            classify_unit = ApiJobUnit.objects.filter(
-                type='deploy_classify', job=deploy_job).latest('pk')
-        except ApiJobUnit.DoesNotExist:
-            self.fail("Classify job unit should be created")
-
-        self.assertEqual(
-            features_unit.status, ApiJobUnit.SUCCESS,
+        self.assertEqual(deploy_unit.status, ApiJobUnit.SUCCESS,
             "Features unit should be done")
-        self.assertEqual(
-            classify_unit.status, ApiJobUnit.SUCCESS,
-            "Classify unit should be done")
 
         classifications = [dict(
             label_id=self.labels[0].pk, label_name='A',
             default_code='A', score=1.0)]
         self.assertDictEqual(
-            classify_unit.result_json,
+            deploy_unit.result_json,
             dict(
                 url='URL 1',
                 points=[dict(
@@ -495,6 +439,7 @@ class TaskErrorsTest(DeployBaseTest):
     """
     Test error cases of the deploy tasks.
     """
+
     def test_extract_features_nonexistent_job_unit(self):
         # Create and delete a unit to secure a nonexistent ID.
         job = ApiJob(type='', user=self.user)
@@ -507,8 +452,8 @@ class TaskErrorsTest(DeployBaseTest):
         # patch_logger is an undocumented Django test utility. It lets us check
         # logged messages.
         # https://stackoverflow.com/a/54055056
-        with patch_logger('vision_backend_api.tasks', 'info') as log_messages:
-            deploy_extract_features.delay(unit_id)
+        with patch_logger('vision_backend.tasks', 'info') as log_messages:
+            deploy.delay(unit_id)
 
             error_message = \
                 "Job unit of id {pk} does not exist.".format(pk=unit_id)
@@ -524,15 +469,16 @@ class TaskErrorsTest(DeployBaseTest):
         unit_id = ApiJobUnit.objects.get(type='test').pk
         unit.delete()
 
-        with patch_logger('vision_backend_api.tasks', 'info') as log_messages:
-            deploy_classify.delay(unit_id)
+        with patch_logger('vision_backend.tasks', 'info') as log_messages:
+            deploy.delay(unit_id)
 
             error_message = \
                 "Job unit of id {pk} does not exist.".format(pk=unit_id)
 
             self.assertIn(error_message, log_messages)
 
-    @patch('vision_backend_api.views.deploy_extract_features.run', noop_task)
+    @skip("Skip until we can run backend during tests.")
+    @patch('vision_backend_api.views.deploy.run', noop_task)
     def test_classify_classifier_deleted(self):
         data = dict(images=json.dumps(
             [dict(url='URL 1', points=[dict(row=10, column=10)])]
@@ -543,7 +489,7 @@ class TaskErrorsTest(DeployBaseTest):
         self.client.post(self.deploy_url, data, **self.token_headers)
 
         features_unit = ApiJobUnit.objects.filter(
-            type='deploy_extract_features').latest('pk')
+            type='deploy').latest('pk')
 
         # Manually create the classify job unit.
         classify_unit = ApiJobUnit(

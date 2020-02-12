@@ -424,7 +424,7 @@ class SuccessTest(DeployBaseTest):
 
         classifications = [dict(
             label_id=self.labels[0].pk, label_name='A',
-            default_code='A', score=1.0)]
+            label_code='A_mycode', score=1.0)]
         self.assertDictEqual(
             deploy_unit.result_json,
             dict(

@@ -34,7 +34,14 @@ class DeployBaseTest(ClientTest):
         cls.source = cls.create_source(
             cls.user, visibility=Source.VisibilityTypes.PUBLIC)
         cls.labels = cls.create_labels(cls.user, ['A'], 'GroupA')
-        cls.create_labelset(cls.user, cls.source, cls.labels)
+        labelset = cls.create_labelset(cls.user, cls.source, cls.labels)
+
+        # Set a custom label code, so we can confirm whether responses
+        # contain the source's custom codes or default codes.
+        local_label = labelset.locallabel_set.get(code='A')
+        local_label.code = 'A_mycode'
+        local_label.save()
+
         cls.classifier = cls.create_robot(cls.source)
         cls.deploy_url = reverse('api:deploy', args=[cls.classifier.pk])
 

@@ -128,11 +128,15 @@ class DeployStatusEndpointTest(DeployBaseTest):
         self.assertDictEqual(
             response.json(),
             dict(
-                data=dict(
-                    status="Pending",
-                    successes=0,
-                    failures=0,
-                    total=2)),
+                data=[
+                    dict(
+                        type="job",
+                        id=str(job.pk),
+                        attributes=dict(
+                            status="Pending",
+                            successes=0,
+                            failures=0,
+                            total=2))]),
             "Response JSON should be as expected")
 
     @patch('vision_backend_api.views.deploy.run', noop_task)
@@ -152,11 +156,15 @@ class DeployStatusEndpointTest(DeployBaseTest):
         self.assertDictEqual(
             response.json(),
             dict(
-                data=dict(
-                    status="In Progress",
-                    successes=0,
-                    failures=0,
-                    total=2)),
+                data=[
+                    dict(
+                        type="job",
+                        id=str(job.pk),
+                        attributes=dict(
+                            status="In Progress",
+                            successes=0,
+                            failures=0,
+                            total=2))]),
             "Response JSON should be as expected")
 
     @patch('vision_backend.tasks.deploy.run', noop_task)
@@ -169,11 +177,15 @@ class DeployStatusEndpointTest(DeployBaseTest):
         self.assertDictEqual(
             response.json(),
             dict(
-                data=dict(
-                    status="Pending",
-                    successes=0,
-                    failures=0,
-                    total=2)),
+                data=[
+                    dict(
+                        type="job",
+                        id=str(job.pk),
+                        attributes=dict(
+                            status="Pending",
+                            successes=0,
+                            failures=0,
+                            total=2))]),
             "Response JSON should be as expected")
 
     @patch('vision_backend.tasks.deploy.run', noop_task)
@@ -196,11 +208,15 @@ class DeployStatusEndpointTest(DeployBaseTest):
         self.assertDictEqual(
             response.json(),
             dict(
-                data=dict(
-                    status="In Progress",
-                    successes=1,
-                    failures=0,
-                    total=2)),
+                data=[
+                    dict(
+                        type="job",
+                        id=str(job.pk),
+                        attributes=dict(
+                            status="In Progress",
+                            successes=1,
+                            failures=0,
+                            total=2))]),
             "Response JSON should be as expected")
 
     @patch('vision_backend.tasks.deploy.run', noop_task)
@@ -220,11 +236,15 @@ class DeployStatusEndpointTest(DeployBaseTest):
         self.assertDictEqual(
             response.json(),
             dict(
-                data=dict(
-                    status="In Progress",
-                    successes=0,
-                    failures=1,
-                    total=2)),
+                data=[
+                    dict(
+                        type="job",
+                        id=str(job.pk),
+                        attributes=dict(
+                            status="In Progress",
+                            successes=0,
+                            failures=1,
+                            total=2))]),
             "Response JSON should be as expected")
 
     @skip("Need to have a mock backend before testing.")

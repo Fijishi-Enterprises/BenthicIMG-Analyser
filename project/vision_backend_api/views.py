@@ -116,11 +116,15 @@ class DeployStatus(APIView):
                 },
             )
 
-        data = dict(
-            status=job_status,
-            successes=success_count,
-            failures=failure_count,
-            total=total_image_count)
+        data = [
+            dict(
+                type="job",
+                id=str(job_id),
+                attributes=dict(
+                    status=job_status,
+                    successes=success_count,
+                    failures=failure_count,
+                    total=total_image_count))]
 
         return Response(dict(data=data), status=status.HTTP_200_OK)
 

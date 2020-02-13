@@ -460,6 +460,10 @@ REST_FRAMEWORK = {
         # Must be authenticated to use the API.
         'rest_framework.permissions.IsAuthenticated',
     ],
+    'DEFAULT_RENDERER_CLASSES': [
+        'api_core.renderers.JSONAPIRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',
+    ],
     'DEFAULT_THROTTLE_CLASSES': [
         # These classes allow us to define multiple throttle rates. If either
         # rate is met, subsequent requests are throttled.

@@ -58,9 +58,7 @@ class DeployStatusAccessTest(BaseAPIPermissionTest):
         url = reverse('api:deploy_status', args=[job.pk])
 
         response = self.client.post(url, **self.user_token_headers)
-        self.assertEqual(
-            response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED,
-            "Should get 405")
+        self.assertMethodNotAllowedResponse(response)
 
     def test_job_of_same_user(self):
         job = ApiJob(type='deploy', user=self.user)
@@ -90,9 +88,8 @@ class DeployStatusAccessTest(BaseAPIPermissionTest):
                 "1st-3rd requests should not be throttled")
 
         response = self.client.get(url, **self.user_token_headers)
-        self.assertEqual(
-            response.status_code, status.HTTP_429_TOO_MANY_REQUESTS,
-            "4th request should be denied by throttling")
+        self.assertThrottleResponse(
+            response, "4th request should be denied by throttling")
 
 
 class DeployStatusEndpointTest(DeployBaseTest):

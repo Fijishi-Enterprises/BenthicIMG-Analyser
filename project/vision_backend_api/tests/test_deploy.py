@@ -44,9 +44,7 @@ class DeployAccessTest(BaseAPIPermissionTest):
         url = reverse('api:deploy', args=[classifier.pk])
 
         response = self.client.get(url, **self.user_token_headers)
-        self.assertEqual(
-            response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED,
-            "Should get 405")
+        self.assertMethodNotAllowedResponse(response)
 
     def test_nonexistent_classifier(self):
         # To secure an ID which corresponds to no classifier, we
@@ -94,9 +92,8 @@ class DeployAccessTest(BaseAPIPermissionTest):
                 "1st-3rd requests should not be throttled")
 
         response = self.client.post(url, **self.user_token_headers)
-        self.assertEqual(
-            response.status_code, status.HTTP_429_TOO_MANY_REQUESTS,
-            "4th request should be denied by throttling")
+        self.assertThrottleResponse(
+            response, "4th request should be denied by throttling")
 
 
 class DeployImagesParamErrorTest(DeployBaseTest):

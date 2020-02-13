@@ -8,7 +8,65 @@ from images.models import Source
 from lib.tests.utils import ClientTest
 
 
-class BaseAPIPermissionTest(ClientTest):
+class BaseAPITest(ClientTest):
+
+    longMessage = True
+
+    def setUp(self):
+        super(BaseAPITest, self).setUp()
+
+        # DRF implements throttling by tracking usage counts in the cache.
+        # We don't want usages in one test to trigger throttling in another
+        # test. So we clear the cache between tests.
+        cache.clear()
+
+    @classmethod
+    def setUpTestData(cls):
+        super(BaseAPITest, cls).setUpTestData()
+
+        # Don't want DRF throttling to be a factor during class setup, either.
+        cache.clear()
+
+    def assertNeedsAuth(self, url, msg="Should get 403"):
+        # Request with no token header
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN, msg)
+
+        self.assertDictEqual(
+            response.json(),
+            dict(errors=[
+                dict(detail="Authentication credentials were not provided.")]),
+            "Error response's body should be as expected")
+
+    def assertMethodNotAllowedResponse(self, response, msg="Should get 405"):
+        self.assertEqual(
+            response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED, msg)
+
+        response_json = response.json()
+        self.assertIn(
+            'errors', response_json,
+            "Response should have top-level member 'errors'")
+        error_detail = response_json['errors'][0]['detail']
+        self.assertTrue(
+            error_detail.startswith("Method ")
+            and error_detail.endswith(" not allowed."),
+            "Response error detail should be as expected")
+
+    def assertThrottleResponse(self, response, msg="Should get 429"):
+        self.assertEqual(
+            response.status_code, status.HTTP_429_TOO_MANY_REQUESTS, msg)
+
+        response_json = response.json()
+        self.assertIn(
+            'errors', response_json,
+            "Response should have top-level member 'errors'")
+        self.assertTrue(
+            response_json['errors'][0]['detail'].startswith(
+                "Request was throttled. Expected available in "),
+            "Response error detail should be as expected")
+
+
+class BaseAPIPermissionTest(BaseAPITest):
     """
     Test view permissions.
 
@@ -16,16 +74,6 @@ class BaseAPIPermissionTest(ClientTest):
     flexibility on what is created with each source (or just create the minimum
     and leave further customization to subclasses).
     """
-    longMessage = True
-
-    def setUp(self):
-        super(BaseAPIPermissionTest, self).setUp()
-
-        # DRF implements throttling by tracking usage counts in the cache.
-        # We don't want usages in one test to trigger throttling in another
-        # test. So we clear the cache between tests.
-        cache.clear()
-
     @classmethod
     def get_token_headers(cls, username, password):
         # Don't want DRF throttling to be a factor here, either.
@@ -100,10 +148,3 @@ class BaseAPIPermissionTest(ClientTest):
         cls.add_source_member(
             cls.user, cls.private_source,
             cls.user_admin, Source.PermTypes.ADMIN.code)
-
-    def assertNeedsAuth(self, url):
-        # Request with no token header
-        response = self.client.post(url)
-        self.assertEqual(
-            response.status_code, status.HTTP_403_FORBIDDEN,
-            "Should get 403")

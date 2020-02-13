@@ -2,32 +2,18 @@ from __future__ import unicode_literals
 from abc import ABCMeta
 import six
 
-from django.core.cache import cache
 from django.urls import reverse
 
+from api_core.tests.utils import BaseAPITest
 from images.models import Source
-from lib.tests.utils import ClientTest
 
 
 @six.add_metaclass(ABCMeta)
-class DeployBaseTest(ClientTest):
-
-    longMessage = True
-
-    def setUp(self):
-        super(DeployBaseTest, self).setUp()
-
-        # DRF implements throttling by tracking usage counts in the cache.
-        # We don't want usages in one test to trigger throttling in another
-        # test. So we clear the cache between tests.
-        cache.clear()
+class DeployBaseTest(BaseAPITest):
 
     @classmethod
     def setUpTestData(cls):
         super(DeployBaseTest, cls).setUpTestData()
-
-        # Don't want DRF throttling to be a factor during class setup, either.
-        cache.clear()
 
         cls.user = cls.create_user(
             username='testuser', password='SamplePassword')

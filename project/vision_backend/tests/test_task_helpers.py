@@ -16,14 +16,27 @@ class TestDeployCollector(ClientTest):
         # Mock up the DB entries we need
         cls.user = cls.create_user()
 
-        cls.create_labels(cls.user, ['A', 'B', 'C', 'D'], "Group1")
+        labels = cls.create_labels(cls.user, ['A', 'B', 'C', 'D'], "Group1")
+
+        source = cls.create_source(cls.user)
+        labelset = cls.create_labelset(cls.user, source, labels)
+        classifier = cls.create_robot(source)
+
+        # Set custom label codes, so we can confirm we're returning the
+        # source's custom codes, not the default codes.
+        for code in ['A', 'B', 'C', 'D']:
+            local_label = labelset.locallabel_set.get(code=code)
+            # A_mycode, B_mycode, etc.
+            local_label.code = code + '_mycode'
+            local_label.save()
 
         api_job = ApiJob(type='deploy', user=cls.user)
         api_job.save()
         api_job_unit = ApiJobUnit(job=api_job,
                                   type='deploy',
                                   request_json={'url': 'URL 1',
-                                                'points': 'abc'})
+                                                'points': 'abc',
+                                                'classifier_id': classifier.pk})
         api_job_unit.save()
         cls.api_job_unit_pk = api_job_unit.pk
 
@@ -79,17 +92,17 @@ class TestDeployCollector(ClientTest):
         point = results['points'][0]
         self.assertEqual(point['row'], 100)
         self.assertEqual(point['column'], 100)
-        self.assertEqual(point['classifications'][0]['label_code'], 'D')
-        self.assertEqual(point['classifications'][1]['label_code'], 'A')
-        self.assertEqual(point['classifications'][2]['label_code'], 'B')
+        self.assertEqual(point['classifications'][0]['label_code'], 'D_mycode')
+        self.assertEqual(point['classifications'][1]['label_code'], 'A_mycode')
+        self.assertEqual(point['classifications'][2]['label_code'], 'B_mycode')
 
         # Second point should be assigned B->D->A
         point = results['points'][1]
         self.assertEqual(point['row'], 200)
         self.assertEqual(point['column'], 200)
-        self.assertEqual(point['classifications'][0]['label_code'], 'B')
-        self.assertEqual(point['classifications'][1]['label_code'], 'D')
-        self.assertEqual(point['classifications'][2]['label_code'], 'A')
+        self.assertEqual(point['classifications'][0]['label_code'], 'B_mycode')
+        self.assertEqual(point['classifications'][1]['label_code'], 'D_mycode')
+        self.assertEqual(point['classifications'][2]['label_code'], 'A_mycode')
 
     def test_error(self):
 

@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
+from rest_framework.exceptions import ParseError
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
@@ -23,6 +24,21 @@ class Deploy(APIView):
     Request a classifier deployment on a specified set of images.
     """
     def post(self, request, classifier_id):
+        expected_content_type = 'application/vnd.api+json'
+
+        if request.content_type != expected_content_type:
+            detail = "Content type should be {}".format(expected_content_type)
+            return Response(
+                dict(errors=[dict(detail=detail)]),
+                status=status.HTTP_400_BAD_REQUEST)
+
+        # Check for invalid JSON.
+        try:
+            request.data
+        except ParseError as e:
+            return Response(
+                dict(errors=[dict(detail=str(e))]),
+                status=status.HTTP_400_BAD_REQUEST)
 
         # The classifier must exist and be visible to the user.
         try:
@@ -36,7 +52,7 @@ class Deploy(APIView):
                 status=status.HTTP_404_NOT_FOUND)
 
         try:
-            cleaned_data = validate_deploy(request.POST)
+            images_data = validate_deploy(request.data)
         except ApiRequestDataError as e:
             return Response(
                 dict(errors=[e.error_dict]),
@@ -44,7 +60,6 @@ class Deploy(APIView):
             )
 
         # Create a deploy job object, which can be queried via DeployStatus.
-        images_json = cleaned_data['images']
         deploy_job = ApiJob(
             type='deploy',
             user=request.user)
@@ -52,7 +67,7 @@ class Deploy(APIView):
 
         # Create job units to make it easier to track all the separate deploy
         # operations (one per image).
-        for image_index, image_json in enumerate(images_json):
+        for image_index, image_json in enumerate(images_data):
 
             job_unit = ApiJobUnit(
                 job=deploy_job,
@@ -116,11 +131,15 @@ class DeployStatus(APIView):
                 },
             )
 
-        data = dict(
-            status=job_status,
-            successes=success_count,
-            failures=failure_count,
-            total=total_image_count)
+        data = [
+            dict(
+                type="job",
+                id=str(job_id),
+                attributes=dict(
+                    status=job_status,
+                    successes=success_count,
+                    failures=failure_count,
+                    total=total_image_count))]
 
         return Response(dict(data=data), status=status.HTTP_200_OK)
 
@@ -156,11 +175,16 @@ class DeployResult(APIView):
                 return unit_.request_json['image_order']
 
             for unit in sorted(classify_units, key=sort_key):
-                images_json.append(unit.result_json)
+                images_json.append(dict(
+                    type='image',
+                    id=unit.result_json['url'],
+                    # This has 'url', and either 'points' or 'errors'
+                    attributes=unit.result_json,
+                ))
 
-            data = dict(images=images_json)
+            data = dict(data=images_json)
 
-            return Response(dict(data=data), status=status.HTTP_200_OK)
+            return Response(data, status=status.HTTP_200_OK)
         else:
             return Response(
                 dict(errors=[

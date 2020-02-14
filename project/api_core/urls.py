@@ -6,7 +6,7 @@ from . import views
 
 
 urlpatterns = [
-    url(r'^token-auth/$',
+    url(r'^token_auth/$',
         views.ObtainAuthToken.as_view(), name='token_auth'),
     url(r'', include('vision_backend_api.urls')),
 ]

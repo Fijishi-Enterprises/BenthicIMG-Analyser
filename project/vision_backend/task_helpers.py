@@ -15,7 +15,7 @@ from django.db import transaction
 from reversion import revisions
 
 from images.models import Image, Point
-from annotations.models import Label, Annotation
+from annotations.models import Annotation
 from api_core.models import ApiJobUnit
 
 from .models import Classifier, Score
@@ -224,7 +224,7 @@ def _classifiercollector(messagebody):
 
 def _deploycollector(messagebody):
 
-    def build_points_dicts(scores, classes, rowcols):
+    def build_points_dicts(scores, classes, rowcols, labelset):
         """
         Converts scores from the deploy call to the dictionary returned
         by the API
@@ -233,10 +233,12 @@ def _deploycollector(messagebody):
         # Figure out how many of the (top) scores to store.
         nbr_scores = min(settings.NBR_SCORES_PER_ANNOTATION, len(scores[0]))
 
-        # Pre-fetch label objects
-        label_objs = []
+        # Pre-fetch label objects. The local labels let us reach all the
+        # fields we want.
+        local_labels = []
         for class_ in classes:
-            label_objs.append(Label.objects.get(pk=class_))
+            local_label = labelset.locallabel_set.get(global_label__pk=class_)
+            local_labels.append(local_label)
 
         data = []
         for score, rowcol in zip(scores, rowcols):
@@ -244,11 +246,11 @@ def _deploycollector(messagebody):
             inds = np.argsort(score)[::-1][:nbr_scores]
             classifications = []
             for ind in inds:
-                label_obj = label_objs[ind]
+                local_label = local_labels[ind]
                 classifications.append(dict(
-                    label_id=label_obj.pk,
-                    label_name=label_obj.name,
-                    label_code=label_obj.default_code,
+                    label_id=local_label.global_label.pk,
+                    label_name=local_label.global_label.name,
+                    label_code=local_label.code,
                     score=score[ind]))
             data.append(dict(
                 row=rowcol[0],
@@ -267,13 +269,21 @@ def _deploycollector(messagebody):
         logger.info("Job unit of id {} does not exist.".format(pk))
         return
 
+    try:
+        classifier = Classifier.objects.get(
+            pk=job_unit.request_json['classifier_id'])
+    except Classifier.DoesNotExist:
+        logger.info("Classifier of id {} does not exist.".format(pk))
+        return
+
     if result['ok']:
         job_unit.result_json = dict(
             url=job_unit.request_json['url'],
             points=build_points_dicts(
                 result['scores'],
                 result['classes'],
-                org_payload['rowcols'])
+                org_payload['rowcols'],
+                classifier.source.labelset)
         )
         job_unit.status = ApiJobUnit.SUCCESS
     else:

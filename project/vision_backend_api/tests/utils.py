@@ -2,39 +2,32 @@ from __future__ import unicode_literals
 from abc import ABCMeta
 import six
 
-from django.core.cache import cache
 from django.urls import reverse
 
+from api_core.tests.utils import BaseAPITest
 from images.models import Source
-from lib.tests.utils import ClientTest
 
 
 @six.add_metaclass(ABCMeta)
-class DeployBaseTest(ClientTest):
-
-    longMessage = True
-
-    def setUp(self):
-        super(DeployBaseTest, self).setUp()
-
-        # DRF implements throttling by tracking usage counts in the cache.
-        # We don't want usages in one test to trigger throttling in another
-        # test. So we clear the cache between tests.
-        cache.clear()
+class DeployBaseTest(BaseAPITest):
 
     @classmethod
     def setUpTestData(cls):
         super(DeployBaseTest, cls).setUpTestData()
-
-        # Don't want DRF throttling to be a factor during class setup, either.
-        cache.clear()
 
         cls.user = cls.create_user(
             username='testuser', password='SamplePassword')
         cls.source = cls.create_source(
             cls.user, visibility=Source.VisibilityTypes.PUBLIC)
         cls.labels = cls.create_labels(cls.user, ['A'], 'GroupA')
-        cls.create_labelset(cls.user, cls.source, cls.labels)
+        labelset = cls.create_labelset(cls.user, cls.source, cls.labels)
+
+        # Set a custom label code, so we can confirm whether responses
+        # contain the source's custom codes or default codes.
+        local_label = labelset.locallabel_set.get(code='A')
+        local_label.code = 'A_mycode'
+        local_label.save()
+
         cls.classifier = cls.create_robot(cls.source)
         cls.deploy_url = reverse('api:deploy', args=[cls.classifier.pk])
 
@@ -47,8 +40,15 @@ class DeployBaseTest(ClientTest):
             ),
         )
         token = response.json()['token']
-        cls.token_headers = dict(
-            HTTP_AUTHORIZATION='Token {token}'.format(token=token))
+
+        # Kwargs for test client post() and get().
+        cls.request_kwargs = dict(
+            # Authorization header.
+            HTTP_AUTHORIZATION='Token {token}'.format(token=token),
+            # Content type. Particularly needed for POST requests,
+            # but doesn't hurt for other requests either.
+            content_type='application/vnd.api+json',
+        )
 
 
 # During tests, we use CELERY_ALWAYS_EAGER = True to run tasks synchronously,

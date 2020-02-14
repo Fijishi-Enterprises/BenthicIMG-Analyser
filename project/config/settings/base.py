@@ -456,9 +456,18 @@ REST_FRAMEWORK = {
         # non-website applications, such as command line.
         'rest_framework.authentication.TokenAuthentication',
     ],
+    'DEFAULT_PARSER_CLASSES': [
+        'api_core.parsers.JSONAPIParser',
+        'rest_framework.parsers.FormParser',
+        'rest_framework.parsers.MultiPartParser'
+    ],
     'DEFAULT_PERMISSION_CLASSES': [
         # Must be authenticated to use the API.
         'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_RENDERER_CLASSES': [
+        'api_core.renderers.JSONAPIRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',
     ],
     'DEFAULT_THROTTLE_CLASSES': [
         # These classes allow us to define multiple throttle rates. If either

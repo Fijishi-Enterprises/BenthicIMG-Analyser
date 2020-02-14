@@ -8,27 +8,10 @@
 # since that filename is generally associated with validating user input.
 
 from __future__ import unicode_literals
-import json
 import six
 from six.moves import collections_abc
 
 from .exceptions import ApiRequestDataError
-
-
-def validate_required_param(data, param_name):
-    try:
-        return data[param_name]
-    except KeyError:
-        raise ApiRequestDataError(
-            "This parameter is required.", parameter=param_name)
-
-
-def validate_json(s, param_name):
-    try:
-        return json.loads(s)
-    except ValueError:
-        raise ApiRequestDataError(
-            "Could not parse as JSON.", parameter=param_name)
 
 
 def validate_array(element, json_path, check_non_empty=False, max_length=None):
@@ -59,34 +42,30 @@ def validate_hash(element, json_path, expected_keys=None):
 
 
 def validate_integer(element, json_path, min_value=None, max_value=None):
-    if isinstance(element, int):
-        integer = element
-    else:
-        try:
-            integer = int(element)
-        except ValueError:
-            raise ApiRequestDataError(
-                "Ensure this element is an integer.", json_path)
+    if not isinstance(element, int):
+        raise ApiRequestDataError(
+            "Ensure this element is an integer.", json_path)
 
     if min_value is not None:
-        if integer < min_value:
+        if element < min_value:
             raise ApiRequestDataError(
                 "This element's value is below the minimum"
                 " of {min}.".format(min=min_value),
                 json_path)
     if max_value is not None:
-        if integer > max_value:
+        if element > max_value:
             raise ApiRequestDataError(
                 "This element's value is above the maximum"
                 " of {max}.".format(max=max_value),
                 json_path)
 
-    # This function accepts an integer or string, and returns an integer,
-    # to simplify further processing steps.
-    return integer
 
-
-def validate_string(element, json_path):
+def validate_string(element, json_path, equal_to=None):
     if not isinstance(element, six.text_type):
         raise ApiRequestDataError(
             "Ensure this element is a string.", json_path)
+    if equal_to is not None:
+        if element != equal_to:
+            raise ApiRequestDataError(
+                "This element should be equal to '{s}'.".format(s=equal_to),
+                json_path)

@@ -16,8 +16,8 @@ from .utils import DeployBaseTest, noop_task
 
 class DeployStatusAccessTest(BaseAPIPermissionTest):
 
-    def assertNotFound(self, url, token_headers):
-        response = self.client.get(url, **token_headers)
+    def assertNotFound(self, url, request_kwargs):
+        response = self.client.get(url, **request_kwargs)
         self.assertEqual(
             response.status_code, status.HTTP_404_NOT_FOUND,
             "Should get 404")
@@ -27,8 +27,8 @@ class DeployStatusAccessTest(BaseAPIPermissionTest):
             dict(errors=[dict(detail=detail)]),
             "Response JSON should be as expected")
 
-    def assertPermissionGranted(self, url, token_headers):
-        response = self.client.get(url, **token_headers)
+    def assertPermissionGranted(self, url, request_kwargs):
+        response = self.client.get(url, **request_kwargs)
         self.assertNotEqual(
             response.status_code, status.HTTP_404_NOT_FOUND,
             "Should not get 404")
@@ -44,7 +44,7 @@ class DeployStatusAccessTest(BaseAPIPermissionTest):
         url = reverse('api:deploy_status', args=[job.pk])
         job.delete()
 
-        self.assertNotFound(url, self.user_token_headers)
+        self.assertNotFound(url, self.user_request_kwargs)
 
     def test_needs_auth(self):
         job = ApiJob(type='deploy', user=self.user)
@@ -57,22 +57,20 @@ class DeployStatusAccessTest(BaseAPIPermissionTest):
         job.save()
         url = reverse('api:deploy_status', args=[job.pk])
 
-        response = self.client.post(url, **self.user_token_headers)
-        self.assertEqual(
-            response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED,
-            "Should get 405")
+        response = self.client.post(url, **self.user_request_kwargs)
+        self.assertMethodNotAllowedResponse(response)
 
     def test_job_of_same_user(self):
         job = ApiJob(type='deploy', user=self.user)
         job.save()
         url = reverse('api:deploy_status', args=[job.pk])
-        self.assertPermissionGranted(url, self.user_token_headers)
+        self.assertPermissionGranted(url, self.user_request_kwargs)
 
     def test_job_of_other_user(self):
         job = ApiJob(type='deploy', user=self.user)
         job.save()
         url = reverse('api:deploy_status', args=[job.pk])
-        self.assertNotFound(url, self.user_admin_token_headers)
+        self.assertNotFound(url, self.user_admin_request_kwargs)
 
     throttle_test_settings = copy.deepcopy(settings.REST_FRAMEWORK)
     throttle_test_settings['DEFAULT_THROTTLE_RATES']['sustained'] = '3/hour'
@@ -84,15 +82,14 @@ class DeployStatusAccessTest(BaseAPIPermissionTest):
         url = reverse('api:deploy_status', args=[job.pk])
 
         for _ in range(3):
-            response = self.client.get(url, **self.user_token_headers)
+            response = self.client.get(url, **self.user_request_kwargs)
             self.assertNotEqual(
                 response.status_code, status.HTTP_429_TOO_MANY_REQUESTS,
                 "1st-3rd requests should not be throttled")
 
-        response = self.client.get(url, **self.user_token_headers)
-        self.assertEqual(
-            response.status_code, status.HTTP_429_TOO_MANY_REQUESTS,
-            "4th request should be denied by throttling")
+        response = self.client.get(url, **self.user_request_kwargs)
+        self.assertThrottleResponse(
+            response, "4th request should be denied by throttling")
 
 
 class DeployStatusEndpointTest(DeployBaseTest):
@@ -100,25 +97,35 @@ class DeployStatusEndpointTest(DeployBaseTest):
     Test the deploy status endpoint.
     """
     def setUp(self):
-        self.data = dict(images=json.dumps([
-            dict(url='URL 1', points=[
-                dict(row=10, column=10),
-                dict(row=20, column=5),
-            ]),
-            dict(url='URL 2', points=[
-                dict(row=10, column=10),
-            ]),
-        ]))
+        images = [
+            dict(
+                type='image',
+                attributes=dict(
+                    url='URL 1',
+                    points=[
+                        dict(row=10, column=10),
+                        dict(row=20, column=5),
+                    ])),
+            dict(
+                type='image',
+                attributes=dict(
+                    url='URL 2',
+                    points=[
+                        dict(row=10, column=10),
+                    ])),
+        ]
+        self.data = json.dumps(dict(data=images))
 
     def deploy(self):
-        self.client.post(self.deploy_url, self.data, **self.token_headers)
+        self.client.post(
+            self.deploy_url, self.data, **self.request_kwargs)
 
         job = ApiJob.objects.latest('pk')
         return job
 
     def get_job_status(self, job):
         status_url = reverse('api:deploy_status', args=[job.pk])
-        response = self.client.get(status_url, **self.token_headers)
+        response = self.client.get(status_url, **self.request_kwargs)
         return response
 
     @patch('vision_backend_api.views.deploy.run', noop_task)
@@ -131,11 +138,15 @@ class DeployStatusEndpointTest(DeployBaseTest):
         self.assertDictEqual(
             response.json(),
             dict(
-                data=dict(
-                    status="Pending",
-                    successes=0,
-                    failures=0,
-                    total=2)),
+                data=[
+                    dict(
+                        type="job",
+                        id=str(job.pk),
+                        attributes=dict(
+                            status="Pending",
+                            successes=0,
+                            failures=0,
+                            total=2))]),
             "Response JSON should be as expected")
 
     @patch('vision_backend_api.views.deploy.run', noop_task)
@@ -155,11 +166,15 @@ class DeployStatusEndpointTest(DeployBaseTest):
         self.assertDictEqual(
             response.json(),
             dict(
-                data=dict(
-                    status="In Progress",
-                    successes=0,
-                    failures=0,
-                    total=2)),
+                data=[
+                    dict(
+                        type="job",
+                        id=str(job.pk),
+                        attributes=dict(
+                            status="In Progress",
+                            successes=0,
+                            failures=0,
+                            total=2))]),
             "Response JSON should be as expected")
 
     @patch('vision_backend.tasks.deploy.run', noop_task)
@@ -172,11 +187,15 @@ class DeployStatusEndpointTest(DeployBaseTest):
         self.assertDictEqual(
             response.json(),
             dict(
-                data=dict(
-                    status="Pending",
-                    successes=0,
-                    failures=0,
-                    total=2)),
+                data=[
+                    dict(
+                        type="job",
+                        id=str(job.pk),
+                        attributes=dict(
+                            status="Pending",
+                            successes=0,
+                            failures=0,
+                            total=2))]),
             "Response JSON should be as expected")
 
     @patch('vision_backend.tasks.deploy.run', noop_task)
@@ -199,11 +218,15 @@ class DeployStatusEndpointTest(DeployBaseTest):
         self.assertDictEqual(
             response.json(),
             dict(
-                data=dict(
-                    status="In Progress",
-                    successes=1,
-                    failures=0,
-                    total=2)),
+                data=[
+                    dict(
+                        type="job",
+                        id=str(job.pk),
+                        attributes=dict(
+                            status="In Progress",
+                            successes=1,
+                            failures=0,
+                            total=2))]),
             "Response JSON should be as expected")
 
     @patch('vision_backend.tasks.deploy.run', noop_task)
@@ -223,11 +246,15 @@ class DeployStatusEndpointTest(DeployBaseTest):
         self.assertDictEqual(
             response.json(),
             dict(
-                data=dict(
-                    status="In Progress",
-                    successes=0,
-                    failures=1,
-                    total=2)),
+                data=[
+                    dict(
+                        type="job",
+                        id=str(job.pk),
+                        attributes=dict(
+                            status="In Progress",
+                            successes=0,
+                            failures=1,
+                            total=2))]),
             "Response JSON should be as expected")
 
     @skip("Need to have a mock backend before testing.")

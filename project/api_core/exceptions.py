@@ -19,9 +19,14 @@ class ApiRequestDataError(Exception):
           error.
         """
         source_dict = dict()
-        if json_path:
-            source_dict['pointer'] = ''.join(
-                ['/' + str(part) for part in json_path])
+
+        if json_path is not None:
+            # [] -> '/'
+            # ['data'] -> '/data'
+            # ['data', 0] -> '/data/0'
+            source_dict['pointer'] = '/' + '/'.join(
+                [str(part) for part in json_path])
+
         if parameter:
             source_dict['parameter'] = parameter
 

@@ -19,8 +19,8 @@ from .utils import DeployBaseTest, noop_task
 
 class DeployAccessTest(BaseAPIPermissionTest):
 
-    def assertNotFound(self, url, token_headers):
-        response = self.client.post(url, **token_headers)
+    def assertNotFound(self, url, request_kwargs):
+        response = self.client.post(url, **request_kwargs)
         self.assertEqual(
             response.status_code, status.HTTP_404_NOT_FOUND,
             "Should get 404")
@@ -30,8 +30,8 @@ class DeployAccessTest(BaseAPIPermissionTest):
             dict(errors=[dict(detail=detail)]),
             "Response JSON should be as expected")
 
-    def assertPermissionGranted(self, url, token_headers):
-        response = self.client.post(url, **token_headers)
+    def assertPermissionGranted(self, url, request_kwargs):
+        response = self.client.post(url, **request_kwargs)
         self.assertNotEqual(
             response.status_code, status.HTTP_404_NOT_FOUND,
             "Should not get 404")
@@ -43,7 +43,7 @@ class DeployAccessTest(BaseAPIPermissionTest):
         classifier = self.create_robot(self.public_source)
         url = reverse('api:deploy', args=[classifier.pk])
 
-        response = self.client.get(url, **self.user_token_headers)
+        response = self.client.get(url, **self.user_request_kwargs)
         self.assertMethodNotAllowedResponse(response)
 
     def test_nonexistent_classifier(self):
@@ -53,27 +53,27 @@ class DeployAccessTest(BaseAPIPermissionTest):
         url = reverse('api:deploy', args=[classifier.pk])
         classifier.delete()
 
-        self.assertNotFound(url, self.user_token_headers)
+        self.assertNotFound(url, self.user_request_kwargs)
 
     def test_private_source(self):
         classifier = self.create_robot(self.private_source)
         url = reverse('api:deploy', args=[classifier.pk])
 
         self.assertNeedsAuth(url)
-        self.assertNotFound(url, self.user_outsider_token_headers)
-        self.assertPermissionGranted(url, self.user_viewer_token_headers)
-        self.assertPermissionGranted(url, self.user_editor_token_headers)
-        self.assertPermissionGranted(url, self.user_admin_token_headers)
+        self.assertNotFound(url, self.user_outsider_request_kwargs)
+        self.assertPermissionGranted(url, self.user_viewer_request_kwargs)
+        self.assertPermissionGranted(url, self.user_editor_request_kwargs)
+        self.assertPermissionGranted(url, self.user_admin_request_kwargs)
 
     def test_public_source(self):
         classifier = self.create_robot(self.public_source)
         url = reverse('api:deploy', args=[classifier.pk])
 
         self.assertNeedsAuth(url)
-        self.assertPermissionGranted(url, self.user_outsider_token_headers)
-        self.assertPermissionGranted(url, self.user_viewer_token_headers)
-        self.assertPermissionGranted(url, self.user_editor_token_headers)
-        self.assertPermissionGranted(url, self.user_admin_token_headers)
+        self.assertPermissionGranted(url, self.user_outsider_request_kwargs)
+        self.assertPermissionGranted(url, self.user_viewer_request_kwargs)
+        self.assertPermissionGranted(url, self.user_editor_request_kwargs)
+        self.assertPermissionGranted(url, self.user_admin_request_kwargs)
 
     # Alter throttle rates for the following test. Use deepcopy to avoid
     # altering the original setting, since it's a nested data structure.
@@ -86,12 +86,12 @@ class DeployAccessTest(BaseAPIPermissionTest):
         url = reverse('api:deploy', args=[classifier.pk])
 
         for _ in range(3):
-            response = self.client.post(url, **self.user_token_headers)
+            response = self.client.post(url, **self.user_request_kwargs)
             self.assertNotEqual(
                 response.status_code, status.HTTP_429_TOO_MANY_REQUESTS,
                 "1st-3rd requests should not be throttled")
 
-        response = self.client.post(url, **self.user_token_headers)
+        response = self.client.post(url, **self.user_request_kwargs)
         self.assertThrottleResponse(
             response, "4th request should be denied by throttling")
 
@@ -107,221 +107,282 @@ class DeployImagesParamErrorTest(DeployBaseTest):
             dict(errors=[error_dict]),
             "Response JSON should be as expected")
 
-    def test_no_images_param(self):
-        response = self.client.post(self.deploy_url, **self.token_headers)
+    def test_wrong_content_type(self):
+        # Here we don't set the content type, letting it default to form data
+        # instead of JSON. So we just pass the auth header.
+        response = self.client.post(
+            self.deploy_url,
+            HTTP_AUTHORIZATION=self.request_kwargs['HTTP_AUTHORIZATION'])
 
         self.assert_expected_400_error(
             response, dict(
-                detail="This parameter is required.",
-                source=dict(parameter='images')))
+                detail="Content type should be application/vnd.api+json"))
 
     def test_not_valid_json(self):
-        data = dict(images='[abc')
+        data = '[abc'
         response = self.client.post(
-            self.deploy_url, data, **self.token_headers)
+            self.deploy_url, data, **self.request_kwargs)
 
         self.assert_expected_400_error(
             response, dict(
-                detail="Could not parse as JSON.",
-                source=dict(parameter='images')))
+                detail="JSON parse error - No JSON object could be decoded"))
 
-    def test_images_not_array(self):
-        data = dict(images=json.dumps(dict()))
+    def test_not_a_hash(self):
+        data = '[]'
         response = self.client.post(
-            self.deploy_url, data, **self.token_headers)
+            self.deploy_url, data, **self.request_kwargs)
+
+        self.assert_expected_400_error(
+            response, dict(
+                detail="Ensure this element is a hash.",
+                source=dict(pointer='/')))
+
+    def test_empty_hash(self):
+        data = '{}'
+        response = self.client.post(
+            self.deploy_url, data, **self.request_kwargs)
+
+        self.assert_expected_400_error(
+            response, dict(
+                detail="Ensure this hash has a 'data' key.",
+                source=dict(pointer='/')))
+
+    def test_data_not_array(self):
+        data = '{"data": "a string"}'
+        response = self.client.post(
+            self.deploy_url, data, **self.request_kwargs)
 
         self.assert_expected_400_error(
             response, dict(
                 detail="Ensure this element is an array.",
-                source=dict(pointer='/images')))
+                source=dict(pointer='/data')))
 
-    def test_images_empty(self):
-        data = dict(images=json.dumps([]))
+    def test_no_images(self):
+        data = '{"data": []}'
         response = self.client.post(
-            self.deploy_url, data, **self.token_headers)
+            self.deploy_url, data, **self.request_kwargs)
 
         self.assert_expected_400_error(
             response, dict(
                 detail="Ensure this array is non-empty.",
-                source=dict(pointer='/images')))
+                source=dict(pointer='/data')))
 
     def test_too_many_images(self):
-        data = dict(images=json.dumps([{}]*101))
+        # Array of many empty hashes
+        images = [{}] * 101
+        data = json.dumps(dict(data=images))
         response = self.client.post(
-            self.deploy_url, data, **self.token_headers)
+            self.deploy_url, data, **self.request_kwargs)
 
         self.assert_expected_400_error(
             response, dict(
                 detail="This array exceeds the max length of 100.",
-                source=dict(pointer='/images')))
+                source=dict(pointer='/data')))
 
     def test_image_not_hash(self):
-        data = dict(images=json.dumps(
-            ['abc']
-        ))
+        images = ['abc']
+        data = json.dumps(dict(data=images))
         response = self.client.post(
-            self.deploy_url, data, **self.token_headers)
+            self.deploy_url, data, **self.request_kwargs)
 
         self.assert_expected_400_error(
             response, dict(
                 detail="Ensure this element is a hash.",
-                source=dict(pointer='/images/0')))
+                source=dict(pointer='/data/0')))
+
+    def test_image_missing_type(self):
+        images = [dict(attributes={})]
+        data = json.dumps(dict(data=images))
+        response = self.client.post(
+            self.deploy_url, data, **self.request_kwargs)
+
+        self.assert_expected_400_error(
+            response, dict(
+                detail="Ensure this hash has a 'type' key.",
+                source=dict(pointer='/data/0')))
+
+    def test_image_missing_attributes(self):
+        images = [dict(type='image')]
+        data = json.dumps(dict(data=images))
+        response = self.client.post(
+            self.deploy_url, data, **self.request_kwargs)
+
+        self.assert_expected_400_error(
+            response, dict(
+                detail="Ensure this hash has a 'attributes' key.",
+                source=dict(pointer='/data/0')))
+
+    def test_image_type_incorrect(self):
+        images = [dict(type='point', attributes={})]
+        data = json.dumps(dict(data=images))
+        response = self.client.post(
+            self.deploy_url, data, **self.request_kwargs)
+
+        self.assert_expected_400_error(
+            response, dict(
+                detail="This element should be equal to 'image'.",
+                source=dict(pointer='/data/0/type')))
 
     def test_image_missing_url(self):
-        data = dict(images=json.dumps(
-            [dict(points=[])]
-        ))
+        images = [dict(type='image', attributes=dict(points=[]))]
+        data = json.dumps(dict(data=images))
         response = self.client.post(
-            self.deploy_url, data, **self.token_headers)
+            self.deploy_url, data, **self.request_kwargs)
 
         self.assert_expected_400_error(
             response, dict(
                 detail="Ensure this hash has a 'url' key.",
-                source=dict(pointer='/images/0')))
+                source=dict(pointer='/data/0/attributes')))
 
     def test_image_missing_points(self):
-        data = dict(images=json.dumps(
-            [dict(url='URL 1')]
-        ))
+        images = [dict(type='image', attributes=dict(url='URL 1'))]
+        data = json.dumps(dict(data=images))
         response = self.client.post(
-            self.deploy_url, data, **self.token_headers)
+            self.deploy_url, data, **self.request_kwargs)
 
         self.assert_expected_400_error(
             response, dict(
                 detail="Ensure this hash has a 'points' key.",
-                source=dict(pointer='/images/0')))
+                source=dict(pointer='/data/0/attributes')))
 
     def test_url_not_string(self):
-        data = dict(images=json.dumps(
-            [dict(url=[], points=[])]
-        ))
+        images = [dict(type='image', attributes=dict(url=[], points=[]))]
+        data = json.dumps(dict(data=images))
         response = self.client.post(
-            self.deploy_url, data, **self.token_headers)
+            self.deploy_url, data, **self.request_kwargs)
 
         self.assert_expected_400_error(
             response, dict(
                 detail="Ensure this element is a string.",
-                source=dict(pointer='/images/0/url')))
+                source=dict(pointer='/data/0/attributes/url')))
 
     def test_points_not_array(self):
-        data = dict(images=json.dumps(
-            [dict(url='URL 1', points='abc')]
-        ))
+        images = [
+            dict(type='image', attributes=dict(url='URL 1', points='abc'))]
+        data = json.dumps(dict(data=images))
         response = self.client.post(
-            self.deploy_url, data, **self.token_headers)
+            self.deploy_url, data, **self.request_kwargs)
 
         self.assert_expected_400_error(
             response, dict(
                 detail="Ensure this element is an array.",
-                source=dict(pointer='/images/0/points')))
+                source=dict(pointer='/data/0/attributes/points')))
 
     def test_points_empty(self):
-        data = dict(images=json.dumps(
-            [dict(url='URL 1', points=[])]
-        ))
+        images = [
+            dict(type='image', attributes=dict(url='URL 1', points=[]))]
+        data = json.dumps(dict(data=images))
         response = self.client.post(
-            self.deploy_url, data, **self.token_headers)
+            self.deploy_url, data, **self.request_kwargs)
 
         self.assert_expected_400_error(
             response, dict(
                 detail="Ensure this array is non-empty.",
-                source=dict(pointer='/images/0/points')))
+                source=dict(pointer='/data/0/attributes/points')))
 
     def test_too_many_points(self):
-        data = dict(images=json.dumps(
-            [dict(url='URL 1', points=[{}]*1001)]
-        ))
+        images = [
+            dict(type='image', attributes=dict(url='URL 1', points=[{}]*1001))]
+        data = json.dumps(dict(data=images))
         response = self.client.post(
-            self.deploy_url, data, **self.token_headers)
+            self.deploy_url, data, **self.request_kwargs)
 
         self.assert_expected_400_error(
             response, dict(
                 detail="This array exceeds the max length of 1000.",
-                source=dict(pointer='/images/0/points')))
+                source=dict(pointer='/data/0/attributes/points')))
 
     def test_point_not_hash(self):
-        data = dict(images=json.dumps(
-            [dict(url='URL 1', points=['abc'])]
-        ))
+        images = [
+            dict(type='image', attributes=dict(url='URL 1', points=['abc']))]
+        data = json.dumps(dict(data=images))
         response = self.client.post(
-            self.deploy_url, data, **self.token_headers)
+            self.deploy_url, data, **self.request_kwargs)
 
         self.assert_expected_400_error(
             response, dict(
                 detail="Ensure this element is a hash.",
-                source=dict(pointer='/images/0/points/0')))
+                source=dict(pointer='/data/0/attributes/points/0')))
 
     def test_point_missing_row(self):
-        data = dict(images=json.dumps(
-            [dict(url='URL 1', points=[dict(column=10)])]
-        ))
+        images = [
+            dict(type='image', attributes=dict(
+                url='URL 1', points=[dict(column=10)]))]
+        data = json.dumps(dict(data=images))
         response = self.client.post(
-            self.deploy_url, data, **self.token_headers)
+            self.deploy_url, data, **self.request_kwargs)
 
         self.assert_expected_400_error(
             response, dict(
                 detail="Ensure this hash has a 'row' key.",
-                source=dict(pointer='/images/0/points/0')))
+                source=dict(pointer='/data/0/attributes/points/0')))
 
     def test_point_missing_column(self):
-        data = dict(images=json.dumps(
-            [dict(url='URL 1', points=[dict(row=10)])]
-        ))
+        images = [
+            dict(type='image', attributes=dict(
+                url='URL 1', points=[dict(row=10)]))]
+        data = json.dumps(dict(data=images))
         response = self.client.post(
-            self.deploy_url, data, **self.token_headers)
+            self.deploy_url, data, **self.request_kwargs)
 
         self.assert_expected_400_error(
             response, dict(
                 detail="Ensure this hash has a 'column' key.",
-                source=dict(pointer='/images/0/points/0')))
+                source=dict(pointer='/data/0/attributes/points/0')))
 
     def test_point_row_below_minimum(self):
-        data = dict(images=json.dumps(
-            [dict(url='URL 1', points=[dict(row=-1, column=0)])]
-        ))
+        images = [
+            dict(type='image', attributes=dict(
+                url='URL 1', points=[dict(row=-1, column=0)]))]
+        data = json.dumps(dict(data=images))
         response = self.client.post(
-            self.deploy_url, data, **self.token_headers)
+            self.deploy_url, data, **self.request_kwargs)
 
         self.assert_expected_400_error(
             response, dict(
                 detail="This element's value is below the minimum of 0.",
-                source=dict(pointer='/images/0/points/0/row')))
+                source=dict(pointer='/data/0/attributes/points/0/row')))
 
     def test_point_column_below_minimum(self):
-        data = dict(images=json.dumps(
-            [dict(url='URL 1', points=[dict(row=0, column=-1)])]
-        ))
+        images = [
+            dict(type='image', attributes=dict(
+                url='URL 1', points=[dict(row=0, column=-1)]))]
+        data = json.dumps(dict(data=images))
         response = self.client.post(
-            self.deploy_url, data, **self.token_headers)
+            self.deploy_url, data, **self.request_kwargs)
 
         self.assert_expected_400_error(
             response, dict(
                 detail="This element's value is below the minimum of 0.",
-                source=dict(pointer='/images/0/points/0/column')))
+                source=dict(pointer='/data/0/attributes/points/0/column')))
 
     def test_second_image_error(self):
-        data = dict(images=json.dumps(
-            [dict(url='URL 1', points=[dict(row=10, column=10)]), dict()]
-        ))
+        images = [
+            dict(type='image', attributes=dict(
+                url='URL 1', points=[dict(row=10, column=10)])),
+            dict(type='image', attributes=dict(points=[])),
+        ]
+        data = json.dumps(dict(data=images))
         response = self.client.post(
-            self.deploy_url, data, **self.token_headers)
+            self.deploy_url, data, **self.request_kwargs)
 
         self.assert_expected_400_error(
             response, dict(
                 detail="Ensure this hash has a 'url' key.",
-                source=dict(pointer='/images/1')))
+                source=dict(pointer='/data/1/attributes')))
 
     def test_second_point_error(self):
-        data = dict(images=json.dumps(
-            [dict(url='URL 1', points=[dict(row=10, column=10), dict(row=10)])]
-        ))
+        images = [
+            dict(type='image', attributes=dict(
+                url='URL 1', points=[dict(row=10, column=10), dict(row=10)]))]
+        data = json.dumps(dict(data=images))
         response = self.client.post(
-            self.deploy_url, data, **self.token_headers)
+            self.deploy_url, data, **self.request_kwargs)
 
         self.assert_expected_400_error(
             response, dict(
                 detail="Ensure this hash has a 'column' key.",
-                source=dict(pointer='/images/0/points/1')))
+                source=dict(pointer='/data/0/attributes/points/1')))
 
 
 class SuccessTest(DeployBaseTest):
@@ -331,11 +392,12 @@ class SuccessTest(DeployBaseTest):
 
     def test_deploy_response(self):
         """Test the response of a valid deploy request."""
-        data = dict(images=json.dumps(
-            [dict(url='URL 1', points=[dict(row=10, column=10)])]
-        ))
+        images = [
+            dict(type='image', attributes=dict(
+                url='URL 1', points=[dict(row=10, column=10)]))]
+        data = json.dumps(dict(data=images))
         response = self.client.post(
-            self.deploy_url, data, **self.token_headers)
+            self.deploy_url, data, **self.request_kwargs)
 
         self.assertEqual(
             response.status_code, status.HTTP_202_ACCEPTED,
@@ -358,10 +420,11 @@ class SuccessTest(DeployBaseTest):
         Test pre-extract-features state. To do this, we disable the
         extract-features task by patching it.
         """
-        data = dict(images=json.dumps(
-            [dict(url='URL 1', points=[dict(row=10, column=10)])]
-        ))
-        self.client.post(self.deploy_url, data, **self.token_headers)
+        images = [
+            dict(type='image', attributes=dict(
+                url='URL 1', points=[dict(row=10, column=10)]))]
+        data = json.dumps(dict(data=images))
+        self.client.post(self.deploy_url, data, **self.request_kwargs)
 
         try:
             deploy_job = ApiJob.objects.latest('pk')
@@ -403,10 +466,11 @@ class SuccessTest(DeployBaseTest):
         Test state after both feature extract and classify are done. To do
         this, just don't replace anything and let the tasks run synchronously.
         """
-        data = dict(images=json.dumps(
-            [dict(url='URL 1', points=[dict(row=10, column=10)])]
-        ))
-        self.client.post(self.deploy_url, data, **self.token_headers)
+        images = [
+            dict(type='image', attributes=dict(
+                url='URL 1', points=[dict(row=10, column=10)]))]
+        data = json.dumps(dict(data=images))
+        self.client.post(self.deploy_url, data, **self.request_kwargs)
 
         deploy_job = ApiJob.objects.latest('pk')
 
@@ -477,13 +541,14 @@ class TaskErrorsTest(DeployBaseTest):
     @skip("Skip until we can run backend during tests.")
     @patch('vision_backend_api.views.deploy.run', noop_task)
     def test_classify_classifier_deleted(self):
-        data = dict(images=json.dumps(
-            [dict(url='URL 1', points=[dict(row=10, column=10)])]
-        ))
+        images = [
+            dict(type='image', attributes=dict(
+                url='URL 1', points=[dict(row=10, column=10)]))]
+        data = json.dumps(dict(data=images))
 
         # Since extract features is a no-op, this won't run extract features
         # or classify. It'll just create the extract features job unit.
-        self.client.post(self.deploy_url, data, **self.token_headers)
+        self.client.post(self.deploy_url, data, **self.request_kwargs)
 
         features_unit = ApiJobUnit.objects.filter(
             type='deploy').latest('pk')

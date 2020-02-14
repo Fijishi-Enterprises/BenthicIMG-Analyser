@@ -75,7 +75,11 @@ class BaseAPIPermissionTest(BaseAPITest):
     and leave further customization to subclasses).
     """
     @classmethod
-    def get_token_headers(cls, username, password):
+    def get_request_kwargs_for_user(cls, username, password):
+        """
+        Get request kwargs required for the given user to make API requests.
+        These kwargs go in a test client's post() or get() methods.
+        """
         # Don't want DRF throttling to be a factor here, either.
         cache.clear()
 
@@ -88,14 +92,20 @@ class BaseAPIPermissionTest(BaseAPITest):
         )
         token = response.json()['token']
         return dict(
-            HTTP_AUTHORIZATION='Token {token}'.format(token=token))
+            # Authorization header.
+            HTTP_AUTHORIZATION='Token {token}'.format(token=token),
+            # Content type. Particularly needed for POST requests,
+            # but doesn't hurt for other requests either.
+            content_type='application/vnd.api+json',
+        )
 
     @classmethod
     def setUpTestData(cls):
         super(BaseAPIPermissionTest, cls).setUpTestData()
 
         cls.user = cls.create_user(username='user', password='SamplePass')
-        cls.user_token_headers = cls.get_token_headers('user', 'SamplePass')
+        cls.user_request_kwargs = cls.get_request_kwargs_for_user(
+            'user', 'SamplePass')
 
         labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
 
@@ -110,13 +120,13 @@ class BaseAPIPermissionTest(BaseAPITest):
         # Not a source member
         cls.user_outsider = cls.create_user(
             username='user_outsider', password='SamplePass')
-        cls.user_outsider_token_headers = cls.get_token_headers(
+        cls.user_outsider_request_kwargs = cls.get_request_kwargs_for_user(
             'user_outsider', 'SamplePass')
 
         # View permissions
         cls.user_viewer = cls.create_user(
             username='user_viewer', password='SamplePass')
-        cls.user_viewer_token_headers = cls.get_token_headers(
+        cls.user_viewer_request_kwargs = cls.get_request_kwargs_for_user(
             'user_viewer', 'SamplePass')
         cls.add_source_member(
             cls.user, cls.public_source,
@@ -128,7 +138,7 @@ class BaseAPIPermissionTest(BaseAPITest):
         # Edit permissions
         cls.user_editor = cls.create_user(
             username='user_editor', password='SamplePass')
-        cls.user_editor_token_headers = cls.get_token_headers(
+        cls.user_editor_request_kwargs = cls.get_request_kwargs_for_user(
             'user_editor', 'SamplePass')
         cls.add_source_member(
             cls.user, cls.public_source,
@@ -140,7 +150,7 @@ class BaseAPIPermissionTest(BaseAPITest):
         # Admin permissions
         cls.user_admin = cls.create_user(
             username='user_admin', password='SamplePass')
-        cls.user_admin_token_headers = cls.get_token_headers(
+        cls.user_admin_request_kwargs = cls.get_request_kwargs_for_user(
             'user_admin', 'SamplePass')
         cls.add_source_member(
             cls.user, cls.public_source,

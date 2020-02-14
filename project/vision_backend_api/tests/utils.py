@@ -40,8 +40,15 @@ class DeployBaseTest(BaseAPITest):
             ),
         )
         token = response.json()['token']
-        cls.token_headers = dict(
-            HTTP_AUTHORIZATION='Token {token}'.format(token=token))
+
+        # Kwargs for test client post() and get().
+        cls.request_kwargs = dict(
+            # Authorization header.
+            HTTP_AUTHORIZATION='Token {token}'.format(token=token),
+            # Content type. Particularly needed for POST requests,
+            # but doesn't hurt for other requests either.
+            content_type='application/vnd.api+json',
+        )
 
 
 # During tests, we use CELERY_ALWAYS_EAGER = True to run tasks synchronously,

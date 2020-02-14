@@ -1,9 +1,11 @@
+from __future__ import unicode_literals
 from six.moves import collections_abc
 
 from rest_framework.renderers import JSONRenderer
 
 
 class JSONAPIRenderer(JSONRenderer):
+    """Assist with rendering responses according to the jsonapi.org spec."""
 
     def render(self, data, accepted_media_type=None, renderer_context=None):
 

@@ -5,7 +5,7 @@ var LabelsetAdd = (function() {
 
     var initialLabelIdsLookup = null;
     var initialLabelIdsCount = null;
-    var labelIdsInAnnotationsLookup = null;
+    var labelIdsInConfirmedAnnotationsLookup = null;
     var hasClassifier = null;
 
     var $labelsetLabelIdsField = null;
@@ -41,7 +41,7 @@ var LabelsetAdd = (function() {
         return labelId in initialLabelIdsLookup;
     }
     function isInAnnotations(labelId) {
-        return labelId in labelIdsInAnnotationsLookup;
+        return labelId in labelIdsInConfirmedAnnotationsLookup;
     }
 
     function getSelectedIds() {
@@ -102,7 +102,8 @@ var LabelsetAdd = (function() {
     function disableRemoveButton(labelId) {
         var $addButton = get$removeBox(labelId).find('.add-remove-button');
         $addButton.addClass('disabled');
-        $addButton.attr('title', "Label used by annotations, can't remove");
+        $addButton.attr(
+            'title', "Can't remove; label is used in confirmed annotations");
         $addButton.unbind('click');
     }
 
@@ -321,11 +322,11 @@ var LabelsetAdd = (function() {
      * <SingletonClassName>.<methodName>. */
     return {
         init: function(params) {
-            labelIdsInAnnotationsLookup = {};
-            var idsList = params['labelIdsInAnnotations'];
+            labelIdsInConfirmedAnnotationsLookup = {};
+            var idsList = params['labelIdsInConfirmedAnnotations'];
             var i;
             for (i = 0; i < idsList.length; i++) {
-                labelIdsInAnnotationsLookup[idsList[i]] = true;
+                labelIdsInConfirmedAnnotationsLookup[idsList[i]] = true;
             }
 
             $labelsetLabelIdsField = $('#id_label_ids');

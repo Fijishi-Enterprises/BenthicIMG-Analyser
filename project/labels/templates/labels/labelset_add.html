@@ -105,7 +105,7 @@
   {# Script in the body will run on page load. #}
   <script type="text/javascript">
     LabelsetAdd.init({
-      'labelIdsInAnnotations': {{ label_ids_in_annotations|jsonify }},
+      'labelIdsInConfirmedAnnotations': {{ label_ids_in_confirmed_annotations|jsonify }},
       'hasClassifier': {{ has_classifier|jsonify }}
     });
     LabelNew.init({

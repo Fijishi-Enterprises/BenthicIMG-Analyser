@@ -15,7 +15,7 @@ from django.urls import reverse
 from django.utils.html import escape
 from django.utils.safestring import mark_safe
 
-from annotations.utils import get_labels_with_annotations_in_source
+from annotations.utils import label_ids_with_confirmed_annotations_in_source
 from lib.exceptions import FileProcessError
 from lib.forms import get_one_form_error
 from .models import Label, LabelGroup, LabelSet, LocalLabel
@@ -411,16 +411,15 @@ class LabelSetForm(Form):
                 raise ValidationError(msg, code='bad_label_id')
 
         # Check if any in-use labels are marked for removal
-        label_ids_in_annotations = list(
-            get_labels_with_annotations_in_source(self.source)
-            .values_list('pk', flat=True))
-        for label_id in label_ids_in_annotations:
+        label_ids_in_confirmed_annotations = \
+            label_ids_with_confirmed_annotations_in_source(self.source)
+        for label_id in label_ids_in_confirmed_annotations:
             if label_id not in label_id_list:
                 label = Label.objects.get(pk=label_id)
                 msg = (
                     "The label '{name}' is marked for removal from the"
                     " labelset, but we can't remove it because the source"
-                    " still has annotations with this label."
+                    " still has confirmed annotations with this label."
                     " Either we messed up, or some annotations have"
                     " changed since you reached this page."
                     " If the problem persists,"

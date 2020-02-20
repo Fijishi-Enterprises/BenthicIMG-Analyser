@@ -10,7 +10,6 @@ from accounts.utils import get_robot_user, is_robot_user, get_alleviate_user
 from .models import Annotation
 from images.model_utils import PointGen
 from images.models import Image, Point
-from labels.models import Label
 from vision_backend.tasks import submit_classifier
 
 
@@ -56,8 +55,17 @@ def image_annotation_area_is_editable(image):
     )
 
 
-def get_labels_with_annotations_in_source(source):
-    return Label.objects.filter(annotation__source=source).distinct()
+def label_ids_with_confirmed_annotations_in_source(source):
+    """
+    Get an iterable of label IDs which have at least one confirmed annotation
+    in the given source.
+    """
+    robot_user = get_robot_user()
+    confirmed_annotations_in_source = \
+        source.annotation_set.exclude(user=robot_user)
+    values = confirmed_annotations_in_source.values_list(
+        'label_id', flat=True).distinct()
+    return list(values)
 
 
 def get_annotation_user_display(anno):

@@ -26,6 +26,7 @@ from images.models import Source, Image, Point
 from images.utils import (
     generate_points, get_next_image, get_date_and_aux_metadata_table,
     get_prev_image, get_image_order_placement)
+from labels.models import Label
 from lib.decorators import (
     image_permission_required, image_annotation_area_must_be_editable,
     image_labelset_required, login_required_ajax)
@@ -473,10 +474,19 @@ def annotation_history(request, image_id):
         for v in rev_versions:
             point_number = version_to_point_number(v)
             global_label_pk = v.field_dict['label_id']
-            label_code = source.labelset.global_pk_to_code(global_label_pk)
 
-            events.append("Point {num}: {code}".format(
-                num=point_number, code=label_code or "(Deleted label)"))
+            label_display = source.labelset.global_pk_to_code(global_label_pk)
+            if not label_display:
+                # Label was removed from the labelset
+                try:
+                    label_display = Label.objects.get(pk=global_label_pk).name
+                except Label.DoesNotExist:
+                    # Label was deleted from the site
+                    label_display = "(Label of ID {pk})".format(
+                        pk=global_label_pk)
+
+            events.append("Point {num}: {label}".format(
+                num=point_number, label=label_display))
 
         if rev.comment:
             events.append(rev.comment)

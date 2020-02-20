@@ -1,8 +1,10 @@
 from __future__ import unicode_literals
+from datetime import timedelta
 import six
 
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
+from django.utils.timezone import now
 from reversion import revisions
 from tqdm import tqdm
 
@@ -10,14 +12,16 @@ from accounts.utils import get_robot_user
 from annotations.models import Annotation
 from images.models import Source
 from labels.models import Label
+from vision_backend import tasks as backend_tasks
 
 User = get_user_model()
 
 
 class Command(BaseCommand):
     help = (
-        "Replaces a source's confirmed annotations"
-        " of old_label with new_label."
+        "Replaces a source's annotations of old_label with new_label,"
+        " removes old_label from the source's labelset, and initiates a"
+        " backend reset for the source."
     )
 
     def add_arguments(self, parser):
@@ -32,7 +36,9 @@ class Command(BaseCommand):
         )
         parser.add_argument(
             'new_label_id', type=int,
-            help="ID of label to change the annotations to",
+            help=(
+                "ID of label to change the annotations to; this must"
+                " be in the source's labelset"),
         )
         parser.add_argument(
             'user_id', type=int,
@@ -70,6 +76,9 @@ class Command(BaseCommand):
         print(
             "They will be changed to {label},".format(label=new_label.name)
             + " under the username {user}.".format(user=user.username))
+        print(
+            "Also, {label} will be removed from".format(label=old_label.name)
+            + " the labelset, and a source backend-reset will be initiated.")
 
         input_text = six.moves.input("OK? [y/N]: ")
 
@@ -78,6 +87,7 @@ class Command(BaseCommand):
             print("Aborting.")
             return
 
+        # Replace the annotations.
         # Must explicitly turn on history creation when RevisionMiddleware is
         # not in effect. (It's only in effect within views.)
         with revisions.create_revision():
@@ -85,3 +95,10 @@ class Command(BaseCommand):
                 annotation.label = new_label
                 annotation.user = user
                 annotation.save()
+
+        # Remove label from labelset.
+        source.labelset.locallabel_set.get(global_label=old_label).delete()
+
+        # Reset the backend state for this source.
+        backend_tasks.reset_after_labelset_change.apply_async(
+            args=[source.pk], eta=now()+timedelta(seconds=10))

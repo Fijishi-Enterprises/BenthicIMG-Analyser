@@ -16,7 +16,7 @@ from django.views.decorators.http import require_POST, require_GET
 
 from accounts.utils import get_robot_user
 from annotations.models import Annotation
-from annotations.utils import get_labels_with_annotations_in_source
+from annotations.utils import label_ids_with_confirmed_annotations_in_source
 from images.models import Source
 from images.utils import filter_out_test_sources
 from lib.decorators import source_permission_required, \
@@ -175,15 +175,15 @@ def labelset_add(request, source_id):
         initial_label_ids = initial_label_ids_str.split(',')
     initial_labels = Label.objects.filter(pk__in=initial_label_ids)
 
-    label_ids_in_annotations = list(
-        get_labels_with_annotations_in_source(source)
-        .values_list('pk', flat=True))
+    label_ids_in_confirmed_annotations = \
+        label_ids_with_confirmed_annotations_in_source(source)
 
     return render(request, 'labels/labelset_add.html', {
         'source': source,
         'labelset_form': labelset_form,
         'initial_labels': initial_labels,
-        'label_ids_in_annotations': label_ids_in_annotations,
+        'label_ids_in_confirmed_annotations':
+            label_ids_in_confirmed_annotations,
         'has_classifier': source.classifier_set.exists(),
 
         # Include a new-label form on the page. It'll be submitted to

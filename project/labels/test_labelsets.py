@@ -8,6 +8,8 @@ from django.shortcuts import resolve_url
 from django.urls import reverse
 from django.utils.html import escape
 
+from accounts.utils import get_robot_user
+from images.model_utils import PointGen
 from lib.tests.utils import BasePermissionTest, sample_image_as_file
 from .models import Label
 from .test_labels import LabelTest
@@ -178,6 +180,8 @@ class LabelsetAddRemoveTest(LabelTest):
     """
     Test adding/removing labels from a labelset.
     """
+    longMessage = True
+
     @classmethod
     def setUpTestData(cls):
         # Call the parent's setup (while still using this class as cls)
@@ -194,7 +198,10 @@ class LabelsetAddRemoveTest(LabelTest):
         cls.create_label(cls.user, "Label E", 'E', cls.group)
 
         # Create source and labelset
-        cls.source = cls.create_source(cls.user)
+        cls.source = cls.create_source(
+            cls.user,
+            point_generation_type=PointGen.Types.SIMPLE,
+            simple_number_of_points=1)
         cls.create_labelset(cls.user, cls.source, Label.objects.filter(
             default_code__in=['A', 'B', 'C']))
 
@@ -266,36 +273,114 @@ class LabelsetAddRemoveTest(LabelTest):
             {'C', 'D', 'E'},
         )
 
-    def test_cant_remove_label_with_annotations(self):
+    def test_cant_remove_label_with_confirmed_annotations(self):
         # Annotate with C
         img = self.upload_image(self.user, self.source)
         self.add_annotations(self.user, img, {1: 'C'})
 
-        # Remove C
+        self.client.force_login(self.user)
+        response = self.client.get(self.url)
+        self.assertSetEqual(
+            set(response.context['label_ids_in_confirmed_annotations']),
+            {Label.objects.get(default_code='C').pk},
+            "Context variable that controls which labels are removable on the"
+            " form should have the expected value")
+
+        # Try to remove C
         label_pks = [
             Label.objects.get(default_code=default_code).pk
             for default_code in ['A', 'B']
         ]
-        self.client.force_login(self.user)
         response = self.client.post(
             self.url,
             dict(label_ids=','.join(str(pk) for pk in label_pks)),
             follow=True,
         )
 
-        # Check for error message
-        self.assertContains(response, escape(
-            "The label 'Label C' is marked for removal from the"
-            " labelset, but we can't remove it because the source"
-            " still has annotations with this label."))
+        self.assertContains(
+            response,
+            escape(
+                "The label 'Label C' is marked for removal from the"
+                " labelset, but we can't remove it because the source"
+                " still has confirmed annotations with this label."),
+            msg_prefix="Response should contain the expected error message")
 
-        # Check that the labelset changes didn't go through
         self.source.labelset.refresh_from_db()
         self.assertSetEqual(
             set(self.source.labelset.get_labels().values_list(
                 'code', flat=True)),
             {'A', 'B', 'C'},
+            "Labelset changes shouldn't be saved to the DB")
+
+    def test_can_remove_label_with_only_unconfirmed_annotations(self):
+        # Robot-annotate with C
+        img = self.upload_image(self.user, self.source)
+        robot = self.create_robot(self.source)
+        self.add_robot_annotations(robot, img, {1: 'C'})
+
+        self.client.force_login(self.user)
+        response = self.client.get(self.url)
+        self.assertSetEqual(
+            set(response.context['label_ids_in_confirmed_annotations']),
+            set(),
+            "Context variable that controls which labels are removable on the"
+            " form should have the expected value")
+
+        # Remove C
+        label_pks = [
+            Label.objects.get(default_code=default_code).pk
+            for default_code in ['A', 'B']
+        ]
+        response = self.client.post(
+            self.url,
+            dict(label_ids=','.join(str(pk) for pk in label_pks)),
+            follow=True,
         )
+        self.assertContains(
+            response, "Labelset successfully changed.",
+            msg_prefix="Form submission should succeed")
+
+        self.source.labelset.refresh_from_db()
+        self.assertSetEqual(
+            set(self.source.labelset.get_labels().values_list(
+                'code', flat=True)),
+            {'A', 'B'},
+            "Labelset changes should be saved to the DB")
+
+    def test_labelset_change_resets_backend_for_source(self):
+        # Create robot and robot annotations
+        img = self.upload_image(self.user, self.source)
+        robot = self.create_robot(self.source)
+        self.add_robot_annotations(robot, img, {1: 'C'})
+
+        # Remove A
+        label_pks = [
+            Label.objects.get(default_code=default_code).pk
+            for default_code in ['B', 'C']
+        ]
+        self.client.force_login(self.user)
+        # The backend-reset task should run synchronously here.
+        response = self.client.post(
+            self.url,
+            dict(label_ids=','.join(str(pk) for pk in label_pks)),
+            follow=True,
+        )
+        self.assertContains(
+            response, "Labelset successfully changed.",
+            msg_prefix="Form submission should succeed")
+
+        self.assertEqual(
+            self.source.score_set.count(), 0, "Scores should be deleted")
+        self.assertEqual(
+            self.source.classifier_set.count(), 0,
+            "Classifier should be deleted")
+        robot_user = get_robot_user()
+        self.assertEqual(
+            self.source.annotation_set.filter(user=robot_user).count(), 0,
+            "Unconfirmed annotations should be deleted")
+        self.assertEqual(
+            self.source.image_set.filter(features__classified=True).count(), 0,
+            "No features should be marked as classified")
 
 
 class LabelsetImportBaseTest(LabelTest):

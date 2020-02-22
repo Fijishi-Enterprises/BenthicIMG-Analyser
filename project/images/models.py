@@ -175,7 +175,12 @@ class Source(models.Model):
 
     @staticmethod
     def get_sources_of_user(user):
-        # For superusers, this returns ALL sources.
+        """
+        Get all sources that the user is a member of.
+
+        Special cases due to how permissions work: this returns ALL sources
+        for 1) superusers, and 2) users granted the global source-view perm.
+        """
         if user.is_authenticated:
             return get_objects_for_user(user, Source.PermTypes.VIEW.fullCode)\
                 .order_by('name')
@@ -280,8 +285,31 @@ class Source(models.Model):
         return self.visibility == Source.VisibilityTypes.PUBLIC
 
     def visible_to_user(self, user):
-        return (self.visibility == Source.VisibilityTypes.PUBLIC) or \
-               user.has_perm(Source.PermTypes.VIEW.code, self)
+        """
+        Return True if the user should have permission to see this source;
+        False otherwise.
+        """
+        return (
+            # Anyone can see public sources.
+            (self.visibility == Source.VisibilityTypes.PUBLIC)
+
+            # Users can see sources that they're a member of.
+            #
+            # This checks the DB for an object-level permission.
+            # Even if `code` was used to assign source membership perms,
+            # checking `fullCode` works here too.
+            or user.has_perm(Source.PermTypes.VIEW.fullCode, self)
+
+            # Users granted the global source-view perm can see all sources.
+            #
+            # This checks the DB for a global permission.
+            # Only `fullCode` is accepted for checking global permissions,
+            # since there are no other args to infer the app from.
+            # Note that has_perm(A) does NOT imply has_perm(A, object).
+            # has_perm() literally checks if the specified permission object
+            # exists in the DB. It doesn't perform any logic beyond that.
+            or user.has_perm(Source.PermTypes.VIEW.fullCode)
+        )
 
     def get_all_images(self):
         return Image.objects.filter(source=self)

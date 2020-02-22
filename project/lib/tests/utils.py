@@ -715,6 +715,20 @@ class BasePermissionTest(ClientTest):
         if deny_message:
             self.assertContains(response, deny_message)
 
+    def assertRedirectsToLogin(self, url, user=None, post_data=None):
+        if user:
+            self.client.force_login(user)
+        else:
+            # Test while logged out
+            self.client.logout()
+        if post_data is not None:
+            response = self.client.post(url, post_data)
+        else:
+            response = self.client.get(url)
+
+        self.assertRedirects(
+            response, reverse(settings.LOGIN_URL)+'?next='+url)
+
     def assertNotFound(self, url, user=None, post_data=None):
         if user:
             self.client.force_login(user)

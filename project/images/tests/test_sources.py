@@ -1,5 +1,4 @@
 from __future__ import unicode_literals
-from django.conf import settings
 from django.shortcuts import resolve_url
 from django.urls import reverse
 from django.utils import timezone
@@ -7,7 +6,88 @@ from django.utils import timezone
 from annotations.model_utils import AnnotationAreaUtils
 from images.model_utils import PointGen
 from images.models import Source
-from lib.tests.utils import ClientTest
+from lib.tests.utils import BasePermissionTest, ClientTest
+
+
+class PermissionTest(BasePermissionTest):
+
+    def test_source_about(self):
+        url = reverse('source_about')
+        self.assertPermissionGranted(url, None)
+        self.assertPermissionGranted(url, self.user_outsider)
+
+    def test_source_list(self):
+        url = reverse('source_about')
+        self.assertPermissionGranted(url, None)
+        self.assertPermissionGranted(url, self.user_outsider)
+
+    def test_source_new(self):
+        url = reverse('source_new')
+        self.assertRedirectsToLogin(url, None)
+        self.assertPermissionGranted(url, self.user_outsider)
+
+    def test_invites_manage(self):
+        url = reverse('invites_manage')
+        self.assertRedirectsToLogin(url, None)
+        self.assertPermissionGranted(url, self.user_outsider)
+
+    def test_source_detail_box_private_source(self):
+        url = reverse('source_detail_box', args=[self.private_source.pk])
+        self.assertPermissionGranted(url, None)
+        self.assertPermissionGranted(url, self.user_outsider)
+
+    def test_source_detail_box_public_source(self):
+        url = reverse('source_detail_box', args=[self.public_source.pk])
+        self.assertPermissionGranted(url, None)
+        self.assertPermissionGranted(url, self.user_outsider)
+
+    def test_source_main_private_source(self):
+        url = reverse('source_main', args=[self.private_source.pk])
+        self.assertPermissionDenied(url, None)
+        self.assertPermissionDenied(url, self.user_outsider)
+        self.assertPermissionGranted(url, self.user_viewer)
+        self.assertPermissionGranted(url, self.user_editor)
+        self.assertPermissionGranted(url, self.user_admin)
+
+    def test_source_main_public_source(self):
+        url = reverse('source_main', args=[self.public_source.pk])
+        self.assertPermissionGranted(url, None)
+        self.assertPermissionGranted(url, self.user_outsider)
+        self.assertPermissionGranted(url, self.user_viewer)
+        self.assertPermissionGranted(url, self.user_editor)
+        self.assertPermissionGranted(url, self.user_admin)
+
+    def test_source_edit_private_source(self):
+        url = reverse('source_edit', args=[self.private_source.pk])
+        self.assertPermissionDenied(url, None)
+        self.assertPermissionDenied(url, self.user_outsider)
+        self.assertPermissionDenied(url, self.user_viewer)
+        self.assertPermissionDenied(url, self.user_editor)
+        self.assertPermissionGranted(url, self.user_admin)
+
+    def test_source_edit_public_source(self):
+        url = reverse('source_edit', args=[self.public_source.pk])
+        self.assertPermissionDenied(url, None)
+        self.assertPermissionDenied(url, self.user_outsider)
+        self.assertPermissionDenied(url, self.user_viewer)
+        self.assertPermissionDenied(url, self.user_editor)
+        self.assertPermissionGranted(url, self.user_admin)
+
+    def test_source_admin_private_source(self):
+        url = reverse('source_admin', args=[self.private_source.pk])
+        self.assertPermissionDenied(url, None)
+        self.assertPermissionDenied(url, self.user_outsider)
+        self.assertPermissionDenied(url, self.user_viewer)
+        self.assertPermissionDenied(url, self.user_editor)
+        self.assertPermissionGranted(url, self.user_admin)
+
+    def test_source_admin_public_source(self):
+        url = reverse('source_admin', args=[self.public_source.pk])
+        self.assertPermissionDenied(url, None)
+        self.assertPermissionDenied(url, self.user_outsider)
+        self.assertPermissionDenied(url, self.user_viewer)
+        self.assertPermissionDenied(url, self.user_editor)
+        self.assertPermissionGranted(url, self.user_admin)
 
 
 class SourceAboutTest(ClientTest):
@@ -186,13 +266,6 @@ class SourceNewTest(ClientTest):
         response = self.client.post(
             reverse('source_new'), data, follow=True)
         return response
-
-    def test_login_required(self):
-        response = self.client.get(reverse('source_new'))
-        self.assertRedirects(
-            response,
-            reverse(settings.LOGIN_URL)+'?next='+reverse('source_new'),
-        )
 
     def test_access_page(self):
         """
@@ -653,56 +726,20 @@ class SourceEditTest(ClientTest):
     def setUpTestData(cls):
         super(SourceEditTest, cls).setUpTestData()
 
-        cls.user_creator = cls.create_user()
+        cls.user = cls.create_user()
 
         # Create a source
-        cls.source = cls.create_source(cls.user_creator)
-        cls.url = reverse('source_edit', kwargs={'source_id': cls.source.pk})
+        cls.source = cls.create_source(cls.user)
+        cls.url = reverse('source_edit', args=[cls.source.pk])
 
-        # Source members
-        cls.user_admin = cls.create_user()
-        cls.add_source_member(
-            cls.user_creator, cls.source,
-            cls.user_admin, Source.PermTypes.ADMIN.code)
-        cls.user_editor = cls.create_user()
-        cls.add_source_member(
-            cls.user_creator, cls.source,
-            cls.user_editor, Source.PermTypes.EDIT.code)
-        cls.user_viewer = cls.create_user()
-        cls.add_source_member(
-            cls.user_creator, cls.source,
-            cls.user_viewer, Source.PermTypes.VIEW.code)
-        # Non-member
-        cls.user_outsider = cls.create_user()
-
-    def test_login_required(self):
-        response = self.client.get(self.url)
-        self.assertStatusOK(response)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-
-    def test_access_as_admin(self):
-        self.client.force_login(self.user_admin)
+    def test_access_page(self):
+        self.client.force_login(self.user)
         response = self.client.get(self.url)
         self.assertStatusOK(response)
         self.assertTemplateUsed(response, 'images/source_edit.html')
 
-    def test_access_denied_as_editor(self):
-        self.client.force_login(self.user_editor)
-        response = self.client.get(self.url)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-
-    def test_access_denied_as_viewer(self):
-        self.client.force_login(self.user_viewer)
-        response = self.client.get(self.url)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-
-    def test_access_denied_as_outsider(self):
-        self.client.force_login(self.user_outsider)
-        response = self.client.get(self.url)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-
     def test_source_edit(self):
-        self.client.force_login(self.user_creator)
+        self.client.force_login(self.user)
         response = self.client.post(
             self.url,
             dict(
@@ -805,43 +842,3 @@ class SourceInviteTest(ClientTest):
         response = self.client.get(
             reverse('upload_images', kwargs={'source_id': self.source.pk}))
         self.assertTemplateUsed(response, 'upload/upload_images.html')
-
-
-class ImageViewTest(ClientTest):
-    """
-    Test the image view/detail page.
-    """
-    @classmethod
-    def setUpTestData(cls):
-        super(ImageViewTest, cls).setUpTestData()
-
-        cls.user = cls.create_user()
-
-        # Create a source
-        cls.source = cls.create_source(cls.user)
-
-        # Upload a small image and a large image
-        cls.small_image = cls.upload_image(
-            cls.user, cls.source, image_options=dict(width=400, height=400))
-        cls.large_image = cls.upload_image(
-            cls.user, cls.source, image_options=dict(width=1600, height=1600))
-
-    def test_view_page_with_small_image(self):
-        url = reverse('image_detail', kwargs={'image_id': self.small_image.id})
-        response = self.client.get(url)
-        self.assertStatusOK(response)
-
-        # Try fetching the page a second time, to make sure thumbnail
-        # generation doesn't go nuts.
-        response = self.client.get(url)
-        self.assertStatusOK(response)
-
-    def test_view_page_with_large_image(self):
-        url = reverse('image_detail', kwargs={'image_id': self.large_image.id})
-        response = self.client.get(url)
-        self.assertStatusOK(response)
-
-        # Try fetching the page a second time, to make sure thumbnail
-        # generation doesn't go nuts.
-        response = self.client.get(url)
-        self.assertStatusOK(response)

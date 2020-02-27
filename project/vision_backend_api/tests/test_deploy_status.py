@@ -50,7 +50,8 @@ class DeployStatusAccessTest(BaseAPIPermissionTest):
         job = ApiJob(type='deploy', user=self.user)
         job.save()
         url = reverse('api:deploy_status', args=[job.pk])
-        self.assertNeedsAuth(url)
+        response = self.client.get(url)
+        self.assertForbiddenResponse(response)
 
     def test_post_method_not_allowed(self):
         job = ApiJob(type='deploy', user=self.user)

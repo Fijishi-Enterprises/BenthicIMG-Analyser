@@ -29,9 +29,10 @@ class AuthTest(BaseAPITest):
     def test_no_auth(self):
         # Don't log in or anything
         url = reverse('api:deploy', args=[self.source.pk])
-        self.assertNeedsAuth(
-            url,
-            "Endpoints unrelated to getting API tokens should require auth")
+        response = self.client.post(url)
+
+        # Endpoints unrelated to getting API tokens should require auth
+        self.assertForbiddenResponse(response)
 
     def test_session_auth(self):
         # Log in like we would for non-API requests

@@ -19,6 +19,11 @@ from .utils import DeployBaseTest, noop_task
 
 class DeployAccessTest(BaseAPIPermissionTest):
 
+    def assertNeedsAuth(self, url):
+        # Request with no token header
+        response = self.client.post(url)
+        self.assertForbiddenResponse(response)
+
     def assertNotFound(self, url, request_kwargs):
         response = self.client.post(url, **request_kwargs)
         self.assertEqual(

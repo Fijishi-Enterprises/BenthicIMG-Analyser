@@ -27,15 +27,16 @@ class BaseAPITest(ClientTest):
         # Don't want DRF throttling to be a factor during class setup, either.
         cache.clear()
 
-    def assertNeedsAuth(self, url, msg="Should get 403"):
-        # Request with no token header
-        response = self.client.post(url)
+    def assertForbiddenResponse(
+            self, response,
+            error_detail="Authentication credentials were not provided.",
+            msg="Should get 403"):
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN, msg)
 
+        response_json = response.json()
         self.assertDictEqual(
-            response.json(),
-            dict(errors=[
-                dict(detail="Authentication credentials were not provided.")]),
+            response_json,
+            dict(errors=[dict(detail=error_detail)]),
             "Error response's body should be as expected")
 
     def assertMethodNotAllowedResponse(self, response, msg="Should get 405"):

@@ -481,6 +481,7 @@ REST_FRAMEWORK = {
         'burst': '50/min',
         'sustained': '500/hour',
     },
+    'EXCEPTION_HANDLER': 'api_core.exceptions.exception_handler',
 }
 
 

@@ -149,6 +149,10 @@ class DeployStatusEndpointTest(DeployBaseTest):
                             total=2))]),
             "Response JSON should be as expected")
 
+        self.assertEqual(
+            'application/vnd.api+json', response.get('content-type'),
+            "Content type should be as expected")
+
     @patch('vision_backend_api.views.deploy.run', noop_task)
     def test_some_images_working(self):
         job = self.deploy()

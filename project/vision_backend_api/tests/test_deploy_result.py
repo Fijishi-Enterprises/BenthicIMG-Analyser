@@ -286,3 +286,7 @@ class DeployResultEndpointTest(DeployBaseTest):
                     ),
                 ]),
             "Response JSON should be as expected")
+
+        self.assertEqual(
+            'application/vnd.api+json', response.get('content-type'),
+            "Content type should be as expected")

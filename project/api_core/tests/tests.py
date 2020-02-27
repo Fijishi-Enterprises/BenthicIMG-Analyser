@@ -52,13 +52,6 @@ class AuthTest(BaseAPITest):
                 password='SamplePassword',
             ),
         )
-        response_json = response.json()
-        self.assertIn(
-            'token', response_json, "Response should have a token member")
-        self.assertEqual(
-            len(response_json), 1,
-            "Response should have no other top-level members")
-
         token = response.json()['token']
 
         url = reverse('api:deploy', args=[self.source.pk])
@@ -67,6 +60,24 @@ class AuthTest(BaseAPITest):
         self.assertNotEqual(
             response.status_code, status.HTTP_403_FORBIDDEN,
             "Token auth should work")
+
+    def test_token_response(self):
+        response = self.client.post(
+            reverse('api:token_auth'),
+            dict(
+                username='testuser',
+                password='SamplePassword',
+            ),
+        )
+        response_json = response.json()
+        self.assertIn(
+            'token', response_json, "Response should have a token member")
+        self.assertEqual(
+            len(response_json), 1,
+            "Response should have no other top-level members")
+        self.assertEqual(
+            'application/vnd.api+json', response.get('content-type'),
+            "Content type should be as expected")
 
 
 class ThrottleTest(BaseAPITest):

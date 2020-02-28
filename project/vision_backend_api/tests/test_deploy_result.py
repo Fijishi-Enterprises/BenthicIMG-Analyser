@@ -90,7 +90,7 @@ class DeployResultAccessTest(BaseAPIPermissionTest):
 
         response = self.client.get(url, **self.user_request_kwargs)
         self.assertThrottleResponse(
-            response, "4th request should be denied by throttling")
+            response, msg="4th request should be denied by throttling")
 
 
 class DeployResultEndpointTest(DeployBaseTest):

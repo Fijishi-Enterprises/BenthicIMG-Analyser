@@ -482,6 +482,10 @@ REST_FRAMEWORK = {
     'EXCEPTION_HANDLER': 'api_core.exceptions.exception_handler',
 }
 
+# [Custom setting]
+# Additional API-throttling policy for async jobs.
+MAX_CONCURRENT_API_JOBS_PER_USER = 5
+
 
 # [Custom settings]
 # Media filepath patterns

@@ -54,7 +54,11 @@ class BaseAPITest(ClientTest):
             and error_detail.endswith(" not allowed."),
             "Response error detail should be as expected")
 
-    def assertThrottleResponse(self, response, msg="Should get 429"):
+    def assertThrottleResponse(
+            self, response,
+            detail_substring="Request was throttled. Expected available in",
+            msg="Should get 429"):
+
         self.assertEqual(
             response.status_code, status.HTTP_429_TOO_MANY_REQUESTS, msg)
 
@@ -62,9 +66,8 @@ class BaseAPITest(ClientTest):
         self.assertIn(
             'errors', response_json,
             "Response should have top-level member 'errors'")
-        self.assertTrue(
-            response_json['errors'][0]['detail'].startswith(
-                "Request was throttled. Expected available in "),
+        self.assertIn(
+            detail_substring, response_json['errors'][0]['detail'],
             "Response error detail should be as expected")
 
 

@@ -197,7 +197,7 @@ class ThrottleTest(BaseAPITest):
 
         response = self.request_token()
         self.assertThrottleResponse(
-            response, "4th request should be denied by throttling")
+            response, msg="4th request should be denied by throttling")
 
     throttle_test_settings = copy.deepcopy(settings.REST_FRAMEWORK)
     throttle_test_settings['DEFAULT_THROTTLE_RATES']['burst'] = '100/min'
@@ -214,7 +214,7 @@ class ThrottleTest(BaseAPITest):
 
         response = self.request_token()
         self.assertThrottleResponse(
-            response, "4th request should be denied by throttling")
+            response, msg="4th request should be denied by throttling")
 
     throttle_test_settings = copy.deepcopy(settings.REST_FRAMEWORK)
     throttle_test_settings['DEFAULT_THROTTLE_RATES']['burst'] = '3/min'
@@ -236,7 +236,7 @@ class ThrottleTest(BaseAPITest):
             reverse('api:deploy', args=[self.classifier.pk]),
             HTTP_AUTHORIZATION='Token {token}'.format(token=token))
         self.assertThrottleResponse(
-            response, "4th testuser request should be throttled")
+            response, msg="4th testuser request should be throttled")
 
         response = self.request_token(username='testuser2')
         token_2 = response.json()['token']
@@ -261,7 +261,7 @@ class ThrottleTest(BaseAPITest):
 
         response = self.request_token()
         self.assertThrottleResponse(
-            response, "4th anon-1 request should be denied by throttling")
+            response, msg="4th anon-1 request should be denied by throttling")
 
         # When anonymous users are making API requests, DRF distinguishes
         # those users by IP address for rate limiting purposes. So we simulate

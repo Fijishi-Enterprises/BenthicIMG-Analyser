@@ -86,7 +86,7 @@ class DeployAccessTest(BaseAPIPermissionTest):
     throttle_test_settings['DEFAULT_THROTTLE_RATES']['sustained'] = '3/hour'
 
     @override_settings(REST_FRAMEWORK=throttle_test_settings)
-    def test_throttling(self):
+    def test_request_rate_throttling(self):
         classifier = self.create_robot(self.public_source)
         url = reverse('api:deploy', args=[classifier.pk])
 
@@ -98,7 +98,59 @@ class DeployAccessTest(BaseAPIPermissionTest):
 
         response = self.client.post(url, **self.user_request_kwargs)
         self.assertThrottleResponse(
-            response, "4th request should be denied by throttling")
+            response, msg="4th request should be denied by throttling")
+
+    @patch('vision_backend_api.views.deploy.run', noop_task)
+    @override_settings(MAX_CONCURRENT_API_JOBS_PER_USER=3)
+    def test_active_job_throttling(self):
+        classifier = self.create_robot(self.public_source)
+        url = reverse('api:deploy', args=[classifier.pk])
+
+        images = [
+            dict(type='image', attributes=dict(
+                url='URL 1', points=[dict(row=10, column=10)]))]
+        data = json.dumps(dict(data=images))
+
+        # Submit 3 jobs
+        for _ in range(3):
+            response = self.client.post(url, data, **self.user_request_kwargs)
+            self.assertNotEqual(
+                response.status_code, status.HTTP_429_TOO_MANY_REQUESTS,
+                "1st-3rd requests should not be throttled")
+
+        job_ids = ApiJob.objects.filter(user=self.user).order_by('pk') \
+            .values_list('pk', flat=True)
+
+        # Submit another job with the other 3 still going
+        response = self.client.post(url, data, **self.user_request_kwargs)
+        detail = (
+            "You already have 3 jobs active"
+            + " (IDs: {id_0}, {id_1}, {id_2}).".format(
+                id_0=job_ids[0], id_1=job_ids[1], id_2=job_ids[2])
+            + " You must wait until one of them finishes"
+            + " before requesting another job.")
+        self.assertThrottleResponse(
+            response, detail_substring=detail,
+            msg="4th request should be denied by throttling")
+
+        # Submit job as another user
+        response = self.client.post(
+            url, data, **self.user_viewer_request_kwargs)
+        self.assertNotEqual(
+            response.status_code, status.HTTP_429_TOO_MANY_REQUESTS,
+            "Other users should not be throttled")
+
+        # Finish one job, then submit another job
+        job = ApiJob.objects.get(pk=job_ids[0])
+        for unit in job.apijobunit_set.all():
+            unit.status = ApiJobUnit.SUCCESS
+            unit.save()
+
+        response = self.client.post(
+            url, data, **self.user_request_kwargs)
+        self.assertNotEqual(
+            response.status_code, status.HTTP_429_TOO_MANY_REQUESTS,
+            "Shouldn't be denied now that one job has finished")
 
 
 class DeployImagesParamErrorTest(DeployBaseTest):

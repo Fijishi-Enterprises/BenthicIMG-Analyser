@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+from django.conf import settings
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
@@ -24,6 +25,25 @@ class Deploy(APIView):
     Request a classifier deployment on a specified set of images.
     """
     def post(self, request, classifier_id):
+
+        # Check to see if we should throttle based on already-active jobs.
+        all_jobs = ApiJob.objects.filter(user=request.user).order_by('pk')
+        active_jobs = [
+            job for job in all_jobs
+            if job.status in [ApiJob.PENDING, ApiJob.IN_PROGRESS]]
+        max_job_count = settings.MAX_CONCURRENT_API_JOBS_PER_USER
+
+        if len(active_jobs) >= max_job_count:
+            ids = ', '.join([str(job.pk) for job in active_jobs[:5]])
+            detail = (
+                "You already have {max} jobs active".format(max=max_job_count)
+                + " (IDs: {ids}).".format(ids=ids)
+                + " You must wait until one of them finishes"
+                + " before requesting another job.")
+            return Response(
+                dict(errors=[dict(detail=detail)]),
+                status=status.HTTP_429_TOO_MANY_REQUESTS)
+
         # Check for invalid JSON.
         try:
             request.data
@@ -100,40 +120,26 @@ class DeployStatus(APIView):
                 dict(errors=[dict(detail=detail)]),
                 status=status.HTTP_404_NOT_FOUND)
 
-        job_units = deploy_job.apijobunit_set
-        success_count = job_units.filter(
-            type='deploy', status=ApiJobUnit.SUCCESS).count()
-        failure_count = job_units.filter(
-            type='deploy', status=ApiJobUnit.FAILURE).count()
-        total_image_count = job_units.filter(
-            type='deploy').count()
+        job_status = deploy_job.full_status()
 
-        if not job_units.exclude(status=ApiJobUnit.PENDING).exists():
-            # All units are still pending, so the job as a whole is pending
-            job_status = ApiJob.PENDING
-        elif success_count + failure_count < total_image_count:
-            # Some units haven't finished yet, so the job isn't done yet
-            job_status = ApiJob.IN_PROGRESS
-        else:
-            # Job is done
+        if job_status['overall_status'] == ApiJob.DONE:
             return Response(
                 status=status.HTTP_303_SEE_OTHER,
                 headers={
                     'Location': reverse('api:deploy_result', args=[job_id]),
                 },
             )
-
-        data = [
-            dict(
-                type="job",
-                id=str(job_id),
-                attributes=dict(
-                    status=job_status,
-                    successes=success_count,
-                    failures=failure_count,
-                    total=total_image_count))]
-
-        return Response(dict(data=data), status=status.HTTP_200_OK)
+        else:
+            data = [
+                dict(
+                    type="job",
+                    id=str(job_id),
+                    attributes=dict(
+                        status=job_status['overall_status'],
+                        successes=job_status['success_units'],
+                        failures=job_status['failure_units'],
+                        total=job_status['total_units']))]
+            return Response(dict(data=data), status=status.HTTP_200_OK)
 
 
 class DeployResult(APIView):
@@ -152,13 +158,7 @@ class DeployResult(APIView):
                 dict(errors=[dict(detail=detail)]),
                 status=status.HTTP_404_NOT_FOUND)
 
-        classify_units = deploy_job.apijobunit_set.filter(type='deploy')
-        # If classify units were created, and none of them are pending/working,
-        # then the job is done.
-        job_done = (classify_units.exists() and not classify_units.filter(
-            status__in=[ApiJobUnit.PENDING, ApiJobUnit.IN_PROGRESS]).exists())
-
-        if job_done:
+        if deploy_job.status == ApiJob.DONE:
             images_json = []
 
             # Report images in the same order that they were originally given
@@ -166,7 +166,7 @@ class DeployResult(APIView):
             def sort_key(unit_):
                 return unit_.request_json['image_order']
 
-            for unit in sorted(classify_units, key=sort_key):
+            for unit in sorted(deploy_job.apijobunit_set.all(), key=sort_key):
                 images_json.append(dict(
                     type='image',
                     id=unit.result_json['url'],

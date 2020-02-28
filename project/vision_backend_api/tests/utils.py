@@ -59,9 +59,8 @@ class DeployBaseTest(BaseAPITest):
 # patched / not patched in tests where it's not supposed to be.
 # https://stackoverflow.com/a/29269211/
 #
-# Note: Yes, patching views.deploy_extract_features.run (views, not tasks) is
-# correct if we want to affect usages of deploy_extract_features in the
-# views module.
+# Note: Yes, patching views.deploy.run (views, not tasks) is
+# correct if we want to affect usages of deploy in the views module.
 # https://docs.python.org/3/library/unittest.mock.html#where-to-patch
 
 

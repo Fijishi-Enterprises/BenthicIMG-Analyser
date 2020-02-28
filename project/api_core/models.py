@@ -36,9 +36,8 @@ class ApiJobUnit(models.Model):
     # The larger job that this unit is a part of.
     job = models.ForeignKey(ApiJob, on_delete=models.CASCADE)
 
-    # String specifying the type of job unit. For example, deploy might have
-    # feature extraction and classification, and thus use strings like
-    # 'deploy_feature_extract'.
+    # String specifying the type of job unit, in case a single job has more
+    # than one type of unit.
     type = models.CharField(max_length=30)
 
     PENDING = 'PN'

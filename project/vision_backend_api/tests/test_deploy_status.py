@@ -155,14 +155,14 @@ class DeployStatusEndpointTest(DeployBaseTest):
             "Content type should be as expected")
 
     @patch('vision_backend_api.views.deploy.run', noop_task)
-    def test_some_images_working(self):
+    def test_some_images_in_progress(self):
         job = self.deploy()
 
-        # Mark one feature-extract unit's status as working
-        features_job_unit = ApiJobUnit.objects.filter(
+        # Mark one unit's status as in progress
+        job_unit = ApiJobUnit.objects.filter(
             job=job, type='deploy').latest('pk')
-        features_job_unit.status = ApiJobUnit.IN_PROGRESS
-        features_job_unit.save()
+        job_unit.status = ApiJobUnit.IN_PROGRESS
+        job_unit.save()
 
         response = self.get_job_status(job)
 
@@ -183,8 +183,14 @@ class DeployStatusEndpointTest(DeployBaseTest):
             "Response JSON should be as expected")
 
     @patch('vision_backend.tasks.deploy.run', noop_task)
-    def test_features_extracted(self):
+    def test_all_images_in_progress(self):
         job = self.deploy()
+
+        job_units = ApiJobUnit.objects.filter(job=job, type='deploy')
+        for job_unit in job_units:
+            job_unit.status = ApiJobUnit.IN_PROGRESS
+            job_unit.save()
+
         response = self.get_job_status(job)
 
         self.assertStatusOK(response)
@@ -197,7 +203,7 @@ class DeployStatusEndpointTest(DeployBaseTest):
                         type="job",
                         id=str(job.pk),
                         attributes=dict(
-                            status="Pending",
+                            status="In Progress",
                             successes=0,
                             failures=0,
                             total=2))]),
@@ -207,7 +213,7 @@ class DeployStatusEndpointTest(DeployBaseTest):
     def test_some_images_success(self):
         job = self.deploy()
 
-        # Mark one classify unit's status as success
+        # Mark one unit's status as success
         job_units = ApiJobUnit.objects.filter(job=job, type='deploy')
 
         self.assertEqual(job_units.count(), 2)
@@ -238,11 +244,11 @@ class DeployStatusEndpointTest(DeployBaseTest):
     def test_some_images_failure(self):
         job = self.deploy()
 
-        # Mark one classify unit's status as failure
-        classify_job_unit = ApiJobUnit.objects.filter(
+        # Mark one unit's status as failure
+        job_unit = ApiJobUnit.objects.filter(
             job=job, type='deploy').latest('pk')
-        classify_job_unit.status = ApiJobUnit.FAILURE
-        classify_job_unit.save()
+        job_unit.status = ApiJobUnit.FAILURE
+        job_unit.save()
 
         response = self.get_job_status(job)
 
@@ -284,7 +290,7 @@ class DeployStatusEndpointTest(DeployBaseTest):
     def test_failure(self):
         job = self.deploy()
 
-        # Mark both classify units' status as done: one success, one failure.
+        # Mark both units' status as done: one success, one failure.
         #
         # Note: We must bind the units to separate names, since assigning an
         # attribute using an index access (like units[0].status = 'SC')

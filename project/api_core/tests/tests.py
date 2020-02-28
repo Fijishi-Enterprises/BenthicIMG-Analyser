@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 import copy
 from datetime import timedelta
+import json
 
 from django.conf import settings
 from django.test import override_settings
@@ -25,10 +26,11 @@ class AuthTest(BaseAPITest):
         cls.user = cls.create_user(
             username='testuser', password='SamplePassword')
         cls.source = cls.create_source(cls.user)
+        cls.classifier = cls.create_robot(cls.source)
 
     def test_no_auth(self):
         # Don't log in or anything
-        url = reverse('api:deploy', args=[self.source.pk])
+        url = reverse('api:deploy', args=[self.classifier.pk])
         response = self.client.post(url)
 
         # Endpoints unrelated to getting API tokens should require auth
@@ -38,7 +40,7 @@ class AuthTest(BaseAPITest):
         # Log in like we would for non-API requests
         self.client.force_login(self.user)
 
-        url = reverse('api:deploy', args=[self.source.pk])
+        url = reverse('api:deploy', args=[self.classifier.pk])
         response = self.client.post(url)
         self.assertNotEqual(
             response.status_code, status.HTTP_403_FORBIDDEN,
@@ -48,14 +50,12 @@ class AuthTest(BaseAPITest):
         # Get a token
         response = self.client.post(
             reverse('api:token_auth'),
-            dict(
-                username='testuser',
-                password='SamplePassword',
-            ),
+            data='{"username": "testuser", "password": "SamplePassword"}',
+            content_type='application/vnd.api+json',
         )
         token = response.json()['token']
 
-        url = reverse('api:deploy', args=[self.source.pk])
+        url = reverse('api:deploy', args=[self.classifier.pk])
         response = self.client.post(
             url, HTTP_AUTHORIZATION='Token {token}'.format(token=token))
         self.assertNotEqual(
@@ -65,10 +65,8 @@ class AuthTest(BaseAPITest):
     def test_token_response(self):
         response = self.client.post(
             reverse('api:token_auth'),
-            dict(
-                username='testuser',
-                password='SamplePassword',
-            ),
+            data='{"username": "testuser", "password": "SamplePassword"}',
+            content_type='application/vnd.api+json',
         )
         response_json = response.json()
         self.assertIn(
@@ -79,6 +77,83 @@ class AuthTest(BaseAPITest):
         self.assertEqual(
             'application/vnd.api+json', response.get('content-type'),
             "Content type should be as expected")
+
+
+class ContentTypeTest(BaseAPITest):
+    """
+    Test API content type checks.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super(ContentTypeTest, cls).setUpTestData()
+
+        cls.user = cls.create_user(
+            username='testuser', password='SamplePassword')
+        cls.source = cls.create_source(cls.user)
+        cls.classifier = cls.create_robot(cls.source)
+
+        # Get a token
+        response = cls.client.post(
+            reverse('api:token_auth'),
+            data='{"username": "testuser", "password": "SamplePassword"}',
+            content_type='application/vnd.api+json',
+        )
+        cls.token = response.json()['token']
+
+    def test_token_auth_wrong_content_type(self):
+        response = self.client.post(
+            reverse('api:token_auth'),
+            data='{"username": "testuser", "password": "SamplePassword"}',
+            content_type='application/json',
+        )
+
+        self.assertEqual(
+            response.status_code, status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            "Should get 415")
+        detail = (
+            "Content type should be application/vnd.api+json,"
+            " not application/json")
+        self.assertDictEqual(
+            response.json(), dict(errors=[dict(detail=detail)]),
+            "Response JSON should be as expected")
+
+    def test_get_wrong_content_type(self):
+        """
+        Test content-type checking for GET requests.
+        """
+        job = ApiJob(type='test', user=self.user)
+        job.save()
+        status_url = reverse('api:deploy_status', args=[job.pk])
+        response = self.client.get(
+            status_url,
+            HTTP_AUTHORIZATION='Token {token}'.format(token=self.token),
+            content_type='multipart/form-data',
+        )
+
+        self.assertNotEqual(
+            response.status_code, status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            msg="Should not be strict about content types for GET requests")
+
+    def test_post_wrong_content_type(self):
+        """
+        Test content-type checking for POST requests (other than token auth).
+        """
+        deploy_url = reverse('api:deploy', args=[self.classifier.pk])
+        response = self.client.post(
+            deploy_url,
+            HTTP_AUTHORIZATION='Token {token}'.format(token=self.token),
+            content_type='multipart/form-data',
+        )
+
+        self.assertEqual(
+            response.status_code, status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            "Should get 415")
+        detail = (
+            "Content type should be application/vnd.api+json,"
+            " not multipart/form-data")
+        self.assertDictEqual(
+            response.json(), dict(errors=[dict(detail=detail)]),
+            "Response JSON should be as expected")
 
 
 class ThrottleTest(BaseAPITest):
@@ -94,11 +169,15 @@ class ThrottleTest(BaseAPITest):
         cls.user2 = cls.create_user(
             username='testuser2', password='SamplePassword')
         cls.source = cls.create_source(cls.user)
+        cls.classifier = cls.create_robot(cls.source)
 
     def request_token(self, username='testuser'):
         response = self.client.post(
             reverse('api:token_auth'),
-            dict(username=username, password='SamplePassword'))
+            data=json.dumps(
+                dict(username=username, password='SamplePassword')),
+            content_type='application/vnd.api+json',
+        )
         return response
 
     # Alter throttle rates for the following test. Use deepcopy to avoid
@@ -147,14 +226,14 @@ class ThrottleTest(BaseAPITest):
 
         for _ in range(3):
             response = self.client.post(
-                reverse('api:deploy', args=[self.source.pk]),
+                reverse('api:deploy', args=[self.classifier.pk]),
                 HTTP_AUTHORIZATION='Token {token}'.format(token=token))
             self.assertNotEqual(
                 response.status_code, status.HTTP_429_TOO_MANY_REQUESTS,
                 "1st-3rd testuser requests should not be throttled")
 
         response = self.client.post(
-            reverse('api:deploy', args=[self.source.pk]),
+            reverse('api:deploy', args=[self.classifier.pk]),
             HTTP_AUTHORIZATION='Token {token}'.format(token=token))
         self.assertThrottleResponse(
             response, "4th testuser request should be throttled")
@@ -164,7 +243,7 @@ class ThrottleTest(BaseAPITest):
 
         for _ in range(3):
             response = self.client.post(
-                reverse('api:deploy', args=[self.source.pk]),
+                reverse('api:deploy', args=[self.classifier.pk]),
                 HTTP_AUTHORIZATION='Token {token}'.format(token=token_2))
             self.assertNotEqual(
                 response.status_code, status.HTTP_429_TOO_MANY_REQUESTS,
@@ -187,12 +266,14 @@ class ThrottleTest(BaseAPITest):
         # When anonymous users are making API requests, DRF distinguishes
         # those users by IP address for rate limiting purposes. So we simulate
         # 'another user' by changing the REMOTE_ADDR.
-        args = [
-            reverse('api:token_auth'),
-            dict(username='testuser', password='SamplePassword')]
-        kwargs = dict(REMOTE_ADDR='1.2.3.4')
+        kwargs = dict(
+            path=reverse('api:token_auth'),
+            data='{"username": "testuser", "password": "SamplePassword"}',
+            content_type='application/vnd.api+json',
+            REMOTE_ADDR='1.2.3.4',
+        )
         for _ in range(3):
-            response = self.client.post(*args, **kwargs)
+            response = self.client.post(**kwargs)
             self.assertStatusOK(
                 response,
                 "Different anon IP should not be affected by the"

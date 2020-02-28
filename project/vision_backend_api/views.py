@@ -24,14 +24,6 @@ class Deploy(APIView):
     Request a classifier deployment on a specified set of images.
     """
     def post(self, request, classifier_id):
-        expected_content_type = 'application/vnd.api+json'
-
-        if request.content_type != expected_content_type:
-            detail = "Content type should be {}".format(expected_content_type)
-            return Response(
-                dict(errors=[dict(detail=detail)]),
-                status=status.HTTP_400_BAD_REQUEST)
-
         # Check for invalid JSON.
         try:
             request.data

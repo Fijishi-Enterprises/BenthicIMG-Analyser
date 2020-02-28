@@ -34,10 +34,8 @@ class DeployBaseTest(BaseAPITest):
         # Get a token
         response = cls.client.post(
             reverse('api:token_auth'),
-            dict(
-                username='testuser',
-                password='SamplePassword',
-            ),
+            data='{"username": "testuser", "password": "SamplePassword"}',
+            content_type='application/vnd.api+json',
         )
         token = response.json()['token']
 

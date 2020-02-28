@@ -112,17 +112,6 @@ class DeployImagesParamErrorTest(DeployBaseTest):
             dict(errors=[error_dict]),
             "Response JSON should be as expected")
 
-    def test_wrong_content_type(self):
-        # Here we don't set the content type, letting it default to form data
-        # instead of JSON. So we just pass the auth header.
-        response = self.client.post(
-            self.deploy_url,
-            HTTP_AUTHORIZATION=self.request_kwargs['HTTP_AUTHORIZATION'])
-
-        self.assert_expected_400_error(
-            response, dict(
-                detail="Content type should be application/vnd.api+json"))
-
     def test_not_valid_json(self):
         data = '[abc'
         response = self.client.post(

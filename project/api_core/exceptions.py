@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 from six.moves import collections_abc
 
+from rest_framework import status
 from rest_framework.views import exception_handler as default_exception_handler
 
 
@@ -21,6 +22,19 @@ def exception_handler(exc, context):
         if not isinstance(response.data, collections_abc.Sequence):
             response.data = [response.data]
         response.data = {'errors': response.data}
+
+    if response.status_code == status.HTTP_415_UNSUPPORTED_MEDIA_TYPE:
+
+        # Default message format is 'Unsupported media type "application/json"
+        # in request.' The part between the quotes is the request content type.
+        old_message = response.data['errors'][0]['detail']
+        request_content_type = old_message[
+            old_message.find('"')+1 : old_message.rfind('"')]
+
+        # Write a more helpful error message.
+        response.data['errors'][0]['detail'] = (
+            "Content type should be application/vnd.api+json,"
+            " not {request_ct}".format(request_ct=request_content_type))
 
     return response
 

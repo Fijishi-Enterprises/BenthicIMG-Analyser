@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+import json
 
 from django.core.cache import cache
 from django.urls import reverse
@@ -86,10 +87,8 @@ class BaseAPIPermissionTest(BaseAPITest):
 
         response = cls.client.post(
             reverse('api:token_auth'),
-            dict(
-                username=username,
-                password=password,
-            ),
+            data=json.dumps(dict(username=username, password=password)),
+            content_type='application/vnd.api+json',
         )
         token = response.json()['token']
         return dict(

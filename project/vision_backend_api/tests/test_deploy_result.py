@@ -50,7 +50,8 @@ class DeployResultAccessTest(BaseAPIPermissionTest):
         job = ApiJob(type='deploy', user=self.user)
         job.save()
         url = reverse('api:deploy_result', args=[job.pk])
-        self.assertNeedsAuth(url)
+        response = self.client.get(url)
+        self.assertForbiddenResponse(response)
 
     def test_post_method_not_allowed(self):
         job = ApiJob(type='deploy', user=self.user)
@@ -89,7 +90,7 @@ class DeployResultAccessTest(BaseAPIPermissionTest):
 
         response = self.client.get(url, **self.user_request_kwargs)
         self.assertThrottleResponse(
-            response, "4th request should be denied by throttling")
+            response, msg="4th request should be denied by throttling")
 
 
 class DeployResultEndpointTest(DeployBaseTest):
@@ -145,22 +146,28 @@ class DeployResultEndpointTest(DeployBaseTest):
         self.assert_result_response_not_finished(response)
 
     @patch('vision_backend.tasks.deploy.run', noop_task)
-    def test_some_images_working(self):
+    def test_some_images_in_progress(self):
         job = self.deploy()
 
-        # Mark one feature-extract unit's status as working
-        features_job_unit = ApiJobUnit.objects.filter(
+        # Mark one unit's status as in progress
+        job_unit = ApiJobUnit.objects.filter(
             job=job, type='deploy').latest('pk')
-        features_job_unit.status = ApiJobUnit.IN_PROGRESS
-        features_job_unit.save()
+        job_unit.status = ApiJobUnit.IN_PROGRESS
+        job_unit.save()
 
         response = self.get_job_result(job)
 
         self.assert_result_response_not_finished(response)
 
     @patch('vision_backend.tasks.deploy.run', noop_task)
-    def test_features_extracted(self):
+    def test_all_images_in_progress(self):
         job = self.deploy()
+
+        job_units = ApiJobUnit.objects.filter(job=job, type='deploy')
+        for job_unit in job_units:
+            job_unit.status = ApiJobUnit.IN_PROGRESS
+            job_unit.save()
+
         response = self.get_job_result(job)
 
         self.assert_result_response_not_finished(response)
@@ -169,11 +176,11 @@ class DeployResultEndpointTest(DeployBaseTest):
     def test_some_images_success(self):
         job = self.deploy()
 
-        # Mark one classify unit's status as success
-        classify_job_unit = ApiJobUnit.objects.filter(
+        # Mark one unit's status as success
+        job_unit = ApiJobUnit.objects.filter(
             job=job, type='deploy').latest('pk')
-        classify_job_unit.status = ApiJobUnit.SUCCESS
-        classify_job_unit.save()
+        job_unit.status = ApiJobUnit.SUCCESS
+        job_unit.save()
 
         response = self.get_job_result(job)
 
@@ -183,11 +190,11 @@ class DeployResultEndpointTest(DeployBaseTest):
     def test_some_images_failure(self):
         job = self.deploy()
 
-        # Mark one classify unit's status as failure
-        classify_job_unit = ApiJobUnit.objects.filter(
+        # Mark one unit's status as failure
+        job_unit = ApiJobUnit.objects.filter(
             job=job, type='deploy').latest('pk')
-        classify_job_unit.status = ApiJobUnit.FAILURE
-        classify_job_unit.save()
+        job_unit.status = ApiJobUnit.FAILURE
+        job_unit.save()
 
         response = self.get_job_result(job)
 
@@ -238,7 +245,7 @@ class DeployResultEndpointTest(DeployBaseTest):
     def test_failure(self):
         job = self.deploy()
 
-        # Mark both classify units' status as done: one success, one failure.
+        # Mark both units' status as done: one success, one failure.
         unit_1, unit_2 = ApiJobUnit.objects.filter(
             job=job, type='deploy').order_by('pk')
 
@@ -286,3 +293,7 @@ class DeployResultEndpointTest(DeployBaseTest):
                     ),
                 ]),
             "Response JSON should be as expected")
+
+        self.assertEqual(
+            'application/vnd.api+json', response.get('content-type'),
+            "Content type should be as expected")

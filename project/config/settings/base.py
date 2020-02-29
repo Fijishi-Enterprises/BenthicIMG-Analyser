@@ -458,8 +458,6 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PARSER_CLASSES': [
         'api_core.parsers.JSONAPIParser',
-        'rest_framework.parsers.FormParser',
-        'rest_framework.parsers.MultiPartParser'
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         # Must be authenticated to use the API.
@@ -481,7 +479,12 @@ REST_FRAMEWORK = {
         'burst': '50/min',
         'sustained': '500/hour',
     },
+    'EXCEPTION_HANDLER': 'api_core.exceptions.exception_handler',
 }
+
+# [Custom setting]
+# Additional API-throttling policy for async jobs.
+MAX_CONCURRENT_API_JOBS_PER_USER = 5
 
 
 # [Custom settings]

@@ -19,6 +19,11 @@ from .utils import DeployBaseTest, noop_task
 
 class DeployAccessTest(BaseAPIPermissionTest):
 
+    def assertNeedsAuth(self, url):
+        # Request with no token header
+        response = self.client.post(url)
+        self.assertForbiddenResponse(response)
+
     def assertNotFound(self, url, request_kwargs):
         response = self.client.post(url, **request_kwargs)
         self.assertEqual(
@@ -81,7 +86,7 @@ class DeployAccessTest(BaseAPIPermissionTest):
     throttle_test_settings['DEFAULT_THROTTLE_RATES']['sustained'] = '3/hour'
 
     @override_settings(REST_FRAMEWORK=throttle_test_settings)
-    def test_throttling(self):
+    def test_request_rate_throttling(self):
         classifier = self.create_robot(self.public_source)
         url = reverse('api:deploy', args=[classifier.pk])
 
@@ -93,7 +98,59 @@ class DeployAccessTest(BaseAPIPermissionTest):
 
         response = self.client.post(url, **self.user_request_kwargs)
         self.assertThrottleResponse(
-            response, "4th request should be denied by throttling")
+            response, msg="4th request should be denied by throttling")
+
+    @patch('vision_backend_api.views.deploy.run', noop_task)
+    @override_settings(MAX_CONCURRENT_API_JOBS_PER_USER=3)
+    def test_active_job_throttling(self):
+        classifier = self.create_robot(self.public_source)
+        url = reverse('api:deploy', args=[classifier.pk])
+
+        images = [
+            dict(type='image', attributes=dict(
+                url='URL 1', points=[dict(row=10, column=10)]))]
+        data = json.dumps(dict(data=images))
+
+        # Submit 3 jobs
+        for _ in range(3):
+            response = self.client.post(url, data, **self.user_request_kwargs)
+            self.assertNotEqual(
+                response.status_code, status.HTTP_429_TOO_MANY_REQUESTS,
+                "1st-3rd requests should not be throttled")
+
+        job_ids = ApiJob.objects.filter(user=self.user).order_by('pk') \
+            .values_list('pk', flat=True)
+
+        # Submit another job with the other 3 still going
+        response = self.client.post(url, data, **self.user_request_kwargs)
+        detail = (
+            "You already have 3 jobs active"
+            + " (IDs: {id_0}, {id_1}, {id_2}).".format(
+                id_0=job_ids[0], id_1=job_ids[1], id_2=job_ids[2])
+            + " You must wait until one of them finishes"
+            + " before requesting another job.")
+        self.assertThrottleResponse(
+            response, detail_substring=detail,
+            msg="4th request should be denied by throttling")
+
+        # Submit job as another user
+        response = self.client.post(
+            url, data, **self.user_viewer_request_kwargs)
+        self.assertNotEqual(
+            response.status_code, status.HTTP_429_TOO_MANY_REQUESTS,
+            "Other users should not be throttled")
+
+        # Finish one job, then submit another job
+        job = ApiJob.objects.get(pk=job_ids[0])
+        for unit in job.apijobunit_set.all():
+            unit.status = ApiJobUnit.SUCCESS
+            unit.save()
+
+        response = self.client.post(
+            url, data, **self.user_request_kwargs)
+        self.assertNotEqual(
+            response.status_code, status.HTTP_429_TOO_MANY_REQUESTS,
+            "Shouldn't be denied now that one job has finished")
 
 
 class DeployImagesParamErrorTest(DeployBaseTest):
@@ -106,17 +163,6 @@ class DeployImagesParamErrorTest(DeployBaseTest):
             response.json(),
             dict(errors=[error_dict]),
             "Response JSON should be as expected")
-
-    def test_wrong_content_type(self):
-        # Here we don't set the content type, letting it default to form data
-        # instead of JSON. So we just pass the auth header.
-        response = self.client.post(
-            self.deploy_url,
-            HTTP_AUTHORIZATION=self.request_kwargs['HTTP_AUTHORIZATION'])
-
-        self.assert_expected_400_error(
-            response, dict(
-                detail="Content type should be application/vnd.api+json"))
 
     def test_not_valid_json(self):
         data = '[abc'
@@ -417,8 +463,7 @@ class SuccessTest(DeployBaseTest):
     @patch('vision_backend_api.views.deploy.run', noop_task)
     def test_pre_deploy(self):
         """
-        Test pre-extract-features state. To do this, we disable the
-        extract-features task by patching it.
+        Test pre-deploy state. To do this, we disable the task by patching it.
         """
         images = [
             dict(type='image', attributes=dict(
@@ -438,8 +483,7 @@ class SuccessTest(DeployBaseTest):
             "Job user (requester) should be correct")
 
         try:
-            # There should be just one job unit: extracting features for the
-            # only image
+            # There should be just one job unit: deploy for the only image
             job_unit = ApiJobUnit.objects.latest('pk')
         except ApiJobUnit.DoesNotExist:
             self.fail("Job unit should be created")
@@ -463,8 +507,8 @@ class SuccessTest(DeployBaseTest):
     @skip("We need to have a mock backend before we can test this.")
     def test_done(self):
         """
-        Test state after both feature extract and classify are done. To do
-        this, just don't replace anything and let the tasks run synchronously.
+        Test state after deploy is done. To do this, just don't replace
+        anything and let the tasks run synchronously.
         """
         images = [
             dict(type='image', attributes=dict(
@@ -481,7 +525,7 @@ class SuccessTest(DeployBaseTest):
             self.fail("Deploy job unit should be created")
 
         self.assertEqual(deploy_unit.status, ApiJobUnit.SUCCESS,
-            "Features unit should be done")
+            "Unit should be done")
 
         classifications = [dict(
             label_id=self.labels[0].pk, label_name='A',
@@ -492,7 +536,7 @@ class SuccessTest(DeployBaseTest):
                 url='URL 1',
                 points=[dict(
                     row=10, column=10, classifications=classifications)]),
-            "Classify unit's result_json should be as expected"
+            "Unit's result_json should be as expected"
             " (labelset with 1 label makes the scores deterministic)")
 
 
@@ -501,7 +545,7 @@ class TaskErrorsTest(DeployBaseTest):
     Test error cases of the deploy tasks.
     """
 
-    def test_extract_features_nonexistent_job_unit(self):
+    def test_nonexistent_job_unit(self):
         # Create and delete a unit to secure a nonexistent ID.
         job = ApiJob(type='', user=self.user)
         job.save()
@@ -521,60 +565,35 @@ class TaskErrorsTest(DeployBaseTest):
 
             self.assertIn(error_message, log_messages)
 
-    def test_classify_nonexistent_job_unit(self):
-        # Create and delete a unit to secure a nonexistent ID.
-        job = ApiJob(type='', user=self.user)
-        job.save()
-        unit = ApiJobUnit(job=job, type='test', request_json=dict())
-        unit.save()
-        unit_id = ApiJobUnit.objects.get(type='test').pk
-        unit.delete()
-
-        with patch_logger('vision_backend.tasks', 'info') as log_messages:
-            deploy.delay(unit_id)
-
-            error_message = \
-                "Job unit of id {pk} does not exist.".format(pk=unit_id)
-
-            self.assertIn(error_message, log_messages)
-
     @skip("Skip until we can run backend during tests.")
     @patch('vision_backend_api.views.deploy.run', noop_task)
-    def test_classify_classifier_deleted(self):
+    def test_classifier_deleted(self):
         images = [
             dict(type='image', attributes=dict(
                 url='URL 1', points=[dict(row=10, column=10)]))]
         data = json.dumps(dict(data=images))
 
-        # Since extract features is a no-op, this won't run extract features
-        # or classify. It'll just create the extract features job unit.
+        # Since the task is a no-op, this'll just create the job unit.
         self.client.post(self.deploy_url, data, **self.request_kwargs)
 
-        features_unit = ApiJobUnit.objects.filter(
+        job_unit = ApiJobUnit.objects.filter(
             type='deploy').latest('pk')
 
-        # Manually create the classify job unit.
-        classify_unit = ApiJobUnit(
-            job=features_unit.job,
-            type='deploy_classify',
-            request_json=features_unit.request_json)
-        classify_unit.save()
-
         # Delete the classifier.
-        classifier_id = classify_unit.request_json['classifier_id']
+        classifier_id = job_unit.request_json['classifier_id']
         classifier = Classifier.objects.get(pk=classifier_id)
         classifier.delete()
 
-        # Run the classify task.
-        deploy_classify.delay(classify_unit.pk)
+        # Run the task.
+        deploy.delay(job_unit.pk)
 
-        classify_unit.refresh_from_db()
+        job_unit.refresh_from_db()
 
         self.assertEqual(
-            classify_unit.status, ApiJobUnit.FAILURE,
-            "Classify unit should have failed")
+            job_unit.status, ApiJobUnit.FAILURE,
+            "Unit should have failed")
         message = "Classifier of id {pk} does not exist.".format(
             pk=classifier_id)
         self.assertDictEqual(
-            classify_unit.result_json,
+            job_unit.result_json,
             dict(url='URL 1', errors=[message]))

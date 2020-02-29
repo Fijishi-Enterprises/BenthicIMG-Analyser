@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+from collections import Counter
 
 from django.contrib.auth.models import User
 from django.db import models
@@ -12,21 +13,47 @@ class ApiJob(models.Model):
     # String specifying the type of job, e.g. deploy.
     type = models.CharField(max_length=30)
 
-    # Status can be computed from the statuses of this job's job units. So,
-    # saving status as a field here would be redundant. However, we'll define
-    # constants for reporting the computed status.
-    # Note that "Done" isn't here, because if it's done, we'll respond with
-    # 303 Other with a Location header and no data in the body. That seems to
-    # be standard for 303 responses.
-    PENDING = "Pending"
-    IN_PROGRESS = "In Progress"
-
     # User who requested this job. Can be used for permissions on viewing
     # job status and results.
     user = models.ForeignKey(User, on_delete=models.CASCADE)
 
     # This can be used to report how long the job took or is taking.
     create_date = models.DateTimeField("Date created", auto_now_add=True)
+
+    PENDING = "Pending"
+    IN_PROGRESS = "In Progress"
+    DONE = "Done"
+
+    @property
+    def status(self):
+        """Just return the overall job status from full_status()."""
+        return self.full_status()['overall_status']
+
+    def full_status(self):
+        """Report job status based on the statuses of the job units."""
+        job_units = self.apijobunit_set
+        job_unit_statuses = job_units.values_list('status', flat=True)
+        counts = Counter(job_unit_statuses)
+        total_unit_count = len(job_unit_statuses)
+
+        if counts[ApiJobUnit.PENDING] == len(job_unit_statuses):
+            # All units are still pending, so the job as a whole is pending
+            overall_status = self.PENDING
+        elif counts[ApiJobUnit.PENDING] + counts[ApiJobUnit.IN_PROGRESS] > 0:
+            # Some units haven't finished yet, so the job isn't done yet
+            overall_status = self.IN_PROGRESS
+        else:
+            # Job is done
+            overall_status = self.DONE
+
+        return dict(
+            overall_status=overall_status,
+            pending_units=counts[ApiJobUnit.PENDING],
+            in_progress_units=counts[ApiJobUnit.IN_PROGRESS],
+            failure_units=counts[ApiJobUnit.FAILURE],
+            success_units=counts[ApiJobUnit.SUCCESS],
+            total_units=total_unit_count,
+        )
 
 
 class ApiJobUnit(models.Model):
@@ -36,9 +63,8 @@ class ApiJobUnit(models.Model):
     # The larger job that this unit is a part of.
     job = models.ForeignKey(ApiJob, on_delete=models.CASCADE)
 
-    # String specifying the type of job unit. For example, deploy might have
-    # feature extraction and classification, and thus use strings like
-    # 'deploy_feature_extract'.
+    # String specifying the type of job unit, in case a single job has more
+    # than one type of unit.
     type = models.CharField(max_length=30)
 
     PENDING = 'PN'

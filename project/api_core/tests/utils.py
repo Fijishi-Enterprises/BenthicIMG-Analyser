@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+import json
 
 from django.core.cache import cache
 from django.urls import reverse
@@ -27,15 +28,16 @@ class BaseAPITest(ClientTest):
         # Don't want DRF throttling to be a factor during class setup, either.
         cache.clear()
 
-    def assertNeedsAuth(self, url, msg="Should get 403"):
-        # Request with no token header
-        response = self.client.post(url)
+    def assertForbiddenResponse(
+            self, response,
+            error_detail="Authentication credentials were not provided.",
+            msg="Should get 403"):
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN, msg)
 
+        response_json = response.json()
         self.assertDictEqual(
-            response.json(),
-            dict(errors=[
-                dict(detail="Authentication credentials were not provided.")]),
+            response_json,
+            dict(errors=[dict(detail=error_detail)]),
             "Error response's body should be as expected")
 
     def assertMethodNotAllowedResponse(self, response, msg="Should get 405"):
@@ -52,7 +54,11 @@ class BaseAPITest(ClientTest):
             and error_detail.endswith(" not allowed."),
             "Response error detail should be as expected")
 
-    def assertThrottleResponse(self, response, msg="Should get 429"):
+    def assertThrottleResponse(
+            self, response,
+            detail_substring="Request was throttled. Expected available in",
+            msg="Should get 429"):
+
         self.assertEqual(
             response.status_code, status.HTTP_429_TOO_MANY_REQUESTS, msg)
 
@@ -60,9 +66,8 @@ class BaseAPITest(ClientTest):
         self.assertIn(
             'errors', response_json,
             "Response should have top-level member 'errors'")
-        self.assertTrue(
-            response_json['errors'][0]['detail'].startswith(
-                "Request was throttled. Expected available in "),
+        self.assertIn(
+            detail_substring, response_json['errors'][0]['detail'],
             "Response error detail should be as expected")
 
 
@@ -85,10 +90,8 @@ class BaseAPIPermissionTest(BaseAPITest):
 
         response = cls.client.post(
             reverse('api:token_auth'),
-            dict(
-                username=username,
-                password=password,
-            ),
+            data=json.dumps(dict(username=username, password=password)),
+            content_type='application/vnd.api+json',
         )
         token = response.json()['token']
         return dict(

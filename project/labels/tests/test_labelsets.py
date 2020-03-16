@@ -11,7 +11,7 @@ from django.utils.html import escape
 from accounts.utils import get_robot_user
 from images.model_utils import PointGen
 from lib.tests.utils import BasePermissionTest, sample_image_as_file
-from .models import Label
+from ..models import Label
 from .test_labels import LabelTest
 
 

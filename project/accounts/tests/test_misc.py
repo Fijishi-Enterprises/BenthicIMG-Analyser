@@ -1,38 +1,37 @@
 from __future__ import unicode_literals
 
-from django.conf import settings
 from django.core import mail
 from django.urls import reverse
 from django.utils.html import escape
 
-from lib.tests.utils import ClientTest
+from lib.tests.utils import BasePermissionTest, ClientTest
 
 
-class SignOutTest(ClientTest):
+class PermissionTest(BasePermissionTest):
 
-    @classmethod
-    def setUpTestData(cls):
-        # Call the parent's setup (while still using this class as cls)
-        super(SignOutTest, cls).setUpTestData()
+    def test_password_change(self):
+        url = reverse('password_change')
+        template = 'registration/password_change_form.html'
 
-        cls.user = cls.create_user()
+        self.assertPermissionLevel(
+            url, self.SIGNED_IN, template=template,
+            deny_type=self.REQUIRE_LOGIN)
 
-    def test_load_page_anonymous(self):
-        response = self.client.get(reverse('logout'), follow=True)
-        self.assertTemplateUsed(
-            response, 'registration/logged_out.html',
-            "Can still visit the signout page while already signed out; it"
-            " just doesn't do anything")
+    def test_password_change_done(self):
+        url = reverse('password_change_done')
+        template = 'registration/password_change_done.html'
 
-    def test_sign_out(self):
-        self.client.force_login(self.user)
-        # Signed in
-        self.assertIn('_auth_user_id', self.client.session)
+        self.assertPermissionLevel(
+            url, self.SIGNED_IN, template=template,
+            deny_type=self.REQUIRE_LOGIN)
 
-        response = self.client.get(reverse('logout'), follow=True)
-        self.assertTemplateUsed(response, 'registration/logged_out.html')
-        # Signed out
-        self.assertNotIn('_auth_user_id', self.client.session)
+    def test_emailall(self):
+        url = reverse('emailall')
+        template = 'accounts/email_all_form.html'
+
+        self.assertPermissionLevel(
+            url, self.SUPERUSER, template=template,
+            deny_type=self.REQUIRE_LOGIN)
 
 
 class PasswordChangeTest(ClientTest):
@@ -43,17 +42,6 @@ class PasswordChangeTest(ClientTest):
         super(PasswordChangeTest, cls).setUpTestData()
 
         cls.user = cls.create_user('sampleUsername', 'oldPassword')
-
-    def test_load_page_anonymous(self):
-        """The view only makes sense for registered users."""
-        response = self.client.get(reverse('password_change'), follow=True)
-        self.assertTemplateUsed(response, 'registration/login.html')
-
-    def test_load_page_signed_in(self):
-        self.client.force_login(self.user)
-        response = self.client.get(reverse('password_change'), follow=True)
-        self.assertTemplateUsed(
-            response, 'registration/password_change_form.html')
 
     def test_change_success(self):
         self.client.force_login(self.user)
@@ -162,29 +150,6 @@ class EmailAllTest(ClientTest):
 
         cls.user = cls.create_user()
         cls.inactive_user = cls.create_user(activate=False)
-
-    def test_load_page_anonymous(self):
-        """Load page while logged out -> login page."""
-        response = self.client.get(reverse('emailall'))
-        self.assertRedirects(
-            response,
-            reverse(settings.LOGIN_URL)+'?next='+reverse('emailall'),
-        )
-
-    def test_load_page_normal_user(self):
-        """Load page as normal user -> login page."""
-        self.client.force_login(self.user)
-        response = self.client.get(reverse('emailall'))
-        self.assertRedirects(
-            response,
-            reverse(settings.LOGIN_URL)+'?next='+reverse('emailall'),
-        )
-
-    def test_load_page_superuser(self):
-        """Load page as superuser -> page loads normally."""
-        self.client.force_login(self.superuser)
-        response = self.client.get(reverse('emailall'))
-        self.assertTemplateUsed(response, 'accounts/email_all_form.html')
 
     def test_submit(self):
         """Test submitting the form."""

@@ -2,7 +2,6 @@
 #
 # Lib tests and non-app-specific tests.
 from __future__ import unicode_literals
-from pathlib2 import Path
 from unittest import skipIf
 
 from django.conf import settings
@@ -13,20 +12,89 @@ from django.urls import reverse
 from django.test.client import Client
 from django.test.utils import override_settings
 
-from lib.storage_backends import get_s3_root_storage
 from ..forms import get_one_form_error, get_one_formset_error
 from ..utils import direct_s3_write, direct_s3_read
-from .utils import BaseTest, ClientTest, sample_image_as_file
+from .utils import (
+    BasePermissionTest, BaseTest, ClientTest, sample_image_as_file)
+
+
+class PermissionTest(BasePermissionTest):
+    """
+    Test permission to misc. pages.
+    """
+    def test_index(self):
+        url = reverse('index')
+
+        # Index redirects if you're logged in.
+        self.assertPermissionGranted(url, None, template='lib/index.html')
+        self.assertPermissionGranted(
+            url, self.user_outsider, template='images/source_about.html')
+        self.assertPermissionGranted(
+            url, self.user_superuser, template='images/source_list.html')
+
+    def test_about(self):
+        url = reverse('about')
+        template = 'lib/about.html'
+
+        self.assertPermissionLevel(url, self.SIGNED_OUT, template=template)
+
+    def test_release(self):
+        url = reverse('release')
+        template = 'lib/release_notes.html'
+
+        self.assertPermissionLevel(url, self.SIGNED_OUT, template=template)
+
+    def test_nav_test(self):
+        url = reverse('nav_test', args=[self.source.pk])
+        template = 'lib/nav_test.html'
+
+        self.assertPermissionLevel(
+            url, self.SUPERUSER, template=template,
+            deny_type=self.REQUIRE_LOGIN)
+
+    def test_admin(self):
+        """Only staff users can access the admin site."""
+        url = reverse('admin:index')
+
+        response = self.client.get(url, follow=True)
+        self.assertTemplateUsed(response, 'admin/login.html')
+
+        self.client.force_login(self.user_outsider)
+        response = self.client.get(url, follow=True)
+        self.assertTemplateUsed(response, 'admin/login.html')
+
+        # Staff is a different flag from superuser.
+        staff_user = self.create_user('test_staff_user', 'SamplePass')
+        staff_user.is_staff = True
+        staff_user.save()
+        self.client.force_login(staff_user)
+        response = self.client.get(url, follow=True)
+        self.assertTemplateUsed(response, 'admin/index.html')
+
+    def test_admin_doc(self):
+        """Only staff users can access the admin docs."""
+        url = reverse('django-admindocs-docroot')
+
+        self.client.logout()
+        response = self.client.get(url, follow=True)
+        self.assertTemplateUsed(response, 'admin/login.html')
+
+        self.client.force_login(self.user_outsider)
+        response = self.client.get(url, follow=True)
+        self.assertTemplateUsed(response, 'admin/login.html')
+
+        staff_user = self.create_user('test_staff_user', 'SamplePass')
+        staff_user.is_staff = True
+        staff_user.save()
+        self.client.force_login(staff_user)
+        response = self.client.get(url, follow=True)
+        self.assertTemplateUsed(response, 'admin_doc/index.html')
 
 
 class IndexTest(ClientTest):
     """
     Test the site index page.
     """
-    def test_load_page_anonymous(self):
-        response = self.client.get(reverse('index'))
-        self.assertTemplateUsed(response, 'lib/index.html')
-
     def test_load_with_carousel(self):
         user = self.create_user()
         source = self.create_source(user)

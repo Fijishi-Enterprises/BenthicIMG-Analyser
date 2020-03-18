@@ -10,84 +10,62 @@ from lib.tests.utils import BasePermissionTest, ClientTest
 
 
 class PermissionTest(BasePermissionTest):
-
-    def test_source_about(self):
-        url = reverse('source_about')
-        self.assertPermissionGranted(url, None)
-        self.assertPermissionGranted(url, self.user_outsider)
-
-    def test_source_list(self):
-        url = reverse('source_about')
-        self.assertPermissionGranted(url, None)
-        self.assertPermissionGranted(url, self.user_outsider)
-
+    """
+    Test permissions for source-related views other than source about and
+    source list, which are tested in different classes. (Those views have
+    specific redirect logic.)
+    """
     def test_source_new(self):
         url = reverse('source_new')
-        self.assertRedirectsToLogin(url, None)
-        self.assertPermissionGranted(url, self.user_outsider)
+        template = 'images/source_new.html'
+
+        self.assertPermissionLevel(
+            url, self.SIGNED_IN, template=template,
+            deny_type=self.REQUIRE_LOGIN)
 
     def test_invites_manage(self):
         url = reverse('invites_manage')
-        self.assertRedirectsToLogin(url, None)
-        self.assertPermissionGranted(url, self.user_outsider)
+        template = 'images/invites_manage.html'
 
-    def test_source_detail_box_private_source(self):
-        url = reverse('source_detail_box', args=[self.private_source.pk])
-        self.assertPermissionGranted(url, None)
-        self.assertPermissionGranted(url, self.user_outsider)
+        self.assertPermissionLevel(
+            url, self.SIGNED_IN, template=template,
+            deny_type=self.REQUIRE_LOGIN)
 
-    def test_source_detail_box_public_source(self):
-        url = reverse('source_detail_box', args=[self.public_source.pk])
-        self.assertPermissionGranted(url, None)
-        self.assertPermissionGranted(url, self.user_outsider)
+    def test_source_detail_box(self):
+        url = reverse('source_detail_box', args=[self.source.pk])
+        template = 'images/source_detail_box.html'
 
-    def test_source_main_private_source(self):
-        url = reverse('source_main', args=[self.private_source.pk])
-        self.assertPermissionDenied(url, None)
-        self.assertPermissionDenied(url, self.user_outsider)
-        self.assertPermissionGranted(url, self.user_viewer)
-        self.assertPermissionGranted(url, self.user_editor)
-        self.assertPermissionGranted(url, self.user_admin)
+        self.source_to_private()
+        self.assertPermissionLevel(url, self.SIGNED_OUT, template=template)
+        self.source_to_public()
+        self.assertPermissionLevel(url, self.SIGNED_OUT, template=template)
 
-    def test_source_main_public_source(self):
-        url = reverse('source_main', args=[self.public_source.pk])
-        self.assertPermissionGranted(url, None)
-        self.assertPermissionGranted(url, self.user_outsider)
-        self.assertPermissionGranted(url, self.user_viewer)
-        self.assertPermissionGranted(url, self.user_editor)
-        self.assertPermissionGranted(url, self.user_admin)
+    def test_source_main(self):
+        url = reverse('source_main', args=[self.source.pk])
+        template = 'images/source_main.html'
 
-    def test_source_edit_private_source(self):
-        url = reverse('source_edit', args=[self.private_source.pk])
-        self.assertPermissionDenied(url, None)
-        self.assertPermissionDenied(url, self.user_outsider)
-        self.assertPermissionDenied(url, self.user_viewer)
-        self.assertPermissionDenied(url, self.user_editor)
-        self.assertPermissionGranted(url, self.user_admin)
+        self.source_to_private()
+        self.assertPermissionLevel(url, self.SOURCE_VIEW, template=template)
+        self.source_to_public()
+        self.assertPermissionLevel(url, self.SIGNED_OUT, template=template)
 
-    def test_source_edit_public_source(self):
-        url = reverse('source_edit', args=[self.public_source.pk])
-        self.assertPermissionDenied(url, None)
-        self.assertPermissionDenied(url, self.user_outsider)
-        self.assertPermissionDenied(url, self.user_viewer)
-        self.assertPermissionDenied(url, self.user_editor)
-        self.assertPermissionGranted(url, self.user_admin)
+    def test_source_edit(self):
+        url = reverse('source_edit', args=[self.source.pk])
+        template = 'images/source_edit.html'
 
-    def test_source_admin_private_source(self):
-        url = reverse('source_admin', args=[self.private_source.pk])
-        self.assertPermissionDenied(url, None)
-        self.assertPermissionDenied(url, self.user_outsider)
-        self.assertPermissionDenied(url, self.user_viewer)
-        self.assertPermissionDenied(url, self.user_editor)
-        self.assertPermissionGranted(url, self.user_admin)
+        self.source_to_private()
+        self.assertPermissionLevel(url, self.SOURCE_ADMIN, template=template)
+        self.source_to_public()
+        self.assertPermissionLevel(url, self.SOURCE_ADMIN, template=template)
 
-    def test_source_admin_public_source(self):
-        url = reverse('source_admin', args=[self.public_source.pk])
-        self.assertPermissionDenied(url, None)
-        self.assertPermissionDenied(url, self.user_outsider)
-        self.assertPermissionDenied(url, self.user_viewer)
-        self.assertPermissionDenied(url, self.user_editor)
-        self.assertPermissionGranted(url, self.user_admin)
+    def test_source_admin(self):
+        url = reverse('source_admin', args=[self.source.pk])
+        template = 'images/source_invite.html'
+
+        self.source_to_private()
+        self.assertPermissionLevel(url, self.SOURCE_ADMIN, template=template)
+        self.source_to_public()
+        self.assertPermissionLevel(url, self.SOURCE_ADMIN, template=template)
 
 
 class SourceAboutTest(ClientTest):
@@ -842,3 +820,9 @@ class SourceInviteTest(ClientTest):
         response = self.client.get(
             reverse('upload_images', kwargs={'source_id': self.source.pk}))
         self.assertTemplateUsed(response, 'upload/upload_images.html')
+
+
+# TODO: Test:
+# - source_detail_box, including details shown for public vs. private sources
+# - source_list logic on which sources to show on the list and map
+# - source_admin generally

@@ -11,8 +11,69 @@ from annotations.model_utils import AnnotationAreaUtils
 from annotations.models import Annotation
 from images.model_utils import PointGen
 from images.models import Point
-from lib.tests.utils import ClientTest, sample_image_as_file
-from upload.tests.utils import UploadAnnotationsTestMixin
+from lib.tests.utils import (
+    BasePermissionTest, ClientTest, sample_image_as_file)
+from .utils import UploadAnnotationsTestMixin
+
+
+class PermissionTest(BasePermissionTest):
+
+    @classmethod
+    def setUpTestData(cls):
+        super(PermissionTest, cls).setUpTestData()
+
+        cls.labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
+        cls.create_labelset(cls.user, cls.source, cls.labels)
+
+    def test_annotations_csv(self):
+        url = reverse('upload_annotations_csv', args=[self.source.pk])
+        template = 'upload/upload_annotations_csv.html'
+
+        self.source_to_private()
+        self.assertPermissionLevel(url, self.SOURCE_EDIT, template=template)
+        self.source_to_public()
+        self.assertPermissionLevel(url, self.SOURCE_EDIT, template=template)
+
+    def test_annotations_csv_preview_ajax(self):
+        url = reverse(
+            'upload_annotations_csv_preview_ajax', args=[self.source.pk])
+
+        self.source_to_private()
+        self.assertPermissionLevel(
+            url, self.SOURCE_EDIT, is_json=True, post_data={})
+        self.source_to_public()
+        self.assertPermissionLevel(
+            url, self.SOURCE_EDIT, is_json=True, post_data={})
+
+    def test_annotations_cpc(self):
+        url = reverse('upload_annotations_cpc', args=[self.source.pk])
+        template = 'upload/upload_annotations_cpc.html'
+
+        self.source_to_private()
+        self.assertPermissionLevel(url, self.SOURCE_EDIT, template=template)
+        self.source_to_public()
+        self.assertPermissionLevel(url, self.SOURCE_EDIT, template=template)
+
+    def test_annotations_cpc_preview_ajax(self):
+        url = reverse(
+            'upload_annotations_cpc_preview_ajax', args=[self.source.pk])
+
+        self.source_to_private()
+        self.assertPermissionLevel(
+            url, self.SOURCE_EDIT, is_json=True, post_data={})
+        self.source_to_public()
+        self.assertPermissionLevel(
+            url, self.SOURCE_EDIT, is_json=True, post_data={})
+
+    def test_annotations_ajax(self):
+        url = reverse('upload_annotations_ajax', args=[self.source.pk])
+
+        self.source_to_private()
+        self.assertPermissionLevel(
+            url, self.SOURCE_EDIT, is_json=True, post_data={})
+        self.source_to_public()
+        self.assertPermissionLevel(
+            url, self.SOURCE_EDIT, is_json=True, post_data={})
 
 
 class UploadAnnotationsNoLabelsetTest(ClientTest):

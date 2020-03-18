@@ -1,61 +1,24 @@
+from __future__ import unicode_literals
 import datetime
 from django.test import override_settings
 from django.urls import reverse
 
 from images.model_utils import PointGen
-from images.models import Source
-from lib.tests.utils import ClientTest
+from lib.tests.utils import BasePermissionTest, ClientTest
 
 
-class PermissionTest(ClientTest):
+class PermissionTest(BasePermissionTest):
     """
     Test page permissions.
     """
-    @classmethod
-    def setUpTestData(cls):
-        super(PermissionTest, cls).setUpTestData()
+    def test_browse_images(self):
+        url = reverse('browse_images', args=[self.source.pk])
+        template = 'visualization/browse_images.html'
 
-        cls.user = cls.create_user()
-
-        cls.source = cls.create_source(
-            cls.user, visibility=Source.VisibilityTypes.PRIVATE)
-
-        cls.user_viewer = cls.create_user()
-        cls.add_source_member(
-            cls.user, cls.source, cls.user_viewer, Source.PermTypes.VIEW.code)
-        cls.user_outsider = cls.create_user()
-
-        cls.img1 = cls.upload_image(cls.user, cls.source)
-
-        cls.url = reverse('browse_images', args=[cls.source.pk])
-
-    def test_load_page_private_anonymous(self):
-        """
-        Load the private source's browse page while logged out ->
-        sorry, don't have permission.
-        """
-        response = self.client.get(self.url)
-        self.assertStatusOK(response)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-
-    def test_load_page_private_as_source_outsider(self):
-        """
-        Load the page as a user outside the private source ->
-        sorry, don't have permission.
-        """
-        self.client.force_login(self.user_outsider)
-        response = self.client.get(self.url)
-        self.assertStatusOK(response)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-
-    def test_load_page_private_as_source_viewer(self):
-        """
-        Load the page as a source member with view permissions -> can load.
-        """
-        self.client.force_login(self.user_viewer)
-        response = self.client.get(self.url)
-        self.assertStatusOK(response)
-        self.assertTemplateUsed(response, 'visualization/browse_images.html')
+        self.source_to_private()
+        self.assertPermissionLevel(url, self.SOURCE_VIEW, template=template)
+        self.source_to_public()
+        self.assertPermissionLevel(url, self.SIGNED_OUT, template=template)
 
     # TODO: Implement and test permissions on the availability of the
     # action form's actions.

@@ -5,7 +5,41 @@ from django.core import mail
 from django.urls import reverse
 from django.utils.html import escape
 
-from lib.tests.utils import ClientTest
+from lib.tests.utils import BasePermissionTest, ClientTest
+
+
+class PermissionTest(BasePermissionTest):
+
+    def test_password_reset(self):
+        url = reverse('password_reset')
+        template = 'registration/password_reset_form.html'
+
+        # Page should be usable while signed out, since the point of the page
+        # is to help people trying to sign in. Also usable while signed in;
+        # not a big use case, but doesn't hurt.
+        self.assertPermissionLevel(
+            url, self.SIGNED_OUT, template=template)
+
+    def test_password_reset_done(self):
+        url = reverse('password_reset_done')
+        template = 'registration/password_reset_done.html'
+
+        self.assertPermissionLevel(
+            url, self.SIGNED_OUT, template=template)
+
+    def test_password_reset_confirm(self):
+        url = reverse('password_reset_confirm', args=['a', 'a-a'])
+        template = 'registration/password_reset_confirm.html'
+
+        self.assertPermissionLevel(
+            url, self.SIGNED_OUT, template=template)
+
+    def test_password_reset_complete(self):
+        url = reverse('password_reset_complete')
+        template = 'registration/password_reset_complete.html'
+
+        self.assertPermissionLevel(
+            url, self.SIGNED_OUT, template=template)
 
 
 class PasswordResetTest(ClientTest):
@@ -34,21 +68,6 @@ class PasswordResetTest(ClientTest):
                 break
         self.assertIsNotNone(reset_link)
         return reset_link
-
-    def test_load_page_anonymous(self):
-        """Page should be usable while signed out, since the point of the page
-        is to help people trying to sign in."""
-        self.client.force_login(self.user)
-        response = self.client.get(reverse('password_reset'))
-        self.assertTemplateUsed(
-            response, 'registration/password_reset_form.html')
-
-    def test_load_page_signed_in(self):
-        """Page should also be usable while signed in."""
-        self.client.force_login(self.user)
-        response = self.client.get(reverse('password_reset'))
-        self.assertTemplateUsed(
-            response, 'registration/password_reset_form.html')
 
     def test_submit(self):
         response = self.client.post(

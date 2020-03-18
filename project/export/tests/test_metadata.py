@@ -4,6 +4,7 @@ import datetime
 
 from django.core.files.base import ContentFile
 from django.shortcuts import resolve_url
+from django.urls import reverse
 
 from export.tests.utils import BaseExportTest
 from lib.tests.utils import BasePermissionTest
@@ -11,23 +12,15 @@ from lib.tests.utils import BasePermissionTest
 
 class PermissionTest(BasePermissionTest):
 
-    def test_metadata_private_source(self):
-        url = resolve_url(
-            'export_metadata', self.private_source.pk)
-        self.assertPermissionDenied(url, None)
-        self.assertPermissionDenied(url, self.user_outsider)
-        self.assertPermissionGranted(url, self.user_viewer)
-        self.assertPermissionGranted(url, self.user_editor)
-        self.assertPermissionGranted(url, self.user_admin)
+    def test_metadata(self):
+        url = reverse('export_metadata', args=[self.source.pk])
 
-    def test_metadata_public_source(self):
-        url = resolve_url(
-            'export_metadata', self.public_source.pk)
-        self.assertPermissionGranted(url, None)
-        self.assertPermissionGranted(url, self.user_outsider)
-        self.assertPermissionGranted(url, self.user_viewer)
-        self.assertPermissionGranted(url, self.user_editor)
-        self.assertPermissionGranted(url, self.user_admin)
+        self.source_to_private()
+        self.assertPermissionLevel(
+            url, self.SOURCE_VIEW, content_type='text/csv')
+        self.source_to_public()
+        self.assertPermissionLevel(
+            url, self.SIGNED_OUT, content_type='text/csv')
 
 
 class ImageSetTest(BaseExportTest):

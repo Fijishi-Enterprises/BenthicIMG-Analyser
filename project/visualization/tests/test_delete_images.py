@@ -1,83 +1,25 @@
+from __future__ import unicode_literals
+
 from django.urls import reverse
 
-from images.models import Source, Image, Metadata
+from images.models import Image, Metadata
 from vision_backend.models import Features
-from lib.tests.utils import ClientTest
+from lib.tests.utils import BasePermissionTest, ClientTest
 
 
-class PermissionTest(ClientTest):
+class PermissionTest(BasePermissionTest):
     """
     Test page permissions.
     """
-    @classmethod
-    def setUpTestData(cls):
-        super(PermissionTest, cls).setUpTestData()
+    def test_browse_delete_ajax(self):
+        url = reverse('browse_delete_ajax', args=[self.source.pk])
 
-        cls.user = cls.create_user()
-
-        cls.source = cls.create_source(cls.user)
-
-        cls.user_editor = cls.create_user()
-        cls.add_source_member(
-            cls.user, cls.source, cls.user_editor, Source.PermTypes.EDIT.code)
-        cls.user_viewer = cls.create_user()
-        cls.add_source_member(
-            cls.user, cls.source, cls.user_viewer, Source.PermTypes.VIEW.code)
-        cls.user_outsider = cls.create_user()
-
-        cls.img1 = cls.upload_image(cls.user, cls.source)
-
-        cls.url = reverse('browse_delete_ajax', args=[cls.source.pk])
-
-        cls.default_search_params = dict(
-            image_form_type='search',
-            aux1='', aux2='', aux3='', aux4='', aux5='',
-            height_in_cm='', latitude='', longitude='', depth='',
-            photographer='', framing='', balance='',
-            date_filter_0='year', date_filter_1='',
-            date_filter_2='', date_filter_3='',
-            annotation_status='',
-        )
-
-    def test_load_page_as_anonymous(self):
-        response = self.client.post(self.url, self.default_search_params)
-        self.assertStatusOK(response)
-        self.assertDictEqual(response.json(), dict(
-            error=(
-                "You don't have permission to access this part of this source."
-            )
-        ))
-        # Since the images weren't deleted,
-        # these image-getting statements should not raise errors.
-        Image.objects.get(pk=self.img1.pk)
-
-    def test_load_page_as_source_outsider(self):
-        self.client.force_login(self.user_outsider)
-        response = self.client.post(self.url, self.default_search_params)
-        self.assertStatusOK(response)
-        self.assertDictEqual(response.json(), dict(
-            error=(
-                "You don't have permission to access this part of this source."
-            )
-        ))
-        Image.objects.get(pk=self.img1.pk)
-
-    def test_load_page_as_source_viewer(self):
-        self.client.force_login(self.user_viewer)
-        response = self.client.post(self.url, self.default_search_params)
-        self.assertStatusOK(response)
-        self.assertDictEqual(response.json(), dict(
-            error=(
-                "You don't have permission to access this part of this source."
-            )
-        ))
-        Image.objects.get(pk=self.img1.pk)
-
-    def test_load_page_as_source_editor(self):
-        self.client.force_login(self.user_editor)
-        response = self.client.post(self.url, self.default_search_params)
-        self.assertStatusOK(response)
-        self.assertNotIn('error', response.json())
+        self.source_to_private()
+        self.assertPermissionLevel(
+            url, self.SOURCE_EDIT, is_json=True, post_data={})
+        self.source_to_public()
+        self.assertPermissionLevel(
+            url, self.SOURCE_EDIT, is_json=True, post_data={})
 
 
 class SuccessTest(ClientTest):

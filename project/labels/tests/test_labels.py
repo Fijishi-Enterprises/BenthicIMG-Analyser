@@ -1,6 +1,5 @@
 from __future__ import unicode_literals
 
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core import mail
@@ -10,10 +9,60 @@ from django.urls import reverse
 
 from images.model_utils import PointGen
 from images.models import Source
-from lib.tests.utils import ClientTest, sample_image_as_file
+from lib.tests.utils import (
+    BasePermissionTest, ClientTest, sample_image_as_file)
 from ..models import LabelGroup, Label
 
 User = get_user_model()
+
+
+class PermissionTest(BasePermissionTest):
+    """
+    Test permissions of label views other than label edit, which is tested in
+    another class.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super(PermissionTest, cls).setUpTestData()
+
+        cls.labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
+
+    def test_label_list(self):
+        url = reverse('label_list')
+        template = 'labels/label_list.html'
+
+        self.assertPermissionLevel(url, self.SIGNED_OUT, template=template)
+
+    def test_label_list_search_ajax(self):
+        url = reverse('label_list_search_ajax')
+
+        self.assertPermissionLevel(url, self.SIGNED_OUT, is_json=True)
+
+    def test_label_new(self):
+        url = reverse('label_new')
+        template = 'labels/label_new.html'
+
+        self.assertPermissionLevel(
+            url, self.SIGNED_IN, template=template,
+            deny_type=self.REQUIRE_LOGIN)
+
+    def test_label_new_ajax(self):
+        url = reverse('label_new_ajax')
+
+        self.assertPermissionLevel(
+            url, self.SIGNED_IN, is_json=True, post_data={},
+            deny_type=self.REQUIRE_LOGIN)
+
+    def test_label_main(self):
+        url = reverse('label_main', args=[self.labels[0].pk])
+        template = 'labels/label_main.html'
+
+        self.assertPermissionLevel(url, self.SIGNED_OUT, template=template)
+
+    def test_label_example_patches_ajax(self):
+        url = reverse('label_example_patches_ajax', args=[self.labels[0].pk])
+
+        self.assertPermissionLevel(url, self.SIGNED_OUT, is_json=True)
 
 
 class LabelTest(ClientTest):
@@ -211,6 +260,9 @@ class LabelDetailTest(ClientTest):
         )
         self.assertStatusOK(response)
 
+    # TODO: Test other page details, especially parts distinguishing between
+    # public and private sources
+
 
 class LabelDetailPatchesTest(ClientTest):
     """
@@ -371,14 +423,6 @@ class NewLabelAjaxTest(ClientTest):
 
         cls.url = reverse('label_new_ajax')
 
-    def test_load_page_anonymous(self):
-        """Redirect to sign-in page."""
-        response = self.client.get(self.url)
-        self.assertRedirects(
-            response,
-            reverse(settings.LOGIN_URL) + '?next=' + self.url,
-        )
-
     @override_settings(LABELSET_COMMITTEE_EMAIL='labels@example.com')
     def test_label_creation(self):
         """Successfully create a new label."""
@@ -480,14 +524,6 @@ class NewLabelNonAjaxTest(ClientTest):
             cls.user, ['A', 'B'], "Group1")
 
         cls.url = reverse('label_new')
-
-    def test_load_page_anonymous(self):
-        """Redirect to sign-in page."""
-        response = self.client.get(self.url)
-        self.assertRedirects(
-            response,
-            reverse(settings.LOGIN_URL) + '?next=' + self.url,
-        )
 
     def test_label_creation(self):
         """Successfully create a new label."""
@@ -598,7 +634,7 @@ class EditLabelPermissionTest(ClientTest):
         self.assertTemplateUsed(response, 'labels/label_edit.html')
 
     def test_superuser(self):
-        self.client.force_login(User.objects.get(username='superuser'))
+        self.client.force_login(self.superuser)
         response = self.client.get(self.url_verified)
         self.assertTemplateUsed(response, 'labels/label_edit.html')
 

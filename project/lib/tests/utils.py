@@ -8,6 +8,7 @@ import math
 import posixpath
 import random
 import six
+import urllib
 
 from PIL import Image as PILImage
 from selenium import webdriver
@@ -25,6 +26,7 @@ from django.test import override_settings, skipIfDBFeature, tag, TestCase
 from django.test.client import Client
 from django.test.runner import DiscoverRunner
 from django.urls import reverse
+from django.utils.html import escape as html_escape
 
 from images.model_utils import PointGen
 from images.models import Source, Point, Image
@@ -639,135 +641,304 @@ class BrowserTest(StaticLiveServerTestCase, ClientTest):
 class BasePermissionTest(ClientTest):
     """
     Test view permissions.
-
-    To generalize this class to test any view, we might want to add some
-    flexibility on what is created with each source (or just create the minimum
-    and leave further customization to subclasses).
     """
+
+    # Permission levels
+    SIGNED_OUT = 1
+    SIGNED_IN = 2
+    SOURCE_VIEW = 3
+    SOURCE_EDIT = 4
+    SOURCE_ADMIN = 5
+    SUPERUSER = 6
+
+    # Deny types
+    PERMISSION_DENIED = 1
+    NOT_FOUND = 2
+    REQUIRE_LOGIN = 3
+
     @classmethod
     def setUpTestData(cls):
         super(BasePermissionTest, cls).setUpTestData()
 
         cls.user = cls.create_user()
-        labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
-
-        cls.public_source = cls.create_source(
-            cls.user, visibility=Source.VisibilityTypes.PUBLIC)
-        cls.create_labelset(cls.user, cls.public_source, labels)
-
-        cls.private_source = cls.create_source(
-            cls.user, visibility=Source.VisibilityTypes.PRIVATE)
-        cls.create_labelset(cls.user, cls.private_source, labels)
+        cls.source = cls.create_source(cls.user)
 
         # Not a source member
         cls.user_outsider = cls.create_user()
         # View permissions
         cls.user_viewer = cls.create_user()
         cls.add_source_member(
-            cls.user, cls.public_source,
-            cls.user_viewer, Source.PermTypes.VIEW.code)
-        cls.add_source_member(
-            cls.user, cls.private_source,
+            cls.user, cls.source,
             cls.user_viewer, Source.PermTypes.VIEW.code)
         # Edit permissions
         cls.user_editor = cls.create_user()
         cls.add_source_member(
-            cls.user, cls.public_source,
-            cls.user_editor, Source.PermTypes.EDIT.code)
-        cls.add_source_member(
-            cls.user, cls.private_source,
+            cls.user, cls.source,
             cls.user_editor, Source.PermTypes.EDIT.code)
         # Admin permissions
         cls.user_admin = cls.create_user()
         cls.add_source_member(
-            cls.user, cls.public_source,
-            cls.user_admin, Source.PermTypes.ADMIN.code)
-        cls.add_source_member(
-            cls.user, cls.private_source,
+            cls.user, cls.source,
             cls.user_admin, Source.PermTypes.ADMIN.code)
 
-    def assertPermissionGranted(self, url, user=None, post_data=None):
+        # cls.superuser, created via management command, doesn't have a
+        # profile or password. So it doesn't work for certain views/situations.
+        # Thus we create cls.user_superuser to test superusers in those
+        # situations.
+        # TODO: Consider creating cls.superuser just like any other user, so
+        # long as it doesn't affect other tests.
+        cls.user_superuser = cls.create_user()
+        cls.user_superuser.is_superuser = True
+        cls.user_superuser.save()
+
+    def source_to_private(self):
+        self.source.visibility = Source.VisibilityTypes.PRIVATE
+        self.source.save()
+
+    def source_to_public(self):
+        self.source.visibility = Source.VisibilityTypes.PUBLIC
+        self.source.save()
+
+    def _make_request(self, url, user, post_data):
         if user:
             self.client.force_login(user)
         else:
+            # Test while logged out
             self.client.logout()
+
         if post_data is not None:
-            response = self.client.post(url, post_data)
+            response = self.client.post(url, post_data, follow=True)
         else:
-            response = self.client.get(url)
+            response = self.client.get(url, follow=True)
+
+        return response
+
+    def assertPermissionGranted(
+            self, url, user=None, post_data=None, template=None,
+            content_type='text/html'):
+        """
+        Assert that the given user is granted permission to the given URL.
+        """
+        response = self._make_request(url, user, post_data)
+
         # Response may indicate an error, but if it does, it shouldn't be
-        # about permission
+        # about permission.
+        self.assertNotEqual(response.status_code, 403)
         self.assertTemplateNotUsed(response, self.PERMISSION_DENIED_TEMPLATE)
 
-    def assertPermissionDenied(
-            self, url, user=None, post_data=None, deny_message=None):
-        if user:
-            self.client.force_login(user)
-        else:
-            # Test while logged out
-            self.client.logout()
-        if post_data is not None:
-            response = self.client.post(url, post_data)
-        else:
-            response = self.client.get(url)
+        # For non-HTML, template assertions trivially resolve to 'not used'.
+        # So here, we make sure the caller is aware if the content type isn't
+        # HTML. In particular, if it's JSON, the caller probably wants the
+        # Ajax version of this method instead.
+        self.assertIn(content_type, response['content-type'])
 
+        # If a template is specified, ensure it's used.
+        if template:
+            self.assertTemplateUsed(response, template)
+
+    def assertPermissionDenied(
+            self, url, user=None, post_data=None, deny_wording=None):
+        """
+        Assert that the given user is denied permission to the given URL,
+        using the permission-denied template.
+        """
+        response = self._make_request(url, user, post_data)
+
+        # TODO: We should probably use this assertion, but a lot of our views
+        # don't yet use 403 when denying access.
+        #self.assertEqual(response.status_code, 403)
+
+        # Response should use the permission-denied template, and
+        # contain the deny_wording (if provided)
         self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-        if deny_message:
-            self.assertContains(response, deny_message)
+        if deny_wording:
+            self.assertContains(response, html_escape(deny_wording))
 
     def assertRedirectsToLogin(self, url, user=None, post_data=None):
-        if user:
-            self.client.force_login(user)
-        else:
-            # Test while logged out
-            self.client.logout()
-        if post_data is not None:
-            response = self.client.post(url, post_data)
-        else:
-            response = self.client.get(url)
+        """
+        Assert that the given user is redirected to the login page when
+        trying to access the given URL.
+        """
+        response = self._make_request(url, user, post_data)
 
+        # The URL should escape certain characters, like ? with %3F.
+        quoted_url = urllib.quote(url)
         self.assertRedirects(
-            response, reverse(settings.LOGIN_URL)+'?next='+url)
+            response, reverse(settings.LOGIN_URL)+'?next='+quoted_url)
 
     def assertNotFound(self, url, user=None, post_data=None):
-        if user:
-            self.client.force_login(user)
-        else:
-            # Test while logged out
-            self.client.logout()
-        if post_data is not None:
-            response = self.client.post(url, post_data)
-        else:
-            response = self.client.get(url)
+        """
+        Assert that the given user is presented a not-found response when
+        trying to access the given URL.
+        """
+        response = self._make_request(url, user, post_data)
+
+        self.assertEqual(response.status_code, 404)
         self.assertTemplateUsed(response, self.NOT_FOUND_TEMPLATE)
 
-    def assertPermissionGrantedAjax(self, url, user=None, post_data=None):
-        if user:
-            self.client.force_login(user)
-        else:
-            self.client.logout()
-        if post_data is not None:
-            response = self.client.post(url, post_data).json()
-        else:
-            response = self.client.get(url).json()
+    def assertPermissionGrantedJson(self, url, user=None, post_data=None):
+        """
+        JSON-response version of assertPermissionGranted.
+        """
+        response = self._make_request(url, user, post_data)
+        response_json = response.json()
+
         # Response may indicate an error, but if it does, it shouldn't be
         # about permission
+        self.assertNotEqual(response.status_code, 403)
         self.assertFalse(
-            'error' in response and "permission" in response['error'])
+            'error' in response_json
+            and "permission" in response_json['error'])
 
-    def assertPermissionDeniedAjax(self, url, user=None, post_data=None):
-        if user:
-            self.client.force_login(user)
+    def assertPermissionDeniedJson(
+            self, url, user=None, post_data=None, deny_wording=None):
+        """
+        JSON-response version of assertPermissionDenied.
+        """
+        response = self._make_request(url, user, post_data)
+        response_json = response.json()
+
+        # TODO: We should probably use this assertion, but a lot of our views
+        # don't yet use 403 when denying access.
+        #self.assertEqual(response.status_code, 403)
+
+        # Response should include an error that contains the deny_wording
+        # (if provided)
+        self.assertIn('error', response_json)
+        if deny_wording:
+            self.assertIn(deny_wording, response_json['error'])
+
+    def assertLoginRequiredJson(self, url, user=None, post_data=None):
+        """
+        JSON-response version of assertLoginRequired.
+        """
+        response = self._make_request(url, user, post_data)
+        response_json = response.json()
+
+        # TODO: We should probably use this assertion, but a lot of our views
+        # don't yet use 403 when denying access.
+        #self.assertEqual(response.status_code, 403)
+
+        # Response should include an error that contains the words "signed in"
+        self.assertIn('error', response_json)
+        self.assertIn("signed in", response_json['error'])
+
+    def assertNotFoundJson(self, url, user=None, post_data=None):
+        """
+        JSON-response version of assertNotFound.
+        """
+        response = self._make_request(url, user, post_data)
+        response_json = response.json()
+
+        # Response should be 404 and include an error
+        self.assertEqual(response.status_code, 404)
+        self.assertIn('error', response_json)
+
+    def assertPermissionLevel(
+            self, url, required_level, is_json=False,
+            post_data=None, template=None, content_type='text/html',
+            deny_type=PERMISSION_DENIED, deny_wording="permission"):
+        """
+        Test that a particular URL has a particular required permission level.
+        This is done by testing several relevant user levels on that URL.
+
+        For example, if required_level is SOURCE_EDIT:
+        - assert permission denied for a signed-out user, a signed-in
+          user who isn't a member of the source, and a source member with View
+          permission.
+        - assert permission granted for a source member with Edit permission,
+          and a source member with Admin permission.
+
+        And if required_level is SIGNED_IN:
+        - assert permission denied for a signed-out user.
+        - assert permission granted for a signed-in user, and a
+          signed-in superuser.
+        """
+        if required_level in [self.SIGNED_OUT, self.SIGNED_IN, self.SUPERUSER]:
+
+            # Checking permissions on a non-source-specific page. We'll test:
+            # - a signed-out user
+            # - a signed-in user
+            # - a superuser
+            users_and_levels = [
+                (None, self.SIGNED_OUT),
+                (self.user_outsider, self.SIGNED_IN),
+                (self.user_superuser, self.SUPERUSER),
+            ]
+
+        elif required_level in [
+                self.SOURCE_VIEW, self.SOURCE_EDIT, self.SOURCE_ADMIN]:
+
+            # Checking permissions on a source-specific page. We'll test:
+            # - a signed-out user
+            # - a signed-in user who isn't a member of the source
+            # - a source member with View permission
+            # - a source member with Edit permission
+            # - a source member with Admin permission
+            users_and_levels = [
+                (None, self.SIGNED_OUT),
+                (self.user_outsider, self.SIGNED_IN),
+                (self.user_viewer, self.SOURCE_VIEW),
+                (self.user_editor, self.SOURCE_EDIT),
+                (self.user_admin, self.SOURCE_ADMIN),
+            ]
+
         else:
-            # Test while logged out
-            self.client.logout()
-        if post_data is not None:
-            response = self.client.post(url, post_data).json()
-        else:
-            response = self.client.get(url).json()
-        # Response should include an error that contains the word "permission"
-        self.assertIn('error', response)
-        self.assertIn("permission", response['error'])
+
+            raise ValueError(
+                "Unsupported required_level: {}".format(required_level))
+
+        # Do one denied/granted assertion per user level.
+
+        for user, user_level in users_and_levels:
+
+            if user_level >= required_level:
+
+                # Access should be granted
+
+                if is_json:
+                    self.assertPermissionGrantedJson(
+                        url, user, post_data=post_data)
+                else:
+                    self.assertPermissionGranted(
+                        url, user, post_data=post_data,
+                        template=template, content_type=content_type)
+
+            else:
+
+                # Access should be denied
+
+                if deny_type == self.PERMISSION_DENIED:
+
+                    if is_json:
+                        self.assertPermissionDeniedJson(
+                            url, user, post_data=post_data,
+                            deny_wording=deny_wording)
+                    else:
+                        self.assertPermissionDenied(
+                            url, user, post_data=post_data,
+                            deny_wording=deny_wording)
+
+                elif deny_type == self.NOT_FOUND:
+
+                    if is_json:
+                        self.assertNotFoundJson(url, user, post_data=post_data)
+                    else:
+                        self.assertNotFound(url, user, post_data=post_data)
+
+                elif deny_type == self.REQUIRE_LOGIN:
+
+                    if is_json:
+                        self.assertLoginRequiredJson(
+                            url, user, post_data=post_data)
+                    else:
+                        self.assertRedirectsToLogin(
+                            url, user, post_data=post_data)
+
+                else:
+
+                    raise ValueError(
+                        "Unsupported deny_type: {}".format(deny_type))
 
 
 def create_sample_image(width=200, height=200, cols=10, rows=10, mode='RGB'):

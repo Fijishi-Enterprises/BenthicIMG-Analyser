@@ -6,142 +6,35 @@ from zipfile import ZipFile
 from bs4 import BeautifulSoup
 from django.core.files.base import ContentFile
 from django.shortcuts import resolve_url
+from django.urls import reverse
 
 from export.utils import get_previous_cpcs_status, write_zip
 from images.model_utils import PointGen
-from images.models import Image, Source
-from lib.tests.utils import ClientTest
+from images.models import Image
+from lib.tests.utils import BasePermissionTest, ClientTest
 
 
-class PermissionTest(ClientTest):
+class PermissionTest(BasePermissionTest):
 
-    @classmethod
-    def setUpTestData(cls):
-        super(PermissionTest, cls).setUpTestData()
+    def test_cpc_create_ajax(self):
+        url = reverse(
+            'export_annotations_cpc_create_ajax', args=[self.source.pk])
 
-        cls.user = cls.create_user()
-        labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
+        self.source_to_private()
+        self.assertPermissionLevel(url, self.SOURCE_EDIT, is_json=True)
+        self.source_to_public()
+        self.assertPermissionLevel(url, self.SOURCE_EDIT, is_json=True)
 
-        cls.public_source = cls.create_source(
-            cls.user, visibility=Source.VisibilityTypes.PUBLIC)
-        cls.create_labelset(cls.user, cls.public_source, labels)
+    def test_cpc_serve(self):
+        # Without session variables from cpc_create_ajax, this should redirect
+        # to browse images.
+        url = reverse('export_annotations_cpc_serve', args=[self.source.pk])
+        template = 'visualization/browse_images.html'
 
-        cls.private_source = cls.create_source(
-            cls.user, visibility=Source.VisibilityTypes.PRIVATE)
-        cls.create_labelset(cls.user, cls.private_source, labels)
-
-        # Not a source member
-        cls.user_outsider = cls.create_user()
-        # View permissions
-        cls.user_viewer = cls.create_user()
-        cls.add_source_member(
-            cls.user, cls.public_source,
-            cls.user_viewer, Source.PermTypes.VIEW.code)
-        cls.add_source_member(
-            cls.user, cls.private_source,
-            cls.user_viewer, Source.PermTypes.VIEW.code)
-        # Edit permissions
-        cls.user_editor = cls.create_user()
-        cls.add_source_member(
-            cls.user, cls.public_source,
-            cls.user_editor, Source.PermTypes.EDIT.code)
-        cls.add_source_member(
-            cls.user, cls.private_source,
-            cls.user_editor, Source.PermTypes.EDIT.code)
-
-    def test_cpc_create_ajax_private_source(self):
-        url = resolve_url(
-            'export_annotations_cpc_create_ajax', self.private_source.pk)
-
-        # Not logged in
-        response = self.client.get(url).json()
-        self.assertTrue(
-            'error' in response and "permission" in response['error'])
-
-        self.client.force_login(self.user_outsider)
-        response = self.client.get(url).json()
-        self.assertTrue(
-            'error' in response and "permission" in response['error'])
-
-        self.client.force_login(self.user_viewer)
-        response = self.client.get(url).json()
-        self.assertTrue(
-            'error' in response and "permission" in response['error'])
-
-        self.client.force_login(self.user_editor)
-        response = self.client.get(url).json()
-        # Response may include an error, but if it does, it shouldn't contain
-        # the word "permission"
-        self.assertFalse(
-            'error' in response and "permission" in response['error'])
-
-    def test_cpc_create_ajax_public_source(self):
-        url = resolve_url(
-            'export_annotations_cpc_create_ajax', self.public_source.pk)
-
-        # Not logged in
-        response = self.client.get(url).json()
-        self.assertTrue(
-            'error' in response and "permission" in response['error'])
-
-        self.client.force_login(self.user_outsider)
-        response = self.client.get(url).json()
-        self.assertTrue(
-            'error' in response and "permission" in response['error'])
-
-        self.client.force_login(self.user_viewer)
-        response = self.client.get(url).json()
-        self.assertTrue(
-            'error' in response and "permission" in response['error'])
-
-        self.client.force_login(self.user_editor)
-        response = self.client.get(url).json()
-        # Response may include an error, but if it does, it shouldn't contain
-        # the word "permission"
-        self.assertFalse(
-            'error' in response and "permission" in response['error'])
-
-    def test_cpc_serve_private_source(self):
-        url = resolve_url(
-            'export_annotations_cpc_serve', self.private_source.pk)
-
-        # Not logged in
-        response = self.client.get(url)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-
-        self.client.force_login(self.user_outsider)
-        response = self.client.get(url)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-
-        self.client.force_login(self.user_viewer)
-        response = self.client.get(url)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-
-        self.client.force_login(self.user_editor)
-        response = self.client.get(url)
-        # An editor can get in
-        self.assertTemplateNotUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-
-    def test_cpc_serve_public_source(self):
-        url = resolve_url(
-            'export_annotations_cpc_serve', self.public_source.pk)
-
-        # Not logged in
-        response = self.client.get(url)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-
-        self.client.force_login(self.user_outsider)
-        response = self.client.get(url)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-
-        self.client.force_login(self.user_viewer)
-        response = self.client.get(url)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-
-        self.client.force_login(self.user_editor)
-        response = self.client.get(url)
-        # An editor can get in
-        self.assertTemplateNotUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+        self.source_to_private()
+        self.assertPermissionLevel(url, self.SOURCE_EDIT, template=template)
+        self.source_to_public()
+        self.assertPermissionLevel(url, self.SOURCE_EDIT, template=template)
 
 
 class CPCExportBaseTest(ClientTest):

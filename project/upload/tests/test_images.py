@@ -11,7 +11,40 @@ from django.utils import timezone
 
 from images.models import Image
 from lib.tests.utils import (
-    ClientTest, sample_image_as_file, create_sample_image)
+    BasePermissionTest, ClientTest, sample_image_as_file, create_sample_image)
+
+
+class PermissionTest(BasePermissionTest):
+
+    def test_images(self):
+        url = reverse('upload_images', args=[self.source.pk])
+        template = 'upload/upload_images.html'
+
+        self.source_to_private()
+        self.assertPermissionLevel(url, self.SOURCE_EDIT, template=template)
+        self.source_to_public()
+        self.assertPermissionLevel(url, self.SOURCE_EDIT, template=template)
+
+    def test_images_preview_ajax(self):
+        url = reverse('upload_images_preview_ajax', args=[self.source.pk])
+        post_data = dict(file_info='[]')
+
+        self.source_to_private()
+        self.assertPermissionLevel(
+            url, self.SOURCE_EDIT, is_json=True, post_data=post_data)
+        self.source_to_public()
+        self.assertPermissionLevel(
+            url, self.SOURCE_EDIT, is_json=True, post_data=post_data)
+
+    def test_images_ajax(self):
+        url = reverse('upload_images_ajax', args=[self.source.pk])
+
+        self.source_to_private()
+        self.assertPermissionLevel(
+            url, self.SOURCE_EDIT, is_json=True, post_data={})
+        self.source_to_public()
+        self.assertPermissionLevel(
+            url, self.SOURCE_EDIT, is_json=True, post_data={})
 
 
 class UploadImagePreviewTest(ClientTest):

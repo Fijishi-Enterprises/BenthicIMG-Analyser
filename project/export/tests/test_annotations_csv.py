@@ -5,6 +5,7 @@ import datetime
 from django.core.files.base import ContentFile
 from django.shortcuts import resolve_url
 from django.test import override_settings
+from django.urls import reverse
 
 from annotations.models import Annotation
 from export.tests.utils import BaseExportTest
@@ -15,23 +16,15 @@ from upload.tests.utils import UploadAnnotationsTestMixin
 
 class PermissionTest(BasePermissionTest):
 
-    def test_annotations_private_source(self):
-        url = resolve_url(
-            'export_annotations', self.private_source.pk)
-        self.assertPermissionDenied(url, None)
-        self.assertPermissionDenied(url, self.user_outsider)
-        self.assertPermissionGranted(url, self.user_viewer)
-        self.assertPermissionGranted(url, self.user_editor)
-        self.assertPermissionGranted(url, self.user_admin)
+    def test_annotations(self):
+        url = reverse('export_annotations', args=[self.source.pk])
 
-    def test_annotations_public_source(self):
-        url = resolve_url(
-            'export_annotations', self.public_source.pk)
-        self.assertPermissionGranted(url, None)
-        self.assertPermissionGranted(url, self.user_outsider)
-        self.assertPermissionGranted(url, self.user_viewer)
-        self.assertPermissionGranted(url, self.user_editor)
-        self.assertPermissionGranted(url, self.user_admin)
+        self.source_to_private()
+        self.assertPermissionLevel(
+            url, self.SOURCE_VIEW, content_type='text/csv')
+        self.source_to_public()
+        self.assertPermissionLevel(
+            url, self.SIGNED_OUT, content_type='text/csv')
 
 
 class ImageSetTest(BaseExportTest):

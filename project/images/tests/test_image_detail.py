@@ -8,41 +8,29 @@ from lib.tests.utils import BasePermissionTest, ClientTest
 
 class PermissionTest(BasePermissionTest):
 
-    def test_image_detail_private_source(self):
-        img = self.upload_image(self.user, self.private_source)
-        url = reverse('image_detail', args=[img.id])
-        self.assertPermissionDenied(url, None)
-        self.assertPermissionDenied(url, self.user_outsider)
-        self.assertPermissionGranted(url, self.user_viewer)
-        self.assertPermissionGranted(url, self.user_editor)
-        self.assertPermissionGranted(url, self.user_admin)
+    @classmethod
+    def setUpTestData(cls):
+        super(PermissionTest, cls).setUpTestData()
 
-    def test_image_detail_public_source(self):
-        img = self.upload_image(self.user, self.public_source)
-        url = reverse('image_detail', args=[img.id])
-        self.assertPermissionGranted(url, None)
-        self.assertPermissionGranted(url, self.user_outsider)
-        self.assertPermissionGranted(url, self.user_viewer)
-        self.assertPermissionGranted(url, self.user_editor)
-        self.assertPermissionGranted(url, self.user_admin)
+        cls.img = cls.upload_image(cls.user, cls.source)
 
-    def test_image_detail_edit_private_source(self):
-        img = self.upload_image(self.user, self.private_source)
-        url = reverse('image_detail_edit', args=[img.id])
-        self.assertPermissionDenied(url, None)
-        self.assertPermissionDenied(url, self.user_outsider)
-        self.assertPermissionDenied(url, self.user_viewer)
-        self.assertPermissionGranted(url, self.user_editor)
-        self.assertPermissionGranted(url, self.user_admin)
+    def test_image_detail(self):
+        url = reverse('image_detail', args=[self.img.id])
+        template = 'images/image_detail.html'
 
-    def test_image_detail_edit_public_source(self):
-        img = self.upload_image(self.user, self.public_source)
-        url = reverse('image_detail_edit', args=[img.id])
-        self.assertPermissionDenied(url, None)
-        self.assertPermissionDenied(url, self.user_outsider)
-        self.assertPermissionDenied(url, self.user_viewer)
-        self.assertPermissionGranted(url, self.user_editor)
-        self.assertPermissionGranted(url, self.user_admin)
+        self.source_to_private()
+        self.assertPermissionLevel(url, self.SOURCE_VIEW, template=template)
+        self.source_to_public()
+        self.assertPermissionLevel(url, self.SIGNED_OUT, template=template)
+
+    def test_image_detail_edit(self):
+        url = reverse('image_detail_edit', args=[self.img.id])
+        template = 'images/image_detail_edit.html'
+
+        self.source_to_private()
+        self.assertPermissionLevel(url, self.SOURCE_EDIT, template=template)
+        self.source_to_public()
+        self.assertPermissionLevel(url, self.SOURCE_EDIT, template=template)
 
 
 class ImageDetailTest(ClientTest):
@@ -83,3 +71,6 @@ class ImageDetailTest(ClientTest):
         # generation doesn't go nuts.
         response = self.client.get(url)
         self.assertStatusOK(response)
+
+
+# TODO: Test image detail edit.

@@ -13,9 +13,10 @@ class PermissionTest(BasePermissionTest):
     def test_entry_list_permission(self):
         """Everyone can access the entry list."""
         url = resolve_url('blog:entry_list')
-        self.assertPermissionGranted(url, None)
-        self.assertPermissionGranted(url, self.user)
-        self.assertPermissionGranted(url, self.superuser)
+        template = 'blog/entry_list.html'
+
+        self.assertPermissionLevel(
+            url, self.SIGNED_OUT, template=template)
 
 
 class FooterLinkTest(ClientTest):

@@ -3,7 +3,7 @@ import hashlib
 
 from bs4 import BeautifulSoup
 from django.shortcuts import resolve_url
-from django.utils.html import escape
+from django.urls import reverse
 
 from lib.tests.utils import BasePermissionTest, ClientTest, sample_image_as_file
 from ..models import Profile
@@ -64,9 +64,10 @@ class ProfileListPermissionTest(ProfilePermissionTest):
     def test_profile_list_access(self):
         """Everyone can access the profile list."""
         url = resolve_url('profile_list')
-        self.assertPermissionGranted(url, None)
-        self.assertPermissionGranted(url, self.user)
-        self.assertPermissionGranted(url, self.superuser)
+        template = 'profiles/profile_list.html'
+
+        self.assertPermissionLevel(
+            url, self.SIGNED_OUT, template=template)
 
     def test_profile_list_visibility_of_open_profile(self):
         """Everyone can see an open profile."""
@@ -158,8 +159,8 @@ class ProfileDetailPermissionTest(ProfilePermissionTest):
         """Only registered users can see this profile."""
         url = resolve_url('profile_detail', self.user_registered.pk)
         self.assertPermissionDenied(
-            url, None, deny_message=escape(
-                "You don't have permission to view this profile."))
+            url, None,
+            deny_wording="You don't have permission to view this profile.")
         self.assertPermissionGranted(url, self.user)
         self.assertPermissionGranted(url, self.user_registered)
         self.assertPermissionGranted(url, self.superuser)
@@ -168,11 +169,11 @@ class ProfileDetailPermissionTest(ProfilePermissionTest):
         """Only superusers and the profile owner can see a closed profile."""
         url = resolve_url('profile_detail', self.user_closed.pk)
         self.assertPermissionDenied(
-            url, None, deny_message=escape(
-                "You don't have permission to view this profile."))
+            url, None,
+            deny_wording="You don't have permission to view this profile.")
         self.assertPermissionDenied(
-            url, self.user, deny_message=escape(
-                "You don't have permission to view this profile."))
+            url, self.user,
+            deny_wording="You don't have permission to view this profile.")
         self.assertPermissionGranted(url, self.user_closed)
         self.assertPermissionGranted(url, self.superuser)
 
@@ -197,6 +198,27 @@ class ProfileDetailPermissionTest(ProfilePermissionTest):
         self.client.force_login(self.superuser)
         response = self.client.get(url)
         self.assertNotContains(response, "Edit your profile")
+
+
+class ProfileEditPermissionTest(BasePermissionTest):
+
+    def test_profile_edit(self):
+        url = reverse('profile_edit')
+        template = 'profiles/profile_form.html'
+
+        # The view only makes sense for registered users. It's for editing
+        # your own profile.
+        self.assertPermissionLevel(
+            url, self.SIGNED_IN, template=template,
+            deny_type=self.REQUIRE_LOGIN)
+
+    def test_profile_edit_cancel(self):
+        url = reverse('profile_edit_cancel')
+        template = 'profiles/profile_detail.html'
+
+        self.assertPermissionLevel(
+            url, self.SIGNED_IN, template=template,
+            deny_type=self.REQUIRE_LOGIN)
 
 
 class ProfileEditTest(ClientTest):
@@ -224,17 +246,6 @@ class ProfileEditTest(ClientTest):
             avatar_file=avatar_file, use_email_gravatar=use_email_gravatar)
         response = self.client.post(self.url, data, follow=True)
         return response
-
-    def test_load_page_anonymous(self):
-        """The view only makes sense for registered users. It's for editing
-        your own profile."""
-        response = self.client.get(self.url, follow=True)
-        self.assertTemplateUsed(response, 'registration/login.html')
-
-    def test_load_page(self):
-        self.client.force_login(self.user)
-        response = self.client.get(self.url)
-        self.assertTemplateUsed(response, 'profiles/profile_form.html')
 
     def test_submit(self):
         self.client.force_login(self.user)

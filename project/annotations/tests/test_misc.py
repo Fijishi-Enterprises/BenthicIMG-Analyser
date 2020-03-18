@@ -1,3 +1,5 @@
+from __future__ import unicode_literals
+
 from django.urls import reverse
 
 from annotations.model_utils import AnnotationAreaUtils
@@ -5,7 +7,24 @@ from annotations.tasks import update_sitewide_annotation_count_task
 from annotations.utils import get_sitewide_annotation_count
 from images.model_utils import PointGen
 from images.models import Source, Image, Point
-from lib.tests.utils import ClientTest
+from lib.tests.utils import BasePermissionTest, ClientTest
+
+
+class PermissionTest(BasePermissionTest):
+    """
+    Test page and Ajax-submit permissions for misc. views.
+    """
+    def test_annotation_area_edit(self):
+        img = self.upload_image(self.user, self.source)
+        url = reverse('annotation_area_edit', args=[img.pk])
+        template = 'annotations/annotation_area_edit.html'
+
+        self.source_to_private()
+        self.assertPermissionLevel(
+            url, self.SOURCE_EDIT, template=template)
+        self.source_to_public()
+        self.assertPermissionLevel(
+            url, self.SOURCE_EDIT, template=template)
 
 
 class SitewideAnnotationCountTest(ClientTest):
@@ -58,52 +77,10 @@ class AnnotationAreaEditTest(ClientTest):
         labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
         cls.create_labelset(cls.user, cls.source, labels)
 
-        cls.user_outsider = cls.create_user()
-        cls.user_viewer = cls.create_user()
-        cls.add_source_member(
-            cls.user, cls.source, cls.user_viewer, Source.PermTypes.VIEW.code)
-        cls.user_editor = cls.create_user()
-        cls.add_source_member(
-            cls.user, cls.source, cls.user_editor, Source.PermTypes.EDIT.code)
-
         cls.img = cls.upload_image(cls.user, cls.source)
         cls.url = reverse('annotation_area_edit', args=[cls.img.pk])
 
-    def test_load_page_anonymous(self):
-        """
-        Load the page while logged out ->
-        sorry, don't have permission.
-        """
-        response = self.client.get(self.url)
-        self.assertStatusOK(response)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-
-    def test_load_page_as_source_outsider(self):
-        """
-        Load the page as a user outside the source ->
-        sorry, don't have permission.
-        """
-        self.client.force_login(self.user_outsider)
-        response = self.client.get(self.url)
-        self.assertStatusOK(response)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-
-    def test_load_page_as_source_viewer(self):
-        """
-        Load the page as a source viewer ->
-        sorry, don't have permission.
-        """
-        self.client.force_login(self.user_viewer)
-        response = self.client.get(self.url)
-        self.assertStatusOK(response)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-
-    def test_load_page(self):
-        self.client.force_login(self.user_editor)
-        response = self.client.get(self.url)
-        self.assertStatusOK(response)
-        self.assertTemplateUsed(
-            response, 'annotations/annotation_area_edit.html')
+    # TODO: Test correct field values when loading the page
 
     # TODO: Test submitting a new annotation area
 

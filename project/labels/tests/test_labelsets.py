@@ -4,7 +4,6 @@ from backports import csv
 from io import StringIO
 
 from django.core.files.base import ContentFile
-from django.shortcuts import resolve_url
 from django.urls import reverse
 from django.utils.html import escape
 
@@ -17,95 +16,85 @@ from .test_labels import LabelTest
 
 class PermissionTest(BasePermissionTest):
 
-    def test_labelset_add_private_source(self):
-        url = resolve_url(
-            'labelset_add', self.private_source.pk)
-        self.assertPermissionDenied(url, None)
-        self.assertPermissionDenied(url, self.user_outsider)
-        self.assertPermissionDenied(url, self.user_viewer)
-        self.assertPermissionDenied(url, self.user_editor)
-        self.assertPermissionGranted(url, self.user_admin)
+    @classmethod
+    def setUpTestData(cls):
+        super(PermissionTest, cls).setUpTestData()
 
-    def test_labelset_add_public_source(self):
-        url = resolve_url(
-            'labelset_add', self.public_source.pk)
-        self.assertPermissionDenied(url, None)
-        self.assertPermissionDenied(url, self.user_outsider)
-        self.assertPermissionDenied(url, self.user_viewer)
-        self.assertPermissionDenied(url, self.user_editor)
-        self.assertPermissionGranted(url, self.user_admin)
+        cls.labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
+        cls.create_labelset(cls.user, cls.source, cls.labels)
 
-    def test_labelset_edit_private_source(self):
-        url = resolve_url(
-            'labelset_edit', self.private_source.pk)
-        self.assertPermissionDenied(url, None)
-        self.assertPermissionDenied(url, self.user_outsider)
-        self.assertPermissionDenied(url, self.user_viewer)
-        self.assertPermissionDenied(url, self.user_editor)
-        self.assertPermissionGranted(url, self.user_admin)
+    def test_labelset_add_search_ajax(self):
+        url = reverse('labelset_add_search_ajax') + '?search=abc'
+        template = 'labels/label_box_container.html'
 
-    def test_labelset_edit_public_source(self):
-        url = resolve_url(
-            'labelset_edit', self.public_source.pk)
-        self.assertPermissionDenied(url, None)
-        self.assertPermissionDenied(url, self.user_outsider)
-        self.assertPermissionDenied(url, self.user_viewer)
-        self.assertPermissionDenied(url, self.user_editor)
-        self.assertPermissionGranted(url, self.user_admin)
+        # This view is unusual because it's Ajax, yet responds with HTML.
+        self.assertPermissionLevel(
+            url, self.SIGNED_IN, template=template,
+            deny_type=self.REQUIRE_LOGIN)
 
-    def test_labelset_import_private_source(self):
-        url = resolve_url(
-            'labelset_import', self.private_source.pk)
-        self.assertPermissionDenied(url, None)
-        self.assertPermissionDenied(url, self.user_outsider)
-        self.assertPermissionDenied(url, self.user_viewer)
-        self.assertPermissionDenied(url, self.user_editor)
-        self.assertPermissionGranted(url, self.user_admin)
+    def test_labelset_duplicates(self):
+        url = reverse('labelset_duplicates')
+        template = 'labels/list_duplicates.html'
 
-    def test_labelset_import_public_source(self):
-        url = resolve_url(
-            'labelset_import', self.public_source.pk)
-        self.assertPermissionDenied(url, None)
-        self.assertPermissionDenied(url, self.user_outsider)
-        self.assertPermissionDenied(url, self.user_viewer)
-        self.assertPermissionDenied(url, self.user_editor)
-        self.assertPermissionGranted(url, self.user_admin)
+        self.assertPermissionLevel(
+            url, self.SIGNED_IN, template=template,
+            deny_type=self.REQUIRE_LOGIN)
 
-    def test_labelset_import_preview_ajax_private_source(self):
-        url = resolve_url(
-            'labelset_import_preview_ajax', self.private_source.pk)
-        self.assertPermissionDeniedAjax(url, None, post_data={})
-        self.assertPermissionDeniedAjax(url, self.user_outsider, post_data={})
-        self.assertPermissionDeniedAjax(url, self.user_viewer, post_data={})
-        self.assertPermissionDeniedAjax(url, self.user_editor, post_data={})
-        self.assertPermissionGrantedAjax(url, self.user_admin, post_data={})
+    def test_labelset_main(self):
+        url = reverse('labelset_main', args=[self.source.pk])
+        template = 'labels/labelset_main.html'
 
-    def test_labelset_import_preview_ajax_public_source(self):
-        url = resolve_url(
-            'labelset_import_preview_ajax', self.public_source.pk)
-        self.assertPermissionDeniedAjax(url, None, post_data={})
-        self.assertPermissionDeniedAjax(url, self.user_outsider, post_data={})
-        self.assertPermissionDeniedAjax(url, self.user_viewer, post_data={})
-        self.assertPermissionDeniedAjax(url, self.user_editor, post_data={})
-        self.assertPermissionGrantedAjax(url, self.user_admin, post_data={})
+        self.source_to_private()
+        self.assertPermissionLevel(url, self.SOURCE_VIEW, template=template)
+        self.source_to_public()
+        self.assertPermissionLevel(url, self.SIGNED_OUT, template=template)
 
-    def test_labelset_import_ajax_private_source(self):
-        url = resolve_url(
-            'labelset_import_ajax', self.private_source.pk)
-        self.assertPermissionDeniedAjax(url, None, post_data={})
-        self.assertPermissionDeniedAjax(url, self.user_outsider, post_data={})
-        self.assertPermissionDeniedAjax(url, self.user_viewer, post_data={})
-        self.assertPermissionDeniedAjax(url, self.user_editor, post_data={})
-        self.assertPermissionGrantedAjax(url, self.user_admin, post_data={})
+    def test_labelset_add(self):
+        url = reverse('labelset_add', args=[self.source.pk])
+        template = 'labels/labelset_add.html'
 
-    def test_labelset_import_ajax_public_source(self):
-        url = resolve_url(
-            'labelset_import_ajax', self.public_source.pk)
-        self.assertPermissionDeniedAjax(url, None, post_data={})
-        self.assertPermissionDeniedAjax(url, self.user_outsider, post_data={})
-        self.assertPermissionDeniedAjax(url, self.user_viewer, post_data={})
-        self.assertPermissionDeniedAjax(url, self.user_editor, post_data={})
-        self.assertPermissionGrantedAjax(url, self.user_admin, post_data={})
+        self.source_to_private()
+        self.assertPermissionLevel(url, self.SOURCE_ADMIN, template=template)
+        self.source_to_public()
+        self.assertPermissionLevel(url, self.SOURCE_ADMIN, template=template)
+
+    def test_labelset_edit(self):
+        url = reverse('labelset_edit', args=[self.source.pk])
+        template = 'labels/labelset_edit.html'
+
+        self.source_to_private()
+        self.assertPermissionLevel(url, self.SOURCE_ADMIN, template=template)
+        self.source_to_public()
+        self.assertPermissionLevel(url, self.SOURCE_ADMIN, template=template)
+
+    def test_labelset_import(self):
+        url = reverse('labelset_import', args=[self.source.pk])
+        template = 'labels/labelset_import.html'
+
+        self.source_to_private()
+        self.assertPermissionLevel(url, self.SOURCE_ADMIN, template=template)
+        self.source_to_public()
+        self.assertPermissionLevel(url, self.SOURCE_ADMIN, template=template)
+
+    def test_labelset_import_preview_ajax(self):
+        url = reverse('labelset_import_preview_ajax', args=[self.source.pk])
+
+        self.source_to_private()
+        self.assertPermissionLevel(
+            url, self.SOURCE_ADMIN, is_json=True, post_data={})
+        self.source_to_public()
+        self.assertPermissionLevel(
+            url, self.SOURCE_ADMIN, is_json=True, post_data={})
+
+    def test_labelset_import_ajax(self):
+        url = reverse('labelset_import_ajax', args=[self.source.pk])
+
+        self.source_to_private()
+        self.assertPermissionLevel(
+            url, self.SOURCE_ADMIN, is_json=True, post_data={})
+        self.source_to_public()
+        self.assertPermissionLevel(
+            url, self.SOURCE_ADMIN, is_json=True, post_data={})
 
 
 class LabelsetCreateTest(LabelTest):

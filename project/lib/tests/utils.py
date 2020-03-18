@@ -93,15 +93,6 @@ class ClientUtilsMixin(object):
         """Assert that an HTTP response's status is 200 OK."""
         self.assertEqual(response.status_code, 200, msg)
 
-    @classmethod
-    def create_superuser(cls):
-        # By using --noinput, the superuser won't be able to log in normally
-        # because no password was set. Use force_login() to log in.
-        management.call_command(
-            'createsuperuser', '--noinput',
-            username='superuser', email='superuser@example.com', verbosity=0)
-        return User.objects.get(username='superuser')
-
     user_count = 0
     @classmethod
     def create_user(
@@ -146,6 +137,22 @@ class ClientUtilsMixin(object):
             cls.client.get(activation_link)
 
         return User.objects.get(username=username)
+
+    @classmethod
+    def create_superuser(cls):
+        # There is a createsuperuser management command included in Django,
+        # but it doesn't create a password or user profile for the new
+        # superuser. Those are handy to have for some tests, so we'll instead
+        # create the superuser like any regular user.
+        user = cls.create_user(username='superuser')
+
+        user.is_superuser = True
+        # We don't particularly care about separating superusers/staff.
+        # We'll just give this superuser everything, including staff perms.
+        user.is_staff = True
+        user.save()
+
+        return user
 
     source_count = 0
     source_defaults = dict(
@@ -681,16 +688,6 @@ class BasePermissionTest(ClientTest):
             cls.user, cls.source,
             cls.user_admin, Source.PermTypes.ADMIN.code)
 
-        # cls.superuser, created via management command, doesn't have a
-        # profile or password. So it doesn't work for certain views/situations.
-        # Thus we create cls.user_superuser to test superusers in those
-        # situations.
-        # TODO: Consider creating cls.superuser just like any other user, so
-        # long as it doesn't affect other tests.
-        cls.user_superuser = cls.create_user()
-        cls.user_superuser.is_superuser = True
-        cls.user_superuser.save()
-
     def source_to_private(self):
         self.source.visibility = Source.VisibilityTypes.PRIVATE
         self.source.save()
@@ -863,7 +860,7 @@ class BasePermissionTest(ClientTest):
             users_and_levels = [
                 (None, self.SIGNED_OUT),
                 (self.user_outsider, self.SIGNED_IN),
-                (self.user_superuser, self.SUPERUSER),
+                (self.superuser, self.SUPERUSER),
             ]
 
         elif required_level in [

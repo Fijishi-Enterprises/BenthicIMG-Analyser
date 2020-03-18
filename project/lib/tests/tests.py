@@ -30,7 +30,7 @@ class PermissionTest(BasePermissionTest):
         self.assertPermissionGranted(
             url, self.user_outsider, template='images/source_about.html')
         self.assertPermissionGranted(
-            url, self.user_superuser, template='images/source_list.html')
+            url, self.superuser, template='images/source_list.html')
 
     def test_about(self):
         url = reverse('about')
@@ -63,11 +63,7 @@ class PermissionTest(BasePermissionTest):
         response = self.client.get(url, follow=True)
         self.assertTemplateUsed(response, 'admin/login.html')
 
-        # Staff is a different flag from superuser.
-        staff_user = self.create_user('test_staff_user', 'SamplePass')
-        staff_user.is_staff = True
-        staff_user.save()
-        self.client.force_login(staff_user)
+        self.client.force_login(self.superuser)
         response = self.client.get(url, follow=True)
         self.assertTemplateUsed(response, 'admin/index.html')
 
@@ -83,10 +79,7 @@ class PermissionTest(BasePermissionTest):
         response = self.client.get(url, follow=True)
         self.assertTemplateUsed(response, 'admin/login.html')
 
-        staff_user = self.create_user('test_staff_user', 'SamplePass')
-        staff_user.is_staff = True
-        staff_user.save()
-        self.client.force_login(staff_user)
+        self.client.force_login(self.superuser)
         response = self.client.get(url, follow=True)
         self.assertTemplateUsed(response, 'admin_doc/index.html')
 

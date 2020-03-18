@@ -19,8 +19,9 @@ from annotations.models import Annotation
 from annotations.utils import label_ids_with_confirmed_annotations_in_source
 from images.models import Source
 from images.utils import filter_out_test_sources
-from lib.decorators import source_permission_required, \
-    source_visibility_required, source_labelset_required
+from lib.decorators import (
+    login_required_ajax, source_permission_required,
+    source_visibility_required, source_labelset_required)
 from lib.exceptions import FileProcessError
 from lib.forms import get_one_formset_error, get_one_form_error
 from upload.forms import CSVImportForm
@@ -72,7 +73,7 @@ def label_new(request):
     })
 
 
-@login_required
+@login_required_ajax
 @require_POST
 def label_new_ajax(request):
     """

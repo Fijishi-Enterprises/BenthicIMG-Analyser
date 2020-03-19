@@ -169,8 +169,6 @@ class LabelsetAddRemoveTest(LabelTest):
     """
     Test adding/removing labels from a labelset.
     """
-    longMessage = True
-
     @classmethod
     def setUpTestData(cls):
         # Call the parent's setup (while still using this class as cls)

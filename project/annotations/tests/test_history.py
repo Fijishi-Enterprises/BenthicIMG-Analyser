@@ -35,10 +35,6 @@ class AnnotationHistoryTest(ClientTest, UploadAnnotationsTestMixin):
     """
     Test the annotation history page.
     """
-    # Assertion errors have the raw error followed by the
-    # msg argument, if present.
-    longMessage = True
-
     @classmethod
     def setUpTestData(cls):
         super(AnnotationHistoryTest, cls).setUpTestData()

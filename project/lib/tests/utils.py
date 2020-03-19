@@ -408,6 +408,11 @@ class BaseTest(TestCase):
     Ensures that the test storage directories defined in the test runner
     are used as they should be.
     """
+
+    # Assertion errors have the raw error followed by the
+    # msg argument, if present.
+    longMessage = True
+
     @classmethod
     def setUpClass(cls):
         skipped = getattr(cls, "__unittest_skip__", False)

@@ -284,8 +284,6 @@ class JobCleanupTest(ClientTest):
     """
     Test cleanup of old API jobs.
     """
-    longMessage = True
-
     @classmethod
     def setUpTestData(cls):
         super(JobCleanupTest, cls).setUpTestData()

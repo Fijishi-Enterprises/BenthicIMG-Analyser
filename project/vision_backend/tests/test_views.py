@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+from unittest import skip
 
 from django.urls import reverse
 
@@ -16,6 +17,7 @@ class BackendViewPermissions(BasePermissionTest):
         self.source_to_public()
         self.assertPermissionLevel(url, self.SIGNED_OUT, template=template)
 
+    @skip("Skip until we can run backend during tests.")
     def test_backend_overview(self):
         # Requires at least 1 image
         self.upload_image(self.user, self.source)

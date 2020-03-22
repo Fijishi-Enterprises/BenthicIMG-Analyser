@@ -12,6 +12,7 @@ from export.utils import get_previous_cpcs_status, write_zip
 from images.model_utils import PointGen
 from images.models import Image
 from lib.tests.utils import BasePermissionTest, ClientTest
+from upload.tests.utils import UploadAnnotationsTestMixin
 
 
 class PermissionTest(BasePermissionTest):
@@ -405,6 +406,152 @@ class CodeFileAndImageDirFieldsTest(CPCExportBaseTest):
             first_line.startswith(r'"C:\codefile_2.txt","C:\Reef 2\2_X.jpg",'))
 
 
+class AnnotationAreaTest(
+        CPCExportBaseTest, UploadAnnotationsTestMixin):
+    """
+    Test the annotation area values of the exported CPCs, using various ways
+    of setting the annotation area.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super(AnnotationAreaTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(
+            cls.user, min_x=5, max_x=95, min_y=10, max_y=90)
+        labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
+        cls.create_labelset(cls.user, cls.source, labels)
+
+        cls.img1 = cls.upload_image(
+            cls.user, cls.source,
+            dict(filename='1.jpg', width=400, height=300))
+
+        cls.export_cpcs_params = cls.default_search_params.copy()
+        cls.export_cpcs_params.update(
+            # CPC prefs
+            local_code_filepath=r'C:\codefile_1.txt',
+            local_image_dir=r'C:\Reef 1',
+            annotation_filter='confirmed_only',
+        )
+
+    def test_percentages(self):
+        """Test using source-default annotation area."""
+        response = self.export_cpcs(self.export_cpcs_params)
+
+        cpc_content = self.export_response_to_cpc(response, '1.cpc')
+        actual_area_lines = cpc_content.splitlines()[1:5]
+
+        # Width ranges from 5% to 95% of 400. That's pixel 20 to pixel 380.
+        # CPC units: (20-1)*15 = 285, (380-1)*15 = 5685.
+        # Height ranges from 10% to 90% of 300. That's pixel 30 to 270.
+        # CPC units: (30-1)*15 = 435, (270-1)*15 = 4035.
+        expected_area_lines = [
+            '285,4035',
+            '5685,4035',
+            '5685,435',
+            '285,435',
+        ]
+        self.assertListEqual(
+            actual_area_lines, expected_area_lines)
+
+
+    def test_pixels(self):
+        """Test using an image-specific annotation area."""
+        self.client.force_login(self.user)
+        self.client.post(
+            reverse('annotation_area_edit', args=[self.img1.pk]),
+            data=dict(min_x=50, max_x=200, min_y=100, max_y=290),
+        )
+
+        response = self.export_cpcs(self.export_cpcs_params)
+
+        cpc_content = self.export_response_to_cpc(response, '1.cpc')
+        actual_area_lines = cpc_content.splitlines()[1:5]
+
+        # Width ranges from (50-1)*15 to (200-1)*15.
+        # Height ranges from (100-1)*15 to (290-1)*15.
+        expected_area_lines = [
+            '735,4335',
+            '2985,4335',
+            '2985,1485',
+            '735,1485',
+        ]
+        self.assertListEqual(
+            actual_area_lines, expected_area_lines)
+
+    def test_imported(self):
+        """
+        Test after CSV-importing points, which means we just use the full image
+        as the annotation area.
+        """
+        rows = [
+            ['Name', 'Column', 'Row'],
+            ['1.jpg', 50, 50],
+            ['1.jpg', 60, 40],
+        ]
+        csv_file = self.make_csv_file('A.csv', rows)
+        self.preview_csv_annotations(
+            self.user, self.source, csv_file)
+        self.upload_annotations(self.user, self.source)
+
+        response = self.export_cpcs(self.export_cpcs_params)
+
+        cpc_content = self.export_response_to_cpc(response, '1.cpc')
+        actual_area_lines = cpc_content.splitlines()[1:5]
+
+        # Width ranges from (1-1)*15 to (400-1)*15.
+        # Height ranges from (1-1)*15 to (300-1)*15.
+        expected_area_lines = [
+            '0,4485',
+            '5985,4485',
+            '5985,0',
+            '0,0',
+        ]
+        self.assertListEqual(
+            actual_area_lines, expected_area_lines)
+
+    def test_after_cpc_upload(self):
+        """
+        Test after CPC-importing points, which means we use the annotation
+        area from the CPC.
+        """
+        cpc_lines = [
+            (r'"C:\codefile_1.txt",'
+             r'"C:\Reef 1\1.jpg",6000,4500,20000,25000'),
+            # Different annotation area from the source's default
+            '210,4101',
+            '5329,4101',
+            '5329,607',
+            '210,607',
+            # Points
+            '1',
+            (str(319*15) + ',' + str(88*15)),
+            # Labels/notes
+            '"1","A","Notes","AC"',
+        ]
+        cpc_lines.extend(['"Header value goes here"']*28)
+        # Yes, CPCe does put a newline at the end
+        cpc_content = '\r\n'.join(cpc_lines) + '\r\n'
+
+        f = ContentFile(cpc_content, name='1.cpc')
+        self.upload_cpcs([f])
+
+        response = self.export_cpcs(self.export_cpcs_params)
+
+        cpc_content = self.export_response_to_cpc(response, '1.cpc')
+        actual_area_lines = cpc_content.splitlines()[1:5]
+
+        # Should match the uploaded CPC.
+        expected_area_lines = [
+            '210,4101',
+            '5329,4101',
+            '5329,607',
+            '210,607',
+        ]
+        self.assertListEqual(
+            actual_area_lines, expected_area_lines)
+
+
 class CPCFullContentsTest(CPCExportBaseTest):
     """
     Test the full contents of the exported CPCs.
@@ -487,7 +634,58 @@ class CPCFullContentsTest(CPCExportBaseTest):
 
         self.assert_cpc_content_equal(actual_cpc_content, expected_lines)
 
-    def test_export_with_previous_cpc_for_this_image(self):
+    def test_upload_then_export(self):
+        """
+        Upload .cpc for an image, then export .cpc for that same image. Should
+        get the same .cpc contents back.
+        """
+        cpc_lines = [
+            # Different working resolution (last two numbers) from the default
+            (r'"C:\CPCe codefiles\My codes.txt",'
+             r'"C:\Panama dataset\1.jpg",6000,4500,20000,25000'),
+            # Different annotation area from the source's default
+            '210,4101',
+            '5329,4101',
+            '5329,607',
+            '210,607',
+            # Different number of points from the source's default
+            '3',
+            (str(319*15) + ',' + str(88*15)),
+            (str(78*15) + ',' + str(209*15)),
+            (str(198*15) + ',' + str(209*15)),
+            # Include notes codes
+            '"1","A","Notes","AC"',
+            '"2","B","Notes","BD"',
+            '"3","","Notes","AC"',
+        ]
+        # Add some non-blank header values
+        cpc_lines.extend(['"Header value goes here"']*28)
+        # Yes, CPCe does put a newline at the end
+        cpc_content = '\r\n'.join(cpc_lines) + '\r\n'
+
+        # Upload with a CPC filename different from the image filename
+        f = ContentFile(cpc_content, name='Panama_1.cpc')
+        self.upload_cpcs([f])
+
+        # Export, and get exported CPC content
+        post_data = self.default_search_params.copy()
+        post_data.update(
+            # CPC prefs
+            local_code_filepath=r'C:\CPCe codefiles\My codes.txt',
+            local_image_dir=r'C:\Panama dataset',
+            annotation_filter='confirmed_only',
+        )
+        response = self.export_cpcs(post_data)
+        actual_cpc_content = self.export_response_to_cpc(
+            response, 'Panama_1.cpc')
+
+        self.assert_cpc_content_equal(actual_cpc_content, cpc_lines)
+
+    def test_upload_then_change_annotations_then_export(self):
+        """
+        Upload .cpc for an image, then change annotations on the image, then
+        export .cpc.
+        """
         cpc_lines = [
             # Different working resolution (last two numbers) from the default
             (r'"C:\CPCe codefiles\My codes.txt",'
@@ -759,6 +957,96 @@ class UnicodeTest(CPCExportBaseTest):
         ]
         self.assert_cpc_label_lines_equal(
             actual_cpc_content.decode('utf-8'), expected_point_lines)
+
+
+class DiscardCPCAfterPointsChangeTest(
+        CPCExportBaseTest, UploadAnnotationsTestMixin):
+    """
+    Test discarding of previously-saved CPC content after changing points
+    for an image.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super(DiscardCPCAfterPointsChangeTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(cls.user)
+        labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
+        cls.create_labelset(cls.user, cls.source, labels)
+
+    def test_cpc_discarded_after_point_regeneration(self):
+        img1 = self.upload_image(self.user, self.source)
+        img1.cpc_content = 'Some CPC file contents go here'
+        img1.save()
+
+        self.client.force_login(self.user)
+        self.client.post(reverse('image_regenerate_points', args=[img1.pk]))
+
+        img1.refresh_from_db()
+        self.assertEqual('', img1.cpc_content)
+
+    def test_cpc_discarded_after_points_reset_to_source_default(self):
+        img1 = self.upload_image(self.user, self.source)
+        img1.cpc_content = 'Some CPC file contents go here'
+        img1.save()
+
+        self.client.force_login(self.user)
+        self.client.post(
+            reverse('image_reset_point_generation_method', args=[img1.pk]))
+
+        img1.refresh_from_db()
+        self.assertEqual('', img1.cpc_content)
+
+    def test_cpc_discarded_after_annotation_area_reset_to_source_default(self):
+        img1 = self.upload_image(self.user, self.source)
+        img1.cpc_content = 'Some CPC file contents go here'
+        img1.save()
+
+        self.client.force_login(self.user)
+        self.client.post(
+            reverse('image_reset_annotation_area', args=[img1.pk]))
+
+        img1.refresh_from_db()
+        self.assertEqual('', img1.cpc_content)
+
+    def test_cpc_discarded_after_importing_points_from_csv(self):
+        img1 = self.upload_image(
+            self.user, self.source, dict(filename='1.jpg'))
+        img1.cpc_content = 'Some CPC file contents go here'
+        img1.save()
+
+        rows = [
+            ['Name', 'Column', 'Row'],
+            ['1.jpg', 50, 50],
+            ['1.jpg', 60, 40],
+        ]
+        csv_file = self.make_csv_file('A.csv', rows)
+        self.preview_csv_annotations(
+            self.user, self.source, csv_file)
+        self.upload_annotations(self.user, self.source)
+
+        img1.refresh_from_db()
+        self.assertEqual('', img1.cpc_content)
+
+    def test_cpc_not_discarded_for_unaffected_images(self):
+        img1 = self.upload_image(self.user, self.source)
+        img2 = self.upload_image(self.user, self.source)
+        img1.cpc_content = 'Some CPC file contents go here'
+        img1.save()
+        img2.cpc_content = 'More CPC file contents go here'
+        img2.save()
+
+        self.client.force_login(self.user)
+        self.client.post(reverse('image_regenerate_points', args=[img1.pk]))
+
+        img1.refresh_from_db()
+        self.assertEqual(
+            '', img1.cpc_content,
+            msg="img1's CPC content should be discarded")
+        img2.refresh_from_db()
+        self.assertEqual(
+            'More CPC file contents go here', img2.cpc_content,
+            msg="img2's CPC content should be unchanged")
 
 
 class UtilsTest(ClientTest):

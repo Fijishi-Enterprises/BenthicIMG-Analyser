@@ -75,9 +75,9 @@ class ResetTaskTest(ClientTest):
         self.assertEqual(Score.objects.filter(image=img).count(), 0)
         self.assertFalse(Image.objects.get(id=img.id).features.classified)
 
-    def test_point_change_clenup(self):
+    def test_point_change_cleanup(self):
         """
-        If we genereate new point, features must be reset.
+        If we generate new points, features must be reset.
         """
         img = self.upload_image(self.user, self.source)
         img.features.extracted = True
@@ -88,11 +88,8 @@ class ResetTaskTest(ClientTest):
         self.assertTrue(Image.objects.get(id=img.id).features.classified)
 
         self.client.force_login(self.user)
-        url = reverse('image_detail', kwargs=dict(image_id=img.id))
-        data = dict(
-            regenerate_point_locations="Any arbitrary string goes here"
-        )
-        self.client.post(url, data)
+        url = reverse('image_regenerate_points', args=[img.id])
+        self.client.post(url)
 
         # Now features should be reset
         self.assertFalse(Image.objects.get(id=img.id).features.extracted)

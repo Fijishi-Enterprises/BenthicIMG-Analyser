@@ -462,3 +462,50 @@ class SubmitEditsTest(ClientTest):
             + " | Enter a valid date."
         )
         self.assertDictEqual(response_error_dict, expected_error_dict)
+
+    def test_deny_metadata_ids_of_other_source(self):
+        """
+        Attempts to submit metadata IDs of another source should be rejected.
+        Otherwise there's a security hole.
+
+        Specifically, what happens here is that the edits to the outside-ID
+        object are ignored, and no error is returned. This is the expected
+        behavior when an ID is outside of the Django formset's queryset.
+        """
+        source_2 = self.create_source(self.user)
+        image_s2 = self.upload_image(self.user, source_2)
+        old_name = image_s2.metadata.name
+
+        post_data = {
+            'form-TOTAL_FORMS': 1,
+            'form-INITIAL_FORMS': 1,
+            'form-MAX_NUM_FORMS': '',
+            # Metadata ID from another source
+            'form-0-id': image_s2.metadata.pk,
+            'form-0-name': 'other_source_image.png',
+            'form-0-photo_date': '2007-04-08',
+            'form-0-height_in_cm': '',
+            'form-0-latitude': '',
+            'form-0-longitude': '',
+            'form-0-depth': "",
+            'form-0-camera': "",
+            'form-0-photographer': "",
+            'form-0-water_quality': "",
+            'form-0-strobes': "",
+            'form-0-framing': "",
+            'form-0-balance': "",
+            'form-0-comments': "",
+        }
+
+        self.client.force_login(self.user)
+        response = self.client.post(self.url, post_data)
+
+        # Response should be as expected.
+        self.assertStatusOK(response)
+        response_json = response.json()
+        self.assertEqual(response_json['status'], 'success')
+
+        # No edits should have gone through.
+        image_s2.metadata.refresh_from_db()
+        self.assertEqual(image_s2.metadata.name, old_name)
+        self.assertEqual(image_s2.metadata.photo_date, None)

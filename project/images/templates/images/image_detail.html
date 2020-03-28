@@ -89,27 +89,40 @@
         {% if "source_edit" in source_perms %}
 
             {% if annotation_area_editable %}
-                <form action="" method="post" onsubmit="return confirm('Are you sure you want to re-generate the image point locations?')">{% csrf_token %}
-                <input type="submit" name="regenerate_point_locations" value="Regenerate point locations" />
+
+                <form action="{% url 'image_regenerate_points' image.id %}"
+                      method="post"
+                      onsubmit="return confirm('Are you sure you want to re-generate the image point locations?')">
+                  {% csrf_token %}
+                  <input type="submit" value="Regenerate point locations" />
                 </form>
             
                 {% if not point_gen_method_synced %}
-                    <form action="" method="post" onsubmit="return confirm('Are you sure you want to change the point generation method of this image to the source default method [this will also generate new point locations]?')">{% csrf_token %}
-                    <input type="submit" name="set_point_gen_default" value="Reset point generation method" />
-                    </form>    
+                  <form action="{% url 'image_reset_point_generation_method' image.id %}"
+                        method="post"
+                        onsubmit="return confirm('Are you sure you want to change the point generation method of this image to the source default method [this will also generate new point locations]?')">
+                    {% csrf_token %}
+                    <input type="submit" value="Reset point generation method" />
+                  </form>
                 {% endif %}
 
                 {% if not annotation_area_synced %}
-                    <form action="" method="post" onsubmit="return confirm('Are you sure you want to change the annotation area of this image to the source default method [this will also generate new point locations]?')">{% csrf_token %}
-                    <input type="submit" name="set_annotation_area_default" value="Reset annotation area" />
-                    </form>    
+                  <form action="{% url 'image_reset_annotation_area' image.id %}"
+                        method="post"
+                        onsubmit="return confirm('Are you sure you want to change the annotation area of this image to the source default [this will also generate new point locations]?')">
+                    {% csrf_token %}
+                    <input type="submit" value="Reset annotation area" />
+                  </form>
                 {% endif %}
 
             {% endif %}
 
             {% if has_any_human_annotations %}
-                <form action="" method="post" onsubmit="return confirm('Are you sure you want to delete all annotation for this image?')">{% csrf_token %}
-                <input type="submit" name="delete_annotations" value="Delete image annotations" />
+                <form action="{% url 'image_delete_annotations' image.id %}"
+                      method="post"
+                      onsubmit="return confirm('Are you sure you want to delete all annotations for this image?')">
+                  {% csrf_token %}
+                  <input type="submit" value="Delete image annotations" />
                 </form>
             {% endif %}
 
@@ -143,9 +156,12 @@
         {% endif %}
 
         {% if "source_edit" in source_perms %}
-        <form action="" method="post" onsubmit="return confirm('Are you sure you want to delete this image and all image annotations?')">{% csrf_token %}
-            <input type="submit" name="delete_this_image" value="Delete image" />
-        </form>
+            <form action="{% url 'image_delete' image.id %}"
+                  method="post"
+                  onsubmit="return confirm('Are you sure you want to delete this image and all of its annotations?')">
+              {% csrf_token %}
+              <input type="submit" value="Delete image" />
+            </form>
         {% endif %}
 
     </div>

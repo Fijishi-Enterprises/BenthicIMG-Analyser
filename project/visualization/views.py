@@ -242,7 +242,10 @@ def edit_metadata_ajax(request, source_id):
     MetadataFormSet = modelformset_factory(
         Metadata, form=MetadataFormForGrid, formset=BaseMetadataFormSet)
     formset = MetadataFormSet(
-        request.POST, form_kwargs={'source': source})
+        request.POST,
+        # Only accept Metadata IDs from this source, as a security check.
+        queryset=Metadata.objects.filter(image__in=source.image_set.all()),
+        form_kwargs={'source': source})
 
     if formset.is_valid():
         # Save the edits

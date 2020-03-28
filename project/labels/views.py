@@ -239,7 +239,10 @@ def labelset_edit(request, source_id):
                 reverse('labelset_main', args=[source_id]))
 
         # Submit
-        formset = LocalLabelFormSet(request.POST)
+        formset = LocalLabelFormSet(
+            request.POST,
+            # Only accept LocalLabel IDs from this source, as a security check.
+            queryset=source.labelset.get_labels())
 
         if formset.is_valid():
             formset.save()
@@ -248,10 +251,15 @@ def labelset_edit(request, source_id):
             return HttpResponseRedirect(
                 reverse('labelset_main', args=[source.id]))
         else:
+            def get_form_name(f):
+                # Defensive coding. Submitting a nonexistent LocalLabel ID
+                # (e.g. via Inspect Element) gets a null global_label here.
+                try:
+                    return f.instance.global_label.name
+                except Label.DoesNotExist:
+                    return "(No name)"
             messages.error(
-                request,
-                get_one_formset_error(
-                    formset, lambda f: f.instance.name))
+                request, get_one_formset_error(formset, get_form_name))
     else:
         formset = LocalLabelFormSet(
             queryset=source.labelset.get_locals_ordered_by_group_and_code())

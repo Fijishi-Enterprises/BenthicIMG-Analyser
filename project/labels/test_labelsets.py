@@ -854,7 +854,7 @@ class LabelsetEditTest(LabelTest):
 
         # Create labels and group
         cls.group = cls.create_label_group("Group1")
-        cls.labels = dict(
+        cls.global_labels = dict(
             A=cls.create_label(cls.user, "Label A", 'A', cls.group),
             B=cls.create_label(cls.user, "Label B", 'B', cls.group),
             C=cls.create_label(cls.user, "Label C", 'C', cls.group),
@@ -870,36 +870,43 @@ class LabelsetEditTest(LabelTest):
         cls.url = reverse('labelset_edit', args=[cls.source.pk])
 
     def test_success(self):
-        labels = self.source.labelset.get_labels()
+        local_labels = self.source.labelset.get_labels()
         post_data = {
             'form-TOTAL_FORMS': 2,
             'form-INITIAL_FORMS': 2,
             'form-MAX_NUM_FORMS': '',
-            'form-0-id': labels.get(global_label_id=self.labels['A'].pk).pk,
+            'form-0-id': local_labels.get(
+                global_label_id=self.global_labels['A'].pk).pk,
             'form-0-code': 'newCodeA',
-            'form-1-id': labels.get(global_label_id=self.labels['B'].pk).pk,
+            'form-1-id': local_labels.get(
+                global_label_id=self.global_labels['B'].pk).pk,
             'form-1-code': 'newCodeB',
         }
 
         self.client.force_login(self.user)
-        self.client.post(self.url, post_data)
+        response = self.client.post(self.url, post_data, follow=True)
+        self.assertContains(
+            response, "Label entries successfully edited.",
+            msg_prefix="Page should show the success message")
 
         self.source.labelset.refresh_from_db()
-        labels = self.source.labelset.get_labels()
-        label_A = labels.get(global_label_id=self.labels['A'].pk)
+        local_labels = self.source.labelset.get_labels()
+        label_A = local_labels.get(global_label_id=self.global_labels['A'].pk)
         self.assertEqual(label_A.code, 'newCodeA')
-        label_B = labels.get(global_label_id=self.labels['B'].pk)
+        label_B = local_labels.get(global_label_id=self.global_labels['B'].pk)
         self.assertEqual(label_B.code, 'newCodeB')
 
     def test_code_missing(self):
-        labels = self.source.labelset.get_labels()
+        local_labels = self.source.labelset.get_labels()
         post_data = {
             'form-TOTAL_FORMS': 2,
             'form-INITIAL_FORMS': 2,
             'form-MAX_NUM_FORMS': '',
-            'form-0-id': labels.get(global_label_id=self.labels['A'].pk).pk,
+            'form-0-id': local_labels.get(
+                global_label_id=self.global_labels['A'].pk).pk,
             'form-0-code': 'newCodeA',
-            'form-1-id': labels.get(global_label_id=self.labels['B'].pk).pk,
+            'form-1-id': local_labels.get(
+                global_label_id=self.global_labels['B'].pk).pk,
             'form-1-code': '',
         }
 
@@ -911,14 +918,16 @@ class LabelsetEditTest(LabelTest):
             "Label B: Short Code: This field is required.")
 
     def test_code_error(self):
-        labels = self.source.labelset.get_labels()
+        local_labels = self.source.labelset.get_labels()
         post_data = {
             'form-TOTAL_FORMS': 2,
             'form-INITIAL_FORMS': 2,
             'form-MAX_NUM_FORMS': '',
-            'form-0-id': labels.get(global_label_id=self.labels['A'].pk).pk,
+            'form-0-id': local_labels.get(
+                global_label_id=self.global_labels['A'].pk).pk,
             'form-0-code': 'newCodeATooLong',
-            'form-1-id': labels.get(global_label_id=self.labels['B'].pk).pk,
+            'form-1-id': local_labels.get(
+                global_label_id=self.global_labels['B'].pk).pk,
             'form-1-code': 'newCodeA',
         }
 
@@ -931,14 +940,16 @@ class LabelsetEditTest(LabelTest):
             " at most 10 characters (it has 15).")
 
     def test_code_conflict(self):
-        labels = self.source.labelset.get_labels()
+        local_labels = self.source.labelset.get_labels()
         post_data = {
             'form-TOTAL_FORMS': 2,
             'form-INITIAL_FORMS': 2,
             'form-MAX_NUM_FORMS': '',
-            'form-0-id': labels.get(global_label_id=self.labels['A'].pk).pk,
+            'form-0-id': local_labels.get(
+                global_label_id=self.global_labels['A'].pk).pk,
             'form-0-code': 'newCodeA',
-            'form-1-id': labels.get(global_label_id=self.labels['B'].pk).pk,
+            'form-1-id': local_labels.get(
+                global_label_id=self.global_labels['B'].pk).pk,
             'form-1-code': 'NEWCODEA',
         }
 
@@ -948,3 +959,64 @@ class LabelsetEditTest(LabelTest):
         self.assertContains(response, escape(
             "The resulting labelset would have multiple labels with the code"
             " 'newcodea' (non case sensitive). This is not allowed."))
+
+    def test_deny_local_label_ids_of_other_source(self):
+        """
+        Attempts to submit LocalLabel IDs of another source should be rejected.
+        Otherwise there's a security hole.
+
+        Specifically, what happens here is that the edits to the outside-ID
+        object are ignored, and no error is returned. This is the expected
+        behavior when an ID is outside of the Django formset's queryset.
+        """
+        source_2 = self.create_source(self.user)
+        self.create_labelset(self.user, source_2, Label.objects.filter(
+            default_code__in=['A', 'B']))
+
+        s2_local_labels = source_2.labelset.get_labels()
+        post_data = {
+            'form-TOTAL_FORMS': 2,
+            'form-INITIAL_FORMS': 2,
+            'form-MAX_NUM_FORMS': '',
+            'form-0-id': s2_local_labels.get(
+                global_label_id=self.global_labels['A'].pk).pk,
+            'form-0-code': 'newCodeA',
+            'form-1-id': s2_local_labels.get(
+                global_label_id=self.global_labels['B'].pk).pk,
+            'form-1-code': 'newCodeB',
+        }
+
+        self.client.force_login(self.user)
+        response = self.client.post(self.url, post_data, follow=True)
+        self.assertContains(
+            response, "Label entries successfully edited.",
+            msg_prefix="Page should show the success message")
+
+        source_2.labelset.refresh_from_db()
+        s2_local_labels = source_2.labelset.get_labels()
+        label_A = s2_local_labels.get(
+            global_label_id=self.global_labels['A'].pk)
+        self.assertEqual(label_A.code, 'A', "A's code should be unchanged")
+        label_B = s2_local_labels.get(
+            global_label_id=self.global_labels['B'].pk)
+        self.assertEqual(label_B.code, 'B', "B's code should be unchanged")
+
+    def test_deny_nonexistent_local_label_ids(self):
+        """
+        Attempts to submit nonexistent LocalLabel IDs should result in
+        sane behavior (not a 500 error or something).
+        """
+        post_data = {
+            'form-TOTAL_FORMS': 1,
+            'form-INITIAL_FORMS': 1,
+            'form-MAX_NUM_FORMS': '',
+            'form-0-id': -1,
+            'form-0-code': 'newCodeA',
+        }
+
+        self.client.force_login(self.user)
+        response = self.client.post(self.url, post_data)
+
+        self.assertContains(response, escape(
+            "(No name): Id: Select a valid choice."
+            " That choice is not one of the available choices."))

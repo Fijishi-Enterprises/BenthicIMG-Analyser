@@ -1,3 +1,5 @@
+# Test image_detail and image_detail_edit views.
+
 from __future__ import unicode_literals
 from django.urls import reverse
 
@@ -43,13 +45,13 @@ class PermissionTest(BasePermissionTest):
         self.assertPermissionGranted(url, self.user_admin)
 
 
-class ImageViewTest(ClientTest):
+class ImageDetailTest(ClientTest):
     """
     Test the image view/detail page.
     """
     @classmethod
     def setUpTestData(cls):
-        super(ImageViewTest, cls).setUpTestData()
+        super(ImageDetailTest, cls).setUpTestData()
 
         cls.user = cls.create_user()
 
@@ -62,7 +64,7 @@ class ImageViewTest(ClientTest):
         cls.large_image = cls.upload_image(
             cls.user, cls.source, image_options=dict(width=1600, height=1600))
 
-    def test_view_page_with_small_image(self):
+    def test_page_with_small_image(self):
         url = reverse('image_detail', kwargs={'image_id': self.small_image.id})
         response = self.client.get(url)
         self.assertStatusOK(response)
@@ -72,7 +74,7 @@ class ImageViewTest(ClientTest):
         response = self.client.get(url)
         self.assertStatusOK(response)
 
-    def test_view_page_with_large_image(self):
+    def test_page_with_large_image(self):
         url = reverse('image_detail', kwargs={'image_id': self.large_image.id})
         response = self.client.get(url)
         self.assertStatusOK(response)

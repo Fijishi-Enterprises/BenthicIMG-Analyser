@@ -33,7 +33,7 @@ class ImageSetTest(BaseExportTest):
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
 
-    def all_images_single(self):
+    def test_all_images_single(self):
         """Export for 1 out of 1 images."""
         self.img1 = self.upload_image(
             self.user, self.source, dict(filename='1.jpg'))
@@ -50,7 +50,7 @@ class ImageSetTest(BaseExportTest):
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
-    def all_images_multiple(self):
+    def test_all_images_multiple(self):
         """Export for 3 out of 3 images."""
         self.img1 = self.upload_image(
             self.user, self.source, dict(filename='1.jpg'))
@@ -73,7 +73,7 @@ class ImageSetTest(BaseExportTest):
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
-    def image_subset_by_metadata(self):
+    def test_image_subset_by_metadata(self):
         """Export for some, but not all, images."""
         self.img1 = self.upload_image(
             self.user, self.source, dict(filename='1.jpg'))
@@ -102,7 +102,7 @@ class ImageSetTest(BaseExportTest):
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
-    def image_empty_set(self):
+    def test_image_empty_set(self):
         """Export for 0 images."""
         self.img1 = self.upload_image(
             self.user, self.source, dict(filename='1.jpg'))

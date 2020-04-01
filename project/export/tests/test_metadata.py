@@ -119,6 +119,26 @@ class ImageSetTest(BaseExportTest):
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
+    def test_dont_get_other_sources_images(self):
+        """Don't export for other sources' images."""
+        self.img1 = self.upload_image(
+            self.user, self.source, dict(filename='1.jpg'))
+        source2 = self.create_source(self.user)
+        self.upload_image(self.user, source2, dict(filename='2.jpg'))
+
+        post_data = self.default_search_params.copy()
+        response = self.export_metadata(post_data)
+
+        # Should have image 1, but not 2
+        expected_lines = [
+            'Name,Date,Aux1,Aux2,Aux3,Aux4,Aux5'
+            ',Height (cm),Latitude,Longitude,Depth,Camera,Photographer'
+            ',Water quality,Strobes,Framing gear used,White balance card'
+            ',Comments',
+            '1.jpg,,,,,,,,,,,,,,,,,',
+        ]
+        self.assert_csv_content_equal(response.content, expected_lines)
+
 
 class MetadataColumnsTest(BaseExportTest):
     """Test that the export's columns are filled as they should."""

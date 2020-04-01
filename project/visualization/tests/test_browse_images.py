@@ -418,6 +418,20 @@ class SearchTest(ClientTest):
             {img.pk for img in response.context['page_results'].object_list},
             {self.imgs[1].pk})
 
+    def test_dont_get_other_sources_images(self):
+        source2 = self.create_source(self.user)
+        s2_img = self.upload_image(self.user, source2)
+
+        self.client.force_login(self.user)
+        response = self.submit_search()
+
+        # Just source 1's images, not source 2's
+        self.assertEqual(
+            response.context['page_results'].paginator.count, 5)
+        self.assertNotIn(
+            s2_img.pk,
+            {img.pk for img in response.context['page_results'].object_list})
+
     def test_dont_show_metadata_field_if_all_blank_values(self):
         self.client.force_login(self.user)
         response = self.client.get(self.url)

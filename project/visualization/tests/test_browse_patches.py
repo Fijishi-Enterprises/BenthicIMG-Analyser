@@ -34,9 +34,9 @@ class SearchTest(ClientTest):
             point_generation_type=PointGen.Types.SIMPLE,
             simple_number_of_points=10,
         )
-        labels = cls.create_labels(
+        cls.labels = cls.create_labels(
             cls.user, ['A', 'B'], 'GroupA')
-        cls.create_labelset(cls.user, cls.source, labels)
+        cls.create_labelset(cls.user, cls.source, cls.labels)
 
         cls.user_editor = cls.create_user()
         cls.add_source_member(
@@ -171,6 +171,25 @@ class SearchTest(ClientTest):
             [('', "All"), (self.user.pk, self.user.username),
              (self.user_editor.pk, self.user_editor.username)]
         )
+
+    def test_dont_get_other_sources_patches(self):
+        self.add_annotations(
+            self.user, self.img1,
+            {1: 'A', 2: 'A', 3: 'A'})
+
+        source2 = self.create_source(
+            self.user,
+            point_generation_type=PointGen.Types.SIMPLE,
+            simple_number_of_points=2)
+        self.create_labelset(self.user, source2, self.labels)
+        s2_img = self.upload_image(self.user, source2)
+        self.add_annotations(self.user, s2_img, {1: 'A', 2: 'A'})
+
+        self.client.force_login(self.user)
+        response = self.client.post(self.url, self.default_search_params)
+        # Should include patches from img1, but not s2_img
+        self.assertEqual(
+            response.context['page_results'].paginator.count, 3)
 
 
 class NoLabelsetTest(ClientTest):

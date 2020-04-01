@@ -92,6 +92,20 @@ class LoadPageTest(ClientTest):
         response = self.client.post(self.url, post_data)
         self.assertEqual(response.context['num_images'], 2)
 
+    def test_ignore_image_ids_of_other_sources(self):
+        source2 = self.create_source(self.user)
+        s2_img = self.upload_image(self.user, source2)
+
+        # 1 image from this source, 1 image from another source
+        post_data = dict(
+            image_form_type='ids',
+            ids=','.join([str(self.img1.pk), str(s2_img.pk)])
+        )
+
+        self.client.force_login(self.user)
+        response = self.client.post(self.url, post_data)
+        self.assertEqual(response.context['num_images'], 1)
+
     def test_zero_images(self):
         post_data = self.default_search_params.copy()
         post_data['date_filter_0'] = 'date'

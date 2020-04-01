@@ -40,8 +40,8 @@ class ImageSetTest(BaseExportTest):
             point_generation_type=PointGen.Types.UNIFORM,
             number_of_cell_rows=1, number_of_cell_columns=2,
         )
-        labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
-        cls.create_labelset(cls.user, cls.source, labels)
+        cls.labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
+        cls.create_labelset(cls.user, cls.source, cls.labels)
 
     def test_all_images_single(self):
         """Export for 1 out of 1 images."""
@@ -170,6 +170,32 @@ class ImageSetTest(BaseExportTest):
 
         expected_lines = [
             'Name,Row,Column,Label',
+        ]
+        self.assert_csv_content_equal(response.content, expected_lines)
+
+    def test_dont_get_other_sources_images(self):
+        """Don't export for other sources' images."""
+        self.img1 = self.upload_image(
+            self.user, self.source,
+            dict(filename='1.jpg', width=400, height=300))
+        self.add_annotations(self.user, self.img1, {1: 'A', 2: 'B'})
+
+        source2 = self.create_source(
+            self.user,
+            point_generation_type=PointGen.Types.UNIFORM,
+            number_of_cell_rows=1, number_of_cell_columns=2)
+        self.create_labelset(self.user, source2, self.labels)
+        img2 = self.upload_image(self.user, source2, dict(filename='2.jpg'))
+        self.add_annotations(self.user, img2, {1: 'A', 2: 'B'})
+
+        post_data = self.default_search_params.copy()
+        response = self.export_annotations(post_data)
+
+        # Should have image 1, but not 2
+        expected_lines = [
+            'Name,Row,Column,Label',
+            '1.jpg,150,100,A',
+            '1.jpg,150,300,B',
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 

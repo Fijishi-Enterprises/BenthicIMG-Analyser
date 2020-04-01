@@ -8,7 +8,7 @@ from django.urls import reverse
 from export.tests.utils import BaseExportTest
 from lib.tests.utils import BasePermissionTest
 from labels.models import Label, LocalLabel
-from labels.tests.test_labels import LabelTest
+from labels.tests.utils import LabelTest
 
 
 class PermissionTest(BasePermissionTest):

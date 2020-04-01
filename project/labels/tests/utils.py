@@ -1,0 +1,38 @@
+from __future__ import unicode_literals
+from abc import ABCMeta
+import six
+
+from django.urls import reverse
+
+from lib.tests.utils import ClientTest, sample_image_as_file
+from ..models import LabelGroup, Label
+
+
+# Abstract class
+@six.add_metaclass(ABCMeta)
+class LabelTest(ClientTest):
+
+    @classmethod
+    def create_label_group(cls, group_name):
+        group = LabelGroup(name=group_name, code=group_name[:10])
+        group.save()
+        return group
+
+    @classmethod
+    def create_label(cls, user, name, default_code, group):
+        cls.client.force_login(user)
+        cls.client.post(
+            reverse('label_new_ajax'),
+            dict(
+                name=name,
+                default_code=default_code,
+                group=group.pk,
+                description="Description",
+                # A new filename will be generated, and the uploaded
+                # filename will be discarded, so this filename doesn't matter.
+                thumbnail=sample_image_as_file('_.png'),
+            )
+        )
+        cls.client.logout()
+
+        return Label.objects.get(name=name)

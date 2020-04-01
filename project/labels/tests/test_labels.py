@@ -12,6 +12,7 @@ from images.models import Source
 from lib.tests.utils import (
     BasePermissionTest, ClientTest, sample_image_as_file)
 from ..models import LabelGroup, Label
+from .utils import LabelTest
 
 User = get_user_model()
 
@@ -63,34 +64,6 @@ class PermissionTest(BasePermissionTest):
         url = reverse('label_example_patches_ajax', args=[self.labels[0].pk])
 
         self.assertPermissionLevel(url, self.SIGNED_OUT, is_json=True)
-
-
-class LabelTest(ClientTest):
-
-    @classmethod
-    def create_label_group(cls, group_name):
-        group = LabelGroup(name=group_name, code=group_name[:10])
-        group.save()
-        return group
-
-    @classmethod
-    def create_label(cls, user, name, default_code, group):
-        cls.client.force_login(user)
-        cls.client.post(
-            reverse('label_new_ajax'),
-            dict(
-                name=name,
-                default_code=default_code,
-                group=group.pk,
-                description="Description",
-                # A new filename will be generated, and the uploaded
-                # filename will be discarded, so this filename doesn't matter.
-                thumbnail=sample_image_as_file('_.png'),
-            )
-        )
-        cls.client.logout()
-
-        return Label.objects.get(name=name)
 
 
 class LabelListTest(ClientTest):

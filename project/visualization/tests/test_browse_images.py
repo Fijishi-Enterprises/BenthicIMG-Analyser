@@ -1,5 +1,7 @@
 from __future__ import unicode_literals
 import datetime
+
+from bs4 import BeautifulSoup
 from django.test import override_settings
 from django.urls import reverse
 
@@ -22,6 +24,17 @@ class PermissionTest(BasePermissionTest):
 
     # TODO: Implement and test permissions on the availability of the
     # action form's actions.
+
+
+default_search_params = dict(
+    image_form_type='search',
+    aux1='', aux2='', aux3='', aux4='', aux5='',
+    height_in_cm='', latitude='', longitude='', depth='',
+    photographer='', framing='', balance='',
+    date_filter_0='year', date_filter_1='',
+    date_filter_2='', date_filter_3='',
+    annotation_status='', image_name='',
+)
 
 
 class SearchTest(ClientTest):
@@ -47,15 +60,7 @@ class SearchTest(ClientTest):
         ]
 
     def submit_search(self, **kwargs):
-        data = dict(
-            image_form_type='search',
-            aux1='', aux2='', aux3='', aux4='', aux5='',
-            height_in_cm='', latitude='', longitude='', depth='',
-            photographer='', framing='', balance='',
-            date_filter_0='year', date_filter_1='',
-            date_filter_2='', date_filter_3='',
-            annotation_status='', image_name='',
-        )
+        data = default_search_params.copy()
         data.update(**kwargs)
         response = self.client.post(self.url, data, follow=True)
         return response
@@ -457,6 +462,14 @@ class SearchTest(ClientTest):
         search_form = response.context['image_search_form']
         self.assertFalse('height_in_cm' in search_form.fields)
 
+    def test_invalid_search_parameters(self):
+        self.client.force_login(self.user)
+        response = self.submit_search(date_filter_0='abc')
+
+        self.assertContains(response, "Search parameters were invalid.")
+        self.assertEqual(
+            response.context['page_results'].paginator.count, 0)
+
 
 # Make it easy to get multiple pages of results.
 @override_settings(BROWSE_DEFAULT_THUMBNAILS_PER_PAGE=3)
@@ -474,18 +487,8 @@ class ResultsAndPagesTest(ClientTest):
             cls.upload_image(cls.user, cls.source) for _ in range(10)
         ]
 
-        cls.default_search_params = dict(
-            image_form_type='search',
-            aux1='', aux2='', aux3='', aux4='', aux5='',
-            height_in_cm='', latitude='', longitude='', depth='',
-            photographer='', framing='', balance='',
-            date_filter_0='year', date_filter_1='',
-            date_filter_2='', date_filter_3='',
-            annotation_status='',
-        )
-
     def test_zero_results(self):
-        post_data = self.default_search_params.copy()
+        post_data = default_search_params.copy()
         post_data['date_filter_0'] = 'date'
         post_data['date_filter_2'] = datetime.date(2000, 1, 1)
 
@@ -497,7 +500,7 @@ class ResultsAndPagesTest(ClientTest):
         self.assertContains(response, "No image results.")
 
     def test_one_page_results(self):
-        post_data = self.default_search_params.copy()
+        post_data = default_search_params.copy()
         post_data['aux1'] = 'Site1'
 
         self.imgs[0].metadata.aux1 = 'Site1'
@@ -518,7 +521,7 @@ class ResultsAndPagesTest(ClientTest):
         self.assertContains(response, "<span>Page 1 of 1</span>", html=True)
 
     def test_multiple_pages_results(self):
-        post_data = self.default_search_params.copy()
+        post_data = default_search_params.copy()
         post_data['aux1'] = ''
 
         self.client.force_login(self.user)
@@ -531,7 +534,7 @@ class ResultsAndPagesTest(ClientTest):
         self.assertContains(response, "<span>Page 1 of 4</span>", html=True)
 
     def test_page_two(self):
-        post_data = self.default_search_params.copy()
+        post_data = default_search_params.copy()
         post_data['aux1'] = ''
         post_data['page'] = 2
 
@@ -543,3 +546,65 @@ class ResultsAndPagesTest(ClientTest):
         self.assertContains(
             response, "<span>Showing 4-6 of 10</span>", html=True)
         self.assertContains(response, "<span>Page 2 of 4</span>", html=True)
+
+
+class ImageStatusIndicatorTest(ClientTest):
+    """
+    Test the border styling which indicate the status of each image.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super(ImageStatusIndicatorTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(
+            cls.user,
+            point_generation_type=PointGen.Types.SIMPLE,
+            # Make it easy to have confirmed and partially annotated images
+            simple_number_of_points=2)
+        labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
+        cls.create_labelset(cls.user, cls.source, labels)
+
+    def test_status_indicator(self):
+        robot = self.create_robot(self.source)
+
+        img_unannotated = self.upload_image(self.user, self.source)
+
+        img_unconfirmed = self.upload_image(self.user, self.source)
+        self.add_robot_annotations(robot, img_unconfirmed)
+
+        img_partially_confirmed = self.upload_image(self.user, self.source)
+        self.add_robot_annotations(robot, img_partially_confirmed)
+        self.add_annotations(self.user, img_partially_confirmed, {1: 'A'})
+
+        img_confirmed = self.upload_image(self.user, self.source)
+        self.add_robot_annotations(robot, img_confirmed)
+        self.add_annotations(self.user, img_confirmed, {1: 'A', 2: 'B'})
+
+        response = self.client.get(
+            reverse('browse_images', args=[self.source.pk]))
+
+        # Check that each image is rendered with the expected styling.
+
+        expected_thumb_set = {
+            (reverse('image_detail', args=[img_unannotated.pk]),
+             'thumb needs_annotation media-async'),
+            (reverse('image_detail', args=[img_unconfirmed.pk]),
+             'thumb unconfirmed media-async'),
+            (reverse('image_detail', args=[img_partially_confirmed.pk]),
+             'thumb unconfirmed media-async'),
+            (reverse('image_detail', args=[img_confirmed.pk]),
+             'thumb confirmed media-async'),
+        }
+
+        response_soup = BeautifulSoup(response.content, 'html.parser')
+        thumb_wrappers = response_soup.find_all('span', class_='thumb_wrapper')
+        actual_thumb_set = set()
+        for thumb_wrapper in thumb_wrappers:
+            a_element = thumb_wrapper.find('a')
+            img_element = thumb_wrapper.find('img')
+            actual_thumb_set.add(
+                (a_element.attrs.get('href'),
+                 ' '.join(img_element.attrs.get('class')))
+            )
+        self.assertSetEqual(expected_thumb_set, actual_thumb_set)

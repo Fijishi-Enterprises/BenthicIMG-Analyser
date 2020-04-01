@@ -904,8 +904,13 @@ class SettingsTest(ClientTest):
                 field_value, expected_value,
                 field_name + " has the expected value")
 
-    def test_tool_uses_saved_settings_when_present(self):
+    def test_tool_uses_saved_settings(self):
         self.client.force_login(self.user)
+
+        # Save non-default settings.
+        data = self.sample_settings
+        self.client.post(self.settings_url, data)
+
         response = self.client.get(self.tool_url)
 
         # Scrape the annotation tool's HTML to ensure the settings values are
@@ -916,8 +921,7 @@ class SettingsTest(ClientTest):
 
         for field_name, field_type in six.iteritems(self.field_names_to_types):
             field_value = self.get_field_value_from_soup(field_name, form_soup)
-            field_meta = AnnotationToolSettings._meta.get_field(field_name)
-            expected_value = field_meta.default
+            expected_value = self.sample_settings[field_name]
             self.assertEqual(
                 field_value, expected_value,
                 field_name + " has the expected value")

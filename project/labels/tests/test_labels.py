@@ -845,3 +845,85 @@ class EditLabelTest(LabelTest):
         self.labels['A'].refresh_from_db()
         # Not changed
         self.assertEqual(self.labels['A'].verified, False)
+
+    def test_duplicate_change(self):
+        # Must verify B to make it a candidate for a duplicate pointer
+        self.labels['B'].verified = True
+        self.labels['B'].save()
+
+        self.client.force_login(self.user_committee_member)
+        response = self.client.post(self.url, follow=True, data=dict(
+            name="Label A",
+            default_code='A',
+            group=self.labels['A'].group.pk,
+            description=self.labels['A'].description,
+            duplicate=self.labels['B'].pk,
+        ))
+        self.assertContains(response, "Label successfully edited.")
+
+        self.labels['A'].refresh_from_db()
+        self.assertEqual(self.labels['A'].duplicate.pk, self.labels['B'].pk)
+
+    def test_duplicate_requires_permission(self):
+        # Must verify B to make it a candidate for a duplicate pointer
+        self.labels['B'].verified = True
+        self.labels['B'].save()
+
+        # Non committee member
+        self.client.force_login(self.user)
+        response = self.client.post(self.url, follow=True, data=dict(
+            name="Label A",
+            default_code='A',
+            group=self.labels['A'].group.pk,
+            description=self.labels['A'].description,
+            duplicate=self.labels['B'].pk,
+        ))
+        # Would still show success, but with the duplicate field ignored
+        self.assertContains(response, "Label successfully edited.")
+
+        self.labels['A'].refresh_from_db()
+        # Not changed
+        self.assertEqual(self.labels['A'].duplicate, None)
+
+    def test_duplicate_cant_point_to_unverified(self):
+        self.labels['B'].verified = False
+        self.labels['B'].save()
+
+        self.client.force_login(self.user_committee_member)
+        response = self.client.post(self.url, follow=True, data=dict(
+            name="Label A",
+            default_code='A',
+            group=self.labels['A'].group.pk,
+            description=self.labels['A'].description,
+            duplicate=self.labels['B'].pk,
+        ))
+        self.assertContains(response, "Please correct the errors below.")
+        self.assertContains(
+            response,
+            "Select a valid choice. That choice is not one of the available"
+            " choices.")
+
+        self.labels['A'].refresh_from_db()
+        # Not changed
+        self.assertEqual(self.labels['A'].duplicate, None)
+
+    def test_duplicate_cant_be_verified(self):
+        self.labels['B'].verified = True
+        self.labels['B'].save()
+
+        self.client.force_login(self.user_committee_member)
+        response = self.client.post(self.url, follow=True, data=dict(
+            name="Label A",
+            default_code='A',
+            group=self.labels['A'].group.pk,
+            description=self.labels['A'].description,
+            verified=True,
+            duplicate=self.labels['B'].pk,
+        ))
+        self.assertContains(response, "Please correct the errors below.")
+        self.assertContains(
+            response, "A label can not both be a Duplicate and Verified.")
+
+        self.labels['A'].refresh_from_db()
+        # Not changed
+        self.assertEqual(self.labels['A'].duplicate, None)

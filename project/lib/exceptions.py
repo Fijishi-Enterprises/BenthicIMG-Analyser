@@ -32,3 +32,10 @@ class FileStorageUsageError(Exception):
     Raised upon incorrect/unsupported use of the file storage backend classes.
     """
     pass
+
+
+class NameGenerationError(Exception):
+    """
+    Raised if there's a problem when trying to generate a string name.
+    """
+    pass

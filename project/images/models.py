@@ -15,6 +15,7 @@ from .model_utils import PointGen, to_ascii_str
 from accounts.utils import is_robot_user
 from annotations.model_utils import AnnotationAreaUtils
 from labels.models import LabelSet
+from lib.exceptions import NameGenerationError
 from lib.utils import rand_string
 
 # Unfortunate import b/c risk of circular reference, but wasn't sure how to
@@ -553,15 +554,26 @@ def get_original_image_upload_path(instance, filename):
     """
     Generate a destination path (on the server filesystem) for
     a data-image upload.
-
-    # TODO: Check for filename collisions with existing files.
-    # To unit test this, use a Mocker or similar on the filename randomizer,
-    # and reduce the set of possible filenames to make collisions a
-    # near certainty.
     """
-    return settings.IMAGE_FILE_PATTERN.format(
-        name=rand_string(10),
-        extension=posixpath.splitext(filename)[-1])
+    for _ in range(100):
+        name = rand_string(10)
+
+        # The base name should come after the directory separator (forward
+        # slash even on Windows) and before the extension in the full path.
+        pattern = '/' + name + '.'
+
+        if not Image.objects.filter(original_file__contains=pattern).exists():
+            # This name isn't taken.
+            return settings.IMAGE_FILE_PATTERN.format(
+                name=name,
+                extension=posixpath.splitext(filename)[-1])
+
+        # Else, we have a name collision with an existing image. So we iterate
+        # and generate another name.
+
+    # Exceeded the max number of tries.  This shouldn't happen as long as
+    # the pool of possible filenames is big enough.
+    raise NameGenerationError("Failed to generate image filename.")
 
 
 class Image(models.Model):

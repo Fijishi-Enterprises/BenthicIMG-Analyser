@@ -1,6 +1,8 @@
 from __future__ import unicode_literals
 from io import BytesIO
 import json
+from mock import patch
+import random
 import re
 
 from django.conf import settings
@@ -10,6 +12,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from images.models import Image
+from lib.exceptions import NameGenerationError
 from lib.tests.utils import (
     BasePermissionTest, ClientTest, sample_image_as_file, create_sample_image)
 
@@ -192,7 +195,9 @@ class UploadImageTest(ClientTest):
         # Check that the filepath follows the expected pattern
         image_filepath_regex = re.compile(
             settings.IMAGE_FILE_PATTERN
-            .replace('{name}', r'[a-z0-9]+')
+            # 10 lowercase alphanum chars
+            .replace('{name}', r'[a-z0-9]{10}')
+            # Same extension as the uploaded file
             .replace('{extension}', r'\.png')
         )
         self.assertRegexpMatches(
@@ -272,6 +277,38 @@ class UploadImageFormatTest(ClientTest):
             response_json,
             dict(error="Image file: This image file format isn't supported.")
         )
+
+    def test_capitalized_extension(self):
+        """Capitalized extensions like .PNG should be okay."""
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse('upload_images_ajax', args=[self.source.pk]),
+            dict(file=sample_image_as_file('1.PNG'), name='1.PNG')
+        )
+
+        response_json = response.json()
+        self.assertEqual(response_json['success'], True)
+
+        image_id = response_json['image_id']
+        img = Image.objects.get(pk=image_id)
+        self.assertEqual(img.metadata.name, '1.PNG')
+
+    def test_no_filename_extension(self):
+        """A supported image type, but the given filename has no extension."""
+        self.client.force_login(self.user)
+
+        im = create_sample_image()
+        with BytesIO() as stream:
+            im.save(stream, 'PNG')
+            png_file = ContentFile(stream.getvalue(), name='123')
+
+        response = self.client.post(
+            reverse('upload_images_ajax', args=[self.source.pk]),
+            dict(file=png_file, name=png_file.name),
+        )
+        error_message = response.json()['error']
+        self.assertIn(
+            "Image file: File extension '' is not allowed.", error_message)
 
     def test_empty_file(self):
         """0-byte file. Should get an error."""
@@ -373,3 +410,50 @@ class UploadImageFormatTest(ClientTest):
         image_id = response_json['image_id']
         image = Image.objects.get(pk=image_id)
         self.assertEqual(image.metadata.name, '1.png')
+
+
+def only_3_names(*args):
+    return random.choice(['a', 'b', 'c'])
+
+
+class UploadImageFilenameCollisionTest(ClientTest):
+    """
+    Test name collisions when generating the image filename to save to
+    file storage.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super(UploadImageFilenameCollisionTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(cls.user)
+
+    def upload(self, image_name):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse('upload_images_ajax', args=[self.source.pk]),
+            dict(file=sample_image_as_file(image_name), name=image_name)
+        )
+        return response
+
+    # Patch the rand_string function when used in the images.models module.
+    # The patched function can only generate 3 possible names.
+    @patch('images.models.rand_string', only_3_names)
+    def test_possible_names_exhausted(self):
+
+        # Should be able to upload 3 images. The number of allowed retries
+        # should at least be high enough to hit a 1/3 chance.
+        for image_name in ['1.png', '2.png', '3.png']:
+            response = self.upload(image_name)
+            image_id = response.json()['image_id']
+            Image.objects.get(pk=image_id)
+
+        # Shouldn't be able to upload a 4th, because there are no other
+        # allowable base names.
+        self.assertRaises(
+            NameGenerationError, self.upload, '4.png')
+
+        # Doesn't matter if the extension is different from the existing
+        # images. Collision checking ignores the extension.
+        self.assertRaises(
+            NameGenerationError, self.upload, '4.jpg')

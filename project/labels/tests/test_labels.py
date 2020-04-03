@@ -2,16 +2,20 @@ from __future__ import unicode_literals
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.core.cache import cache
 from django.core import mail
 from django.shortcuts import resolve_url
 from django.test import override_settings
 from django.urls import reverse
+from django.utils.html import escape as html_escape
 
 from images.model_utils import PointGen
 from images.models import Source
 from lib.tests.utils import (
     BasePermissionTest, ClientTest, sample_image_as_file)
 from ..models import LabelGroup, Label
+from ..templatetags.labels import (
+    popularity_bar as popularity_bar_tag, status_icon as status_icon_tag)
 from .utils import LabelTest
 
 User = get_user_model()
@@ -100,17 +104,7 @@ class LabelListTest(ClientTest):
         self.assertContains(response, "Create a new label")
 
 
-class LabelSearchTest(ClientTest):
-    """
-    Test label search by Ajax.
-    """
-    @classmethod
-    def setUpTestData(cls):
-        # Call the parent's setup (while still using this class as cls)
-        super(LabelSearchTest, cls).setUpTestData()
-
-        cls.user = cls.create_user()
-        cls.url = reverse('label_list_search_ajax')
+class BaseLabelSearchTest(ClientTest):
 
     def assertLabels(self, response, label_names):
         response_pk_set = set(response.json()['label_ids'])
@@ -127,28 +121,44 @@ class LabelSearchTest(ClientTest):
             functional_group='',
             min_popularity='',
         )
-        data.update(**kwargs)
+        data.update(kwargs)
         response = self.client.get(self.url, data)
         return response
+
+    def setUp(self):
+        super(BaseLabelSearchTest, self).setUp()
+
+        # Popularities are cached when computed, so we clear the cache to
+        # prevent a previous test from affecting the next one.
+        cache.clear()
+
+
+class LabelSearchNameFieldTest(BaseLabelSearchTest):
+    """
+    Test the name field of the Ajax label search.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super(LabelSearchNameFieldTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.url = reverse('label_list_search_ajax')
 
     def test_match_full_name(self):
         self.create_labels(self.user, ["Red", "Blue"], "Group1")
 
-        self.client.force_login(self.user)
         response = self.submit_search(name_search="Red")
         self.assertLabels(response, ["Red"])
 
     def test_match_part_of_name(self):
         self.create_labels(self.user, ["Red", "Blue"], "Group1")
 
-        self.client.force_login(self.user)
         response = self.submit_search(name_search="Blu")
         self.assertLabels(response, ["Blue"])
 
     def test_match_case_insensitive(self):
         self.create_labels(self.user, ["Red", "Blue"], "Group1")
 
-        self.client.force_login(self.user)
         response = self.submit_search(name_search="BLUE")
         self.assertLabels(response, ["Blue"])
 
@@ -156,7 +166,6 @@ class LabelSearchTest(ClientTest):
         self.create_labels(
             self.user, ["Red", "Light Blue", "Dark Blue"], "Group1")
 
-        self.client.force_login(self.user)
         response = self.submit_search(name_search="Blue")
         self.assertLabels(response, ["Light Blue", "Dark Blue"])
 
@@ -164,21 +173,18 @@ class LabelSearchTest(ClientTest):
         self.create_labels(
             self.user, ["Light Blue", "Dark Blue", "Dark Red"], "Group1")
 
-        self.client.force_login(self.user)
         response = self.submit_search(name_search="Dark Blue")
         self.assertLabels(response, ["Dark Blue"])
 
     def test_no_match(self):
         self.create_labels(self.user, ["Red", "Blue"], "Group1")
 
-        self.client.force_login(self.user)
         response = self.submit_search(name_search="Green")
         self.assertLabels(response, [])
 
     def test_strip_whitespace(self):
         self.create_labels(self.user, ["Blue", "Red"], "Group1")
 
-        self.client.force_login(self.user)
         response = self.submit_search(name_search="  Blue ")
         self.assertLabels(response, ["Blue"])
 
@@ -186,7 +192,6 @@ class LabelSearchTest(ClientTest):
         self.create_labels(
             self.user, ["Light Blue", "Dark Blue", "Dark Red"], "Group1")
 
-        self.client.force_login(self.user)
         response = self.submit_search(name_search="Dark   Blue")
         self.assertLabels(response, ["Dark Blue"])
 
@@ -194,7 +199,6 @@ class LabelSearchTest(ClientTest):
         self.create_labels(
             self.user, ["Light Blue", "Dark Blue", "Dark Red"], "Group1")
 
-        self.client.force_login(self.user)
         response = self.submit_search(name_search=";'Dark_/Blue=-")
         self.assertLabels(response, ["Dark Blue"])
 
@@ -202,11 +206,113 @@ class LabelSearchTest(ClientTest):
         self.create_labels(
             self.user, ["Light Blue", "Dark Blue", "Dark Red"], "Group1")
 
-        self.client.force_login(self.user)
         response = self.submit_search(name_search=";'_/=-")
         self.assertLabels(response, [])
 
-    # TODO: Test filtering on other fields besides name_search
+
+class LabelSearchOtherFieldsTest(BaseLabelSearchTest):
+    """Test fields other than name."""
+    @classmethod
+    def setUpTestData(cls):
+        super(LabelSearchOtherFieldsTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.url = reverse('label_list_search_ajax')
+
+        cls.create_labels(cls.user, ['A', 'B'], "Group1")
+        cls.create_labels(cls.user, ['C', 'D'], "Group2")
+
+    def test_show_by_status(self):
+        label_a = Label.objects.get(name='A')
+        label_a.verified = True
+        label_a.save()
+        label_b = Label.objects.get(name='B')
+        label_b.duplicate = label_a
+        label_b.save()
+
+        response = self.submit_search(
+            show_verified=False, show_regular=False, show_duplicate=False)
+        self.assertLabels(response, [])
+
+        response = self.submit_search(
+            show_verified=True, show_regular=False, show_duplicate=False)
+        self.assertLabels(response, ['A'])
+
+        response = self.submit_search(
+            show_verified=False, show_regular=True, show_duplicate=False)
+        self.assertLabels(response, ['C', 'D'])
+
+        response = self.submit_search(
+            show_verified=False, show_regular=False, show_duplicate=True)
+        self.assertLabels(response, ['B'])
+
+        response = self.submit_search(
+            show_verified=True, show_regular=True, show_duplicate=False)
+        self.assertLabels(response, ['A', 'C', 'D'])
+
+        response = self.submit_search(
+            show_verified=True, show_regular=True, show_duplicate=True)
+        self.assertLabels(response, ['A', 'B', 'C', 'D'])
+
+    def test_show_by_functional_group(self):
+        response = self.submit_search()
+        self.assertLabels(response, ['A', 'B', 'C', 'D'])
+
+        response = self.submit_search(
+            functional_group=LabelGroup.objects.get(name='Group1').pk)
+        self.assertLabels(response, ['A', 'B'])
+
+        response = self.submit_search(
+            functional_group=LabelGroup.objects.get(name='Group2').pk)
+        self.assertLabels(response, ['C', 'D'])
+
+    def test_show_by_popularity(self):
+        source = self.create_source(
+            self.user,
+            point_generation_type=PointGen.Types.SIMPLE,
+            simple_number_of_points=4)
+        self.create_labelset(self.user, source, Label.objects.all())
+        img = self.upload_image(self.user, source)
+        self.add_annotations(
+            self.user, img, {1: 'A', 2: 'A', 3: 'C', 4: 'C'})
+
+        response = self.submit_search()
+        self.assertLabels(response, ['A', 'B', 'C', 'D'])
+
+        response = self.submit_search(min_popularity=1)
+        self.assertLabels(response, ['A', 'C'])
+
+    def test_multiple_filters(self):
+        label_a = Label.objects.get(name='A')
+        label_b = Label.objects.get(name='B')
+        label_c = Label.objects.get(name='C')
+
+        # A, B, and C are verified
+        label_a.verified = True
+        label_a.save()
+        label_b.verified = True
+        label_b.save()
+        label_c.verified = True
+        label_c.save()
+
+        # A and B are already in Group1
+
+        # A and C have popularity
+        source = self.create_source(
+            self.user,
+            point_generation_type=PointGen.Types.SIMPLE,
+            simple_number_of_points=4)
+        self.create_labelset(self.user, source, Label.objects.all())
+        img = self.upload_image(self.user, source)
+        self.add_annotations(
+            self.user, img, {1: 'A', 2: 'A', 3: 'C', 4: 'C'})
+
+        # Only A satisfies all requirements here
+        response = self.submit_search(
+            show_verified=True, show_regular=False,
+            functional_group=LabelGroup.objects.get(name='Group1').pk,
+            min_popularity=1)
+        self.assertLabels(response, ['A'])
 
 
 class LabelDetailTest(ClientTest):
@@ -215,26 +321,142 @@ class LabelDetailTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        # Call the parent's setup (while still using this class as cls)
         super(LabelDetailTest, cls).setUpTestData()
 
         cls.user = cls.create_user()
 
-        # Create labels
-        cls.labels = cls.create_labels(
-            cls.user, ['A', 'B'], "Group1")
+        cls.group = LabelGroup(name="Group 1", code='G1')
+        cls.group.save()
 
-    def test_load_page(self):
-        """Load the page."""
-        response = self.client.get(
-            reverse('label_main', kwargs=dict(
-                label_id=Label.objects.get(name='B').pk
-            ))
+    def test_basic_fields(self):
+        label = Label(
+            name="Label A",
+            default_code='A',
+            group=self.group,
+            description="This is a\nmultiline description.",
+            # This filename will be discarded in favor of a generated one.
+            thumbnail=sample_image_as_file('_.png'),
+            created_by=self.user,
         )
+        label.save()
+
+        response = self.client.get(reverse('label_main', args=[label.pk]))
         self.assertStatusOK(response)
 
-    # TODO: Test other page details, especially parts distinguishing between
-    # public and private sources
+        self.assertContains(response, "Name: Label A")
+
+        self.assertContains(response, "Functional Group: Group 1")
+
+        self.assertContains(response, "Default Short Code: A")
+
+        self.assertInHTML(
+            "This is a<br>multiline description.", response.content)
+
+        self.assertInHTML(
+            '<img src="{}" alt="Label A" class="label-thumbnail">'.format(
+                label.thumbnail.url),
+            response.content)
+
+        # Too lazy to check the date itself, but there should be a line for it.
+        self.assertContains(response, "Create Date:")
+
+        self.assertContains(
+            response, "Created By: {}".format(self.user.username))
+
+    def test_duplicate(self):
+        labels = self.create_labels(self.user, ['A', 'B'], "Group1")
+
+        # Non-duplicate
+        label_a = labels.get(name='A')
+        response = self.client.get(reverse('label_main', args=[label_a.pk]))
+        self.assertNotContains(response, "THIS LABEL IS A DUPLICATE OF")
+
+        label_b = labels.get(name='B')
+        label_b.verified = True
+        label_b.save()
+        label_a.duplicate = label_b
+        label_a.save()
+
+        # Duplicate
+        response = self.client.get(reverse('label_main', args=[label_a.pk]))
+        self.assertContains(response, "THIS LABEL IS A DUPLICATE OF")
+        self.assertInHTML(
+            'THIS LABEL IS A DUPLICATE OF: <a href="{}">B</a>'.format(
+                reverse('label_main', args=[label_b.pk])
+            ),
+            response.content)
+
+    def test_verified(self):
+        labels = self.create_labels(self.user, ['A'], "Group1")
+        label_a = labels.get(name='A')
+
+        response = self.client.get(reverse('label_main', args=[label_a.pk]))
+        self.assertInHTML("Verified: No", response.content)
+
+        label_a.verified = True
+        label_a.save()
+
+        response = self.client.get(reverse('label_main', args=[label_a.pk]))
+
+        status_icon_html = status_icon_tag(label_a)
+        verified_html = 'Verified: Yes {}'.format(status_icon_html)
+        self.assertInHTML(verified_html, response.content)
+
+    def test_usage_info(self):
+        labels = self.create_labels(self.user, ['A', 'B'], "Group1")
+        label_a = labels.get(name='A')
+
+        user_2 = self.create_user()
+
+        user_private_s = self.create_source(
+            self.user, visibility=Source.VisibilityTypes.PRIVATE,
+            name="User's private source")
+        self.create_labelset(self.user, user_private_s, labels)
+        img = self.upload_image(self.user, user_private_s)
+        self.add_annotations(self.user, img, {1: 'A'})
+
+        # No annotation, but has A in the labelset
+        user2_public_s = self.create_source(
+            user_2, visibility=Source.VisibilityTypes.PUBLIC,
+            name="User 2's public source")
+        self.create_labelset(user_2, user2_public_s, labels)
+
+        # Doesn't have A in the labelset
+        user_other_s = self.create_source(
+            self.user, name="User's other source")
+        self.create_labelset(self.user, user_other_s, labels.filter(name='B'))
+        img = self.upload_image(self.user, user_other_s)
+        self.add_annotations(self.user, img, {1: 'B'})
+
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('label_main', args=[label_a.pk]))
+
+        # Usage stats.
+        self.assertInHTML(
+            'Stats: Used in 2 sources and for 1 annotations', response.content)
+
+        # Sources using the label.
+        # Viewer's private sources first, with strong links.
+        # Then other public sources, with links.
+        # (Then other private sources, without links... but these need to have
+        # at least 100 images to be listed, so we won't bother testing that
+        # here unless we make that threshold flexible.)
+        self.assertInHTML(
+            '<a href="{}"><strong>{}</strong></a> |'
+            ' <a href="{}">{}</a> |'.format(
+                reverse('source_main', args=[user_private_s.pk]),
+                html_escape("User's private source"),
+                reverse('source_main', args=[user2_public_s.pk]),
+                html_escape("User 2's public source")),
+            response.content)
+
+        # Popularity.
+        popularity_str = str(int(label_a.popularity)) + '%'
+        popularity_bar_html = popularity_bar_tag(label_a)
+        self.assertInHTML(
+            'Popularity: {} {}'.format(
+                popularity_str, popularity_bar_html),
+            response.content)
 
 
 class LabelDetailPatchesTest(ClientTest):
@@ -521,95 +743,94 @@ class NewLabelNonAjaxTest(ClientTest):
         self.assertEqual(label.created_by_id, self.user.pk)
 
 
-class EditLabelPermissionTest(ClientTest):
+class EditLabelPermissionTest(BasePermissionTest):
 
     @classmethod
     def setUpTestData(cls):
-        # Call the parent's setup (while still using this class as cls)
         super(EditLabelPermissionTest, cls).setUpTestData()
 
-        cls.user = cls.create_user()
-
         # Create labels and group
-        labels = cls.create_labels(cls.user, ['A', 'B'], "Group1")
+        labels = cls.create_labels(cls.user, ['A', 'B', 'C'], "Group1")
 
         cls.source1 = cls.create_source(cls.user)
         cls.create_labelset(
-            cls.user, cls.source1, labels.filter(name__in=['A']))
+            cls.user, cls.source1, labels.filter(name__in=['A', 'B']))
         cls.source2 = cls.create_source(cls.user)
         cls.create_labelset(
             cls.user, cls.source2, labels.filter(name__in=['A', 'B']))
         cls.source3 = cls.create_source(cls.user)
         cls.create_labelset(
-            cls.user, cls.source3, labels.filter(name__in=['B']))
+            cls.user, cls.source3, labels.filter(name__in=['C']))
 
-        cls.user_admin_both = cls.create_user()
-        cls.add_source_member(
-            cls.user, cls.source1,
-            cls.user_admin_both, Source.PermTypes.ADMIN.code)
-        cls.add_source_member(
-            cls.user, cls.source2,
-            cls.user_admin_both, Source.PermTypes.ADMIN.code)
-
-        cls.user_admin_one = cls.create_user()
-        cls.add_source_member(
-            cls.user, cls.source1,
-            cls.user_admin_one, Source.PermTypes.ADMIN.code)
-
-        cls.user_editor_both = cls.create_user()
-        cls.add_source_member(
-            cls.user, cls.source1,
-            cls.user_editor_both, Source.PermTypes.EDIT.code)
-        cls.add_source_member(
-            cls.user, cls.source2,
-            cls.user_editor_both, Source.PermTypes.EDIT.code)
-
-        cls.user_committee_member = cls.create_user()
-        cls.user_committee_member.groups.add(
-            Group.objects.get(name="Labelset Committee"))
-
-        # Verify label B
-        label_B = labels.get(name='B')
-        label_B.verified = True
-        label_B.save()
+        label_b = labels.get(name='B')
+        label_b.verified = True
+        label_b.save()
 
         cls.url = reverse('label_edit', args=[labels.get(name='A').pk])
-        cls.url_verified = reverse(
-            'label_edit', args=[labels.get(name='B').pk])
+        cls.url_verified = reverse('label_edit', args=[label_b.pk])
 
     def test_anonymous(self):
-        response = self.client.get(self.url)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+        self.assertPermissionDenied(self.url, None)
 
     def test_admin_of_one_source_using_the_label(self):
-        self.client.force_login(self.user_admin_one)
-        response = self.client.get(self.url)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+        user_admin_one = self.create_user()
+        self.add_source_member(
+            self.user, self.source1,
+            user_admin_one, Source.PermTypes.ADMIN.code)
+
+        # Must be admin of all sources using the label, not just one.
+        self.assertPermissionDenied(self.url, user_admin_one)
 
     def test_editor_of_all_sources_using_the_label(self):
-        self.client.force_login(self.user_editor_both)
-        response = self.client.get(self.url)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+        user_editor_both = self.create_user()
+        self.add_source_member(
+            self.user, self.source1,
+            user_editor_both, Source.PermTypes.EDIT.code)
+        self.add_source_member(
+            self.user, self.source2,
+            user_editor_both, Source.PermTypes.EDIT.code)
+
+        # Edit isn't enough, must be admin.
+        self.assertPermissionDenied(self.url, user_editor_both)
 
     def test_admin_of_all_sources_using_the_label(self):
-        self.client.force_login(self.user_admin_both)
-        response = self.client.get(self.url)
-        self.assertTemplateUsed(response, 'labels/label_edit.html')
+        user_admin_both = self.create_user()
+        self.add_source_member(
+            self.user, self.source1,
+            user_admin_both, Source.PermTypes.ADMIN.code)
+        self.add_source_member(
+            self.user, self.source2,
+            user_admin_both, Source.PermTypes.ADMIN.code)
+
+        self.assertPermissionGranted(
+            self.url, user_admin_both, template='labels/label_edit.html')
 
     def test_admin_of_all_sources_using_verified_label(self):
-        self.client.force_login(self.user_editor_both)
-        response = self.client.get(self.url_verified)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+        user_admin_both = self.create_user()
+        self.add_source_member(
+            self.user, self.source1,
+            user_admin_both, Source.PermTypes.ADMIN.code)
+        self.add_source_member(
+            self.user, self.source2,
+            user_admin_both, Source.PermTypes.ADMIN.code)
+
+        # Being source admin isn't enough for verified labels.
+        self.assertPermissionDenied(self.url_verified, user_admin_both)
 
     def test_labelset_committee_member(self):
-        self.client.force_login(self.user_committee_member)
-        response = self.client.get(self.url_verified)
-        self.assertTemplateUsed(response, 'labels/label_edit.html')
+        user_committee_member = self.create_user()
+        user_committee_member.groups.add(
+            Group.objects.get(name="Labelset Committee"))
+
+        # Committee members can edit verified labels.
+        self.assertPermissionGranted(
+            self.url_verified, user_committee_member,
+            template='labels/label_edit.html')
 
     def test_superuser(self):
-        self.client.force_login(self.superuser)
-        response = self.client.get(self.url_verified)
-        self.assertTemplateUsed(response, 'labels/label_edit.html')
+        self.assertPermissionGranted(
+            self.url_verified, self.superuser,
+            template='labels/label_edit.html')
 
 
 class EditLabelTest(LabelTest):
@@ -618,7 +839,6 @@ class EditLabelTest(LabelTest):
     """
     @classmethod
     def setUpTestData(cls):
-        # Call the parent's setup (while still using this class as cls)
         super(EditLabelTest, cls).setUpTestData()
 
         cls.user = cls.create_user()
@@ -640,50 +860,42 @@ class EditLabelTest(LabelTest):
         cls.create_labelset(
             cls.user, cls.source, Label.objects.all())
 
-        cls.url = reverse('label_edit', args=[cls.labels['A'].pk])
-
-    def test_name_same(self):
-        self.client.force_login(self.user)
-        response = self.client.post(self.url, follow=True, data=dict(
+    def submit_edit(self, user=None, **params):
+        # Defaults
+        post_data = dict(
             name="Label A",
             default_code='A',
             group=self.labels['A'].group.pk,
             description=self.labels['A'].description,
-        ))
+        )
+        post_data.update(params)
+
+        self.client.force_login(user or self.user)
+        response = self.client.post(
+            reverse('label_edit', args=[self.labels['A'].pk]),
+            data=post_data, follow=True)
+        return response
+
+    def test_name_same(self):
+        response = self.submit_edit(name="Label A")
+
         self.assertContains(response, "Label successfully edited.")
 
     def test_name_change_case_only(self):
-        self.client.force_login(self.user)
-        self.client.post(self.url, follow=True, data=dict(
-            name="LABEL a",
-            default_code='A',
-            group=self.labels['A'].group.pk,
-            description=self.labels['A'].description,
-        ))
+        self.submit_edit(name="LABEL a")
 
         self.labels['A'].refresh_from_db()
         self.assertEqual(self.labels['A'].name, "LABEL a")
 
     def test_name_change(self):
-        self.client.force_login(self.user)
-        self.client.post(self.url, follow=True, data=dict(
-            name="Label Alpha",
-            default_code='A',
-            group=self.labels['A'].group.pk,
-            description=self.labels['A'].description,
-        ))
+        self.submit_edit(name="Label Alpha")
 
         self.labels['A'].refresh_from_db()
         self.assertEqual(self.labels['A'].name, "Label Alpha")
 
     def test_name_conflict(self):
-        self.client.force_login(self.user)
-        response = self.client.post(self.url, follow=True, data=dict(
-            name="LABEL B",
-            default_code='A',
-            group=self.labels['A'].group.pk,
-            description=self.labels['A'].description,
-        ))
+        response = self.submit_edit(name="LABEL B")
+
         self.assertContains(
             response,
             'There is already a label with the same name:'
@@ -696,47 +908,25 @@ class EditLabelTest(LabelTest):
         self.assertEqual(self.labels['A'].name, "Label A")
 
     def test_default_code_same(self):
-        self.client.force_login(self.user)
-        response = self.client.post(self.url, follow=True, data=dict(
-            name="Label A",
-            default_code='A',
-            group=self.labels['A'].group.pk,
-            description=self.labels['A'].description,
-        ))
+        response = self.submit_edit(default_code='A')
+
         self.assertContains(response, "Label successfully edited.")
 
     def test_default_code_change_case_only(self):
-        self.client.force_login(self.user)
-        self.client.post(self.url, follow=True, data=dict(
-            name="Label A",
-            default_code='a',
-            group=self.labels['A'].group.pk,
-            description=self.labels['A'].description,
-        ))
+        self.submit_edit(default_code='a')
 
         self.labels['A'].refresh_from_db()
         self.assertEqual(self.labels['A'].default_code, 'a')
 
     def test_default_code_change(self):
-        self.client.force_login(self.user)
-        self.client.post(self.url, follow=True, data=dict(
-            name="Label A",
-            default_code='Alpha',
-            group=self.labels['A'].group.pk,
-            description=self.labels['A'].description,
-        ))
+        self.submit_edit(default_code='Alpha')
 
         self.labels['A'].refresh_from_db()
         self.assertEqual(self.labels['A'].default_code, 'Alpha')
 
     def test_default_code_conflict(self):
-        self.client.force_login(self.user)
-        response = self.client.post(self.url, follow=True, data=dict(
-            name="Label A",
-            default_code='b',
-            group=self.labels['A'].group.pk,
-            description=self.labels['A'].description,
-        ))
+        response = self.submit_edit(default_code='b')
+
         self.assertContains(
             response,
             'There is already a label with the same default code:'
@@ -749,25 +939,13 @@ class EditLabelTest(LabelTest):
         self.assertEqual(self.labels['A'].default_code, 'A')
 
     def test_group_change(self):
-        self.client.force_login(self.user)
-        self.client.post(self.url, follow=True, data=dict(
-            name="Label A",
-            default_code='A',
-            group=self.group2.pk,
-            description=self.labels['A'].description,
-        ))
+        self.submit_edit(group=self.group2.pk)
 
         self.labels['A'].refresh_from_db()
         self.assertEqual(self.labels['A'].group.pk, self.group2.pk)
 
     def test_description_change(self):
-        self.client.force_login(self.user)
-        self.client.post(self.url, follow=True, data=dict(
-            name="Label A",
-            default_code='A',
-            group=self.labels['A'].group.pk,
-            description="Another\ndescription",
-        ))
+        self.submit_edit(description="Another\ndescription")
 
         self.labels['A'].refresh_from_db()
         self.assertEqual(self.labels['A'].description, "Another\ndescription")
@@ -775,14 +953,7 @@ class EditLabelTest(LabelTest):
     def test_thumbnail_change(self):
         original_filename = self.labels['A'].thumbnail.name
 
-        self.client.force_login(self.user)
-        self.client.post(self.url, follow=True, data=dict(
-            name="Label A",
-            default_code='A',
-            group=self.labels['A'].group.pk,
-            description=self.labels['A'].description,
-            thumbnail=sample_image_as_file('_.png'),
-        ))
+        self.submit_edit(thumbnail=sample_image_as_file('_.png'))
 
         # Check for a different thumbnail file, by checking filename.
         # This assumes the filenames are designed to not clash
@@ -792,28 +963,18 @@ class EditLabelTest(LabelTest):
         self.assertNotEqual(original_filename, self.labels['A'].thumbnail.name)
 
     def test_verified_change(self):
-        self.client.force_login(self.user_committee_member)
-        self.client.post(self.url, follow=True, data=dict(
-            name="Label A",
-            default_code='A',
-            group=self.labels['A'].group.pk,
-            description=self.labels['A'].description,
-            verified=True,
-        ))
+        self.submit_edit(
+            user=self.user_committee_member,
+            verified=True)
 
         self.labels['A'].refresh_from_db()
         self.assertEqual(self.labels['A'].verified, True)
 
     def test_verified_requires_permission(self):
         # Non committee member
-        self.client.force_login(self.user)
-        self.client.post(self.url, follow=True, data=dict(
-            name="Label A",
-            default_code='A',
-            group=self.labels['A'].group.pk,
-            description=self.labels['A'].description,
-            verified=True,
-        ))
+        self.submit_edit(
+            user=self.user,
+            verified=True)
 
         self.labels['A'].refresh_from_db()
         # Not changed
@@ -824,16 +985,11 @@ class EditLabelTest(LabelTest):
         self.labels['B'].verified = True
         self.labels['B'].save()
 
-        self.client.force_login(self.user_committee_member)
-        response = self.client.post(self.url, follow=True, data=dict(
-            name="Label A",
-            default_code='A',
-            group=self.labels['A'].group.pk,
-            description=self.labels['A'].description,
-            duplicate=self.labels['B'].pk,
-        ))
-        self.assertContains(response, "Label successfully edited.")
+        response = self.submit_edit(
+            user=self.user_committee_member,
+            duplicate=self.labels['B'].pk)
 
+        self.assertContains(response, "Label successfully edited.")
         self.labels['A'].refresh_from_db()
         self.assertEqual(self.labels['A'].duplicate.pk, self.labels['B'].pk)
 
@@ -842,16 +998,11 @@ class EditLabelTest(LabelTest):
         self.labels['B'].verified = True
         self.labels['B'].save()
 
-        # Non committee member
-        self.client.force_login(self.user)
-        response = self.client.post(self.url, follow=True, data=dict(
-            name="Label A",
-            default_code='A',
-            group=self.labels['A'].group.pk,
-            description=self.labels['A'].description,
-            duplicate=self.labels['B'].pk,
-        ))
-        # Would still show success, but with the duplicate field ignored
+        response = self.submit_edit(
+            user=self.user,
+            duplicate=self.labels['B'].pk)
+
+        # Still expect to show success, but with the duplicate field ignored
         self.assertContains(response, "Label successfully edited.")
 
         self.labels['A'].refresh_from_db()
@@ -862,14 +1013,10 @@ class EditLabelTest(LabelTest):
         self.labels['B'].verified = False
         self.labels['B'].save()
 
-        self.client.force_login(self.user_committee_member)
-        response = self.client.post(self.url, follow=True, data=dict(
-            name="Label A",
-            default_code='A',
-            group=self.labels['A'].group.pk,
-            description=self.labels['A'].description,
-            duplicate=self.labels['B'].pk,
-        ))
+        response = self.submit_edit(
+            user=self.user_committee_member,
+            duplicate=self.labels['B'].pk)
+
         self.assertContains(response, "Please correct the errors below.")
         self.assertContains(
             response,
@@ -884,15 +1031,11 @@ class EditLabelTest(LabelTest):
         self.labels['B'].verified = True
         self.labels['B'].save()
 
-        self.client.force_login(self.user_committee_member)
-        response = self.client.post(self.url, follow=True, data=dict(
-            name="Label A",
-            default_code='A',
-            group=self.labels['A'].group.pk,
-            description=self.labels['A'].description,
+        response = self.submit_edit(
+            user=self.user_committee_member,
             verified=True,
-            duplicate=self.labels['B'].pk,
-        ))
+            duplicate=self.labels['B'].pk)
+
         self.assertContains(response, "Please correct the errors below.")
         self.assertContains(
             response, "A label can not both be a Duplicate and Verified.")
@@ -900,3 +1043,75 @@ class EditLabelTest(LabelTest):
         self.labels['A'].refresh_from_db()
         # Not changed
         self.assertEqual(self.labels['A'].duplicate, None)
+
+
+class PopularityTest(ClientTest):
+    """Tests related to label popularity values."""
+
+    @classmethod
+    def setUpTestData(cls):
+        super(PopularityTest, cls).setUpTestData()
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(
+            cls.user,
+            point_generation_type=PointGen.Types.SIMPLE,
+            simple_number_of_points=2)
+
+        cls.labels = cls.create_labels(
+            cls.user, ['A', 'B'], "Group1")
+        cls.label_a = cls.labels.get(name='A')
+
+        cls.img = cls.upload_image(cls.user, cls.source)
+
+    def setUp(self):
+        super(PopularityTest, self).setUp()
+
+        # Popularities are cached when computed, so we clear the cache to
+        # prevent a previous test from affecting the next one.
+        cache.clear()
+
+    def test_zero_sources(self):
+        # There's a labelset, but it doesn't have A
+        self.create_labelset(
+            self.user, self.source, self.labels.filter(name='B'))
+
+        self.assertEqual(
+            self.label_a.popularity, 0,
+            msg="0 sources should mean 0 popularity")
+
+    def test_zero_annotations(self):
+        # A is in a labelset
+        self.create_labelset(self.user, self.source, self.labels)
+        # There are annotations, but they're not of A
+        self.add_annotations(self.user, self.img, {1: 'B'})
+
+        self.assertEqual(
+            self.label_a.popularity, 0,
+            msg="1 source and 0 annotations still should mean 0 popularity")
+
+    def test_nonzero_annotations(self):
+        # A is in a labelset
+        self.create_labelset(self.user, self.source, self.labels)
+        # A has annotations (by a quirk of the formula, it actually needs more
+        # than 1 annotation to get non-0 popularity)
+        self.add_annotations(self.user, self.img, {1: 'A', 2: 'A'})
+
+        self.assertGreater(
+            self.label_a.popularity, 0,
+            msg="Non-0 annotations should mean non-0 popularity")
+
+    def test_popularity_cached(self):
+        # A is in a labelset
+        self.create_labelset(self.user, self.source, self.labels)
+
+        self.assertEqual(
+            self.label_a.popularity, 0,
+            msg="Popularity should be 0")
+
+        # Now A has annotations, and would have non-0 popularity if the
+        # cache refreshed
+        self.add_annotations(self.user, self.img, {1: 'A', 2: 'A'})
+
+        self.assertEqual(
+            self.label_a.popularity, 0,
+            msg="Cached popularity of 0 should still be used")

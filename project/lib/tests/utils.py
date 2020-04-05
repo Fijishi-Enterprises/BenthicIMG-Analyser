@@ -693,13 +693,15 @@ class BasePermissionTest(ClientTest):
             cls.user, cls.source,
             cls.user_admin, Source.PermTypes.ADMIN.code)
 
-    def source_to_private(self):
-        self.source.visibility = Source.VisibilityTypes.PRIVATE
-        self.source.save()
+    @classmethod
+    def source_to_private(cls):
+        cls.source.visibility = Source.VisibilityTypes.PRIVATE
+        cls.source.save()
 
-    def source_to_public(self):
-        self.source.visibility = Source.VisibilityTypes.PUBLIC
-        self.source.save()
+    @classmethod
+    def source_to_public(cls):
+        cls.source.visibility = Source.VisibilityTypes.PUBLIC
+        cls.source.save()
 
     def _make_request(self, url, user, post_data):
         if user:

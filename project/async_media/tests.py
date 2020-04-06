@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
+import os
+from unittest import skipIf
 
 from bs4 import BeautifulSoup
+from django.conf import settings
 from django.core.cache import cache
 from django.urls import reverse
 from easy_thumbnails.files import get_thumbnailer
@@ -24,6 +27,11 @@ class PermissionTest(BasePermissionTest):
             url, self.SIGNED_OUT, is_json=True, post_data={})
 
 
+@skipIf(
+    os.name == 'nt'
+    and settings.DEFAULT_FILE_STORAGE == 'lib.storage_backends.MediaStorageS3',
+    "Fetching existing thumbnails doesn't work with Windows + S3, because"
+    " easy-thumbnails uses os.path for storage path separators")
 class BrowseImagesThumbnailsTest(ClientTest):
     """
     Test the thumbnail functionality in Browse Images.

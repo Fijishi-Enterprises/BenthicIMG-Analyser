@@ -2,17 +2,17 @@ from __future__ import unicode_literals
 from io import BytesIO
 import json
 from mock import patch
-import random
 import re
 
 from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.files.storage import DefaultStorage
+from django.core import mail
+from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
 from images.models import Image
-from lib.exceptions import NameGenerationError
 from lib.tests.utils import (
     BasePermissionTest, ClientTest, sample_image_as_file, create_sample_image)
 
@@ -412,10 +412,29 @@ class UploadImageFormatTest(ClientTest):
         self.assertEqual(image.metadata.name, '1.png')
 
 
-def only_3_names(*args):
-    return random.choice(['a', 'b', 'c'])
+class ThreeNameGenerator:
+
+    iteration = 0
+
+    # - Only 3 possible names
+    # - At least one duplicate before going through all possible names
+    # - At least as many items as image upload's name generation attempts (10)
+    sequence = ['a', 'b', 'b', 'a', 'c', 'a', 'b', 'c', 'c', 'c', 'b', 'a']
+
+    @classmethod
+    def generate_name(cls, *args):
+        cls.iteration += 1
+        return cls.sequence[cls.iteration - 1]
+
+    @classmethod
+    def reset_iteration(cls):
+        cls.iteration = 0
 
 
+# Patch the rand_string function when used in the images.models module.
+# The patched function can only generate 3 possible base names.
+@patch('images.models.rand_string', ThreeNameGenerator.generate_name)
+@override_settings(ADMINS=[('Admin', 'admin@example.com')])
 class UploadImageFilenameCollisionTest(ClientTest):
     """
     Test name collisions when generating the image filename to save to
@@ -429,6 +448,10 @@ class UploadImageFilenameCollisionTest(ClientTest):
         cls.source = cls.create_source(cls.user)
 
     def upload(self, image_name):
+        # Ensure every upload starts from the beginning of the name generation
+        # sequence.
+        ThreeNameGenerator.reset_iteration()
+
         self.client.force_login(self.user)
         response = self.client.post(
             reverse('upload_images_ajax', args=[self.source.pk]),
@@ -436,24 +459,57 @@ class UploadImageFilenameCollisionTest(ClientTest):
         )
         return response
 
-    # Patch the rand_string function when used in the images.models module.
-    # The patched function can only generate 3 possible names.
-    @patch('images.models.rand_string', only_3_names)
-    def test_possible_names_exhausted(self):
+    def assertProblemMailAsExpected(self):
+        problem_mail = mail.outbox[-1]
 
-        # Should be able to upload 3 images. The number of allowed retries
-        # should at least be high enough to hit a 1/3 chance.
+        self.assertListEqual(
+            problem_mail.to, ['admin@example.com'],
+            "Recipients should be correct")
+        self.assertListEqual(problem_mail.cc, [], "cc should be empty")
+        self.assertListEqual(problem_mail.bcc, [], "bcc should be empty")
+        self.assertIn(
+            "Image upload filename problem", problem_mail.subject,
+            "Subject should have the expected contents")
+        self.assertIn(
+            "Wasn't able to generate a unique base name after 10 tries.",
+            problem_mail.body,
+            "Body should have the expected contents")
+
+    def test_possible_base_names_exhausted(self):
+
+        # Should be able to upload 3 images with the 3 possible base names.
         for image_name in ['1.png', '2.png', '3.png']:
             response = self.upload(image_name)
-            image_id = response.json()['image_id']
-            Image.objects.get(pk=image_id)
 
-        # Shouldn't be able to upload a 4th, because there are no other
-        # allowable base names.
-        self.assertRaises(
-            NameGenerationError, self.upload, '4.png')
+            img = Image.objects.get(pk=response.json()['image_id'])
+            self.assertRegexpMatches(img.original_file.name, r'[abc]\.png')
 
-        # Doesn't matter if the extension is different from the existing
-        # images. Collision checking ignores the extension.
-        self.assertRaises(
-            NameGenerationError, self.upload, '4.jpg')
+        self.assertEqual(
+            len(mail.outbox), 0, msg="Should have no admin mail yet")
+
+        # Should get a collision for the 4th, because there are no other
+        # possible base names.
+        response = self.upload('4.png')
+
+        img = Image.objects.get(pk=response.json()['image_id'])
+        # In this case, we expect the storage framework to add a suffix to get
+        # a unique filename.
+        self.assertRegexpMatches(
+            img.original_file.name, r'[abc]_[A-Za-z0-9]+\.png')
+
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertProblemMailAsExpected()
+
+        # Should still get a collision even if the extension is different
+        # from the existing images, since comparisons are done on the
+        # base name.
+        response = self.upload('4.jpg')
+
+        img = Image.objects.get(pk=response.json()['image_id'])
+        # In this case, we expect the storage framework to not add a suffix
+        # because the extension is different.
+        self.assertRegexpMatches(
+            img.original_file.name, r'[abc]\.jpg')
+
+        self.assertEqual(len(mail.outbox), 2)
+        self.assertProblemMailAsExpected()

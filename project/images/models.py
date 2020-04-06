@@ -4,6 +4,7 @@ import posixpath
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
+from django.core.mail import mail_admins
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
@@ -15,7 +16,6 @@ from .model_utils import PointGen, to_ascii_str
 from accounts.utils import is_robot_user
 from annotations.model_utils import AnnotationAreaUtils
 from labels.models import LabelSet
-from lib.exceptions import NameGenerationError
 from lib.utils import rand_string
 
 # Unfortunate import b/c risk of circular reference, but wasn't sure how to
@@ -555,25 +555,47 @@ def get_original_image_upload_path(instance, filename):
     Generate a destination path (on the server filesystem) for
     a data-image upload.
     """
-    for _ in range(100):
-        name = rand_string(10)
+    base_name = None
+    max_tries = 10
+
+    for try_number in range(1, max_tries+1):
+        base_name = rand_string(10)
 
         # The base name should come after the directory separator (forward
         # slash even on Windows) and before the extension in the full path.
-        pattern = '/' + name + '.'
+        pattern = '/' + base_name + '.'
 
-        if not Image.objects.filter(original_file__contains=pattern).exists():
-            # This name isn't taken.
-            return settings.IMAGE_FILE_PATTERN.format(
-                name=name,
-                extension=posixpath.splitext(filename)[-1])
+        if Image.objects.filter(original_file__contains=pattern).exists():
 
-        # Else, we have a name collision with an existing image. So we iterate
-        # and generate another name.
+            # We have a base name collision with an existing image.
 
-    # Exceeded the max number of tries.  This shouldn't happen as long as
-    # the pool of possible filenames is big enough.
-    raise NameGenerationError("Failed to generate image filename.")
+            if try_number >= max_tries:
+
+                # If we're here, we weren't able to generate a unique base
+                # name ourselves. We have to let the Django storage framework
+                # append a suffix as needed to ensure we get a unique full
+                # filename.
+                #
+                # We don't generally want to be here, since the storage
+                # framework will allow, say, a.png and a.jpg as completely
+                # different images (same base name, 'a'). This might not cause
+                # actual errors, but at the least, it can be confusing for us.
+                mail_admins(
+                    "Image upload filename problem",
+                    "Image upload may be running out of possible base names"
+                    " for files. Wasn't able to generate a unique base name"
+                    " after {} tries. Currently using a duplicate base name"
+                    " of {}, letting Django storage auto-generate a suffix"
+                    " as needed.".format(max_tries, base_name)
+                )
+
+        else:
+
+            # We have a unique base name, so use it.
+            break
+
+    return settings.IMAGE_FILE_PATTERN.format(
+        name=base_name, extension=posixpath.splitext(filename)[-1])
 
 
 class Image(models.Model):

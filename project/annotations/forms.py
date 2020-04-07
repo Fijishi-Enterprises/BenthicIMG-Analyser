@@ -227,12 +227,12 @@ class AnnotationAreaPixelsForm(Form):
     def clean(self):
         data = self.cleaned_data
 
-        field_names = ['min_x', 'max_x', 'min_y', 'max_y']
-        no_errors_yet = len(filter(lambda key: key not in data, field_names)) == 0
+        field_keys = ['min_x', 'max_x', 'min_y', 'max_y']
+        no_errors_yet = all([key in data for key in field_keys])
 
         if no_errors_yet:
-            has_empty_fields = len(filter(lambda key: data[key] is None, field_names)) > 0
-            all_empty_fields = len(filter(lambda key: data[key] is not None, field_names)) == 0
+            has_empty_fields = any([data[key] is None for key in field_keys])
+            all_empty_fields = all([data[key] is None for key in field_keys])
 
             if has_empty_fields and not all_empty_fields:
                 raise ValidationError("You must fill in all four of the annotation area fields.")

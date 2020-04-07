@@ -135,7 +135,7 @@ class AnnotationAreaPercentsForm(Form):
         the annotation area of that Source,
         and use that to fill the form fields' initial values.
         """
-        if kwargs.has_key('source'):
+        if 'source' in kwargs:
             source = kwargs.pop('source')
 
             if source.image_annotation_area:

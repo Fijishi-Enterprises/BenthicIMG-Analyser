@@ -1,6 +1,6 @@
 # General utility functions and classes can go here.
 
-import math
+from __future__ import division
 import random
 import string
 import boto
@@ -50,6 +50,10 @@ def direct_s3_write(key, encoding, data):
 def filesize_display(num_bytes):
     """
     Return a human-readable filesize string in B, KB, MB, or GB.
+
+    TODO: We may want an option here for number of decimal places or
+    sig figs, since it's used for filesize limit displays. As a limit
+    description, '30 MB' makes more sense than '30.00 MB'.
     """
     KILO = 1024
     MEGA = 1024 * 1024
@@ -58,10 +62,10 @@ def filesize_display(num_bytes):
     if num_bytes < KILO:
         return "{n} B".format(n=num_bytes)
     if num_bytes < MEGA:
-        return "{n:.2f} KB".format(n=math.floor(num_bytes / KILO))
+        return "{n:.2f} KB".format(n=num_bytes / KILO)
     if num_bytes < GIGA:
-        return "{n:.2f} MB".format(n=math.floor(num_bytes / MEGA))
-    return "{n:.2f} GB".format(n=math.floor(num_bytes / GIGA))
+        return "{n:.2f} MB".format(n=num_bytes / MEGA)
+    return "{n:.2f} GB".format(n=num_bytes / GIGA)
 
 
 def paginate(results, items_per_page, request_args):

@@ -1,3 +1,4 @@
+from __future__ import division
 from io import BytesIO
 import operator
 import re

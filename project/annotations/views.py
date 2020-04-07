@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from __future__ import division, unicode_literals
 from datetime import timedelta
 import json
 
@@ -89,9 +89,9 @@ def annotation_area_edit(request, image_id):
     # the display height is rounded to an int.  Thus, need to track
     # width/height scaling factors separately for accurate calculations.
     display_width = min(MAX_DISPLAY_WIDTH, image.original_width)
-    width_scale_factor = float(display_width) / image.original_width
+    width_scale_factor = display_width / image.original_width
     display_height = int(round(image.original_height * width_scale_factor))
-    height_scale_factor = float(display_height) / image.original_height
+    height_scale_factor = display_height / image.original_height
 
     dimensions = dict(
         displayWidth=display_width,

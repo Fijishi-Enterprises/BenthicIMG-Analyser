@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from __future__ import division, unicode_literals
 from backports import csv
 
 from django.contrib import messages
@@ -199,7 +199,7 @@ def export_image_covers(request, source_id):
                 global_label = local_label.global_label
                 coverage_fraction = (
                     image_annotations.filter(label=global_label).count()
-                    / float(image_annotation_count)
+                    / image_annotation_count
                 )
             # Python 2.x: PyCharm might complain here about expecting type str
             # but getting unicode. Don't worry about it; unicode works too.

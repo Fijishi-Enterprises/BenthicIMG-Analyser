@@ -1,3 +1,5 @@
+from __future__ import division
+
 import boto
 
 import scipy.signal
@@ -21,7 +23,7 @@ def acc(gt, est):
     if len(gt) < 1:
         return 1
     else:
-        return float(sum([(g == e) for (g,e) in zip(gt, est)])) / len(gt)
+        return sum([(g == e) for (g,e) in zip(gt, est)]) / len(gt)
 
 
 def get_label_scores_for_point(point, ordered=False):
@@ -87,7 +89,7 @@ def get_alleviate(estlabels, gtlabels, scores):
     for th in ths:
         keep_ind = scores > th
         accs.append(round(100 * acc(estlabels[keep_ind], gtlabels[keep_ind]), 1))
-        ratios.append(round(100 * np.sum(keep_ind) / float(len(estlabels)), 1))
+        ratios.append(round(100 * np.sum(keep_ind) / len(estlabels), 1))
     ths = [round(100 * th, 1) for th in ths]
     
     return accs, ratios, ths

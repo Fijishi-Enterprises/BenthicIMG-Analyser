@@ -1,5 +1,5 @@
 import datetime
-import urllib
+from six.moves.urllib.parse import urlencode
 
 from datetime import timedelta
 
@@ -170,7 +170,7 @@ def source_main(request, source_id):
             dict(annotation_status=annotation_status), source).count()
 
     def browse_link_filtered_by_status(annotation_status):
-        return browse_url_base + '?' + urllib.urlencode(dict(
+        return browse_url_base + '?' + urlencode(dict(
             image_form_type='search', annotation_status=annotation_status))
 
     image_stats = dict(

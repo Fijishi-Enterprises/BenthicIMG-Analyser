@@ -4,7 +4,7 @@ from __future__ import unicode_literals
 from datetime import datetime
 import json
 import pytz
-import urllib
+from six.moves.urllib.parse import urlencode
 
 from django import template
 from django.conf import settings
@@ -29,7 +29,7 @@ def google_maps_api_url(callback):
     if settings.GOOGLE_MAPS_API_KEY:
         url_kwargs['key'] = settings.GOOGLE_MAPS_API_KEY
 
-    url = url + '?' + urllib.urlencode(url_kwargs)
+    url = url + '?' + urlencode(url_kwargs)
 
     return url
 

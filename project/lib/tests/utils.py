@@ -8,7 +8,7 @@ import math
 import posixpath
 import random
 import six
-import urllib
+from six.moves.urllib.parse import quote as url_quote
 
 from PIL import Image as PILImage
 from selenium import webdriver
@@ -766,7 +766,7 @@ class BasePermissionTest(ClientTest):
         response = self._make_request(url, user, post_data)
 
         # The URL should escape certain characters, like ? with %3F.
-        quoted_url = urllib.quote(url)
+        quoted_url = url_quote(url)
         self.assertRedirects(
             response, reverse(settings.LOGIN_URL)+'?next='+quoted_url)
 

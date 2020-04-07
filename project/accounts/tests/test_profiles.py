@@ -335,7 +335,8 @@ class ProfileEditTest(ClientTest):
         self.assertTemplateUsed(response, 'profiles/profile_detail.html')
         self.assertContains(response, 'gravatar.com/avatar')
         self.assertContains(
-            response, hashlib.md5(self.user.email.lower()).hexdigest())
+            response,
+            hashlib.md5(self.user.email.lower().encode()).hexdigest())
 
     def test_avatar_file_plus_no_email_gravatar_equals_avatar_file(self):
         self.client.force_login(self.user)
@@ -345,7 +346,8 @@ class ProfileEditTest(ClientTest):
         self.assertTemplateUsed(response, 'profiles/profile_detail.html')
         self.assertNotContains(response, 'gravatar.com/avatar')
         self.assertNotContains(
-            response, hashlib.md5(self.user.email.lower()).hexdigest())
+            response,
+            hashlib.md5(self.user.email.lower().encode()).hexdigest())
 
     def test_no_file_plus_use_email_gravatar_equals_email_gravatar(self):
         self.client.force_login(self.user)
@@ -355,7 +357,8 @@ class ProfileEditTest(ClientTest):
         self.assertTemplateUsed(response, 'profiles/profile_detail.html')
         self.assertContains(response, 'gravatar.com/avatar')
         self.assertContains(
-            response, hashlib.md5(self.user.email.lower()).hexdigest())
+            response,
+            hashlib.md5(self.user.email.lower().encode()).hexdigest())
 
     def test_no_file_plus_no_email_gravatar_equals_random_gravatar(self):
         self.client.force_login(self.user)
@@ -365,4 +368,5 @@ class ProfileEditTest(ClientTest):
         self.assertTemplateUsed(response, 'profiles/profile_detail.html')
         self.assertContains(response, 'gravatar.com/avatar')
         self.assertNotContains(
-            response, hashlib.md5(self.user.email.lower()).hexdigest())
+            response,
+            hashlib.md5(self.user.email.lower().encode()).hexdigest())

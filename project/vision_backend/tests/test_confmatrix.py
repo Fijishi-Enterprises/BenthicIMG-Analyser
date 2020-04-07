@@ -1,3 +1,5 @@
+from __future__ import unicode_literals
+import json
 import random
 import string
 
@@ -7,7 +9,7 @@ from vision_backend.confmatrix import ConfMatrix
 
 class ConfMatrixBasics(BaseTest):
     """
-    Check a newly uploaded image's status (as relevant to the vision backend).
+    Test the ConfMatrix class.
     """
     @classmethod
     def setUpTestData(cls):
@@ -15,6 +17,7 @@ class ConfMatrixBasics(BaseTest):
 
     @staticmethod
     def makelabelset(k):
+        """Example: if k = 5, this returns ['a', 'b', 'c', 'd', 'e']"""
         return list(string.ascii_lowercase)[:k]
 
     def test_simple_add(self):
@@ -94,4 +97,45 @@ class ConfMatrixBasics(BaseTest):
         cm.add(gt, est)
         self.assertEqual(sum(sum(cm.cm[2:, 2:])), 3)
         cm.cut(2)
-        self.assertEqual(cm.cm[2, 2], 3)	 
+        self.assertEqual(cm.cm[2, 2], 3)
+
+    def test_render_for_heatmap(self):
+        gt = [0, 0, 0, 0, 0, 1, 1, 1, 1]
+        est = [0, 0, 1, 1, 1, 1, 1, 1, 0]
+
+        cm = ConfMatrix(2, labelset=self.makelabelset(2))
+        cm.add(gt, est)
+        data, xlabels, ylabels = cm.render_for_heatmap()
+
+        self.assertListEqual(
+            data,
+            [
+                # Bottom left of CM; gt b which have est a
+                [0, 0, 25],
+                # Top left; gt a which have est a
+                [0, 1, 40],
+                # Bottom right; gt b which have est b
+                [1, 0, 75],
+                # Top right; gt a which have est b
+                [1, 1, 60],
+            ],
+        )
+        self.assertEqual(xlabels, json.dumps(['a', 'b']))
+        self.assertEqual(
+            ylabels, json.dumps(['b [n:4]', 'a [n:5]']))
+
+    def test_get_accuracy(self):
+        gt = [0, 0, 0, 0, 0, 1, 1, 1, 1]
+        est = [0, 0, 1, 1, 1, 1, 1, 1, 0]
+
+        cm = ConfMatrix(2, labelset=self.makelabelset(2))
+        cm.add(gt, est)
+        accuracy, cohens_kappa = cm.get_accuracy()
+
+        # 5 of 9 estimated labels match ground truth
+        self.assertAlmostEqual(accuracy, 0.5555556)
+        # cm = [2 3
+        #       1 3]
+        # pe = (((2+1)/9) * ((2+3)/9)) + (((3+3)/9) * ((1+3)/9)) = 0.48148148
+        # cohens_kappa = (5/9 - 0.48148148) / (1 - 0.48148148)
+        self.assertAlmostEqual(cohens_kappa, 0.1428571)

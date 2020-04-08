@@ -199,8 +199,7 @@ class ColumnOrderTest(BaseExportTest):
             'Name,Annotation status,Annotation area,1,2,3',
             '1.jpg,Confirmed,X: 0 - 100% / Y: 0 - 100%,40.000,20.000,40.000',
         ]
-        self.assert_csv_content_equal(
-            response.content.decode('utf-8'), expected_lines)
+        self.assert_csv_content_equal(response.content, expected_lines)
 
 
 class UnicodeTest(BaseExportTest):
@@ -230,5 +229,4 @@ class UnicodeTest(BaseExportTest):
             'Name,Annotation status,Annotation area,い',
             'あ.jpg,Confirmed,X: 0 - 100% / Y: 0 - 100%,100.000',
         ]
-        self.assert_csv_content_equal(
-            response.content.decode('utf-8'), expected_lines)
+        self.assert_csv_content_equal(response.content, expected_lines)

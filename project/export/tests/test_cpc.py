@@ -71,7 +71,8 @@ class CPCExportBaseTest(ClientTest):
     @staticmethod
     def export_response_to_cpc(response, cpc_filename):
         zf = ZipFile(BytesIO(response.content))
-        return zf.read(cpc_filename)
+        # Use decode() to get a Unicode string
+        return zf.read(cpc_filename).decode('utf-8')
 
     def upload_cpcs(self, cpc_files):
         self.client.force_login(self.user)
@@ -956,7 +957,7 @@ class UnicodeTest(CPCExportBaseTest):
             '"3","","Notes",""',
         ]
         self.assert_cpc_label_lines_equal(
-            actual_cpc_content.decode('utf-8'), expected_point_lines)
+            actual_cpc_content, expected_point_lines)
 
 
 class DiscardCPCAfterPointsChangeTest(

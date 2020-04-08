@@ -239,8 +239,7 @@ class UnicodeTest(BaseExportTest):
             ',Comments',
             'あ.jpg,,地点A,,,,,,,,,,,,,,,',
         ]
-        self.assert_csv_content_equal(
-            response.content.decode('utf-8'), expected_lines)
+        self.assert_csv_content_equal(response.content, expected_lines)
 
 
 class UploadAndExportSameDataTest(BaseExportTest):

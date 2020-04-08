@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+import six
 
 from django.shortcuts import resolve_url
 
@@ -44,13 +45,20 @@ class BaseExportTest(ClientTest):
         """
         Tests that a CSV's content is as expected.
 
-        :param actual_csv_content: CSV content from the export view's response.
+        :param actual_csv_content: CSV content from the export view's
+          response, as either a Unicode string or a bytes-like object
+          (bytes if passing response.content into here directly, Unicode if
+          pre-processed first).
         :param expected_lines: List of strings, without newline characters,
           representing the expected line contents. Note that this is a
           different format from actual_csv_content, just because it's easier
           to type non-newline strings in Python code.
         Throws AssertionError if actual and expected CSVs are not equal.
         """
+        # Convert from bytes to Unicode if necessary.
+        if isinstance(actual_csv_content, six.binary_type):
+            actual_csv_content = actual_csv_content.decode('utf-8')
+
         # The Python csv module uses \r\n by default (as part of the Excel
         # dialect). Due to the way we compare line by line, splitting on
         # \n would mess up the comparison, so we use split() instead of

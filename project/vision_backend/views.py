@@ -54,9 +54,9 @@ def backend_overview(request):
     iqu = i.reserved()
     q_stats = {
         'spacer': get_total_messages_in_jobs_queue(),
-        'celery_scheduled': len(isch.itervalues().next()),
-        'celery_active': len(iact.itervalues().next()),
-        'celery_queued': len(iqu.itervalues().next()),
+        'celery_scheduled': len(next(isch.itervalues())),
+        'celery_active': len(next(iact.itervalues())),
+        'celery_queued': len(next(iqu.itervalues())),
     }
 
     laundry_list = []

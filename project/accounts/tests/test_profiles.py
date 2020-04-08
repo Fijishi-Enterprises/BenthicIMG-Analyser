@@ -228,7 +228,6 @@ class ProfileEditTest(ClientTest):
         # Call the parent's setup (while still using this class as cls)
         super(ProfileEditTest, cls).setUpTestData()
 
-        cls.user = cls.create_user()
         cls.url = resolve_url('profile_edit')
 
     def edit_submit(self, privacy='closed',
@@ -247,27 +246,33 @@ class ProfileEditTest(ClientTest):
         response = self.client.post(self.url, data, follow=True)
         return response
 
+    @staticmethod
+    def user_email_hexdigest(user):
+        return hashlib.md5(user.email.lower().encode('utf-8')).hexdigest()
+
     def test_submit(self):
-        self.client.force_login(self.user)
+        user = self.create_user()
+        self.client.force_login(user)
         response = self.edit_submit(avatar_file=sample_image_as_file('_.png'))
         self.assertTemplateUsed(response, 'profiles/profile_detail.html')
 
-        self.user.refresh_from_db()
-        self.user.profile.refresh_from_db()
-        self.assertEqual(self.user.first_name, "Alice")
-        self.assertEqual(self.user.last_name, "Baker")
-        self.assertEqual(self.user.profile.affiliation, "Testing Society")
+        user.refresh_from_db()
+        user.profile.refresh_from_db()
+        self.assertEqual(user.first_name, "Alice")
+        self.assertEqual(user.last_name, "Baker")
+        self.assertEqual(user.profile.affiliation, "Testing Society")
         self.assertEqual(
-            self.user.profile.website, "http://www.testingsociety.org/")
-        self.assertEqual(self.user.profile.location, "Seoul, South Korea")
+            user.profile.website, "http://www.testingsociety.org/")
+        self.assertEqual(user.profile.location, "Seoul, South Korea")
         self.assertEqual(
-            self.user.profile.about_me,
+            user.profile.about_me,
             "I'm a tester.\nI test things for a living.")
-        self.assertNotEqual(self.user.profile.avatar_file.name, '')
-        self.assertEqual(self.user.profile.use_email_gravatar, True)
+        self.assertNotEqual(user.profile.avatar_file.name, '')
+        self.assertEqual(user.profile.use_email_gravatar, True)
 
     def test_cancel(self):
-        self.client.force_login(self.user)
+        user = self.create_user()
+        self.client.force_login(user)
         response = self.client.get(
             resolve_url('profile_edit_cancel'), follow=True)
         # Should redirect to the profile detail page
@@ -275,98 +280,102 @@ class ProfileEditTest(ClientTest):
         self.assertContains(response, "Edit cancelled.")
 
     def test_first_name_required(self):
-        self.client.force_login(self.user)
+        user = self.create_user()
+        self.client.force_login(user)
         response = self.edit_submit(first_name="")
         self.assertTemplateUsed(response, 'profiles/profile_form.html')
         self.assertContains(response, "This field is required.")
 
     def test_last_name_required(self):
-        self.client.force_login(self.user)
+        user = self.create_user()
+        self.client.force_login(user)
         response = self.edit_submit(last_name="")
         self.assertTemplateUsed(response, 'profiles/profile_form.html')
         self.assertContains(response, "This field is required.")
 
     def test_affiliation_required(self):
-        self.client.force_login(self.user)
+        user = self.create_user()
+        self.client.force_login(user)
         response = self.edit_submit(affiliation="")
         self.assertTemplateUsed(response, 'profiles/profile_form.html')
         self.assertContains(response, "This field is required.")
 
     def test_website_optional(self):
-        self.client.force_login(self.user)
+        user = self.create_user()
+        self.client.force_login(user)
         response = self.edit_submit(website="")
         self.assertTemplateUsed(response, 'profiles/profile_detail.html')
-        self.user.profile.refresh_from_db()
-        self.assertEqual(self.user.profile.website, "")
+        user.profile.refresh_from_db()
+        self.assertEqual(user.profile.website, "")
 
     def test_location_optional(self):
-        self.client.force_login(self.user)
+        user = self.create_user()
+        self.client.force_login(user)
         response = self.edit_submit(location="")
         self.assertTemplateUsed(response, 'profiles/profile_detail.html')
-        self.user.profile.refresh_from_db()
-        self.assertEqual(self.user.profile.location, "")
+        user.profile.refresh_from_db()
+        self.assertEqual(user.profile.location, "")
 
     def test_about_me_optional(self):
-        self.client.force_login(self.user)
+        user = self.create_user()
+        self.client.force_login(user)
         response = self.edit_submit(about_me="")
         self.assertTemplateUsed(response, 'profiles/profile_detail.html')
-        self.user.profile.refresh_from_db()
-        self.assertEqual(self.user.profile.about_me, "")
+        user.profile.refresh_from_db()
+        self.assertEqual(user.profile.about_me, "")
 
     def test_avatar_file_optional(self):
-        self.client.force_login(self.user)
+        user = self.create_user()
+        self.client.force_login(user)
         response = self.edit_submit(avatar_file='no_file')
         self.assertTemplateUsed(response, 'profiles/profile_detail.html')
-        self.user.profile.refresh_from_db()
-        self.assertEqual(self.user.profile.avatar_file.name, '')
+        user.profile.refresh_from_db()
+        self.assertEqual(user.profile.avatar_file.name, '')
 
     def test_use_email_gravatar_optional(self):
-        self.client.force_login(self.user)
+        user = self.create_user()
+        self.client.force_login(user)
         response = self.edit_submit(use_email_gravatar=False)
         self.assertTemplateUsed(response, 'profiles/profile_detail.html')
-        self.user.profile.refresh_from_db()
-        self.assertEqual(self.user.profile.use_email_gravatar, False)
+        user.profile.refresh_from_db()
+        self.assertEqual(user.profile.use_email_gravatar, False)
 
     def test_avatar_file_plus_use_email_gravatar_equals_email_gravatar(self):
-        self.client.force_login(self.user)
+        user = self.create_user()
+        self.client.force_login(user)
         response = self.edit_submit(
             avatar_file=sample_image_as_file('_.png'),
             use_email_gravatar=True)
         self.assertTemplateUsed(response, 'profiles/profile_detail.html')
         self.assertContains(response, 'gravatar.com/avatar')
-        self.assertContains(
-            response,
-            hashlib.md5(self.user.email.lower().encode()).hexdigest())
+        self.assertContains(response, self.user_email_hexdigest(user))
 
     def test_avatar_file_plus_no_email_gravatar_equals_avatar_file(self):
-        self.client.force_login(self.user)
+        user = self.create_user()
+        self.client.force_login(user)
         response = self.edit_submit(
             avatar_file=sample_image_as_file('_.png'),
             use_email_gravatar=False)
         self.assertTemplateUsed(response, 'profiles/profile_detail.html')
         self.assertNotContains(response, 'gravatar.com/avatar')
-        self.assertNotContains(
-            response,
-            hashlib.md5(self.user.email.lower().encode()).hexdigest())
+        self.assertNotContains(response, self.user_email_hexdigest(user))
 
     def test_no_file_plus_use_email_gravatar_equals_email_gravatar(self):
-        self.client.force_login(self.user)
+        user = self.create_user()
+        self.client.force_login(user)
         response = self.edit_submit(
             avatar_file=None,
             use_email_gravatar=True)
         self.assertTemplateUsed(response, 'profiles/profile_detail.html')
         self.assertContains(response, 'gravatar.com/avatar')
-        self.assertContains(
-            response,
-            hashlib.md5(self.user.email.lower().encode()).hexdigest())
+        self.assertContains(response, self.user_email_hexdigest(user))
 
     def test_no_file_plus_no_email_gravatar_equals_random_gravatar(self):
-        self.client.force_login(self.user)
+        user = self.create_user()
+        self.client.force_login(user)
         response = self.edit_submit(
             avatar_file=None,
             use_email_gravatar=False)
         self.assertTemplateUsed(response, 'profiles/profile_detail.html')
         self.assertContains(response, 'gravatar.com/avatar')
-        self.assertNotContains(
-            response,
-            hashlib.md5(self.user.email.lower().encode()).hexdigest())
+        self.assertNotContains(response, self.user_email_hexdigest(user))

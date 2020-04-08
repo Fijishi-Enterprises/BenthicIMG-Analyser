@@ -289,10 +289,26 @@ class RegisterTest(BaseAccountsTest):
             settings.ACCOUNT_QUESTIONS_LINK, exists_email.body,
             "Account questions link should be in the email body")
 
+    def test_email_reject_unicode(self):
+        """
+        Generally reject non-ASCII Unicode characters in email addresses.
+        This may change in the future depending on this ticket:
+        https://code.djangoproject.com/ticket/27029
+        """
+        response = self.register(
+            username='alice123',
+            email='アリス@example.com',
+        )
+
+        self.assertTemplateUsed(
+            response, 'django_registration/registration_form.html')
+        self.assertContains(
+            response, escape("Enter a valid email address."))
+
     def test_email_reject_unicode_confusables(self):
         """
-        Reject Unicode characters which are 'confusable', i.e. often look
-        the same as other characters.
+        Reject Unicode characters which are 'confusable', i.e. look
+        the same as other common characters in most fonts.
         This should be default behavior in django-registration 2.3+, even if
         Unicode characters were generally allowed.
         """

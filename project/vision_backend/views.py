@@ -1,6 +1,6 @@
 from __future__ import division
 import json
-import csv
+from backports import csv
 
 import numpy as np
 

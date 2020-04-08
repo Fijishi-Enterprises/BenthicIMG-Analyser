@@ -741,7 +741,7 @@ class LabelsetImportFormatTest(LabelsetImportBaseTest):
         # Create source
         cls.source = cls.create_source(cls.user)
 
-    def test_non_ascii(self):
+    def test_unicode(self):
         csv_content = (
             'Label ID,Short code'
             '\r\n{label_id},い'.format(label_id=self.labels['E'].pk)

@@ -175,7 +175,7 @@ class RegisterTest(BaseAccountsTest):
             escape(
                 "Ensure this value has at most 30 characters (it has 31)."))
 
-    def test_username_reject_non_ascii(self):
+    def test_username_reject_unicode(self):
         """
         Reject non-ASCII Unicode characters in usernames. First/last name
         fields can be more flexible, but usernames should be simple and easy

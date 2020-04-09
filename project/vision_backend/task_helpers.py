@@ -64,7 +64,7 @@ def _add_annotations(image_id, scores, label_objs, classifier):
     with transaction.atomic():
         for pt, estlabel in zip(points, estlabels):
             
-            label = label_objs[estlabel]
+            label = label_objs[int(estlabel)]
 
             Annotation.objects.update_point_annotation_if_applicable(
                 point=pt, label=label,
@@ -107,7 +107,7 @@ def _add_scores(image_id, scores, label_objs):
                 Score(
                     source = img.source, 
                     image = img, 
-                    label = label_objs[ind],
+                    label = label_objs[int(ind)],
                     point = point, 
                     score = int(round(score[ind]*100))
                 )

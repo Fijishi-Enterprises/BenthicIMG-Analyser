@@ -456,7 +456,7 @@ class SuccessTest(DeployBaseTest):
         deploy_job = ApiJob.objects.latest('pk')
 
         self.assertEqual(
-            response.content, '',
+            response.content.decode('utf-8'), '',
             "Response content should be empty")
 
         self.assertEqual(

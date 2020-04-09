@@ -173,6 +173,17 @@ class ImageSetTest(BaseExportTest):
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
+    def test_invalid_image_set_params(self):
+        self.upload_image(self.user, self.source)
+
+        post_data = self.default_search_params.copy()
+        post_data['date_filter_0'] = 'abc'
+        response = self.export_annotations(post_data)
+
+        # Display an error in HTML instead of serving CSV.
+        self.assertTrue(response['content-type'].startswith('text/html'))
+        self.assertContains(response, "Image-search parameters were invalid.")
+
     def test_dont_get_other_sources_images(self):
         """Don't export for other sources' images."""
         self.img1 = self.upload_image(
@@ -569,12 +580,12 @@ class MetadataOtherColumnsTest(BaseExportTest):
         self.assert_csv_content_equal(response.content, expected_lines)
 
 
-class CombinationsOfOptionalColumnsTest(BaseExportTest):
-    """Test combinations of optional column sets."""
+class MoreOptionalColumnsCasesTest(BaseExportTest):
+    """Test combinations of optional column sets, and invalid columns."""
 
     @classmethod
     def setUpTestData(cls):
-        super(CombinationsOfOptionalColumnsTest, cls).setUpTestData()
+        super(MoreOptionalColumnsCasesTest, cls).setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(
@@ -710,6 +721,20 @@ class CombinationsOfOptionalColumnsTest(BaseExportTest):
                 username=self.user.username, date=date_str),
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
+
+    def test_invalid_column_name(self):
+        self.add_annotations(self.user, self.img1, {1: 'B'})
+
+        post_data = self.default_search_params.copy()
+        post_data['optional_columns'] = ['jpg_files']
+        response = self.export_annotations(post_data)
+
+        # Display an error in HTML instead of serving CSV.
+        self.assertTrue(response['content-type'].startswith('text/html'))
+        self.assertContains(
+            response,
+            "Select a valid choice."
+            " jpg_files is not one of the available choices.")
 
 
 class UnicodeTest(BaseExportTest):

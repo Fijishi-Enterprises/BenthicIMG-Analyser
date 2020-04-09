@@ -132,6 +132,17 @@ class ImageSetTest(BaseExportTest):
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
+    def test_invalid_image_set_params(self):
+        self.upload_image(self.user, self.source)
+
+        post_data = self.default_search_params.copy()
+        post_data['date_filter_0'] = 'abc'
+        response = self.export_image_covers(post_data)
+
+        # Display an error in HTML instead of serving CSV.
+        self.assertTrue(response['content-type'].startswith('text/html'))
+        self.assertContains(response, "Image-search parameters were invalid.")
+
     def test_dont_get_other_sources_images(self):
         """Don't export for other sources' images."""
         self.img1 = self.upload_image(

@@ -2,9 +2,6 @@ from __future__ import division
 
 import boto
 
-import scipy.signal
-import scipy.interpolate
-
 import numpy as np
 
 from django.conf import settings

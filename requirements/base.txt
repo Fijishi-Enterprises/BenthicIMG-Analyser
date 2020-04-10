@@ -151,12 +151,6 @@ pathlib2==2.3.5
 # will have to stay.
 unipath==1.1
 
-# Machine Learning tools.
-# Changelog: https://docs.scipy.org/doc/scipy/reference/release.html
-scipy==0.18.1
-# Changelog: https://scikit-learn.org/dev/whats_new.html
-scikit-learn==0.17.1
-
 # Browser-side testing.
 # Changelog: https://github.com/SeleniumHQ/selenium/blob/master/py/CHANGES
 #

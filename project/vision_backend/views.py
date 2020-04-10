@@ -48,15 +48,21 @@ def backend_overview(request):
         'valid_ratio': '{:.1f}'.format(Classifier.objects.filter(valid=True).count() / Source.objects.filter().count())
     }
 
+    def first_queue_length(inspect_category):
+        # For a given inspect category, there should be only one queue (e.g.
+        # 'celery@Ubuntu'). This function gets the length of that queue.
+        first_queue = next(iter(inspect_category.values()))
+        return len(first_queue)
+
     i = inspect()
     isch = i.scheduled()
     iact = i.active()
     iqu = i.reserved()
     q_stats = {
         'spacer': get_total_messages_in_jobs_queue(),
-        'celery_scheduled': len(next(isch.itervalues())),
-        'celery_active': len(next(iact.itervalues())),
-        'celery_queued': len(next(iqu.itervalues())),
+        'celery_scheduled': first_queue_length(isch),
+        'celery_active': first_queue_length(iact),
+        'celery_queued': first_queue_length(iqu),
     }
 
     laundry_list = []

@@ -129,7 +129,7 @@ def labelset_mapper(labelmode, classids, source):
             classmap[classids.index(classid)] = classnames.index(fcnname)
     
     else:
-        Exception('labelmode {} not recognized'.format(labelmode))
+        raise Exception('labelmode {} not recognized'.format(labelmode))
 
     return classmap, classnames
 

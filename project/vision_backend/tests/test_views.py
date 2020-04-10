@@ -6,7 +6,7 @@ from django.urls import reverse
 
 from export.tests.utils import BaseExportTest
 from labels.models import Label
-from lib.tests.utils import BasePermissionTest
+from lib.tests.utils import BasePermissionTest, ClientTest
 
 
 class BackendViewPermissions(BasePermissionTest):
@@ -41,6 +41,129 @@ class BackendViewPermissions(BasePermissionTest):
             deny_type=self.REQUIRE_LOGIN)
 
 
+class BackendMainTest(ClientTest):
+
+    @classmethod
+    def setUpTestData(cls):
+        super(BackendMainTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+
+        cls.source = cls.create_source(cls.user)
+        cls.create_labels(cls.user, ['A', 'B'], 'Group1')
+        cls.create_labels(cls.user, ['C'], 'Group2')
+        labels = Label.objects.all()
+        cls.create_labelset(cls.user, cls.source, labels)
+        cls.valres_classes = [
+            labels.get(name=name).pk for name in ['A', 'B', 'C']]
+
+        cls.url = reverse('backend_main', args=[cls.source.pk])
+
+    def test_no_robot(self):
+        self.client.force_login(self.user)
+        response = self.client.get(self.url)
+
+        self.assertNotContains(response, '<div id="cm"')
+        self.assertContains(
+            response, "This source does not have an automated classifier yet.")
+
+    def test_confusion_matrix(self):
+        robot = self.create_robot(self.source)
+        valres = dict(
+            classes=self.valres_classes,
+            gt=[0, 0, 0, 0, 0, 0, 1, 1, 1, 1],
+            est=[0, 0, 1, 1, 1, 1, 1, 1, 1, 0],
+            scores=[.8]*10,
+        )
+
+        # Add valres to the session so that we don't have to create it in S3.
+        #
+        # "Be careful: To modify the session and then save it,
+        # it must be stored in a variable first (because a new SessionStore
+        # is created every time this property is accessed)"
+        # http://stackoverflow.com/a/4454671/
+        session = self.client.session
+        session['valres'] = valres
+        session['ccpk'] = robot.pk
+        session.save()
+
+        self.client.force_login(self.user)
+        response = self.client.get(self.url)
+
+        # Confusion matrix element should be on the page
+        self.assertContains(response, '<div id="cm"')
+        self.assertNotContains(
+            response, "This source does not have an automated classifier yet.")
+
+        # Check the confusion matrix context var
+        # A: 2 classed as A, 4 classed as B (33% / 67%)
+        # B: 1 classed as A, 3 classed as B (25% / 75%)
+        # C: 0
+        # Total: 10 points, 5 (50%) correctly classed
+        context_cm = response.context['cm']
+        self.assertListEqual(
+            context_cm['data_'],
+            [
+                [0, 0, 0], [0, 1, 25], [0, 2, 33],
+                [1, 0, 0], [1, 1, 75], [1, 2, 67],
+                [2, 0, 0], [2, 1,  0], [2, 2,  0],
+            ]
+        )
+        self.assertEqual(
+            context_cm['xlabels'],
+            '["A (A)", "B (B)", "C (C)"]')
+        self.assertEqual(
+            context_cm['ylabels'],
+            '["C (C) [n:0]", "B (B) [n:4]", "A (A) [n:6]"]')
+        self.assertEqual(
+            context_cm['title_'],
+            '"Confusion matrix for full labelset (acc:50.0, n: 10)"')
+        self.assertEqual(context_cm['css_height'], 500)
+        self.assertEqual(context_cm['css_width'], 600)
+
+    def test_confusion_matrix_many_labels(self):
+        source = self.create_source(self.user)
+
+        # '0', ..., '51'
+        label_names = [str(n) for n in range(0, 51+1)]
+        labels = self.create_labels(self.user, label_names, 'NumberGroup')
+        self.create_labelset(self.user, source, labels)
+
+        robot = self.create_robot(source)
+        valres = dict(
+            classes=[labels.get(name=name).pk for name in label_names],
+            # Every label twice, except '30' and '31' which appear once
+            gt=range(0, 51+1) + range(0, 29+1) + range(32, 51+1),
+            est=range(0, 51+1) + range(0, 29+1) + range(32, 51+1),
+            scores=[.8]*102,
+        )
+
+        session = self.client.session
+        session['valres'] = valres
+        session['ccpk'] = robot.pk
+        session.save()
+
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('backend_main', args=[source.pk]))
+
+        context_cm = response.context['cm']
+
+        # Cut from 52 labels to 50 labels + 1 'OTHER' label
+        self.assertEqual(len(context_cm['data_']), 51*51)
+
+        self.assertIn('0 (0)', context_cm['xlabels'])
+        self.assertIn('51 (51)', context_cm['xlabels'])
+        self.assertIn('OTHER', context_cm['xlabels'])
+        self.assertNotIn('30 (30)', context_cm['xlabels'])
+        self.assertNotIn('31 (31)', context_cm['xlabels'])
+
+        self.assertIn('0 (0)', context_cm['ylabels'])
+        self.assertIn('51 (51)', context_cm['ylabels'])
+        self.assertIn('OTHER', context_cm['ylabels'])
+        self.assertNotIn('30 (30)', context_cm['ylabels'])
+        self.assertNotIn('31 (31)', context_cm['ylabels'])
+
+
 class BackendMainConfusionMatrixExportTest(BaseExportTest):
 
     @classmethod
@@ -69,11 +192,6 @@ class BackendMainConfusionMatrixExportTest(BaseExportTest):
         )
 
         # Add valres to the session so that we don't have to create it in S3.
-        #
-        # "Be careful: To modify the session and then save it,
-        # it must be stored in a variable first (because a new SessionStore
-        # is created every time this property is accessed)"
-        # http://stackoverflow.com/a/4454671/
         session = self.client.session
         session['valres'] = valres
         session['ccpk'] = robot.pk

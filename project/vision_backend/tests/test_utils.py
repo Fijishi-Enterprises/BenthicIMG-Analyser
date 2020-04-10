@@ -1,3 +1,4 @@
+from __future__ import unicode_literals
 import random
 
 import numpy as np
@@ -159,6 +160,26 @@ class TestLabelSetMapper(ClientTest):
 
         self.assertEqual('GroupB', classnames[0])
         self.assertEqual('GroupA', classnames[1])
+
+    def test_long_label_name(self):
+        label_a = Label.objects.get(name='A')
+        label_a.name = 'Acropora corymbose/tabular/plate'
+        label_a.save()
+
+        pklist = [label_a.pk]
+        classmap, classnames = utils.labelset_mapper(
+            'full', pklist, self.source)
+
+        self.assertEqual(
+            'Acropora corymbose/tabular/... (a)', classnames[0],
+            msg="Name should be cut off with an ellipsis")
+
+    def test_invalid_label_mode(self):
+        pklist = [Label.objects.get(name='A').pk]
+
+        with self.assertRaisesMessage(
+                Exception, "labelmode mystery_labelmode not recognized"):
+            utils.labelset_mapper('mystery_labelmode', pklist, self.source)
 
 
 class LabelMapTester(BaseTest):

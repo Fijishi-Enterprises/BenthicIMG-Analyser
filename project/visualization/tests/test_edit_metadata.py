@@ -106,6 +106,16 @@ class LoadPageTest(ClientTest):
         response = self.client.post(self.url, post_data)
         self.assertEqual(response.context['num_images'], 1)
 
+    def test_non_integer_image_ids(self):
+        post_data = dict(
+            image_form_type='ids',
+            ids=','.join([str(self.img2.pk), 'abc'])
+        )
+
+        self.client.force_login(self.user)
+        response = self.client.post(self.url, post_data)
+        self.assertContains(response, "Search parameters were invalid.")
+
     def test_zero_images(self):
         post_data = self.default_search_params.copy()
         post_data['date_filter_0'] = 'date'

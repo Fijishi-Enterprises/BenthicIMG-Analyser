@@ -382,11 +382,8 @@ class ImageSpecifyByIdForm(forms.Form):
         id_list = []
 
         for img_id in id_str_list:
-            try:
-                id_num = int(img_id)
-            except ValueError:
-                # Not an int for some reason. Just skip this faulty id.
-                continue
+            # Should already be validated as an integer string.
+            id_num = int(img_id)
 
             # Check that these ids correspond to images in the source (not to
             # images of other sources).

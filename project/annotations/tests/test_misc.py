@@ -1,5 +1,6 @@
 from __future__ import division, unicode_literals
 import math
+from unittest import skip
 
 from bs4 import BeautifulSoup
 from django.core.cache import cache
@@ -172,10 +173,41 @@ class AnnotationAreaEditTest(ClientTest):
         self.assertContains(
             response, "Annotation area successfully edited.")
 
-    # TODO: Test more error cases:
-    # - min exceeds max
-    # - non integers
-    # - blank fields
+    @skip(
+        "There's a bug in the behavior here."
+        " Need to fix that in the annotation area edit form.")
+    def test_min_exceeds_max(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            self.url, data=dict(min_x=30, max_x=29, min_y=29, max_y=30))
+        self.assertContains(response, "Please correct the errors below.")
+        self.assertContains(
+            response,
+            "The right boundary x must be greater than or equal to"
+            " the left boundary x.")
+
+        response = self.client.post(
+            self.url, data=dict(min_x=0, max_x=1, min_y=1, max_y=0))
+        self.assertContains(
+            response,
+            "The bottom boundary y must be greater than or equal to"
+            " the top boundary y.")
+
+    def test_non_integers(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            self.url, data=dict(min_x=9, max_x=37, min_y=1, max_y='a'))
+        self.assertContains(response, "Please correct the errors below.")
+        self.assertContains(response, "Enter a whole number.")
+
+        response = self.client.post(
+            self.url, data=dict(min_x=9.28, max_x=37, min_y=1, max_y=19))
+        self.assertContains(response, "Please correct the errors below.")
+        self.assertContains(response, "Enter a whole number.")
+
+    # TODO: Test blank fields
 
 
 class PointGenTest(ClientTest):

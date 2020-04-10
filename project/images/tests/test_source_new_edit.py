@@ -296,6 +296,21 @@ class SourceNewTest(ClientTest):
 
         self.assertEqual(Source.objects.all().count(), 0)
 
+    def test_annotation_area_min_exceeds_max(self):
+        self.client.force_login(self.user)
+
+        response = self.create_source(min_x="50", max_x="49")
+        self.assertTemplateUsed(response, 'images/source_new.html')
+        self.assertContains(
+            response,
+            "The right boundary x must be greater than the left boundary x.")
+
+        response = self.create_source(min_y="100", max_y="0")
+        self.assertTemplateUsed(response, 'images/source_new.html')
+        self.assertContains(
+            response,
+            "The bottom boundary y must be greater than the top boundary y.")
+
     def test_pointgen_type_required(self):
         self.client.force_login(self.user)
 

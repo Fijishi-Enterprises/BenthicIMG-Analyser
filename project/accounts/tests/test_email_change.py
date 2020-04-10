@@ -5,7 +5,44 @@ from django.conf import settings
 from django.core import mail
 from django.urls import reverse
 
-from lib.tests.utils import ClientTest
+from lib.tests.utils import BasePermissionTest, ClientTest
+
+
+class PermissionTest(BasePermissionTest):
+
+    def test_email_change(self):
+        url = reverse('email_change')
+        template = 'accounts/email_change_form.html'
+
+        self.assertPermissionLevel(
+            url, self.SIGNED_IN, template=template,
+            deny_type=self.REQUIRE_LOGIN)
+
+    def test_email_change_done(self):
+        url = reverse('email_change_done')
+        template = 'accounts/email_change_done.html'
+
+        # Signed-out users should never see this in practice, but either way
+        # it's a harmless TemplateView.
+        self.assertPermissionLevel(
+            url, self.SIGNED_OUT, template=template)
+
+    def test_email_change_confirm(self):
+        url = reverse('email_change_confirm', args=['a'])
+        template = 'accounts/email_change_confirm.html'
+
+        self.assertPermissionLevel(
+            url, self.SIGNED_IN, template=template,
+            deny_type=self.REQUIRE_LOGIN)
+
+    def test_email_change_complete(self):
+        url = reverse('email_change_complete')
+        template = 'accounts/email_change_complete.html'
+
+        # Signed-out users should never see this in practice, but either way
+        # it's a harmless TemplateView.
+        self.assertPermissionLevel(
+            url, self.SIGNED_OUT, template=template)
 
 
 class EmailChangeTest(ClientTest):
@@ -36,19 +73,6 @@ class EmailChangeTest(ClientTest):
                 break
         self.assertIsNotNone(confirmation_link)
         return confirmation_link
-
-    def test_load_submit_page_signed_out(self):
-        """Load page while logged out -> login page."""
-        response = self.client.get(reverse('email_change'))
-        self.assertRedirects(
-            response,
-            reverse(settings.LOGIN_URL)+'?next='+reverse('email_change'),
-        )
-
-    def test_load_submit_page(self):
-        self.client.force_login(self.user)
-        response = self.client.get(reverse('email_change'))
-        self.assertTemplateUsed(response, 'accounts/email_change_form.html')
 
     def test_submit(self):
         self.client.force_login(self.user)

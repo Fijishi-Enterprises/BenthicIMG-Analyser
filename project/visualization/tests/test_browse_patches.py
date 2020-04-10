@@ -1,65 +1,24 @@
+from __future__ import unicode_literals
+
 from django.urls import reverse
 
 from images.model_utils import PointGen
 from images.models import Source
-from lib.tests.utils import ClientTest
+from lib.tests.utils import BasePermissionTest, ClientTest
 
 
-class PermissionTest(ClientTest):
+class PermissionTest(BasePermissionTest):
     """
     Test page permissions.
     """
-    @classmethod
-    def setUpTestData(cls):
-        super(PermissionTest, cls).setUpTestData()
+    def test_browse_patches(self):
+        url = reverse('browse_patches', args=[self.source.pk])
+        template = 'visualization/browse_patches.html'
 
-        cls.user = cls.create_user()
-
-        cls.source = cls.create_source(
-            cls.user, visibility=Source.VisibilityTypes.PRIVATE,
-            point_generation_type=PointGen.Types.SIMPLE,
-            simple_number_of_points=10,
-        )
-        labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
-        cls.create_labelset(cls.user, cls.source, labels)
-
-        cls.user_viewer = cls.create_user()
-        cls.add_source_member(
-            cls.user, cls.source, cls.user_viewer, Source.PermTypes.VIEW.code)
-        cls.user_outsider = cls.create_user()
-
-        cls.img1 = cls.upload_image(cls.user, cls.source)
-        cls.add_annotations(cls.user, cls.img1, {1: 'A', 2: 'B'})
-
-        cls.url = reverse('browse_patches', args=[cls.source.pk])
-
-    def test_load_page_private_anonymous(self):
-        """
-        Load the private source's browse page while logged out ->
-        sorry, don't have permission.
-        """
-        response = self.client.get(self.url)
-        self.assertStatusOK(response)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-
-    def test_load_page_private_as_source_outsider(self):
-        """
-        Load the page as a user outside the private source ->
-        sorry, don't have permission.
-        """
-        self.client.force_login(self.user_outsider)
-        response = self.client.get(self.url)
-        self.assertStatusOK(response)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-
-    def test_load_page_private_as_source_viewer(self):
-        """
-        Load the page as a source member with view permissions -> can load.
-        """
-        self.client.force_login(self.user_viewer)
-        response = self.client.get(self.url)
-        self.assertStatusOK(response)
-        self.assertTemplateUsed(response, 'visualization/browse_patches.html')
+        self.source_to_private()
+        self.assertPermissionLevel(url, self.SOURCE_VIEW, template=template)
+        self.source_to_public()
+        self.assertPermissionLevel(url, self.SIGNED_OUT, template=template)
 
 
 class SearchTest(ClientTest):
@@ -75,9 +34,9 @@ class SearchTest(ClientTest):
             point_generation_type=PointGen.Types.SIMPLE,
             simple_number_of_points=10,
         )
-        labels = cls.create_labels(
+        cls.labels = cls.create_labels(
             cls.user, ['A', 'B'], 'GroupA')
-        cls.create_labelset(cls.user, cls.source, labels)
+        cls.create_labelset(cls.user, cls.source, cls.labels)
 
         cls.user_editor = cls.create_user()
         cls.add_source_member(
@@ -212,6 +171,25 @@ class SearchTest(ClientTest):
             [('', "All"), (self.user.pk, self.user.username),
              (self.user_editor.pk, self.user_editor.username)]
         )
+
+    def test_dont_get_other_sources_patches(self):
+        self.add_annotations(
+            self.user, self.img1,
+            {1: 'A', 2: 'A', 3: 'A'})
+
+        source2 = self.create_source(
+            self.user,
+            point_generation_type=PointGen.Types.SIMPLE,
+            simple_number_of_points=2)
+        self.create_labelset(self.user, source2, self.labels)
+        s2_img = self.upload_image(self.user, source2)
+        self.add_annotations(self.user, s2_img, {1: 'A', 2: 'A'})
+
+        self.client.force_login(self.user)
+        response = self.client.post(self.url, self.default_search_params)
+        # Should include patches from img1, but not s2_img
+        self.assertEqual(
+            response.context['page_results'].paginator.count, 3)
 
 
 class NoLabelsetTest(ClientTest):

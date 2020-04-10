@@ -5,6 +5,7 @@ import datetime
 from django.core.files.base import ContentFile
 from django.shortcuts import resolve_url
 from django.test import override_settings
+from django.urls import reverse
 
 from annotations.models import Annotation
 from export.tests.utils import BaseExportTest
@@ -15,23 +16,15 @@ from upload.tests.utils import UploadAnnotationsTestMixin
 
 class PermissionTest(BasePermissionTest):
 
-    def test_annotations_private_source(self):
-        url = resolve_url(
-            'export_annotations', self.private_source.pk)
-        self.assertPermissionDenied(url, None)
-        self.assertPermissionDenied(url, self.user_outsider)
-        self.assertPermissionGranted(url, self.user_viewer)
-        self.assertPermissionGranted(url, self.user_editor)
-        self.assertPermissionGranted(url, self.user_admin)
+    def test_annotations(self):
+        url = reverse('export_annotations', args=[self.source.pk])
 
-    def test_annotations_public_source(self):
-        url = resolve_url(
-            'export_annotations', self.public_source.pk)
-        self.assertPermissionGranted(url, None)
-        self.assertPermissionGranted(url, self.user_outsider)
-        self.assertPermissionGranted(url, self.user_viewer)
-        self.assertPermissionGranted(url, self.user_editor)
-        self.assertPermissionGranted(url, self.user_admin)
+        self.source_to_private()
+        self.assertPermissionLevel(
+            url, self.SOURCE_VIEW, content_type='text/csv')
+        self.source_to_public()
+        self.assertPermissionLevel(
+            url, self.SIGNED_OUT, content_type='text/csv')
 
 
 class ImageSetTest(BaseExportTest):
@@ -47,8 +40,8 @@ class ImageSetTest(BaseExportTest):
             point_generation_type=PointGen.Types.UNIFORM,
             number_of_cell_rows=1, number_of_cell_columns=2,
         )
-        labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
-        cls.create_labelset(cls.user, cls.source, labels)
+        cls.labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
+        cls.create_labelset(cls.user, cls.source, cls.labels)
 
     def test_all_images_single(self):
         """Export for 1 out of 1 images."""
@@ -177,6 +170,32 @@ class ImageSetTest(BaseExportTest):
 
         expected_lines = [
             'Name,Row,Column,Label',
+        ]
+        self.assert_csv_content_equal(response.content, expected_lines)
+
+    def test_dont_get_other_sources_images(self):
+        """Don't export for other sources' images."""
+        self.img1 = self.upload_image(
+            self.user, self.source,
+            dict(filename='1.jpg', width=400, height=300))
+        self.add_annotations(self.user, self.img1, {1: 'A', 2: 'B'})
+
+        source2 = self.create_source(
+            self.user,
+            point_generation_type=PointGen.Types.UNIFORM,
+            number_of_cell_rows=1, number_of_cell_columns=2)
+        self.create_labelset(self.user, source2, self.labels)
+        img2 = self.upload_image(self.user, source2, dict(filename='2.jpg'))
+        self.add_annotations(self.user, img2, {1: 'A', 2: 'B'})
+
+        post_data = self.default_search_params.copy()
+        response = self.export_annotations(post_data)
+
+        # Should have image 1, but not 2
+        expected_lines = [
+            'Name,Row,Column,Label',
+            '1.jpg,150,100,A',
+            '1.jpg,150,300,B',
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 

@@ -5,18 +5,36 @@ from django.urls import reverse
 
 from images.model_utils import PointGen
 from images.models import Source
-from lib.tests.utils import ClientTest
+from lib.tests.utils import BasePermissionTest, ClientTest
 from upload.tests.utils import UploadAnnotationsTestMixin
+
+
+class PermissionTest(BasePermissionTest):
+    """
+    Test page permissions.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super(PermissionTest, cls).setUpTestData()
+
+        cls.img = cls.upload_image(cls.user, cls.source)
+        cls.labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
+        cls.create_labelset(cls.user, cls.source, cls.labels)
+
+    def test_annotation_history(self):
+        url = reverse('annotation_history', args=[self.img.pk])
+        template = 'annotations/annotation_history.html'
+
+        self.source_to_private()
+        self.assertPermissionLevel(url, self.SOURCE_EDIT, template=template)
+        self.source_to_public()
+        self.assertPermissionLevel(url, self.SOURCE_EDIT, template=template)
 
 
 class AnnotationHistoryTest(ClientTest, UploadAnnotationsTestMixin):
     """
     Test the annotation history page.
     """
-    # Assertion errors have the raw error followed by the
-    # msg argument, if present.
-    longMessage = True
-
     @classmethod
     def setUpTestData(cls):
         super(AnnotationHistoryTest, cls).setUpTestData()
@@ -31,16 +49,9 @@ class AnnotationHistoryTest(ClientTest, UploadAnnotationsTestMixin):
         labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
         cls.create_labelset(cls.user, cls.source, labels)
 
-        cls.user_outsider = cls.create_user()
-        cls.user_viewer = cls.create_user()
+        cls.other_user = cls.create_user()
         cls.add_source_member(
-            cls.user, cls.source, cls.user_viewer, Source.PermTypes.VIEW.code)
-        cls.user_editor = cls.create_user()
-        cls.add_source_member(
-            cls.user, cls.source, cls.user_editor, Source.PermTypes.EDIT.code)
-        cls.user_editor2 = cls.create_user()
-        cls.add_source_member(
-            cls.user, cls.source, cls.user_editor2, Source.PermTypes.EDIT.code)
+            cls.user, cls.source, cls.other_user, Source.PermTypes.EDIT.code)
 
         cls.img = cls.upload_image(
             cls.user, cls.source,
@@ -101,39 +112,6 @@ class AnnotationHistoryTest(ClientTest, UploadAnnotationsTestMixin):
                     msg="Date mismatch in row {n}".format(n=row_num),
                 )
 
-    def test_load_page_anonymous(self):
-        """
-        Load the page while logged out ->
-        sorry, don't have permission.
-        """
-        response = self.view_history(None)
-        self.assertStatusOK(response)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-
-    def test_load_page_as_source_outsider(self):
-        """
-        Load the page as a user outside the source ->
-        sorry, don't have permission.
-        """
-        response = self.view_history(self.user_outsider)
-        self.assertStatusOK(response)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-
-    def test_load_page_as_source_viewer(self):
-        """
-        Load the page as a source viewer ->
-        sorry, don't have permission.
-        """
-        response = self.view_history(self.user_viewer)
-        self.assertStatusOK(response)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-
-    def test_load_page(self):
-        response = self.view_history(self.user_editor)
-        self.assertStatusOK(response)
-        self.assertTemplateUsed(
-            response, 'annotations/annotation_history.html')
-
     def test_access_event(self):
         # Access the annotation tool
         self.client.force_login(self.user)
@@ -176,23 +154,23 @@ class AnnotationHistoryTest(ClientTest, UploadAnnotationsTestMixin):
         self.client.post(
             reverse('save_annotations_ajax', args=[self.img.pk]), data)
 
-        # Annotate as user_editor: 1 replaced, 1 new, 1 same (2 history points)
+        # Annotate as other_user: 1 replaced, 1 new, 1 same (2 history points)
         data = dict(
             label_1='B', label_2='A', label_3='B',
             robot_1='false', robot_2='false', robot_3='false',
         )
         self.client.logout()
-        self.client.force_login(self.user_editor)
+        self.client.force_login(self.other_user)
         self.client.post(
             reverse('save_annotations_ajax', args=[self.img.pk]), data)
 
-        response = self.view_history(self.user_editor)
+        response = self.view_history(self.other_user)
         self.assert_history_table_equals(
             response,
             [
                 # Remember, the table goes from newest to oldest entries
                 ['Point 1: B<br/>Point 2: A',
-                 '{name}'.format(name=self.user_editor.username)],
+                 '{name}'.format(name=self.other_user.username)],
                 ['Point 1: A<br/>Point 3: B',
                  '{name}'.format(name=self.user.username)],
             ]

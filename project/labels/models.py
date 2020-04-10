@@ -118,7 +118,14 @@ class Label(models.Model):
         return self.annotation_set.count()
 
     def _compute_popularity(self):
-        # TODO: This formula is most likely garbage; make a better one
+        """
+        This popularity formula accounts for:
+        - The number of sources using the label
+        - The number of annotations using the label
+
+        Overall, it's not too nuanced, and could use further tinkering
+        at some point.
+        """
         raw_score = (
             # Labelset count
             self.locallabel_set.count()

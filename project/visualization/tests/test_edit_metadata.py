@@ -4,56 +4,41 @@ import datetime
 
 from django.urls import reverse
 
-from images.models import Source
-from lib.tests.utils import ClientTest
+from lib.tests.utils import BasePermissionTest, ClientTest
 
 
-class PermissionTest(ClientTest):
+class PermissionTest(BasePermissionTest):
     """
     Test page permissions.
     """
-    @classmethod
-    def setUpTestData(cls):
-        super(PermissionTest, cls).setUpTestData()
+    def test_edit_metadata(self):
+        url = reverse('edit_metadata', args=[self.source.pk])
+        template = 'visualization/edit_metadata.html'
 
-        cls.user = cls.create_user()
+        self.source_to_private()
+        self.assertPermissionLevel(url, self.SOURCE_EDIT, template=template)
+        self.source_to_public()
+        self.assertPermissionLevel(url, self.SOURCE_EDIT, template=template)
 
-        cls.source = cls.create_source(cls.user)
+    def test_edit_metadata_ajax(self):
+        url = reverse('edit_metadata_ajax', args=[self.source.pk])
 
-        cls.user_editor = cls.create_user()
-        cls.add_source_member(
-            cls.user, cls.source, cls.user_editor, Source.PermTypes.EDIT.code)
-        cls.user_viewer = cls.create_user()
-        cls.add_source_member(
-            cls.user, cls.source, cls.user_viewer, Source.PermTypes.VIEW.code)
-        cls.user_outsider = cls.create_user()
+        # We get a 500 error if we don't pass in basic formset params and at
+        # least 1 form.
+        img = self.upload_image(self.user, self.source)
+        post_data = {
+            'form-TOTAL_FORMS': 1,
+            'form-INITIAL_FORMS': 1,
+            'form-MAX_NUM_FORMS': '',
+            'form-0-id': img.metadata.pk,
+        }
 
-        cls.img1 = cls.upload_image(cls.user, cls.source)
-
-        cls.url = reverse('edit_metadata', args=[cls.source.pk])
-
-    def test_load_page_as_anonymous(self):
-        response = self.client.get(self.url)
-        self.assertStatusOK(response)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-
-    def test_load_page_as_source_outsider(self):
-        self.client.force_login(self.user_outsider)
-        response = self.client.get(self.url)
-        self.assertStatusOK(response)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-
-    def test_load_page_as_source_viewer(self):
-        self.client.force_login(self.user_viewer)
-        response = self.client.get(self.url)
-        self.assertStatusOK(response)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
-
-    def test_load_page_as_source_editor(self):
-        self.client.force_login(self.user_editor)
-        response = self.client.get(self.url)
-        self.assertStatusOK(response)
-        self.assertTemplateUsed(response, 'visualization/edit_metadata.html')
+        self.source_to_private()
+        self.assertPermissionLevel(
+            url, self.SOURCE_EDIT, is_json=True, post_data=post_data)
+        self.source_to_public()
+        self.assertPermissionLevel(
+            url, self.SOURCE_EDIT, is_json=True, post_data=post_data)
 
 
 class LoadPageTest(ClientTest):
@@ -106,6 +91,20 @@ class LoadPageTest(ClientTest):
         self.client.force_login(self.user)
         response = self.client.post(self.url, post_data)
         self.assertEqual(response.context['num_images'], 2)
+
+    def test_ignore_image_ids_of_other_sources(self):
+        source2 = self.create_source(self.user)
+        s2_img = self.upload_image(self.user, source2)
+
+        # 1 image from this source, 1 image from another source
+        post_data = dict(
+            image_form_type='ids',
+            ids=','.join([str(self.img1.pk), str(s2_img.pk)])
+        )
+
+        self.client.force_login(self.user)
+        response = self.client.post(self.url, post_data)
+        self.assertEqual(response.context['num_images'], 1)
 
     def test_zero_images(self):
         post_data = self.default_search_params.copy()

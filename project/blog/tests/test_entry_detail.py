@@ -21,16 +21,19 @@ class PermissionTest(BasePermissionTest, BlogTestMixin):
         """Everyone can access published entries:
         logged out, regular users, and superusers."""
         url = resolve_url('blog:entry_detail', self.public_entry.slug)
-        self.assertPermissionGranted(url, None)
-        self.assertPermissionGranted(url, self.user)
-        self.assertPermissionGranted(url, self.superuser)
+        template = 'blog/entry_detail.html'
+
+        self.assertPermissionLevel(
+            url, self.SIGNED_OUT, template=template)
 
     def test_draft(self):
         """Only superusers can access drafts."""
         url = resolve_url('blog:entry_detail', self.draft.slug)
-        self.assertNotFound(url, None)
-        self.assertNotFound(url, self.user)
-        self.assertPermissionGranted(url, self.superuser)
+        template = 'blog/entry_detail.html'
+
+        self.assertPermissionLevel(
+            url, self.SUPERUSER, template=template,
+            deny_type=self.NOT_FOUND)
 
 
 class MarkdownTest(ClientTest, BlogTestMixin):

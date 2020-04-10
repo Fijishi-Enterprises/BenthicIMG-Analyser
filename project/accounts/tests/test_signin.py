@@ -6,11 +6,30 @@ from django.contrib.auth.hashers import (
 from django.urls import reverse
 from django_migration_testcase import MigrationTest
 
-from lib.tests.utils import BrowserTest
+from lib.tests.utils import BasePermissionTest, BrowserTest, ClientTest
 from ..hashers import PBKDF2WrappedSHA1PasswordHasher
 from .utils import BaseAccountsTest
 
 User = get_user_model()
+
+
+class PermissionTest(BasePermissionTest):
+
+    def test_sign_in(self):
+        url = reverse('login')
+        template = 'registration/login.html'
+
+        self.assertPermissionLevel(
+            url, self.SIGNED_OUT, template=template)
+
+    def test_sign_out(self):
+        url = reverse('logout')
+        template = 'registration/logged_out.html'
+
+        # Can still access the sign-out view when already signed out. There's
+        # not a major use case, but nothing inherently wrong with it either.
+        self.assertPermissionLevel(
+            url, self.SIGNED_OUT, template=template)
 
 
 class SignInTest(BaseAccountsTest):
@@ -23,19 +42,6 @@ class SignInTest(BaseAccountsTest):
         cls.user = cls.create_user(
             username='testUsername', password='testPassword',
             email='tester@example.org')
-
-    def test_load_page(self):
-        response = self.client.get(reverse('login'))
-        self.assertTemplateUsed(response, 'registration/login.html')
-
-    def test_load_page_when_signed_in(self):
-        """
-        Can still reach the sign-in page as a signed in user. There's not
-        a major use case, but nothing inherently wrong with it either.
-        """
-        self.client.force_login(self.user)
-        response = self.client.get(reverse('login'))
-        self.assertTemplateUsed(response, 'registration/login.html')
 
     def test_sign_in_by_username(self):
         response = self.client.post(reverse('login'), dict(
@@ -297,3 +303,23 @@ class WrapSHA1PasswordsMigrationTest(MigrationTest):
         self.assertTrue(wrapped_hasher.verify('testPassword1', user1.password))
         # user2's password should work with the default hasher
         self.assertTrue(pbkdf2_hasher.verify('testPassword2', user2.password))
+
+
+class SignOutTest(ClientTest):
+
+    @classmethod
+    def setUpTestData(cls):
+        # Call the parent's setup (while still using this class as cls)
+        super(SignOutTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+
+    def test_sign_out(self):
+        self.client.force_login(self.user)
+        # Signed in
+        self.assertIn('_auth_user_id', self.client.session)
+
+        response = self.client.get(reverse('logout'), follow=True)
+        self.assertTemplateUsed(response, 'registration/logged_out.html')
+        # Signed out
+        self.assertNotIn('_auth_user_id', self.client.session)

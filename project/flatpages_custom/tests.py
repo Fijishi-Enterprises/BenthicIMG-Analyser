@@ -9,7 +9,19 @@ from django.urls import reverse
 from django_migration_testcase import MigrationTest
 from reversion.models import Version
 
-from lib.tests.utils import ClientTest, sample_image_as_file
+from lib.tests.utils import (
+    BasePermissionTest, ClientTest, sample_image_as_file)
+
+
+class PermissionTest(BasePermissionTest):
+    """
+    Test permission to a flatpage.
+    """
+    def test_flatpage_help(self):
+        url = reverse('pages:help')
+        template = 'flatpages/default.html'
+
+        self.assertPermissionLevel(url, self.SIGNED_OUT, template=template)
 
 
 class FlatpagesTest(ClientTest):

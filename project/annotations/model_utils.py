@@ -95,6 +95,8 @@ class AnnotationAreaUtils():
             d[key] = int(math.ceil(d[key]))
 
             # Corner case when the x/y value is exactly 0.
+            # Basically we're mapping 0.000-1.000 to 1, 1.001-2.000 to 2,
+            # 2.001 to 3.000, etc.
             if d[key] == 0:
                 d[key] = 1
 

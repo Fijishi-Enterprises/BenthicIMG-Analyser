@@ -11,124 +11,56 @@ from accounts.utils import is_alleviate_user, is_robot_user
 from annotations.models import Annotation, AnnotationToolSettings
 from images.model_utils import PointGen
 from images.models import Source
-from lib.tests.utils import ClientTest
+from lib.tests.utils import BasePermissionTest, ClientTest
 
 
-class PermissionTest(ClientTest):
+class PermissionTest(BasePermissionTest):
     """
-    Test page and Ajax-submit permissions.
+    Test page and Ajax-submit permissions for annotation tool related views.
     """
     @classmethod
     def setUpTestData(cls):
         super(PermissionTest, cls).setUpTestData()
 
-        cls.user = cls.create_user()
-
-        cls.source = cls.create_source(cls.user)
-        labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
-        cls.create_labelset(cls.user, cls.source, labels)
-
-        cls.user_viewer = cls.create_user()
-        cls.add_source_member(
-            cls.user, cls.source, cls.user_viewer, Source.PermTypes.VIEW.code)
-        cls.user_editor = cls.create_user()
-        cls.add_source_member(
-            cls.user, cls.source, cls.user_editor, Source.PermTypes.EDIT.code)
-
         cls.img = cls.upload_image(cls.user, cls.source)
+        cls.labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
+        cls.create_labelset(cls.user, cls.source, cls.labels)
 
-    def test_load_page_anonymous(self):
-        """
-        Don't have permission.
-        """
+    def test_annotation_tool(self):
         url = reverse('annotation_tool', args=[self.img.pk])
-        response = self.client.get(url)
-        self.assertStatusOK(response)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+        template = 'annotations/annotation_tool.html'
 
-    def test_load_page_as_source_viewer(self):
-        """
-        Don't have permission.
-        """
-        url = reverse('annotation_tool', args=[self.img.pk])
-        self.client.force_login(self.user_viewer)
-        response = self.client.get(url)
-        self.assertStatusOK(response)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+        self.source_to_private()
+        self.assertPermissionLevel(url, self.SOURCE_EDIT, template=template)
+        self.source_to_public()
+        self.assertPermissionLevel(url, self.SOURCE_EDIT, template=template)
 
-    def test_load_page_as_source_editor(self):
-        """
-        Can load.
-        """
-        url = reverse('annotation_tool', args=[self.img.pk])
-        self.client.force_login(self.user_editor)
-        response = self.client.get(url)
-        self.assertStatusOK(response)
-        self.assertTemplateUsed(response, 'annotations/annotation_tool.html')
-
-    def test_save_annotations_anonymous(self):
-        """
-        Don't have permission.
-        """
+    def test_save_annotations_ajax(self):
         url = reverse('save_annotations_ajax', args=[self.img.pk])
-        response = self.client.post(url, dict()).json()
-        # Response should include an error that contains the word "permission"
-        self.assertTrue(
-            'error' in response and "permission" in response['error'])
 
-    def test_save_annotations_as_source_viewer(self):
-        """
-        Don't have permission.
-        """
-        url = reverse('save_annotations_ajax', args=[self.img.pk])
-        self.client.force_login(self.user_viewer)
-        response = self.client.post(url, dict()).json()
-        # Response should include an error that contains the word "permission"
-        self.assertTrue(
-            'error' in response and "permission" in response['error'])
+        self.source_to_private()
+        self.assertPermissionLevel(
+            url, self.SOURCE_EDIT, is_json=True, post_data={})
+        self.source_to_public()
+        self.assertPermissionLevel(
+            url, self.SOURCE_EDIT, is_json=True, post_data={})
 
-    def test_save_annotations_as_source_editor(self):
-        """
-        Can submit.
-        """
-        url = reverse('save_annotations_ajax', args=[self.img.pk])
-        self.client.force_login(self.user_editor)
-        response = self.client.post(url, dict()).json()
-        # Response may include an error, but if it does, it shouldn't contain
-        # the word "permission"
-        self.assertFalse(
-            'error' in response and "permission" in response['error'])
-
-    def test_check_annotation_done_anonymous(self):
-        """
-        Don't have permission.
-        """
+    def test_is_annotation_all_done_ajax(self):
         url = reverse('is_annotation_all_done_ajax', args=[self.img.pk])
-        response = self.client.post(url, dict()).json()
-        # Response should include an error that contains the word "permission"
-        self.assertTrue(
-            'error' in response and "permission" in response['error'])
 
-    def test_check_annotation_done_as_source_viewer(self):
-        """
-        Can check.
-        """
-        url = reverse('is_annotation_all_done_ajax', args=[self.img.pk])
-        self.client.force_login(self.user_viewer)
-        response = self.client.post(url, dict()).json()
-        # Response should include an error that contains the word "permission"
-        self.assertFalse(
-            'error' in response and "permission" in response['error'])
+        self.source_to_private()
+        self.assertPermissionLevel(
+            url, self.SOURCE_VIEW, is_json=True, post_data={})
+        self.source_to_public()
+        self.assertPermissionLevel(
+            url, self.SOURCE_VIEW, is_json=True, post_data={})
 
-    def test_save_annotation_tool_settings_anonymous(self):
-        """
-        Must be logged in.
-        """
+    def test_annotation_tool_settings_save(self):
         url = reverse('annotation_tool_settings_save')
-        response = self.client.post(url, dict()).json()
-        # Response should include an error that contains the words "signed in"
-        self.assertTrue(
-            'error' in response and "signed in" in response['error'])
+
+        self.assertPermissionLevel(
+            url, self.SIGNED_IN, is_json=True, post_data={},
+            deny_type=self.REQUIRE_LOGIN)
 
 
 class LoadImageTest(ClientTest):
@@ -972,8 +904,13 @@ class SettingsTest(ClientTest):
                 field_value, expected_value,
                 field_name + " has the expected value")
 
-    def test_tool_uses_saved_settings_when_present(self):
+    def test_tool_uses_saved_settings(self):
         self.client.force_login(self.user)
+
+        # Save non-default settings.
+        data = self.sample_settings
+        self.client.post(self.settings_url, data)
+
         response = self.client.get(self.tool_url)
 
         # Scrape the annotation tool's HTML to ensure the settings values are
@@ -984,8 +921,7 @@ class SettingsTest(ClientTest):
 
         for field_name, field_type in six.iteritems(self.field_names_to_types):
             field_value = self.get_field_value_from_soup(field_name, form_soup)
-            field_meta = AnnotationToolSettings._meta.get_field(field_name)
-            expected_value = field_meta.default
+            expected_value = self.sample_settings[field_name]
             self.assertEqual(
                 field_value, expected_value,
                 field_name + " has the expected value")

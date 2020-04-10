@@ -1,72 +1,38 @@
+from __future__ import unicode_literals
+from unittest import skip
+
 from django.urls import reverse
 
-from lib.tests.utils import ClientTest
-
-from images.models import Source
+from lib.tests.utils import BasePermissionTest
 
 
-class MainPageViewPermissions(ClientTest):
-    """
-    Test the annotation area edit page.
-    """
-    @classmethod
-    def setUpTestData(cls):
-        super(MainPageViewPermissions, cls).setUpTestData()
+class BackendViewPermissions(BasePermissionTest):
 
-        cls.user = cls.create_user()
+    def test_backend_main(self):
+        url = reverse('backend_main', args=[self.source.pk])
+        template = 'vision_backend/backend_main.html'
 
-        cls.source = cls.create_source(
-            cls.user, visibility=Source.VisibilityTypes.PRIVATE)
+        self.source_to_private()
+        self.assertPermissionLevel(url, self.SOURCE_VIEW, template=template)
+        self.source_to_public()
+        self.assertPermissionLevel(url, self.SIGNED_OUT, template=template)
 
-        cls.user_outsider = cls.create_user()
-        
-        cls.user_viewer = cls.create_user()
-        cls.add_source_member(
-            cls.user, cls.source, cls.user_viewer, Source.PermTypes.VIEW.code)
-        
-        cls.user_editor = cls.create_user()
-        cls.add_source_member(
-            cls.user, cls.source, cls.user_editor, Source.PermTypes.EDIT.code)
+    @skip("Skip until we can run backend during tests.")
+    def test_backend_overview(self):
+        # Requires at least 1 image
+        self.upload_image(self.user, self.source)
 
-        cls.url = reverse('backend_main', args=[cls.source.pk])
+        url = reverse('backend_overview')
+        template = 'vision_backend/overview.html'
 
-    def test_load_page_anonymous(self):
-        """
-        Load the page while logged out ->
-        sorry, don't have permission.
-        """
-        response = self.client.get(self.url)
-        self.assertStatusOK(response)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+        self.assertPermissionLevel(
+            url, self.SUPERUSER, template=template,
+            deny_type=self.REQUIRE_LOGIN)
 
-    def test_load_page_as_source_outsider(self):
-        """
-        Load the page as a user outside the source ->
-        sorry, don't have permission.
-        """
-        self.client.force_login(self.user_outsider)
-        response = self.client.get(self.url)
-        self.assertStatusOK(response)
-        self.assertTemplateUsed(response, self.PERMISSION_DENIED_TEMPLATE)
+    def test_cm_test(self):
+        url = reverse('cm_test')
+        template = 'vision_backend/cm_test.html'
 
-    def test_load_page_as_source_viewer(self):
-        """
-        Load the page as a source viewer ->
-        sorry, don't have permission.
-        """
-        self.client.force_login(self.user_viewer)
-        response = self.client.get(self.url)
-        self.assertStatusOK(response)
-        self.assertTemplateUsed(
-            response, 'vision_backend/backend_main.html')
-
-    def test_load_page_as_source_editor(self):
-        """
-        Load the page as a source viewer ->
-        sorry, don't have permission.
-        """
-        self.client.force_login(self.user_viewer)
-        response = self.client.get(self.url)
-        self.assertStatusOK(response)
-        self.assertTemplateUsed(
-            response, 'vision_backend/backend_main.html')
+        self.assertPermissionLevel(
+            url, self.SUPERUSER, template=template,
+            deny_type=self.REQUIRE_LOGIN)

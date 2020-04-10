@@ -4,6 +4,7 @@ import datetime
 
 from django.core.files.base import ContentFile
 from django.shortcuts import resolve_url
+from django.urls import reverse
 
 from export.tests.utils import BaseExportTest
 from lib.tests.utils import BasePermissionTest
@@ -11,23 +12,15 @@ from lib.tests.utils import BasePermissionTest
 
 class PermissionTest(BasePermissionTest):
 
-    def test_metadata_private_source(self):
-        url = resolve_url(
-            'export_metadata', self.private_source.pk)
-        self.assertPermissionDenied(url, None)
-        self.assertPermissionDenied(url, self.user_outsider)
-        self.assertPermissionGranted(url, self.user_viewer)
-        self.assertPermissionGranted(url, self.user_editor)
-        self.assertPermissionGranted(url, self.user_admin)
+    def test_metadata(self):
+        url = reverse('export_metadata', args=[self.source.pk])
 
-    def test_metadata_public_source(self):
-        url = resolve_url(
-            'export_metadata', self.public_source.pk)
-        self.assertPermissionGranted(url, None)
-        self.assertPermissionGranted(url, self.user_outsider)
-        self.assertPermissionGranted(url, self.user_viewer)
-        self.assertPermissionGranted(url, self.user_editor)
-        self.assertPermissionGranted(url, self.user_admin)
+        self.source_to_private()
+        self.assertPermissionLevel(
+            url, self.SOURCE_VIEW, content_type='text/csv')
+        self.source_to_public()
+        self.assertPermissionLevel(
+            url, self.SIGNED_OUT, content_type='text/csv')
 
 
 class ImageSetTest(BaseExportTest):
@@ -40,7 +33,7 @@ class ImageSetTest(BaseExportTest):
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
 
-    def all_images_single(self):
+    def test_all_images_single(self):
         """Export for 1 out of 1 images."""
         self.img1 = self.upload_image(
             self.user, self.source, dict(filename='1.jpg'))
@@ -57,7 +50,7 @@ class ImageSetTest(BaseExportTest):
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
-    def all_images_multiple(self):
+    def test_all_images_multiple(self):
         """Export for 3 out of 3 images."""
         self.img1 = self.upload_image(
             self.user, self.source, dict(filename='1.jpg'))
@@ -80,7 +73,7 @@ class ImageSetTest(BaseExportTest):
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
-    def image_subset_by_metadata(self):
+    def test_image_subset_by_metadata(self):
         """Export for some, but not all, images."""
         self.img1 = self.upload_image(
             self.user, self.source, dict(filename='1.jpg'))
@@ -109,7 +102,7 @@ class ImageSetTest(BaseExportTest):
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
-    def image_empty_set(self):
+    def test_image_empty_set(self):
         """Export for 0 images."""
         self.img1 = self.upload_image(
             self.user, self.source, dict(filename='1.jpg'))
@@ -123,6 +116,26 @@ class ImageSetTest(BaseExportTest):
             ',Height (cm),Latitude,Longitude,Depth,Camera,Photographer'
             ',Water quality,Strobes,Framing gear used,White balance card'
             ',Comments',
+        ]
+        self.assert_csv_content_equal(response.content, expected_lines)
+
+    def test_dont_get_other_sources_images(self):
+        """Don't export for other sources' images."""
+        self.img1 = self.upload_image(
+            self.user, self.source, dict(filename='1.jpg'))
+        source2 = self.create_source(self.user)
+        self.upload_image(self.user, source2, dict(filename='2.jpg'))
+
+        post_data = self.default_search_params.copy()
+        response = self.export_metadata(post_data)
+
+        # Should have image 1, but not 2
+        expected_lines = [
+            'Name,Date,Aux1,Aux2,Aux3,Aux4,Aux5'
+            ',Height (cm),Latitude,Longitude,Depth,Camera,Photographer'
+            ',Water quality,Strobes,Framing gear used,White balance card'
+            ',Comments',
+            '1.jpg,,,,,,,,,,,,,,,,,',
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 

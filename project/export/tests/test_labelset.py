@@ -3,32 +3,25 @@ from __future__ import unicode_literals
 
 from django.core.files.base import ContentFile
 from django.shortcuts import resolve_url
+from django.urls import reverse
 
 from export.tests.utils import BaseExportTest
 from lib.tests.utils import BasePermissionTest
 from labels.models import Label, LocalLabel
-from labels.test_labels import LabelTest
+from labels.tests.utils import LabelTest
 
 
 class PermissionTest(BasePermissionTest):
 
-    def test_export_labelset_private_source(self):
-        url = resolve_url(
-            'export_labelset', self.private_source.pk)
-        self.assertPermissionDenied(url, None)
-        self.assertPermissionDenied(url, self.user_outsider)
-        self.assertPermissionGranted(url, self.user_viewer)
-        self.assertPermissionGranted(url, self.user_editor)
-        self.assertPermissionGranted(url, self.user_admin)
+    def test_export_labelset(self):
+        url = reverse('export_labelset', args=[self.source.pk])
 
-    def test_export_labelset_public_source(self):
-        url = resolve_url(
-            'export_labelset', self.public_source.pk)
-        self.assertPermissionGranted(url, None)
-        self.assertPermissionGranted(url, self.user_outsider)
-        self.assertPermissionGranted(url, self.user_viewer)
-        self.assertPermissionGranted(url, self.user_editor)
-        self.assertPermissionGranted(url, self.user_admin)
+        self.source_to_private()
+        self.assertPermissionLevel(
+            url, self.SOURCE_VIEW, content_type='text/csv')
+        self.source_to_public()
+        self.assertPermissionLevel(
+            url, self.SIGNED_OUT, content_type='text/csv')
 
 
 class GeneralTest(BaseExportTest, LabelTest):

@@ -25,20 +25,70 @@ class ImageDetailActionBaseTest(BasePermissionTest):
     def setUpTestData(cls):
         super(ImageDetailActionBaseTest, cls).setUpTestData()
 
-        cls.private_source.default_point_generation_method = \
+        cls.source.default_point_generation_method = \
             PointGen.args_to_db_format(
                 point_generation_type=PointGen.Types.SIMPLE,
                 simple_number_of_points=2)
-        cls.private_source.save()
+        cls.source.save()
 
-        cls.public_source.default_point_generation_method = \
-            PointGen.args_to_db_format(
-                point_generation_type=PointGen.Types.SIMPLE,
-                simple_number_of_points=2)
-        cls.public_source.save()
+        cls.img = cls.upload_image(cls.user, cls.source)
+        cls.img2 = cls.upload_image(cls.user, cls.source)
+        cls.img3 = cls.upload_image(cls.user, cls.source)
+        cls.img4 = cls.upload_image(cls.user, cls.source)
+        cls.img5 = cls.upload_image(cls.user, cls.source)
+        cls.img6 = cls.upload_image(cls.user, cls.source)
 
-        # For some tests we don't care about the visibility setting.
-        cls.source = cls.public_source
+        cls.action_url_img = reverse(cls.action_url_name, args=[cls.img.pk])
+        cls.action_url_img2 = reverse(cls.action_url_name, args=[cls.img2.pk])
+        cls.action_url_img3 = reverse(cls.action_url_name, args=[cls.img3.pk])
+        cls.action_url_img4 = reverse(cls.action_url_name, args=[cls.img4.pk])
+        cls.action_url_img5 = reverse(cls.action_url_name, args=[cls.img5.pk])
+        cls.action_url_img6 = reverse(cls.action_url_name, args=[cls.img6.pk])
+
+        cls.labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
+        cls.create_labelset(cls.user, cls.source, cls.labels)
+
+    def assertCorrectPermissionsForPrivateSource(self):
+        # Accessing the view. Use different images so we can re-test after a
+        # successful action. (Actions such as image delete can't be re-done
+        # on the same image.)
+        self.assertPermissionDenied(self.action_url_img, None, post_data={})
+        self.assertPermissionDenied(
+            self.action_url_img2, self.user_outsider, post_data={})
+        self.assertPermissionDenied(
+            self.action_url_img3, self.user_viewer, post_data={})
+        self.assertPermissionGranted(
+            self.action_url_img4, self.user_editor, post_data={})
+        self.assertPermissionGranted(
+            self.action_url_img5, self.user_admin, post_data={})
+
+        # Displaying the action button on the image detail page
+        # (Logged out users can't see the image detail page)
+        # (Outsider users can't see the image detail page)
+        self.assertLinkAbsent(self.user_viewer, self.img6)
+        self.assertLinkPresent(self.user_editor, self.img6)
+        self.assertLinkPresent(self.user_admin, self.img6)
+
+    def assertCorrectPermissionsForPublicSource(self):
+        # Accessing the view. Use different images so we can re-test after a
+        # successful action. (Actions such as image delete can't be re-done
+        # on the same image.)
+        self.assertPermissionDenied(self.action_url_img, None, post_data={})
+        self.assertPermissionDenied(
+            self.action_url_img2, self.user_outsider, post_data={})
+        self.assertPermissionDenied(
+            self.action_url_img3, self.user_viewer, post_data={})
+        self.assertPermissionGranted(
+            self.action_url_img4, self.user_editor, post_data={})
+        self.assertPermissionGranted(
+            self.action_url_img5, self.user_admin, post_data={})
+
+        # Displaying the action button on the image detail page
+        self.assertLinkAbsent(None, self.img6)
+        self.assertLinkAbsent(self.user_outsider, self.img6)
+        self.assertLinkAbsent(self.user_viewer, self.img6)
+        self.assertLinkPresent(self.user_editor, self.img6)
+        self.assertLinkPresent(self.user_admin, self.img6)
 
     def get_detail_page(self, user, img):
         if user:
@@ -92,54 +142,12 @@ class DeleteImageTest(ImageDetailActionBaseTest):
     action_url_name = 'image_delete'
 
     def test_permission_private_source(self):
-        img = self.upload_image(self.user, self.private_source)
-        img2 = self.upload_image(self.user, self.private_source)
-        img3 = self.upload_image(self.user, self.private_source)
-
-        # Accessing the view
-        url = reverse(self.action_url_name, args=[img.pk])
-        self.assertPermissionDenied(url, None, post_data={})
-        self.assertPermissionDenied(url, self.user_outsider, post_data={})
-        self.assertPermissionDenied(url, self.user_viewer, post_data={})
-        # Use different images so we can re-test after a successful delete
-        self.assertPermissionGranted(
-            reverse(self.action_url_name, args=[img2.pk]),
-            self.user_editor, post_data={})
-        self.assertPermissionGranted(
-            reverse(self.action_url_name, args=[img3.pk]),
-            self.user_admin, post_data={})
-
-        # Displaying the action button
-        # (Logged out users can't see the image detail page)
-        # (Outsider users can't see the image detail page)
-        self.assertLinkAbsent(self.user_viewer, img)
-        self.assertLinkPresent(self.user_editor, img)
-        self.assertLinkPresent(self.user_admin, img)
+        self.source_to_private()
+        self.assertCorrectPermissionsForPrivateSource()
 
     def test_permission_public_source(self):
-        img = self.upload_image(self.user, self.public_source)
-        img2 = self.upload_image(self.user, self.public_source)
-        img3 = self.upload_image(self.user, self.public_source)
-
-        # Accessing the view
-        url = reverse(self.action_url_name, args=[img.pk])
-        self.assertPermissionDenied(url, None, post_data={})
-        self.assertPermissionDenied(url, self.user_outsider, post_data={})
-        self.assertPermissionDenied(url, self.user_viewer, post_data={})
-        # Use different images so we can re-test after a successful delete
-        self.assertPermissionGranted(
-            reverse(self.action_url_name, args=[img2.pk]),
-            self.user_editor, post_data={})
-        self.assertPermissionGranted(
-            reverse(self.action_url_name, args=[img3.pk]),
-            self.user_admin, post_data={})
-
-        # Displaying the action button
-        self.assertLinkAbsent(None, img)
-        self.assertLinkAbsent(self.user_outsider, img)
-        self.assertLinkAbsent(self.user_viewer, img)
-        self.assertLinkPresent(self.user_editor, img)
-        self.assertLinkPresent(self.user_admin, img)
+        self.source_to_public()
+        self.assertCorrectPermissionsForPublicSource()
 
     def test_success(self):
         img = self.upload_image(
@@ -173,97 +181,57 @@ class DeleteImageTest(ImageDetailActionBaseTest):
 
     def test_other_images_not_deleted(self):
         """Ensure that other images don't get deleted, just this one."""
-        img1 = self.upload_image(
-            self.user, self.public_source,
-            image_options=dict(filename="img1.png"))
-        img2 = self.upload_image(
-            self.user, self.public_source,
-            image_options=dict(filename="img2.png"))
-        img1_s2 = self.upload_image(
-            self.user, self.private_source,
-            image_options=dict(filename="img1.png"))
 
-        img1_id = img1.pk
-        img2_id = img2.pk
-        img1_s2_id = img1_s2.pk
+        # Test with an image in a different source too.
+        s2 = self.create_source(self.user)
+        s2_img = self.upload_image(self.user, s2)
 
-        # Delete img1
-        self.post_to_action_view(self.user, img1)
+        img_id = self.img.pk
+        img2_id = self.img2.pk
+        s2_img_id = s2_img.pk
 
-        # img1 should be gone
+        # Delete img
+        self.post_to_action_view(self.user, self.img)
+
+        # img should be gone
         self.assertRaises(
             Image.DoesNotExist,
-            callableObj=Image.objects.get, pk=img1_id)
+            callableObj=Image.objects.get, pk=img_id)
         # Other image in the same source should still be there
         Image.objects.get(pk=img2_id)
         # Image in another source should still be there
-        Image.objects.get(pk=img1_s2_id)
+        Image.objects.get(pk=s2_img_id)
 
     def test_show_button_even_if_confirmed(self):
-        img = self.upload_image(self.user, self.source)
-        self.add_annotations(self.user, img, {1: 'A', 2: 'B'})
+        self.add_annotations(self.user, self.img, {1: 'A', 2: 'B'})
 
-        self.assertLinkPresent(self.user, img)
+        self.assertLinkPresent(self.user, self.img)
 
 
 class DeleteAnnotationsTest(ImageDetailActionBaseTest):
     action_url_name = 'image_delete_annotations'
 
     def test_permission_private_source(self):
-        img = self.upload_image(self.user, self.private_source)
-        self.add_annotations(self.user, img, {1: 'A', 2: 'B'})
-        img2 = self.upload_image(self.user, self.private_source)
-        self.add_annotations(self.user, img2, {1: 'A', 2: 'B'})
-        img3 = self.upload_image(self.user, self.private_source)
-        self.add_annotations(self.user, img3, {1: 'A', 2: 'B'})
+        self.add_annotations(self.user, self.img, {1: 'A', 2: 'B'})
+        self.add_annotations(self.user, self.img2, {1: 'A', 2: 'B'})
+        self.add_annotations(self.user, self.img3, {1: 'A', 2: 'B'})
+        self.add_annotations(self.user, self.img4, {1: 'A', 2: 'B'})
+        self.add_annotations(self.user, self.img5, {1: 'A', 2: 'B'})
+        self.add_annotations(self.user, self.img6, {1: 'A', 2: 'B'})
 
-        # Accessing the view
-        url = reverse(self.action_url_name, args=[img.pk])
-        self.assertPermissionDenied(url, None, post_data={})
-        self.assertPermissionDenied(url, self.user_outsider, post_data={})
-        self.assertPermissionDenied(url, self.user_viewer, post_data={})
-        # Use different images so we can re-test after a successful delete
-        self.assertPermissionGranted(
-            reverse(self.action_url_name, args=[img2.pk]),
-            self.user_editor, post_data={})
-        self.assertPermissionGranted(
-            reverse(self.action_url_name, args=[img3.pk]),
-            self.user_admin, post_data={})
-
-        # Displaying the action button
-        # (Logged out users can't see the image detail page)
-        # (Outsider users can't see the image detail page)
-        self.assertLinkAbsent(self.user_viewer, img)
-        self.assertLinkPresent(self.user_editor, img)
-        self.assertLinkPresent(self.user_admin, img)
+        self.source_to_private()
+        self.assertCorrectPermissionsForPrivateSource()
 
     def test_permission_public_source(self):
-        img = self.upload_image(self.user, self.public_source)
-        self.add_annotations(self.user, img, {1: 'A', 2: 'B'})
-        img2 = self.upload_image(self.user, self.public_source)
-        self.add_annotations(self.user, img, {1: 'A', 2: 'B'})
-        img3 = self.upload_image(self.user, self.public_source)
-        self.add_annotations(self.user, img, {1: 'A', 2: 'B'})
+        self.add_annotations(self.user, self.img, {1: 'A', 2: 'B'})
+        self.add_annotations(self.user, self.img2, {1: 'A', 2: 'B'})
+        self.add_annotations(self.user, self.img3, {1: 'A', 2: 'B'})
+        self.add_annotations(self.user, self.img4, {1: 'A', 2: 'B'})
+        self.add_annotations(self.user, self.img5, {1: 'A', 2: 'B'})
+        self.add_annotations(self.user, self.img6, {1: 'A', 2: 'B'})
 
-        # Accessing the view
-        url = reverse(self.action_url_name, args=[img.pk])
-        self.assertPermissionDenied(url, None, post_data={})
-        self.assertPermissionDenied(url, self.user_outsider, post_data={})
-        self.assertPermissionDenied(url, self.user_viewer, post_data={})
-        # Use different images so we can re-test after a successful delete
-        self.assertPermissionGranted(
-            reverse(self.action_url_name, args=[img2.pk]),
-            self.user_editor, post_data={})
-        self.assertPermissionGranted(
-            reverse(self.action_url_name, args=[img3.pk]),
-            self.user_admin, post_data={})
-
-        # Displaying the action button
-        self.assertLinkAbsent(None, img)
-        self.assertLinkAbsent(self.user_outsider, img)
-        self.assertLinkAbsent(self.user_viewer, img)
-        self.assertLinkPresent(self.user_editor, img)
-        self.assertLinkPresent(self.user_admin, img)
+        self.source_to_public()
+        self.assertCorrectPermissionsForPublicSource()
 
     def test_success(self):
         """Test deleting annotations."""
@@ -287,37 +255,32 @@ class DeleteAnnotationsTest(ImageDetailActionBaseTest):
         self.assertFalse(img.confirmed, msg="Image should not be confirmed")
 
     def test_show_button_if_all_points_have_confirmed_annotations(self):
-        img = self.upload_image(self.user, self.source)
-        self.add_annotations(self.user, img, {1: 'A', 2: 'B'})
+        self.add_annotations(self.user, self.img, {1: 'A', 2: 'B'})
 
-        self.assertLinkPresent(self.user, img)
+        self.assertLinkPresent(self.user, self.img)
 
     def test_show_button_if_some_points_have_confirmed_annotations(self):
-        img = self.upload_image(self.user, self.source)
         robot = self.create_robot(self.source)
 
         # Unconfirmed
-        self.add_robot_annotations(robot, img, {1: 'A', 2: 'B'})
+        self.add_robot_annotations(robot, self.img, {1: 'A', 2: 'B'})
         # Confirmed
-        self.add_annotations(self.user, img, {1: 'A'})
+        self.add_annotations(self.user, self.img, {1: 'A'})
 
-        self.assertLinkPresent(self.user, img)
+        self.assertLinkPresent(self.user, self.img)
 
     def test_hide_button_if_only_machine_annotations(self):
         """
         It doesn't hurt to still make this function internally available,
         but there's no real use case, so we shouldn't show the button.
         """
-        img = self.upload_image(self.user, self.source)
         robot = self.create_robot(self.source)
-        self.add_robot_annotations(robot, img, {1: 'A', 2: 'B'})
+        self.add_robot_annotations(robot, self.img, {1: 'A', 2: 'B'})
 
-        self.assertLinkAbsent(self.user, img)
+        self.assertLinkAbsent(self.user, self.img)
 
     def test_hide_button_if_no_annotations(self):
-        img = self.upload_image(self.user, self.source)
-
-        self.assertLinkAbsent(self.user, img)
+        self.assertLinkAbsent(self.user, self.img)
 
 
 class RegeneratePointsTest(
@@ -325,40 +288,12 @@ class RegeneratePointsTest(
     action_url_name = 'image_regenerate_points'
 
     def test_permission_private_source(self):
-        img = self.upload_image(self.user, self.private_source)
-
-        # Accessing the view
-        url = reverse(self.action_url_name, args=[img.pk])
-        self.assertPermissionDenied(url, None, post_data={})
-        self.assertPermissionDenied(url, self.user_outsider, post_data={})
-        self.assertPermissionDenied(url, self.user_viewer, post_data={})
-        self.assertPermissionGranted(url, self.user_editor, post_data={})
-        self.assertPermissionGranted(url, self.user_admin, post_data={})
-
-        # Displaying the action button
-        # (Logged out users can't see the image detail page)
-        # (Outsider users can't see the image detail page)
-        self.assertLinkAbsent(self.user_viewer, img)
-        self.assertLinkPresent(self.user_editor, img)
-        self.assertLinkPresent(self.user_admin, img)
+        self.source_to_private()
+        self.assertCorrectPermissionsForPrivateSource()
 
     def test_permission_public_source(self):
-        img = self.upload_image(self.user, self.public_source)
-
-        # Accessing the view
-        url = reverse(self.action_url_name, args=[img.pk])
-        self.assertPermissionDenied(url, None, post_data={})
-        self.assertPermissionDenied(url, self.user_outsider, post_data={})
-        self.assertPermissionDenied(url, self.user_viewer, post_data={})
-        self.assertPermissionGranted(url, self.user_editor, post_data={})
-        self.assertPermissionGranted(url, self.user_admin, post_data={})
-
-        # Displaying the action button
-        self.assertLinkAbsent(None, img)
-        self.assertLinkAbsent(self.user_outsider, img)
-        self.assertLinkAbsent(self.user_viewer, img)
-        self.assertLinkPresent(self.user_editor, img)
-        self.assertLinkPresent(self.user_admin, img)
+        self.source_to_public()
+        self.assertCorrectPermissionsForPublicSource()
 
     def test_success(self):
         """Test regenerating points."""
@@ -380,109 +315,62 @@ class RegeneratePointsTest(
             msg="New points should have different IDs from the old ones")
 
     def test_deny_if_all_points_have_confirmed_annotations(self):
-        img = self.upload_image(self.user, self.source)
-        self.add_annotations(self.user, img, {1: 'A', 2: 'B'})
+        self.add_annotations(self.user, self.img, {1: 'A', 2: 'B'})
 
-        self.assertLinkAbsent(self.user, img)
+        self.assertLinkAbsent(self.user, self.img)
         self.assertActionDenyMessage(
-            self.user, img, "annotation area is not editable")
+            self.user, self.img, "annotation area is not editable")
 
     def test_deny_if_some_points_have_confirmed_annotations(self):
-        img = self.upload_image(self.user, self.source)
-        self.add_annotations(self.user, img, {1: 'A'})
+        self.add_annotations(self.user, self.img, {1: 'A'})
 
-        self.assertLinkAbsent(self.user, img)
+        self.assertLinkAbsent(self.user, self.img)
         self.assertActionDenyMessage(
-            self.user, img, "annotation area is not editable")
+            self.user, self.img, "annotation area is not editable")
 
     def test_deny_if_imported_points(self):
-        img = self.upload_image(self.user, self.source)
+        self.upload_points_for_image(self.img)
 
-        self.upload_points_for_image(img)
-
-        self.assertLinkAbsent(self.user, img)
+        self.assertLinkAbsent(self.user, self.img)
         self.assertActionDenyMessage(
-            self.user, img, "annotation area is not editable")
+            self.user, self.img, "annotation area is not editable")
 
     def test_show_button_if_only_machine_annotations(self):
-        img = self.upload_image(self.user, self.source)
         robot = self.create_robot(self.source)
-        self.add_robot_annotations(robot, img, {1: 'A', 2: 'B'})
+        self.add_robot_annotations(robot, self.img, {1: 'A', 2: 'B'})
 
-        self.assertLinkPresent(self.user, img)
+        self.assertLinkPresent(self.user, self.img)
 
     def test_show_button_if_no_annotations(self):
-        img = self.upload_image(self.user, self.source)
-
-        self.assertLinkPresent(self.user, img)
+        self.assertLinkPresent(self.user, self.img)
 
 
 class ResetPointGenTest(ImageDetailActionBaseTest, UploadAnnotationsTestMixin):
     action_url_name = 'image_reset_point_generation_method'
 
     def test_permission_private_source(self):
-        img = self.upload_image(self.user, self.private_source)
-        img2 = self.upload_image(self.user, self.private_source)
-        img3 = self.upload_image(self.user, self.private_source)
-
-        # Change the source default point-gen method
-        self.private_source.default_point_generation_method = \
+        # Change the source default point-gen method, so that it doesn't match
+        # any of the images'
+        self.source.default_point_generation_method = \
             PointGen.args_to_db_format(
                 point_generation_type=PointGen.Types.UNIFORM,
                 number_of_cell_rows=1, number_of_cell_columns=2)
-        self.private_source.save()
+        self.source.save()
 
-        # Accessing the view
-        url = reverse(self.action_url_name, args=[img.pk])
-        self.assertPermissionDenied(url, None, post_data={})
-        self.assertPermissionDenied(url, self.user_outsider, post_data={})
-        self.assertPermissionDenied(url, self.user_viewer, post_data={})
-        # Use different images so we can re-test after a successful reset
-        self.assertPermissionGranted(
-            reverse(self.action_url_name, args=[img2.pk]),
-            self.user_editor, post_data={})
-        self.assertPermissionGranted(
-            reverse(self.action_url_name, args=[img3.pk]),
-            self.user_admin, post_data={})
-
-        # Displaying the action button
-        # (Logged out users can't see the image detail page)
-        # (Outsider users can't see the image detail page)
-        self.assertLinkAbsent(self.user_viewer, img)
-        self.assertLinkPresent(self.user_editor, img)
-        self.assertLinkPresent(self.user_admin, img)
+        self.source_to_private()
+        self.assertCorrectPermissionsForPrivateSource()
 
     def test_permission_public_source(self):
-        img = self.upload_image(self.user, self.public_source)
-        img2 = self.upload_image(self.user, self.public_source)
-        img3 = self.upload_image(self.user, self.public_source)
-
-        # Change the source default point-gen method
-        self.public_source.default_point_generation_method = \
+        # Change the source default point-gen method, so that it doesn't match
+        # any of the images'
+        self.source.default_point_generation_method = \
             PointGen.args_to_db_format(
                 point_generation_type=PointGen.Types.UNIFORM,
                 number_of_cell_rows=1, number_of_cell_columns=2)
-        self.public_source.save()
+        self.source.save()
 
-        # Accessing the view
-        url = reverse(self.action_url_name, args=[img.pk])
-        self.assertPermissionDenied(url, None, post_data={})
-        self.assertPermissionDenied(url, self.user_outsider, post_data={})
-        self.assertPermissionDenied(url, self.user_viewer, post_data={})
-        # Use different images so we can re-test after a successful reset
-        self.assertPermissionGranted(
-            reverse(self.action_url_name, args=[img2.pk]),
-            self.user_editor, post_data={})
-        self.assertPermissionGranted(
-            reverse(self.action_url_name, args=[img3.pk]),
-            self.user_admin, post_data={})
-
-        # Displaying the action button
-        self.assertLinkAbsent(None, img)
-        self.assertLinkAbsent(self.user_outsider, img)
-        self.assertLinkAbsent(self.user_viewer, img)
-        self.assertLinkPresent(self.user_editor, img)
-        self.assertLinkPresent(self.user_admin, img)
+        self.source_to_public()
+        self.assertCorrectPermissionsForPublicSource()
 
     def test_success(self):
         img = self.upload_image(self.user, self.source)
@@ -520,49 +408,41 @@ class ResetPointGenTest(ImageDetailActionBaseTest, UploadAnnotationsTestMixin):
             msg="Source's point gen method should match the image's")
 
     def test_deny_if_all_points_have_confirmed_annotations(self):
-        img = self.upload_image(self.user, self.source)
-        self.add_annotations(self.user, img, {1: 'A', 2: 'B'})
+        self.add_annotations(self.user, self.img, {1: 'A', 2: 'B'})
 
-        self.assertLinkAbsent(self.user, img)
+        self.assertLinkAbsent(self.user, self.img)
         self.assertActionDenyMessage(
-            self.user, img, "annotation area is not editable")
+            self.user, self.img, "annotation area is not editable")
 
     def test_deny_if_some_points_have_confirmed_annotations(self):
-        img = self.upload_image(self.user, self.source)
-        self.add_annotations(self.user, img, {1: 'A'})
+        self.add_annotations(self.user, self.img, {1: 'A'})
 
-        self.assertLinkAbsent(self.user, img)
+        self.assertLinkAbsent(self.user, self.img)
         self.assertActionDenyMessage(
-            self.user, img, "annotation area is not editable")
+            self.user, self.img, "annotation area is not editable")
 
     def test_deny_if_imported_points(self):
-        img = self.upload_image(self.user, self.source)
+        self.upload_points_for_image(self.img)
 
-        self.upload_points_for_image(img)
-
-        self.assertLinkAbsent(self.user, img)
+        self.assertLinkAbsent(self.user, self.img)
         self.assertActionDenyMessage(
-            self.user, img, "annotation area is not editable")
+            self.user, self.img, "annotation area is not editable")
 
     def test_hide_button_if_point_gen_method_is_default(self):
         """
         It doesn't hurt to still make this function internally available,
         but there's no real use case, so we shouldn't show the button.
         """
-        img = self.upload_image(self.user, self.source)
-
-        self.assertLinkAbsent(self.user, img)
+        self.assertLinkAbsent(self.user, self.img)
 
     def test_show_button_if_point_gen_method_is_not_default(self):
-        img = self.upload_image(self.user, self.source)
-
         self.source.default_point_generation_method = \
             PointGen.args_to_db_format(
                 point_generation_type=PointGen.Types.UNIFORM,
                 number_of_cell_rows=1, number_of_cell_columns=2)
         self.source.save()
 
-        self.assertLinkPresent(self.user, img)
+        self.assertLinkPresent(self.user, self.img)
 
 
 class ResetAnnotationAreaTest(
@@ -570,64 +450,23 @@ class ResetAnnotationAreaTest(
     action_url_name = 'image_reset_annotation_area'
 
     def test_permission_private_source(self):
-        img = self.upload_image(self.user, self.private_source)
-        img2 = self.upload_image(self.user, self.private_source)
-        img3 = self.upload_image(self.user, self.private_source)
-
-        # Change the default annotation area
-        self.private_source.image_annotation_area = \
+        # Change the default annotation area so that it doesn't match any of
+        # the images'
+        self.source.image_annotation_area = \
             AnnotationAreaUtils.percentages_to_db_format(5, 95, 5, 95)
-        self.private_source.save()
+        self.source.save()
 
-        # Accessing the view
-        url = reverse(self.action_url_name, args=[img.pk])
-        self.assertPermissionDenied(url, None, post_data={})
-        self.assertPermissionDenied(url, self.user_outsider, post_data={})
-        self.assertPermissionDenied(url, self.user_viewer, post_data={})
-        # Use different images so we can re-test after a successful reset
-        self.assertPermissionGranted(
-            reverse(self.action_url_name, args=[img2.pk]),
-            self.user_editor, post_data={})
-        self.assertPermissionGranted(
-            reverse(self.action_url_name, args=[img3.pk]),
-            self.user_admin, post_data={})
-
-        # Displaying the action button
-        # (Logged out users can't see the image detail page)
-        # (Outsider users can't see the image detail page)
-        self.assertLinkAbsent(self.user_viewer, img)
-        self.assertLinkPresent(self.user_editor, img)
-        self.assertLinkPresent(self.user_admin, img)
+        self.source_to_private()
+        self.assertCorrectPermissionsForPrivateSource()
 
     def test_permission_public_source(self):
-        img = self.upload_image(self.user, self.public_source)
-        img2 = self.upload_image(self.user, self.public_source)
-        img3 = self.upload_image(self.user, self.public_source)
-
         # Change the default annotation area
-        self.public_source.image_annotation_area = \
+        self.source.image_annotation_area = \
             AnnotationAreaUtils.percentages_to_db_format(5, 95, 5, 95)
-        self.public_source.save()
+        self.source.save()
 
-        # Accessing the view
-        url = reverse(self.action_url_name, args=[img.pk])
-        self.assertPermissionDenied(url, None, post_data={})
-        self.assertPermissionDenied(url, self.user_outsider, post_data={})
-        self.assertPermissionDenied(url, self.user_viewer, post_data={})
-        # Use different images so we can re-test after a successful reset
-        self.assertPermissionGranted(
-            reverse(self.action_url_name, args=[img2.pk]),
-            self.user_editor, post_data={})
-        self.assertPermissionGranted(
-            reverse(self.action_url_name, args=[img3.pk]),
-            self.user_admin, post_data={})
-
-        # Displaying the action button
-        self.assertLinkAbsent(None, img)
-        self.assertLinkAbsent(self.user_outsider, img)
-        self.assertLinkAbsent(self.user_viewer, img)
-        self.assertLinkPresent(self.user_editor, img)
-        self.assertLinkPresent(self.user_admin, img)
+        self.source_to_public()
+        self.assertCorrectPermissionsForPublicSource()
 
     def test_success(self):
         img = self.upload_image(self.user, self.source)
@@ -663,55 +502,44 @@ class ResetAnnotationAreaTest(
             msg="Source's annotation area should match the image's")
 
     def test_deny_if_all_points_have_confirmed_annotations(self):
-        img = self.upload_image(self.user, self.source)
-        self.add_annotations(self.user, img, {1: 'A', 2: 'B'})
+        self.add_annotations(self.user, self.img, {1: 'A', 2: 'B'})
 
-        self.assertLinkAbsent(self.user, img)
+        self.assertLinkAbsent(self.user, self.img)
         self.assertActionDenyMessage(
-            self.user, img, "annotation area is not editable")
+            self.user, self.img, "annotation area is not editable")
 
     def test_deny_if_some_points_have_confirmed_annotations(self):
-        img = self.upload_image(self.user, self.source)
-        self.add_annotations(self.user, img, {1: 'A'})
+        self.add_annotations(self.user, self.img, {1: 'A'})
 
-        self.assertLinkAbsent(self.user, img)
+        self.assertLinkAbsent(self.user, self.img)
         self.assertActionDenyMessage(
-            self.user, img, "annotation area is not editable")
+            self.user, self.img, "annotation area is not editable")
 
     def test_deny_if_imported_points(self):
-        img = self.upload_image(
-            self.user, self.source, image_options=dict(filename='1.png'))
+        self.upload_points_for_image(self.img)
 
-        self.upload_points_for_image(img)
-
-        self.assertLinkAbsent(self.user, img)
+        self.assertLinkAbsent(self.user, self.img)
         self.assertActionDenyMessage(
-            self.user, img, "annotation area is not editable")
+            self.user, self.img, "annotation area is not editable")
 
     def test_hide_button_if_annotation_area_is_default(self):
         """
         It doesn't hurt to still make this function internally available,
         but there's no real use case, so we shouldn't show the button.
         """
-        img = self.upload_image(self.user, self.source)
-
-        self.assertLinkAbsent(self.user, img)
+        self.assertLinkAbsent(self.user, self.img)
 
     def test_show_button_if_source_annotation_area_changed(self):
-        img = self.upload_image(self.user, self.source)
-
         self.source.image_annotation_area = \
             AnnotationAreaUtils.percentages_to_db_format(12, 88, 12, 88)
         self.source.save()
 
-        self.assertLinkPresent(self.user, img)
+        self.assertLinkPresent(self.user, self.img)
 
     def test_show_button_if_image_specific_annotation_area(self):
-        img = self.upload_image(self.user, self.source)
-
         self.client.force_login(self.user)
         self.client.post(
-            reverse('annotation_area_edit', args=[img.pk]),
+            reverse('annotation_area_edit', args=[self.img.pk]),
             data=dict(min_x=10, max_x=200, min_y=10, max_y=200))
 
-        self.assertLinkPresent(self.user, img)
+        self.assertLinkPresent(self.user, self.img)

@@ -11,8 +11,6 @@ from lib.tests.utils import ClientTest
 
 class BaseAPITest(ClientTest):
 
-    longMessage = True
-
     def setUp(self):
         super(BaseAPITest, self).setUp()
 

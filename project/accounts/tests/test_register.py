@@ -8,30 +8,65 @@ from django.core import mail
 from django.urls import reverse
 from django.utils.html import escape
 
+from lib.tests.utils import BasePermissionTest
 from .utils import BaseAccountsTest
 
 User = get_user_model()
+
+
+class PermissionTest(BasePermissionTest):
+    """Test permissions for registration and activation views."""
+
+    def test_register(self):
+        url = reverse('django_registration_register')
+        template = 'django_registration/registration_form.html'
+
+        self.assertPermissionLevel(
+            url, self.SIGNED_OUT, template=template)
+
+    def test_registration_complete(self):
+        url = reverse('django_registration_complete')
+        template = 'django_registration/registration_complete.html'
+
+        self.assertPermissionLevel(
+            url, self.SIGNED_OUT, template=template)
+
+    def test_activate(self):
+        url = reverse('django_registration_activate', args=['a'])
+        template = 'django_registration/activation_failed.html'
+
+        self.assertPermissionLevel(
+            url, self.SIGNED_OUT, template=template)
+
+    def test_activation_complete(self):
+        url = reverse('django_registration_activation_complete')
+        template = 'django_registration/activation_complete.html'
+
+        self.assertPermissionLevel(
+            url, self.SIGNED_OUT, template=template)
+
+    def test_activation_resend(self):
+        url = reverse('activation_resend')
+        template = 'django_registration/activation_resend_form.html'
+
+        self.assertPermissionLevel(
+            url, self.SIGNED_OUT, template=template)
+
+    def test_activation_resend_complete(self):
+        url = reverse('activation_resend_complete')
+        template = 'django_registration/activation_resend_complete.html'
+
+        self.assertPermissionLevel(
+            url, self.SIGNED_OUT, template=template)
 
 
 class RegisterTest(BaseAccountsTest):
 
     def test_load_page(self):
         response = self.client.get(reverse('django_registration_register'))
-        self.assertTemplateUsed(
-            response, 'django_registration/registration_form.html')
         self.assertContains(
             response, settings.ACCOUNT_QUESTIONS_LINK,
             msg_prefix="Account questions link should be on the page")
-
-    def test_load_page_when_signed_in(self):
-        """
-        Can still reach the register page as a signed in user. There's not
-        a major use case, but nothing inherently wrong with it either.
-        """
-        self.client.force_login(self.user)
-        response = self.client.get(reverse('django_registration_register'))
-        self.assertTemplateUsed(
-            response, 'django_registration/registration_form.html')
 
     def test_success(self):
         response = self.register()
@@ -437,11 +472,6 @@ class ActivateTest(BaseAccountsTest):
 
 
 class ActivationResendTest(BaseAccountsTest):
-
-    def test_load_page(self):
-        response = self.client.get(reverse('activation_resend'))
-        self.assertTemplateUsed(
-            response, 'django_registration/activation_resend_form.html')
 
     def test_success(self):
         # Register. This sends an email.

@@ -8,7 +8,40 @@ from django.core.files.base import ContentFile
 from django.urls import reverse
 
 from images.models import Image
-from lib.tests.utils import ClientTest, sample_image_as_file
+from lib.tests.utils import (
+    BasePermissionTest, ClientTest, sample_image_as_file)
+
+
+class PermissionTest(BasePermissionTest):
+
+    def test_metadata(self):
+        url = reverse('upload_metadata', args=[self.source.pk])
+        template = 'upload/upload_metadata.html'
+
+        self.source_to_private()
+        self.assertPermissionLevel(url, self.SOURCE_EDIT, template=template)
+        self.source_to_public()
+        self.assertPermissionLevel(url, self.SOURCE_EDIT, template=template)
+
+    def test_metadata_preview_ajax(self):
+        url = reverse('upload_metadata_preview_ajax', args=[self.source.pk])
+
+        self.source_to_private()
+        self.assertPermissionLevel(
+            url, self.SOURCE_EDIT, is_json=True, post_data={})
+        self.source_to_public()
+        self.assertPermissionLevel(
+            url, self.SOURCE_EDIT, is_json=True, post_data={})
+
+    def test_metadata_ajax(self):
+        url = reverse('upload_metadata_ajax', args=[self.source.pk])
+
+        self.source_to_private()
+        self.assertPermissionLevel(
+            url, self.SOURCE_EDIT, is_json=True, post_data={})
+        self.source_to_public()
+        self.assertPermissionLevel(
+            url, self.SOURCE_EDIT, is_json=True, post_data={})
 
 
 class UploadMetadataTest(ClientTest):

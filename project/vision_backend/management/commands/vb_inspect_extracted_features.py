@@ -10,7 +10,7 @@ from lib.utils import direct_s3_read
 
 from vision_backend.tasks import reset_features
 
-from utils import log
+from .utils import log
 
 
 class Command(BaseCommand):

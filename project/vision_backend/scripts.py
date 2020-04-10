@@ -114,7 +114,7 @@ def setup_source_for_import(annfile_path, sourcename):
 def chunkify_source_for_image_import(chunklist, source_path):
     f = open(os.path.join(source_path, 'imdict.p'), 'r')
     anns = pickle.load(f)
-    imlist = anns.keys()
+    imlist = list(anns.keys())
     random.shuffle(imlist)
     if sum(chunklist)>len(imlist):
         raise ValueError('not enough images in source (asked {}, has {})'.format(sum(chunklist), len(imlist)))

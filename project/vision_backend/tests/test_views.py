@@ -130,11 +130,16 @@ class BackendMainTest(ClientTest):
         self.create_labelset(self.user, source, labels)
 
         robot = self.create_robot(source)
+        # Every label twice, except '30' and '31' which appear once.
+        # This gives us 50 'most common' labels and 2 labels which will be
+        # grouped into 'OTHER'.
+        annotations_as_label_indices = list(range(0, 51+1)) * 2
+        annotations_as_label_indices.remove(30)
+        annotations_as_label_indices.remove(31)
         valres = dict(
             classes=[labels.get(name=name).pk for name in label_names],
-            # Every label twice, except '30' and '31' which appear once
-            gt=range(0, 51+1) + range(0, 29+1) + range(32, 51+1),
-            est=range(0, 51+1) + range(0, 29+1) + range(32, 51+1),
+            gt=annotations_as_label_indices,
+            est=annotations_as_label_indices,
             scores=[.8]*102,
         )
 

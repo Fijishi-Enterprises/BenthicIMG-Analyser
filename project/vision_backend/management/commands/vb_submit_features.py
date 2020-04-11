@@ -29,7 +29,7 @@ class Command(BaseCommand):
         if options['mode'] == 'individual':
             assert options['source_ids']
             
-            print "Running in individual mode and confirmed_only: {}".format(confirmed_only)
+            print("Running in individual mode and confirmed_only: {}".format(confirmed_only))
             for source_id in options['source_ids']:
                 source = Source.objects.get(id=source_id)
 
@@ -37,7 +37,7 @@ class Command(BaseCommand):
                 if confirmed_only:
                     images = images.filter(confirmed=True)
                     
-                print u"Submitting {} jobs for {}... ".format(images.count(), source.name)
+                print(u"Submitting {} jobs for {}... ".format(images.count(), source.name))
                 
                 for image in images:
                     submit_features.delay(image.id)
@@ -47,7 +47,7 @@ class Command(BaseCommand):
 
             nbr_images = options['nbr_images'][0]
 
-            print "Running in parallel mode with {} images and confirmed_only: {}".format(nbr_images, confirmed_only)
+            print("Running in parallel mode with {} images and confirmed_only: {}".format(nbr_images, confirmed_only))
             for source in Source.objects.filter().order_by('-id'):
 
                 images = Image.objects.filter(source=source, features__extracted=False)
@@ -55,7 +55,7 @@ class Command(BaseCommand):
                     images = images.filter(confirmed=True)
                 images = images[:nbr_images]
 
-                print u"Submitting {} jobs for {}... ".format(images.count(), source.name)
+                print(u"Submitting {} jobs for {}... ".format(images.count(), source.name))
 
                 for image in images:
                     submit_features.delay(image.id)

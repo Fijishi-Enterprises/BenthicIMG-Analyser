@@ -13,15 +13,15 @@ def compare_requirements(mode, reqdir):
 	base = read_reqfile(os.path.join(reqdir, 'base.txt'))
 	extra = read_reqfile(os.path.join(reqdir, '{}.txt'.format(mode)))
 	total_req = base.union(extra)
-	print "Extra installed:" 
+	print("Extra installed:")
 	print_set(current.difference(total_req))
-	print "Missing:"
+	print("Missing:")
 	print_set(total_req.difference(current))
 
 
 def print_set(_set):
 	for member in _set:
-		print member
+		print(member)
 
 
 def pip_freeze():

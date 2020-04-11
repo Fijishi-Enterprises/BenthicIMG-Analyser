@@ -14,9 +14,9 @@ def print_image_scores(image_id):
     """
     points = Point.objects.filter(image_id = image_id).order_by('id')
     for enu, point in enumerate(points):
-        print '===', enu, point.row, point.column, '==='
+        print('===', enu, point.row, point.column, '===')
         for score in Score.objects.filter(point = point):
-            print score.label, score.score
+            print(score.label, score.score)
 
 
 def export_labels_json(filename):
@@ -102,7 +102,7 @@ def setup_source_for_import(annfile_path, sourcename):
     # Create them for this source
     labelset = LabelSet.objects.get(source__name = sourcename)
     for name in labellist:
-        print name
+        print(name)
         label = Label.objects.get(name = name)
         LocalLabel(
             global_label = label,

@@ -88,7 +88,7 @@ class VisionBackendRegressionTest(ClientTest):
         Upload an image.
         """
         if self.cur + 1 == len(self.imfiles):
-            print "Already uploaded all images."
+            print("Already uploaded all images.")
             return
         img = self.imfiles[self.cur]
 
@@ -106,7 +106,7 @@ class VisionBackendRegressionTest(ClientTest):
         """
         Creates source and labelset. Also creates global labels if needed.
         """
-        print "Setting up: {}".format(self.source_name)
+        print("Setting up: {}".format(self.source_name))
         if Source.objects.filter(name=self.source_name).exists():
             Source.objects.filter(name=self.source_name).delete()
         

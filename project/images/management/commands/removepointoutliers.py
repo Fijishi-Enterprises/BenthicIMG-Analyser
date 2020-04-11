@@ -34,7 +34,7 @@ class Command(BaseCommand):
             db = json.loads(f.read())
 
             for image_pk in db.keys():
-                print image_pk, len(db[image_pk])
+                print(image_pk, len(db[image_pk]))
 
         if options['mode'] == 'clean':
             f = open(options['file'], 'r')

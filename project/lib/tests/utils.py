@@ -5,6 +5,7 @@ from contextlib import contextmanager
 from io import BytesIO
 import json
 import math
+import mock
 import posixpath
 import random
 import six
@@ -943,6 +944,55 @@ class BasePermissionTest(ClientTest):
 
                     raise ValueError(
                         "Unsupported deny_type: {}".format(deny_type))
+
+
+class ManagementCommandTest(ClientTest):
+    """
+    Testing management commands.
+    Inherits from ClientTest because the client is still useful for setting up
+    data.
+    """
+    @staticmethod
+    def call_command_and_get_output(
+            app_name, command_name, patch_input=False, patch_input_value='y',
+            args=None, options=None):
+        """
+        Based loosely on: https://stackoverflow.com/questions/59382486/
+        """
+        args = args or []
+        options = options or dict()
+
+        # Store output here instead of printing to console.
+        # Django wants this to take bytes on Py2 and Unicode on Py3, so we
+        # have to use six.StringIO instead of io.StringIO during the 2 to 3
+        # transition.
+        stdout = six.StringIO()
+        options['stdout'] = stdout
+        # tqdm output, for example, would go to stderr.
+        stderr = six.StringIO()
+        options['stderr'] = stderr
+
+        if patch_input:
+
+            patch_target = '{}.management.commands.{}.six.moves.input'.format(
+                app_name, command_name)
+
+            def input_without_prompt(message):
+                # Instead of prompting for user input, this just returns a
+                # constant value.
+                return patch_input_value
+
+            with mock.patch(patch_target, input_without_prompt):
+                management.call_command(command_name, *args, **options)
+
+        else:
+
+            # If the command's module doesn't import six, it'll get an error.
+            # So we only patch `input` when asked to. (This could be
+            # simplified if we no longer use six later.)
+            management.call_command(command_name, *args, **options)
+
+        return stdout.getvalue().rstrip(), stderr.getvalue().rstrip()
 
 
 def create_sample_image(width=200, height=200, cols=10, rows=10, mode='RGB'):

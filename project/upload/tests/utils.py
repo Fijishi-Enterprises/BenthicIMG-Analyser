@@ -7,6 +7,8 @@ import six
 from django.core.files.base import ContentFile
 from django.urls import reverse
 
+from lib.tests.utils import ClientTest
+
 
 # Abstract class
 @six.add_metaclass(ABCMeta)
@@ -89,3 +91,7 @@ class UploadAnnotationsTestMixin(object):
         return self.client.post(
             reverse('upload_annotations_ajax', args=[source.pk]),
         )
+
+
+class UploadAnnotationsBaseTest(ClientTest, UploadAnnotationsTestMixin):
+    pass

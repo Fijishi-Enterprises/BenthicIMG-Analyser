@@ -1,3 +1,4 @@
+from __future__ import division
 from collections import OrderedDict
 import datetime
 import math
@@ -233,8 +234,8 @@ def calculate_points(img,
             # Assign each random point to the cell it belongs in.
             # This is all int math, so no floor(), int(), etc. needed.
             # But remember to not divide until the end.
-            r = ((p['row'] - annoarea_min_row) * NUM_OF_CELL_ROWS) / annoarea_height
-            c = ((p['column'] - annoarea_min_col) * NUM_OF_CELL_COLUMNS) / annoarea_width
+            r = ((p['row'] - annoarea_min_row) * NUM_OF_CELL_ROWS) // annoarea_height
+            c = ((p['column'] - annoarea_min_col) * NUM_OF_CELL_COLUMNS) // annoarea_width
 
             cell[r][c].append(p)
 
@@ -253,12 +254,12 @@ def calculate_points(img,
         # Each pixel of the annotation area goes in exactly one cell.
         # Cell widths and heights are within one pixel of each other.
         for row_num in range(0, number_of_cell_rows):
-            row_min = ((row_num * annoarea_height) / number_of_cell_rows) + annoarea_min_row
-            row_max = (((row_num+1) * annoarea_height) / number_of_cell_rows) + annoarea_min_row - 1
+            row_min = ((row_num * annoarea_height) // number_of_cell_rows) + annoarea_min_row
+            row_max = (((row_num+1) * annoarea_height) // number_of_cell_rows) + annoarea_min_row - 1
 
             for col_num in range(0, number_of_cell_columns):
-                col_min = ((col_num * annoarea_width) / number_of_cell_columns) + annoarea_min_col
-                col_max = (((col_num+1) * annoarea_width) / number_of_cell_columns) + annoarea_min_col - 1
+                col_min = ((col_num * annoarea_width) // number_of_cell_columns) + annoarea_min_col
+                col_max = (((col_num+1) * annoarea_width) // number_of_cell_columns) + annoarea_min_col - 1
 
                 for cell_point_num in range(0, stratified_points_per_cell):
                     row = random.randint(row_min, row_max)
@@ -272,14 +273,14 @@ def calculate_points(img,
         point_num = 1
 
         for row_num in range(0, number_of_cell_rows):
-            row_min = ((row_num * annoarea_height) / number_of_cell_rows) + annoarea_min_row
-            row_max = (((row_num+1) * annoarea_height) / number_of_cell_rows) + annoarea_min_row - 1
-            row_mid = int(math.floor( (row_min+row_max) / 2.0 ))
+            row_min = ((row_num * annoarea_height) // number_of_cell_rows) + annoarea_min_row
+            row_max = (((row_num+1) * annoarea_height) // number_of_cell_rows) + annoarea_min_row - 1
+            row_mid = (row_min+row_max) // 2
 
             for col_num in range(0, number_of_cell_columns):
-                col_min = ((col_num * annoarea_width) / number_of_cell_columns) + annoarea_min_col
-                col_max = (((col_num+1) * annoarea_width) / number_of_cell_columns) + annoarea_min_col - 1
-                col_mid = int(math.floor( (col_min+col_max) / 2.0 ))
+                col_min = ((col_num * annoarea_width) // number_of_cell_columns) + annoarea_min_col
+                col_max = (((col_num+1) * annoarea_width) // number_of_cell_columns) + annoarea_min_col - 1
+                col_mid = (col_min+col_max) // 2
 
                 points.append(dict(row=row_mid, column=col_mid, point_number=point_num))
                 point_num += 1

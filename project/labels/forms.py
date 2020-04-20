@@ -152,7 +152,7 @@ def labels_csv_process(csv_stream, source):
         local_labels[global_pk].global_label_id = label_data['global_label_id']
 
     # Dict -> flat iterable.
-    local_labels = local_labels.values()
+    local_labels = list(local_labels.values())
 
     try:
         detect_dupe_label_codes(local_labels)

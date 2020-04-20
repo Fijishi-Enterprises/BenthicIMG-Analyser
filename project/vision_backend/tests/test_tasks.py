@@ -214,4 +214,4 @@ class ClassifyUtilsTest(ClientTest):
             ann = point.annotation
             scores = Score.objects.filter(point=point)
             posteriors = [score.score for score in scores]
-            self.assertEqual(scores[np.argmax(posteriors)].label, ann.label)
+            self.assertEqual(scores[int(np.argmax(posteriors))].label, ann.label)

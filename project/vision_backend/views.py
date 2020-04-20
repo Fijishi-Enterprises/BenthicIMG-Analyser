@@ -1,5 +1,6 @@
+from __future__ import division
 import json
-import csv
+from backports import csv
 
 import numpy as np
 
@@ -34,18 +35,24 @@ def backend_overview(request):
         'nclassified': nclassified, 
         'nextracted': nextracted,
         'nnaked': nnaked,
-        'fextracted': '{:.1f}'.format(100*float(nextracted) / nimgs),
-        'fconfirmed': '{:.1f}'.format(100*float(nconfirmed) / nimgs),
-        'fclassified': '{:.1f}'.format(100*float(nclassified) / nimgs),
-        'fnaked': '{:.1f}'.format(100*float(nnaked) / nimgs)
+        'fextracted': '{:.1f}'.format(100*nextracted / nimgs),
+        'fconfirmed': '{:.1f}'.format(100*nconfirmed / nimgs),
+        'fclassified': '{:.1f}'.format(100*nclassified / nimgs),
+        'fnaked': '{:.1f}'.format(100*nnaked / nimgs)
     }
 
     clf_stats = {
         'nclassifiers': Classifier.objects.filter().count(),
         'nvalidclassifiers': Classifier.objects.filter(valid=True).count(),
         'nsources': Source.objects.filter().count(),
-        'valid_ratio': '{:.1f}'.format(float(Classifier.objects.filter(valid=True).count()) / Source.objects.filter().count())
+        'valid_ratio': '{:.1f}'.format(Classifier.objects.filter(valid=True).count() / Source.objects.filter().count())
     }
+
+    def first_queue_length(inspect_category):
+        # For a given inspect category, there should be only one queue (e.g.
+        # 'celery@Ubuntu'). This function gets the length of that queue.
+        first_queue = next(iter(inspect_category.values()))
+        return len(first_queue)
 
     i = inspect()
     isch = i.scheduled()
@@ -53,9 +60,9 @@ def backend_overview(request):
     iqu = i.reserved()
     q_stats = {
         'spacer': get_total_messages_in_jobs_queue(),
-        'celery_scheduled': len(isch.itervalues().next()),
-        'celery_active': len(iact.itervalues().next()),
-        'celery_queued': len(iqu.itervalues().next()),
+        'celery_scheduled': first_queue_length(isch),
+        'celery_active': first_queue_length(iact),
+        'celery_queued': first_queue_length(iqu),
     }
 
     laundry_list = []
@@ -119,7 +126,7 @@ def backend_main(request, source_id):
     cm = ConfMatrix(len(classnames), labelset = classnames)
 
     # Add datapoints above the threhold.
-    cm.add_select(map_labels(valres['gt'], classmap), map_labels(valres['est'], classmap), valres['scores'], confidence_threshold / 100.0)
+    cm.add_select(map_labels(valres['gt'], classmap), map_labels(valres['est'], classmap), valres['scores'], confidence_threshold / 100)
 
     # Sort by descending order.
     cm.sort()

@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+import six
 
 from django.shortcuts import resolve_url
 
@@ -26,31 +27,41 @@ class BaseExportTest(ClientTest):
         """POST to export_annotations, and return the response."""
         self.client.force_login(self.user)
         return self.client.post(
-            resolve_url('export_annotations', self.source.pk), post_data)
+            resolve_url('export_annotations', self.source.pk), post_data,
+            follow=True)
 
     def export_image_covers(self, post_data):
         """POST to export_image_covers, and return the response."""
         self.client.force_login(self.user)
         return self.client.post(
-            resolve_url('export_image_covers', self.source.pk), post_data)
+            resolve_url('export_image_covers', self.source.pk), post_data,
+            follow=True)
 
     def export_metadata(self, post_data):
         """POST to export_metadata, and return the response."""
         self.client.force_login(self.user)
         return self.client.post(
-            resolve_url('export_metadata', self.source.pk), post_data)
+            resolve_url('export_metadata', self.source.pk), post_data,
+            follow=True)
 
     def assert_csv_content_equal(self, actual_csv_content, expected_lines):
         """
         Tests that a CSV's content is as expected.
 
-        :param actual_csv_content: CSV content from the export view's response.
+        :param actual_csv_content: CSV content from the export view's
+          response, as either a Unicode string or a bytes-like object
+          (bytes if passing response.content into here directly, Unicode if
+          pre-processed first).
         :param expected_lines: List of strings, without newline characters,
           representing the expected line contents. Note that this is a
           different format from actual_csv_content, just because it's easier
           to type non-newline strings in Python code.
         Throws AssertionError if actual and expected CSVs are not equal.
         """
+        # Convert from bytes to Unicode if necessary.
+        if isinstance(actual_csv_content, six.binary_type):
+            actual_csv_content = actual_csv_content.decode('utf-8')
+
         # The Python csv module uses \r\n by default (as part of the Excel
         # dialect). Due to the way we compare line by line, splitting on
         # \n would mess up the comparison, so we use split() instead of

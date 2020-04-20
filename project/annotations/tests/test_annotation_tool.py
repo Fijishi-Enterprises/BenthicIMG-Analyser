@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+import datetime
 import six
 
 from bs4 import BeautifulSoup
@@ -160,7 +161,7 @@ class NavigationTest(ClientTest):
             reverse('annotation_tool', args=[self.img1.pk]))
         self.assertEqual(response.context['prev_image'].pk, self.img3.pk)
 
-    def test_next_with_search_filter(self):
+    def test_search_filter_aux_meta(self):
         self.img1.metadata.aux1 = 'SiteA'
         self.img1.metadata.save()
         self.img2.metadata.aux1 = 'SiteB'
@@ -172,17 +173,81 @@ class NavigationTest(ClientTest):
         post_data = self.default_search_params.copy()
         post_data['aux1'] = 'SiteA'
 
+        # img1 next -> img3
         self.client.force_login(self.user)
         response = self.client.post(
             reverse('annotation_tool', args=[self.img1.pk]), post_data)
         self.assertEqual(response.context['next_image'].pk, self.img3.pk)
+        self.assertContains(response, "Filtering by: aux1")
 
-    def test_prev_with_image_id_filter(self):
+    def test_search_filter_year(self):
+        self.img1.metadata.photo_date = datetime.date(2020, 4, 9)
+        self.img1.metadata.save()
+        self.img2.metadata.photo_date = datetime.date(2019, 12, 31)
+        self.img2.metadata.save()
+        self.img3.metadata.photo_date = datetime.date(2020, 1, 1)
+        self.img3.metadata.save()
+
+        # Exclude img2 with the filter
+        post_data = self.default_search_params.copy()
+        post_data['date_filter_0'] = 'year'
+        post_data['date_filter_1'] = '2020'
+
+        # img1 next -> img3
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse('annotation_tool', args=[self.img1.pk]), post_data)
+        self.assertEqual(response.context['next_image'].pk, self.img3.pk)
+        self.assertContains(response, "Filtering by: year")
+
+    def test_search_filter_date(self):
+        self.img1.metadata.photo_date = datetime.date(2020, 4, 1)
+        self.img1.metadata.save()
+        self.img2.metadata.photo_date = datetime.date(2020, 4, 2)
+        self.img2.metadata.save()
+        self.img3.metadata.photo_date = datetime.date(2020, 4, 1)
+        self.img3.metadata.save()
+
+        # Exclude img2 with the filter
+        post_data = self.default_search_params.copy()
+        post_data['date_filter_0'] = 'date'
+        post_data['date_filter_2'] = '2020-04-01'
+
+        # img1 next -> img3
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse('annotation_tool', args=[self.img1.pk]), post_data)
+        self.assertEqual(response.context['next_image'].pk, self.img3.pk)
+        self.assertContains(response, "Filtering by: date")
+
+    def test_search_filter_date_range(self):
+        self.img1.metadata.photo_date = datetime.date(2020, 3, 18)
+        self.img1.metadata.save()
+        self.img2.metadata.photo_date = datetime.date(2020, 3, 21)
+        self.img2.metadata.save()
+        self.img3.metadata.photo_date = datetime.date(2020, 3, 12)
+        self.img3.metadata.save()
+
+        # Exclude img2 with the filter
+        post_data = self.default_search_params.copy()
+        post_data['date_filter_0'] = 'date_range'
+        post_data['date_filter_3'] = '2020-03-10'
+        post_data['date_filter_4'] = '2020-03-20'
+
+        # img1 next -> img3
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse('annotation_tool', args=[self.img1.pk]), post_data)
+        self.assertEqual(response.context['next_image'].pk, self.img3.pk)
+        self.assertContains(response, "Filtering by: date range")
+
+    def test_image_id_filter(self):
         # Exclude img2 with the filter
         post_data = self.default_search_params.copy()
         post_data['image_form_type'] = 'ids'
         post_data['ids'] = ','.join([str(self.img1.pk), str(self.img3.pk)])
 
+        # img3 prev -> img1
         self.client.force_login(self.user)
         response = self.client.post(
             reverse('annotation_tool', args=[self.img3.pk]), post_data)

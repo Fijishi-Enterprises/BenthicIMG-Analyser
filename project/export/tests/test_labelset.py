@@ -82,8 +82,7 @@ class GeneralTest(BaseExportTest, LabelTest):
             'Label ID,Short Code',
             '{id_A},あ'.format(id_A=self.labels['A'].pk),
         ])
-        self.assert_csv_content_equal(
-            response.content.decode('utf-8'), expected_lines)
+        self.assert_csv_content_equal(response.content, expected_lines)
 
     def test_rows_sorted_by_locallabel_code(self):
         """
@@ -118,8 +117,7 @@ class GeneralTest(BaseExportTest, LabelTest):
             '{id_A},2'.format(id_A=self.labels['A'].pk),
             '{id_C},3'.format(id_C=self.labels['C'].pk),
         ])
-        self.assert_csv_content_equal(
-            response.content.decode('utf-8'), expected_lines)
+        self.assert_csv_content_equal(response.content, expected_lines)
 
     def test_upload_and_export(self):
         """Test that we can upload a labelset CSV and then export the same

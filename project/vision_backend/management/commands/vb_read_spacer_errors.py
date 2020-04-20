@@ -6,7 +6,7 @@ from vision_backend.task_helpers import _read_message
 def read_error_messages():
     message = _read_message('spacer_errors')
     while message is not None:
-        print message.get_body()
+        print(message.get_body())
         message.delete()
         message = _read_message('spacer_errors')
 

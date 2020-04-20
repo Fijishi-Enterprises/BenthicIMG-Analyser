@@ -169,9 +169,13 @@ class DeployImagesParamErrorTest(DeployBaseTest):
         response = self.client.post(
             self.deploy_url, data, **self.request_kwargs)
 
-        self.assert_expected_400_error(
-            response, dict(
-                detail="JSON parse error - No JSON object could be decoded"))
+        # Exact error string depends on Python 2 vs. 3 (json module's error
+        # messages were updated), but we can at least check the start of it.
+        self.assertEqual(
+            response.status_code, status.HTTP_400_BAD_REQUEST,
+            "Should get 400")
+        error_detail = response.json()['errors'][0]['detail']
+        self.assertTrue(error_detail.startswith("JSON parse error"))
 
     def test_not_a_hash(self):
         data = '[]'
@@ -452,7 +456,7 @@ class SuccessTest(DeployBaseTest):
         deploy_job = ApiJob.objects.latest('pk')
 
         self.assertEqual(
-            response.content, '',
+            response.content.decode('utf-8'), '',
             "Response content should be empty")
 
         self.assertEqual(

@@ -7,6 +7,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.core.mail import mail_admins
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.utils.encoding import python_2_unicode_compatible
 
 from easy_thumbnails.fields import ThumbnailerImageField
 from guardian.shortcuts import (
@@ -31,6 +32,7 @@ class SourceManager(models.Manager):
         return self.get(name=name)
 
 
+@python_2_unicode_compatible
 class Source(models.Model):
     objects = SourceManager()
 
@@ -444,7 +446,7 @@ class Source(models.Model):
         return {field: to_ascii_str(getattr(self, field)) for
                 field in field_names}
 
-    def __unicode__(self):
+    def __str__(self):
         """
         To-string method.
         """
@@ -479,6 +481,7 @@ class SourceInvite(models.Model):
                 return permType.verbose
 
 
+@python_2_unicode_compatible
 class Metadata(models.Model):
     name = models.CharField("Name", max_length=200, blank=True)
     photo_date = models.DateField(
@@ -537,7 +540,7 @@ class Metadata(models.Model):
         'strobes', 'framing', 'balance', 'comments',
     ]
 
-    def __unicode__(self):
+    def __str__(self):
         return "Metadata of " + self.name
 
     def to_dict(self):
@@ -598,6 +601,7 @@ def get_original_image_upload_path(instance, filename):
         name=base_name, extension=posixpath.splitext(filename)[-1])
 
 
+@python_2_unicode_compatible
 class Image(models.Model):
     # width_field and height_field allow Django to cache the
     # width and height values, so that the image file doesn't have
@@ -661,7 +665,7 @@ class Image(models.Model):
     def trainset(self):
         return not self.valset
 
-    def __unicode__(self):
+    def __str__(self):
         return self.metadata.name
 
     def get_image_element_title(self):
@@ -733,6 +737,7 @@ class Image(models.Model):
             self.process_date.day)
 
 
+@python_2_unicode_compatible
 class Point(models.Model):
     row = models.IntegerField()
     column = models.IntegerField()
@@ -775,7 +780,7 @@ class Point(models.Model):
             # No scores means max(scores) will raise this
             return 0
 
-    def __unicode__(self):
+    def __str__(self):
         """
         To-string method.
         """

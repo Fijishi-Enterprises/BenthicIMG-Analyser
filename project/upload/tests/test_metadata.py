@@ -1250,7 +1250,7 @@ class UploadMetadataPreviewFormatTest(ClientTest):
             ),
         )
 
-    def test_utf8_chars(self):
+    def test_unicode(self):
         """
         Tolerate non-ASCII UTF-8 characters in the CSV.
         """

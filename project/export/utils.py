@@ -282,23 +282,23 @@ def write_annotations_cpc_based_on_prev_cpc(cpc_stream, img, cpc_prefs):
 
     # Copy first 5 lines
     for _ in range(5):
-        cpc_stream.write(old_cpc.next())
+        cpc_stream.write(next(old_cpc))
 
     # 6th line has the point count
-    point_count_line = old_cpc.next()
+    point_count_line = next(old_cpc)
     point_count = int(point_count_line.strip())
     cpc_stream.write(point_count_line)
 
     # Next point_count lines have the point positions
     for _ in range(point_count):
-        cpc_stream.write(old_cpc.next())
+        cpc_stream.write(next(old_cpc))
 
     # Next point_count lines have the labels.
     # Replace the label codes with the ones in CoralNet's DB.
     points = Point.objects.filter(image=img).order_by('point_number')
 
     for point in points:
-        old_line = old_cpc.next()
+        old_line = next(old_cpc)
         old_tokens = old_line.split(',')
         # Just change the label code, and ensure it's in double quotes.
         # The other tokens on this line stay the same (point number, notes).

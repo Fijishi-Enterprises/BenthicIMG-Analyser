@@ -9,7 +9,7 @@ from django.utils.timezone import now
 
 from datetime import timedelta
 
-import task_helpers as th
+from . import task_helpers as th
 
 from .models import Classifier, Score
 from annotations.models import Annotation

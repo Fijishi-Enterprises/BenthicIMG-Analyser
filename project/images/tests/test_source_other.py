@@ -386,7 +386,7 @@ class SourceMainTest(ClientTest):
                 reverse('profile_detail', args=[user_editor.pk]), "user3",
                 reverse('profile_detail', args=[user_viewer.pk]), "user2",
             ),
-            response.content)
+            response.content.decode('utf-8'))
 
     def test_source_fields_box_1(self):
         source = self.create_source(
@@ -409,7 +409,8 @@ class SourceMainTest(ClientTest):
             response, "Annotation point generation: Simple random, 5 points")
         self.assertContains(response, "Confidence threshold: 80%")
         self.assertInHTML(
-            '<br><br>This is a<br>multiline description.', response.content)
+            '<br><br>This is a<br>multiline description.',
+            response.content.decode('utf-8'))
 
     def test_source_fields_box_2(self):
         source = self.create_source(
@@ -488,19 +489,19 @@ class SourceMainTest(ClientTest):
             'Unclassified: <a href="{}">1</a>'.format(
                 reverse('browse_images', args=[source.pk])
                 + '?image_form_type=search&annotation_status=unclassified'),
-            response.content)
+            response.content.decode('utf-8'))
 
         self.assertInHTML(
             'Unconfirmed: <a href="{}">2</a>'.format(
                 reverse('browse_images', args=[source.pk])
                 + '?image_form_type=search&annotation_status=unconfirmed'),
-            response.content)
+            response.content.decode('utf-8'))
 
         self.assertInHTML(
             'Confirmed: <a href="{}">1</a>'.format(
                 reverse('browse_images', args=[source.pk])
                 + '?image_form_type=search&annotation_status=confirmed'),
-            response.content)
+            response.content.decode('utf-8'))
 
     @override_settings(MIN_NBR_ANNOTATED_IMAGES=3)
     def test_automated_annotation_section(self):

@@ -60,7 +60,7 @@ def get_source_stats():
         annlist = [a.label_id for a in s.annotation_set.exclude(user=get_robot_user())]
         if not annlist:
             continue
-        print s.name
+        print(s.name)
         sp = {}
         sp['name'] = s.name
         sp['lat'] = s.latitude
@@ -102,7 +102,7 @@ def find_duplicate_imagenames():
     """
     for source in Source.objects.filter():
         if not source.all_image_names_are_unique():
-            print '==== Source {}[{}] ===='.format(source.name, source.id)
+            print('==== Source {}[{}] ===='.format(source.name, source.id))
             dupes = 0
             for image in source.get_all_images().filter(metadata__name__in = source.get_nonunique_image_names()):
                 #print image.id, image.metadata.name

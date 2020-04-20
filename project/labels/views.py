@@ -300,7 +300,7 @@ def labelset_import_preview_ajax(request, source_id):
         csv_labels = labels_csv_process(
             csv_import_form.get_csv_stream(), source)
     except FileProcessError as error:
-        error_html = '<br>'.join(error.message.splitlines())
+        error_html = '<br>'.join(str(error).splitlines())
         return JsonResponse(dict(error=error_html))
 
     csv_labels.sort(key=lambda x: x.code)

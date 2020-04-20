@@ -1,3 +1,5 @@
+from __future__ import division
+from functools import reduce
 from io import BytesIO
 import operator
 import re

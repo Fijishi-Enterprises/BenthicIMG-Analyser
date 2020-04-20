@@ -4,11 +4,14 @@ from datetime import datetime
 
 from django.db import models
 from django.conf import settings
+from django.utils.encoding import python_2_unicode_compatible
 
 from labels.models import Label, LocalLabel
 from lib.utils import direct_s3_read
 import pickle
 
+
+@python_2_unicode_compatible
 class Classifier(models.Model):
     """
     Computer vision classifier.
@@ -53,7 +56,7 @@ class Classifier(models.Model):
         return "{0}-{1:02}-{2:02}".format(self.create_date.year, self.create_date.month, self.create_date.day)
 
 
-    def __unicode__(self):
+    def __str__(self):
         """
         To-string method.
         """
@@ -83,7 +86,7 @@ class Features(models.Model):
     extracted_date = models.DateTimeField(null = True)
 
 
-
+@python_2_unicode_compatible
 class Score(models.Model):
     """
     Tracks scores for each point in each image. For each point,
@@ -106,9 +109,6 @@ class Score(models.Model):
             global_label=self.label, labelset=self.source.labelset)
         return local_label.code
 
-    def __unicode__(self):
+    def __str__(self):
         return "%s - %s - %s - %s" % (
             self.image, self.point.point_number, self.label_code, self.score)
-
-
-    

@@ -2,8 +2,10 @@ from __future__ import unicode_literals
 
 from django.db.models import Model
 from django.db.models.fields import CharField, DateTimeField, TextField, URLField
+from django.utils.encoding import python_2_unicode_compatible
 
 
+@python_2_unicode_compatible
 class ErrorLog(Model):
     """
     Model for storing logs for individual errors.
@@ -19,5 +21,5 @@ class ErrorLog(Model):
         verbose_name = "Error log"
         verbose_name_plural = "Error logs"
 
-    def __unicode__(self):
+    def __str__(self):
         return "%s: %s" % (self.kind, self.info)

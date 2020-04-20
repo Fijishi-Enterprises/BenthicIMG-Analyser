@@ -26,19 +26,19 @@ class Command(BaseCommand):
                             db[image.pk] = []
                         db[image.pk].append(point.pk)
 
-            f = open(options['file'], 'w')
-            f.write(json.dumps(db))
+            with open(options['file'], 'w') as f:
+                f.write(json.dumps(db))
 
         if options['mode'] == 'print':
-            f = open(options['file'], 'r')
-            db = json.loads(f.read())
+            with open(options['file'], 'r') as f:
+                db = json.loads(f.read())
 
             for image_pk in db.keys():
-                print image_pk, len(db[image_pk])
+                self.stdout.write('{} {}'.format(image_pk, len(db[image_pk])))
 
         if options['mode'] == 'clean':
-            f = open(options['file'], 'r')
-            db = json.loads(f.read())
+            with open(options['file'], 'r') as f:
+                db = json.loads(f.read())
 
             for image_pk in db.keys():
                 for point_pk in db[image_pk]:

@@ -70,13 +70,15 @@ class Command(BaseCommand):
             .filter(point__image__source=source, label=old_label) \
             .exclude(user=robot_user)
 
-        print("Source: {source_name}".format(source_name=source.name))
-        print("{count} confirmed annotations of {label} found.".format(
-            count=annotations.count(), label=old_label.name))
-        print(
+        self.stdout.write(
+            "Source: {source_name}".format(source_name=source.name))
+        self.stdout.write(
+            "{count} confirmed annotations of {label} found.".format(
+                count=annotations.count(), label=old_label.name))
+        self.stdout.write(
             "They will be changed to {label},".format(label=new_label.name)
             + " under the username {user}.".format(user=user.username))
-        print(
+        self.stdout.write(
             "Also, {label} will be removed from".format(label=old_label.name)
             + " the labelset, and a source backend-reset will be initiated.")
 
@@ -84,14 +86,14 @@ class Command(BaseCommand):
 
         # Must input 'y' or 'Y' to proceed. Else, will abort.
         if input_text.lower() != 'y':
-            print("Aborting.")
+            self.stdout.write("Aborting.")
             return
 
         # Replace the annotations.
         # Must explicitly turn on history creation when RevisionMiddleware is
         # not in effect. (It's only in effect within views.)
         with revisions.create_revision():
-            for annotation in tqdm(annotations):
+            for annotation in tqdm(annotations, file=self.stderr):
                 annotation.label = new_label
                 annotation.user = user
                 annotation.save()

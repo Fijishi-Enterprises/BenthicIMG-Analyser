@@ -219,7 +219,7 @@ def upload_metadata_preview_ajax(request, source_id):
             csv_import_form.get_csv_stream(), source)
     except FileProcessError as error:
         return JsonResponse(dict(
-            error=error.message,
+            error=str(error),
          ))
 
     preview_table, preview_details = \
@@ -323,7 +323,7 @@ def upload_annotations_csv_preview_ajax(request, source_id):
             csv_import_form.get_csv_stream(), source)
     except FileProcessError as error:
         return JsonResponse(dict(
-            error=error.message,
+            error=str(error),
         ))
 
     preview_table, preview_details = \
@@ -381,7 +381,7 @@ def upload_annotations_cpc_preview_ajax(request, source_id):
             cpc_import_form.get_cpc_names_and_streams(), source)
     except FileProcessError as error:
         return JsonResponse(dict(
-            error=error.message,
+            error=str(error),
         ))
 
     preview_table, preview_details = \

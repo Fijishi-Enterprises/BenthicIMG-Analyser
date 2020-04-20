@@ -438,14 +438,13 @@ class PointGenForm(Form):
             required_number_fields = {
                 'number_of_cell_rows', 'number_of_cell_columns'}
 
-        non_applicable_fields = point_gen_number_fields - required_number_fields
-
         # Delete errors on the non-applicable fields. It would be
         # confusing if these errors counted, since the fields would be
         # invisible.
-        for key in self._errors.keys():
-            if key in non_applicable_fields:
-                del self._errors[key]
+        non_applicable_fields = point_gen_number_fields - required_number_fields
+        for field_name in non_applicable_fields:
+            if field_name in self._errors:
+                del self._errors[field_name]
 
         # Add 'required' errors to blank applicable fields.
         for field_name in required_number_fields:

@@ -2,6 +2,7 @@
 
 import json
 import os
+import sys
 
 from unipath import Path
 
@@ -580,6 +581,16 @@ LOGGING = {
 
 # The name of the class to use for starting the test suite.
 TEST_RUNNER = 'lib.tests.utils.TempStorageTestRunner'
+
+# [Custom setting]
+# Whether to disable tqdm output and processing or not. tqdm might be used
+# during management commands, data migrations, etc.
+# How to use: `for obj in tqdm(objs, disable=TQDM_DISABLE):`
+#
+# Here we disable tqdm when running the test command. Note that this is better
+# than setting False here and setting True in `test_settings`, because that
+# method would not disable tqdm during pre-test migration runs.
+TQDM_DISABLE = 'test' in sys.argv
 
 # [Custom setting]
 # Name of the CoralNet regtests S3 bucket.

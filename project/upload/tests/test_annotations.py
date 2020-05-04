@@ -178,8 +178,8 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
             ['1.png', 70, 30],
             ['1.png', 80, 20],
             ['1.png', 90, 10],
-            ['2.png', 1, 1],
-            ['2.png', 200, 100],
+            ['2.png', 0, 0],
+            ['2.png', 199, 99],
             ['2.png', 44, 44],
         ]
         csv_file = self.make_csv_file('A.csv', rows)
@@ -197,17 +197,17 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
             self.make_cpc_file(
                 '1.cpc',
                 r"C:\My Photos\2017-05-13 GBR\1.png", [
-                    (49*15, 49*15, ''),
-                    (59*15, 39*15, ''),
-                    (69*15, 29*15, ''),
-                    (79*15, 19*15, ''),
-                    (89*15, 9*15, '')]),
+                    (50*15, 50*15, ''),
+                    (60*15, 40*15, ''),
+                    (70*15, 30*15, ''),
+                    (80*15, 20*15, ''),
+                    (90*15, 10*15, '')]),
             self.make_cpc_file(
                 '2.cpc',
                 r"C:\My Photos\2017-05-13 GBR\2.png", [
                     (0, 0, ''),
                     (2992, 1492, ''),
-                    (43*15, 43*15, '')]),
+                    (44*15, 44*15, '')]),
         ]
         preview_response = self.preview_cpc_annotations(
             self.user, self.source, cpc_files)
@@ -257,8 +257,8 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
             (70, 30, 3, self.img1.pk),
             (80, 20, 4, self.img1.pk),
             (90, 10, 5, self.img1.pk),
-            (1,  1,  1, self.img2.pk),
-            (200, 100, 2, self.img2.pk),
+            (0,  0,  1, self.img2.pk),
+            (199, 99, 2, self.img2.pk),
             (44, 44, 3, self.img2.pk),
         })
 
@@ -308,13 +308,13 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
             self.make_cpc_file(
                 '1.cpc',
                 r"C:\My Photos\2017-05-13 GBR\1.png", [
-                    (49*15, 49*15, 'A'),
-                    (59*15, 39*15, 'B')]),
+                    (50*15, 50*15, 'A'),
+                    (60*15, 40*15, 'B')]),
             self.make_cpc_file(
                 '2.cpc',
                 r"C:\My Photos\2017-05-13 GBR\2.png", [
-                    (69*15, 29*15, 'A'),
-                    (79*15, 19*15, 'A')]),
+                    (70*15, 30*15, 'A'),
+                    (80*15, 20*15, 'A')]),
         ]
         preview_response = self.preview_cpc_annotations(
             self.user, self.source, cpc_files)
@@ -416,18 +416,18 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
             self.make_cpc_file(
                 '1.cpc',
                 r"C:\My Photos\2017-05-13 GBR\1.png", [
-                    (49*15, 49*15, 'A'),
-                    (59*15, 39*15, 'B')]),
+                    (50*15, 50*15, 'A'),
+                    (60*15, 40*15, 'B')]),
             self.make_cpc_file(
                 '2.cpc',
                 r"C:\My Photos\2017-05-13 GBR\2.png", [
-                    (69*15, 29*15, 'A'),
-                    (79*15, 19*15, '')]),
+                    (70*15, 30*15, 'A'),
+                    (80*15, 20*15, '')]),
             self.make_cpc_file(
                 '3.cpc',
                 r"C:\My Photos\2017-05-13 GBR\3.png", [
-                    (69*15, 29*15, ''),
-                    (79*15, 19*15, '')]),
+                    (70*15, 30*15, ''),
+                    (80*15, 20*15, '')]),
         ]
         preview_response = self.preview_cpc_annotations(
             self.user, self.source, cpc_files)
@@ -550,18 +550,18 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
             self.make_cpc_file(
                 '1.cpc',
                 r"C:\My Photos\2017-05-13 GBR\1.png", [
-                    (49*15, 49*15, 'A'),
-                    (59*15, 39*15, 'B')]),
+                    (50*15, 50*15, 'A'),
+                    (60*15, 40*15, 'B')]),
             self.make_cpc_file(
                 '2.cpc',
                 r"C:\My Photos\2017-05-13 GBR\2.png", [
-                    (69*15, 29*15, 'A'),
-                    (79*15, 19*15, '')]),
+                    (70*15, 30*15, 'A'),
+                    (80*15, 20*15, '')]),
             self.make_cpc_file(
                 '3.cpc',
                 r"C:\My Photos\2017-05-13 GBR\3.png", [
-                    (69*15, 29*15, ''),
-                    (79*15, 19*15, '')]),
+                    (70*15, 30*15, ''),
+                    (80*15, 20*15, '')]),
         ]
         self.preview_cpc_annotations(self.user, self.source, cpc_files)
         self.upload_annotations(self.user, self.source)
@@ -570,18 +570,18 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
             self.make_cpc_file(
                 '1.cpc',
                 r"C:\My Photos\2017-05-13 GBR\1.png", [
-                    (9*15, 9*15, 'A'),
-                    (19*15, 19*15, 'A')]),
+                    (10*15, 10*15, 'A'),
+                    (20*15, 20*15, 'A')]),
             self.make_cpc_file(
                 '2.cpc',
                 r"C:\My Photos\2017-05-13 GBR\2.png", [
-                    (29*15, 29*15, ''),
-                    (39*15, 39*15, '')]),
+                    (30*15, 30*15, ''),
+                    (40*15, 40*15, '')]),
             self.make_cpc_file(
                 '3.cpc',
                 r"C:\My Photos\2017-05-13 GBR\3.png", [
-                    (49*15, 49*15, 'A'),
-                    (59*15, 59*15, 'B')]),
+                    (50*15, 50*15, 'A'),
+                    (60*15, 60*15, 'B')]),
         ]
         preview_response = self.preview_cpc_annotations(
             self.user, self.source, cpc_files)
@@ -697,7 +697,7 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
             self.make_cpc_file(
                 '1.cpc',
                 r"C:\My Photos\2017-05-13 GBR\1.png", [
-                    (59*15, 39*15, 'aBc')]),
+                    (60*15, 40*15, 'aBc')]),
         ]
         preview_response = self.preview_cpc_annotations(
             self.user, self.source, cpc_files)
@@ -776,11 +776,11 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
             self.make_cpc_file(
                 '1.cpc',
                 r"C:\My Photos\2017-05-13 GBR\1.png", [
-                    (49*15, 49*15, 'A')]),
+                    (50*15, 50*15, 'A')]),
             self.make_cpc_file(
                 '4.cpc',
                 r"C:\My Photos\2017-05-13 GBR\4.png", [
-                    (59*15, 39*15, 'B')]),
+                    (60*15, 40*15, 'B')]),
         ]
         preview_response = self.preview_cpc_annotations(
             self.user, self.source, cpc_files)
@@ -899,13 +899,13 @@ class UploadAnnotationsMultipleSourcesTest(UploadAnnotationsBaseTest):
             self.make_cpc_file(
                 '1.cpc',
                 r"C:\My Photos\2017-05-13 GBR\1.png", [
-                    (9*15, 9*15, 'B'),
-                    (19*15, 19*15, 'B')]),
+                    (10*15, 10*15, 'B'),
+                    (20*15, 20*15, 'B')]),
             self.make_cpc_file(
                 '2.cpc',
                 r"C:\My Photos\2017-05-13 GBR\2.png", [
-                    (14*15, 14*15, 'A'),
-                    (24*15, 24*15, 'A')]),
+                    (15*15, 15*15, 'A'),
+                    (25*15, 25*15, 'A')]),
         ]
         self.preview_cpc_annotations(self.user, self.source2, cpc_files)
         self.upload_annotations(self.user, self.source2)
@@ -915,12 +915,12 @@ class UploadAnnotationsMultipleSourcesTest(UploadAnnotationsBaseTest):
             self.make_cpc_file(
                 '1.cpc',
                 r"C:\My Photos\2017-05-13 GBR\1.png", [
-                    (49*15, 49*15, 'A')]),
+                    (50*15, 50*15, 'A')]),
             # This image doesn't exist in source 1
             self.make_cpc_file(
                 '2.cpc',
                 r"C:\My Photos\2017-05-13 GBR\2.png", [
-                    (59*15, 39*15, 'B')]),
+                    (60*15, 40*15, 'B')]),
         ]
         preview_response = self.preview_cpc_annotations(
             self.user, self.source, cpc_files)
@@ -1090,146 +1090,151 @@ class UploadAnnotationsContentsTest(UploadAnnotationsBaseTest):
         appropriate error message."""
         self.do_error_csv(
             [(50, 'abc')],
-            "Row value is not a positive integer: abc")
+            "For image 1.png, point 1:"
+            " Row should be a non-negative integer, not abc")
 
     def test_row_not_number_cpc(self):
         self.do_error_cpc(
-            [(49*15, '?.;')], (
-                "From file 1.cpc, point 1:"
-                " Row value is not an integer in the accepted range: ?.;"))
+            [(50*15, '?.;')],
+            "From file 1.cpc, point 1:"
+            " Row should be a non-negative integer, not ?.;")
 
     def test_column_not_number_csv(self):
         self.do_error_csv(
             [('1abc', 50)],
-            "Column value is not a positive integer: 1abc")
+            "For image 1.png, point 1:"
+            " Column should be a non-negative integer, not 1abc")
 
     def test_column_not_number_cpc(self):
         self.do_error_cpc(
-            [('abc2', 49*15)], (
-                "From file 1.cpc, point 1:"
-                " Column value is not an integer in the accepted range: abc2"))
+            [('abc2', 50*15)],
+            "From file 1.cpc, point 1:"
+            " Column should be a non-negative integer, not abc2")
 
     def test_row_is_float_csv(self):
         """A row/col which can't be parsed as an integer should result in an
         appropriate error message."""
         self.do_error_csv(
             [(50, 40.8)],
-            "Row value is not a positive integer: 40.8")
+            "For image 1.png, point 1:"
+            " Row should be a non-negative integer, not 40.8")
 
     def test_row_is_float_cpc(self):
         self.do_error_cpc(
-            [(49*15, 39*15+0.8)], (
-                "From file 1.cpc, point 1:"
-                " Row value is not an integer in the accepted range: 585.8"))
+            [(50*15, 40*15+0.8)],
+            "From file 1.cpc, point 1:"
+            " Row should be a non-negative integer, not 600.8")
 
     def test_column_is_float_csv(self):
         self.do_error_csv(
             [(50.88, 40)],
-            "Column value is not a positive integer: 50.88")
+            "For image 1.png, point 1:"
+            " Column should be a non-negative integer, not 50.88")
 
     def test_column_is_float_cpc(self):
         self.do_error_cpc(
-            [(49*15+0.88, 39*15)], (
-                "From file 1.cpc, point 1:"
-                " Column value is not an integer in the accepted range:"
-                " 735.88"))
+            [(50*15+0.88, 40*15)],
+            "From file 1.cpc, point 1:"
+            " Column should be a non-negative integer, not 750.88")
 
     def test_row_minimum_value_csv(self):
         """Minimum acceptable row value."""
         self.do_success_csv(
-            [(50, 1)],
-            {(50, 1, 1, self.img1.pk)})
+            [(50, 0)],
+            {(50, 0, 1, self.img1.pk)})
 
     def test_row_minimum_value_cpc(self):
         self.do_success_cpc(
-            [(49*15, 0)],
-            {(50, 1, 1, self.img1.pk)})
+            [(50*15, 0)],
+            {(50, 0, 1, self.img1.pk)})
 
     def test_column_minimum_value_csv(self):
         self.do_success_csv(
-            [(1, 40)],
-            {(1, 40, 1, self.img1.pk)})
+            [(0, 40)],
+            {(0, 40, 1, self.img1.pk)})
 
     def test_column_minimum_value_cpc(self):
         self.do_success_cpc(
-            [(0, 39*15)],
-            {(1, 40, 1, self.img1.pk)})
+            [(0, 40*15)],
+            {(0, 40, 1, self.img1.pk)})
 
     def test_row_too_small_csv(self):
         """Below the minimum acceptable row value."""
         self.do_error_csv(
-            [(50, 0)],
-            "Row value is not a positive integer: 0")
+            [(50, -1)],
+            "For image 1.png, point 1:"
+            " Row should be a non-negative integer, not -1")
 
     def test_row_too_small_cpc(self):
         self.do_error_cpc(
-            [(49*15, -1)], (
-                "From file 1.cpc, point 1:"
-                " Row value is not an integer in the accepted range: -1"))
+            [(50*15, -1)],
+            "From file 1.cpc, point 1:"
+            " Row should be a non-negative integer, not -1")
 
     def test_column_too_small_csv(self):
         self.do_error_csv(
-            [(0, 50)],
-            "Column value is not a positive integer: 0")
+            [(-1, 50)],
+            "For image 1.png, point 1:"
+            " Column should be a non-negative integer, not -1")
 
     def test_column_too_small_cpc(self):
         self.do_error_cpc(
-            [(-1, 49*15)], (
-                "From file 1.cpc, point 1:"
-                " Column value is not an integer in the accepted range: -1"))
+            [(-1, 50*15)],
+            "From file 1.cpc, point 1:"
+            " Column should be a non-negative integer, not -1")
 
     def test_row_maximum_value_csv(self):
         """Maximum acceptable row value given the image dimensions."""
         self.do_success_csv(
-            [(50, 100)],
-            {(50, 100, 1, self.img1.pk)})
+            [(50, 99)],
+            {(50, 99, 1, self.img1.pk)})
 
     def test_row_maximum_value_cpc(self):
         self.do_success_cpc(
-            [(49*15, 99*15)],
-            {(50, 100, 1, self.img1.pk)})
+            [(50*15, 99*15)],
+            {(50, 99, 1, self.img1.pk)})
 
     def test_column_maximum_value_csv(self):
         self.do_success_csv(
-            [(200, 40)],
-            {(200, 40, 1, self.img1.pk)})
+            [(199, 40)],
+            {(199, 40, 1, self.img1.pk)})
 
     def test_column_maximum_value_cpc(self):
         self.do_success_cpc(
-            [(199*15, 39*15)],
-            {(200, 40, 1, self.img1.pk)})
+            [(199*15, 40*15)],
+            {(199, 40, 1, self.img1.pk)})
 
     def test_row_too_large_csv(self):
         """Above the maximum acceptable row value given the
         image dimensions."""
         self.do_error_csv(
-            [(50, 101)], (
-                "Row value of 101 is too large for image 1.png,"
-                " which has dimensions 200 x 100"))
+            [(50, 100)],
+            "For image 1.png, point 1:"
+            " Row value is 100, but the image is only 100 pixels high"
+            " (accepted values are 0~99)")
 
     def test_row_too_large_cpc(self):
         self.do_error_cpc(
-            [(49*15, 100*15)], (
-                "From file 1.cpc, point 1:"
-                " Row value of 1500 corresponds to pixel 101."
-                " This is too large"
-                " for image 1.png, which has dimensions"
-                " 200 x 100."))
+            [(50*15, 100*15)],
+            "From file 1.cpc, point 1:"
+            " Row value of 1500 corresponds to pixel 100,"
+            " but image 1.png is only 100 pixels high"
+            " (accepted values are 0~99)")
 
     def test_column_too_large_csv(self):
         self.do_error_csv(
-            [(201, 50)], (
-                "Column value of 201 is too large for image 1.png,"
-                " which has dimensions 200 x 100"))
+            [(200, 50)],
+            "For image 1.png, point 1:"
+            " Column value is 200, but the image is only 200 pixels wide"
+            " (accepted values are 0~199)")
 
     def test_column_too_large_cpc(self):
         self.do_error_cpc(
-            [(200*15, 49*15)], (
-                "From file 1.cpc, point 1:"
-                " Column value of 3000 corresponds to pixel 201."
-                " This is too large"
-                " for image 1.png, which has dimensions"
-                " 200 x 100."))
+            [(200*15, 50*15)],
+            "From file 1.cpc, point 1:"
+            " Column value of 3000 corresponds to pixel 200,"
+            " but image 1.png is only 200 pixels wide"
+            " (accepted values are 0~199)")
 
     def test_multiple_points_same_row_column_csv(self):
         """
@@ -1237,30 +1242,31 @@ class UploadAnnotationsContentsTest(UploadAnnotationsBaseTest):
         (same row and same column) should not be allowed.
         """
         self.do_error_csv(
-            [(150, 90), (20, 20), (150, 90)], (
-                "Image 1.png has multiple points on the same position:"
-                " row 90, column 150"))
+            [(150, 90), (20, 20), (150, 90)],
+            "Image 1.png has multiple points on the same position:"
+            " row 90, column 150")
 
     def test_multiple_points_same_row_column_cpc(self):
         # These CPC file values for points 1 and 3
         # are different, but they map to the same pixel.
         self.do_error_cpc(
-            [(149*15-2, 89*15-2), (19*15, 19*15), (149*15+2, 89*15+2)], (
-                "From file 1.cpc:"
-                " Points 1 and 3 are on the same"
-                " pixel position:"
-                " row 90, column 150"))
+            [(150*15-2, 90*15-2), (20*15, 20*15), (150*15+2, 90*15+2)],
+            "From file 1.cpc:"
+            " Points 1 and 3 are on the same"
+            " pixel position:"
+            " row 90, column 150")
 
     def test_label_not_in_labelset_csv(self):
         self.do_error_csv(
             [(150, 90, 'B'), (20, 20, 'C')],
-            "No label of code C found in this source's labelset")
+            "For image 1.png, point 2:"
+            " No label of code C found in this source's labelset")
 
     def test_label_not_in_labelset_cpc(self):
         self.do_error_cpc(
-            [(149*15, 89*15, 'B'), (19*15, 19*15, 'C')], (
-                "From file 1.cpc, point 2:"
-                " No label of code C found in this source's labelset"))
+            [(150*15, 90*15, 'B'), (20*15, 20*15, 'C')],
+            "From file 1.cpc, point 2:"
+            " No label of code C found in this source's labelset")
 
     def test_no_specified_images_found_in_source_csv(self):
         """
@@ -1284,10 +1290,10 @@ class UploadAnnotationsContentsTest(UploadAnnotationsBaseTest):
         cpc_files = [
             self.make_cpc_file(
                 '3.cpc', r"C:\My Photos\2017-05-13 GBR\3.png", [
-                    (49*15, 49*15, '')]),
+                    (50*15, 50*15, '')]),
             self.make_cpc_file(
                 '4.cpc', r"C:\My Photos\2017-05-13 GBR\4.png", [
-                    (59*15, 39*15, '')]),
+                    (60*15, 40*15, '')]),
         ]
         preview_response = self.preview_cpc_annotations(
             self.user, self.source, cpc_files)
@@ -1386,7 +1392,7 @@ class UploadAnnotationsFormatTest(UploadAnnotationsBaseTest):
         cpc_files = [
             self.make_cpc_file(
                 '1.cpc', r"C:\My Photos\2017-05-13 GBR\1.png",
-                [(49*15, 49*15, 'い')]),
+                [(50*15, 50*15, 'い')]),
         ]
         preview_response = self.preview_cpc_annotations(
             self.user, self.source, cpc_files)
@@ -1412,7 +1418,7 @@ class UploadAnnotationsFormatTest(UploadAnnotationsBaseTest):
         might as well test that it works."""
         cpc_file_lf = self.make_cpc_file(
             '1.cpc', r"C:\My Photos\2017-05-13 GBR\1.png",
-            [(49*15, 49*15, 'A')])
+            [(50*15, 50*15, 'A')])
         cpc_file_crlf_content = cpc_file_lf.read().replace('\n', '\r\n')
         cpc_files = [
             ContentFile(cpc_file_crlf_content, name='1.cpc'),
@@ -1441,7 +1447,7 @@ class UploadAnnotationsFormatTest(UploadAnnotationsBaseTest):
         might as well test that it works."""
         cpc_file_lf = self.make_cpc_file(
             '1.cpc', r"C:\My Photos\2017-05-13 GBR\1.png",
-            [(49*15, 49*15, 'A')])
+            [(50*15, 50*15, 'A')])
         cpc_file_crlf_content = cpc_file_lf.read().replace('\n', '\r')
         cpc_files = [
             ContentFile(cpc_file_crlf_content, name='1.cpc'),
@@ -1470,7 +1476,7 @@ class UploadAnnotationsFormatTest(UploadAnnotationsBaseTest):
         might as well test that it works."""
         cpc_file_lf = self.make_cpc_file(
             '1.cpc', r"C:\My Photos\2017-05-13 GBR\1.png",
-            [(49*15, 49*15, 'A')])
+            [(50*15, 50*15, 'A')])
         cpc_file_crlf_content = (
             codecs.BOM_UTF8.decode('utf-8') + cpc_file_lf.read())
         cpc_files = [

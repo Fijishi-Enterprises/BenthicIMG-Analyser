@@ -170,7 +170,7 @@ class CPCFormatTest(UploadAnnotationsBaseTest):
         stream.writelines(['10\n'])
         # Line 7-15: point positions (one line too few)
         stream.writelines([
-            '{n},{n}\n'.format(n=n*15) for n in range(1, 9+1)])
+            '{n},{n}\n'.format(n=n*15) for n in range(9)])
         # Line 16: labels
         stream.writelines(['a,b,c,d\n'])
         cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
@@ -194,7 +194,7 @@ class CPCFormatTest(UploadAnnotationsBaseTest):
         stream.writelines(['10\n'])
         # Lines 7-17: point positions (one line too many)
         stream.writelines([
-            '{n},{n}\n'.format(n=n*15) for n in range(1, 11+1)])
+            '{n},{n}\n'.format(n=n*15) for n in range(11)])
         cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
         preview_response = self.preview_cpc_annotations(
             self.user, self.source, [cpc_file])
@@ -216,7 +216,7 @@ class CPCFormatTest(UploadAnnotationsBaseTest):
         stream.writelines(['10\n'])
         # Lines 7-16: point positions
         stream.writelines([
-            '{n},{n}\n'.format(n=n*15) for n in range(1, 10+1)])
+            '{n},{n}\n'.format(n=n*15) for n in range(10)])
         # Line 17-25: labels (one line too few)
         stream.writelines(['a,b,c,d\n']*9)
         cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
@@ -239,7 +239,7 @@ class CPCFormatTest(UploadAnnotationsBaseTest):
         # Multiply by 15 so they end up on different pixels. Otherwise
         # we may get the 'multiple points on same pixel' error instead.
         stream.writelines([
-            '{n},{n}\n'.format(n=n*15) for n in range(1, 10+1)])
+            '{n},{n}\n'.format(n=n*15) for n in range(10)])
         # Line 17-26: labels
         stream.writelines(['a,b,c,d\n']*10)
         cpc_file_1 = ContentFile(stream.getvalue(), name='1.cpc')
@@ -253,7 +253,7 @@ class CPCFormatTest(UploadAnnotationsBaseTest):
         stream.writelines(['10\n'])
         # Lines 7-16: point positions
         stream.writelines([
-            '{n},{n}\n'.format(n=n*15) for n in range(1, 10+1)])
+            '{n},{n}\n'.format(n=n*15) for n in range(10)])
         # Line 17-26: labels
         stream.writelines(['a,b,c,d\n']*10)
         cpc_file_2 = ContentFile(stream.getvalue(), name='2.cpc')

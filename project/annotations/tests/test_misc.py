@@ -94,81 +94,81 @@ class AnnotationAreaEditTest(ClientTest):
 
         response_soup = BeautifulSoup(response.content, 'html.parser')
         self.assertEqual(
-            '8',
+            '7',
             response_soup.find('input', dict(name='min_x')).attrs.get('value'))
         self.assertEqual(
-            '25',
+            '24',
             response_soup.find('input', dict(name='max_x')).attrs.get('value'))
         self.assertEqual(
-            '4',
+            '3',
             response_soup.find('input', dict(name='min_y')).attrs.get('value'))
         self.assertEqual(
-            '46',
+            '45',
             response_soup.find('input', dict(name='max_y')).attrs.get('value'))
 
     def test_load_page_with_image_specific_annotation_area(self):
         # Set an image specific annotation area
         self.client.force_login(self.user)
         self.client.post(
-            self.url, data=dict(min_x=9, max_x=37, min_y=1, max_y=19))
+            self.url, data=dict(min_x=8, max_x=36, min_y=0, max_y=18))
 
         # Ensure it's loaded on the next visit
         response = self.client.get(self.url)
 
         response_soup = BeautifulSoup(response.content, 'html.parser')
         self.assertEqual(
-            '9',
+            '8',
             response_soup.find('input', dict(name='min_x')).attrs.get('value'))
         self.assertEqual(
-            '37',
+            '36',
             response_soup.find('input', dict(name='max_x')).attrs.get('value'))
         self.assertEqual(
-            '1',
+            '0',
             response_soup.find('input', dict(name='min_y')).attrs.get('value'))
         self.assertEqual(
-            '19',
+            '18',
             response_soup.find('input', dict(name='max_y')).attrs.get('value'))
 
     def test_change_annotation_area(self):
         self.client.force_login(self.user)
         response = self.client.post(
-            self.url, data=dict(min_x=9, max_x=37, min_y=1, max_y=19),
+            self.url, data=dict(min_x=8, max_x=36, min_y=0, max_y=18),
             follow=True)
         self.assertContains(response, "Annotation area successfully edited.")
 
         self.img.metadata.refresh_from_db()
         self.assertEqual(
             self.img.metadata.annotation_area,
-            AnnotationAreaUtils.pixels_to_db_format(9, 37, 1, 19),
+            AnnotationAreaUtils.pixels_to_db_format(8, 36, 0, 18),
             msg="Annotation area should be successfully changed")
 
     def test_min_or_max_past_limits(self):
         self.client.force_login(self.user)
 
         response = self.client.post(
-            self.url, data=dict(min_x=0, max_x=40, min_y=1, max_y=50))
+            self.url, data=dict(min_x=-1, max_x=39, min_y=0, max_y=49))
         self.assertContains(response, "Please correct the errors below.")
         self.assertContains(
-            response, "Ensure this value is greater than or equal to 1.")
+            response, "Ensure this value is greater than or equal to 0.")
 
         response = self.client.post(
-            self.url, data=dict(min_x=1, max_x=41, min_y=1, max_y=50))
+            self.url, data=dict(min_x=0, max_x=40, min_y=0, max_y=49))
         self.assertContains(
-            response, "Ensure this value is less than or equal to 40.")
+            response, "Ensure this value is less than or equal to 39.")
 
         response = self.client.post(
-            self.url, data=dict(min_x=1, max_x=40, min_y=0, max_y=50))
+            self.url, data=dict(min_x=0, max_x=39, min_y=-1, max_y=49))
         self.assertContains(response, "Please correct the errors below.")
         self.assertContains(
-            response, "Ensure this value is greater than or equal to 1.")
+            response, "Ensure this value is greater than or equal to 0.")
 
         response = self.client.post(
-            self.url, data=dict(min_x=1, max_x=40, min_y=1, max_y=51))
+            self.url, data=dict(min_x=0, max_x=39, min_y=0, max_y=50))
         self.assertContains(
-            response, "Ensure this value is less than or equal to 50.")
+            response, "Ensure this value is less than or equal to 49.")
 
         response = self.client.post(
-            self.url, data=dict(min_x=1, max_x=40, min_y=1, max_y=50),
+            self.url, data=dict(min_x=0, max_x=39, min_y=0, max_y=49),
             follow=True)
         self.assertContains(
             response, "Annotation area successfully edited.")
@@ -198,12 +198,12 @@ class AnnotationAreaEditTest(ClientTest):
         self.client.force_login(self.user)
 
         response = self.client.post(
-            self.url, data=dict(min_x=9, max_x=37, min_y=1, max_y='a'))
+            self.url, data=dict(min_x=8, max_x=36, min_y=0, max_y='a'))
         self.assertContains(response, "Please correct the errors below.")
         self.assertContains(response, "Enter a whole number.")
 
         response = self.client.post(
-            self.url, data=dict(min_x=9.28, max_x=37, min_y=1, max_y=19))
+            self.url, data=dict(min_x=8.28, max_x=36, min_y=0, max_y=18))
         self.assertContains(response, "Please correct the errors below.")
         self.assertContains(response, "Enter a whole number.")
 
@@ -225,7 +225,7 @@ class PointGenTest(ClientTest):
         Check that every Point in the given points array is within the
         bounds specified.
         bounds is a dict of pixel-position boundaries. For example,
-        dict(min_x=1, max_x=20, min_y=1, max_y=30)
+        dict(min_x=0, max_x=19, min_y=0, max_y=29)
         """
         for pt in points:
             self.assertTrue(bounds['min_x'] <= pt.column)
@@ -250,7 +250,7 @@ class PointGenTest(ClientTest):
             "Should generate the correct number of points")
 
         self.assertPointsAreInBounds(
-            points, dict(min_x=1, max_x=20, min_y=1, max_y=30))
+            points, dict(min_x=0, max_x=19, min_y=0, max_y=29))
 
     def test_simple_random_source_annotation_area(self):
         source = self.create_source(
@@ -268,10 +268,10 @@ class PointGenTest(ClientTest):
 
         self.assertPointsAreInBounds(
             points, dict(
-                min_x=math.ceil((19/100)*40),
-                max_x=math.ceil((62/100)*40),
-                min_y=math.ceil((7/100)*50),
-                max_y=math.ceil((90.2/100)*50)))
+                min_x=math.floor((19/100)*40),
+                max_x=math.floor((62/100)*40),
+                min_y=math.floor((7/100)*50),
+                max_y=math.floor((90.2/100)*50)))
 
     def test_simple_random_image_specific_annotation_area(self):
         source = self.create_source(
@@ -284,7 +284,7 @@ class PointGenTest(ClientTest):
         self.client.force_login(self.user)
         self.client.post(
             reverse('annotation_area_edit', args=[img.pk]),
-            data=dict(min_x=9, max_x=37, min_y=1, max_y=19))
+            data=dict(min_x=8, max_x=36, min_y=0, max_y=18))
 
         points = img.point_set.all()
         self.assertEqual(
@@ -292,7 +292,7 @@ class PointGenTest(ClientTest):
             "Should generate the correct number of points")
 
         self.assertPointsAreInBounds(
-            points, dict(min_x=9, max_x=37, min_y=1, max_y=19))
+            points, dict(min_x=8, max_x=36, min_y=0, max_y=18))
 
     def test_stratified_random_whole_image(self):
         source = self.create_source(
@@ -312,8 +312,8 @@ class PointGenTest(ClientTest):
         # Check the strata in order by point number. That's row by row,
         # top to bottom, left to right.
         point_index = 0
-        for min_y, max_y in [(1,7), (8,15), (16,22), (23,30)]:
-            for min_x, max_x in [(1,4), (5,8), (9,12), (13,16), (17,20)]:
+        for min_y, max_y in [(0,6), (7,14), (15,21), (22,29)]:
+            for min_x, max_x in [(0,3), (4,7), (8,11), (12,15), (16,19)]:
                 self.assertPointsAreInBounds(
                     points[point_index:point_index+6],
                     dict(min_x=min_x, max_x=max_x, min_y=min_y, max_y=max_y))
@@ -337,8 +337,8 @@ class PointGenTest(ClientTest):
         # Check the strata in order by point number. That's row by row,
         # top to bottom, left to right.
         point_index = 0
-        for min_y, max_y in [(3,8), (9,15), (16,21), (22,28)]:
-            for min_x, max_x in [(4,5), (6,7), (8,9), (10,11), (12,13)]:
+        for min_y, max_y in [(2,7), (8,14), (15,20), (21,27)]:
+            for min_x, max_x in [(3,4), (5,6), (7,8), (9,10), (11,12)]:
                 self.assertPointsAreInBounds(
                     points[point_index:point_index+6],
                     dict(min_x=min_x, max_x=max_x, min_y=min_y, max_y=max_y))
@@ -356,7 +356,7 @@ class PointGenTest(ClientTest):
         self.client.force_login(self.user)
         self.client.post(
             reverse('annotation_area_edit', args=[img.pk]),
-            data=dict(min_x=9, max_x=37, min_y=1, max_y=19))
+            data=dict(min_x=8, max_x=36, min_y=0, max_y=18))
 
         points = img.point_set.all()
         self.assertEqual(
@@ -366,8 +366,8 @@ class PointGenTest(ClientTest):
         # Check the strata in order by point number. That's row by row,
         # top to bottom, left to right.
         point_index = 0
-        for min_y, max_y in [(1,4), (5,9), (10,14), (15,19)]:
-            for min_x, max_x in [(9,13), (14,19), (20,25), (26,31), (32,37)]:
+        for min_y, max_y in [(0,3), (4,8), (9,13), (14,18)]:
+            for min_x, max_x in [(8,12), (13,18), (19,24), (25,30), (31,36)]:
                 self.assertPointsAreInBounds(
                     points[point_index:point_index+6],
                     dict(min_x=min_x, max_x=max_x, min_y=min_y, max_y=max_y))
@@ -390,8 +390,8 @@ class PointGenTest(ClientTest):
         # Check the points in order by point number. That's row by row,
         # top to bottom, left to right.
         point_index = 0
-        for y in [4, 11, 19, 26]:
-            for x in [2, 6, 10, 14, 18]:
+        for y in [3, 10, 18, 25]:
+            for x in [1, 5, 9, 13, 17]:
                 self.assertEqual(x, points[point_index].column)
                 self.assertEqual(y, points[point_index].row)
                 point_index += 1
@@ -413,8 +413,8 @@ class PointGenTest(ClientTest):
         # Check the points in order by point number. That's row by row,
         # top to bottom, left to right.
         point_index = 0
-        for y in [5, 12, 18, 25]:
-            for x in [4, 6, 8, 10, 12]:
+        for y in [4, 11, 17, 24]:
+            for x in [3, 5, 7, 9, 11]:
                 self.assertEqual(x, points[point_index].column)
                 self.assertEqual(y, points[point_index].row)
                 point_index += 1
@@ -430,7 +430,7 @@ class PointGenTest(ClientTest):
         self.client.force_login(self.user)
         self.client.post(
             reverse('annotation_area_edit', args=[img.pk]),
-            data=dict(min_x=9, max_x=37, min_y=1, max_y=19))
+            data=dict(min_x=8, max_x=36, min_y=0, max_y=18))
 
         points = img.point_set.all()
         self.assertEqual(
@@ -440,8 +440,8 @@ class PointGenTest(ClientTest):
         # Check the points in order by point number. That's row by row,
         # top to bottom, left to right.
         point_index = 0
-        for y in [2, 7, 12, 17]:
-            for x in [11, 16, 22, 28, 34]:
+        for y in [1, 6, 11, 16]:
+            for x in [10, 15, 21, 27, 33]:
                 self.assertEqual(x, points[point_index].column)
                 self.assertEqual(y, points[point_index].row)
                 point_index += 1

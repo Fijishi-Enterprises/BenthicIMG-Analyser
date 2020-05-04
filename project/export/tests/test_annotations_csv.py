@@ -37,6 +37,7 @@ class ImageSetTest(BaseExportTest):
         cls.user = cls.create_user()
         cls.source = cls.create_source(
             cls.user,
+            # Uniform grid gives us consistent point locations.
             point_generation_type=PointGen.Types.UNIFORM,
             number_of_cell_rows=1, number_of_cell_columns=2,
         )
@@ -55,8 +56,8 @@ class ImageSetTest(BaseExportTest):
 
         expected_lines = [
             'Name,Row,Column,Label',
-            '1.jpg,150,100,A',
-            '1.jpg,150,300,B',
+            '1.jpg,149,99,A',
+            '1.jpg,149,299,B',
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
@@ -80,12 +81,12 @@ class ImageSetTest(BaseExportTest):
 
         expected_lines = [
             'Name,Row,Column,Label',
-            '1.jpg,150,100,A',
-            '1.jpg,150,300,B',
-            '2.jpg,200,100,B',
-            '2.jpg,200,300,A',
-            '3.jpg,100,100,B',
-            '3.jpg,100,300,B',
+            '1.jpg,149,99,A',
+            '1.jpg,149,299,B',
+            '2.jpg,199,99,B',
+            '2.jpg,199,299,A',
+            '3.jpg,99,99,B',
+            '3.jpg,99,299,B',
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
@@ -116,10 +117,10 @@ class ImageSetTest(BaseExportTest):
 
         expected_lines = [
             'Name,Row,Column,Label',
-            '1.jpg,150,100,A',
-            '1.jpg,150,300,B',
-            '3.jpg,100,100,B',
-            '3.jpg,100,300,B',
+            '1.jpg,149,99,A',
+            '1.jpg,149,299,B',
+            '3.jpg,99,99,B',
+            '3.jpg,99,299,B',
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
@@ -150,10 +151,10 @@ class ImageSetTest(BaseExportTest):
 
         expected_lines = [
             'Name,Row,Column,Label',
-            '2.jpg,200,100,B',
-            '2.jpg,200,300,A',
-            '3.jpg,100,100,B',
-            '3.jpg,100,300,B',
+            '2.jpg,199,99,B',
+            '2.jpg,199,299,A',
+            '3.jpg,99,99,B',
+            '3.jpg,99,299,B',
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
@@ -205,8 +206,8 @@ class ImageSetTest(BaseExportTest):
         # Should have image 1, but not 2
         expected_lines = [
             'Name,Row,Column,Label',
-            '1.jpg,150,100,A',
-            '1.jpg,150,300,B',
+            '1.jpg,149,99,A',
+            '1.jpg,149,299,B',
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
@@ -246,7 +247,7 @@ class AnnotationStatusTest(BaseExportTest):
 
         expected_lines = [
             'Name,Row,Column,Label',
-            '1.jpg,150,100,B',
+            '1.jpg,149,99,B',
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
@@ -256,8 +257,8 @@ class AnnotationStatusTest(BaseExportTest):
 
         expected_lines = [
             'Name,Row,Column,Label',
-            '1.jpg,150,100,B',
-            '1.jpg,150,300,A',
+            '1.jpg,149,99,B',
+            '1.jpg,149,299,A',
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
@@ -268,8 +269,8 @@ class AnnotationStatusTest(BaseExportTest):
 
         expected_lines = [
             'Name,Row,Column,Label',
-            '1.jpg,150,100,B',
-            '1.jpg,150,300,A',
+            '1.jpg,149,99,B',
+            '1.jpg,149,299,A',
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
@@ -281,8 +282,8 @@ class AnnotationStatusTest(BaseExportTest):
 
         expected_lines = [
             'Name,Row,Column,Label',
-            '1.jpg,150,100,B',
-            '1.jpg,150,300,A',
+            '1.jpg,149,99,B',
+            '1.jpg,149,299,A',
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
@@ -319,7 +320,7 @@ class AnnotatorInfoColumnsTest(BaseExportTest, UploadAnnotationsTestMixin):
 
         expected_lines = [
             'Name,Row,Column,Label,Annotator,Date annotated',
-            '1.jpg,150,200,B,{username},{date}'.format(
+            '1.jpg,149,199,B,{username},{date}'.format(
                 username=self.user.username, date=date_str),
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
@@ -362,7 +363,7 @@ class AnnotatorInfoColumnsTest(BaseExportTest, UploadAnnotationsTestMixin):
 
         expected_lines = [
             'Name,Row,Column,Label,Annotator,Date annotated',
-            '1.jpg,150,200,B,robot,{date}'.format(date=date_str),
+            '1.jpg,149,199,B,robot,{date}'.format(date=date_str),
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
@@ -398,7 +399,7 @@ class MachineSuggestionColumnsTest(BaseExportTest):
             'Name,Row,Column,Label'
             ',Machine suggestion 1,Machine confidence 1'
             ',Machine suggestion 2,Machine confidence 2',
-            '1.jpg,150,200,B,,,,',
+            '1.jpg,149,199,B,,,,',
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
@@ -419,7 +420,7 @@ class MachineSuggestionColumnsTest(BaseExportTest):
             'Name,Row,Column,Label'
             ',Machine suggestion 1,Machine confidence 1'
             ',Machine suggestion 2,Machine confidence 2',
-            '1.jpg,150,200,B,B,60,A,40',
+            '1.jpg,149,199,B,B,60,A,40',
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
@@ -438,7 +439,7 @@ class MachineSuggestionColumnsTest(BaseExportTest):
             ',Machine suggestion 1,Machine confidence 1'
             ',Machine suggestion 2,Machine confidence 2'
             ',Machine suggestion 3,Machine confidence 3',
-            '1.jpg,150,200,B,B,60,A,40,,',
+            '1.jpg,149,199,B,B,60,A,40,,',
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
@@ -471,7 +472,7 @@ class MetadataAuxColumnsTest(BaseExportTest):
 
         expected_lines = [
             'Name,Date,Aux1,Aux2,Aux3,Aux4,Aux5,Row,Column,Label',
-            '1.jpg,,,,,,,150,200,B',
+            '1.jpg,,,,,,,149,199,B',
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
@@ -489,7 +490,7 @@ class MetadataAuxColumnsTest(BaseExportTest):
 
         expected_lines = [
             'Name,Date,Aux1,Aux2,Aux3,Aux4,Aux5,Row,Column,Label',
-            '1.jpg,2001-02-03,Site A,Transect 1-2,Quadrant 5,,,150,200,B',
+            '1.jpg,2001-02-03,Site A,Transect 1-2,Quadrant 5,,,149,199,B',
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
@@ -511,7 +512,7 @@ class MetadataAuxColumnsTest(BaseExportTest):
 
         expected_lines = [
             'Name,Date,Site,Transect,Quadrant,Aux4,Aux5,Row,Column,Label',
-            '1.jpg,2001-02-03,Site A,Transect 1-2,Quadrant 5,,,150,200,B',
+            '1.jpg,2001-02-03,Site A,Transect 1-2,Quadrant 5,,,149,199,B',
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
@@ -546,7 +547,7 @@ class MetadataOtherColumnsTest(BaseExportTest):
             'Name,Height (cm),Latitude,Longitude,Depth,Camera,Photographer'
             ',Water quality,Strobes,Framing gear used,White balance card'
             ',Comments,Row,Column,Label',
-            '1.jpg,,,,,,,,,,,,150,200,B',
+            '1.jpg,,,,,,,,,,,,149,199,B',
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
@@ -575,7 +576,7 @@ class MetadataOtherColumnsTest(BaseExportTest):
             ',Comments,Row,Column,Label',
             '1.jpg,40,5.789,-50,10m,Nikon,John Doe'
             ',Clear,White A,Framing set C,Card B'
-            ',"Here are\nsome comments.",150,200,B',
+            ',"Here are\nsome comments.",149,199,B',
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
@@ -635,7 +636,7 @@ class MoreOptionalColumnsCasesTest(BaseExportTest):
             '1.jpg,2001-02-03,Site A,Transect 1-2,Quadrant 5'
             ',,,40,5.789,-50,10m,Nikon,John Doe'
             ',Clear,White A,Framing set C,Card B'
-            ',"Here are\nsome comments.",150,200,B',
+            ',"Here are\nsome comments.",149,199,B',
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
@@ -663,7 +664,7 @@ class MoreOptionalColumnsCasesTest(BaseExportTest):
             'Name,Date,Site,Transect,Quadrant,Aux4,Aux5'
             ',Row,Column,Label,Annotator,Date annotated',
             '1.jpg,2001-02-03,Site A,Transect 1-2,Quadrant 5,,'
-            ',150,200,B,{username},{date}'.format(
+            ',149,199,B,{username},{date}'.format(
                 username=self.user.username, date=date_str),
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
@@ -716,7 +717,7 @@ class MoreOptionalColumnsCasesTest(BaseExportTest):
             '1.jpg,2001-02-03,Site A,Transect 1-2,Quadrant 5,,'
             ',40,5.789,-50,10m,Nikon,John Doe'
             ',Clear,White A,Framing set C,Card B'
-            ',"Here are\nsome comments.",150,200,B'
+            ',"Here are\nsome comments.",149,199,B'
             ',{username},{date},B,60,A,40'.format(
                 username=self.user.username, date=date_str),
         ]
@@ -765,7 +766,7 @@ class UnicodeTest(BaseExportTest):
 
         expected_lines = [
             'Name,Row,Column,Label',
-            'あ.jpg,150,200,い',
+            'あ.jpg,149,199,い',
         ]
         self.assert_csv_content_equal(
             response.content, expected_lines)
@@ -796,7 +797,7 @@ class UploadAndExportSameDataTest(BaseExportTest):
         content = ''
         csv_lines = [
             'Name,Row,Column,Label',
-            '1.jpg,150,200,A',
+            '1.jpg,149,199,A',
         ]
         for line in csv_lines:
             content += (line + '\n')

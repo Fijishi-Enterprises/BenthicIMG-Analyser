@@ -445,13 +445,15 @@ var AnnotationToolHelper = (function() {
     function getCanvasPoints() {
         for (var i = 0; i < imagePoints.length; i++) {
 
-            // imagePoints[num].row: which image pixel it is, from 1 to height
-            // canvasPoints[num].row: offset on the canvas, starting from 0 if the point is visible.
-            // Subtract 0.5 so the canvasPoint is in the middle of the point's pixel instead of the bottom-right edge.  Typically won't make much of a difference, but still.
+            // imagePoints[num].row: which image pixel it is, from 0 to height.
+            // canvasPoints[num].row: offset on the canvas, starting from 0
+            // if the point is visible.
+            // Add 0.5 so the canvasPoint is in the middle of the point's pixel
+            // instead of the top-left edge.
             canvasPoints[imagePoints[i].point_number] = {
                 num: imagePoints[i].point_number,
-                row: ((imagePoints[i].row - 0.5) * zoomFactor) + imageTopOffset,
-                col: ((imagePoints[i].column - 0.5) * zoomFactor) + imageLeftOffset
+                row: ((imagePoints[i].row + 0.5) * zoomFactor) + imageTopOffset,
+                col: ((imagePoints[i].column + 0.5) * zoomFactor) + imageLeftOffset
             };
         }
     }
@@ -462,9 +464,9 @@ var AnnotationToolHelper = (function() {
      */
     function pointIsOffscreen(pointNum) {
         return (canvasPoints[pointNum].row < 0
-            || canvasPoints[pointNum].row > IMAGE_AREA_HEIGHT
+            || canvasPoints[pointNum].row >= IMAGE_AREA_HEIGHT
             || canvasPoints[pointNum].col < 0
-            || canvasPoints[pointNum].col > IMAGE_AREA_WIDTH
+            || canvasPoints[pointNum].col >= IMAGE_AREA_WIDTH
             )
     }
 

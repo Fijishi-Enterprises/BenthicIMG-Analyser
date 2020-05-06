@@ -111,33 +111,42 @@ def generate_patch_if_doesnt_exist(point_id):
     if storage.exists(patch_relative_path):
         return
 
-    # Load image and convert to numpy array.
+    # Locate and open the image.
     point = Point.objects.get(pk=point_id)
     image = point.image
     original_image_relative_path = image.original_file.name
     original_image_file = storage.open(original_image_relative_path)
 
-    # Figure out the patch size to crop, and which to resize to.
-    patch_size = int(max(image.original_width, image.original_height)
-                     * settings.LABELPATCH_SIZE_FRACTION)
+    # Figure out the size to crop out of the original image. Base it on the
+    # larger of the two image dimensions.
+    approx_region_size = int(max(image.original_width, image.original_height)
+                             * settings.LABELPATCH_SIZE_FRACTION)
 
-    # Load the image convert to RGB.
+    # Load the image and convert to RGB.
     im = PILImage.open(original_image_file)
     im = im.convert('RGB')
 
     # Crop.
+    # - Both CoralNet coordinates and Pillow coordinates start from 0 at the
+    # top left.
+    # https://pillow.readthedocs.io/en/stable/handbook/concepts.html#coordinate-system
+    # - crop() includes the low bounds and excludes the high bounds, so we
+    # add +1 to the high bounds so that the point ends up in the center of the
+    # region, rather than a half-pixel off.
+    # - The region is always odd-sized, and either equal to or 1 greater
+    # than the approx_region_size.
     region = im.crop((
-        point.column - patch_size // 2,
-        point.row - patch_size // 2,
-        point.column + patch_size // 2,
-        point.row + patch_size // 2
+        point.column - (approx_region_size // 2),
+        point.row - (approx_region_size // 2),
+        point.column + (approx_region_size // 2) + 1,
+        point.row + (approx_region_size // 2) + 1
     ))
 
-    # Resize to the desired size.
+    # Resize to the desired size for the final patch.
     region = region.resize((settings.LABELPATCH_NCOLS,
                             settings.LABELPATCH_NROWS))
 
-    # Save the image.
+    # Save the patch image.
     # First use Pillow's save() method on an IO stream
     # (so we don't have to create a temporary file).
     # Then save the image, using the path constructed earlier

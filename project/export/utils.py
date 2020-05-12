@@ -234,8 +234,8 @@ def write_annotations_cpc(cpc_stream, img, cpc_prefs):
     elif anno_area_type == AnnotationAreaUtils.TYPE_IMPORTED:
         # Unspecified; just use the whole image
         anno_area = dict(
-            min_x=0, max_x=img.original_width - 1,
-            min_y=0, max_y=img.original_height - 1)
+            min_x=0, max_x=img.max_column,
+            min_y=0, max_y=img.max_row)
     bound_left = anno_area[u'min_x'] * 15
     bound_right = anno_area[u'max_x'] * 15
     bound_top = anno_area[u'min_y'] * 15

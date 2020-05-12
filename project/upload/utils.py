@@ -313,23 +313,23 @@ def annotations_csv_verify_contents(csv_annotations, source):
                     " not {column}".format(
                         column=column_str))
 
-            if row > img.original_height - 1:
+            if row > img.max_row:
                 raise FileProcessError(
                     point_error_prefix +
                     " Row value is {row},"
                     " but the image is only {height} pixels high"
                     " (accepted values are 0~{max_row})".format(
                         row=row, height=img.original_height,
-                        max_row=img.original_height-1))
+                        max_row=img.max_row))
 
-            if column > img.original_width - 1:
+            if column > img.max_column:
                 raise FileProcessError(
                     point_error_prefix +
                     " Column value is {column},"
                     " but the image is only {width} pixels wide"
                     " (accepted values are 0~{max_column})".format(
                         column=column, width=img.original_width,
-                        max_column=img.original_width-1))
+                        max_column=img.max_column))
 
             if 'label' in point_dict:
                 # Check that the label is in the labelset
@@ -622,7 +622,7 @@ def annotations_cpc_verify_contents(cpc_dicts, source):
                 column=column,
             )
 
-            if row > img.original_height - 1:
+            if row > img.max_row:
                 raise FileProcessError(
                     point_error_prefix +
                     " Row value of {y} corresponds to pixel {row},"
@@ -630,9 +630,9 @@ def annotations_cpc_verify_contents(cpc_dicts, source):
                     " (accepted values are 0~{max_row})".format(
                         y=y, row=row, name=image_name,
                         height=img.original_height,
-                        max_row=img.original_height-1))
+                        max_row=img.max_row))
 
-            if column > img.original_width - 1:
+            if column > img.max_column:
                 raise FileProcessError(
                     point_error_prefix +
                     " Column value of {x} corresponds to pixel {column},"
@@ -640,7 +640,7 @@ def annotations_cpc_verify_contents(cpc_dicts, source):
                     " (accepted values are 0~{max_column})".format(
                         x=x, column=column, name=image_name,
                         width=img.original_width,
-                        max_column=img.original_width-1))
+                        max_column=img.max_column))
 
             if 'label' in cpc_point_dict:
                 # Check that the label is in the labelset

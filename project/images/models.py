@@ -665,6 +665,16 @@ class Image(models.Model):
     def trainset(self):
         return not self.valset
 
+    @property
+    def max_column(self):
+        # Highest column (x) pixel within the image dimensions.
+        return self.original_width - 1
+
+    @property
+    def max_row(self):
+        # Highest row (y) pixel within the image dimensions.
+        return self.original_height - 1
+
     def __str__(self):
         return self.metadata.name
 

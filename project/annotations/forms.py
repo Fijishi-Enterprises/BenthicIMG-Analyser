@@ -203,22 +203,22 @@ class AnnotationAreaPixelsForm(Form):
 
         self.fields['min_x'] = IntegerField(
             label="Left boundary X", required=False,
-            min_value=0, max_value=image.original_width-1,
+            min_value=0, max_value=image.max_column,
             widget=NumberInput(attrs={'size': 5})
         )
         self.fields['max_x'] = IntegerField(
             label="Right boundary X", required=False,
-            min_value=0, max_value=image.original_width-1,
+            min_value=0, max_value=image.max_column,
             widget=NumberInput(attrs={'size': 5})
         )
         self.fields['min_y'] = IntegerField(
             label="Top boundary Y", required=False,
-            min_value=0, max_value=image.original_height-1,
+            min_value=0, max_value=image.max_row,
             widget=NumberInput(attrs={'size': 5})
         )
         self.fields['max_y'] = IntegerField(
             label="Bottom boundary Y", required=False,
-            min_value=0, max_value=image.original_height-1,
+            min_value=0, max_value=image.max_row,
             widget=NumberInput(attrs={'size': 5})
         )
 

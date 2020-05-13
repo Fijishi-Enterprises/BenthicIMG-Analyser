@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+import mock
 
 from django_migration_testcase import MigrationTest
 
@@ -6,6 +7,46 @@ from annotations.model_utils import AnnotationAreaUtils
 from images.models import Point
 from images.model_utils import PointGen
 from lib.tests.utils import ClientTest
+
+
+class PointValidationTest(ClientTest):
+
+    def test_bounds_checks(self):
+        user = self.create_user()
+        source = self.create_source(user)
+        image = self.upload_image(
+            user, source, image_options=dict(width=50, height=40))
+
+        # OK
+        point = Point(image=image, column=0, row=0, point_number=1)
+        point.save()
+        point = Point(image=image, column=49, row=39, point_number=2)
+        point.save()
+
+        # Errors
+        point = Point(image=image, column=0, row=-1, point_number=3)
+        with self.assertRaisesMessage(AssertionError, "Row below minimum"):
+            point.save()
+
+        point = Point(image=image, column=49, row=40, point_number=3)
+        with self.assertRaisesMessage(AssertionError, "Row above maximum"):
+            point.save()
+
+        point = Point(image=image, column=-1, row=0, point_number=3)
+        with self.assertRaisesMessage(AssertionError, "Column below minimum"):
+            point.save()
+
+        point = Point(image=image, column=50, row=39, point_number=3)
+        with self.assertRaisesMessage(AssertionError, "Column above maximum"):
+            point.save()
+
+
+def save_without_checks(self, *args, **kwargs):
+    """
+    Mock version of Point.save().
+    Doesn't run assertions, so we can save any row/column values we want.
+    """
+    super(Point, self).save(*args, **kwargs)
 
 
 class PointRowcolIndexingMigrationTest(MigrationTest, ClientTest):
@@ -30,12 +71,14 @@ class PointRowcolIndexingMigrationTest(MigrationTest, ClientTest):
         img2 = self.upload_image(
             user, source, image_options=dict(width=50, height=50))
 
-        # Create points manually to control the rows/columns.
+        # Create points manually and without checks so we can set the
+        # rows/columns we want.
         Point.objects.all().delete()
-        point = Point(image=img1, point_number=1, row=1, column=50)
-        point.save()
-        point = Point(image=img2, point_number=1, row=29, column=1)
-        point.save()
+        with mock.patch.object(Point, 'save', save_without_checks):
+            point = Point(image=img1, point_number=1, row=1, column=50)
+            point.save()
+            point = Point(image=img2, point_number=1, row=29, column=1)
+            point.save()
 
         # Create a pixel-based annotation area for only one image. Leave the
         # other as a percent-based area.

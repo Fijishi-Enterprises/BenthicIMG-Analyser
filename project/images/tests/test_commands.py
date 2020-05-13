@@ -1,9 +1,19 @@
 from __future__ import unicode_literals
+import mock
 import os
 import tempfile
 
 from images.model_utils import PointGen
+from images.models import Point
 from lib.tests.utils import ManagementCommandTest
+
+
+def save_without_checks(self, *args, **kwargs):
+    """
+    Mock version of Point.save().
+    Doesn't run assertions, so we can save any row/column values we want.
+    """
+    super(Point, self).save(*args, **kwargs)
 
 
 class RemovePointOutliersTest(ManagementCommandTest):
@@ -14,7 +24,8 @@ class RemovePointOutliersTest(ManagementCommandTest):
             point.row = row
         if column is not None:
             point.column = column
-        point.save()
+        with mock.patch.object(Point, 'save', save_without_checks):
+            point.save()
 
     def test_all_modes(self):
         # Set up data

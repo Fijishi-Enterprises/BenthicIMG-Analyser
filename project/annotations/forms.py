@@ -84,8 +84,14 @@ class AnnotationToolSettingsForm(ModelForm):
         super(AnnotationToolSettingsForm, self).__init__(*args, **kwargs)
 
         # Make text fields have the appropriate size.
-        self.fields['point_marker_size'].widget.attrs.update({'size': 2})
-        self.fields['point_number_size'].widget.attrs.update({'size': 2})
+        #
+        # TODO: This should really be sized with CSS:
+        # https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/number#Using_number_inputs
+        # But it so happens that Firefox still accepts this size attr.
+        # And other browsers (Chromium-based) already size the field reasonably
+        # based on min and max values.
+        self.fields['point_marker_size'].widget.attrs.update({'size': 4})
+        self.fields['point_number_size'].widget.attrs.update({'size': 4})
 
         # Make the color fields have class="color" so they use jscolor.
         color_fields = [self.fields[name] for name in

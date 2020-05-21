@@ -123,36 +123,46 @@ var AAH = {
     },
     /* Update the form to match the box. */
     boxToFormUpdate: function() {
+        // Ranges: 0 ~ display width, 0 ~ display height
         var boxValues = AAH.boxValues;
+
+        // Map to ranges: 0 ~ full width, 0 ~ full height
         var boxScaledToImage = {};
         boxScaledToImage['left'] = boxValues['left'] / AAH.dimensions.widthScaleFactor;
         boxScaledToImage['right'] = boxValues['right'] / AAH.dimensions.widthScaleFactor;
         boxScaledToImage['top'] = boxValues['top'] / AAH.dimensions.heightScaleFactor;
         boxScaledToImage['bottom'] = boxValues['bottom'] / AAH.dimensions.heightScaleFactor;
 
-        AAH.fields.min_x.value = Math.round(boxScaledToImage['left']) + 1;
-        AAH.fields.max_x.value = Math.round(boxScaledToImage['right']);
-        AAH.fields.min_y.value = Math.round(boxScaledToImage['top']) + 1;
-        AAH.fields.max_y.value = Math.round(boxScaledToImage['bottom']);
+        // Map to annotation area values, with ranges:
+        // 0 ~ full width - 1, 0 ~ full height - 1
+        AAH.fields.min_x.value = Math.round(boxScaledToImage['left']);
+        AAH.fields.max_x.value = Math.round(boxScaledToImage['right']) - 1;
+        AAH.fields.min_y.value = Math.round(boxScaledToImage['top']);
+        AAH.fields.max_y.value = Math.round(boxScaledToImage['bottom']) - 1;
 
         AAH.rememberFormValues();
     },
     /* Update the box to match the form field values. */
     formToBoxUpdate: function() {
+        // Annotation area values, with ranges:
+        // 0 ~ full width - 1, 0 ~ full height - 1
         var d = AAH.getFormValues();
+
+        // Map to ranges: 0 ~ full width, 0 ~ full height
         var boxScaledToImage = {
-            'left': d['min_x'] - 1,
-            'right': d['max_x'],
-            'top': d['min_y'] - 1,
-            'bottom': d['max_y']
+            'left': d['min_x'],
+            'right': d['max_x'] + 1,
+            'top': d['min_y'],
+            'bottom': d['max_y'] + 1
         };
-        // Save boxValues as floats.
+
+        // Map to ranges: 0 ~ display width, 0 ~ display height
         AAH.boxValues.left = boxScaledToImage.left * AAH.dimensions.widthScaleFactor;
         AAH.boxValues.right = boxScaledToImage.right * AAH.dimensions.widthScaleFactor;
         AAH.boxValues.top = boxScaledToImage.top * AAH.dimensions.heightScaleFactor;
         AAH.boxValues.bottom = boxScaledToImage.bottom * AAH.dimensions.heightScaleFactor;
 
-        // Apply CSS attrs as ints.
+        // Box position and dimensions, applied to CSS attrs as ints.
         var cssDict = {};
         cssDict.left = Math.round(AAH.boxValues.left);
         cssDict.width = Math.round(AAH.boxValues.right - AAH.boxValues.left);
@@ -189,14 +199,14 @@ var AAH = {
         }
 
         // Out-of-range values can be easily corrected.
-        if (d['min_x'] < 1)
-            AAH.fields['min_x'].value = 1;
-        if (d['max_x'] > AAH.dimensions.fullWidth)
-            AAH.fields['max_x'].value = AAH.dimensions.fullWidth;
-        if (d['min_y'] < 1)
-            AAH.fields['min_y'].value = 1;
-        if (d['max_y'] > AAH.dimensions.fullHeight)
-            AAH.fields['max_y'].value = AAH.dimensions.fullHeight;
+        if (d['min_x'] < 0)
+            AAH.fields['min_x'].value = 0;
+        if (d['max_x'] > AAH.dimensions.fullWidth - 1)
+            AAH.fields['max_x'].value = AAH.dimensions.fullWidth - 1;
+        if (d['min_y'] < 0)
+            AAH.fields['min_y'].value = 0;
+        if (d['max_y'] > AAH.dimensions.fullHeight - 1)
+            AAH.fields['max_y'].value = AAH.dimensions.fullHeight - 1;
     },
     /* Save the current form values, in case we get invalid
      * values later and need to revert. */

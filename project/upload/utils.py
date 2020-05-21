@@ -282,50 +282,62 @@ def annotations_csv_verify_contents(csv_annotations, source):
 
         row_col_set = set()
 
-        for point_dict in annotations_for_image:
-            # Check that row/column are within the image dimensions
+        for point_number, point_dict in enumerate(annotations_for_image, 1):
+
+            # Check that row/column are integers within the image dimensions.
+
+            point_error_prefix = \
+                "For image {image_name}, point {point_number}:".format(
+                    image_name=image_name, point_number=point_number)
+
             row_str = point_dict['row']
             try:
                 row = int(row_str)
-                if row <= 0:
+                if row < 0:
                     raise ValueError
             except ValueError:
                 raise FileProcessError(
-                    "Row value is not a positive integer: {row}".format(
+                    point_error_prefix +
+                    " Row should be a non-negative integer, not {row}".format(
                         row=row_str))
 
             column_str = point_dict['column']
             try:
                 column = int(column_str)
-                if column <= 0:
+                if column < 0:
                     raise ValueError
             except ValueError:
                 raise FileProcessError(
-                    "Column value is not a positive integer: {column}".format(
+                    point_error_prefix +
+                    " Column should be a non-negative integer,"
+                    " not {column}".format(
                         column=column_str))
 
-            if img.original_height < row:
+            if row > img.max_row:
                 raise FileProcessError(
-                    "Row value of {row} is too large"
-                    " for image {name}, which has dimensions"
-                    " {width} x {height}".format(
-                        row=row, name=image_name,
-                        width=img.original_width, height=img.original_height))
+                    point_error_prefix +
+                    " Row value is {row},"
+                    " but the image is only {height} pixels high"
+                    " (accepted values are 0~{max_row})".format(
+                        row=row, height=img.original_height,
+                        max_row=img.max_row))
 
-            if img.original_width < column:
+            if column > img.max_column:
                 raise FileProcessError(
-                    "Column value of {column} is too large"
-                    " for image {name}, which has dimensions"
-                    " {width} x {height}".format(
-                        column=column, name=image_name,
-                        width=img.original_width, height=img.original_height))
+                    point_error_prefix +
+                    " Column value is {column},"
+                    " but the image is only {width} pixels wide"
+                    " (accepted values are 0~{max_column})".format(
+                        column=column, width=img.original_width,
+                        max_column=img.max_column))
 
             if 'label' in point_dict:
                 # Check that the label is in the labelset
                 label_code = point_dict['label']
                 if not source.labelset.get_global_by_code(label_code):
                     raise FileProcessError(
-                        "No label of code {code} found"
+                        point_error_prefix +
+                        " No label of code {code} found"
                         " in this source's labelset".format(
                             code=label_code))
 
@@ -574,8 +586,12 @@ def annotations_cpc_verify_contents(cpc_dicts, source):
 
         for point_number, cpc_point_dict in enumerate(cpc_dict['points'], 1):
 
-            # Check that row/column are within the image dimensions.
+            # Check that row/column are integers within the image dimensions.
             # Convert from CPCe units to pixels in the meantime.
+
+            point_error_prefix = \
+                "From file {cpc_filename}, point {point_number}:".format(
+                    cpc_filename=cpc_filename, point_number=point_number)
 
             try:
                 y = int(cpc_point_dict['y_str'])
@@ -583,11 +599,9 @@ def annotations_cpc_verify_contents(cpc_dicts, source):
                     raise ValueError
             except ValueError:
                 raise FileProcessError((
-                    "From file {cpc_filename}, point {point_number}:"
-                    " Row value is not an integer in the accepted range:"
+                    point_error_prefix +
+                    " Row should be a non-negative integer, not"
                     " {y_str}").format(
-                        cpc_filename=cpc_filename,
-                        point_number=point_number,
                         y_str=cpc_point_dict['y_str']))
 
             try:
@@ -596,56 +610,46 @@ def annotations_cpc_verify_contents(cpc_dicts, source):
                     raise ValueError
             except ValueError:
                 raise FileProcessError((
-                    "From file {cpc_filename}, point {point_number}:"
-                    " Column value is not an integer in the accepted range:"
+                    point_error_prefix +
+                    " Column should be a non-negative integer, not"
                     " {x_str}").format(
-                        cpc_filename=cpc_filename,
-                        point_number=point_number,
                         x_str=cpc_point_dict['x_str']))
 
-            row = int(round(y/15 + 1))
-            column = int(round(x/15 + 1))
+            row = int(round(y/15))
+            column = int(round(x/15))
             point_dict = dict(
                 row=row,
                 column=column,
             )
 
-            if img.original_height < row:
+            if row > img.max_row:
                 raise FileProcessError(
-                    "From file {cpc_filename}, point {point_number}:"
-                    " Row value of {y} corresponds to pixel {row}."
-                    " This is too large"
-                    " for image {name}, which has dimensions"
-                    " {width} x {height}.".format(
-                        cpc_filename=cpc_filename,
-                        point_number=point_number,
-                        y=y,
-                        row=row, name=image_name,
-                        width=img.original_width, height=img.original_height))
+                    point_error_prefix +
+                    " Row value of {y} corresponds to pixel {row},"
+                    " but image {name} is only {height} pixels high"
+                    " (accepted values are 0~{max_row})".format(
+                        y=y, row=row, name=image_name,
+                        height=img.original_height,
+                        max_row=img.max_row))
 
-            if img.original_width < column:
+            if column > img.max_column:
                 raise FileProcessError(
-                    "From file {cpc_filename}, point {point_number}:"
-                    " Column value of {x} corresponds to pixel {column}."
-                    " This is too large"
-                    " for image {name}, which has dimensions"
-                    " {width} x {height}.".format(
-                        cpc_filename=cpc_filename,
-                        point_number=point_number,
-                        x=x,
-                        column=column, name=image_name,
-                        width=img.original_width, height=img.original_height))
+                    point_error_prefix +
+                    " Column value of {x} corresponds to pixel {column},"
+                    " but image {name} is only {width} pixels wide"
+                    " (accepted values are 0~{max_column})".format(
+                        x=x, column=column, name=image_name,
+                        width=img.original_width,
+                        max_column=img.max_column))
 
             if 'label' in cpc_point_dict:
                 # Check that the label is in the labelset
                 label_code = cpc_point_dict['label']
                 if not source.labelset.get_global_by_code(label_code):
                     raise FileProcessError(
-                        "From file {cpc_filename}, point {point_number}:"
+                        point_error_prefix +
                         " No label of code {code} found"
                         " in this source's labelset".format(
-                            cpc_filename=cpc_filename,
-                            point_number=point_number,
                             code=label_code))
                 point_dict['label'] = label_code
 

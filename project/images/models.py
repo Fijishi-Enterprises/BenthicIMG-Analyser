@@ -665,6 +665,16 @@ class Image(models.Model):
     def trainset(self):
         return not self.valset
 
+    @property
+    def max_column(self):
+        # Highest column (x) pixel within the image dimensions.
+        return self.original_width - 1
+
+    @property
+    def max_row(self):
+        # Highest row (y) pixel within the image dimensions.
+        return self.original_height - 1
+
     def __str__(self):
         return self.metadata.name
 
@@ -779,6 +789,20 @@ class Point(models.Model):
         except ValueError:
             # No scores means max(scores) will raise this
             return 0
+
+    def save(self, *args, **kwargs):
+        # Check row/column against image bounds before saving.
+        #
+        # We do this validation in save() because we only ever create Points
+        # through direct ORM save() calls, not through Forms or ModelForms.
+        # When calling save() directly, model field validators, clean(), etc.
+        # are not used.
+        assert self.row >= 0, "Row below minimum"
+        assert self.row <= self.image.max_row, "Row above maximum"
+        assert self.column >= 0, "Column below minimum"
+        assert self.column <= self.image.max_column, "Column above maximum"
+
+        super(Point, self).save(*args, **kwargs)
 
     def __str__(self):
         """

@@ -17,7 +17,10 @@
 
     <form action="" method="post">{% csrf_token %}
         <span class="helptext">
-            {{ annotationAreaForm.form_help_text|linebreaksbr }}<br /><br/>
+            {{ annotationAreaForm.form_help_text|linebreaksbr }}
+            <br/><br/>
+            Note that boundary values start from zero, so if you select the entire image, the maximum boundary values will be (image width - 1) and (image height - 1).
+            <br/><br/>
             Image dimensions: {{ image.original_width }} x {{ image.original_height }}
         </span>
         {% include "annotations/form_annotation_area.html" with form=annotationAreaForm type="pixel" %}

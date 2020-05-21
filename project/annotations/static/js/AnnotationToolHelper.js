@@ -445,13 +445,15 @@ var AnnotationToolHelper = (function() {
     function getCanvasPoints() {
         for (var i = 0; i < imagePoints.length; i++) {
 
-            // imagePoints[num].row: which image pixel it is, from 1 to height
-            // canvasPoints[num].row: offset on the canvas, starting from 0 if the point is visible.
-            // Subtract 0.5 so the canvasPoint is in the middle of the point's pixel instead of the bottom-right edge.  Typically won't make much of a difference, but still.
+            // imagePoints[num].row: which image pixel it is, from 0 to height.
+            // canvasPoints[num].row: offset on the canvas, starting from 0
+            // if the point is visible.
+            // Add 0.5 so the canvasPoint is in the middle of the point's pixel
+            // instead of the top-left edge.
             canvasPoints[imagePoints[i].point_number] = {
                 num: imagePoints[i].point_number,
-                row: ((imagePoints[i].row - 0.5) * zoomFactor) + imageTopOffset,
-                col: ((imagePoints[i].column - 0.5) * zoomFactor) + imageLeftOffset
+                row: ((imagePoints[i].row + 0.5) * zoomFactor) + imageTopOffset,
+                col: ((imagePoints[i].column + 0.5) * zoomFactor) + imageLeftOffset
             };
         }
     }
@@ -462,9 +464,9 @@ var AnnotationToolHelper = (function() {
      */
     function pointIsOffscreen(pointNum) {
         return (canvasPoints[pointNum].row < 0
-            || canvasPoints[pointNum].row > IMAGE_AREA_HEIGHT
+            || canvasPoints[pointNum].row >= IMAGE_AREA_HEIGHT
             || canvasPoints[pointNum].col < 0
-            || canvasPoints[pointNum].col > IMAGE_AREA_WIDTH
+            || canvasPoints[pointNum].col >= IMAGE_AREA_WIDTH
             )
     }
 
@@ -1134,14 +1136,6 @@ var AnnotationToolHelper = (function() {
         else
             radius = ATS.settings.pointMarkerSize;
 
-        // Adjust x and y by 0.5 so that straight lines are centered
-        // at the halfway point of a pixel, not on a pixel boundary.
-        // This ensures that 1-pixel-wide lines are really 1 pixel wide,
-        // instead of 2 pixels wide.
-        // NOTE: This only applies to odd-width lines.
-        x = x+0.5;
-        y = y+0.5;
-
         context.strokeStyle = color;
         context.lineWidth = 3;
 
@@ -1186,7 +1180,6 @@ var AnnotationToolHelper = (function() {
         context.font = NUMBER_FONT_FORMAT_STRING.format(numberSize.toString());
 
         // Offset the number's position a bit so it doesn't overlap with the annotation point.
-        // (Unlike the line drawing, 0.5 pixel adjustment doesn't seem to make a difference)
         // TODO: Consider doing offset calculations once each time the settings/zoom level change, not once for each point
         var offset = ATS.settings.pointMarkerSize;
 

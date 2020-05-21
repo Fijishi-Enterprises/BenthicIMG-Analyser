@@ -442,10 +442,9 @@ class AnnotationAreaTest(
         cpc_content = self.export_response_to_cpc(response, '1.cpc')
         actual_area_lines = cpc_content.splitlines()[1:5]
 
-        # Width ranges from 5% to 95% of 400. That's pixel 20 to pixel 380.
-        # CPC units: (20-1)*15 = 285, (380-1)*15 = 5685.
-        # Height ranges from 10% to 90% of 300. That's pixel 30 to 270.
-        # CPC units: (30-1)*15 = 435, (270-1)*15 = 4035.
+        # Width ranges from 5% to 95% of 400. That's pixel 19 to pixel 379.
+        # Height ranges from 10% to 90% of 300. That's pixel 29 to pixel 269.
+        # 19*15 = 285, 379*15 = 4035, 29*15 = 435, 269*15 = 5685
         expected_area_lines = [
             '285,4035',
             '5685,4035',
@@ -469,13 +468,13 @@ class AnnotationAreaTest(
         cpc_content = self.export_response_to_cpc(response, '1.cpc')
         actual_area_lines = cpc_content.splitlines()[1:5]
 
-        # Width ranges from (50-1)*15 to (200-1)*15.
-        # Height ranges from (100-1)*15 to (290-1)*15.
+        # Width ranges from 50*15 to 200*15.
+        # Height ranges from 100*15 to 290*15.
         expected_area_lines = [
-            '735,4335',
-            '2985,4335',
-            '2985,1485',
-            '735,1485',
+            '750,4350',
+            '3000,4350',
+            '3000,1500',
+            '750,1500',
         ]
         self.assertListEqual(
             actual_area_lines, expected_area_lines)
@@ -500,8 +499,8 @@ class AnnotationAreaTest(
         cpc_content = self.export_response_to_cpc(response, '1.cpc')
         actual_area_lines = cpc_content.splitlines()[1:5]
 
-        # Width ranges from (1-1)*15 to (400-1)*15.
-        # Height ranges from (1-1)*15 to (300-1)*15.
+        # Width ranges from 0*15 to (400-1)*15.
+        # Height ranges from 0*15 to (300-1)*15.
         expected_area_lines = [
             '0,4485',
             '5985,4485',
@@ -553,7 +552,82 @@ class AnnotationAreaTest(
             actual_area_lines, expected_area_lines)
 
 
-class CPCFullContentsTest(CPCExportBaseTest):
+class PointLocationsTest(CPCExportBaseTest, UploadAnnotationsTestMixin):
+    """
+    Test the point location values of the exported CPCs.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super(PointLocationsTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(
+            cls.user,
+            point_generation_type=PointGen.Types.UNIFORM,
+            # 2 points per image
+            number_of_cell_rows=1, number_of_cell_columns=2)
+        labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
+        cls.create_labelset(cls.user, cls.source, labels)
+
+        cls.img1 = cls.upload_image(
+            cls.user, cls.source,
+            dict(filename='1.jpg', width=400, height=300))
+
+        cls.export_cpcs_params = cls.default_search_params.copy()
+        cls.export_cpcs_params.update(
+            # CPC prefs
+            local_code_filepath=r'C:\codefile_1.txt',
+            local_image_dir=r'C:\Reef 1',
+            annotation_filter='confirmed_only',
+        )
+
+    def test_generated_points(self):
+        """Test using points generated on image-upload time."""
+        response = self.export_cpcs(self.export_cpcs_params)
+
+        cpc_content = self.export_response_to_cpc(response, '1.cpc')
+        actual_point_lines = cpc_content.splitlines()[6:8]
+
+        expected_point_lines = [
+            # 99*15, 149*15
+            '1485,2235',
+            # 299*15, 149*15
+            '4485,2235',
+        ]
+        self.assertListEqual(
+            actual_point_lines, expected_point_lines)
+
+    def test_csv_imported_points(self):
+        """Test using points imported from CSV."""
+        rows = [
+            ['Name', 'Column', 'Row'],
+            ['1.jpg', 50, 50],
+            ['1.jpg', 60, 40],
+        ]
+        csv_file = self.make_csv_file('A.csv', rows)
+        self.preview_csv_annotations(
+            self.user, self.source, csv_file)
+        self.upload_annotations(self.user, self.source)
+
+        response = self.export_cpcs(self.export_cpcs_params)
+
+        cpc_content = self.export_response_to_cpc(response, '1.cpc')
+        actual_point_lines = cpc_content.splitlines()[6:8]
+
+        expected_point_lines = [
+            # 50*15, 50*15
+            '750,750',
+            # 60*15, 40*15
+            '900,600',
+        ]
+        self.assertListEqual(
+            actual_point_lines, expected_point_lines)
+
+    # CPC-import case is tested in CPCFullContentsTest. Upload CPC, then
+    # export, get same CPC back.
+
+
+class CPCFullContentsTest(CPCExportBaseTest, UploadAnnotationsTestMixin):
     """
     Test the full contents of the exported CPCs.
     """
@@ -562,14 +636,7 @@ class CPCFullContentsTest(CPCExportBaseTest):
         super(CPCFullContentsTest, cls).setUpTestData()
 
         cls.user = cls.create_user()
-        cls.source = cls.create_source(
-            cls.user,
-            point_generation_type=PointGen.Types.UNIFORM,
-            # 6 points per image
-            number_of_cell_rows=2, number_of_cell_columns=3,
-            min_x=5, max_x=95, min_y=10, max_y=90,
-            confidence_threshold=80,
-        )
+        cls.source = cls.create_source(cls.user)
         labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
         cls.create_labelset(cls.user, cls.source, labels)
 
@@ -584,10 +651,21 @@ class CPCFullContentsTest(CPCExportBaseTest):
         Export in the case where we don't have a previously uploaded CPC file
         available, meaning we have to write a CPC from scratch.
         """
-        # Add some annotations. Not to all points, so we can test the label
+        # Upload points via CSV.
+        rows = [
+            ['Name', 'Column', 'Row'],
+            ['1.jpg', 50, 50],
+            ['1.jpg', 60, 40],
+        ]
+        csv_file = self.make_csv_file('A.csv', rows)
+        self.preview_csv_annotations(
+            self.user, self.source, csv_file)
+        self.upload_annotations(self.user, self.source)
+
+        # Add annotations. Not to all points, so we can test the label
         # lines with and without labels.
         self.add_annotations(
-            self.user, self.img1, {1: 'A', 2: 'B', 3: 'A', 4: 'A'})
+            self.user, self.img1, {1: 'A'})
 
         # Export, and get exported CPC content
         post_data = self.default_search_params.copy()
@@ -606,36 +684,28 @@ class CPCFullContentsTest(CPCExportBaseTest):
             # uploaded image filename, and uploaded image resolution
             (r'"C:\CPCe codefiles\My codes.txt",'
              r'"C:\Panama dataset\1.jpg",6000,4500,14400,10800'),
-            # Should match the image resolution and annotation area
-            '285,4035',
-            '5685,4035',
-            '5685,435',
-            '285,435',
+            # Should match the annotation area (full image, due to
+            # CSV-imported points)
+            '0,4485',
+            '5985,4485',
+            '5985,0',
+            '0,0',
             # Should match the number of points
-            '6',
-            # Should match the generated point positions, which are non-random
-            # because we picked uniform grid
-            (str(78*15) + ',' + str(88*15)),
-            (str(198*15) + ',' + str(88*15)),
-            (str(319*15) + ',' + str(88*15)),
-            (str(78*15) + ',' + str(209*15)),
-            (str(198*15) + ',' + str(209*15)),
-            (str(319*15) + ',' + str(209*15)),
+            '2',
+            # Should match the point positions
+            (str(50*15) + ',' + str(50*15)),
+            (str(60*15) + ',' + str(40*15)),
             # Should match the annotations that were added. Without a previous
             # CPC, we just have blank notes
             '"1","A","Notes",""',
-            '"2","B","Notes",""',
-            '"3","A","Notes",""',
-            '"4","A","Notes",""',
-            '"5","","Notes",""',
-            '"6","","Notes",""',
+            '"2","","Notes",""',
         ]
         # Blank header fields
         expected_lines.extend(['" "']*28)
 
         self.assert_cpc_content_equal(actual_cpc_content, expected_lines)
 
-    def test_upload_then_export(self):
+    def test_upload_cpc_then_export(self):
         """
         Upload .cpc for an image, then export .cpc for that same image. Should
         get the same .cpc contents back.
@@ -682,7 +752,7 @@ class CPCFullContentsTest(CPCExportBaseTest):
 
         self.assert_cpc_content_equal(actual_cpc_content, cpc_lines)
 
-    def test_upload_then_change_annotations_then_export(self):
+    def test_upload_cpc_then_change_annotations_then_export(self):
         """
         Upload .cpc for an image, then change annotations on the image, then
         export .cpc.
@@ -762,7 +832,7 @@ class AnnotationStatusTest(CPCExportBaseTest):
         # Unconfirmed annotations
         cls.add_robot_annotations(
             cls.create_robot(cls.source), cls.img1,
-            # 1. Dummy, to be replaced with confirmed. This functions wants
+            # 1. Dummy, to be replaced with confirmed. This function wants
             # annotations for all points.
             # 2. Less than confidence threshold
             # 3. Greater than threshold

@@ -1,12 +1,31 @@
 from __future__ import unicode_literals
+import mock
 import os
 import tempfile
 
 from images.model_utils import PointGen
+from images.models import Point
 from lib.tests.utils import ManagementCommandTest
 
 
+def save_without_checks(self, *args, **kwargs):
+    """
+    Mock version of Point.save().
+    Doesn't run assertions, so we can save any row/column values we want.
+    """
+    super(Point, self).save(*args, **kwargs)
+
+
 class RemovePointOutliersTest(ManagementCommandTest):
+
+    @staticmethod
+    def update_point(point, row=None, column=None):
+        if row is not None:
+            point.row = row
+        if column is not None:
+            point.column = column
+        with mock.patch.object(Point, 'save', save_without_checks):
+            point.save()
 
     def test_all_modes(self):
         # Set up data
@@ -19,24 +38,29 @@ class RemovePointOutliersTest(ManagementCommandTest):
 
         img1 = self.upload_image(
             user, source, image_options=dict(width=40, height=50))
+        points = img1.point_set.all()
+        # These points are in range
+        self.update_point(points[0], column=0, row=0)
+        self.update_point(points[1], column=39, row=49)
+        self.update_point(points[2], column=20, row=25)
 
-        # 1 point has column out of range
         img2 = self.upload_image(
             user, source, image_options=dict(width=40, height=50))
-        point = img2.point_set.all()[0]
-        point.column = 47
-        point.save()
+        points = img2.point_set.all()
+        # These columns are out of range
+        self.update_point(points[0], column=-7)
+        self.update_point(points[1], column=-1)
+        self.update_point(points[2], column=40)
+        self.update_point(points[3], column=47)
 
-        # 2 points have row out of range
         img3 = self.upload_image(
             user, source, image_options=dict(width=40, height=50))
         points = img3.point_set.all()
-        point = points[2]
-        point.row = 51
-        point.save()
-        point = points[4]
-        point.row = 70
-        point.save()
+        # These rows are out of range
+        self.update_point(points[4], row=-15)
+        self.update_point(points[3], row=-1)
+        self.update_point(points[2], row=50)
+        self.update_point(points[1], row=472)
 
         with tempfile.NamedTemporaryFile(delete=False) as temporary_file:
             # The command opens the file from the pathname, so close it first.
@@ -60,14 +84,14 @@ class RemovePointOutliersTest(ManagementCommandTest):
             os.remove(temporary_file.name)
 
         # Verify output
-        self.assertIn("{} 1".format(img2.pk), stdout_text)
-        self.assertIn("{} 2".format(img3.pk), stdout_text)
+        self.assertIn("{} 4".format(img2.pk), stdout_text)
+        self.assertIn("{} 4".format(img3.pk), stdout_text)
 
-        # Verify data changes: should have deleted 1 point from img2,
-        # 2 points from img3
+        # Verify data changes: should have deleted 4 points from img2,
+        # 4 points from img3
         img1.refresh_from_db()
         self.assertEqual(img1.point_set.all().count(), 5)
         img2.refresh_from_db()
-        self.assertEqual(img2.point_set.all().count(), 4)
+        self.assertEqual(img2.point_set.all().count(), 1)
         img3.refresh_from_db()
-        self.assertEqual(img3.point_set.all().count(), 3)
+        self.assertEqual(img3.point_set.all().count(), 1)

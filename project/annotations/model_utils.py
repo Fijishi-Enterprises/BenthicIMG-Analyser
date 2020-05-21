@@ -91,14 +91,14 @@ class AnnotationAreaUtils():
 
         for key in d.keys():
             # Convert the Decimal pixel values to integers.
-            # Round up. This means that for a 500-pixel-wide image, the
-            # possible x values are 1 to 500 (not 0 to 499).
-            d[key] = int(math.ceil(d[key]))
 
-            # Corner case when the x/y value is exactly 0.
-            # Basically we're mapping 0.000-1.000 to 1, 1.001-2.000 to 2,
-            # 2.001 to 3.000, etc.
-            if d[key] == 0:
-                d[key] = 1
+            # At this point our values range from 0.0 to width/height.
+            # Round up, then subtract 1.
+            d[key] = int(math.ceil(d[key]) - 1)
+
+            # Clamp the -1 edge-value to 0.
+            # We thus map 0.000-1.000 to 0, 1.001-2.000 to 1,
+            # 2.001-3.000 to 2, etc.
+            d[key] = max(d[key], 0)
 
         return d

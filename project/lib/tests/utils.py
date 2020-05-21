@@ -294,13 +294,15 @@ class ClientUtilsMixin(object):
 
     image_count = 0
     @classmethod
-    def upload_image(cls, user, source, image_options=None):
+    def upload_image(cls, user, source, image_options=None, image_file=None):
         """
         Upload a data image.
         :param user: User to upload as.
         :param source: Source to upload to.
         :param image_options: Dict of options for the image file.
             Accepted keys: filetype, and whatever create_sample_image() takes.
+        :param image_file: If present, this is an open file to use as the
+            image file. Takes precedence over image_options.
         :return: The new image.
         """
         cls.image_count += 1
@@ -308,14 +310,18 @@ class ClientUtilsMixin(object):
         post_dict = dict()
 
         # Get an image file
-        image_options = image_options or dict()
-        filetype = image_options.pop('filetype', 'PNG')
-        default_filename = "file_{count:04d}.{filetype}".format(
-            count=cls.image_count, filetype=filetype.lower())
-        filename = image_options.pop('filename', default_filename)
-        post_dict['file'] = sample_image_as_file(
-            filename, filetype, image_options)
-        post_dict['name'] = filename
+        if image_file:
+            post_dict['file'] = image_file
+            post_dict['name'] = image_file.name
+        else:
+            image_options = image_options or dict()
+            filetype = image_options.pop('filetype', 'PNG')
+            default_filename = "file_{count:04d}.{filetype}".format(
+                count=cls.image_count, filetype=filetype.lower())
+            filename = image_options.pop('filename', default_filename)
+            post_dict['file'] = sample_image_as_file(
+                filename, filetype, image_options)
+            post_dict['name'] = filename
 
         # Send the upload form
         cls.client.force_login(user)

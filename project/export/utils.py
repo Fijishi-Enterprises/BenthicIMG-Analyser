@@ -234,12 +234,12 @@ def write_annotations_cpc(cpc_stream, img, cpc_prefs):
     elif anno_area_type == AnnotationAreaUtils.TYPE_IMPORTED:
         # Unspecified; just use the whole image
         anno_area = dict(
-            min_x=1, max_x=img.original_width,
-            min_y=1, max_y=img.original_height)
-    bound_left = (anno_area[u'min_x']-1) * 15
-    bound_right = (anno_area[u'max_x']-1) * 15
-    bound_top = (anno_area[u'min_y']-1) * 15
-    bound_bottom = (anno_area[u'max_y']-1) * 15
+            min_x=0, max_x=img.max_column,
+            min_y=0, max_y=img.max_row)
+    bound_left = anno_area[u'min_x'] * 15
+    bound_right = anno_area[u'max_x'] * 15
+    bound_top = anno_area[u'min_y'] * 15
+    bound_bottom = anno_area[u'max_y'] * 15
     writer.writerow([bound_left, bound_bottom])
     writer.writerow([bound_right, bound_bottom])
     writer.writerow([bound_right, bound_top])
@@ -253,10 +253,10 @@ def write_annotations_cpc(cpc_stream, img, cpc_prefs):
     # <x from left, y from top> of each point in numerical order,
     # seemingly using the x15 scaling.
     # CPCe point positions are on a scale of 15 units = 1 pixel, and
-    # the positions start from 0, not 1.
+    # the positions start from 0.
     for point in points:
-        point_left = (point.column-1) * 15
-        point_top = (point.row-1) * 15
+        point_left = point.column * 15
+        point_top = point.row * 15
         row = [point_left, point_top]
         writer.writerow(row)
 

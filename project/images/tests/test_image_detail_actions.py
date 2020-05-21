@@ -540,6 +540,6 @@ class ResetAnnotationAreaTest(
         self.client.force_login(self.user)
         self.client.post(
             reverse('annotation_area_edit', args=[self.img.pk]),
-            data=dict(min_x=10, max_x=200, min_y=10, max_y=200))
+            data=dict(min_x=10, max_x=190, min_y=10, max_y=190))
 
         self.assertLinkPresent(self.user, self.img)

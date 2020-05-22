@@ -93,7 +93,7 @@ class AnnotationToolSettingsForm(ModelForm):
         self.fields['point_marker_size'].widget.attrs.update({'size': 4})
         self.fields['point_number_size'].widget.attrs.update({'size': 4})
 
-        # Make the color fields have class="color" so they use jscolor.
+        # Make the color fields have class="jscolor" so they use jscolor.
         color_fields = [self.fields[name] for name in
                         ['unannotated_point_color',
                          'robot_annotated_point_color',
@@ -101,7 +101,7 @@ class AnnotationToolSettingsForm(ModelForm):
                          'selected_point_color',]
                        ]
         for field in color_fields:
-            field.widget.attrs.update({'class': 'color'})
+            field.widget.attrs.update({'class': 'jscolor'})
 
 
 class AnnotationImageOptionsForm(Form):

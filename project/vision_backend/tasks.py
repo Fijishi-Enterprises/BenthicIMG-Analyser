@@ -272,6 +272,7 @@ def _handle_job_result(messagebody):
 
     # Handle message
     task = messagebody['original_job']['task']
+    pk = messagebody['original_job']['payload']['pk']
     if task == 'extract_features':
         if th._featurecollector(messagebody):
             # If job was entered into DB, submit a classify job.

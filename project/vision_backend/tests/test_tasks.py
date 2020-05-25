@@ -1,3 +1,5 @@
+import unittest
+
 import numpy as np
 from django.core.urlresolvers import reverse
 from django.test import override_settings
@@ -217,7 +219,7 @@ class ClassifyUtilsTest(ClientTest):
             ann = point.annotation
             scores = Score.objects.filter(point=point)
             posteriors = [score.score for score in scores]
-            self.assertEqual(scores[np.argmax(posteriors)].label, ann.label)
+            self.assertEqual(scores[int(np.argmax(posteriors))].label, ann.label)
 
 
 @override_settings(FORCE_NO_BACKEND_SUBMIT=False)
@@ -319,6 +321,7 @@ class ClassifyImageTest(ClientTest):
         submit_classifier(cls.source.id)
         collect_all_jobs()
 
+    @unittest.skip("Not supported yet")
     def test_classify_unannotated_image(self):
         # TODO: This task call does not work using the MockBackend because
         # that backend doesn't actually create feature, model, and valresult

@@ -17,7 +17,6 @@ from django.core.exceptions import ValidationError
 from django.http import HttpResponse
 
 from annotations.model_utils import AnnotationAreaUtils
-from annotations.models import Annotation
 from images.models import Image, Point
 from images.utils import metadata_field_names_to_labels
 from vision_backend.utils import get_label_scores_for_point
@@ -404,67 +403,68 @@ def write_annotations_csv(response, source, image_set, optional_columns):
     writer = csv.DictWriter(response, fieldnames)
     writer.writeheader()
 
-    # Annotation data for the image set, one row per annotation
-    # Order by image name, then point number
-    annotations = Annotation.objects \
-        .filter(image__in=image_set) \
-        .order_by('image__metadata__name', 'point__point_number')
+    # One image at a time, ordered by image name.
+    for image in image_set.order_by('metadata__name'):
 
-    for annotation in annotations:
-        row = {
-            "Name": annotation.image.metadata.name,
-            "Row": annotation.point.row,
-            "Column": annotation.point.column,
-            "Label": annotation.label_code,
-        }
+        # Order image annotations by point number.
+        for annotation in image.annotation_set.order_by('point__point_number'):
 
-        if 'annotator_info' in optional_columns:
-            # Truncate date precision at seconds
-            date_annotated = annotation.annotation_date.replace(microsecond=0)
-            row.update({
-                "Annotator": annotation.user.username,
-                "Date annotated": date_annotated,
-            })
+            # One row per annotation.
+            row = {
+                "Name": image.metadata.name,
+                "Row": annotation.point.row,
+                "Column": annotation.point.column,
+                "Label": annotation.label_code,
+            }
 
-        if 'machine_suggestions' in optional_columns:
-            label_scores = get_label_scores_for_point(
-                annotation.point, ordered=True)
-            for i in range(settings.NBR_SCORES_PER_ANNOTATION):
-                try:
-                    score = label_scores[i]
-                except IndexError:
-                    # We might need to fill in some blank scores. For example,
-                    # when the classification system hasn't annotated these
-                    # points yet, or when the labelset has fewer than
-                    # NBR_SCORES_PER_ANNOTATION labels.
-                    score = {'label': "", 'score': ""}
-                n = i + 1
+            if 'annotator_info' in optional_columns:
+                # Truncate date precision at seconds
+                date_annotated = annotation.annotation_date.replace(
+                    microsecond=0)
                 row.update({
-                    "Machine suggestion {n}".format(n=n): score['label'],
-                    "Machine confidence {n}".format(n=n): score['score'],
+                    "Annotator": annotation.user.username,
+                    "Date annotated": date_annotated,
                 })
 
-        if 'metadata_date_aux' in optional_columns:
-            label_value_tuples = []
-            for field_name in metadata_date_aux_fields:
-                label = metadata_field_labels[field_name]
-                value = getattr(annotation.image.metadata, field_name)
-                if value is None:
-                    value = ""
-                label_value_tuples.append((label, value))
-            row.update(dict(label_value_tuples))
+            if 'machine_suggestions' in optional_columns:
+                label_scores = get_label_scores_for_point(
+                    annotation.point, ordered=True)
+                for i in range(settings.NBR_SCORES_PER_ANNOTATION):
+                    try:
+                        score = label_scores[i]
+                    except IndexError:
+                        # We might need to fill in some blank scores. For
+                        # example, when the classification system hasn't
+                        # annotated these points yet, or when the labelset has
+                        # fewer than NBR_SCORES_PER_ANNOTATION labels.
+                        score = {'label': "", 'score': ""}
+                    n = i + 1
+                    row.update({
+                        "Machine suggestion {n}".format(n=n): score['label'],
+                        "Machine confidence {n}".format(n=n): score['score'],
+                    })
 
-        if 'metadata_other' in optional_columns:
-            label_value_tuples = []
-            for field_name in metadata_other_fields:
-                label = metadata_field_labels[field_name]
-                value = getattr(annotation.image.metadata, field_name)
-                if value is None:
-                    value = ""
-                label_value_tuples.append((label, value))
-            row.update(dict(label_value_tuples))
+            if 'metadata_date_aux' in optional_columns:
+                label_value_tuples = []
+                for field_name in metadata_date_aux_fields:
+                    label = metadata_field_labels[field_name]
+                    value = getattr(image.metadata, field_name)
+                    if value is None:
+                        value = ""
+                    label_value_tuples.append((label, value))
+                row.update(dict(label_value_tuples))
 
-        writer.writerow(row)
+            if 'metadata_other' in optional_columns:
+                label_value_tuples = []
+                for field_name in metadata_other_fields:
+                    label = metadata_field_labels[field_name]
+                    value = getattr(image.metadata, field_name)
+                    if value is None:
+                        value = ""
+                    label_value_tuples.append((label, value))
+                row.update(dict(label_value_tuples))
+
+            writer.writerow(row)
 
 
 def write_labelset_csv(writer, source):

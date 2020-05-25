@@ -72,179 +72,186 @@
     {# Pagination info and links #}
     {% include 'pagination_links.html' with use_post_form=True hidden_form=hidden_image_form page_results=page_results %}
 
-    {# Fields to perform an action on one or more images #}
-    <div id="action-box" class="box">
+    {# Annotation and deletion require edit perms, and export requires login to keep out bots. So, no actions are available if not logged in. #}
+    {% if user.is_authenticated %}
 
-      <legend>Image Actions</legend>
+      {# Fields to perform an action on one or more images #}
+      <div id="action-box" class="box">
 
-      <div class="tutorial-message">
-        {% include "visualization/help_browse_actions.html" %}
-      </div>
+        <legend>Image Actions</legend>
 
-      {% get_obj_perms user for source as 'source_perms' %}
+        <div class="tutorial-message">
+          {% include "visualization/help_browse_actions.html" %}
+        </div>
 
-      <select name="browse_action" title="Action">
-        {% if 'source_edit' in source_perms %}
-          <option value="annotate">Enter Annotation Tool</option>
-        {% endif %}
+        {% get_obj_perms user for source as 'source_perms' %}
 
-        <option value="export">Export</option>
-
-        {% if 'source_edit' in source_perms %}
-          <option value="delete">Delete</option>
-        {% endif %}
-      </select>
-
-      <span id="action_box_annotate_specifics">
-        for
-      </span>
-      <span id="action_box_export_specifics">
-        <select name="export_type" title="Export type">
-          <option value="metadata">Metadata</option>
-          <option value="annotations">Annotations, CSV</option>
+        <select name="browse_action" title="Action">
           {% if 'source_edit' in source_perms %}
-            <option value="annotations_cpc">Annotations, CPCe</option>
+            <option value="annotate">Enter Annotation Tool</option>
           {% endif %}
-          <option value="image_covers">Image Covers</option>
+
+          <option value="export">Export</option>
+
+          {% if 'source_edit' in source_perms %}
+            <option value="delete">Delete</option>
+          {% endif %}
         </select>
-        for
-      </span>
-      <span id="action_box_delete_specifics">
-      </span>
 
-      <select name="image_select_type" title="Image selection">
-        <option value="all">
-          All {{ page_results.paginator.count }}
-          image results</option>
-        {# The name 'selected' will make more sense when we replace this #}
-        {# option with the more general 'the checkbox-selected images on #}
-        {# this page' option. #}
-        <option value="selected">
-          The {{ page_results.object_list.count }}
-          images on this page</option>
-      </select>
-
-      {# Fields or other content that we may or may not include as part of #}
-      {# the action form, depending on the dropdown values. #}
-      <span style="display:none;">
-
-        {# The image-filter parameters that led us to this browse page. #}
-        <span id="previous-image-form-fields">
-          {% if hidden_image_form %}
-            {% for field in hidden_image_form %}{{ field }}{% endfor %}
-          {% endif %}
+        <span id="action_box_annotate_specifics">
+          for
+        </span>
+        <span id="action_box_export_specifics">
+          <select name="export_type" title="Export type">
+            <option value="metadata">Metadata</option>
+            <option value="annotations">Annotations, CSV</option>
+            {% if 'source_edit' in source_perms %}
+              <option value="annotations_cpc">Annotations, CPCe</option>
+            {% endif %}
+            <option value="image_covers">Image Covers</option>
+          </select>
+          for
+        </span>
+        <span id="action_box_delete_specifics">
         </span>
 
-      </span>
+        <select name="image_select_type" title="Image selection">
+          <option value="all">
+            All {{ page_results.paginator.count }}
+            image results</option>
+          {# The name 'selected' will make more sense when we replace this #}
+          {# option with the more general 'the checkbox-selected images on #}
+          {# this page' option. #}
+          <option value="selected">
+            The {{ page_results.object_list.count }}
+            images on this page</option>
+        </select>
 
-      {# Below are the possible action forms. #}
-      {# TODO: Ensure these are all hidden from the get-go without a CSS loading/JS running delay. #}
+        {# Fields or other content that we may or may not include as part of #}
+        {# the action form, depending on the dropdown values. #}
+        <span style="display:none;">
 
-      <form action="{% url 'export_metadata' source.pk %}" method="post"
-      id="export-metadata-form">
-        {% csrf_token %}
-        <span class="image-select-field-container"></span>
-        <button type="button" class="submit">Go</button>
-      </form>
-
-      <form action="{% url 'export_annotations' source.pk %}"
-      method="post" id="export-annotations-form">
-        {% csrf_token %}
-        <span class="image-select-field-container"></span>
-        {% include "form_generic.html" with form=export_annotations_form %}
-        <button type="button" class="submit">Go</button>
-      </form>
-
-      <form action="{% url 'export_image_covers' source.pk %}" method="post"
-      id="export-image-covers-form">
-        {% csrf_token %}
-        <span class="image-select-field-container"></span>
-        <button type="button" class="submit">Go</button>
-      </form>
-
-      {% comment %}
-      Below are the edit-permission forms. We check for permission before even
-      putting these forms invisibly on the page, because:
-      1. The fields can contain semi-sensitive stuff like PC filepaths
-      recently used in an uploaded .cpc.
-      2. View-permission users shouldn't be able to find this form via inspect
-      element and submit that way. The server side will re-check permission
-      as an additional guard, but still.
-      {% endcomment %}
-
-      {% if 'source_edit' in source_perms %}
-
-        <form action="{{ links.annotation_tool_first_result }}"
-        method="post" id="annotate-all-form">
-          {% csrf_token %}
-          <span class="image-select-field-container"></span>
-          <button type="button" class="submit">Go</button>
-        </form>
-
-        <form action="{{ links.annotation_tool_page_results.0 }}"
-        method="post" id="annotate-selected-form">
-          {% csrf_token %}
-          <span class="image-select-field-container"></span>
-          <button type="button" class="submit">Go</button>
-        </form>
-
-        <form action="{% url 'export_annotations_cpc_serve' source.pk %}"
-        method="post" id="export-annotations-cpc-form">
-          <hr/>
-          {% csrf_token %}
-
-          {% if source.confidence_threshold == 100 %}
-            {# Not using Alleviate; this choice doesn't make a difference #}
-            <span style="display:none;">
-              {% include "form_generic_one_field.html" with field=cpc_prefs_form.annotation_filter field_type='radio' %}
-            </span>
-          {% else %}
-            {% include "form_generic_one_field.html" with field=cpc_prefs_form.annotation_filter field_type='radio' %}
-          {% endif %}
-
-          <div class="line">
-            {% if previous_cpcs_status == 'all' %}
-              All of the images in this search have previously-uploaded CPC files available. Their environment info, notes, and header values will be preserved when exporting to CPC.
-            {% elif previous_cpcs_status == 'some' %}
-              Some of the images in this search have previously-uploaded CPC files available. Their environment info, notes, and header values will be preserved when exporting to CPC. The rest of the images will use the environment info in the text fields below, and will not have notes or header values. Click the "?" help button for more information.
-            {% elif previous_cpcs_status == 'none' %}
-              None of the images in this search have previously-uploaded CPC files available. They will use the environment info in the text fields below, and will not have notes or header values. Click the "?" help button for more information.
+          {# The image-filter parameters that led us to this browse page. #}
+          <span id="previous-image-form-fields">
+            {% if hidden_image_form %}
+              {% for field in hidden_image_form %}{{ field }}{% endfor %}
             {% endif %}
-          </div>
+          </span>
 
-          {% if previous_cpcs_status == 'all' %}
-            {# All images have CPC environment info; no need to provide that info #}
-            <span style="display:none;">
+        </span>
+
+        {# Below are the possible action forms. #}
+        {# TODO: Ensure these are all hidden from the get-go without a CSS loading/JS running delay. #}
+
+        <form action="{% url 'export_metadata' source.pk %}" method="post"
+        id="export-metadata-form">
+          {% csrf_token %}
+          <span class="image-select-field-container"></span>
+          <button type="button" class="submit">Go</button>
+        </form>
+
+        <form action="{% url 'export_annotations' source.pk %}"
+        method="post" id="export-annotations-form">
+          {% csrf_token %}
+          <span class="image-select-field-container"></span>
+          {% include "form_generic.html" with form=export_annotations_form %}
+          <button type="button" class="submit">Go</button>
+        </form>
+
+        <form action="{% url 'export_image_covers' source.pk %}" method="post"
+        id="export-image-covers-form">
+          {% csrf_token %}
+          <span class="image-select-field-container"></span>
+          <button type="button" class="submit">Go</button>
+        </form>
+
+        {% comment %}
+        Below are the edit-permission forms. We check for permission before even
+        putting these forms invisibly on the page, because:
+        1. The fields can contain semi-sensitive stuff like PC filepaths
+        recently used in an uploaded .cpc.
+        2. View-permission users shouldn't be able to find this form via inspect
+        element and submit that way. The server side will re-check permission
+        as an additional guard, but still.
+        {% endcomment %}
+
+        {% if 'source_edit' in source_perms %}
+
+          <form action="{{ links.annotation_tool_first_result }}"
+          method="post" id="annotate-all-form">
+            {% csrf_token %}
+            <span class="image-select-field-container"></span>
+            <button type="button" class="submit">Go</button>
+          </form>
+
+          <form action="{{ links.annotation_tool_page_results.0 }}"
+          method="post" id="annotate-selected-form">
+            {% csrf_token %}
+            <span class="image-select-field-container"></span>
+            <button type="button" class="submit">Go</button>
+          </form>
+
+          <form action="{% url 'export_annotations_cpc_serve' source.pk %}"
+          method="post" id="export-annotations-cpc-form">
+            <hr/>
+            {% csrf_token %}
+
+            {% if source.confidence_threshold == 100 %}
+              {# Not using Alleviate; this choice doesn't make a difference #}
+              <span style="display:none;">
+                {% include "form_generic_one_field.html" with field=cpc_prefs_form.annotation_filter field_type='radio' %}
+              </span>
+            {% else %}
+              {% include "form_generic_one_field.html" with field=cpc_prefs_form.annotation_filter field_type='radio' %}
+            {% endif %}
+
+            <div class="line">
+              {% if previous_cpcs_status == 'all' %}
+                All of the images in this search have previously-uploaded CPC files available. Their environment info, notes, and header values will be preserved when exporting to CPC.
+              {% elif previous_cpcs_status == 'some' %}
+                Some of the images in this search have previously-uploaded CPC files available. Their environment info, notes, and header values will be preserved when exporting to CPC. The rest of the images will use the environment info in the text fields below, and will not have notes or header values. Click the "?" help button for more information.
+              {% elif previous_cpcs_status == 'none' %}
+                None of the images in this search have previously-uploaded CPC files available. They will use the environment info in the text fields below, and will not have notes or header values. Click the "?" help button for more information.
+              {% endif %}
+            </div>
+
+            {% if previous_cpcs_status == 'all' %}
+              {# All images have CPC environment info; no need to provide that info #}
+              <span style="display:none;">
+                {% include "form_generic_one_field.html" with field=cpc_prefs_form.local_code_filepath %}
+                {% include "form_generic_one_field.html" with field=cpc_prefs_form.local_image_dir %}
+              </span>
+            {% else %}
               {% include "form_generic_one_field.html" with field=cpc_prefs_form.local_code_filepath %}
               {% include "form_generic_one_field.html" with field=cpc_prefs_form.local_image_dir %}
-            </span>
-          {% else %}
-            {% include "form_generic_one_field.html" with field=cpc_prefs_form.local_code_filepath %}
-            {% include "form_generic_one_field.html" with field=cpc_prefs_form.local_image_dir %}
-          {% endif %}
+            {% endif %}
 
-          <button type="button" class="submit">Go</button>
-        </form>
+            <button type="button" class="submit">Go</button>
+          </form>
 
-        {# Deletion itself is done through Ajax; after that's done, we use #}
-        {# this form's action and fields to re-fetch this browse page. #}
-        <form action="{% url 'browse_images' source.pk %}"
-        method="post" id="delete-form">
-          {% csrf_token %}
-          <span class="image-select-field-container"></span>
-          <button type="button" class="submit">Go</button>
-        </form>
+          {# Deletion itself is done through Ajax; after that's done, we use #}
+          {# this form's action and fields to re-fetch this browse page. #}
+          <form action="{% url 'browse_images' source.pk %}"
+          method="post" id="delete-form">
+            {% csrf_token %}
+            <span class="image-select-field-container"></span>
+            <button type="button" class="submit">Go</button>
+          </form>
 
-      {% endif %}
+        {% endif %}
 
-    </div>
+      </div>
+
+    {% endif %}
+
   {% endif %}
 
   {# Script in the body will run on page load. #}
   <script type="text/javascript">
     ImageSearchHelper.init();
 
-    {% if page_results.paginator.count > 0 %}
+    {% if page_results.paginator.count > 0 and user.is_authenticated %}
+      {# Action form is present. #}
       BrowseActionHelper.init({
           pageImageIds: {{ page_image_ids|jsonify }},
           links: {{ links|jsonify }}

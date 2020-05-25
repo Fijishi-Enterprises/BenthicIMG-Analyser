@@ -1,26 +1,20 @@
 import numpy as np
-
-from django.urls import reverse
-
 from django.core.urlresolvers import reverse
 from django.test import override_settings
 
-from lib.tests.utils import ClientTest
-
-from images.models import Image, Point
-from images.model_utils import PointGen
-from annotations.models import Annotation
-from accounts.utils import is_robot_user
-from vision_backend.models import Score, Classifier
-from vision_backend.tasks import reset_after_labelset_change
-
-from .models import Score, Classifier
-from .tasks import (
-    classify_image, collect_all_jobs, reset_after_labelset_change,
-    submit_classifier, submit_features)
-
-
 import vision_backend.task_helpers as th
+from accounts.utils import is_robot_user
+from annotations.models import Annotation
+from images.model_utils import PointGen
+from images.models import Image, Point
+from lib.tests.utils import ClientTest
+from vision_backend.models import Score, Classifier
+from vision_backend.tasks import \
+    classify_image, \
+    collect_all_jobs, \
+    reset_after_labelset_change, \
+    submit_classifier, \
+    submit_features
 
 
 class ResetTaskTest(ClientTest):

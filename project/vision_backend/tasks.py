@@ -1,26 +1,23 @@
-import logging
 import json
+import logging
 import pickle
-from six import StringIO
+from datetime import timedelta
 
 from celery.decorators import task, periodic_task
 from django.conf import settings
-from django.db import IntegrityError
 from django.core.files.storage import get_storage_class
+from django.db import IntegrityError
 from django.utils.timezone import now
+from six import StringIO
 
-from datetime import timedelta
-
-from . import task_helpers as th
-
-from .models import Classifier, Score
-from annotations.models import Annotation
-from images.models import Source, Image, Point
-from labels.models import LabelSet, Label
-from api_core.models import ApiJobUnit
-
-from .backends import get_backend_class
 from accounts.utils import get_robot_user
+from annotations.models import Annotation
+from api_core.models import ApiJobUnit
+from images.models import Source, Image, Point
+from labels.models import Label
+from . import task_helpers as th
+from .backends import get_backend_class
+from .models import Classifier, Score
 
 logger = logging.getLogger(__name__)
 

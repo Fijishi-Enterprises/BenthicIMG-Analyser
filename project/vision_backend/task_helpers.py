@@ -1,26 +1,20 @@
 """
 This file contains helper functions to vision_backend.tasks.
 """
-import boto.sqs
-import posixpath
 import logging
-import json
 
 import numpy as np
-
 from django.conf import settings
 from django.core.files.storage import get_storage_class
-from django.utils import timezone
-from django.db.models import F
 from django.db import transaction
+from django.db.models import F
+from django.utils import timezone
 from reversion import revisions
 
-from images.models import Image, Point
 from annotations.models import Annotation
 from api_core.models import ApiJobUnit
-
+from images.models import Image, Point
 from .models import Classifier, Score
-
 
 logger = logging.getLogger(__name__)
 

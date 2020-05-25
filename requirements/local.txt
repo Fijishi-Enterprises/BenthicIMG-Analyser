@@ -11,3 +11,8 @@ coverage
 # The version shouldn't really matter here, as it's not part of the running
 # Django project.
 Sphinx
+
+# BeautifulSoup's encoding detection becomes more accurate if chardet or
+# cchardet is installed. chardet is older; cchardet is much faster.
+# Use chardet here since installing cchardet caused trouble on mac.
+chardet==3.0.4

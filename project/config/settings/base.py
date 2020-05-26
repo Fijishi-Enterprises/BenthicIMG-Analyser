@@ -658,6 +658,6 @@ LABELPATCH_SIZE_FRACTION = 0.2  # Patch covers this proportion of the original i
 
 # Spacer job hash to identify this server instance
 if has_secrets:
-    SPACER_JOB_HASH = 'dummy_identifier'
-else:
     SPACER_JOB_HASH = get_secret('SPACER_JOB_HASH')
+else:
+    SPACER_JOB_HASH = 'dummy_identifier'

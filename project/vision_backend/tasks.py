@@ -19,6 +19,8 @@ from . import task_helpers as th
 from .backends import get_backend_class
 from .models import Classifier, Score
 
+
+
 from spacer.messages import \
     ExtractFeaturesMsg, \
     TrainClassifierMsg, \
@@ -64,11 +66,9 @@ def submit_features(image_id, force=False):
         job_token=str(image_id),
         feature_extractor_name=img.source.feature_extractor,
         rowcols=list(set(rowcols)),
-        # TODO: don't hard-code filesystem
-        image_loc=DataLocation(storage_type='filesystem',
+        image_loc=DataLocation(storage_type=th.storage_class_to_str(storage),
                                key=storage.path(img.original_file.name)),
-        # TODO: don't hard-code filesystem
-        feature_loc=DataLocation(storage_type='filesystem',
+        feature_loc=DataLocation(storage_type=th.storage_class_to_str(storage),
                                  key=settings.FEATURE_VECTOR_FILE_PATTERN.
                                  format(full_image_path=storage.path(
                                      img.original_file.name)))

@@ -19,7 +19,19 @@ from api_core.models import ApiJobUnit
 from images.models import Image, Point
 from .models import Classifier, Score
 
+from lib.storage_backends import MediaStorageLocal, MediaStorageS3
+
 logger = logging.getLogger(__name__)
+
+
+def storage_class_to_str(storage) -> str:
+
+    if isinstance(storage, MediaStorageLocal):
+        return 'filesystem'
+    if isinstance(storage, MediaStorageS3):
+        return 's3'
+
+    raise ValueError('Unknown storage type {}'.format(type(storage)))
 
 
 # Must explicitly turn on history creation when RevisionMiddleware is

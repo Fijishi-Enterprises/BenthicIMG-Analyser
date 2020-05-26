@@ -169,6 +169,11 @@ class Source(models.Model):
             fullCode = 'images.' + code
             verbose = 'View'
 
+    # TODO: replace this with a DB entry
+    @property
+    def feature_extractor(self) -> str:
+        return 'dummy'
+
     ##########
     # Helper methods for sources
     ##########

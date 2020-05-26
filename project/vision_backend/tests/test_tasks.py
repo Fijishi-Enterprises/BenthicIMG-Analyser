@@ -1,4 +1,5 @@
 import unittest
+import os
 
 import numpy as np
 from django.core.urlresolvers import reverse
@@ -238,7 +239,9 @@ class ExtractFeaturesTest(ClientTest):
 
         # Image upload already triggers feature submission to run after a
         # delay, but for testing purposes we'll run the task immediately.
-        submit_features(img.id)
+        job_msg = submit_features(img.id)
+        print(job_msg)
+        self.assertTrue(os.path.exists(job_msg.tasks[0].feature_loc.key))
 
         # Then assuming we're using the mock backend, the result should be
         # available for collection immediately.

@@ -19,6 +19,15 @@ from . import task_helpers as th
 from .backends import get_backend_class
 from .models import Classifier, Score
 
+from spacer.messages import \
+    ExtractFeaturesMsg, \
+    TrainClassifierMsg, \
+    ClassifyFeaturesMsg, \
+    ClassifyImageMsg, \
+    JobMsg, \
+    JobReturnMsg, \
+    DataLocation
+
 logger = logging.getLogger(__name__)
 
 
@@ -28,54 +37,58 @@ def submit_features(image_id, force=False):
     Submits a job to SQS for extracting features for an image.
     """
     if settings.FORCE_NO_BACKEND_SUBMIT:
-        logger.info(
-            "VB task was called, but not run because backend submissions are"
-            " off.")
+        logger.info("VB task was called, but not run because backend "
+                    "submissions are off.")
         return
 
     try:
         img = Image.objects.get(pk=image_id)
-    except:
+    except Image.DoesNotExist:
         logger.info("Image {} does not exist.".format(image_id))
         return
-    logstr = u"Image {} [Source: {} [{}]]".format(image_id, img.source, img.source_id)
+    log_str = u"Image {} [Source: {} [{}]]".format(image_id, img.source,
+                                                   img.source_id)
 
     if img.features.extracted and not force:
-        logger.info(u"{} already has features".format(logstr))
+        logger.info(u"{} already has features".format(log_str))
         return
 
-    # Assemble row column information
-    rowcols = []
-    for point in Point.objects.filter(image=img).order_by('id'):
-        rowcols.append([point.row, point.column])
-    
     # Setup the job payload.
     storage = get_storage_class()()
-    full_image_path = storage.path(img.original_file.name)
-    payload = {
-        'imkey': full_image_path,
-        'outputkey': settings.FEATURE_VECTOR_FILE_PATTERN.format(full_image_path=full_image_path),
-        'modelname': 'vgg16_coralnet_ver1',
-        'rowcols': rowcols,
-        'pk': image_id
-    }
 
-    # Assemble message body.
-    messagebody = {
-        'task': 'extract_features',
-        'payload': payload
-    }
+    # Assemble row column information
+    rowcols = [(p.row, p.column) for p in Point.objects.filter(image=img)]
+
+    # Assemble task.
+    task = ExtractFeaturesMsg(
+        job_token=str(image_id),
+        feature_extractor_name=img.source.feature_extractor,
+        rowcols=list(set(rowcols)),
+        # TODO: don't hard-code filesystem
+        image_loc=DataLocation(storage_type='filesystem',
+                               key=storage.path(img.original_file.name)),
+        # TODO: don't hard-code filesystem
+        feature_loc=DataLocation(storage_type='filesystem',
+                                 key=settings.FEATURE_VECTOR_FILE_PATTERN.
+                                 format(full_image_path=storage.path(
+                                     img.original_file.name)))
+    )
+
+    msg = JobMsg(task_name='extract_features', tasks=[task])
 
     # Submit.
     backend = get_backend_class()()
-    backend.submit_job(messagebody)
+    backend.submit_job(msg)
 
-    logger.info(u"Submitted feature extraction for {}".format(logstr))
-    logger.debug(u"Submitted feature extraction for {}. Message: {}".format(logstr, messagebody))
-    return messagebody
+    logger.info(u"Submitted feature extraction for {}".format(log_str))
+    logger.debug(u"Submitted feature extraction for {}. Message: {}".
+                 format(log_str, msg.serialize()))
+    return msg
 
 
-@periodic_task(run_every=timedelta(hours = 24), name='Periodic Classifiers Submit', ignore_result=True)
+@periodic_task(run_every=timedelta(hours=24),
+               name='Periodic Classifiers Submit',
+               ignore_result=True)
 def submit_all_classifiers():
     for source in Source.objects.filter():
         if source.need_new_robot():
@@ -262,24 +275,29 @@ def collect_all_jobs():
     backend = get_backend_class()()
     while True:
         messagebody = backend.collect_job()
+        print(messagebody)
         if messagebody:
             _handle_job_result(messagebody)
         else:
             break
     logger.info('Done collecting all jobs in result queue.')
 
-def _handle_job_result(messagebody):
+
+def _handle_job_result(job_res: JobReturnMsg):
+
+    # TODO: loop over each job at the time.
 
     # Handle message
-    task = messagebody['original_job']['task']
-    pk = messagebody['original_job']['payload']['pk']
+    task = job_res.original_job.task_name
+    pk = int(job_res.original_job.tasks[0].job_token)
+
     if task == 'extract_features':
-        if th._featurecollector(messagebody):
+        if th._featurecollector(job_res):
             # If job was entered into DB, submit a classify job.
             classify_image.apply_async(args=[pk], eta=now() + timedelta(seconds=10))
 
     elif task == 'train_classifier':
-        if th._classifiercollector(messagebody):
+        if th._classifiercollector(job_res):
             # If job was entered into DB, submit a classify job for all images in source.
             classifier = Classifier.objects.get(pk=pk)
             for image in Image.objects.filter(source=classifier.source, features__extracted=True, confirmed=False):
@@ -293,7 +311,7 @@ def _handle_job_result(messagebody):
 
     # Conclude
     logger.info("job {}, pk: {} collected successfully".format(task, pk))
-    logger.debug("Collected job with messagebody: {}".format(messagebody))
+    logger.debug("Collected job with messagebody: {}".format(job_res))
 
 
 @task(name="Reset Source")

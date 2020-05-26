@@ -16,6 +16,8 @@ from api_core.models import ApiJobUnit
 from images.models import Image, Point
 from .models import Classifier, Score
 
+from spacer.messages import JobReturnMsg
+
 logger = logging.getLogger(__name__)
 
 
@@ -113,32 +115,34 @@ def _make_dataset(images):
     return gtdict
 
 
-def _featurecollector(messagebody):
+def _featurecollector(return_msg: JobReturnMsg):
     """
     collects feature_extract jobs.
     """
-    image_id = messagebody['original_job']['payload']['pk']
+    # TODO: parse properly
+    image_id = int(return_msg.original_job.tasks[0].job_token)
     try:
-        img = Image.objects.get(pk = image_id)
-    except:
-        logger.info("Image {} was deleted. Aborting".format(image_id))
+        img = Image.objects.get(pk=image_id)
+    except Image.DoesNotExist:
+        logger.info("Image {} not found. Aborting".format(image_id))
         return 0
-    logstr = "Image {} [Source: {} [{}]]".format(image_id, img.source, img.source_id)
+    log_str = "Image {} [Source: {} [{}]]".format(image_id, img.source,
+                                                  img.source_id)
         
     # Double-check that the row-col information is still correct.
-    rowcols = []
-    for point in Point.objects.filter(image = img).order_by('id'):
-        rowcols.append([point.row, point.column])
+    rowcols = [(p.row, p.column) for p in Point.objects.filter(image=img)]
 
-    if not rowcols == messagebody['original_job']['payload']['rowcols']:
-        logger.info("Row-col for {} have changed. Aborting.".format(logstr))
+    if not set(rowcols) == set(return_msg.original_job.tasks[0].rowcols):
+        logger.info("Row-col for {} have changed. Aborting.".format(log_str))
         return 0
     
     # If all is ok store meta-data.
     img.features.extracted = True
-    img.features.runtime_total = messagebody['result']['runtime']['total']
-    img.features.runtime_core = messagebody['result']['runtime']['core']
-    img.features.model_was_cashed = messagebody['result']['model_was_cashed']
+    img.features.runtime_total = return_msg.results[0].runtime
+
+    # TODO: remove this field from DB
+    img.features.runtime_core = 0
+    img.features.model_was_cashed = return_msg.results[0].model_was_cashed
     img.features.extracted_date = timezone.now()
     img.features.save()
     return 1

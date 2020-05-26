@@ -26,3 +26,8 @@ NBR_TRAINING_EPOCHS = 10
 
 # This should always be false except for certain unit-test situations.
 FORCE_NO_BACKEND_SUBMIT = False
+
+# Configure the SQS queue name to use
+SQS_JOBS = 'coralnet_prod_jobs'
+SQS_RES = 'coralnet_prod_results'
+

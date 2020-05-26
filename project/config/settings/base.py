@@ -655,3 +655,6 @@ NEWS_ITEM_CATEGORIES = ['ml', 'source', 'image', 'annotation', 'account']
 LABELPATCH_NCOLS = 150  # Size of patch (after scaling)
 LABELPATCH_NROWS = 150  # Size of patch (after scaling)
 LABELPATCH_SIZE_FRACTION = 0.2  # Patch covers this proportion of the original image's greater dimension
+
+# Spacer job hash to identify this server instance
+SPACER_JOB_HASH = get_secret('SPACER_JOB_HASH')

@@ -657,4 +657,7 @@ LABELPATCH_NROWS = 150  # Size of patch (after scaling)
 LABELPATCH_SIZE_FRACTION = 0.2  # Patch covers this proportion of the original image's greater dimension
 
 # Spacer job hash to identify this server instance
-SPACER_JOB_HASH = get_secret('SPACER_JOB_HASH')
+if has_secrets:
+    SPACER_JOB_HASH = 'dummy_identifier'
+else:
+    SPACER_JOB_HASH = get_secret('SPACER_JOB_HASH')

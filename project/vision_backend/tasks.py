@@ -106,36 +106,47 @@ def submit_classifier(source_id, nbr_images=1e5, force=False):
 
     try:
         source = Source.objects.get(pk=source_id)
-    except:
+    except Source.DoesNotExist:
         logger.info("Can't find source [{}]".format(source_id))
         return
     
     if not source.need_new_robot() and not force:
-        logger.info(u"Source {} [{}] don't need new classifier.".format(source.name, source.pk))
+        logger.info(u"Source {} [{}] don't need new classifier.".format(
+            source.name, source.pk))
         return
 
-    logger.info(u"Preparing new classifier for {} [{}].".format(source.name, source.pk))
+    logger.info(u"Preparing new classifier for {} [{}].".format(
+        source.name, source.pk))
     
     # Create new classifier model
-    images = Image.objects.filter(source = source, confirmed = True, features__extracted = True)[:nbr_images]
-    classifier = Classifier(source = source, nbr_train_images = len(images))
+    images = Image.objects.filter(source=source, confirmed=True,
+                                  features__extracted=True)[:nbr_images]
+    classifier = Classifier(source=source, nbr_train_images=len(images))
     classifier.save()
 
-    # Write traindict to file storage
+    # Write train-labels to file storage
     storage = get_storage_class()()
-    traindict = th._make_dataset([image for image in images if image.trainset])
-    traindict_path = storage.path(settings.ROBOT_MODEL_TRAINDATA_PATTERN.format(pk = classifier.pk))
-    storage.save(traindict_path, StringIO(json.dumps(traindict)))
+    trainlabels = th.make_dataset([image for image in images if image.trainset])
+    trainlabels_path = storage.path(settings.ROBOT_MODEL_TRAINDATA_PATTERN.
+                                    format(pk=classifier.pk))
+    storage.save(trainlabels_path,
+                 StringIO(json.dumps(trainlabels.serialize())))
 
-    # Write valdict to file storage
-    valdict = th._make_dataset([image for image in images if image.valset])
-    valdict_path = storage.path(settings.ROBOT_MODEL_VALDATA_PATTERN.format(pk = classifier.pk))
-    storage.save(valdict_path, StringIO(json.dumps(valdict)))
-        
+    # Write val-labels to file storage
+    vallabels = th.make_dataset([image for image in images if image.valset])
+    vallabels_path = storage.path(settings.ROBOT_MODEL_VALDATA_PATTERN.
+                                  format(pk=classifier.pk))
+    storage.save(vallabels_path, StringIO(json.dumps(vallabels.serialize())))
+
     # Prepare information for the message payload
-    previous_classifiers = Classifier.objects.filter(source=source, valid=True) # This will not include the current.
-    pc_models = [storage.path(settings.ROBOT_MODEL_FILE_PATTERN.format(pk=pc.pk)) for pc in previous_classifiers]
-    pc_pks = [pc.pk for pc in previous_classifiers]  # Primary keys needed for collect task.
+
+    # This will not include the one we just created, b/c it is not valid.
+    previous_classifiers = Classifier.objects.filter(source=source, valid=True)
+    pc_models = [storage.path(settings.ROBOT_MODEL_FILE_PATTERN.
+                              format(pk=pc.pk)) for pc in previous_classifiers]
+
+    # Primary keys needed for collect task.
+    pc_pks = [pc.pk for pc in previous_classifiers]
 
     # Create payload
     payload = {
@@ -149,7 +160,7 @@ def submit_classifier(source_id, nbr_images=1e5, force=False):
         'pc_pks': pc_pks
     }
 
-    # Assbmeble the message body.
+    # Assemble the message body.
     messagebody = {
         'task': 'train_classifier',
         'payload': payload
@@ -159,8 +170,11 @@ def submit_classifier(source_id, nbr_images=1e5, force=False):
     backend = get_backend_class()()
     backend.submit_job(messagebody)
 
-    logger.info(u"Submitted classifier for source {} [{}] with {} images.".format(source.name, source.id, len(images)))
-    logger.debug(u"Submitted classifier for source {} [{}] with {} images. Message: {}".format(source.name, source.id, len(images), messagebody))
+    logger.info(u"Submitted classifier for source {} [{}] with {} images.".
+                format(source.name, source.id, len(images)))
+    logger.debug(u"Submitted classifier for source {} [{}] with {} images. "
+                 u"Message: {}".format(source.name, source.id,
+                                       len(images), messagebody))
     return messagebody
  
 

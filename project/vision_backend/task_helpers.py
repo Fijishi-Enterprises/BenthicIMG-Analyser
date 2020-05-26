@@ -2,6 +2,7 @@
 This file contains helper functions to vision_backend.tasks.
 """
 import logging
+from typing import List
 
 import numpy as np
 from django.conf import settings
@@ -10,13 +11,13 @@ from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
 from reversion import revisions
+from spacer.data_classes import ImageLabels
+from spacer.messages import JobReturnMsg
 
 from annotations.models import Annotation
 from api_core.models import ApiJobUnit
 from images.models import Image, Point
 from .models import Classifier, Score
-
-from spacer.messages import JobReturnMsg
 
 logger = logging.getLogger(__name__)
 
@@ -99,20 +100,25 @@ def _add_scores(image_id, scores, label_objs):
     Score.objects.bulk_create(score_objs)
 
 
-def _make_dataset(images):
+def make_dataset(images: List[Image]) -> ImageLabels:
     """
-    Helper funtion for classifier_submit. Assemples all features and ground truth annotations
+    Helper function for classifier_submit.
+    Assembles all features and ground truth annotations
     for training and evaluation of the robot classifier.
     """
     storage = get_storage_class()()
-    gtdict = {}
+    labels = ImageLabels(data={})
     for img in images:
         full_image_path = storage.path(img.original_file.name)
-        feature_key = settings.FEATURE_VECTOR_FILE_PATTERN.format(full_image_path = full_image_path)
-        anns = Annotation.objects.filter(image = img).order_by('point__id').annotate(gt = F('label__id'))
-        gtlabels = [int(ann.gt) for ann in anns]
-        gtdict[feature_key] = gtlabels
-    return gtdict
+        feature_key = settings.FEATURE_VECTOR_FILE_PATTERN.format(
+            full_image_path=full_image_path)
+        anns = Annotation.objects.filter(image=img).\
+            annotate(label=F('label__id')).\
+            annotate(row=F('point__row')). \
+            annotate(col=F('point__column'))
+        labels.data[feature_key] = [(ann.row, ann.col, ann.label)
+                                    for ann in anns]
+    return labels
 
 
 def _featurecollector(return_msg: JobReturnMsg):

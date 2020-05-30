@@ -1,6 +1,7 @@
 from __future__ import division, unicode_literals
 from backports import csv
 
+from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -22,6 +23,8 @@ from lib.forms import get_one_form_error
 
 
 @source_visibility_required('source_id')
+# This is a potentially resource intensive view, so no bots allowed.
+@login_required
 # This is a potentially slow view that doesn't modify the database,
 # so don't open a transaction for the view.
 @transaction.non_atomic_requests
@@ -60,6 +63,7 @@ def export_metadata(request, source_id):
 
 
 @source_visibility_required('source_id')
+@login_required
 @transaction.non_atomic_requests
 def export_annotations(request, source_id):
     source = get_object_or_404(Source, id=source_id)
@@ -161,6 +165,7 @@ def export_annotations_cpc_serve(request, source_id):
 
 
 @source_visibility_required('source_id')
+@login_required
 @transaction.non_atomic_requests
 def export_image_covers(request, source_id):
     source = get_object_or_404(Source, id=source_id)

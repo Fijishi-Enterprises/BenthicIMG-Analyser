@@ -19,6 +19,8 @@ from vision_backend.tasks import \
     submit_classifier, \
     submit_features
 
+from spacer.config import MIN_TRAINIMAGES
+
 
 class ResetTaskTest(ClientTest):
 
@@ -240,7 +242,6 @@ class ExtractFeaturesTest(ClientTest):
         # Image upload already triggers feature submission to run after a
         # delay, but for testing purposes we'll run the task immediately.
         job_msg = submit_features(img.id)
-        print(job_msg)
         self.assertTrue(os.path.exists(job_msg.tasks[0].feature_loc.key))
 
         # Then assuming we're using the mock backend, the result should be
@@ -267,17 +268,19 @@ class TrainClassifierTest(ClientTest):
         labels = cls.create_labels(cls.user, ['A', 'B'], "Group1")
         cls.create_labelset(cls.user, cls.source, labels)
 
-        # Have an image with features
-        cls.img = cls.upload_image(cls.user, cls.source)
-        submit_features(cls.img.id)
+        # Create and annotate sufficient nbr images.
+        # Since 1/8 of images go to val, we need to add a few more to
+        # make sure there are enough train images.
+        for i in range(int(MIN_TRAINIMAGES * (1+1/8) + 1)):
+            img = cls.upload_image(cls.user, cls.source)
+            submit_features(img.id)
+            cls.add_annotations(
+                cls.user, img, {1: 'A', 2: 'B', 3: 'A', 4: 'A', 5: 'B'})
+
         collect_all_jobs()
 
     def test_train_success(self):
-        # Fully annotate the image
-        self.add_annotations(
-            self.user, self.img, {1: 'A', 2: 'B', 3: 'A', 4: 'A', 5: 'B'})
-        # Now we have the minimum number of annotated images,
-        # create a classifier
+        # Create a classifier
         submit_classifier(self.source.id)
 
         # This source should now have a classifier (though not trained yet)

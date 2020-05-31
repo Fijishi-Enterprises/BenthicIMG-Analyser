@@ -136,46 +136,58 @@ def submit_classifier(source_id, nbr_images=1e5, force=False):
     vallabels = th.make_dataset([image for image in images if image.valset])
     vallabels_path = storage.path(settings.ROBOT_MODEL_VALDATA_PATTERN.
                                   format(pk=classifier.pk))
-    storage.save(vallabels_path, StringIO(json.dumps(vallabels.serialize())))
-
-    # Prepare information for the message payload
+    storage.save(vallabels_path,
+                 StringIO(json.dumps(vallabels.serialize())))
 
     # This will not include the one we just created, b/c it is not valid.
-    previous_classifiers = Classifier.objects.filter(source=source, valid=True)
-    pc_models = [storage.path(settings.ROBOT_MODEL_FILE_PATTERN.
-                              format(pk=pc.pk)) for pc in previous_classifiers]
+    prev_classifiers = Classifier.objects.filter(source=source, valid=True)
 
     # Primary keys needed for collect task.
-    pc_pks = [pc.pk for pc in previous_classifiers]
+    pc_pks = [pc.pk for pc in prev_classifiers]
 
     # Create payload
-    payload = {
-        'model': storage.path(settings.ROBOT_MODEL_FILE_PATTERN.format(pk = classifier.pk)),
-        'traindata': storage.path(settings.ROBOT_MODEL_TRAINDATA_PATTERN.format(pk = classifier.pk)),
-        'valdata': storage.path(settings.ROBOT_MODEL_VALDATA_PATTERN.format(pk = classifier.pk)),
-        'valresult': storage.path(settings.ROBOT_MODEL_VALRESULT_PATTERN.format(pk = classifier.pk)),
-        'pk': classifier.pk,
-        'nbr_epochs': settings.NBR_TRAINING_EPOCHS,
-        'pc_models': pc_models,
-        'pc_pks': pc_pks
-    }
+    # TODO: add the pc_pks to job_token
+    task = TrainClassifierMsg(
+        job_token=str(classifier.pk),
+        trainer_name='minibatch',
+        nbr_epochs=settings.NBR_TRAINING_EPOCHS,
+        traindata_loc=DataLocation(
+            storage_type=th.storage_class_to_str(storage),
+            key=storage.path(trainlabels_path)),
+        valdata_loc=DataLocation(
+            storage_type=th.storage_class_to_str(storage),
+            key=storage.path(vallabels_path)),
+        features_loc=DataLocation(
+            storage_type=th.storage_class_to_str(storage),
+            key=''),
+        previous_model_locs=[DataLocation(
+            storage_type=th.storage_class_to_str(storage),
+            key=storage.path(settings.ROBOT_MODEL_FILE_PATTERN.
+                             format(pk=pc.pk))) for pc in prev_classifiers],
+        model_loc=DataLocation(
+            storage_type=th.storage_class_to_str(storage),
+            key=storage.path(settings.ROBOT_MODEL_FILE_PATTERN.
+                             format(pk=classifier.pk))),
+        valresult_loc=DataLocation(
+            storage_type=th.storage_class_to_str(storage),
+            key=storage.path(settings.ROBOT_MODEL_VALRESULT_PATTERN.
+                             format(pk=classifier.pk)),
+        )
+    )
 
     # Assemble the message body.
-    messagebody = {
-        'task': 'train_classifier',
-        'payload': payload
-    }
+    msg = JobMsg(task_name='train_classifier', tasks=[task])
 
     # Submit.
     backend = get_backend_class()()
-    backend.submit_job(messagebody)
+    backend.submit_job(msg)
 
     logger.info(u"Submitted classifier for source {} [{}] with {} images.".
                 format(source.name, source.id, len(images)))
     logger.debug(u"Submitted classifier for source {} [{}] with {} images. "
                  u"Message: {}".format(source.name, source.id,
-                                       len(images), messagebody))
-    return messagebody
+                                       len(images), msg))
+    return msg
  
 
 @task(name="Deploy")
@@ -289,7 +301,6 @@ def collect_all_jobs():
     backend = get_backend_class()()
     while True:
         messagebody = backend.collect_job()
-        print(messagebody)
         if messagebody:
             _handle_job_result(messagebody)
         else:
@@ -302,21 +313,24 @@ def _handle_job_result(job_res: JobReturnMsg):
     # TODO: loop over each job at the time.
 
     # Handle message
-    task = job_res.original_job.task_name
     pk = int(job_res.original_job.tasks[0].job_token)
-
-    if task == 'extract_features':
+    if job_res.original_job.task_name == 'extract_features':
         if th._featurecollector(job_res):
             # If job was entered into DB, submit a classify job.
             classify_image.apply_async(args=[pk], eta=now() + timedelta(seconds=10))
 
-    elif task == 'train_classifier':
+    elif job_res.original_job.task_name == 'train_classifier':
+        print("collecting train classifier")
         if th._classifiercollector(job_res):
-            # If job was entered into DB, submit a classify job for all images in source.
+            # If job was entered into DB, submit a classify job for all images
+            # in source.
             classifier = Classifier.objects.get(pk=pk)
-            for image in Image.objects.filter(source=classifier.source, features__extracted=True, confirmed=False):
-                classify_image.apply_async(args=[image.id], eta=now() + timedelta(seconds = 10))
-    elif task == 'deploy':
+            for image in Image.objects.filter(source=classifier.source,
+                                              features__extracted=True,
+                                              confirmed=False):
+                classify_image.apply_async(args=[image.id],
+                                           eta=now() + timedelta(seconds=10))
+    elif job_res.original_job.task_name == 'deploy':
         # TODO, make the collectors public
         th._deploycollector(messagebody)
 

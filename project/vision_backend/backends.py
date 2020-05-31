@@ -139,7 +139,6 @@ class MockBackend(BaseBackend):
 
         if len(filenames) == 0:
             return None
-        print(filenames)
 
         # Sort by filename, which should also put them in job order
         # because the filenames have timestamps (to second precision)

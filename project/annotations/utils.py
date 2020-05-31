@@ -187,7 +187,6 @@ def after_saving_annotations(image):
                 args=[image.source.id],
                 eta=timezone.now()+datetime.timedelta(seconds=10))
 
-
 def update_sitewide_annotation_count():
     """
     Cache the count of total annotations on the entire site. As of

@@ -125,10 +125,10 @@ def make_dataset(images: List[Image]) -> ImageLabels:
         feature_key = settings.FEATURE_VECTOR_FILE_PATTERN.format(
             full_image_path=full_image_path)
         anns = Annotation.objects.filter(image=img).\
-            annotate(label=F('label__id')).\
+            annotate(gt_label=F('label__id')).\
             annotate(row=F('point__row')). \
             annotate(col=F('point__column'))
-        labels.data[feature_key] = [(ann.row, ann.col, ann.label)
+        labels.data[feature_key] = [(ann.row, ann.col, ann.gt_label)
                                     for ann in anns]
     return labels
 
@@ -166,47 +166,53 @@ def _featurecollector(return_msg: JobReturnMsg):
     return 1
 
 
-def _classifiercollector(messagebody):
+def _classifiercollector(return_msg: JobReturnMsg):
     """
     collects train_classifier jobs.
     """
-    result = messagebody['result']
-    payload = messagebody['original_job']['payload']
+
+    # If training didn't finish with OK status, return false and exit.
+    if not return_msg.ok:
+        return False
+
+    result = return_msg.results[0]
+    task = return_msg.original_job.tasks[0]
     
     # Check that Classifier still exists. 
     try:
-        classifier = Classifier.objects.get(pk = payload['pk'])
-    except:
-        logger.info("Classifier {} was deleted. Aborting".format(payload['pk']))
-        return 0
-    logstr = 'Classifier {} [Source: {} [{}]]'.format(classifier.pk, classifier.source, classifier.source.id)
-    
-    # If training didn't finish with OK status, return false and exit.
-    if not result['ok']:
-        return 0
+        classifier = Classifier.objects.get(pk=int(task.job_token))
+    except Classifier.DoesNotExist:
+        logger.info("Classifier {} was deleted. Aborting".
+                    format(task.job_token))
+        return False
+    logstr = 'Classifier {} [Source: {} [{}]]'.format(classifier.pk,
+                                                      classifier.source,
+                                                      classifier.source.id)
 
     # Store generic stats
-    classifier.runtime_train = result['runtime']
-    classifier.accuracy = result['acc']
-    classifier.epoch_ref_accuracy = str([int(round(10000 * ra)) for ra in result['refacc']])
+    classifier.runtime_train = result.runtime
+    classifier.accuracy = result.acc
+    classifier.epoch_ref_accuracy = str([int(round(10000 * ra)) for
+                                         ra in result.ref_accs])
     classifier.save()
 
+    # TODO: write this part.
     # Check that the accuracy is higher than the previous classifiers
-    if 'pc_models' in payload and len(payload['pc_models']) > 0:
-        if max(result['pc_accs']) * settings.NEW_CLASSIFIER_IMPROVEMENT_TH > result['acc']:
-            logger.info("{} worse than previous. Not validated. Max previous: {:.2f}, threshold: {:.2f}, this: {:.2f}".format(logstr, max(result['pc_accs']), max(result['pc_accs']) * settings.NEW_CLASSIFIER_IMPROVEMENT_TH, result['acc']))
-            return 0
-        
-        # Update accuracy for previous models
-        for pc_pk, pc_acc in zip(payload['pc_pks'], result['pc_accs']):
-            pc = Classifier.objects.get(pk=pc_pk)
-            pc.accuracy = pc_acc
-            pc.save()
+    # if 'pc_models' in payload and len(payload['pc_models']) > 0:
+    #     if max(result['pc_accs']) * settings.NEW_CLASSIFIER_IMPROVEMENT_TH > result['acc']:
+    #         logger.info("{} worse than previous. Not validated. Max previous: {:.2f}, threshold: {:.2f}, this: {:.2f}".format(logstr, max(result['pc_accs']), max(result['pc_accs']) * settings.NEW_CLASSIFIER_IMPROVEMENT_TH, result['acc']))
+    #         return 0
+    #
+    #     Update accuracy for previous models
+        # for pc_pk, pc_acc in zip(payload['pc_pks'], result['pc_accs']):
+        #     pc = Classifier.objects.get(pk=pc_pk)
+        #     pc.accuracy = pc_acc
+        #     pc.save()
     
     classifier.valid = True
     classifier.save()
     logger.info("{} collected successfully.".format(logstr))
-    return 1
+    return True
 
 
 def _deploycollector(messagebody):

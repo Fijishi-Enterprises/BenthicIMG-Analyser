@@ -8,6 +8,9 @@ from django.conf import settings
 from django.core.files.storage import get_storage_class
 from django.db import IntegrityError
 from django.utils.timezone import now
+
+from django.core.mail import mail_admins, mail_managers, send_mail
+
 from six import StringIO
 
 from accounts.utils import get_robot_user
@@ -19,13 +22,14 @@ from . import task_helpers as th
 from .backends import get_backend_class
 from .models import Classifier, Score
 
-
+from spacer.tasks import classify_features as spacer_classify_features
 
 from spacer.messages import \
     ExtractFeaturesMsg, \
     TrainClassifierMsg, \
     ClassifyFeaturesMsg, \
     ClassifyImageMsg, \
+    ClassifyReturnMsg, \
     JobMsg, \
     JobReturnMsg, \
     DataLocation
@@ -147,10 +151,9 @@ def submit_classifier(source_id, nbr_images=1e5, force=False):
     # Primary keys needed for collect task.
     pc_pks = [pc.pk for pc in prev_classifiers]
 
-    # Create payload
-    # TODO: add the pc_pks to job_token
+    # Create TrainClassifierMsg
     task = TrainClassifierMsg(
-        job_token=str(classifier.pk),
+        job_token=','.join([str(pk) for pk in [classifier.pk] + pc_pks]),
         trainer_name='minibatch',
         nbr_epochs=settings.NBR_TRAINING_EPOCHS,
         traindata_loc=DataLocation(
@@ -240,40 +243,40 @@ def classify_image(image_id):
 
     try:
         img = Image.objects.get(pk=image_id)
-    except:
+    except Image.DoesNotExist:
         logger.info("Image {} does not exist.".format(image_id))
-        return
+        return False
 
     if not img.features.extracted:
-        return    
+        return False
 
     classifier = img.source.get_latest_robot()
     if not classifier:
         return
 
-    # Load model
+    # Create task message
     storage = get_storage_class()()
-    classifier_model_path = settings.ROBOT_MODEL_FILE_PATTERN.format(pk=classifier.pk)
-    with storage.open(classifier_model_path) as classifier_model_file:
-        classifier_model = pickle.load(classifier_model_file)
+    msg = ClassifyFeaturesMsg(
+        job_token=str(image_id),
+        feature_loc=DataLocation(
+            storage_type=th.storage_class_to_str(storage),
+            key=settings.FEATURE_VECTOR_FILE_PATTERN.format(
+                full_image_path=img.original_file.name)),
+        classifier_loc=DataLocation(
+            storage_type=th.storage_class_to_str(storage),
+            key=settings.ROBOT_MODEL_FILE_PATTERN.format(pk=classifier.pk))
+    )
 
-    feats_path = settings.FEATURE_VECTOR_FILE_PATTERN.format(full_image_path = img.original_file.name)
-    with storage.open(feats_path) as feats_file:
-        feats = json.load(feats_file)
-
-
-    # Classify.
-    scores = classifier_model.predict_proba(feats)
+    # Process job right here since it is so fast.
+    res: ClassifyReturnMsg = spacer_classify_features(msg)
 
     # Pre-fetch label objects
-    label_objs = []
-    for class_ in classifier_model.classes_:
-        label_objs.append(Label.objects.get(pk=class_))
+    label_objs = [Label.objects.get(pk=pk) for pk in res.classes]
 
     # Add annotations if image isn't already confirmed    
     if not img.confirmed:
         try:
-            th._add_annotations(image_id, scores, label_objs, classifier)
+            th.add_annotations(image_id, res, label_objs, classifier)
         except IntegrityError:
             logger_message = u"Failed to classify Image {} [Source: {} [{}] " \
                              u"with classifier {}. There might have been a race" \
@@ -281,11 +284,12 @@ def classify_image(image_id):
                              u"Will try again later."
             logger.info(logger_message.format(img.id, img.source,
                                               img.source_id, classifier.id))
-            classify_image.apply_async(args=[image_id], eta=now() + timedelta(seconds=10))
+            classify_image.apply_async(args=[image_id],
+                                       eta=now() + timedelta(seconds=10))
             return
     
     # Always add scores
-    th._add_scores(image_id, scores, label_objs)
+    th.add_scores(image_id, scores, label_objs)
     
     img.features.classified = True
     img.features.save()
@@ -302,9 +306,9 @@ def collect_all_jobs():
     logger.info('Collecting all jobs in result queue.')
     backend = get_backend_class()()
     while True:
-        messagebody = backend.collect_job()
-        if messagebody:
-            _handle_job_result(messagebody)
+        job_res = backend.collect_job()
+        if job_res:
+            _handle_job_result(job_res)
         else:
             break
     logger.info('Done collecting all jobs in result queue.')
@@ -312,36 +316,42 @@ def collect_all_jobs():
 
 def _handle_job_result(job_res: JobReturnMsg):
 
-    # TODO: loop over each job at the time.
+    if not job_res.ok:
+        logger.error("Job failed: {}".format(job_res))
+        mail_admins("Spacer job failed", repr(job_res))
 
-    # Handle message
-    pk = int(job_res.original_job.tasks[0].job_token)
-    if job_res.original_job.task_name == 'extract_features':
-        if th._featurecollector(job_res):
-            # If job was entered into DB, submit a classify job.
-            classify_image.apply_async(args=[pk], eta=now() + timedelta(seconds=10))
+    task_name = job_res.original_job.task_name
+    for task, res in zip(job_res.original_job.tasks,
+                         job_res.results):
 
-    elif job_res.original_job.task_name == 'train_classifier':
-        print("collecting train classifier")
-        if th._classifiercollector(job_res):
-            # If job was entered into DB, submit a classify job for all images
-            # in source.
-            classifier = Classifier.objects.get(pk=pk)
-            for image in Image.objects.filter(source=classifier.source,
-                                              features__extracted=True,
-                                              confirmed=False):
-                classify_image.apply_async(args=[image.id],
+        if task_name == 'extract_features':
+            if th.featurecollector(task, res):
+                # If job was entered into DB, submit a classify job.
+                classify_image.apply_async(args=[int(task.job_token)],
                                            eta=now() + timedelta(seconds=10))
-    elif job_res.original_job.task_name == 'deploy':
-        # TODO, make the collectors public
-        th._deploycollector(messagebody)
 
-    else:
-        logger.error('Job task type {} not recognized'.format(task))
+        elif job_res.original_job.task_name == 'train_classifier':
+            print("collecting train classifier")
+            if th.classifiercollector(task, res):
+                # If successful, submit a classify job for all imgs in source.
+                pk = int(task.job_token.split(',')[0])
+                classifier = Classifier.objects.get(pk=pk)
+                for image in Image.objects.filter(source=classifier.source,
+                                                  features__extracted=True,
+                                                  confirmed=False):
+                    classify_image.apply_async(
+                        args=[image.id],
+                        eta=now() + timedelta(seconds=10))
+        elif job_res.original_job.task_name == 'deploy':
+            # TODO, make the collectors public
+            th._deploycollector(messagebody)
 
-    # Conclude
-    logger.info("job {}, pk: {} collected successfully".format(task, pk))
-    logger.debug("Collected job with messagebody: {}".format(job_res))
+        else:
+            logger.error('Job task type {} not recognized'.format(task))
+
+        # Conclude
+        logger.info("Collected job: {}".format(task))
+        logger.debug("Collected job: {}".format(job_res))
 
 
 @task(name="Reset Source")

@@ -12,12 +12,24 @@ from django.db.models import F
 from django.utils import timezone
 from reversion import revisions
 from spacer.data_classes import ImageLabels
-from spacer.messages import JobReturnMsg
+
+from spacer.messages import \
+    ExtractFeaturesMsg, \
+    ExtractFeaturesReturnMsg, \
+    TrainClassifierMsg, \
+    TrainClassifierReturnMsg, \
+    ClassifyFeaturesMsg, \
+    ClassifyImageMsg, \
+    ClassifyReturnMsg, \
+    JobMsg, \
+    JobReturnMsg, \
+    DataLocation
 
 from annotations.models import Annotation
 from api_core.models import ApiJobUnit
 from images.models import Image, Point
 from .models import Classifier, Score
+from labels.model import Label
 
 from lib.storage_backends import MediaStorageLocal, MediaStorageS3
 
@@ -37,14 +49,18 @@ def storage_class_to_str(storage) -> str:
 # Must explicitly turn on history creation when RevisionMiddleware is
 # not in effect. (It's only in effect within views.)
 @revisions.create_revision()
-def _add_annotations(image_id, scores, label_objs, classifier):
+def add_annotations(image_id: int,
+                    res: ClassifyReturnMsg,
+                    label_objs: List[Label],
+                    classifier: Classifier):
     """
     Adds annotations objects using the classifier scores.
 
     :param image_id: Database ID of the Image to add scores for.
-    :param scores: List of lists of score numbers. Same as in _add_scores().
+    :param res: ClassifyReturnMessage from spacer.
     :param label_objs: Iterable of Label DB objects, one per label in the
       source's labelset.
+    :param classifier: Classifier object.
 
     May throw an IntegrityError when trying to save annotations. The caller is
     responsible for handling the error. In this error case, no annotations
@@ -55,58 +71,66 @@ def _add_annotations(image_id, scores, label_objs, classifier):
     and thus would not trigger django-reversion's revision creation.
     So we must save annotations one by one.
     """
-    img = Image.objects.get(pk = image_id)
+    img = Image.objects.get(pk=image_id)
     points = Point.objects.filter(image=img).order_by('id')
-    estlabels = [np.argmax(score) for score in scores]
-    with transaction.atomic():
-        for pt, estlabel in zip(points, estlabels):
-            
-            label = label_objs[int(estlabel)]
 
+    with transaction.atomic():
+        def _store_ann(label_obj, point_):
+            """ Helper method """
             Annotation.objects.update_point_annotation_if_applicable(
-                point=pt, label=label,
+                point=point_,
+                label=label_obj,
                 now_confirmed=False,
                 user_or_robot_version=classifier)
 
+        if res.valid_rowcol:
+            # From spacer 0.2 we store row, col locations in features and in
+            # classifier scores. This allows us to match scores to points
+            # based on (row, col) locations. If not, we have to rely on
+            # the points always being ordered as order_by('id').
+            for point in points:
+                # Retrieve score vector for (row, column) location
+                scores = res[(point.row, point.column)]
+                _store_ann(label_objs[int(np.argmax(scores))], point)
+        else:
+            for point, (_, _, scores) in zip(points, res.scores):
+                _store_ann(label_objs[int(np.argmax(scores))], point)
 
-def _add_scores(image_id, scores, label_objs):
+
+def add_scores(image_id: int,
+               res: ClassifyReturnMsg,
+               label_objs: List[Label]):
     """
     Adds score objects using the classifier scores.
 
     :param image_id: Database ID of the Image to add scores for.
-    :param scores: List of lists of score numbers.
-      Each score number is a float; 0.65 to represent 65% probability. Will be
-      rounded as needed.
-      Each inner list consists of the scores for ALL labels in the source's
-      labelset, for one particular point. The scores should be in the same
-      order as label_objs.
-      The outer list consists of one score list per point in the image. The
-      points are assumed to be in database ID order.
+    :param res: ClassifyReturnMessage from spacer.
     :param label_objs: Iterable of Label DB objects, one per label in the
       source's labelset.
     """
-    img = Image.objects.get(pk = image_id)
+    img = Image.objects.get(pk=image_id)
 
     # First, delete all scores associated with this image.
-    Score.objects.filter(image = img).delete()
+    Score.objects.filter(image=img).delete()
 
     # Figure out how many of the (top) scores to store.
-    nbr_scores = min(settings.NBR_SCORES_PER_ANNOTATION, len(scores[0]))
+    nbr_scores = min(settings.NBR_SCORES_PER_ANNOTATION, len(res.classes))
 
     # Now, go through and create new ones.
-    points = Point.objects.filter(image = img).order_by('id')
+    points = Point.objects.filter(image=img).order_by('id')
     
     score_objs = []
     for point, score in zip(points, scores):
-        inds = np.argsort(score)[::-1][:nbr_scores] # grab the index of the n highest index
+        # grab the index of the n highest index
+        inds = np.argsort(score)[::-1][:nbr_scores]
         for ind in inds:
             score_objs.append(
                 Score(
-                    source = img.source, 
-                    image = img, 
-                    label = label_objs[int(ind)],
-                    point = point, 
-                    score = int(round(score[ind]*100))
+                    source=img.source,
+                    image=img,
+                    label=label_objs[int(ind)],
+                    point=point,
+                    score=int(round(score[ind]*100))
                 )
             )
     Score.objects.bulk_create(score_objs)
@@ -133,12 +157,11 @@ def make_dataset(images: List[Image]) -> ImageLabels:
     return labels
 
 
-def _featurecollector(return_msg: JobReturnMsg):
+def featurecollector(task: ExtractFeaturesMsg, res: ExtractFeaturesReturnMsg):
     """
     collects feature_extract jobs.
     """
-    # TODO: parse properly
-    image_id = int(return_msg.original_job.tasks[0].job_token)
+    image_id = int(task.job_token)
     try:
         img = Image.objects.get(pk=image_id)
     except Image.DoesNotExist:
@@ -150,68 +173,77 @@ def _featurecollector(return_msg: JobReturnMsg):
     # Double-check that the row-col information is still correct.
     rowcols = [(p.row, p.column) for p in Point.objects.filter(image=img)]
 
-    if not set(rowcols) == set(return_msg.original_job.tasks[0].rowcols):
+    if not set(rowcols) == set(task.rowcols):
         logger.info("Row-col for {} have changed. Aborting.".format(log_str))
         return 0
     
     # If all is ok store meta-data.
     img.features.extracted = True
-    img.features.runtime_total = return_msg.results[0].runtime
+    img.features.runtime_total = res.runtime
 
     # TODO: remove runtime_core from DB
     img.features.runtime_core = 0
-    img.features.model_was_cashed = return_msg.results[0].model_was_cashed
+    img.features.model_was_cashed = res.model_was_cashed
     img.features.extracted_date = timezone.now()
     img.features.save()
-    return 1
+    return True
 
 
-def _classifiercollector(return_msg: JobReturnMsg):
+def classifiercollector(task: TrainClassifierMsg,
+                        res: TrainClassifierReturnMsg):
     """
     collects train_classifier jobs.
     """
+    # Parse out pk for current and previous classifiers.
+    pks = [int(entry) for entry in task.job_token.split(',')]
+    pk = pks[0]
+    prev_pks = pks[1:]
 
-    # If training didn't finish with OK status, return false and exit.
-    if not return_msg.ok:
-        return False
+    assert len(prev_pks) == len(res.pc_accs), \
+        "Number of previous classifiers doesn't match between job ({}) and " \
+        "results ({}).".format(len(prev_pks), len(res.pc_accs))
 
-    result = return_msg.results[0]
-    task = return_msg.original_job.tasks[0]
-    
     # Check that Classifier still exists. 
     try:
-        classifier = Classifier.objects.get(pk=int(task.job_token))
+        classifier = Classifier.objects.get(pk=pk)
     except Classifier.DoesNotExist:
         logger.info("Classifier {} was deleted. Aborting".
                     format(task.job_token))
         return False
-    logstr = 'Classifier {} [Source: {} [{}]]'.format(classifier.pk,
-                                                      classifier.source,
-                                                      classifier.source.id)
+    log_str = 'Classifier {} [Source: {} [{}]]'.format(classifier.pk,
+                                                       classifier.source,
+                                                       classifier.source.id)
 
     # Store generic stats
-    classifier.runtime_train = result.runtime
-    classifier.accuracy = result.acc
+    classifier.runtime_train = res.runtime
+    classifier.accuracy = res.acc
     classifier.epoch_ref_accuracy = str([int(round(10000 * ra)) for
-                                         ra in result.ref_accs])
+                                         ra in res.ref_accs])
     classifier.save()
 
-    # TODO: write this part.
-    # Check that the accuracy is higher than the previous classifiers
-    # if 'pc_models' in payload and len(payload['pc_models']) > 0:
-    #     if max(result['pc_accs']) * settings.NEW_CLASSIFIER_IMPROVEMENT_TH > result['acc']:
-    #         logger.info("{} worse than previous. Not validated. Max previous: {:.2f}, threshold: {:.2f}, this: {:.2f}".format(logstr, max(result['pc_accs']), max(result['pc_accs']) * settings.NEW_CLASSIFIER_IMPROVEMENT_TH, result['acc']))
-    #         return 0
-    #
-    #     Update accuracy for previous models
-        # for pc_pk, pc_acc in zip(payload['pc_pks'], result['pc_accs']):
-        #     pc = Classifier.objects.get(pk=pc_pk)
-        #     pc.accuracy = pc_acc
-        #     pc.save()
-    
+    # If there are previous classifiers and the new one is not a large enough
+    # improvement, abort without validating the new classifier.
+    if len(prev_pks) > 0 and max(res.pc_accs) * \
+            settings.NEW_CLASSIFIER_IMPROVEMENT_TH > res.acc:
+        logger.info(
+            "{} worse than previous. Not validated. Max previous: {:.2f}, "
+            "threshold: {:.2f}, this: {:.2f}".format(
+                log_str,
+                max(res.pc_accs),
+                max(res.pc_accs) * settings.NEW_CLASSIFIER_IMPROVEMENT_TH,
+                res.acc))
+        return False
+
+    # Update accuracy for previous models.
+    for pc_pk, pc_acc in zip(prev_pks, res.pc_accs):
+        pc = Classifier.objects.get(pk=pc_pk)
+        pc.accuracy = pc_acc
+        pc.save()
+
+    # Validate and save the current model
     classifier.valid = True
     classifier.save()
-    logger.info("{} collected successfully.".format(logstr))
+    logger.info("{} collected successfully.".format(log_str))
     return True
 
 

@@ -1214,9 +1214,9 @@ def add_robot_annotations(robot, image, annotations=None):
 
     # Add scores. Note that this function expects scores for all labels, but
     # will only save the top NBR_SCORES_PER_ANNOTATION per point.
-    backend_task_helpers._add_scores(image.pk, scores, global_labels)
+    backend_task_helpers.add_scores(image.pk, scores, global_labels)
     # Add annotations.
-    backend_task_helpers._add_annotations(
+    backend_task_helpers.add_annotations(
         image.pk, scores, global_labels, robot)
 
     image.features.classified = True

@@ -64,7 +64,7 @@ class ResetTaskTest(ClientTest):
         scores = []
         for i in range(nbr_points):
             scores.append(np.random.rand(label_objs.count()))
-        th._add_scores(img.pk, scores, label_objs)
+        th.add_scores(img.pk, scores, label_objs)
 
         expected_nbr_scores = min(5, label_objs.count())
         self.assertEqual(Score.objects.filter(image=img).count(),
@@ -134,8 +134,8 @@ class ClassifyUtilsTest(ClientTest):
             scores = [
                 np.random.rand(cls.labels.count())
                 for _ in range(cls.points_per_image)]
-        th._add_scores(img.pk, scores, cls.labels)
-        th._add_annotations(img.pk, scores, cls.labels, classifier)
+        th.add_scores(img.pk, scores, cls.labels)
+        th.add_annotations(img.pk, scores, cls.labels, classifier)
         img.features.extracted = True
         img.features.classified = True
         img.features.save()

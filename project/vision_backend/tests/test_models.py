@@ -55,7 +55,7 @@ class CascadeDeleteTest(ClientTest):
         scores = []
         for i in range(nbr_points):
             scores.append(np.random.rand(label_objs.count()))
-        th._add_scores(img.pk, scores, label_objs)
+        th.add_scores(img.pk, scores, label_objs)
 
         expected_nbr_scores = min(5, label_objs.count())
         self.assertEqual(Score.objects.filter(image=img).count(),

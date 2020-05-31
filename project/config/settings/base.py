@@ -661,3 +661,6 @@ if has_secrets:
     SPACER_JOB_HASH = get_secret('SPACER_JOB_HASH')
 else:
     SPACER_JOB_HASH = 'dummy_identifier'
+
+# This flag is used to over-ride feature extractor names for unit-tests
+FORCE_DUMMY_EXTRACTOR = False

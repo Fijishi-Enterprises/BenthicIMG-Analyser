@@ -34,6 +34,7 @@ SECURE_PROXY_SSL_HEADER = None
 # [Custom setting]
 # Which vision backend to use.
 VISION_BACKEND_CHOICE = 'vision_backend.backends.MockBackend'
+FORCE_DUMMY_EXTRACTOR = True
 
 # [Custom setting]
 # Front page carousel images.

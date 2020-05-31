@@ -158,7 +158,7 @@ def _featurecollector(return_msg: JobReturnMsg):
     img.features.extracted = True
     img.features.runtime_total = return_msg.results[0].runtime
 
-    # TODO: remove this field from DB
+    # TODO: remove runtime_core from DB
     img.features.runtime_core = 0
     img.features.model_was_cashed = return_msg.results[0].model_was_cashed
     img.features.extracted_date = timezone.now()

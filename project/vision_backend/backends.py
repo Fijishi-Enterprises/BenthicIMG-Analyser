@@ -63,9 +63,7 @@ class SpacerBackend(BaseBackend):
         if message is None:
             return None
 
-        # TODO: remove explicit type-casting once fixed in spacer.
-        return_msg: JobReturnMsg = \
-            JobReturnMsg.deserialize(json.loads(message.get_body()))
+        return_msg = JobReturnMsg.deserialize(json.loads(message.get_body()))
 
         # Check that the message pertains to this server
         if settings.SPACER_JOB_HASH not in \

@@ -169,10 +169,16 @@ class Source(models.Model):
             fullCode = 'images.' + code
             verbose = 'View'
 
-    # TODO: replace this with a DB entry
+    # TODO: replace this with a DB entry. Still need the dummy over-ride tho.
     @property
     def feature_extractor(self) -> str:
-        return 'dummy'
+        if settings.FORCE_DUMMY_EXTRACTOR:
+            # Use dummy extractor for tests.
+            # The real extractors are relatively slow.
+            return 'dummy'
+
+        # TODO: read feature extractor name from DB
+        return ''
 
     ##########
     # Helper methods for sources

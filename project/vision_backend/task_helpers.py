@@ -12,26 +12,19 @@ from django.db.models import F
 from django.utils import timezone
 from reversion import revisions
 from spacer.data_classes import ImageLabels
-
 from spacer.messages import \
     ExtractFeaturesMsg, \
     ExtractFeaturesReturnMsg, \
     TrainClassifierMsg, \
     TrainClassifierReturnMsg, \
-    ClassifyFeaturesMsg, \
-    ClassifyImageMsg, \
-    ClassifyReturnMsg, \
-    JobMsg, \
-    JobReturnMsg, \
-    DataLocation
+    ClassifyReturnMsg
 
 from annotations.models import Annotation
 from api_core.models import ApiJobUnit
 from images.models import Image, Point
-from .models import Classifier, Score
-from labels.model import Label
-
+from labels.models import Label
 from lib.storage_backends import MediaStorageLocal, MediaStorageS3
+from .models import Classifier, Score
 
 logger = logging.getLogger(__name__)
 
@@ -74,27 +67,22 @@ def add_annotations(image_id: int,
     img = Image.objects.get(pk=image_id)
     points = Point.objects.filter(image=img).order_by('id')
 
-    with transaction.atomic():
-        def _store_ann(label_obj, point_):
-            """ Helper method """
+    # From spacer 0.2 we store row, col locations in features and in
+    # classifier scores. This allows us to match scores to points
+    # based on (row, col) locations. If not, we have to rely on
+    # the points always being ordered as order_by('id').
+    for itt, point in enumerate(points):
+        if res.valid_rowcol:
+            # Retrieve score vector for (row, column) location
+            scores = res[(point.row, point.column)]
+        else:
+            _, _, scores = res.scores[itt]
+        with transaction.atomic():
             Annotation.objects.update_point_annotation_if_applicable(
-                point=point_,
-                label=label_obj,
+                point=point,
+                label=label_objs[int(np.argmax(scores))],
                 now_confirmed=False,
                 user_or_robot_version=classifier)
-
-        if res.valid_rowcol:
-            # From spacer 0.2 we store row, col locations in features and in
-            # classifier scores. This allows us to match scores to points
-            # based on (row, col) locations. If not, we have to rely on
-            # the points always being ordered as order_by('id').
-            for point in points:
-                # Retrieve score vector for (row, column) location
-                scores = res[(point.row, point.column)]
-                _store_ann(label_objs[int(np.argmax(scores))], point)
-        else:
-            for point, (_, _, scores) in zip(points, res.scores):
-                _store_ann(label_objs[int(np.argmax(scores))], point)
 
 
 def add_scores(image_id: int,
@@ -120,9 +108,12 @@ def add_scores(image_id: int,
     points = Point.objects.filter(image=img).order_by('id')
     
     score_objs = []
-    for point, score in zip(points, scores):
-        # grab the index of the n highest index
-        inds = np.argsort(score)[::-1][:nbr_scores]
+    for itt, point in enumerate(points):
+        if res.valid_rowcol:
+            scores = res[(point.row, point.column)]
+        else:
+            _, _, scores = res.scores[itt]
+        inds = np.argsort(scores)[::-1][:nbr_scores]
         for ind in inds:
             score_objs.append(
                 Score(
@@ -130,7 +121,7 @@ def add_scores(image_id: int,
                     image=img,
                     label=label_objs[int(ind)],
                     point=point,
-                    score=int(round(score[ind]*100))
+                    score=int(round(scores[ind]*100))
                 )
             )
     Score.objects.bulk_create(score_objs)

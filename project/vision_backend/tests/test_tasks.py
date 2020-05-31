@@ -21,6 +21,11 @@ from vision_backend.tasks import \
 
 from spacer.config import MIN_TRAINIMAGES
 
+# Create and annotate sufficient nbr images.
+# Since 1/8 of images go to val, we need to add a few more to
+# make sure there are enough train images.
+MIN_IMAGES = int(MIN_TRAINIMAGES * (1+1/8) + 1)
+
 
 class ResetTaskTest(ClientTest):
 
@@ -268,10 +273,7 @@ class TrainClassifierTest(ClientTest):
         labels = cls.create_labels(cls.user, ['A', 'B'], "Group1")
         cls.create_labelset(cls.user, cls.source, labels)
 
-        # Create and annotate sufficient nbr images.
-        # Since 1/8 of images go to val, we need to add a few more to
-        # make sure there are enough train images.
-        for i in range(int(MIN_TRAINIMAGES * (1+1/8) + 1)):
+        for i in range(MIN_IMAGES):
             img = cls.upload_image(cls.user, cls.source)
             submit_features(img.id)
             cls.add_annotations(
@@ -314,26 +316,23 @@ class ClassifyImageTest(ClientTest):
         cls.create_labelset(cls.user, cls.source, labels)
 
         # Two images with features
-        cls.img1 = cls.upload_image(cls.user, cls.source)
-        submit_features(cls.img1.id)
-        cls.img2 = cls.upload_image(cls.user, cls.source)
-        submit_features(cls.img2.id)
+        for i in range(MIN_IMAGES):
+            img = cls.upload_image(cls.user, cls.source)
+            submit_features(img.id)
+            cls.add_annotations(
+                cls.user, img, {1: 'A', 2: 'B', 3: 'A', 4: 'A', 5: 'B'})
+
+        # Add one more without annotations
+        cls.img = cls.upload_image(cls.user, cls.source)
         collect_all_jobs()
-        # One image annotated, one not
-        cls.add_annotations(
-            cls.user, cls.img1, {1: 'A', 2: 'B', 3: 'A', 4: 'A', 5: 'B'})
 
         # Train classifier
         submit_classifier(cls.source.id)
         collect_all_jobs()
 
-    @unittest.skip("Not supported yet")
     def test_classify_unannotated_image(self):
-        # TODO: This task call does not work using the MockBackend because
-        # that backend doesn't actually create feature, model, and valresult
-        # files yet. So this test fails.
-        classify_image(self.img2.id)
+        classify_image(self.img.id)
 
         self.assertEqual(
-            Annotation.objects.filter(image__id=self.img2.id).count(), 5)
+            Annotation.objects.filter(image__id=self.img.id).count(), 5)
 

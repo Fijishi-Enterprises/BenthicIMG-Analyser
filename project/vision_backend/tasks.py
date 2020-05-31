@@ -1,17 +1,23 @@
 import json
 import logging
-import pickle
 from datetime import timedelta
 
 from celery.decorators import task, periodic_task
 from django.conf import settings
 from django.core.files.storage import get_storage_class
+from django.core.mail import mail_admins
 from django.db import IntegrityError
 from django.utils.timezone import now
-
-from django.core.mail import mail_admins, mail_managers, send_mail
-
 from six import StringIO
+from spacer.messages import \
+    ExtractFeaturesMsg, \
+    TrainClassifierMsg, \
+    ClassifyFeaturesMsg, \
+    ClassifyReturnMsg, \
+    JobMsg, \
+    JobReturnMsg, \
+    DataLocation
+from spacer.tasks import classify_features as spacer_classify_features
 
 from accounts.utils import get_robot_user
 from annotations.models import Annotation
@@ -21,18 +27,6 @@ from labels.models import Label
 from . import task_helpers as th
 from .backends import get_backend_class
 from .models import Classifier, Score
-
-from spacer.tasks import classify_features as spacer_classify_features
-
-from spacer.messages import \
-    ExtractFeaturesMsg, \
-    TrainClassifierMsg, \
-    ClassifyFeaturesMsg, \
-    ClassifyImageMsg, \
-    ClassifyReturnMsg, \
-    JobMsg, \
-    JobReturnMsg, \
-    DataLocation
 
 logger = logging.getLogger(__name__)
 
@@ -245,10 +239,10 @@ def classify_image(image_id):
         img = Image.objects.get(pk=image_id)
     except Image.DoesNotExist:
         logger.info("Image {} does not exist.".format(image_id))
-        return False
+        return
 
     if not img.features.extracted:
-        return False
+        return
 
     classifier = img.source.get_latest_robot()
     if not classifier:
@@ -260,11 +254,12 @@ def classify_image(image_id):
         job_token=str(image_id),
         feature_loc=DataLocation(
             storage_type=th.storage_class_to_str(storage),
-            key=settings.FEATURE_VECTOR_FILE_PATTERN.format(
-                full_image_path=img.original_file.name)),
+            key=storage.path(settings.FEATURE_VECTOR_FILE_PATTERN.format(
+                full_image_path=img.original_file.name))),
         classifier_loc=DataLocation(
             storage_type=th.storage_class_to_str(storage),
-            key=settings.ROBOT_MODEL_FILE_PATTERN.format(pk=classifier.pk))
+            key=storage.path(settings.ROBOT_MODEL_FILE_PATTERN.format(
+                pk=classifier.pk)))
     )
 
     # Process job right here since it is so fast.
@@ -278,10 +273,10 @@ def classify_image(image_id):
         try:
             th.add_annotations(image_id, res, label_objs, classifier)
         except IntegrityError:
-            logger_message = u"Failed to classify Image {} [Source: {} [{}] " \
-                             u"with classifier {}. There might have been a race" \
-                             u" condition when trying to save annotations. " \
-                             u"Will try again later."
+            logger_message = \
+                u"Failed to classify Image {} [Source: {} [{}] with " \
+                u"classifier {}. There might have been a race condition " \
+                u"when trying to save annotations. Will try again later."
             logger.info(logger_message.format(img.id, img.source,
                                               img.source_id, classifier.id))
             classify_image.apply_async(args=[image_id],
@@ -289,7 +284,7 @@ def classify_image(image_id):
             return
     
     # Always add scores
-    th.add_scores(image_id, scores, label_objs)
+    th.add_scores(image_id, res, label_objs)
     
     img.features.classified = True
     img.features.save()

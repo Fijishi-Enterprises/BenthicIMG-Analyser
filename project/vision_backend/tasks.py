@@ -126,14 +126,16 @@ def submit_classifier(source_id, nbr_images=1e5, force=False):
 
     # Write train-labels to file storage
     storage = get_storage_class()()
-    trainlabels = th.make_dataset([image for image in images if image.trainset])
+    trainlabels = th.make_dataset([image for image in images if
+                                   image.trainset])
     trainlabels_path = storage.path(settings.ROBOT_MODEL_TRAINDATA_PATTERN.
                                     format(pk=classifier.pk))
     storage.save(trainlabels_path,
                  StringIO(json.dumps(trainlabels.serialize())))
 
     # Write val-labels to file storage
-    vallabels = th.make_dataset([image for image in images if image.valset])
+    vallabels = th.make_dataset([image for image in images if
+                                 image.valset])
     vallabels_path = storage.path(settings.ROBOT_MODEL_VALDATA_PATTERN.
                                   format(pk=classifier.pk))
     storage.save(vallabels_path,

@@ -1,4 +1,3 @@
-import unittest
 import os
 
 import numpy as np
@@ -335,4 +334,3 @@ class ClassifyImageTest(ClientTest):
 
         self.assertEqual(
             Annotation.objects.filter(image__id=self.img.id).count(), 5)
-

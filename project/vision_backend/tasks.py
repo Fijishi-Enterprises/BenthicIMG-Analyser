@@ -13,6 +13,7 @@ from spacer.messages import \
     ExtractFeaturesMsg, \
     TrainClassifierMsg, \
     ClassifyFeaturesMsg, \
+    ClassifyImageMsg, \
     ClassifyReturnMsg, \
     JobMsg, \
     JobReturnMsg, \
@@ -107,7 +108,7 @@ def submit_classifier(source_id, nbr_images=1e5, force=False):
     except Source.DoesNotExist:
         logger.info("Can't find source [{}]".format(source_id))
         return
-    
+
     if not source.need_new_robot() and not force:
         logger.info(u"Source {} [{}] don't need new classifier.".format(
             source.name, source.pk))
@@ -115,7 +116,7 @@ def submit_classifier(source_id, nbr_images=1e5, force=False):
 
     logger.info(u"Preparing new classifier for {} [{}].".format(
         source.name, source.pk))
-    
+
     # Create new classifier model
     images = Image.objects.filter(source=source, confirmed=True,
                                   features__extracted=True)[:nbr_images]
@@ -187,11 +188,10 @@ def submit_classifier(source_id, nbr_images=1e5, force=False):
                  u"Message: {}".format(source.name, source.id,
                                        len(images), msg))
     return msg
- 
+
 
 @task(name="Deploy")
 def deploy(job_unit_id):
-
     try:
         job_unit = ApiJobUnit.objects.get(pk=job_unit_id)
     except ApiJobUnit.DoesNotExist:
@@ -201,40 +201,43 @@ def deploy(job_unit_id):
     job_unit.status = ApiJobUnit.IN_PROGRESS
     job_unit.save()
 
-    rowcols = [[point['row'], point['column']] for point in
-               job_unit.request_json['points']]
+    # TODO: catch DoesNotExist here if pk is wrong? Or just let it fail?
+    classifier = Classifier.objects.get(
+        pk=job_unit.request_json['classifier_id'])
 
-    payload = {
-        'pk': job_unit_id,
-        'bucketname': settings.AWS_STORAGE_BUCKET_NAME,
-        'im_url': job_unit.request_json['url'],
-        'modelname': 'vgg16_coralnet_ver1',
-        'rowcols': rowcols,
-        'model': settings.ROBOT_MODEL_FILE_PATTERN.format(
-            pk=job_unit.request_json['classifier_id'],
-            media=settings.AWS_LOCATION),
-    }
+    storage = get_storage_class()()
 
-    # Assemble message body.
-    messagebody = {
-        'task': 'deploy',
-        'payload': payload
-    }
+    task = ClassifyImageMsg(
+        job_token=str(job_unit_id),
+        image_loc=DataLocation(
+            storage_type='url',
+            key=job_unit.request_json['url']
+        ),
+        feature_extractor_name=classifier.source.feature_extractor,
+        rowcols=[(point['row'], point['column']) for point in
+                 job_unit.request_json['points']],
+        classifier_loc=DataLocation(
+            storage_type=th.storage_class_to_str(storage),
+            key=storage.path(settings.ROBOT_MODEL_FILE_PATTERN.
+                             format(pk=classifier.pk)))
+    )
+    msg = JobMsg(task_name='classify_image', tasks=[task])
 
-    th._submit_job(messagebody)
+    # Submit.
+    backend = get_backend_class()()
+    backend.submit_job(msg)
 
     logger.info(u"Submitted image at url: {} for deploy with job unit {}.".
                 format(job_unit.request_json['url'], job_unit.pk))
     logger.debug(u"Submitted image at url: {} for deploy with job unit {}. "
                  u"Message: {}".format(job_unit.request_json['url'],
-                                       job_unit.pk, messagebody))
+                                       job_unit.pk, msg))
 
-    return messagebody
+    return msg
 
 
 @task(name="Classify Image")
 def classify_image(image_id):
-
     try:
         img = Image.objects.get(pk=image_id)
     except Image.DoesNotExist:
@@ -282,10 +285,10 @@ def classify_image(image_id):
             classify_image.apply_async(args=[image_id],
                                        eta=now() + timedelta(seconds=10))
             return
-    
+
     # Always add scores
     th.add_scores(image_id, res, label_objs)
-    
+
     img.features.classified = True
     img.features.save()
 
@@ -293,7 +296,8 @@ def classify_image(image_id):
                 format(img.id, img.source, img.source_id, classifier.id))
 
 
-@periodic_task(run_every=timedelta(seconds=60), name='Collect all jobs', ignore_result=True)
+@periodic_task(run_every=timedelta(seconds=60), name='Collect all jobs',
+               ignore_result=True)
 def collect_all_jobs():
     """
     Collects and handles job results until the job result queue is empty.
@@ -312,8 +316,12 @@ def collect_all_jobs():
 def _handle_job_result(job_res: JobReturnMsg):
 
     if not job_res.ok:
-        logger.error("Job failed: {}".format(job_res))
-        mail_admins("Spacer job failed", repr(job_res))
+        if job_res.original_job.task_name == 'classify_image':
+            th.deploy_fail(job_res)
+        else:
+            logger.error("Job failed: {}".format(job_res))
+            mail_admins("Spacer job failed", repr(job_res))
+        return
 
     task_name = job_res.original_job.task_name
     for task, res in zip(job_res.original_job.tasks,
@@ -325,8 +333,7 @@ def _handle_job_result(job_res: JobReturnMsg):
                 classify_image.apply_async(args=[int(task.job_token)],
                                            eta=now() + timedelta(seconds=10))
 
-        elif job_res.original_job.task_name == 'train_classifier':
-            print("collecting train classifier")
+        elif task_name == 'train_classifier':
             if th.classifiercollector(task, res):
                 # If successful, submit a classify job for all imgs in source.
                 pk = int(task.job_token.split(',')[0])
@@ -337,12 +344,11 @@ def _handle_job_result(job_res: JobReturnMsg):
                     classify_image.apply_async(
                         args=[image.id],
                         eta=now() + timedelta(seconds=10))
-        elif job_res.original_job.task_name == 'deploy':
-            # TODO, make the collectors public
-            th._deploycollector(messagebody)
+        elif job_res.original_job.task_name == 'classify_image':
+            th.deploycollector(task, res)
 
         else:
-            logger.error('Job task type {} not recognized'.format(task))
+            logger.error('Job task type {} not recognized'.format(task_name))
 
         # Conclude
         logger.info("Collected job: {}".format(task))
@@ -357,15 +363,17 @@ def reset_after_labelset_change(source_id):
     2) Delete Classifier objects
     3) Sets all image.features.classified = False
     """
-    Score.objects.filter(source_id = source_id).delete()
-    Classifier.objects.filter(source_id = source_id).delete()
-    Annotation.objects.filter(source_id = source_id, user = get_robot_user()).delete()
-    for image in Image.objects.filter(source_id = source_id):
+    Score.objects.filter(source_id=source_id).delete()
+    Classifier.objects.filter(source_id=source_id).delete()
+    Annotation.objects.filter(source_id=source_id,
+                              user=get_robot_user()).delete()
+    for image in Image.objects.filter(source_id=source_id):
         image.features.classified = False
         image.features.save()
 
     # Finally, let's train a new classifier.
-    submit_classifier.apply_async(args = [source_id], eta = now() + timedelta(seconds = 10))
+    submit_classifier.apply_async(args=[source_id],
+                                  eta=now() + timedelta(seconds=10))
 
 
 @task(name="Reset Features")
@@ -378,11 +386,12 @@ def reset_features(image_id):
     Add new poits.
     """
 
-    img = Image.objects.get(pk = image_id)
+    img = Image.objects.get(pk=image_id)
     features = img.features
     features.extracted = False
     features.classified = False
     features.save()
 
     # Re-submit feature extraction.
-    submit_features.apply_async(args = [img.id], eta = now() + timedelta(seconds = 10))
+    submit_features.apply_async(args=[img.id],
+                                eta=now() + timedelta(seconds=10))

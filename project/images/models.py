@@ -178,7 +178,7 @@ class Source(models.Model):
             return 'dummy'
 
         # TODO: read feature extractor name from DB
-        return ''
+        return 'efficientnet_b0_ver1'
 
     ##########
     # Helper methods for sources

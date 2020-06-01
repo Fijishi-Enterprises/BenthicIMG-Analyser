@@ -3,7 +3,10 @@ from lib.tests.utils import ClientTest
 from annotations.models import Label
 
 from api_core.models import ApiJob, ApiJobUnit
-from vision_backend.task_helpers import _deploycollector
+from vision_backend.task_helpers import deploycollector, deploy_fail
+
+from spacer.messages import ClassifyImageMsg, JobMsg, JobReturnMsg, \
+    ClassifyReturnMsg, DataLocation
 
 
 class TestDeployCollector(ClientTest):
@@ -40,56 +43,36 @@ class TestDeployCollector(ClientTest):
         api_job_unit.save()
         cls.api_job_unit_pk = api_job_unit.pk
 
+        cls.task = ClassifyImageMsg(
+            job_token=str(cls.api_job_unit_pk),
+            image_loc=DataLocation(storage_type='url', key=''),
+            feature_extractor_name='dummy',
+            rowcols=[(100, 100), (200, 200)],
+            classifier_loc=DataLocation(storage_type='memory', key='')
+        )
+        cls.res = ClassifyReturnMsg(
+            runtime=1.0,
+            scores=[(100, 100, [.3, .2, .1]), (200, 200, [.2, .1, .3])],
+            classes=[Label.objects.get(name='D').pk,
+                     Label.objects.get(name='A').pk,
+                     Label.objects.get(name='B').pk],
+            valid_rowcol=True
+        )
+
     def test_nominal(self):
 
-        messagebody = {
-            u'original_job': {
-                u'task': u'deploy',
-                u'payload': {
-                    u'rowcols': [[100, 100], [200, 200]],
-                    u'modelname': u'vgg16_coralnet_ver1',
-                    u'bucketname': u'coralnet-beijbom-dev',
-                    u'im_url': u'https://coralnet-beijbom-dev.s3-us-west-2.'
-                               u'amazonaws.com/media/images/04yv0o1o88.jpg',
-                    u'pk': 0,
-                    u'model': u'media/classifiers/14.model'
-                    }
-                },
-            u'result': {
-                u'scores': [[.3, .2, .1],
-                            [.2, .1, .3]],
-                u'classes': [0, 1, 2],
-                u'model_was_cashed': True,
-                u'runtime': {
-                    u'core': 20,
-                    u'total': 21,
-                    u'per_point': 10
-                },
-                u'ok': 1
-            }
-        }
-        # Assign the right classes. Deliberately leave 'C' out and shuffle
-        # order to make sure we handle non-sequential labels in set.
-        messagebody['result']['classes'] = [
-            Label.objects.get(name='D').pk,
-            Label.objects.get(name='A').pk,
-            Label.objects.get(name='B').pk
-        ]
-        messagebody['original_job']['payload']['pk'] = self.api_job_unit_pk
-
-        _deploycollector(messagebody)
+        deploycollector(self.task, self.res)
 
         api_job_unit = ApiJobUnit.objects.get(pk=self.api_job_unit_pk)
         self.assertEqual(api_job_unit.status, 'SC')
 
-        results = api_job_unit.result_json
+        api_res = api_job_unit.result_json
 
-        self.assertEqual(results['url'],
-                         api_job_unit.request_json['url'])
-        self.assertEqual(len(results['points']), 2)
+        self.assertEqual(api_res['url'], api_job_unit.request_json['url'])
+        self.assertEqual(len(api_res['points']), 2)
 
         # First point should be assigned D->A->B
-        point = results['points'][0]
+        point = api_res['points'][0]
         self.assertEqual(point['row'], 100)
         self.assertEqual(point['column'], 100)
         self.assertEqual(point['classifications'][0]['label_code'], 'D_mycode')
@@ -97,7 +80,7 @@ class TestDeployCollector(ClientTest):
         self.assertEqual(point['classifications'][2]['label_code'], 'B_mycode')
 
         # Second point should be assigned B->D->A
-        point = results['points'][1]
+        point = api_res['points'][1]
         self.assertEqual(point['row'], 200)
         self.assertEqual(point['column'], 200)
         self.assertEqual(point['classifications'][0]['label_code'], 'B_mycode')
@@ -106,30 +89,18 @@ class TestDeployCollector(ClientTest):
 
     def test_error(self):
 
-        messagebody = {
-            u'original_job': {
-                u'task': u'deploy',
-                u'payload': {
-                    u'rowcols': [[100, 100], [200, 200]],
-                    u'modelname': u'vgg16_coralnet_ver1',
-                    u'bucketname': u'coralnet-beijbom-dev',
-                    u'im_url': u'https://coralnet-beijbom-dev.s3-us-west-2.'
-                               u'amazonaws.com/media/images/04yv0o1o88.jpg',
-                    u'pk': 0,
-                    u'model': u'media/classifiers/14.model'
-                }
-            },
-            u'result': {
-                u'error': 'File not found',
-                u'ok': 0
-            }
-        }
+        job_res = JobReturnMsg(
+            original_job=JobMsg(
+                task_name='classify_image',
+                tasks=[self.task]
+            ),
+            results=[self.res],
+            ok=False,
+            error_message='File not found'
+        )
 
-        messagebody['original_job']['payload']['pk'] = self.api_job_unit_pk
-
-        _deploycollector(messagebody)
+        deploy_fail(job_res)
 
         api_job_unit = ApiJobUnit.objects.get(pk=self.api_job_unit_pk)
         self.assertEqual(api_job_unit.status, 'FL')
-        self.assertEqual(api_job_unit.result_json['error'],
-                         'File not found')
+        self.assertEqual(api_job_unit.result_json['error'], 'File not found')

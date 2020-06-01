@@ -17,12 +17,15 @@ from spacer.messages import \
     ExtractFeaturesReturnMsg, \
     TrainClassifierMsg, \
     TrainClassifierReturnMsg, \
-    ClassifyReturnMsg
+    ClassifyImageMsg, \
+    ClassifyReturnMsg, \
+    JobReturnMsg
+
 
 from annotations.models import Annotation
 from api_core.models import ApiJobUnit
 from images.models import Image, Point
-from labels.models import Label
+from labels.models import Label, LabelSet
 from lib.storage_backends import MediaStorageLocal, MediaStorageS3
 from .models import Classifier, Score
 
@@ -238,28 +241,29 @@ def classifiercollector(task: TrainClassifierMsg,
     return True
 
 
-def _deploycollector(messagebody):
+def deploycollector(task: ClassifyImageMsg, res: ClassifyReturnMsg):
 
-    def build_points_dicts(scores, classes, rowcols, labelset):
+    def build_points_dicts(labelset: LabelSet):
         """
         Converts scores from the deploy call to the dictionary returned
         by the API
         """
 
         # Figure out how many of the (top) scores to store.
-        nbr_scores = min(settings.NBR_SCORES_PER_ANNOTATION, len(scores[0]))
+        nbr_scores = min(settings.NBR_SCORES_PER_ANNOTATION,
+                         len(res.classes))
 
         # Pre-fetch label objects. The local labels let us reach all the
         # fields we want.
         local_labels = []
-        for class_ in classes:
+        for class_ in res.classes:
             local_label = labelset.locallabel_set.get(global_label__pk=class_)
             local_labels.append(local_label)
 
         data = []
-        for score, rowcol in zip(scores, rowcols):
+        for row, col, scores in res.scores:
             # grab the index of the highest indices
-            inds = np.argsort(score)[::-1][:nbr_scores]
+            inds = np.argsort(scores)[::-1][:nbr_scores]
             classifications = []
             for ind in inds:
                 local_label = local_labels[ind]
@@ -267,18 +271,15 @@ def _deploycollector(messagebody):
                     label_id=local_label.global_label.pk,
                     label_name=local_label.global_label.name,
                     label_code=local_label.code,
-                    score=score[ind]))
-            data.append(dict(
-                row=rowcol[0],
-                column=rowcol[1],
-                classifications=classifications
-            ))
+                    score=scores[ind]))
+            data.append(dict(row=row,
+                             column=col,
+                             classifications=classifications
+                             )
+                        )
         return data
 
-    result = messagebody['result']
-    org_payload = messagebody['original_job']['payload']
-
-    pk = org_payload['pk']
+    pk = int(task.job_token)
     try:
         job_unit = ApiJobUnit.objects.get(pk=pk)
     except ApiJobUnit.DoesNotExist:
@@ -292,20 +293,26 @@ def _deploycollector(messagebody):
         logger.info("Classifier of id {} does not exist.".format(pk))
         return
 
-    if result['ok']:
-        job_unit.result_json = dict(
-            url=job_unit.request_json['url'],
-            points=build_points_dicts(
-                result['scores'],
-                result['classes'],
-                org_payload['rowcols'],
-                classifier.source.labelset)
-        )
-        job_unit.status = ApiJobUnit.SUCCESS
-    else:
-        job_unit.result_json = dict(
-            url=job_unit.request_json['url'],
-            error=result['error']
-        )
-        job_unit.status = ApiJobUnit.FAILURE
+    job_unit.result_json = dict(
+        url=job_unit.request_json['url'],
+        points=build_points_dicts(classifier.source.labelset)
+    )
+    job_unit.status = ApiJobUnit.SUCCESS
+    job_unit.save()
+
+
+def deploy_fail(job_return_msg: JobReturnMsg):
+
+    pk = int(job_return_msg.original_job.tasks[0].job_token)
+    try:
+        job_unit = ApiJobUnit.objects.get(pk=pk)
+    except ApiJobUnit.DoesNotExist:
+        logger.info("Job unit of id {} does not exist.".format(pk))
+        return
+
+    job_unit.result_json = dict(
+        url=job_unit.request_json['url'],
+        error=job_return_msg.error_message
+    )
+    job_unit.status = ApiJobUnit.FAILURE
     job_unit.save()

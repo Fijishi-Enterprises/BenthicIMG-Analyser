@@ -3,12 +3,25 @@ from abc import ABCMeta
 import six
 
 from django.urls import reverse
+from django.test import override_settings
 
 from api_core.tests.utils import BaseAPITest
-from images.models import Source
+from images.models import Source, Image
+
+from spacer.config import MIN_TRAINIMAGES
+
+from vision_backend.tasks import submit_features, \
+    collect_all_jobs, submit_classifier
+from vision_backend.models import Classifier
+
+# Create and annotate sufficient nbr images.
+# Since 1/8 of images go to val, we need to add a few more to
+# make sure there are enough train images.
+MIN_IMAGES = int(MIN_TRAINIMAGES * (1+1/8) + 1)
 
 
 @six.add_metaclass(ABCMeta)
+@override_settings(FORCE_NO_BACKEND_SUBMIT=False, MIN_NBR_ANNOTATED_IMAGES=1)
 class DeployBaseTest(BaseAPITest):
 
     @classmethod
@@ -28,7 +41,22 @@ class DeployBaseTest(BaseAPITest):
         local_label.code = 'A_mycode'
         local_label.save()
 
-        cls.classifier = cls.create_robot(cls.source)
+        for i in range(MIN_IMAGES):
+            img = cls.upload_image(cls.user, cls.source)
+            submit_features(img.id)
+            cls.add_annotations(
+                cls.user, img, {1: 'A', 2: 'B', 3: 'A', 4: 'A', 5: 'B'})
+
+        collect_all_jobs()
+
+        # TODO: for some reason, this doesn't trigger a job, because
+        # TODO: source.need_new_robot() returns False with no returned images.
+        submit_classifier(cls.source.id)
+        collect_all_jobs()
+
+        # This source should now have a trained classifier.
+        cls.classifier = Classifier.objects.get(source=cls.source)
+
         cls.deploy_url = reverse('api:deploy', args=[cls.classifier.pk])
 
         # Get a token

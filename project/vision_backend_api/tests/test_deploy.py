@@ -13,7 +13,7 @@ from unittest import skip
 from api_core.models import ApiJob, ApiJobUnit
 from api_core.tests.utils import BaseAPIPermissionTest
 from vision_backend.models import Classifier
-from vision_backend.tasks import deploy, collect_all_jobs
+from vision_backend.tasks import deploy
 from .utils import DeployBaseTest, noop_task
 
 
@@ -435,7 +435,6 @@ class DeployImagesParamErrorTest(DeployBaseTest):
                 source=dict(pointer='/data/0/attributes/points/1')))
 
 
-@override_settings(FORCE_NO_BACKEND_SUBMIT=False, MIN_NBR_ANNOTATED_IMAGES=1)
 class SuccessTest(DeployBaseTest):
     """
     Test the deploy process's success case from start to finish.
@@ -509,21 +508,15 @@ class SuccessTest(DeployBaseTest):
                 image_order=0),
             "Unit's request_json should be correct")
 
+    @skip("We need to have a mock backend before we can test this.")
     def test_done(self):
         """
         Test state after deploy is done. To do this, just don't replace
         anything and let the tasks run synchronously.
         """
-
-        # TODO: this test currently fails due to problems in setting
-        # up fixtures.
-        public_image_url = 'https://coralnet-beijbom-dev.s3-us-west-2.' \
-                           'amazonaws.com/media/images/04yv0o1o88.jpg'
         images = [
-            dict(type='image',
-                 attributes=dict(
-                     url=public_image_url,
-                     points=[dict(row=10, column=10)]))]
+            dict(type='image', attributes=dict(
+                url='URL 1', points=[dict(row=10, column=10)]))]
         data = json.dumps(dict(data=images))
         self.client.post(self.deploy_url, data, **self.request_kwargs)
 
@@ -535,12 +528,8 @@ class SuccessTest(DeployBaseTest):
         except ApiJobUnit.DoesNotExist:
             self.fail("Deploy job unit should be created")
 
-        # Process training result
-        deploy(deploy_unit.pk)
-        collect_all_jobs()
-
         self.assertEqual(deploy_unit.status, ApiJobUnit.SUCCESS,
-                         "Unit should be done")
+            "Unit should be done")
 
         classifications = [dict(
             label_id=self.labels[0].pk, label_name='A',

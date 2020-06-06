@@ -662,5 +662,5 @@ if has_secrets:
 else:
     SPACER_JOB_HASH = 'dummy_identifier'
 
-# This flag is used to over-ride feature extractor names for unit-tests
+# This flag is used to over-ride feature extractor names for unit-tests.
 FORCE_DUMMY_EXTRACTOR = False

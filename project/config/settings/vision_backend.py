@@ -23,7 +23,3 @@ NBR_SCORES_PER_ANNOTATION = 5
 
 # This is the number of epochs we request the SGD solver to take over the data.
 NBR_TRAINING_EPOCHS = 10
-
-# Configure the SQS queue name to use
-SQS_JOBS = 'coralnet_prod_jobs'
-SQS_RES = 'coralnet_prod_results'

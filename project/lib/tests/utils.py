@@ -75,6 +75,9 @@ test_settings['CACHES'] = {
 # This is needed since the celery agent runs in a different 
 # context (e.g. Database)
 test_settings['CELERY_ALWAYS_EAGER'] = True
+# Also force spacer jobs to use the dummy extractor.
+# Otherwise tests will run slow.
+test_settings['FORCE_DUMMY_EXTRACTOR'] = True
 
 
 # Abstract class

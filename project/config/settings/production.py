@@ -34,6 +34,10 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Which vision backend to use.
 VISION_BACKEND_CHOICE = 'vision_backend.queues.SQSQueue'
 
+# Configure the SQS queue name to use
+SQS_JOBS = 'coralnet_prod_jobs'
+SQS_RES = 'coralnet_prod_results'
+
 # [Custom setting]
 # Front page carousel images.
 CAROUSEL_IMAGE_COUNT = 5

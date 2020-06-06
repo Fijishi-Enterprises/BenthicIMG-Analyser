@@ -34,7 +34,10 @@ SECURE_PROXY_SSL_HEADER = None
 # [Custom setting]
 # Which vision backend to use.
 VISION_BACKEND_CHOICE = 'vision_backend.queues.MockQueue'
-FORCE_DUMMY_EXTRACTOR = True
+
+# Configure the SQS queue name to use
+SQS_JOBS = 'spacer_test_jobs'
+SQS_RES = 'spacer_test_results'
 
 # [Custom setting]
 # Front page carousel images.

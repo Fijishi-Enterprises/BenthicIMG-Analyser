@@ -26,7 +26,7 @@ from api_core.models import ApiJobUnit
 from images.models import Source, Image, Point
 from labels.models import Label
 from . import task_helpers as th
-from .backend import get_backend_class
+from .queues import get_backend_class
 from .models import Classifier, Score
 
 logger = logging.getLogger(__name__)

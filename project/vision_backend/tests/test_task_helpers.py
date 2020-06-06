@@ -45,7 +45,7 @@ class TestDeployCollector(ClientTest):
         cls.api_job_unit_pk = api_job_unit.pk
 
         cls.task = ClassifyImageMsg(
-            job_token=encode_spacer_job_token(api_job_unit.pk),
+            job_token=encode_spacer_job_token([api_job_unit.pk]),
             image_loc=DataLocation(storage_type='url', key=''),
             feature_extractor_name='dummy',
             rowcols=[(100, 100), (200, 200)],

@@ -26,7 +26,7 @@ from api_core.models import ApiJobUnit
 from images.models import Source, Image, Point
 from labels.models import Label
 from . import task_helpers as th
-from .queues import get_backend_class
+from .queues import get_queue_class
 from .models import Classifier, Score
 
 logger = logging.getLogger(__name__)
@@ -71,8 +71,8 @@ def submit_features(image_id, force=False):
     msg = JobMsg(task_name='extract_features', tasks=[task])
 
     # Submit.
-    backend = get_backend_class()()
-    backend.submit_job(msg)
+    queue = get_queue_class()()
+    queue.submit_job(msg)
 
     logger.info(u"Submitted feature extraction for {}".format(log_str))
     logger.debug(u"Submitted feature extraction for {}. Message: {}".
@@ -168,8 +168,8 @@ def submit_classifier(source_id, nbr_images=1e5, force=False):
     msg = JobMsg(task_name='train_classifier', tasks=[task])
 
     # Submit.
-    backend = get_backend_class()()
-    backend.submit_job(msg)
+    queue = get_queue_class()()
+    queue.submit_job(msg)
 
     logger.info(u"Submitted classifier for source {} [{}] with {} images.".
                 format(source.name, source.id, len(images)))
@@ -213,8 +213,8 @@ def deploy(job_unit_id):
     msg = JobMsg(task_name='classify_image', tasks=[task])
 
     # Submit.
-    backend = get_backend_class()()
-    backend.submit_job(msg)
+    queue = get_queue_class()()
+    queue.submit_job(msg)
 
     logger.info(u"Submitted image at url: {} for deploy with job unit {}.".
                 format(job_unit.request_json['url'], job_unit.pk))
@@ -294,9 +294,9 @@ def collect_all_jobs():
     Collects and handles job results until the job result queue is empty.
     """
     logger.info('Collecting all jobs in result queue.')
-    backend = get_backend_class()()
+    queue = get_queue_class()()
     while True:
-        job_res = backend.collect_job()
+        job_res = queue.collect_job()
         if job_res:
             _handle_job_result(job_res)
         else:

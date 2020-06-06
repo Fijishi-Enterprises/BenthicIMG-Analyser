@@ -15,7 +15,7 @@ from spacer.tasks import process_job
 logger = logging.getLogger(__name__)
 
 
-def get_backend_class():
+def get_queue_class():
     """This function is modeled after Django's get_storage_class()."""
     return import_string(settings.VISION_BACKEND_CHOICE)
 

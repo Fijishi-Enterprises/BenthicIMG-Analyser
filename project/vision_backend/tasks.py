@@ -112,19 +112,16 @@ def submit_classifier(source_id, nbr_images=1e5, force=False):
 
     # Write train-labels to file storage
     storage = get_storage_class()()
-    traindata = th.make_dataset([image for image in images if
-                                   image.trainset])
+    traindata = th.make_dataset([image for image in images if image.trainset])
     traindata_loc = storage.spacer_data_loc(
         settings.ROBOT_MODEL_TRAINDATA_PATTERN.format(pk=classifier.pk))
-    storage.save(traindata_loc.key,
-                 StringIO(json.dumps(traindata.serialize())))
+    traindata.store(traindata_loc)
 
     # Write val-labels to file storage
     valdata = th.make_dataset([image for image in images if image.valset])
     valdata_loc = storage.spacer_data_loc(
         settings.ROBOT_MODEL_VALDATA_PATTERN.format(pk=classifier.pk))
-    storage.save(valdata_loc.key,
-                 StringIO(json.dumps(valdata.serialize())))
+    valdata.store(valdata_loc)
 
     # This will not include the one we just created, b/c it is not valid.
     prev_classifiers = Classifier.objects.filter(source=source, valid=True)

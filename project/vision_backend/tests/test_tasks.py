@@ -3,6 +3,8 @@ import os
 import numpy as np
 from django.core.urlresolvers import reverse
 from django.test import override_settings
+from spacer.config import MIN_TRAINIMAGES
+from spacer.messages import ClassifyReturnMsg
 
 import vision_backend.task_helpers as th
 from accounts.utils import is_robot_user
@@ -17,8 +19,6 @@ from vision_backend.tasks import \
     reset_after_labelset_change, \
     submit_classifier, \
     submit_features
-
-from spacer.config import MIN_TRAINIMAGES
 
 # Create and annotate sufficient nbr images.
 # Since 1/8 of images go to val, we need to add a few more to
@@ -68,7 +68,15 @@ class ResetTaskTest(ClientTest):
         scores = []
         for i in range(nbr_points):
             scores.append(np.random.rand(label_objs.count()))
-        th.add_scores(img.pk, scores, label_objs)
+
+        return_msg = ClassifyReturnMsg(
+            runtime=0.0,
+            scores=[(0, 0, [float(s) for s in scrs]) for scrs in scores],
+            classes=[label.pk for label in label_objs],
+            valid_rowcol=False,
+        )
+
+        th.add_scores(img.pk, return_msg, label_objs)
 
         expected_nbr_scores = min(5, label_objs.count())
         self.assertEqual(Score.objects.filter(image=img).count(),
@@ -138,8 +146,16 @@ class ClassifyUtilsTest(ClientTest):
             scores = [
                 np.random.rand(cls.labels.count())
                 for _ in range(cls.points_per_image)]
-        th.add_scores(img.pk, scores, cls.labels)
-        th.add_annotations(img.pk, scores, cls.labels, classifier)
+
+        return_msg = ClassifyReturnMsg(
+            runtime=0.0,
+            scores=[(0, 0, [float(s) for s in scrs]) for scrs in scores],
+            classes=[label.pk for label in cls.labels],
+            valid_rowcol=False,
+        )
+
+        th.add_scores(img.pk, return_msg, cls.labels)
+        th.add_annotations(img.pk, return_msg, cls.labels, classifier)
         img.features.extracted = True
         img.features.classified = True
         img.features.save()

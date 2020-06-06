@@ -76,9 +76,6 @@ test_settings['CACHES'] = {
 # context (e.g. Database)
 test_settings['CELERY_ALWAYS_EAGER'] = True
 
-# Make sure backend tasks do not run.
-test_settings['FORCE_NO_BACKEND_SUBMIT'] = True
-
 
 # Abstract class
 @six.add_metaclass(ABCMeta)

@@ -48,7 +48,7 @@ def encode_spacer_job_token(pks: List[int]):
     return settings.SPACER_JOB_HASH + ':' + ','.join([str(pk) for pk in pks])
 
 
-def decode_spacer_job_token(job_token:str):
+def decode_spacer_job_token(job_token: str):
     """ Decodes spacer job token """
     job_hash, pks_str = job_token.split(':')
     pks = [int(pk) for pk in pks_str.split(',')]

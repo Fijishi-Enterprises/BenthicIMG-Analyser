@@ -268,7 +268,6 @@ class ClassifyUtilsTest(ClientTest):
             self.assertEqual(scores[int(np.argmax(posteriors))].label, ann.label)
 
 
-@override_settings(FORCE_NO_BACKEND_SUBMIT=False)
 class ExtractFeaturesTest(ClientTest):
 
     @classmethod
@@ -295,7 +294,7 @@ class ExtractFeaturesTest(ClientTest):
         self.assertTrue(img.features.extracted)
 
 
-@override_settings(FORCE_NO_BACKEND_SUBMIT=False, MIN_NBR_ANNOTATED_IMAGES=1)
+@override_settings(MIN_NBR_ANNOTATED_IMAGES=1)
 class TrainClassifierTest(ClientTest):
 
     @classmethod
@@ -337,7 +336,7 @@ class TrainClassifierTest(ClientTest):
         self.assertTrue(latest_classifier.valid)
 
 
-@override_settings(FORCE_NO_BACKEND_SUBMIT=False, MIN_NBR_ANNOTATED_IMAGES=1)
+@override_settings(MIN_NBR_ANNOTATED_IMAGES=1)
 class ClassifyImageTest(ClientTest):
 
     @classmethod

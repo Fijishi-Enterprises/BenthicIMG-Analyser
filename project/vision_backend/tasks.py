@@ -26,7 +26,7 @@ from api_core.models import ApiJobUnit
 from images.models import Source, Image, Point
 from labels.models import Label
 from . import task_helpers as th
-from .queues import get_backend_class
+from .backend import get_backend_class
 from .models import Classifier, Score
 
 logger = logging.getLogger(__name__)
@@ -37,11 +37,6 @@ def submit_features(image_id, force=False):
     """
     Submits a job to SQS for extracting features for an image.
     """
-    if settings.FORCE_NO_BACKEND_SUBMIT:
-        logger.info("VB task was called, but not run because backend "
-                    "submissions are off.")
-        return
-
     try:
         img = Image.objects.get(pk=image_id)
     except Image.DoesNotExist:
@@ -96,12 +91,6 @@ def submit_all_classifiers():
 
 @task(name="Submit Classifier")
 def submit_classifier(source_id, nbr_images=1e5, force=False):
-
-    if settings.FORCE_NO_BACKEND_SUBMIT:
-        logger.info(
-            "VB task was called, but not run because backend submissions are"
-            " off.")
-        return
 
     try:
         source = Source.objects.get(pk=source_id)
@@ -266,6 +255,8 @@ def classify_image(image_id):
     )
 
     # Process job right here since it is so fast.
+    # In spacer, this task is called classify_features since that
+    # is actually what we are doing (the feature are already extracted).
     res: ClassifyReturnMsg = spacer_classify_features(msg)
 
     # Pre-fetch label objects

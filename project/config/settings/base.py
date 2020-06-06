@@ -3,6 +3,7 @@
 import json
 import os
 import sys
+import logging
 
 from unipath import Path
 
@@ -30,8 +31,12 @@ PROJECT_DIR = SETTINGS_DIR.ancestor(2)
 # Directory for any site related files, not just the repository.
 SITE_DIR = PROJECT_DIR.ancestor(2)
 
-# Directory containing log files
+# Directory containing log files.
 LOG_DIR = SITE_DIR.child('log')
+
+# Disable logging during tests.
+if len(sys.argv) > 1 and sys.argv[1] == 'test':
+    logging.disable(logging.CRITICAL)
 
 # JSON-based secrets module, expected to be in the SETTINGS_DIR
 if os.path.exists(SETTINGS_DIR.child('secrets.json')):

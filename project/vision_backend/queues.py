@@ -24,7 +24,7 @@ def get_backend_class():
     return import_string(settings.VISION_BACKEND_CHOICE)
 
 
-class BaseBackend(abc.ABC):
+class BaseQueue(abc.ABC):
 
     @abc.abstractmethod
     def submit_job(self, job: JobMsg):
@@ -35,7 +35,7 @@ class BaseBackend(abc.ABC):
         pass
 
 
-class SpacerBackend(BaseBackend):
+class SQSQueue(BaseQueue):
     """Communicates remotely with Spacer. Requires AWS SQS and S3."""
 
     def submit_job(self, job: JobMsg):
@@ -98,12 +98,10 @@ class SpacerBackend(BaseBackend):
             return message
 
 
-class MockBackend(BaseBackend):
+class MockQueue(BaseQueue):
     """
     Used for testing the vision-backend Django tasks.
-    Does not actually use expensive computer vision algorithms; the focus is
-    on returning results in the right formats.
-    Uses either local or S3 file storage.
+    Uses a mock queue and calls spacer directly.
     """
     def submit_job(self, job: JobMsg):
 
@@ -111,23 +109,11 @@ class MockBackend(BaseBackend):
         return_msg = process_job(job)
 
         storage = get_storage_class()()
-        # Taking some care to avoid filename collisions.
-        attempts = 5
-        for attempt_number in range(1, attempts+1):
-            try:
-                filepath = 'backend_job_res/{timestamp}_{random_str}.json'.\
-                    format(
-                        timestamp=int(time.time()),
-                        random_str=''.join(
-                            [random.choice(string.ascii_lowercase)
-                                for _ in range(10)]))
-                storage.save(filepath, StringIO(json.dumps(
-                    return_msg.serialize())))
-                break
-            except IOError as e:
-                if attempt_number == attempts:
-                    # Final attempt failed
-                    raise e
+
+        # Save as seconds.milliseconds to avoid collisions.
+        filepath = 'backend_job_res/{timestamp}.json'.\
+            format(timestamp=time.time())
+        storage.save(filepath, StringIO(json.dumps(return_msg.serialize())))
 
     def collect_job(self):
         """

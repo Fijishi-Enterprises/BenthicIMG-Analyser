@@ -32,7 +32,7 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 # [Custom setting]
 # Which vision backend to use.
-VISION_BACKEND_CHOICE = 'vision_backend.backends.SpacerBackend'
+VISION_BACKEND_CHOICE = 'vision_backend.backends.SQSQueue'
 
 # [Custom setting]
 # Front page carousel images.

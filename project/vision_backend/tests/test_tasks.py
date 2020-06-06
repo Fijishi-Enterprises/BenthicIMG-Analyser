@@ -45,9 +45,8 @@ class TestJobTokenEncode(BaseTest):
     def test_round_trip(self):
         pks_in = [4, 5, 6]
         job_token = th.encode_spacer_job_token(pks_in)
-        pks_out, hash = th.decode_spacer_job_token(job_token)
+        pks_out = th.decode_spacer_job_token(job_token)
         self.assertEqual(pks_in, pks_out)
-        self.assertEqual(hash, settings.SPACER_JOB_HASH)
 
 
 class ResetTaskTest(ClientTest):

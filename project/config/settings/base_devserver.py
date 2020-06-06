@@ -33,7 +33,7 @@ SECURE_PROXY_SSL_HEADER = None
 
 # [Custom setting]
 # Which vision backend to use.
-VISION_BACKEND_CHOICE = 'vision_backend.backends.MockBackend'
+VISION_BACKEND_CHOICE = 'vision_backend.backends.MockQueue'
 FORCE_DUMMY_EXTRACTOR = True
 
 # [Custom setting]

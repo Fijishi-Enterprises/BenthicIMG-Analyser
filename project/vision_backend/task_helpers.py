@@ -141,7 +141,7 @@ def make_dataset(images: List[Image]) -> ImageLabels:
     storage = get_storage_class()()
     labels = ImageLabels(data={})
     for img in images:
-        data_loc = storage.spacer_data_log(img.original_file.name)
+        data_loc = storage.spacer_data_loc(img.original_file.name)
         feature_key = settings.FEATURE_VECTOR_FILE_PATTERN.format(
             full_image_path=data_loc.key)
         anns = Annotation.objects.filter(image=img).\

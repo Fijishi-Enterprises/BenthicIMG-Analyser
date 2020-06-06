@@ -110,7 +110,7 @@ class MockQueue(BaseQueue):
 
         storage = get_storage_class()()
 
-        # Save as seconds.milliseconds to avoid collisions.
+        # Save as seconds.microseconds to avoid collisions.
         filepath = 'backend_job_res/{timestamp}.json'.\
             format(timestamp=time.time())
         storage.save(filepath, StringIO(json.dumps(return_msg.serialize())))

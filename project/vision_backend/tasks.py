@@ -62,7 +62,7 @@ def submit_features(image_id, force=False):
 
     # Assemble task.
     task = ExtractFeaturesMsg(
-        job_token=str(image_id),
+        job_token=th.encode_spacer_job_token([image_id]),
         feature_extractor_name=img.source.feature_extractor,
         rowcols=list(set(rowcols)),
         image_loc=DataLocation(storage_type=th.storage_class_to_str(storage),
@@ -148,7 +148,7 @@ def submit_classifier(source_id, nbr_images=1e5, force=False):
 
     # Create TrainClassifierMsg
     task = TrainClassifierMsg(
-        job_token=','.join([str(pk) for pk in [classifier.pk] + pc_pks]),
+        job_token=th.encode_spacer_job_token([classifier.pk] + pc_pks),
         trainer_name='minibatch',
         nbr_epochs=settings.NBR_TRAINING_EPOCHS,
         traindata_loc=DataLocation(
@@ -208,7 +208,7 @@ def deploy(job_unit_id):
     storage = get_storage_class()()
 
     task = ClassifyImageMsg(
-        job_token=str(job_unit_id),
+        job_token=th.encode_spacer_job_token([job_unit_id]),
         image_loc=DataLocation(
             storage_type='url',
             key=job_unit.request_json['url']
@@ -254,7 +254,7 @@ def classify_image(image_id):
     # Create task message
     storage = get_storage_class()()
     msg = ClassifyFeaturesMsg(
-        job_token=str(image_id),
+        job_token=th.encode_spacer_job_token([image_id]),
         feature_loc=DataLocation(
             storage_type=th.storage_class_to_str(storage),
             key=storage.path(settings.FEATURE_VECTOR_FILE_PATTERN.format(
@@ -324,19 +324,19 @@ def _handle_job_result(job_res: JobReturnMsg):
         return
 
     task_name = job_res.original_job.task_name
+
     for task, res in zip(job_res.original_job.tasks,
                          job_res.results):
-
+        pk = th.decode_spacer_job_token(task.job_token)[0]
         if task_name == 'extract_features':
             if th.featurecollector(task, res):
                 # If job was entered into DB, submit a classify job.
-                classify_image.apply_async(args=[int(task.job_token)],
+                classify_image.apply_async(args=pk,
                                            eta=now() + timedelta(seconds=10))
 
         elif task_name == 'train_classifier':
             if th.classifiercollector(task, res):
                 # If successful, submit a classify job for all imgs in source.
-                pk = int(task.job_token.split(',')[0])
                 classifier = Classifier.objects.get(pk=pk)
                 for image in Image.objects.filter(source=classifier.source,
                                                   features__extracted=True,

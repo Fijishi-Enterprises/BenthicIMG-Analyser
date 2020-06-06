@@ -3,6 +3,7 @@ import os
 import numpy as np
 from django.core.urlresolvers import reverse
 from django.test import override_settings
+from django.conf import settings
 from spacer.config import MIN_TRAINIMAGES
 from spacer.messages import ClassifyReturnMsg
 
@@ -11,7 +12,7 @@ from accounts.utils import is_robot_user
 from annotations.models import Annotation
 from images.model_utils import PointGen
 from images.models import Image, Point
-from lib.tests.utils import ClientTest
+from lib.tests.utils import BaseTest, ClientTest
 from vision_backend.models import Score, Classifier
 from vision_backend.tasks import \
     classify_image, \
@@ -24,6 +25,29 @@ from vision_backend.tasks import \
 # Since 1/8 of images go to val, we need to add a few more to
 # make sure there are enough train images.
 MIN_IMAGES = int(MIN_TRAINIMAGES * (1+1/8) + 1)
+
+
+class TestJobTokenEncode(BaseTest):
+
+    def test_encode_one(self):
+
+        job_token = th.encode_spacer_job_token([4])
+        self.assertIn(settings.SPACER_JOB_HASH, job_token)
+        self.assertIn('4', job_token)
+
+    def test_encode_three(self):
+        job_token = th.encode_spacer_job_token([4, 5, 6])
+        self.assertIn(settings.SPACER_JOB_HASH, job_token)
+        self.assertIn('4', job_token)
+        self.assertIn('5', job_token)
+        self.assertIn('6', job_token)
+
+    def test_round_trip(self):
+        pks_in = [4, 5, 6]
+        job_token = th.encode_spacer_job_token(pks_in)
+        pks_out, hash = th.decode_spacer_job_token(job_token)
+        self.assertEqual(pks_in, pks_out)
+        self.assertEqual(hash, settings.SPACER_JOB_HASH)
 
 
 class ResetTaskTest(ClientTest):

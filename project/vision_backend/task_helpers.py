@@ -42,6 +42,19 @@ def storage_class_to_str(storage) -> str:
     raise ValueError('Unknown storage type {}'.format(type(storage)))
 
 
+def encode_spacer_job_token(pks: List[int]):
+    """ Encodes a list of primary keys into a spacer job_token string """
+
+    return settings.SPACER_JOB_HASH + ':' + ','.join([str(pk) for pk in pks])
+
+
+def decode_spacer_job_token(job_token:str):
+    """ Decodes spacer job token """
+    job_hash, pks_str = job_token.split(':')
+    pks = [int(pk) for pk in pks_str.split(',')]
+    return pks
+
+
 # Must explicitly turn on history creation when RevisionMiddleware is
 # not in effect. (It's only in effect within views.)
 @revisions.create_revision()
@@ -155,7 +168,7 @@ def featurecollector(task: ExtractFeaturesMsg, res: ExtractFeaturesReturnMsg):
     """
     collects feature_extract jobs.
     """
-    image_id = int(task.job_token)
+    image_id = decode_spacer_job_token(task.job_token)[0]
     try:
         img = Image.objects.get(pk=image_id)
     except Image.DoesNotExist:
@@ -189,7 +202,7 @@ def classifiercollector(task: TrainClassifierMsg,
     collects train_classifier jobs.
     """
     # Parse out pk for current and previous classifiers.
-    pks = [int(entry) for entry in task.job_token.split(',')]
+    pks = decode_spacer_job_token(task.job_token)
     pk = pks[0]
     prev_pks = pks[1:]
 
@@ -279,7 +292,7 @@ def deploycollector(task: ClassifyImageMsg, res: ClassifyReturnMsg):
                         )
         return data
 
-    pk = int(task.job_token)
+    pk = decode_spacer_job_token(task.job_token)[0]
     try:
         job_unit = ApiJobUnit.objects.get(pk=pk)
     except ApiJobUnit.DoesNotExist:
@@ -303,7 +316,8 @@ def deploycollector(task: ClassifyImageMsg, res: ClassifyReturnMsg):
 
 def deploy_fail(job_return_msg: JobReturnMsg):
 
-    pk = int(job_return_msg.original_job.tasks[0].job_token)
+    pk = decode_spacer_job_token(
+        job_return_msg.original_job.tasks[0].job_token)[0]
     try:
         job_unit = ApiJobUnit.objects.get(pk=pk)
     except ApiJobUnit.DoesNotExist:

@@ -1,8 +1,8 @@
 # Partial settings definition for setups using Amazon S3.
 
+import os
+
 from .base import get_secret, DATABASES
-
-
 
 DATABASES['default'].update({
     # Database name, or path to database file if using sqlite3.
@@ -58,3 +58,8 @@ MEDIA_URL = 'https://{domain}/{subdir}/'.format(
 # django-storages setting
 # S3 bucket subdirectory in which to store media.
 AWS_LOCATION = AWS_S3_MEDIA_SUBDIR
+
+# For tests with s3 we need to give spacer access to the buckets.
+os.environ['SPACER_AWS_ACCESS_KEY_ID'] = AWS_ACCESS_KEY_ID
+os.environ['SPACER_AWS_SECRET_ACCESS_KEY'] = AWS_SECRET_ACCESS_KEY
+

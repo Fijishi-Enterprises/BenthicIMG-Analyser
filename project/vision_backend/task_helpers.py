@@ -26,20 +26,9 @@ from annotations.models import Annotation
 from api_core.models import ApiJobUnit
 from images.models import Image, Point
 from labels.models import Label, LabelSet
-from lib.storage_backends import MediaStorageLocal, MediaStorageS3
 from .models import Classifier, Score
 
 logger = logging.getLogger(__name__)
-
-
-def storage_class_to_str(storage) -> str:
-
-    if isinstance(storage, MediaStorageLocal):
-        return 'filesystem'
-    if isinstance(storage, MediaStorageS3):
-        return 's3'
-
-    raise ValueError('Unknown storage type {}'.format(type(storage)))
 
 
 def encode_spacer_job_token(pks: List[int]):
@@ -152,9 +141,9 @@ def make_dataset(images: List[Image]) -> ImageLabels:
     storage = get_storage_class()()
     labels = ImageLabels(data={})
     for img in images:
-        full_image_path = storage.path(img.original_file.name)
+        data_loc = storage.spacer_data_log(img.original_file.name)
         feature_key = settings.FEATURE_VECTOR_FILE_PATTERN.format(
-            full_image_path=full_image_path)
+            full_image_path=data_loc.key)
         anns = Annotation.objects.filter(image=img).\
             annotate(gt_label=F('label__id')).\
             annotate(row=F('point__row')). \

@@ -12,6 +12,7 @@ from accounts.utils import is_robot_user
 from annotations.models import Annotation
 from images.model_utils import PointGen
 from images.models import Image, Point
+from django.core.files.storage import get_storage_class
 from lib.tests.utils import BaseTest, ClientTest
 from vision_backend.models import Score, Classifier
 from vision_backend.tasks import \
@@ -284,7 +285,9 @@ class ExtractFeaturesTest(ClientTest):
         # Image upload already triggers feature submission to run after a
         # delay, but for testing purposes we'll run the task immediately.
         job_msg = submit_features(img.id)
-        self.assertTrue(os.path.exists(job_msg.tasks[0].feature_loc.key))
+        storage = get_storage_class()()
+
+        self.assertTrue(storage.exists_full(job_msg.tasks[0].feature_loc.key))
 
         # Then assuming we're using the mock backend, the result should be
         # available for collection immediately.
@@ -320,7 +323,7 @@ class TrainClassifierTest(ClientTest):
 
     def test_train_success(self):
         # Create a classifier
-        submit_classifier(self.source.id)
+        job_msg = submit_classifier(self.source.id)
 
         # This source should now have a classifier (though not trained yet)
         self.assertTrue(
@@ -334,6 +337,10 @@ class TrainClassifierTest(ClientTest):
         # been marked as valid
         latest_classifier = self.source.get_latest_robot()
         self.assertTrue(latest_classifier.valid)
+
+        # Also check that the actual classifier is created in storage.
+        storage = get_storage_class()()
+        self.assertTrue(storage.exists_full(job_msg.tasks[0].model_loc.key))
 
 
 @override_settings(MIN_NBR_ANNOTATED_IMAGES=1)

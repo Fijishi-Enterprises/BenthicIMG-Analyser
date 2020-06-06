@@ -60,12 +60,10 @@ def submit_features(image_id, force=False):
         job_token=th.encode_spacer_job_token([image_id]),
         feature_extractor_name=img.source.feature_extractor,
         rowcols=list(set(rowcols)),
-        image_loc=DataLocation(storage_type=th.storage_class_to_str(storage),
-                               key=storage.path(img.original_file.name)),
-        feature_loc=DataLocation(storage_type=th.storage_class_to_str(storage),
-                                 key=settings.FEATURE_VECTOR_FILE_PATTERN.
-                                 format(full_image_path=storage.path(
-                                     img.original_file.name)))
+        image_loc=storage.spacer_data_loc(img.original_file.name),
+        feature_loc=storage.spacer_data_loc(
+            settings.FEATURE_VECTOR_FILE_PATTERN.format(
+                full_image_path=img.original_file.name))
     )
 
     msg = JobMsg(task_name='extract_features', tasks=[task])
@@ -140,28 +138,16 @@ def submit_classifier(source_id, nbr_images=1e5, force=False):
         job_token=th.encode_spacer_job_token([classifier.pk] + pc_pks),
         trainer_name='minibatch',
         nbr_epochs=settings.NBR_TRAINING_EPOCHS,
-        traindata_loc=DataLocation(
-            storage_type=th.storage_class_to_str(storage),
-            key=storage.path(trainlabels_path)),
-        valdata_loc=DataLocation(
-            storage_type=th.storage_class_to_str(storage),
-            key=storage.path(vallabels_path)),
-        features_loc=DataLocation(
-            storage_type=th.storage_class_to_str(storage),
-            key=''),
-        previous_model_locs=[DataLocation(
-            storage_type=th.storage_class_to_str(storage),
-            key=storage.path(settings.ROBOT_MODEL_FILE_PATTERN.
-                             format(pk=pc.pk))) for pc in prev_classifiers],
-        model_loc=DataLocation(
-            storage_type=th.storage_class_to_str(storage),
-            key=storage.path(settings.ROBOT_MODEL_FILE_PATTERN.
-                             format(pk=classifier.pk))),
-        valresult_loc=DataLocation(
-            storage_type=th.storage_class_to_str(storage),
-            key=storage.path(settings.ROBOT_MODEL_VALRESULT_PATTERN.
-                             format(pk=classifier.pk)),
-        )
+        traindata_loc=storage.spacer_data_loc(trainlabels_path),
+        valdata_loc=storage.spacer_data_loc(vallabels_path),
+        features_loc=storage.spacer_data_loc(''),
+        previous_model_locs=[storage.spacer_data_loc(
+            settings.ROBOT_MODEL_FILE_PATTERN.format(pk=pc.pk))
+            for pc in prev_classifiers],
+        model_loc=storage.spacer_data_loc(
+            settings.ROBOT_MODEL_FILE_PATTERN.format(pk=classifier.pk)),
+        valresult_loc=storage.spacer_data_loc(
+            settings.ROBOT_MODEL_VALRESULT_PATTERN.format(pk=classifier.pk))
     )
 
     # Assemble the message body.
@@ -205,10 +191,8 @@ def deploy(job_unit_id):
         feature_extractor_name=classifier.source.feature_extractor,
         rowcols=[(point['row'], point['column']) for point in
                  job_unit.request_json['points']],
-        classifier_loc=DataLocation(
-            storage_type=th.storage_class_to_str(storage),
-            key=storage.path(settings.ROBOT_MODEL_FILE_PATTERN.
-                             format(pk=classifier.pk)))
+        classifier_loc=storage.spacer_data_loc(
+            settings.ROBOT_MODEL_FILE_PATTERN.format(pk=classifier.pk))
     )
     msg = JobMsg(task_name='classify_image', tasks=[task])
 
@@ -244,14 +228,12 @@ def classify_image(image_id):
     storage = get_storage_class()()
     msg = ClassifyFeaturesMsg(
         job_token=th.encode_spacer_job_token([image_id]),
-        feature_loc=DataLocation(
-            storage_type=th.storage_class_to_str(storage),
-            key=storage.path(settings.FEATURE_VECTOR_FILE_PATTERN.format(
-                full_image_path=img.original_file.name))),
-        classifier_loc=DataLocation(
-            storage_type=th.storage_class_to_str(storage),
-            key=storage.path(settings.ROBOT_MODEL_FILE_PATTERN.format(
-                pk=classifier.pk)))
+        feature_loc=storage.spacer_data_loc(
+            settings.FEATURE_VECTOR_FILE_PATTERN.format(
+                full_image_path=img.original_file.name)),
+        classifier_loc=storage.spacer_data_loc(
+            settings.ROBOT_MODEL_FILE_PATTERN.format(pk=classifier.pk)
+        )
     )
 
     # Process job right here since it is so fast.
@@ -307,6 +289,7 @@ def collect_all_jobs():
 def _handle_job_result(job_res: JobReturnMsg):
 
     if not job_res.ok:
+        print("Job failed: {}".format(job_res))
         if job_res.original_job.task_name == 'classify_image':
             th.deploy_fail(job_res)
         else:

@@ -10,6 +10,8 @@ import six
 import string
 import tempfile
 
+from spacer.messages import DataLocation
+
 from django.conf import settings
 from django.core.files.storage import DefaultStorage, FileSystemStorage
 from storages.backends.s3boto import S3BotoStorage
@@ -257,8 +259,16 @@ class MediaStorageS3(S3BotoStorage):
         # For S3 paths, we join with forward slashes.
         return posixpath.join(*args)
 
-    def path(self, key):
-        return self._normalize_name(key)
+    def spacer_data_loc(self, key) -> DataLocation:
+        """ Returns a spacer DataLocation object """
+        return DataLocation(storage_type='s3',
+                            key=self._normalize_name(key),
+                            bucket_name=self.bucket_name)
+
+    def exists_full(self, full_key) -> bool:
+        """ Checks if object exists. This takes the full_key as oposite to
+        the standard exists() method """
+        return self.exists(posixpath.relpath(full_key, self.location))
 
 
 class MediaStorageLocal(FileSystemStorage):
@@ -270,6 +280,17 @@ class MediaStorageLocal(FileSystemStorage):
     def path_join(*args):
         # For local storage, we join paths depending on the OS rules.
         return os.path.join(*args)
+
+    def spacer_data_loc(self, key) -> DataLocation:
+        """ Returns a spacer DataLocation object. """
+        return DataLocation(storage_type='filesystem',
+                            key=self.path(key))
+
+    def exists_full(self, full_key) -> bool:
+        """ Checks if object exists. This takes the full_key as oposite to
+                the standard exists() method. """
+        rel_path = posixpath.relpath(full_key, self.location)
+        return self.exists(rel_path)
 
 
 def get_s3_root_storage():

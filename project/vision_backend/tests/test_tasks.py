@@ -340,7 +340,15 @@ class TrainClassifierTest(ClientTest):
 
         # Also check that the actual classifier is created in storage.
         storage = get_storage_class()()
-        self.assertTrue(storage.exists_full(job_msg.tasks[0].model_loc.key))
+        self.assertTrue(
+            storage.exists_full(job_msg.tasks[0].model_loc.key))
+
+        # And that the valresults are stored.
+        self.assertTrue(
+            storage.exists_full(job_msg.tasks[0].valresult_loc.key))
+
+        # TODO: load up valresults and check that the counts match with
+        # valdata.
 
 
 @override_settings(MIN_NBR_ANNOTATED_IMAGES=1)

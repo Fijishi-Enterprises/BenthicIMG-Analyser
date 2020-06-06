@@ -1,20 +1,16 @@
+import abc
 import json
 import logging
 import posixpath
-import random
-from six import StringIO
-import string
 import time
-
-import abc
 
 import boto.sqs
 from django.conf import settings
 from django.core.files.storage import get_storage_class
 from django.utils.module_loading import import_string
-
+from six import StringIO
 from spacer.messages import JobMsg, JobReturnMsg
-from spacer.mailman import process_job
+from spacer.tasks import process_job
 
 logger = logging.getLogger(__name__)
 

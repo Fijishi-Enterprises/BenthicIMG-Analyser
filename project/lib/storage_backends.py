@@ -257,6 +257,9 @@ class MediaStorageS3(S3BotoStorage):
         # For S3 paths, we join with forward slashes.
         return posixpath.join(*args)
 
+    def path(self, key):
+        return self._normalize_name(key)
+
 
 class MediaStorageLocal(FileSystemStorage):
     """

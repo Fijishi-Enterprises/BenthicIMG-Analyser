@@ -301,7 +301,7 @@ def _handle_job_result(job_res: JobReturnMsg):
         if task_name == 'extract_features':
             if th.featurecollector(task, res):
                 # If job was entered into DB, submit a classify job.
-                classify_image.apply_async(args=pk,
+                classify_image.apply_async(args=[pk],
                                            eta=now() + timedelta(seconds=10))
 
         elif task_name == 'train_classifier':

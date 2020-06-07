@@ -32,7 +32,7 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 # [Custom setting]
 # Which vision backend to use.
-VISION_BACKEND_CHOICE = 'vision_backend.queues.SQSQueue'
+SPACER_QUEUE_CHOICE = 'vision_backend.queues.SQSQueue'
 
 # Configure the SQS queue name to use
 SQS_JOBS = 'coralnet_prod_jobs'

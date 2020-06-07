@@ -17,7 +17,13 @@ logger = logging.getLogger(__name__)
 
 def get_queue_class():
     """This function is modeled after Django's get_storage_class()."""
-    return import_string(settings.VISION_BACKEND_CHOICE)
+
+    if settings.SPACER_QUEUE_CHOICE == 'vision_backend.queues.SQSQueue':
+        assert settings.DEFAULT_FILE_STORAGE is not \
+            'lib.storage_backends.MediaStorageLocal', \
+            'Can not use SQSQueue with local storage. Please use S3 storage.'
+
+    return import_string(settings.SPACER_QUEUE_CHOICE)
 
 
 class BaseQueue(abc.ABC):
@@ -94,10 +100,10 @@ class SQSQueue(BaseQueue):
             return message
 
 
-class MockQueue(BaseQueue):
+class LocalQueue(BaseQueue):
     """
     Used for testing the vision-backend Django tasks.
-    Uses a mock queue and calls spacer directly.
+    Uses a local filesystem queue and calls spacer directly.
     """
     def submit_job(self, job: JobMsg):
 

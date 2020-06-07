@@ -1,4 +1,3 @@
-import json
 import logging
 from datetime import timedelta
 
@@ -8,7 +7,6 @@ from django.core.files.storage import get_storage_class
 from django.core.mail import mail_admins
 from django.db import IntegrityError
 from django.utils.timezone import now
-from six import StringIO
 from spacer.messages import \
     ExtractFeaturesMsg, \
     TrainClassifierMsg, \
@@ -26,8 +24,8 @@ from api_core.models import ApiJobUnit
 from images.models import Source, Image, Point
 from labels.models import Label
 from . import task_helpers as th
-from .queues import get_queue_class
 from .models import Classifier, Score
+from .queues import get_queue_class
 
 logger = logging.getLogger(__name__)
 

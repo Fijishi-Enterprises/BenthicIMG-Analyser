@@ -1,5 +1,3 @@
-import os
-
 import numpy as np
 from django.core.urlresolvers import reverse
 from django.test import override_settings
@@ -20,8 +18,7 @@ from vision_backend.tasks import \
     classify_image, \
     collect_all_jobs, \
     reset_after_labelset_change, \
-    submit_classifier, \
-    submit_features
+    submit_classifier
 
 # Create and annotate sufficient nbr images.
 # Since 1/8 of images go to val, we need to add a few more to
@@ -283,12 +280,11 @@ class ExtractFeaturesTest(ClientTest):
         # After an image upload, features are ready to be submitted.
         img = self.upload_image(self.user, self.source)
 
-        # Image upload already triggers feature submission to run after a
-        # delay, but for testing purposes we'll run the task immediately.
-        job_msg = submit_features(img.id)
         storage = get_storage_class()()
 
-        self.assertTrue(storage.exists_full(job_msg.tasks[0].feature_loc.key))
+        self.assertTrue(storage.exists(
+            settings.FEATURE_VECTOR_FILE_PATTERN.format(
+                full_image_path=img.original_file.name)))
 
         # Then assuming we're using the mock backend, the result should be
         # available for collection immediately.
@@ -316,7 +312,6 @@ class TrainClassifierTest(ClientTest):
 
         for i in range(MIN_IMAGES):
             img = cls.upload_image(cls.user, cls.source)
-            submit_features(img.id)
             cls.add_annotations(
                 cls.user, img, {1: 'A', 2: 'B', 3: 'A', 4: 'A', 5: 'B'})
 
@@ -341,13 +336,14 @@ class TrainClassifierTest(ClientTest):
 
         # Also check that the actual classifier is created in storage.
         storage = get_storage_class()()
-        self.assertTrue(
-            storage.exists_full(job_msg.tasks[0].model_loc.key))
+        self.assertTrue(storage.exists(
+            settings.ROBOT_MODEL_FILE_PATTERN.format(pk=latest_classifier.pk)))
 
         # And that the val results are stored.
-        self.assertTrue(
-            storage.exists_full(job_msg.tasks[0].valresult_loc.key))
-        
+        self.assertTrue(storage.exists(
+            settings.ROBOT_MODEL_VALRESULT_PATTERN.format(
+                pk=latest_classifier.pk)))
+
         # Check that the point-counts in val_res is equal to val_data.
         val_res = ValResults.load(job_msg.tasks[0].valresult_loc)
         val_data = ImageLabels.load(job_msg.tasks[0].valdata_loc)
@@ -374,7 +370,6 @@ class ClassifyImageTest(ClientTest):
         # Two images with features
         for i in range(MIN_IMAGES):
             img = cls.upload_image(cls.user, cls.source)
-            submit_features(img.id)
             cls.add_annotations(
                 cls.user, img, {1: 'A', 2: 'B', 3: 'A', 4: 'A', 5: 'B'})
 

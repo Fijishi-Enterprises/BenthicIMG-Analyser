@@ -265,11 +265,6 @@ class MediaStorageS3(S3BotoStorage):
                             key=self._normalize_name(key),
                             bucket_name=self.bucket_name)
 
-    def exists_full(self, full_key) -> bool:
-        """ Checks if object exists. This takes the full_key as oposite to
-        the standard exists() method """
-        return self.exists(posixpath.relpath(full_key, self.location))
-
 
 class MediaStorageLocal(FileSystemStorage):
     """

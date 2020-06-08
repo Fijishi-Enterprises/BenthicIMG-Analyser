@@ -6,6 +6,7 @@ from django.test import override_settings
 from django.conf import settings
 from spacer.config import MIN_TRAINIMAGES
 from spacer.messages import ClassifyReturnMsg
+from spacer.data_classes import ValResults, ImageLabels
 
 import vision_backend.task_helpers as th
 from accounts.utils import is_robot_user
@@ -343,12 +344,15 @@ class TrainClassifierTest(ClientTest):
         self.assertTrue(
             storage.exists_full(job_msg.tasks[0].model_loc.key))
 
-        # And that the valresults are stored.
+        # And that the val results are stored.
         self.assertTrue(
             storage.exists_full(job_msg.tasks[0].valresult_loc.key))
-
-        # TODO: load up valresults and check that the counts match with
-        # valdata.
+        
+        # Check that the point-counts in val_res is equal to val_data.
+        val_res = ValResults.load(job_msg.tasks[0].valresult_loc)
+        val_data = ImageLabels.load(job_msg.tasks[0].valdata_loc)
+        self.assertEqual(len(val_res.gt),
+                         len(val_data) * val_data.samples_per_image)
 
 
 @override_settings(MIN_NBR_ANNOTATED_IMAGES=1)

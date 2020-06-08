@@ -52,8 +52,11 @@ def backend_overview(request):
     def first_queue_length(inspect_category):
         # For a given inspect category, there should be only one queue (e.g.
         # 'celery@Ubuntu'). This function gets the length of that queue.
-        first_queue = next(iter(inspect_category.values()))
-        return len(first_queue)
+        try:
+            first_queue = next(iter(inspect_category.values()))
+            return len(first_queue)
+        except AttributeError:
+            return 0
 
     i = inspect()
     i_sch = i.scheduled()

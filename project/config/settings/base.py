@@ -667,5 +667,8 @@ if has_secrets:
 else:
     SPACER_JOB_HASH = 'dummy_identifier'
 
+# For regression tests, spacer expexts a local model path.
+os.environ['SPACER_LOCAL_MODEL_PATH'] = LOG_DIR
+
 # This flag is used to over-ride feature extractor names for unit-tests.
 FORCE_DUMMY_EXTRACTOR = False

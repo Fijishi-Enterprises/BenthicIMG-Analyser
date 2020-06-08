@@ -1,3 +1,5 @@
+import os
+
 # How many more annotated images are required before we try to train a new classifier.
 NEW_CLASSIFIER_TRAIN_TH = 1.1
 

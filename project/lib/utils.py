@@ -3,48 +3,8 @@
 from __future__ import division
 import random
 import string
-import boto
-import json
-import pickle
 
-from django.conf import settings
 from django.core.paginator import Paginator, EmptyPage, InvalidPage
-
-
-def direct_s3_read(key, encoding, bucketname = None):
-
-    encoding_map = {
-        'json': json.loads,
-        'pickle': pickle.loads,
-        'none': lambda x: x,
-    }
-
-    if bucketname == None:
-        bucketname = settings.AWS_STORAGE_BUCKET_NAME
-
-    conn = boto.connect_s3(
-        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
-    )
-    bucket = conn.get_bucket(bucketname)
-    key_obj = bucket.get_key(key)
-    
-    return encoding_map[encoding](key_obj.get_contents_as_string())
-
-def direct_s3_write(key, encoding, data):
-
-    encoding_map = {
-        'json': json.dumps,
-        'pickle': pickle.dumps
-    }
-
-    conn = boto.connect_s3(
-        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
-    )
-    bucket = conn.get_bucket(settings.AWS_STORAGE_BUCKET_NAME)
-    key_obj = boto.s3.key.Key(bucket = bucket, name = key)
-    key_obj.set_contents_from_string(encoding_map[encoding](data))
 
 
 def filesize_display(num_bytes):

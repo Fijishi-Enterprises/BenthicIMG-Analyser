@@ -1,23 +1,21 @@
 import csv
-import sys
-import boto
-
+import json
 import os.path as osp
-
+import pickle
+import sys
 from io import StringIO
 
+import boto
+from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.core import management
 from django.core.files.base import ContentFile
-from django.conf import settings
 from django.test.client import Client
 from django.urls import reverse
-from django.contrib.auth import get_user_model
-
-from .tests.utils import ClientTest
 
 from images.models import Source
 from labels.models import LabelGroup, Label, LabelSet, LocalLabel
-from lib.utils import direct_s3_read
+from .tests.utils import ClientTest
 
 User = get_user_model()
 
@@ -40,15 +38,18 @@ class VisionBackendRegressionTest(ClientTest):
         self.user = User.objects.get(username='superuser')
 
         # Create other users.
-        for username in [settings.IMPORTED_USERNAME, settings.ROBOT_USERNAME, settings.ALLEVIATE_USERNAME]:
+        for username in [settings.IMPORTED_USERNAME,
+                         settings.ROBOT_USERNAME,
+                         settings.ALLEVIATE_USERNAME]:
             if not User.objects.filter(username=username).exists():
                 user = User(username=username)
                 user.save()
-        
+
         # Setup path to source_id fixtures.
         self.ann_file = 'sources/s{}/imdict.p'.format(source_id)
         self.im_dir = 'sources/s{}/imgs/'.format(source_id)
-        self.source_name = 'REGTEST_CUSTOM_SOURCE_{}_{}'.format(source_id, name_suffix)
+        self.source_name = 'REGTEST_CUSTOM_SOURCE_{}_{}'. \
+            format(source_id, name_suffix)
         self.global_labelfile = 'labels.json'
 
         # List images.
@@ -58,7 +59,9 @@ class VisionBackendRegressionTest(ClientTest):
         )
         bucket = conn.get_bucket(settings.REGTEST_BUCKET)
         imfiles = bucket.list(prefix=self.im_dir)
-        self.imfiles = [member.name for member in imfiles][1:]  # Starting from 1 to skip root folder.
+
+        # Starting from 1 to skip root folder.
+        self.imfiles = [member.name for member in imfiles][1:]
 
         # Create source and label-set.
         self._setup_source()
@@ -69,7 +72,7 @@ class VisionBackendRegressionTest(ClientTest):
 
         # Initialize the image counter of how many images have been uploaded.
         self.cur = 0
-    
+
     def upload_all_images(self, with_anns=True):
         """
         Upload all images available in fixtures.
@@ -88,16 +91,16 @@ class VisionBackendRegressionTest(ClientTest):
         Upload an image.
         """
         if self.cur + 1 == len(self.imfiles):
-            print("Already uploaded all images.")
+            print("-> Already uploaded all images.")
             return
         img = self.imfiles[self.cur]
 
         sys.stdout.write(str(self.cur) + ', ')
         sys.stdout.flush()
-        
+
         self.cur += 1
         self._upload_image(img)
-        
+
         if with_anns:
             anns = self.anns[osp.basename(img)]
             self._upload_annotations(osp.basename(img), anns)
@@ -106,21 +109,23 @@ class VisionBackendRegressionTest(ClientTest):
         """
         Creates source and labelset. Also creates global labels if needed.
         """
-        print("Setting up: {}".format(self.source_name))
+        print("-> Setting up: {}".format(self.source_name))
         if Source.objects.filter(name=self.source_name).exists():
+            print("-> Found previous source, deleting that one.")
             Source.objects.filter(name=self.source_name).delete()
-        
+
         # Create new source.
         self.source = self.create_source()
-        
-        # Find all labelnames in exported annotation file.
-        anns = direct_s3_read(self.ann_file, 'pickle', bucketname=settings.REGTEST_BUCKET)
+
+        # Find all label-names in exported annotation file.
+        anns = direct_s3_read(self.ann_file, 'pickle',
+                              bucketname=settings.REGTEST_BUCKET)
         labellist = set()
         for key in anns.keys():
             for [labelname, _, _] in anns[key][0]:
                 labellist.add(labelname)
 
-        # Create global labels if needed                
+        # Create global labels if needed
         self._add_global_labels(labellist)
 
         # Create labelset for this source.
@@ -134,7 +139,7 @@ class VisionBackendRegressionTest(ClientTest):
                 global_label=label,
                 code=label.default_code,
                 labelset=labelset
-            ).save()   
+            ).save()
 
     def create_source(self):
         """
@@ -155,7 +160,8 @@ class VisionBackendRegressionTest(ClientTest):
         This is needed b/c the upload form needs codes but the fixtures lists
         label names.
         """
-        (_, lbls) = direct_s3_read(self.global_labelfile, 'json', bucketname=settings.REGTEST_BUCKET)
+        (_, lbls) = direct_s3_read(self.global_labelfile, 'json',
+                                   bucketname=settings.REGTEST_BUCKET)
 
         codedict = dict()
         for lbl in lbls:
@@ -168,30 +174,32 @@ class VisionBackendRegressionTest(ClientTest):
         """
         Parses exported annotation file and returns a dictionary ready to be uploaded.
         """
-        anns = direct_s3_read(self.ann_file, 'pickle', bucketname=settings.REGTEST_BUCKET)
+        anns = direct_s3_read(self.ann_file, 'pickle',
+                              bucketname=settings.REGTEST_BUCKET)
         new_anns = dict()
         for im_name in anns.keys():
             new_anns[im_name] = []
             for [labelname, row, col] in anns[im_name][0]:
                 labelcode = self.codedict[labelname]
                 new_anns[im_name].append((row, col, labelcode))
-        
+
         self.anns = new_anns
 
     def _add_global_labels(self, labellist):
         """
-        Imports all labels and groups from a json file. See 
+        Imports all labels and groups from a json file. See
         "vision_backend/scripts.export_labels_json".
         """
-        
-        (grps, lbls) = direct_s3_read(self.global_labelfile, 'json', bucketname=settings.REGTEST_BUCKET)
+
+        (grps, lbls) = direct_s3_read(self.global_labelfile, 'json',
+                                      bucketname=settings.REGTEST_BUCKET)
 
         for grp in grps:
             self._add_functional_group(grp[0], grp[1])
 
         for lbl in lbls:
             if lbl[0] in labellist:
-                self._add_label(lbl[0], lbl[1], lbl[2])     
+                self._add_label(lbl[0], lbl[1], lbl[2])
 
     @staticmethod
     def _add_functional_group(name, code):
@@ -225,14 +233,15 @@ class VisionBackendRegressionTest(ClientTest):
 
         def preview_anns(csv_file):
             return self.client.post(
-                reverse('upload_annotations_csv_preview_ajax', args=[self.source.pk]),
+                reverse('upload_annotations_csv_preview_ajax',
+                        args=[self.source.pk]),
                 {'csv_file': csv_file},
             )
 
         def upload_anns():
             return self.client.post(
                 reverse('upload_annotations_ajax', args=[self.source.pk]),
-            ) 
+            )
 
         self.client.force_login(self.user)
 
@@ -241,10 +250,10 @@ class VisionBackendRegressionTest(ClientTest):
             writer.writerow(['Name', 'Row', 'Column', 'Label'])
             for ann in anns:
                 writer.writerow([im_file, ann[0], ann[1], ann[2]])
-            
+
             f = ContentFile(stream.getvalue(), name='ann_upload' + '.csv')
-            preview_response = preview_anns(f)
-            upload_response = upload_anns()
+            preview_anns(f)
+            upload_anns()
 
         self.client.logout()
 
@@ -254,15 +263,49 @@ class VisionBackendRegressionTest(ClientTest):
         :param im_file: path to the image file to upload.
         :return: The new image object.
         """
-        post_dict = dict()        
-        post_dict['file'] = ContentFile(direct_s3_read(im_file, 'none', bucketname=settings.REGTEST_BUCKET),
-                                        name=im_file)
+        post_dict = dict()
+        post_dict['file'] = ContentFile(direct_s3_read(
+            im_file, 'none', bucketname=settings.REGTEST_BUCKET), name=im_file)
         post_dict['name'] = osp.basename(im_file)
 
         # Send the upload form
         self.client.force_login(self.user)
-        reponse = self.client.post(
-            reverse('upload_images_ajax', kwargs={'source_id': self.source.id}),
-            post_dict,
-        )
+        self.client.post(reverse('upload_images_ajax',
+                                 kwargs={'source_id': self.source.id}),
+                         post_dict)
         self.client.logout()
+
+
+def direct_s3_read(key, encoding, bucketname=None):
+    encoding_map = {
+        'json': json.loads,
+        'pickle': pickle.loads,
+        'none': lambda x: x,
+    }
+
+    if bucketname is None:
+        bucketname = settings.AWS_STORAGE_BUCKET_NAME
+
+    conn = boto.connect_s3(
+        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
+    )
+    bucket = conn.get_bucket(bucketname)
+    key_obj = bucket.get_key(key)
+
+    return encoding_map[encoding](key_obj.get_contents_as_string())
+
+
+def direct_s3_write(key, encoding, data):
+    encoding_map = {
+        'json': json.dumps,
+        'pickle': pickle.dumps
+    }
+
+    conn = boto.connect_s3(
+        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
+    )
+    bucket = conn.get_bucket(settings.AWS_STORAGE_BUCKET_NAME)
+    key_obj = boto.s3.key.Key(bucket=bucket, name=key)
+    key_obj.set_contents_from_string(encoding_map[encoding](data))

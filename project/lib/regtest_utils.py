@@ -62,6 +62,7 @@ class VisionBackendRegressionTest(ClientTest):
 
         # Starting from 1 to skip root folder.
         self.imfiles = [member.name for member in imfiles][1:]
+        self.imfiles.sort()
 
         # Create source and label-set.
         self._setup_source()

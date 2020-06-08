@@ -32,9 +32,8 @@ logger = logging.getLogger(__name__)
 
 @task(name="Submit Features")
 def submit_features(image_id, force=False):
-    """
-    Submits a job to SQS for extracting features for an image.
-    """
+    """ Submits a feature extraction job. """
+
     try:
         img = Image.objects.get(pk=image_id)
     except Image.DoesNotExist:
@@ -87,6 +86,7 @@ def submit_all_classifiers():
 
 @task(name="Submit Classifier")
 def submit_classifier(source_id, nbr_images=1e5, force=False):
+    """ Submits a classifier training job. """
 
     try:
         source = Source.objects.get(pk=source_id)
@@ -161,6 +161,7 @@ def submit_classifier(source_id, nbr_images=1e5, force=False):
 
 @task(name="Deploy")
 def deploy(job_unit_id):
+    """ Submits a deploy job. """
     try:
         job_unit = ApiJobUnit.objects.get(pk=job_unit_id)
     except ApiJobUnit.DoesNotExist:
@@ -188,6 +189,7 @@ def deploy(job_unit_id):
         classifier_loc=storage.spacer_data_loc(
             settings.ROBOT_MODEL_FILE_PATTERN.format(pk=classifier.pk))
     )
+    # Note the 'deploy' is called 'classify_image' in spacer.
     msg = JobMsg(task_name='classify_image', tasks=[task])
 
     # Submit.
@@ -205,6 +207,7 @@ def deploy(job_unit_id):
 
 @task(name="Classify Image")
 def classify_image(image_id):
+    """ Executes a classify_image job. """
     try:
         img = Image.objects.get(pk=image_id)
     except Image.DoesNotExist:
@@ -266,9 +269,8 @@ def classify_image(image_id):
 @periodic_task(run_every=timedelta(seconds=60), name='Collect all jobs',
                ignore_result=True)
 def collect_all_jobs():
-    """
-    Collects and handles job results until the job result queue is empty.
-    """
+    """Collects and handles job results until the job result queue is empty."""
+
     logger.info('Collecting all jobs in result queue.')
     queue = get_queue_class()()
     while True:
@@ -281,6 +283,7 @@ def collect_all_jobs():
 
 
 def _handle_job_result(job_res: JobReturnMsg):
+    """Handles the job results found in queue. """
 
     if not job_res.ok:
         print("Job failed: {}".format(job_res))
@@ -325,8 +328,7 @@ def _handle_job_result(job_res: JobReturnMsg):
 
 @task(name="Reset Source")
 def reset_after_labelset_change(source_id):
-    """
-    The removes ALL TRACES of the vision backend for this source, including:
+    """The removes ALL TRACES of the vision backend for this source, including:
     1) Delete all Score objects for all images
     2) Delete Classifier objects
     3) Sets all image.features.classified = False
@@ -346,8 +348,7 @@ def reset_after_labelset_change(source_id):
 
 @task(name="Reset Features")
 def reset_features(image_id):
-    """
-    Resets features for image. Call this after any change that affects the image 
+    """Resets features for image. Call this after any change that affects the image
     point locations. E.g:
     Re-generate point locations.
     Change annotation area.

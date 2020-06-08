@@ -1,3 +1,4 @@
+import logging
 import time
 
 from django.core.management.base import BaseCommand
@@ -7,15 +8,15 @@ from lib.regtest_utils import VisionBackendRegressionTest
 from vision_backend.models import Classifier
 from vision_backend.tasks import collect_all_jobs, submit_classifier
 
-# logging.disable(logging.CRITICAL)
+logging.disable(logging.CRITICAL)
 
 reg_test_config = {
-    372:{'small': (20, 5),
-         'medium': (250, 30),
-         'large': (1400, 50)},
-    504:{'small': (20, 5),
-         'medium': (100, 15),
-         'large': (100, 15)}
+    372: {'small': (20, 5),
+          'medium': (250, 30),
+          'large': (1400, 50)},
+    504: {'small': (20, 5),
+          'medium': (100, 15),
+          'large': (100, 15)}
 }
 
 

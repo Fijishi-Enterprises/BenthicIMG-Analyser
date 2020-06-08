@@ -26,11 +26,20 @@ class UploadAnnotationsTestMixin(object):
 
     @staticmethod
     def make_cpc_file(
-            cpc_filename, image_filepath, points,
+            dimensions, cpc_filename, image_filepath, points,
             codes_filepath=r'C:\PROGRA~4\CPCE_4~1\SHALLO~1.TXT'):
+        """
+        :param dimensions: image dimensions in pixels, as a (width, height)
+          tuple.
+        :param cpc_filename: filename of the .cpc to be created.
+        :param image_filepath: image filepath for line 1.
+        :param points: list of (column, row, label code) tuples.
+        :param codes_filepath: codes filepath for line 1.
+        """
         stream = StringIO()
         # Line 1
-        line1_nums = '3000,1500,9000,4500'
+        line1_nums = '{},{},9000,4500'.format(
+            dimensions[0]*15, dimensions[1]*15)
         stream.writelines([
             '"{codes_filepath}","{image_filepath}",{line1_nums}\n'.format(
                 codes_filepath=codes_filepath,

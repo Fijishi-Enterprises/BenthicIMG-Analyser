@@ -200,7 +200,10 @@ def write_annotations_cpc(cpc_stream, img, cpc_prefs):
     row = [
         u'"' + cpc_prefs[u'local_code_filepath'] + u'"',
         u'"' + str(local_image_path) + u'"',
-        # Image dimensions. CPCe operates in units of 1/15th of a pixel.
+        # Image dimensions. CPCe typically operates in units of 1/15th of a
+        # pixel. If a different DPI setting is used in an older version of CPCe
+        # (like CPCe 3.5), it can be something else like 1/12th. But we'll
+        # assume 1/15th for export.
         img.original_width * 15,
         img.original_height * 15,
         # These 2 items seem to be the display width/height that the image

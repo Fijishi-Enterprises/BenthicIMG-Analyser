@@ -55,7 +55,8 @@ class AnnotationHistoryTest(ClientTest, UploadAnnotationsTestMixin):
 
         cls.img = cls.upload_image(
             cls.user, cls.source,
-            image_options=dict(filename='1.png'))
+            image_options=dict(filename='1.png', width=100, height=100))
+        cls.image_dimensions = (100, 100)
 
     def view_history(self, user):
         if user:
@@ -240,7 +241,7 @@ class AnnotationHistoryTest(ClientTest, UploadAnnotationsTestMixin):
     def test_cpc_import(self):
         cpc_files = [
             self.make_cpc_file(
-                '1.cpc',
+                self.image_dimensions, '1.cpc',
                 r"C:\My Photos\2017-05-13 GBR\1.png", [
                     (9*15, 9*15, 'A'),
                     (19*15, 19*15, ''),

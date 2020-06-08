@@ -227,6 +227,34 @@ class CPCFormatTest(UploadAnnotationsBaseTest):
             preview_response.json(),
             dict(error="File 1.cpc seems to have too few lines."))
 
+    def test_no_header_lines(self):
+        """
+        It should be OK to have no header-value lines at the end of the file.
+        CoralNet doesn't have a use for them, and CPCe 3.5 does not seem to
+        create header lines.
+        """
+        stream = StringIO()
+        # Line 1
+        stream.writelines(['a,"D:\\Panama transects\\1.png",1500,1500,e,f\n'])
+        # Lines 2-5
+        stream.writelines(['1,2\n']*4)
+        # Line 6
+        stream.writelines(['1\n'])
+        # Point positions
+        stream.writelines(['0,0\n'])
+        # Labels
+        stream.writelines(['_,A,_,_\n'])
+        cpc_file_1 = ContentFile(stream.getvalue(), name='1.cpc')
+        # No header lines
+
+        self.preview_cpc_annotations(self.user, self.source, [cpc_file_1])
+        self.upload_annotations(self.user, self.source)
+
+        values_set = set(
+            self.img1.point_set.all()
+            .values_list('column', 'row', 'point_number'))
+        self.assertSetEqual(values_set, {(0, 0, 1)})
+
     def test_multiple_cpcs_for_one_image(self):
         stream = StringIO()
         # Line 1
@@ -240,6 +268,8 @@ class CPCFormatTest(UploadAnnotationsBaseTest):
             '{n},{n}\n'.format(n=n*15) for n in range(10)])
         # Line 17-26: labels
         stream.writelines(['a,b,c,d\n']*10)
+        # Header lines
+        stream.writelines(['" "']*28)
         cpc_file_1 = ContentFile(stream.getvalue(), name='1.cpc')
 
         stream = StringIO()
@@ -254,6 +284,8 @@ class CPCFormatTest(UploadAnnotationsBaseTest):
             '{n},{n}\n'.format(n=n*15) for n in range(10)])
         # Line 17-26: labels
         stream.writelines(['a,b,c,d\n']*10)
+        # Header lines
+        stream.writelines(['" "']*28)
         cpc_file_2 = ContentFile(stream.getvalue(), name='2.cpc')
 
         preview_response = self.preview_cpc_annotations(
@@ -309,6 +341,8 @@ class CPCPixelScaleFactorTest(UploadAnnotationsBaseTest):
             ['{},{}\n'.format(pos[0], pos[1]) for pos in point_positions])
         # Labels
         stream.writelines(['"","A","",""\n' for _ in point_positions])
+        # Header lines
+        stream.writelines(['" "']*28)
 
         cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
         # Return the preview response

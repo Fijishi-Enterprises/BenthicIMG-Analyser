@@ -1,5 +1,6 @@
 import csv
 import json
+import time
 import os.path as osp
 import pickle
 import sys
@@ -115,6 +116,7 @@ class VisionBackendRegressionTest(ClientTest):
         if Source.objects.filter(name=self.source_name).exists():
             print("-> Found previous source, deleting that one.")
             Source.objects.filter(name=self.source_name).delete()
+            time.sleep(10)
 
         # Create new source.
         self.source = self.create_source()

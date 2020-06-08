@@ -1,4 +1,3 @@
-import logging
 import time
 
 from argparse import RawTextHelpFormatter
@@ -9,8 +8,6 @@ from images.models import Image
 from lib.regtest_utils import VisionBackendRegressionTest
 from vision_backend.models import Classifier
 from vision_backend.tasks import collect_all_jobs, submit_classifier
-
-logging.disable(logging.CRITICAL)
 
 reg_test_config = {
     372: {'small': (20, 5),
@@ -114,11 +111,21 @@ class Command(BaseCommand):
 
         s = VisionBackendRegressionTest(fixture_source_id, size.upper())
 
-        print("-> Uploading annotated images...")
-        s.upload_images(n_with, with_anns=True)
+        print("\n-> Uploading annotated images...")
+        imgs_w_anns = s.upload_images(n_with)
+        collect_all_jobs()
 
-        print("-> Uploading un-annotated images...")
-        s.upload_images(n_without, with_anns=False)
+        print("\n-> Uploading un-annotated images...")
+        _ = s.upload_images(n_without)
+        collect_all_jobs()
+
+        print("\n-> Adding anns to the annotated images...")
+        # We add anns in the end to make sure there are no race conditions
+        # as jobs are processed. Let's also sleep a bit to further make sure.
+        time.sleep(5)
+        for img in imgs_w_anns:
+            s.upload_anns(img)
+        collect_all_jobs()
 
         print("-> Waiting until feature extraction is done...")
         all_has_features = False
@@ -135,14 +142,22 @@ class Command(BaseCommand):
         print("-> All images has features!")
 
         print("-> Submitting classifier for training.")
-        submit_classifier.delay(s.source.id)
         has_classifier = False
+        submit_classifier.delay(s.source.id, force=True)
+        t0 = time.time()
         while not has_classifier:
             time.sleep(3)
             collect_all_jobs()
             print("-> No classifier trained yet.")
             has_classifier = Classifier.objects.filter(
                 source=s.source, valid=True).count() > 0
+
+            if time.time() - t0 > 90:
+                # Resubmit classifier in case previous training failed due to
+                # concurrency issues.
+                print("-> Waited 90 seconds. Resubmitting the classifier.")
+                submit_classifier.delay(s.source.id, force=True)
+                t0 += 90
 
         print("-> Classifier trained!")
 

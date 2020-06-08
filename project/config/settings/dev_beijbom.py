@@ -5,7 +5,7 @@ ALLOWED_HOSTS = ['127.0.0.1', 'testserver']
 SPACER_QUEUE_CHOICE = 'vision_backend.queues.SQSQueue'
 # SPACER_QUEUE_CHOICE = 'vision_backend.queues.LocalQueue'
 
-CELERY_ALWAYS_EAGER = True
+CELERY_ALWAYS_EAGER = False
 
 AWS_ACCESS_KEY_ID = get_secret('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = get_secret('AWS_SECRET_ACCESS_KEY')

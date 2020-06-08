@@ -87,7 +87,6 @@ def submit_all_classifiers():
 @task(name="Submit Classifier")
 def submit_classifier(source_id, nbr_images=1e5, force=False):
     """ Submits a classifier training job. """
-
     try:
         source = Source.objects.get(pk=source_id)
     except Source.DoesNotExist:
@@ -99,14 +98,14 @@ def submit_classifier(source_id, nbr_images=1e5, force=False):
             source.name, source.pk))
         return
 
-    logger.info(u"Preparing new classifier for {} [{}].".format(
-        source.name, source.pk))
-
     # Create new classifier model
     images = Image.objects.filter(source=source, confirmed=True,
                                   features__extracted=True)[:nbr_images]
     classifier = Classifier(source=source, nbr_train_images=len(images))
     classifier.save()
+
+    logger.info(u"Preparing new classifier ({}) for {} [{}].".format(
+        classifier.pk, source.name, source.pk))
 
     # Write train-labels to file storage
     storage = get_storage_class()()
@@ -151,8 +150,8 @@ def submit_classifier(source_id, nbr_images=1e5, force=False):
     queue = get_queue_class()()
     queue.submit_job(msg)
 
-    logger.info(u"Submitted classifier for source {} [{}] with {} images.".
-                format(source.name, source.id, len(images)))
+    logger.info(u"Submitted classifier {} for source {} [{}] with {} images.".
+                format(classifier.pk, source.name, source.id, len(images)))
     logger.debug(u"Submitted classifier for source {} [{}] with {} images. "
                  u"Message: {}".format(source.name, source.id,
                                        len(images), msg))
@@ -322,7 +321,7 @@ def _handle_job_result(job_res: JobReturnMsg):
             logger.error('Job task type {} not recognized'.format(task_name))
 
         # Conclude
-        logger.info("Collected job: {}".format(task))
+        logger.info("Collected job: {} with pk: {}".format(task_name, pk))
         logger.debug("Collected job: {}".format(job_res))
 
 
@@ -355,7 +354,12 @@ def reset_features(image_id):
     Add new poits.
     """
 
-    img = Image.objects.get(pk=image_id)
+    try:
+        img = Image.objects.get(pk=image_id)
+    except Image.DoesNotExist:
+        logger.info("Image {} deleted. Nothing to reset.".format(image_id))
+        return
+
     features = img.features
     features.extracted = False
     features.classified = False

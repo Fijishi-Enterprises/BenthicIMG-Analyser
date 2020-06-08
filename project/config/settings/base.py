@@ -560,7 +560,7 @@ CELERY_RESULT_SERIALIZER = 'json'
 # LOG
 LOGGING = {
     'version': 1,
-    'disable_existing_loggers': False,
+    'disable_existing_loggers': True,
     'formatters': {
         'standard': {
             'format': '[%(name)s.%(funcName)s, %(asctime)s]: %(message)s'

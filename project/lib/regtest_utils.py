@@ -80,14 +80,13 @@ class VisionBackendRegressionTest(ClientTest):
         """
         self.upload_images(len(self.imfiles), with_anns=with_anns)
 
-    def upload_images(self, nbr, with_anns=True):
+    def upload_images(self, nbr):
         """
         Upload INPUT nbr images.
         """
-        for i in range(nbr):
-            self.upload_image(with_anns=with_anns)
+        return [self.upload_image() for i in range(nbr)]
 
-    def upload_image(self, with_anns=True):
+    def upload_image(self):
         """
         Upload an image.
         """
@@ -101,10 +100,12 @@ class VisionBackendRegressionTest(ClientTest):
 
         self.cur += 1
         self._upload_image(img)
+        return img
 
-        if with_anns:
-            anns = self.anns[osp.basename(img)]
-            self._upload_annotations(osp.basename(img), anns)
+    def upload_anns(self, img):
+        """ Uploads anns """
+        anns = self.anns[osp.basename(img)]
+        self._upload_annotations(osp.basename(img), anns)
 
     def _setup_source(self):
         """

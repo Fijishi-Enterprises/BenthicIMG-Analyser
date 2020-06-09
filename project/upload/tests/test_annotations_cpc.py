@@ -227,26 +227,54 @@ class CPCFormatTest(UploadAnnotationsBaseTest):
             preview_response.json(),
             dict(error="File 1.cpc seems to have too few lines."))
 
+    def test_no_header_lines(self):
+        """
+        It should be OK to have no header-value lines at the end of the file.
+        CoralNet doesn't have a use for them, and CPCe 3.5 does not seem to
+        create header lines.
+        """
+        stream = StringIO()
+        # Line 1
+        stream.writelines(['a,"D:\\Panama transects\\1.png",1500,1500,e,f\n'])
+        # Lines 2-5
+        stream.writelines(['1,2\n']*4)
+        # Line 6
+        stream.writelines(['1\n'])
+        # Point positions
+        stream.writelines(['0,0\n'])
+        # Labels
+        stream.writelines(['_,A,_,_\n'])
+        cpc_file_1 = ContentFile(stream.getvalue(), name='1.cpc')
+        # No header lines
+
+        self.preview_cpc_annotations(self.user, self.source, [cpc_file_1])
+        self.upload_annotations(self.user, self.source)
+
+        values_set = set(
+            self.img1.point_set.all()
+            .values_list('column', 'row', 'point_number'))
+        self.assertSetEqual(values_set, {(0, 0, 1)})
+
     def test_multiple_cpcs_for_one_image(self):
         stream = StringIO()
         # Line 1
-        stream.writelines(['a,"D:\\Panama transects\\1.png",c,d,e,f\n'])
+        stream.writelines(['a,"D:\\Panama transects\\1.png",1500,1500,e,f\n'])
         # Lines 2-5
         stream.writelines(['1,2\n']*4)
         # Line 6
         stream.writelines(['10\n'])
         # Lines 7-16: point positions
-        # Multiply by 15 so they end up on different pixels. Otherwise
-        # we may get the 'multiple points on same pixel' error instead.
         stream.writelines([
             '{n},{n}\n'.format(n=n*15) for n in range(10)])
         # Line 17-26: labels
         stream.writelines(['a,b,c,d\n']*10)
+        # Header lines
+        stream.writelines(['" "']*28)
         cpc_file_1 = ContentFile(stream.getvalue(), name='1.cpc')
 
         stream = StringIO()
         # Line 1
-        stream.writelines(['a,"D:\\GBR transects\\1.png",c,d,e,f\n'])
+        stream.writelines(['a,"D:\\GBR transects\\1.png",1500,1500,e,f\n'])
         # Lines 2-5
         stream.writelines(['1,2\n']*4)
         # Line 6
@@ -256,6 +284,8 @@ class CPCFormatTest(UploadAnnotationsBaseTest):
             '{n},{n}\n'.format(n=n*15) for n in range(10)])
         # Line 17-26: labels
         stream.writelines(['a,b,c,d\n']*10)
+        # Header lines
+        stream.writelines(['" "']*28)
         cpc_file_2 = ContentFile(stream.getvalue(), name='2.cpc')
 
         preview_response = self.preview_cpc_annotations(
@@ -267,6 +297,124 @@ class CPCFormatTest(UploadAnnotationsBaseTest):
                 "Image 1.png has points from more than one .cpc file: 1.cpc"
                 " and 2.cpc. There should be only one .cpc file"
                 " per image.")))
+
+
+class CPCPixelScaleFactorTest(UploadAnnotationsBaseTest):
+    """
+    Tests CPC pixel scale factor detection, based on line 1 of the CPC.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super(CPCPixelScaleFactorTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(cls.user)
+        labels = cls.create_labels(cls.user, ['A', 'B'], 'Group1')
+        cls.create_labelset(cls.user, cls.source, labels)
+
+        cls.img1 = cls.upload_image(
+            cls.user, cls.source,
+            image_options=dict(filename='1.png', width=100, height=200))
+
+    def preview(self, line_1, point_positions=None):
+        """
+        line_1 should be the content of the .cpc file's first line.
+
+        point_positions should be a list of (col, row) tuples, in CPCe-scale
+        units.
+
+        This method writes valid content for the rest of the .cpc file,
+        and then calls the preview view.
+        """
+        if point_positions is None:
+            point_positions = [(0, 0)]
+
+        stream = StringIO()
+        # Line 1
+        stream.writelines(['{}\n'.format(line_1)])
+        # Lines 2-5
+        stream.writelines(['1,2\n']*4)
+        # Line 6
+        stream.writelines(['{}\n'.format(len(point_positions))])
+        # Point positions
+        stream.writelines(
+            ['{},{}\n'.format(pos[0], pos[1]) for pos in point_positions])
+        # Labels
+        stream.writelines(['"","A","",""\n' for _ in point_positions])
+        # Header lines
+        stream.writelines(['" "']*28)
+
+        cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
+        # Return the preview response
+        return self.preview_cpc_annotations(
+            self.user, self.source, [cpc_file])
+
+    def test_width_not_integer(self):
+        preview_response = self.preview(line_1='a,1.png,c,3000,e,f')
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(error=(
+                "File 1.cpc: The image width and height on line 1"
+                " must be integers.")))
+
+    def test_height_not_integer(self):
+        preview_response = self.preview(line_1='a,1.png,1500,3000.0,e,f')
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(error=(
+                "File 1.cpc: The image width and height on line 1"
+                " must be integers.")))
+
+    def test_x_scale_not_integer(self):
+        preview_response = self.preview(line_1='a,1.png,1050,2100,e,f')
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(error=(
+                "File 1.cpc: Could not establish an integer scale"
+                " factor from line 1.")))
+
+    def test_y_scale_not_integer(self):
+        preview_response = self.preview(line_1='a,1.png,1500,2999,e,f')
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(error=(
+                "File 1.cpc: Could not establish an integer scale"
+                " factor from line 1.")))
+
+    def test_xy_scales_not_equal(self):
+        preview_response = self.preview(line_1='a,1.png,1200,3000,e,f')
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(error=(
+                "File 1.cpc: Could not establish an integer scale"
+                " factor from line 1.")))
+
+    def test_scale_of_15(self):
+        """This is the common case and arises from usage at 96 DPI."""
+        self.preview(
+            line_1='a,1.png,1500,3000,e,f', point_positions=[(1200, 900)])
+        self.upload_annotations(self.user, self.source)
+
+        values_set = set(
+            self.img1.point_set.all()
+            .values_list('column', 'row', 'point_number'))
+        self.assertSetEqual(values_set, {(80, 60, 1)})
+
+    def test_scale_of_12(self):
+        """This arises from usage at 120 DPI, and should also be accepted."""
+        self.preview(
+            line_1='a,1.png,1200,2400,e,f', point_positions=[(960, 720)])
+        self.upload_annotations(self.user, self.source)
+
+        values_set = set(
+            self.img1.point_set.all()
+            .values_list('column', 'row', 'point_number'))
+        self.assertSetEqual(values_set, {(80, 60, 1)})
 
 
 class SaveCPCInfoTest(UploadAnnotationsBaseTest):
@@ -289,10 +437,12 @@ class SaveCPCInfoTest(UploadAnnotationsBaseTest):
             cls.user, cls.source,
             image_options=dict(filename='2.jpg', width=100, height=100))
 
+        cls.image_dimensions = (100, 100)
+
     def test_cpc_content_one_image(self):
         cpc_files = [
             self.make_cpc_file(
-                '1.cpc',
+                self.image_dimensions, '1.cpc',
                 r"C:\My Photos\2017-05-13 GBR\1.jpg", [
                     (49*15, 49*15, 'A'),
                     (59*15, 39*15, 'B')]),
@@ -315,12 +465,12 @@ class SaveCPCInfoTest(UploadAnnotationsBaseTest):
     def test_cpc_content_multiple_images(self):
         cpc_files = [
             self.make_cpc_file(
-                'GBR_1.cpc',
+                self.image_dimensions, 'GBR_1.cpc',
                 r"C:\My Photos\2017-05-13 GBR\1.jpg", [
                     (49*15, 49*15, 'A'),
                     (59*15, 39*15, 'B')]),
             self.make_cpc_file(
-                'GBR_2.cpc',
+                self.image_dimensions, 'GBR_2.cpc',
                 r"C:\My Photos\2017-05-13 GBR\2.jpg", [
                     (69*15, 29*15, 'A'),
                     (79*15, 19*15, 'A')]),
@@ -345,13 +495,13 @@ class SaveCPCInfoTest(UploadAnnotationsBaseTest):
     def test_source_fields(self):
         cpc_files = [
             self.make_cpc_file(
-                '1.cpc',
+                self.image_dimensions, '1.cpc',
                 r"C:\My Photos\2017-05-13 GBR\1.jpg", [
                     (49*15, 49*15, 'A'),
                     (59*15, 39*15, 'B')],
                 codes_filepath=r'C:\PROGRA~4\CPCE_4~1\SHALLO~1.TXT'),
             self.make_cpc_file(
-                '2.cpc',
+                self.image_dimensions, '2.cpc',
                 r"C:\My Photos\2017-05-13 GBR\2.jpg", [
                     (69*15, 29*15, 'A'),
                     (79*15, 19*15, 'A')],
@@ -385,7 +535,8 @@ class CPCImageMatchingTest(UploadAnnotationsBaseTest):
         cls.create_labelset(cls.user, cls.source, labels)
 
     def upload_image_with_name(self, image_name):
-        img = self.upload_image(self.user, self.source)
+        img = self.upload_image(
+            self.user, self.source, image_options=dict(width=100, height=100))
         img.metadata.name = image_name
         img.metadata.save()
         return img
@@ -393,9 +544,10 @@ class CPCImageMatchingTest(UploadAnnotationsBaseTest):
     def upload_preview_for_image_name(self, image_name):
         cpc_files = [
             self.make_cpc_file(
-                '1.cpc',
-                image_name,
-                [(9*15, 9*15, 'A')],
+                dimensions=(100, 100),
+                cpc_filename='1.cpc',
+                image_filepath=image_name,
+                points=[(9*15, 9*15, 'A')],
                 codes_filepath=r'C:\PROGRA~4\CPCE_4~1\SHALLO~1.TXT'),
         ]
         return self.preview_cpc_annotations(self.user, self.source, cpc_files)

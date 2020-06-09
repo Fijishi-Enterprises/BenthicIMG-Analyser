@@ -36,19 +36,27 @@
    TIP: If you are only interested in Confirmed annotations, then first do an image search with "Annotation status" set to "Confirmed", and then export annotations.</li>
 
   <li>
-    <strong>Annotations, CPCe:</strong> (Requires source Edit permissions) Annotations as .cpc files which can be opened in Coral Point Count. There will be one .cpc file per image, and the .cpc files will be contained in a .zip archive file. If you're not familiar with opening .zip files, see <a href="https://www.wikihow.com/Open-a-Zip-File" target="_blank">this WikiHow article</a>. The .cpc file format contains several pieces of information besides point positions and labels; here's how we handle each one:
+    <strong>Annotations, CPCe:</strong> (Requires source Edit permissions) Annotations as .cpc files which can be opened in Coral Point Count. There will be one .cpc file per image, and the .cpc files will be contained in a .zip archive file. If you're not familiar with opening .zip files, see <a href="https://www.wikihow.com/Open-a-Zip-File" target="_blank">this WikiHow article</a>. Here are the basics:
 
     <ul>
-      <li>Notes codes: Coral Point Count has a Notes column in the list of points, and the Notes codes you enter in this column are saved in the .cpc file. This info is available based on .cpc files you've previously uploaded. If you have uploaded a .cpc file for a particular CoralNet image, that .cpc file's Notes codes will be retained, and those Notes codes will be used when you request a .cpc export for that image. If you have never uploaded a .cpc file for this CoralNet image, the Notes codes will be blank.</li>
+      <li>We save your previously-uploaded .cpc files for each image, as long as the image's point locations have not been overwritten since the .cpc was uploaded.</li>
+      <li>If we have a saved .cpc file for a particular image, the .cpc you export here will be the same as the original .cpc, except that the point annotations will be updated to match the annotations on CoralNet.</li>
+      <li>If we do not have a saved .cpc file for an image, we create a .cpc file from scratch. Note that there are .cpc file format differences between versions of CPCe, and the .cpc files we create are meant for CPCe 4.1, the latest version. For example, if you try to open one of our .cpc files in CPCe 3.5 with a screen size setting of 120 DPI, then the point locations will be wrong.</li>
+    </ul>
 
-      <li>Header data: When you create a .cpc file in Coral Point Count, at some point it shows a window with 28 header fields such as Project name, Site name, Latitude, Easting, etc. Similarly to the Notes codes, this info is available based on .cpc files you've previously uploaded. (You might notice that these header fields have some overlap with CoralNet's metadata fields, but CoralNet does not currently make any connection between these fields on import/export.)</li>
+    The .cpc file format contains several pieces of information besides point positions and labels; here's how we handle each one:
+
+    <ul>
+      <li>Notes codes: Coral Point Count has a Notes column in the list of points. If a particular CoralNet image has a .cpc file saved, that .cpc file's Notes codes will be retained. If the image does not have a .cpc file saved, the Notes codes will be blank.</li>
+
+      <li>Header data: When you create a .cpc file in Coral Point Count (at least in CPCe 4.1), at some point it shows a window with 28 header fields such as Project name, Site name, Latitude, Easting, etc. If a particular CoralNet image has a .cpc file saved, that .cpc file's header values will be retained. Otherwise, we will fill in blank header values. (You might notice that these header fields have some overlap with CoralNet's metadata fields, but CoralNet does not make any connection between these two sets of fields on import/export.)</li>
 
       <li>
         Computer environment info: This includes the location of the .txt code file that CPCe uses to match label codes to label names/groups, and the location of the image file that was opened in CPCe. Unlike Notes codes and Header data, this environment info is necessary to make a .cpc work in Coral Point Count. Here's what CoralNet does to make sure this info is filled in:
 
         <ul>
-          <li>CoralNet first looks for this info in previously uploaded .cpc files.</li>
-          <li>If one or more images do not have a previous .cpc, then this action form will show form fields where you can fill in the environment values. These values will be automatically filled in with information from other images' uploaded .cpc files, if available. If no .cpc has been uploaded to this source before, then the fields will be blank and you'll have to fill them in.</li>
+          <li>CoralNet first looks for this info in saved .cpc files.</li>
+          <li>If one or more images do not have a saved .cpc, then this action form will show form fields where you can fill in the environment values. These values will be automatically filled in with information from other images' saved .cpc files, if available. If no images have .cpc files saved, then the fields will be blank and you'll have to fill them in.</li>
         </ul>
 
         If you have to fill in the environment info yourself, the code file location should look something like <code>C:\CPCe_41_inst\coral_codes.txt</code>, and the image folder location should look something like <code>C:\Image_data\Panama_corals</code> (you may have a slash at the end or not). Note that the image folder is a folder location, not a file location; the actual image file might be at C:\Image_data\Panama_corals\DSC_0048.JPG.

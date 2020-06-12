@@ -184,7 +184,13 @@ var AnnotationToolHelper = (function() {
         imageTopOffset = parseFloat(imageTopOffset.toFixed(3));
 
         // Set styling properties for the image canvas.
+        //
+        // We need to set both the width and height. If we set only one
+        // dimension, the browser MAY auto-scale the other dimension, but it's
+        // not guaranteed (e.g. with very large sizes in Chromium-based
+        // browsers).
         $(getImageCanvas()).css({
+            "width": imageDisplayWidth,
             "height": imageDisplayHeight,
             "left": imageLeftOffset,
             "top": imageTopOffset,

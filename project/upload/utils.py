@@ -412,8 +412,11 @@ def annotations_cpcs_to_dict(cpc_names_and_streams, source):
             annotations_cpcs_to_dict_read_csv_row, reader, cpc_name)
 
         # Line 1
-        code_filepath, image_filepath, _, _, _, _ = read_csv_row_curried(6)
+        code_filepath, image_filepath, width, height, _, _ = \
+            read_csv_row_curried(6)
         cpc_dict['image_filepath'] = image_filepath
+        cpc_dict['image_width_in_cpce_scale'] = width
+        cpc_dict['image_height_in_cpce_scale'] = height
 
         # Lines 2-5; don't need any info from these,
         # but they should have 2 tokens each
@@ -435,9 +438,7 @@ def annotations_cpcs_to_dict(cpc_names_and_streams, source):
                     line_num=reader.line_num,
                     token=token))
 
-        # Next num_points lines: point positions.
-        # CPCe point positions are on a scale of 15 units = 1 pixel, and
-        # the positions start from 0, not 1.
+        # Next num_points lines: point positions. x (column), then y (row).
         cpc_dict['points'] = []
         for _ in range(num_points):
             x_str, y_str = read_csv_row_curried(2)
@@ -572,6 +573,35 @@ def annotations_cpc_verify_contents(cpc_dicts, source):
             )
         image_names_to_cpc_filenames[image_name] = cpc_filename
 
+        # Detect pixel scale factor - the scale of the x, y units CPCe used to
+        # express the point locations.
+        #
+        # This is normally 15 units per pixel, but
+        # that only holds when CPCe runs in 96 DPI. Earlier versions of CPCe
+        # (such as CPCe 3.5) did not enforce 96 DPI, so for example, it is
+        # possible to run in 120 DPI and get a scale of 12 units per pixel.
+        #
+        # We can figure out the scale factor by reading the .cpc file's image
+        # resolution values. These values are in CPCe's scale, and we know the
+        # resolution in pixels, so we can solve for the scale factor.
+        try:
+            cpce_scale_width = int(cpc_dict['image_width_in_cpce_scale'])
+            cpce_scale_height = int(cpc_dict['image_height_in_cpce_scale'])
+        except ValueError:
+            raise FileProcessError(
+                "File {cpc_filename}: The image width and height on line 1"
+                " must be integers.".format(cpc_filename=cpc_filename))
+
+        x_scale = cpce_scale_width / img.original_width
+        y_scale = cpce_scale_height / img.original_height
+        if (not x_scale.is_integer()
+                or not y_scale.is_integer()
+                or x_scale != y_scale):
+            raise FileProcessError(
+                "File {cpc_filename}: Could not establish an integer scale"
+                " factor from line 1.".format(cpc_filename=cpc_filename))
+        pixel_scale_factor = x_scale
+
         annotations_for_image = []
 
         for point_number, cpc_point_dict in enumerate(cpc_dict['points'], 1):
@@ -605,8 +635,9 @@ def annotations_cpc_verify_contents(cpc_dicts, source):
                     " {x_str}").format(
                         x_str=cpc_point_dict['x_str']))
 
-            row = int(round(y/15))
-            column = int(round(x/15))
+            # CPCe units -> pixels conversion.
+            row = int(round(y / pixel_scale_factor))
+            column = int(round(x / pixel_scale_factor))
             point_dict = dict(
                 row=row,
                 column=column,

@@ -280,13 +280,7 @@ class MediaStorageLocal(FileSystemStorage):
         """ Returns a spacer DataLocation object. """
         return DataLocation(storage_type='filesystem',
                             key=self.path(key))
-
-    def exists_full(self, full_key) -> bool:
-        """ Checks if object exists. This takes the full_key as oposite to
-                the standard exists() method. """
-        rel_path = posixpath.relpath(full_key, self.location)
-        return self.exists(rel_path)
-
+ 
 
 def get_s3_root_storage():
     """

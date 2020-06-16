@@ -129,7 +129,7 @@ class LocalQueue(BaseQueue):
             return None
 
         # Sort by filename, which should also put them in job order
-        # because the filenames have timestamps (to second precision)
+        # because the filenames have timestamps (to microsecond precision)
         filenames.sort()
         # Get the first job result file, so it's like a queue
         filename = filenames[0]

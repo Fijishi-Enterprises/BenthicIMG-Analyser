@@ -6,7 +6,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand
 
 from images.models import Source, Image, Point
-from lib.utils import direct_s3_read
+from lib.regtest_utils import direct_s3_read
 
 from vision_backend.tasks import reset_features
 

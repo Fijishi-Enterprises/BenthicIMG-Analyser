@@ -1,80 +1,83 @@
-import posixpath
 import logging
-import json
+from datetime import timedelta
 
 from celery.decorators import task, periodic_task
 from django.conf import settings
+from django.core.files.storage import get_storage_class
+from django.core.mail import mail_admins
 from django.db import IntegrityError
 from django.utils.timezone import now
+from spacer.messages import \
+    ExtractFeaturesMsg, \
+    TrainClassifierMsg, \
+    ClassifyFeaturesMsg, \
+    ClassifyImageMsg, \
+    ClassifyReturnMsg, \
+    JobMsg, \
+    JobReturnMsg, \
+    DataLocation
+from spacer.tasks import classify_features as spacer_classify_features
 
-from datetime import timedelta
-
-from . import task_helpers as th
-
-from .models import Classifier, Score
-from annotations.models import Annotation
-from images.models import Source, Image, Point
-from labels.models import LabelSet, Label
-from api_core.models import ApiJobUnit
-
-from lib.utils import direct_s3_read, direct_s3_write
 from accounts.utils import get_robot_user
+from annotations.models import Annotation
+from api_core.models import ApiJobUnit
+from images.models import Source, Image, Point
+from labels.models import Label
+from . import task_helpers as th
+from .models import Classifier, Score
+from .queues import get_queue_class
 
 logger = logging.getLogger(__name__)
 
 
 @task(name="Submit Features")
 def submit_features(image_id, force=False):
-    """
-    Submits a job to SQS for extracting features for an image.
-    """
-    # Do some initial checks
-    if not settings.DEFAULT_FILE_STORAGE == 'lib.storage_backends.MediaStorageS3' or settings.FORCE_NO_BACKEND_SUBMIT:
-        logger.info("Can't use vision backend if media is stored locally.")
-        return
+    """ Submits a feature extraction job. """
 
     try:
         img = Image.objects.get(pk=image_id)
-    except:
+    except Image.DoesNotExist:
         logger.info("Image {} does not exist.".format(image_id))
         return
-    logstr = u"Image {} [Source: {} [{}]]".format(image_id, img.source, img.source_id)
+    log_str = u"Image {} [Source: {} [{}]]".format(image_id, img.source,
+                                                   img.source_id)
 
     if img.features.extracted and not force:
-        logger.info(u"{} already has features".format(logstr))
+        logger.info(u"{} already has features".format(log_str))
         return
 
-    # Assemble row column information
-    rowcols = []
-    for point in Point.objects.filter(image=img).order_by('id'):
-        rowcols.append([point.row, point.column])
-    
     # Setup the job payload.
-    full_image_path = posixpath.join(settings.AWS_LOCATION, img.original_file.name)
-    payload = {
-        'bucketname': settings.AWS_STORAGE_BUCKET_NAME,
-        'imkey': full_image_path,
-        'outputkey': settings.FEATURE_VECTOR_FILE_PATTERN.format(full_image_path=full_image_path),
-        'modelname': 'vgg16_coralnet_ver1',
-        'rowcols': rowcols,
-        'pk': image_id
-    }
+    storage = get_storage_class()()
 
-    # Assemble message body.
-    messagebody = {
-        'task': 'extract_features',
-        'payload': payload
-    }
+    # Assemble row column information
+    rowcols = [(p.row, p.column) for p in Point.objects.filter(image=img)]
+
+    # Assemble task.
+    task = ExtractFeaturesMsg(
+        job_token=th.encode_spacer_job_token([image_id]),
+        feature_extractor_name=img.source.feature_extractor,
+        rowcols=list(set(rowcols)),
+        image_loc=storage.spacer_data_loc(img.original_file.name),
+        feature_loc=storage.spacer_data_loc(
+            settings.FEATURE_VECTOR_FILE_PATTERN.format(
+                full_image_path=img.original_file.name))
+    )
+
+    msg = JobMsg(task_name='extract_features', tasks=[task])
 
     # Submit.
-    th._submit_job(messagebody)
+    queue = get_queue_class()()
+    queue.submit_job(msg)
 
-    logger.info(u"Submitted feature extraction for {}".format(logstr))
-    logger.debug(u"Submitted feature extraction for {}. Message: {}".format(logstr, messagebody))
-    return messagebody
+    logger.info(u"Submitted feature extraction for {}".format(log_str))
+    logger.debug(u"Submitted feature extraction for {}. Message: {}".
+                 format(log_str, msg.serialize()))
+    return msg
 
 
-@periodic_task(run_every=timedelta(hours = 24), name='Periodic Classifiers Submit', ignore_result=True)
+@periodic_task(run_every=timedelta(hours=24),
+               name='Periodic Classifiers Submit',
+               ignore_result=True)
 def submit_all_classifiers():
     for source in Source.objects.filter():
         if source.need_new_robot():
@@ -83,78 +86,81 @@ def submit_all_classifiers():
 
 @task(name="Submit Classifier")
 def submit_classifier(source_id, nbr_images=1e5, force=False):
-
-    # Do some initial checks
-    if not settings.DEFAULT_FILE_STORAGE == 'lib.storage_backends.MediaStorageS3' or settings.FORCE_NO_BACKEND_SUBMIT:
-        logger.info("Can't use vision backend if media is stored locally.")
-        return
-
+    """ Submits a classifier training job. """
     try:
         source = Source.objects.get(pk=source_id)
-    except:
+    except Source.DoesNotExist:
         logger.info("Can't find source [{}]".format(source_id))
         return
-    
+
     if not source.need_new_robot() and not force:
-        logger.info(u"Source {} [{}] don't need new classifier.".format(source.name, source.pk))
+        logger.info(u"Source {} [{}] don't need new classifier.".format(
+            source.name, source.pk))
         return
 
-    logger.info(u"Preparing new classifier for {} [{}].".format(source.name, source.pk))
-    
     # Create new classifier model
-    images = Image.objects.filter(source = source, confirmed = True, features__extracted = True)[:nbr_images]
-    classifier = Classifier(source = source, nbr_train_images = len(images))
+    images = Image.objects.filter(source=source, confirmed=True,
+                                  features__extracted=True)[:nbr_images]
+    classifier = Classifier(source=source, nbr_train_images=len(images))
     classifier.save()
 
-    # Write traindict to S3
-    direct_s3_write(
-        settings.ROBOT_MODEL_TRAINDATA_PATTERN.format(pk = classifier.pk, media = settings.AWS_LOCATION),
-        'json',
-        th._make_dataset([image for image in images if image.trainset])
+    logger.info(u"Preparing new classifier ({}) for {} [{}].".format(
+        classifier.pk, source.name, source.pk))
+
+    # Write train-labels to file storage
+    storage = get_storage_class()()
+    traindata = th.make_dataset([image for image in images if image.trainset])
+    traindata_loc = storage.spacer_data_loc(
+        settings.ROBOT_MODEL_TRAINDATA_PATTERN.format(pk=classifier.pk))
+    traindata.store(traindata_loc)
+
+    # Write val-labels to file storage
+    valdata = th.make_dataset([image for image in images if image.valset])
+    valdata_loc = storage.spacer_data_loc(
+        settings.ROBOT_MODEL_VALDATA_PATTERN.format(pk=classifier.pk))
+    valdata.store(valdata_loc)
+
+    # This will not include the one we just created, b/c it is not valid.
+    prev_classifiers = Classifier.objects.filter(source=source, valid=True)
+
+    # Primary keys needed for collect task.
+    pc_pks = [pc.pk for pc in prev_classifiers]
+
+    # Create TrainClassifierMsg
+    task = TrainClassifierMsg(
+        job_token=th.encode_spacer_job_token([classifier.pk] + pc_pks),
+        trainer_name='minibatch',
+        nbr_epochs=settings.NBR_TRAINING_EPOCHS,
+        traindata_loc=traindata_loc,
+        valdata_loc=valdata_loc,
+        features_loc=storage.spacer_data_loc(''),
+        previous_model_locs=[storage.spacer_data_loc(
+            settings.ROBOT_MODEL_FILE_PATTERN.format(pk=pc.pk))
+            for pc in prev_classifiers],
+        model_loc=storage.spacer_data_loc(
+            settings.ROBOT_MODEL_FILE_PATTERN.format(pk=classifier.pk)),
+        valresult_loc=storage.spacer_data_loc(
+            settings.ROBOT_MODEL_VALRESULT_PATTERN.format(pk=classifier.pk))
     )
 
-    # Write valdict to S3
-    direct_s3_write(
-        settings.ROBOT_MODEL_VALDATA_PATTERN.format(pk = classifier.pk, media = settings.AWS_LOCATION),
-        'json',
-        th._make_dataset([image for image in images if image.valset])
-    )
-        
-    # Prepare information for the message payload
-    previous_classifiers = Classifier.objects.filter(source=source, valid=True) # This will not include the current.
-    pc_models = [settings.ROBOT_MODEL_FILE_PATTERN.format(pk=pc.pk, media=settings.AWS_LOCATION) for pc in previous_classifiers]
-    pc_pks = [pc.pk for pc in previous_classifiers]  # Primary keys needed for collect task.
-
-    # Create payload
-    payload = {
-        'bucketname': settings.AWS_STORAGE_BUCKET_NAME,
-        'model': settings.ROBOT_MODEL_FILE_PATTERN.format(pk = classifier.pk, media = settings.AWS_LOCATION),
-        'traindata': settings.ROBOT_MODEL_TRAINDATA_PATTERN.format(pk = classifier.pk, media = settings.AWS_LOCATION),
-        'valdata': settings.ROBOT_MODEL_VALDATA_PATTERN.format(pk = classifier.pk, media = settings.AWS_LOCATION),
-        'valresult': settings.ROBOT_MODEL_VALRESULT_PATTERN.format(pk = classifier.pk, media = settings.AWS_LOCATION),
-        'pk': classifier.pk,
-        'nbr_epochs': settings.NBR_TRAINING_EPOCHS,
-        'pc_models': pc_models,
-        'pc_pks': pc_pks
-    }
-
-    # Assbmeble the message body.
-    messagebody = {
-        'task': 'train_classifier',
-        'payload': payload
-    }
+    # Assemble the message body.
+    msg = JobMsg(task_name='train_classifier', tasks=[task])
 
     # Submit.
-    th._submit_job(messagebody)
+    queue = get_queue_class()()
+    queue.submit_job(msg)
 
-    logger.info(u"Submitted classifier for source {} [{}] with {} images.".format(source.name, source.id, len(images)))
-    logger.debug(u"Submitted classifier for source {} [{}] with {} images. Message: {}".format(source.name, source.id, len(images), messagebody))
-    return messagebody
- 
+    logger.info(u"Submitted classifier {} for source {} [{}] with {} images.".
+                format(classifier.pk, source.name, source.id, len(images)))
+    logger.debug(u"Submitted classifier for source {} [{}] with {} images. "
+                 u"Message: {}".format(source.name, source.id,
+                                       len(images), msg))
+    return msg
+
 
 @task(name="Deploy")
 def deploy(job_unit_id):
-
+    """ Submits a deploy job. """
     try:
         job_unit = ApiJobUnit.objects.get(pk=job_unit_id)
     except ApiJobUnit.DoesNotExist:
@@ -164,88 +170,94 @@ def deploy(job_unit_id):
     job_unit.status = ApiJobUnit.IN_PROGRESS
     job_unit.save()
 
-    rowcols = [[point['row'], point['column']] for point in
-               job_unit.request_json['points']]
+    # TODO: catch DoesNotExist here if pk is wrong? Or just let it fail?
+    classifier = Classifier.objects.get(
+        pk=job_unit.request_json['classifier_id'])
 
-    payload = {
-        'pk': job_unit_id,
-        'bucketname': settings.AWS_STORAGE_BUCKET_NAME,
-        'im_url': job_unit.request_json['url'],
-        'modelname': 'vgg16_coralnet_ver1',
-        'rowcols': rowcols,
-        'model': settings.ROBOT_MODEL_FILE_PATTERN.format(
-            pk=job_unit.request_json['classifier_id'],
-            media=settings.AWS_LOCATION),
-    }
+    storage = get_storage_class()()
 
-    # Assemble message body.
-    messagebody = {
-        'task': 'deploy',
-        'payload': payload
-    }
+    task = ClassifyImageMsg(
+        job_token=th.encode_spacer_job_token([job_unit_id]),
+        image_loc=DataLocation(
+            storage_type='url',
+            key=job_unit.request_json['url']
+        ),
+        feature_extractor_name=classifier.source.feature_extractor,
+        rowcols=[(point['row'], point['column']) for point in
+                 job_unit.request_json['points']],
+        classifier_loc=storage.spacer_data_loc(
+            settings.ROBOT_MODEL_FILE_PATTERN.format(pk=classifier.pk))
+    )
+    # Note the 'deploy' is called 'classify_image' in spacer.
+    msg = JobMsg(task_name='classify_image', tasks=[task])
 
-    th._submit_job(messagebody)
+    # Submit.
+    queue = get_queue_class()()
+    queue.submit_job(msg)
 
     logger.info(u"Submitted image at url: {} for deploy with job unit {}.".
                 format(job_unit.request_json['url'], job_unit.pk))
     logger.debug(u"Submitted image at url: {} for deploy with job unit {}. "
                  u"Message: {}".format(job_unit.request_json['url'],
-                                       job_unit.pk, messagebody))
+                                       job_unit.pk, msg))
 
-    return messagebody
+    return msg
 
 
 @task(name="Classify Image")
 def classify_image(image_id):
-
+    """ Executes a classify_image job. """
     try:
         img = Image.objects.get(pk=image_id)
-    except:
+    except Image.DoesNotExist:
         logger.info("Image {} does not exist.".format(image_id))
         return
 
     if not img.features.extracted:
-        return    
+        return
 
     classifier = img.source.get_latest_robot()
     if not classifier:
         return
 
-    # Load model
-    classifier_model = direct_s3_read(
-        settings.ROBOT_MODEL_FILE_PATTERN.format(
-            pk=classifier.pk, media=settings.AWS_LOCATION), 'pickle')
-    
-    feats = direct_s3_read(
-        settings.FEATURE_VECTOR_FILE_PATTERN.format(
-            full_image_path=posixpath.join(settings.AWS_LOCATION,
-                                         img.original_file.name)), 'json')
+    # Create task message
+    storage = get_storage_class()()
+    msg = ClassifyFeaturesMsg(
+        job_token=th.encode_spacer_job_token([image_id]),
+        feature_loc=storage.spacer_data_loc(
+            settings.FEATURE_VECTOR_FILE_PATTERN.format(
+                full_image_path=img.original_file.name)),
+        classifier_loc=storage.spacer_data_loc(
+            settings.ROBOT_MODEL_FILE_PATTERN.format(pk=classifier.pk)
+        )
+    )
 
-    # Classify.
-    scores = classifier_model.predict_proba(feats)
+    # Process job right here since it is so fast.
+    # In spacer, this task is called classify_features since that
+    # is actually what we are doing (the feature are already extracted).
+    res: ClassifyReturnMsg = spacer_classify_features(msg)
 
     # Pre-fetch label objects
-    label_objs = []
-    for class_ in classifier_model.classes_:
-        label_objs.append(Label.objects.get(pk=class_))
+    label_objs = [Label.objects.get(pk=pk) for pk in res.classes]
 
     # Add annotations if image isn't already confirmed    
     if not img.confirmed:
         try:
-            th._add_annotations(image_id, scores, label_objs, classifier)
+            th.add_annotations(image_id, res, label_objs, classifier)
         except IntegrityError:
-            logger_message = u"Failed to classify Image {} [Source: {} [{}] " \
-                             u"with classifier {}. There might have been a race" \
-                             u" condition when trying to save annotations. " \
-                             u"Will try again later."
+            logger_message = \
+                u"Failed to classify Image {} [Source: {} [{}] with " \
+                u"classifier {}. There might have been a race condition " \
+                u"when trying to save annotations. Will try again later."
             logger.info(logger_message.format(img.id, img.source,
                                               img.source_id, classifier.id))
-            classify_image.apply_async(args=[image_id], eta=now() + timedelta(seconds=10))
+            classify_image.apply_async(args=[image_id],
+                                       eta=now() + timedelta(seconds=10))
             return
-    
+
     # Always add scores
-    th._add_scores(image_id, scores, label_objs)
-    
+    th.add_scores(image_id, res, label_objs)
+
     img.features.classified = True
     img.features.save()
 
@@ -253,108 +265,106 @@ def classify_image(image_id):
                 format(img.id, img.source, img.source_id, classifier.id))
 
 
-@periodic_task(run_every=timedelta(seconds=60), name='Collect all jobs', ignore_result=True)
+@periodic_task(run_every=timedelta(seconds=60), name='Collect all jobs',
+               ignore_result=True)
 def collect_all_jobs():
-    """
-    Runs collectjob until queue is empty.
-    """
+    """Collects and handles job results until the job result queue is empty."""
+
     logger.info('Collecting all jobs in result queue.')
-    while collectjob():
-        pass
+    queue = get_queue_class()()
+    while True:
+        job_res = queue.collect_job()
+        if job_res:
+            _handle_job_result(job_res)
+        else:
+            break
     logger.info('Done collecting all jobs in result queue.')
 
 
-def collectjob():
-    """
-    main task for collecting jobs from AWS SQS.
-    """
-    
-    # Grab a message
-    message = th._read_message('spacer_results')
-    if message is None:
-        return 0
-    messagebody = json.loads(message.get_body())
+def _handle_job_result(job_res: JobReturnMsg):
+    """Handles the job results found in queue. """
 
-    # Check that the message pertains to this server
-    if not messagebody['original_job']['payload']['bucketname'] == \
-            settings.AWS_STORAGE_BUCKET_NAME:
-        logger.info("Job pertains to wrong bucket. This: {}, expected: {}".
-                    format(settings.AWS_STORAGE_BUCKET_NAME,
-                           messagebody['original_job']['payload']['bucketname']
-                           ))
-        return 1
+    if not job_res.ok:
+        print("Job failed: {}".format(job_res))
+        if job_res.original_job.task_name == 'classify_image':
+            th.deploy_fail(job_res)
+        else:
+            logger.error("Job failed: {}".format(job_res))
+            mail_admins("Spacer job failed", repr(job_res))
+        return
 
-    # Delete message (at this point, if it is not handled correctly,
-    # we still want to delete it from queue.)
-    message.delete()
+    task_name = job_res.original_job.task_name
 
-    # Handle message
-    task = messagebody['original_job']['task']
-    pk = messagebody['original_job']['payload']['pk']
+    for task, res in zip(job_res.original_job.tasks,
+                         job_res.results):
+        pk = th.decode_spacer_job_token(task.job_token)[0]
+        if task_name == 'extract_features':
+            if th.featurecollector(task, res):
+                # If job was entered into DB, submit a classify job.
+                classify_image.apply_async(args=[pk],
+                                           eta=now() + timedelta(seconds=10))
 
-    logger.debug("Collecting job with messagebody: {}".format(messagebody))
-    if task == 'extract_features':
-        if th._featurecollector(messagebody): 
-            # If job was entered into DB, submit a classify job.
-            classify_image.apply_async(args=[pk], eta=now() + timedelta(seconds=10))
- 
-    elif task == 'train_classifier':
-        if th._classifiercollector(messagebody):
-            # If job was entered into DB, submit a classify job for all images in source.
-            classifier = Classifier.objects.get(pk=pk)
-            for image in Image.objects.filter(source=classifier.source, features__extracted=True, confirmed=False):
-                classify_image.apply_async(args=[image.id], eta=now() + timedelta(seconds = 10))
-    elif task == 'deploy':
-        # TODO, make the collectors public
-        th._deploycollector(messagebody)
+        elif task_name == 'train_classifier':
+            if th.classifiercollector(task, res):
+                # If successful, submit a classify job for all imgs in source.
+                classifier = Classifier.objects.get(pk=pk)
+                for image in Image.objects.filter(source=classifier.source,
+                                                  features__extracted=True,
+                                                  confirmed=False):
+                    classify_image.apply_async(
+                        args=[image.id],
+                        eta=now() + timedelta(seconds=10))
+        elif job_res.original_job.task_name == 'classify_image':
+            th.deploycollector(task, res)
 
-    else:
-        logger.error('Job task type {} not recognized'.format(task))
-    
-    # Conclude
-    logger.info("job {}, pk: {} collected successfully".format(task, pk))
-    logger.debug("Collected job with messagebody: {}".format(messagebody))
-    return 1
+        else:
+            logger.error('Job task type {} not recognized'.format(task_name))
+
+        # Conclude
+        logger.info("Collected job: {} with pk: {}".format(task_name, pk))
+        logger.debug("Collected job: {}".format(job_res))
 
 
 @task(name="Reset Source")
 def reset_after_labelset_change(source_id):
-    """
-    The removes ALL TRACES of the vision backend for this source, including:
+    """The removes ALL TRACES of the vision backend for this source, including:
     1) Delete all Score objects for all images
     2) Delete Classifier objects
     3) Sets all image.features.classified = False
     """
-    Score.objects.filter(source_id = source_id).delete()
-    Classifier.objects.filter(source_id = source_id).delete()
-    Annotation.objects.filter(source_id = source_id, user = get_robot_user()).delete()
-    for image in Image.objects.filter(source_id = source_id):
+    Score.objects.filter(source_id=source_id).delete()
+    Classifier.objects.filter(source_id=source_id).delete()
+    Annotation.objects.filter(source_id=source_id,
+                              user=get_robot_user()).delete()
+    for image in Image.objects.filter(source_id=source_id):
         image.features.classified = False
         image.features.save()
 
     # Finally, let's train a new classifier.
-    submit_classifier.apply_async(args = [source_id], eta = now() + timedelta(seconds = 10))
+    submit_classifier.apply_async(args=[source_id],
+                                  eta=now() + timedelta(seconds=10))
 
 
 @task(name="Reset Features")
 def reset_features(image_id):
-    """
-    Resets features for image. Call this after any change that affects the image 
+    """Resets features for image. Call this after any change that affects the image
     point locations. E.g:
     Re-generate point locations.
     Change annotation area.
     Add new poits.
     """
 
-    img = Image.objects.get(pk = image_id)
+    try:
+        img = Image.objects.get(pk=image_id)
+    except Image.DoesNotExist:
+        logger.info("Image {} deleted. Nothing to reset.".format(image_id))
+        return
+
     features = img.features
     features.extracted = False
     features.classified = False
     features.save()
 
     # Re-submit feature extraction.
-    submit_features.apply_async(args = [img.id], eta = now() + timedelta(seconds = 10))
-
-
-
-
+    submit_features.apply_async(args=[img.id],
+                                eta=now() + timedelta(seconds=10))

@@ -111,11 +111,6 @@ backports.csv==1.0.7
 # https://www.crummy.com/software/BeautifulSoup/bs4/doc/#unicode-dammit
 beautifulsoup4>=4.8.1,<4.9
 
-# BeautifulSoup's encoding detection becomes more accurate if chardet or
-# cchardet is installed. chardet is older; cchardet is much faster.
-# Changelog: https://github.com/PyYoshi/cChardet/blob/master/CHANGES.rst
-cchardet==2.1.4
-
 # Scientific computing
 # Changelog: https://numpy.org/devdocs/release.html
 numpy==1.18.1
@@ -185,3 +180,6 @@ tqdm==4.43.0
 # Requires: Markdown
 # Changelog: https://github.com/neutronX/django-markdownx/releases
 django-markdownx==2.0.28
+
+# Import spacer which powers the ML stuff.
+pyspacer==0.2.6

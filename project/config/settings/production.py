@@ -31,6 +31,14 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 WSGI_APPLICATION = 'config.wsgi.application'
 
 # [Custom setting]
+# Which vision backend to use.
+SPACER_QUEUE_CHOICE = 'vision_backend.queues.SQSQueue'
+
+# Configure the SQS queue name to use
+SQS_JOBS = 'coralnet_prod_jobs'
+SQS_RES = 'coralnet_prod_results'
+
+# [Custom setting]
 # Front page carousel images.
 CAROUSEL_IMAGE_COUNT = 5
 CAROUSEL_IMAGE_POOL = [

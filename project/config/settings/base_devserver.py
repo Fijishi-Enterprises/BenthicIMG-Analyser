@@ -32,6 +32,14 @@ CSRF_COOKIE_SECURE = False
 SECURE_PROXY_SSL_HEADER = None
 
 # [Custom setting]
+# Which backend queue to use.
+SPACER_QUEUE_CHOICE = 'vision_backend.queues.LocalQueue'
+
+# Configure the SQS queue name to use
+SQS_JOBS = 'spacer_test_jobs'
+SQS_RES = 'spacer_test_results'
+
+# [Custom setting]
 # Front page carousel images.
 # Count = number of images in the carousel each time you load the front page.
 # Pool = list of image IDs to randomly choose from, e.g. [26, 79, 104].
@@ -49,3 +57,7 @@ SECURE_PROXY_SSL_HEADER = None
 # count to 0 and set pool to [].
 CAROUSEL_IMAGE_COUNT = 0
 CAROUSEL_IMAGE_POOL = []
+
+
+# Change to using only 1 worker here for more predictable results.
+CELERYD_CONCURRENCY = 1

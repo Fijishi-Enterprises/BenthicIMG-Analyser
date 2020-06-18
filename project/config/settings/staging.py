@@ -3,7 +3,6 @@
 from .production import *
 
 
-
 # Instead of routing emails through a mail server,
 # just write emails to the filesystem.
 EMAIL_BACKEND = 'django.core.mail.backends.filebased.EmailBackend'

@@ -164,6 +164,8 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
             cls.user, cls.source,
             image_options=dict(filename='3.png', width=200, height=100))
 
+        cls.image_dimensions = (200, 100)
+
         # Get full diff output if something like an assertEqual fails
         cls.maxDiff = None
 
@@ -195,7 +197,7 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
         """
         cpc_files = [
             self.make_cpc_file(
-                '1.cpc',
+                self.image_dimensions, '1.cpc',
                 r"C:\My Photos\2017-05-13 GBR\1.png", [
                     (50*15, 50*15, ''),
                     (60*15, 40*15, ''),
@@ -203,7 +205,7 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
                     (80*15, 20*15, ''),
                     (90*15, 10*15, '')]),
             self.make_cpc_file(
-                '2.cpc',
+                self.image_dimensions, '2.cpc',
                 r"C:\My Photos\2017-05-13 GBR\2.png", [
                     (0, 0, ''),
                     (2992, 1492, ''),
@@ -306,12 +308,12 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
         """
         cpc_files = [
             self.make_cpc_file(
-                '1.cpc',
+                self.image_dimensions, '1.cpc',
                 r"C:\My Photos\2017-05-13 GBR\1.png", [
                     (50*15, 50*15, 'A'),
                     (60*15, 40*15, 'B')]),
             self.make_cpc_file(
-                '2.cpc',
+                self.image_dimensions, '2.cpc',
                 r"C:\My Photos\2017-05-13 GBR\2.png", [
                     (70*15, 30*15, 'A'),
                     (80*15, 20*15, 'A')]),
@@ -414,17 +416,17 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
         """
         cpc_files = [
             self.make_cpc_file(
-                '1.cpc',
+                self.image_dimensions, '1.cpc',
                 r"C:\My Photos\2017-05-13 GBR\1.png", [
                     (50*15, 50*15, 'A'),
                     (60*15, 40*15, 'B')]),
             self.make_cpc_file(
-                '2.cpc',
+                self.image_dimensions, '2.cpc',
                 r"C:\My Photos\2017-05-13 GBR\2.png", [
                     (70*15, 30*15, 'A'),
                     (80*15, 20*15, '')]),
             self.make_cpc_file(
-                '3.cpc',
+                self.image_dimensions, '3.cpc',
                 r"C:\My Photos\2017-05-13 GBR\3.png", [
                     (70*15, 30*15, ''),
                     (80*15, 20*15, '')]),
@@ -548,17 +550,17 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
         """
         cpc_files = [
             self.make_cpc_file(
-                '1.cpc',
+                self.image_dimensions, '1.cpc',
                 r"C:\My Photos\2017-05-13 GBR\1.png", [
                     (50*15, 50*15, 'A'),
                     (60*15, 40*15, 'B')]),
             self.make_cpc_file(
-                '2.cpc',
+                self.image_dimensions, '2.cpc',
                 r"C:\My Photos\2017-05-13 GBR\2.png", [
                     (70*15, 30*15, 'A'),
                     (80*15, 20*15, '')]),
             self.make_cpc_file(
-                '3.cpc',
+                self.image_dimensions, '3.cpc',
                 r"C:\My Photos\2017-05-13 GBR\3.png", [
                     (70*15, 30*15, ''),
                     (80*15, 20*15, '')]),
@@ -568,17 +570,17 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
 
         cpc_files = [
             self.make_cpc_file(
-                '1.cpc',
+                self.image_dimensions, '1.cpc',
                 r"C:\My Photos\2017-05-13 GBR\1.png", [
                     (10*15, 10*15, 'A'),
                     (20*15, 20*15, 'A')]),
             self.make_cpc_file(
-                '2.cpc',
+                self.image_dimensions, '2.cpc',
                 r"C:\My Photos\2017-05-13 GBR\2.png", [
                     (30*15, 30*15, ''),
                     (40*15, 40*15, '')]),
             self.make_cpc_file(
-                '3.cpc',
+                self.image_dimensions, '3.cpc',
                 r"C:\My Photos\2017-05-13 GBR\3.png", [
                     (50*15, 50*15, 'A'),
                     (60*15, 60*15, 'B')]),
@@ -695,7 +697,7 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
 
         cpc_files = [
             self.make_cpc_file(
-                '1.cpc',
+                self.image_dimensions, '1.cpc',
                 r"C:\My Photos\2017-05-13 GBR\1.png", [
                     (60*15, 40*15, 'aBc')]),
         ]
@@ -774,11 +776,14 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
         """
         cpc_files = [
             self.make_cpc_file(
-                '1.cpc',
+                self.image_dimensions, '1.cpc',
                 r"C:\My Photos\2017-05-13 GBR\1.png", [
                     (50*15, 50*15, 'A')]),
+            # image parameter is just for getting image dimensions.
+            # This cpc should be skipped anyway, so we don't care which image
+            # we pass in.
             self.make_cpc_file(
-                '4.cpc',
+                self.image_dimensions, '4.cpc',
                 r"C:\My Photos\2017-05-13 GBR\4.png", [
                     (60*15, 40*15, 'B')]),
         ]
@@ -858,6 +863,8 @@ class UploadAnnotationsMultipleSourcesTest(UploadAnnotationsBaseTest):
             cls.user, cls.source2,
             image_options=dict(filename='2.png', width=100, height=100))
 
+        cls.image_dimensions = (100, 100)
+
     def test_other_sources_unaffected_csv(self):
         """
         We shouldn't touch images of other sources which happen to have
@@ -897,12 +904,12 @@ class UploadAnnotationsMultipleSourcesTest(UploadAnnotationsBaseTest):
         # Upload to source 2
         cpc_files = [
             self.make_cpc_file(
-                '1.cpc',
+                self.image_dimensions, '1.cpc',
                 r"C:\My Photos\2017-05-13 GBR\1.png", [
                     (10*15, 10*15, 'B'),
                     (20*15, 20*15, 'B')]),
             self.make_cpc_file(
-                '2.cpc',
+                self.image_dimensions, '2.cpc',
                 r"C:\My Photos\2017-05-13 GBR\2.png", [
                     (15*15, 15*15, 'A'),
                     (25*15, 25*15, 'A')]),
@@ -913,12 +920,12 @@ class UploadAnnotationsMultipleSourcesTest(UploadAnnotationsBaseTest):
         # Upload to source 1
         cpc_files = [
             self.make_cpc_file(
-                '1.cpc',
+                self.image_dimensions, '1.cpc',
                 r"C:\My Photos\2017-05-13 GBR\1.png", [
                     (50*15, 50*15, 'A')]),
             # This image doesn't exist in source 1
             self.make_cpc_file(
-                '2.cpc',
+                self.image_dimensions, '2.cpc',
                 r"C:\My Photos\2017-05-13 GBR\2.png", [
                     (60*15, 40*15, 'B')]),
         ]
@@ -1029,6 +1036,9 @@ class UploadAnnotationsContentsTest(UploadAnnotationsBaseTest):
             cls.user, cls.source,
             image_options=dict(filename='2.png', width=100, height=200))
 
+        cls.image_dimensions_1 = (200, 100)
+        cls.image_dimensions_2 = (100, 200)
+
     def do_success_csv(self, point_data, expected_points_set):
         rows = [['1.png']+list(p) for p in point_data]
         if len(rows[0]) == 3:
@@ -1060,10 +1070,13 @@ class UploadAnnotationsContentsTest(UploadAnnotationsBaseTest):
 
     def do_success_cpc(self, point_data, expected_points_set):
         if len(point_data[0]) == 2:
+            # point_data elements have (column, row). Add a blank label code.
             point_data = [p+('',) for p in point_data]
         cpc_files = [
             self.make_cpc_file(
-                '1.cpc', r"C:\My Photos\2017-05-13 GBR\1.png", point_data)]
+                self.image_dimensions_1,
+                '1.cpc', r"C:\My Photos\2017-05-13 GBR\1.png",
+                point_data)]
         self.preview_cpc_annotations(self.user, self.source, cpc_files)
         self.upload_annotations(self.user, self.source)
 
@@ -1077,7 +1090,9 @@ class UploadAnnotationsContentsTest(UploadAnnotationsBaseTest):
             point_data = [p+('',) for p in point_data]
         cpc_files = [
             self.make_cpc_file(
-                '1.cpc', r"C:\My Photos\2017-05-13 GBR\1.png", point_data)]
+                self.image_dimensions_1,
+                '1.cpc', r"C:\My Photos\2017-05-13 GBR\1.png",
+                point_data)]
         preview_response = self.preview_cpc_annotations(
             self.user, self.source, cpc_files)
 
@@ -1292,10 +1307,13 @@ class UploadAnnotationsContentsTest(UploadAnnotationsBaseTest):
 
     def test_no_specified_images_found_in_source_cpc(self):
         cpc_files = [
+            # We don't care which image we pass as the first parameter.
             self.make_cpc_file(
+                self.image_dimensions_1,
                 '3.cpc', r"C:\My Photos\2017-05-13 GBR\3.png", [
                     (50*15, 50*15, '')]),
             self.make_cpc_file(
+                self.image_dimensions_1,
                 '4.cpc', r"C:\My Photos\2017-05-13 GBR\4.png", [
                     (60*15, 40*15, '')]),
         ]
@@ -1330,6 +1348,8 @@ class UploadAnnotationsFormatTest(UploadAnnotationsBaseTest):
         cls.imgA = cls.upload_image(
             cls.user, cls.source,
             image_options=dict(filename='あ.png', width=100, height=100))
+
+        cls.image_dimensions = (100, 100)
 
     def check(self, preview_response, upload_response, img, label_code):
 
@@ -1395,6 +1415,7 @@ class UploadAnnotationsFormatTest(UploadAnnotationsBaseTest):
         # Unicode on the label code, not the filepath.
         cpc_files = [
             self.make_cpc_file(
+                self.image_dimensions,
                 '1.cpc', r"C:\My Photos\2017-05-13 GBR\1.png",
                 [(50*15, 50*15, 'い')]),
         ]
@@ -1421,6 +1442,7 @@ class UploadAnnotationsFormatTest(UploadAnnotationsBaseTest):
         """Don't know if CPC with crlf newlines is possible in practice, but
         might as well test that it works."""
         cpc_file_lf = self.make_cpc_file(
+            self.image_dimensions,
             '1.cpc', r"C:\My Photos\2017-05-13 GBR\1.png",
             [(50*15, 50*15, 'A')])
         cpc_file_crlf_content = cpc_file_lf.read().replace('\n', '\r\n')
@@ -1450,6 +1472,7 @@ class UploadAnnotationsFormatTest(UploadAnnotationsBaseTest):
         """Don't know if CPC with cr newlines is possible in practice, but
         might as well test that it works."""
         cpc_file_lf = self.make_cpc_file(
+            self.image_dimensions,
             '1.cpc', r"C:\My Photos\2017-05-13 GBR\1.png",
             [(50*15, 50*15, 'A')])
         cpc_file_crlf_content = cpc_file_lf.read().replace('\n', '\r')
@@ -1479,6 +1502,7 @@ class UploadAnnotationsFormatTest(UploadAnnotationsBaseTest):
         """Don't know if CPC with UTF-8 BOM is possible in practice, but
         might as well test that it works."""
         cpc_file_lf = self.make_cpc_file(
+            self.image_dimensions,
             '1.cpc', r"C:\My Photos\2017-05-13 GBR\1.png",
             [(50*15, 50*15, 'A')])
         cpc_file_crlf_content = (

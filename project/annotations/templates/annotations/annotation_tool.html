@@ -13,9 +13,13 @@
 {% block page-specific-includes %}
     {% include "static-local-include.html" with type="css" path="css/annotation_tool.css" %}
 
+    {# Mouse/keyboard capturing #}
     {% include "static-local-include.html" with type="js" path="js/mousetrap.min.js" %}
     {% include "static-local-include.html" with type="js" path="js/mousetrap-pause.min.js" %}
+    {# Color picker #}
     {% include "static-local-include.html" with type="js" path="js/jscolor.js" %}
+    {# Reading image metadata #}
+    {% include "static-local-include.html" with type="js" path="js/piexif.js" %}
 
     {% include "static-local-include.html" with type="js" path="js/AnnotationToolSettingsHelper.js" %}
     {% include "static-local-include.html" with type="js" path="js/AnnotationToolImageHelper.js" %}

@@ -18,6 +18,58 @@ var AnnotationToolImageHelper = (function() {
     var redrawSignal = false;
 
 
+    function resetImageExifOrientation(imageAsString) {
+        var exifObj;
+
+        try {
+            exifObj = piexif.load(imageAsString);
+        }
+        catch (e) {
+            if (e.message.includes("invalid file data")
+                    || e.message.includes("'unpack' error")) {
+                // piexifjs couldn't properly load the exif.
+                try {
+                    // Since we can't edit the exif, Plan B: remove the
+                    // entire exif block, just in case the browser is more
+                    // clever than piexifjs and still tries to salvage the
+                    // orientation field.
+                    return piexif.remove(imageAsString);
+                }
+                catch (e) {
+                    if (e.message.includes("not jpeg")) {
+                        // piexifjs couldn't remove the exif either.
+                        // We just leave the image unmodified. Likely there is
+                        // no exif at all. Though there is the off chance that
+                        // we have a PNG with EXIF or something (if so,
+                        // hopefully the browser doesn't recognize it; no
+                        // browsers seem to recognize PNG EXIF as of 2020/06).
+                        return imageAsString;
+                    }
+                    else {
+                        alert(
+                            "Error when loading the image: \"" + e.message
+                            + "\" If the problem persists,"
+                            + " please contact the admins.");
+                        throw e;
+                    }
+                }
+            }
+            else {
+                alert(
+                    "Error when loading the image: \"" + e.message
+                    + "\" If the problem persists,"
+                    + " please contact the admins.");
+                throw e;
+            }
+        }
+
+        // If we're here, we successfully read the exif.
+        // Set the orientation tag to the default value.
+        exifObj['0th'][piexif.ImageIFD.Orientation] = 1;
+        var editedExifStr = piexif.dump(exifObj);
+        return piexif.insert(editedExifStr, imageAsString);
+    }
+
     /* Preload a source image; once it's loaded, swap it in as the image
      * used in the annotation tool.
      *
@@ -49,8 +101,63 @@ var AnnotationToolImageHelper = (function() {
             }
         };
 
-        // Image preloading starts as soon as we set this src attribute.
-        sourceImages[code].imgBuffer.src = sourceImages[code].url;
+        // Download image from URL. Normally setting a DOM Image's src
+        // attribute to the URL is a 'shortcut' for doing this, but:
+        //
+        // 1. Since we are concerned about EXIF orientation screwing up
+        // dimensions assumptions, we want to edit the EXIF before loading the
+        // data into any DOM Image.
+        //
+        // 2. The Image src route could require an intermediate usage of
+        // Canvas.toDataURL(), which would re-encode the image (thus applying
+        // another round of JPEG compression, for example).
+        var imageRequest = new XMLHttpRequest();
+        imageRequest.open('GET', sourceImages[code].url, true);
+        imageRequest.responseType = 'arraybuffer';
+
+        imageRequest.onload = function() {
+            var arrayBuffer = imageRequest.response;
+            if (!arrayBuffer) {
+                alert(
+                    "Error when loading the image: couldn't get arrayBuffer."
+                    + " If the problem persists, please contact the admins.");
+                return;
+            }
+
+            var blob = new Blob([arrayBuffer]);
+            var reader = new FileReader();
+
+            reader.onload = function(event) {
+
+                // Reset the image's EXIF orientation tag to the default value,
+                // so that the browser can't pick up the EXIF orientation and
+                // rotate the displayed image accordingly.
+                //
+                // Perhaps later, we'll give an option to respect the EXIF
+                // orientation here. But it must be done properly, rotating
+                // the point positions as well as the image itself.
+                //
+                // This overall approach of EXIF-editing may not be necessary
+                // in the future, if canvas elements respect the CSS
+                // image-orientation attribute or similar:
+                // https://image-orientation-test.now.sh/
+                var exifEditedDataString = resetImageExifOrientation(
+                    event.target.result);
+
+                // Convert the data string to a base64 URL.
+                var contentType = imageRequest.getResponseHeader(
+                    'content-type');
+                var exifEditedDataURL = (
+                    "data:" + contentType
+                    + ";base64," + btoa(exifEditedDataString));
+
+                // Load the EXIF-edited image into the image canvas.
+                sourceImages[code].imgBuffer.src = exifEditedDataURL;
+            };
+            reader.readAsBinaryString(blob);
+        };
+
+        imageRequest.send(null);
 
         // For debugging, it sometimes helps to load an image that
         // (1) has different image content, so you can tell when it's swapped in, and/or

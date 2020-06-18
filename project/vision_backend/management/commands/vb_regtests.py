@@ -77,7 +77,7 @@ class Command(BaseCommand):
         together with `from .storage_s3 import *` fails. 
         This is likely due to the feature extraction jobs being 
         submitted before the images are done uploading. 
-        Use CELERY_ALWAYS_EAGER = True if this is a problem.
+        Use CELERY_ALWAYS_EAGER = False if this is a problem.
         '''
 
     def create_parser(self, *args, **kwargs):

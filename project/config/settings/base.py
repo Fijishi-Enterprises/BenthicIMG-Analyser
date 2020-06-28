@@ -494,6 +494,15 @@ REST_FRAMEWORK = {
 MAX_CONCURRENT_API_JOBS_PER_USER = 5
 
 
+# easy-thumbnails setting.
+THUMBNAIL_DEFAULT_OPTIONS = {
+    # We don't rotate images according to EXIF orientation, since that would
+    # cause confusion in terms of point positions and annotation area.
+    # For consistency, here we apply this policy to thumbnails too, not just
+    # original images.
+    'exif_orientation': False,
+}
+
 # [Custom settings]
 # Media filepath patterns
 IMAGE_FILE_PATTERN = 'images/{name}{extension}'

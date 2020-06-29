@@ -84,6 +84,15 @@ def annotation_area_edit(request, image_id):
 
     # Scale down the image to have a max width of 800 pixels.
     MAX_DISPLAY_WIDTH = 800
+    if image.original_width > MAX_DISPLAY_WIDTH:
+        # Parameters into the easy_thumbnails template tag:
+        # (specific width, height that keeps the aspect ratio)
+        thumbnail_dimensions = (MAX_DISPLAY_WIDTH, 0)
+        has_thumbnail = True
+    else:
+        # No thumbnail needed
+        thumbnail_dimensions = None
+        has_thumbnail = False
 
     # jQuery UI resizing with containment isn't subpixel-precise, so
     # the display height is rounded to an int.  Thus, need to track
@@ -101,12 +110,12 @@ def annotation_area_edit(request, image_id):
         widthScaleFactor=width_scale_factor,
         heightScaleFactor=height_scale_factor,
     )
-    thumbnail_dimensions = (display_width, display_height)
 
     return render(request, 'annotations/annotation_area_edit.html', {
         'source': source,
         'image': image,
         'dimensions': json.dumps(dimensions),
+        'has_thumbnail': has_thumbnail,
         'thumbnail_dimensions': thumbnail_dimensions,
         'annotationAreaForm': annotation_area_form,
     })

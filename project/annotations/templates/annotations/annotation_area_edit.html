@@ -32,8 +32,17 @@
     </form>
 
     <div id="image_container">
-        <img id="image" src="{% thumbnail image.original_file thumbnail_dimensions %}" />
-        <div id="annoarea_box"></div>
+      {% if has_thumbnail %}
+        <img id="image"
+             src="{% thumbnail image.original_file thumbnail_dimensions %}"
+             alt="{{ image.metadata.name }}" />
+      {% else %}
+        <img id="image"
+             src="{{ image.original_file.url }}"
+             alt="{{ image.metadata.name }}" />
+      {% endif %}
+
+      <div id="annoarea_box"></div>
     </div>
 
     <!-- Script in the body will run on page load. -->

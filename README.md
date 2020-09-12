@@ -1,6 +1,6 @@
 # CoralNet
 
-[![Build Status](https://travis-ci.org/beijbom/coralnet.svg?branch=master)](https://travis-ci.org/beijbom/coralnet)
+[![Build Status](https://travis-ci.com/beijbom/coralnet.svg?branch=master)](https://travis-ci.com/beijbom/coralnet)
 
 CoralNet is a website which serves as a repository and resource for benthic image analysis.
 

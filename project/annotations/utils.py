@@ -9,8 +9,7 @@ from django.utils import timezone
 from accounts.utils import get_robot_user, is_robot_user, get_alleviate_user
 from .models import Annotation
 from images.model_utils import PointGen
-from images.models import Image, Point
-from vision_backend.tasks import submit_classifier
+from images.models import Point
 
 
 def image_annotation_all_done(image):
@@ -127,18 +126,17 @@ def get_annotation_version_user_display(anno_version, date_created):
         return user.username
 
 
-def apply_alleviate(image_id, label_scores_all_points):
+def apply_alleviate(img, label_scores_all_points):
     """
     Apply alleviate to a particular image: auto-accept top machine suggestions
     based on the source's confidence threshold.
 
-    :param image_id: id of the image.
+    :param img: the Image to apply Alleviate to.
     :param label_scores_all_points: the machine's assigned label scores for
       each point of the image. These are confidence scores out of 100,
       like the source's confidence threshold.
     :return: nothing.
     """
-    img = Image.objects.get(id=image_id)
     source = img.source
     
     if source.confidence_threshold > 99:
@@ -163,14 +161,24 @@ def apply_alleviate(image_id, label_scores_all_points):
             alleviate_was_applied = True
 
     if alleviate_was_applied:
-        after_saving_annotations(img)
+        after_saving_points_or_annotations(img)
 
 
-def after_saving_annotations(image):
+def after_saving_points_or_annotations(image):
     """
-    Run this function after saving a batch of Annotations for an Image.
+    Run this function after creating, updating, or deleting Annotations for
+    an Image.
     :param image: Image for which Annotations were saved
     """
+    # Refresh `image` just in case it's not synced with the DB.
+    image.refresh_from_db()
+
+    # Update the last_annotation.
+    # If there are no annotations, then first() returns None.
+    last_annotation = image.annotation_set.order_by('-annotation_date').first()
+    image.last_annotation = last_annotation
+    image.save()
+
     # Are all points human annotated?
     all_done = image_annotation_all_done(image)
 
@@ -183,6 +191,11 @@ def after_saving_annotations(image):
             # With a new image confirmed, let's try to train a new
             # robot. The task will simply exit if there are not enough new
             # images or if a robot is already being trained.
+            #
+            # We have to import the task here, instead of at the top of the
+            # module, to avoid circular import issues (VB tasks ->
+            # VB task helpers -> this module).
+            from vision_backend.tasks import submit_classifier
             submit_classifier.apply_async(
                 args=[image.source.id],
                 eta=timezone.now()+datetime.timedelta(seconds=10))

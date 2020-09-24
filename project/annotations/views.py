@@ -20,7 +20,7 @@ from .forms import (
 from .model_utils import AnnotationAreaUtils
 from .models import Annotation, AnnotationToolAccess, AnnotationToolSettings
 from .utils import (
-    after_saving_annotations, apply_alleviate,
+    after_saving_points_or_annotations, apply_alleviate,
     get_annotation_version_user_display, image_annotation_all_done)
 from images.models import Source, Image, Point
 from images.utils import (
@@ -194,10 +194,10 @@ def annotation_tool(request, image_id):
             # Accomplishing this may or may not involve moving Alleviate
             # to a separate request from the main annotation tool request.
             if reversion.is_active():
-                apply_alleviate(image_id, label_scores)
+                apply_alleviate(image, label_scores)
             else:
                 with create_revision():
-                    apply_alleviate(image_id, label_scores)
+                    apply_alleviate(image, label_scores)
         else:
             messages.error(
                 request,
@@ -358,7 +358,7 @@ def save_annotations_ajax(request, image_id):
             " annotations changed at the same time that you submitted."
             " Try again and see if it works.")))
 
-    after_saving_annotations(image)
+    after_saving_points_or_annotations(image)
 
     all_done = image_annotation_all_done(image)
     return JsonResponse(dict(all_done=all_done))

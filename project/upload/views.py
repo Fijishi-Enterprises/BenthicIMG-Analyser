@@ -10,6 +10,7 @@ from django.utils.timezone import now
 from accounts.utils import get_imported_user
 from annotations.model_utils import AnnotationAreaUtils
 from annotations.models import Annotation
+from annotations.utils import after_saving_points_or_annotations
 from images.forms import MetadataForm
 from images.model_utils import PointGen
 from images.models import Source, Metadata, Image, Point
@@ -467,6 +468,8 @@ def upload_annotations_ajax(request, source_id):
         for annotation in new_annotations:
             annotation.save()
 
+        after_saving_points_or_annotations(img)
+
         # Update relevant image/metadata fields.
         img.point_generation_method = PointGen.args_to_db_format(
             point_generation_type=PointGen.Types.IMPORTED,
@@ -489,10 +492,6 @@ def upload_annotations_ajax(request, source_id):
         img.metadata.annotation_area = AnnotationAreaUtils.IMPORTED_STR
         img.metadata.save()
 
-        # Update relevant image status fields.
-        img.confirmed = (len(new_points) == len(new_annotations))
-        img.save()
-        
         # Submit job with 1 hour delay to allow the view and thus DB transaction 
         # to conclude before jobs are submitted.
         # Details: https://github.com/beijbom/coralnet-system/issues/31.

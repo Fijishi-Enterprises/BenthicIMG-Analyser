@@ -20,7 +20,11 @@ from .models import Source, Image, SourceInvite, Metadata
 from .utils import get_map_sources
 from annotations.forms import AnnotationAreaPercentsForm
 from annotations.model_utils import AnnotationAreaUtils
-from annotations.utils import image_annotation_area_is_editable, image_has_any_human_annotations, get_sitewide_annotation_count
+from annotations.utils import (
+    after_saving_points_or_annotations,
+    get_sitewide_annotation_count,
+    image_annotation_area_is_editable,
+    image_has_any_human_annotations)
 from labels.models import LabelGroup
 from annotations.models import Annotation
 from newsfeed.models import NewsItem
@@ -555,11 +559,11 @@ def image_delete_annotations(request, image_id):
     Delete an image's annotations.
     """
     image = get_object_or_404(Image, id=image_id)
-
     for ann in Annotation.objects.filter(image=image):
         ann.delete()
-    image.confirmed = False
-    image.save()
+
+    after_saving_points_or_annotations(image)
+
     backend_tasks.classify_image.apply_async(
         args=[image_id], eta=now()+timedelta(seconds=10))
 

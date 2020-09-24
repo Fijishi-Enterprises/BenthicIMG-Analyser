@@ -690,6 +690,62 @@ class SaveAnnotationsTest(ClientTest):
         # Image should be marked as confirmed
         self.assertTrue(self.img.confirmed)
 
+    def test_last_annotation_updated(self):
+        """last_annotation field of the Image should get updated."""
+
+        # For some reason this is needed when running the whole test class,
+        # but not when running this individual test.
+        self.img.refresh_from_db()
+
+        self.assertIsNone(
+            self.img.last_annotation,
+            msg="Should not have a last annotation yet")
+
+        # Annotate point 3
+        data = dict(
+            label_1='', label_2='', label_3='B',
+            robot_1='null', robot_2='null', robot_3='false',
+        )
+        self.client.force_login(self.user)
+        self.client.post(self.url, data)
+        self.img.refresh_from_db()
+        self.assertEqual(
+            self.img.last_annotation.point.point_number, 3,
+            msg="Last annotation should be updated")
+
+        # Annotate point 1
+        data = dict(
+            label_1='A', label_2='', label_3='B',
+            robot_1='false', robot_2='null', robot_3='false',
+        )
+        self.client.post(self.url, data)
+        self.img.refresh_from_db()
+        self.assertEqual(
+            self.img.last_annotation.point.point_number, 1,
+            msg="Last annotation should be updated")
+
+        # Update point 3's annotation
+        data = dict(
+            label_1='A', label_2='', label_3='A',
+            robot_1='false', robot_2='null', robot_3='false',
+        )
+        self.client.post(self.url, data)
+        self.img.refresh_from_db()
+        self.assertEqual(
+            self.img.last_annotation.point.point_number, 3,
+            msg="Last annotation should be updated")
+
+        # Make the 'confirmed' status update
+        data = dict(
+            label_1='A', label_2='B', label_3='A',
+            robot_1='false', robot_2='false', robot_3='false',
+        )
+        self.client.post(self.url, data)
+        self.img.refresh_from_db()
+        self.assertEqual(
+            self.img.last_annotation.point.point_number, 2,
+            msg="Last annotation should be updated")
+
     def test_label_code_missing(self):
         """This isn't supposed to happen unless we screwed up or the user
         crafted POST data.
@@ -877,6 +933,35 @@ class AlleviateTest(ClientTest):
         self.assertTrue(self.img.confirmed)
         all_done_response = self.client.get(self.all_done_url).json()
         self.assertTrue(all_done_response['all_done'])
+
+    def test_last_annotation_updated(self):
+        """
+        last_annotation field of the Image should get updated, AND should be
+        correctly reflected on the annotation tool page.
+        """
+        robot = self.create_robot(self.source)
+        self.add_robot_annotations(
+            robot, self.img, {1: ('A', 81), 2: ('B', 79)})
+
+        self.img.refresh_from_db()
+        self.assertEqual(
+            self.img.last_annotation.point.point_number, 2,
+            msg="Last annotation should be on the last point")
+
+        # Trigger Alleviate on point 1
+        self.client.force_login(self.user)
+        response = self.client.get(self.tool_url)
+
+        self.img.refresh_from_db()
+        self.assertEqual(
+            self.img.last_annotation.point.point_number, 1,
+            msg="Last annotation should be updated")
+
+        self.assertContains(
+            response, "Last annotation update: Alleviate",
+            msg_prefix=(
+                "The updated last annotation should show on the"
+                " annotation tool"))
 
 
 class SettingsTest(ClientTest):

@@ -664,6 +664,17 @@ class Image(models.Model):
 
     source = models.ForeignKey(Source, on_delete=models.CASCADE)
 
+    # Latest updated annotation for this image. This is a redundant field, but
+    # necessary for performance of queries such as 'find the 20 most recently
+    # annotated images'.
+    last_annotation = models.ForeignKey(
+        'annotations.Annotation', on_delete=models.SET_NULL,
+        editable=False, null=True,
+        # + means don't define a reverse relation. It wouldn't be helpful, and
+        # the default name for the relation would clash with the already
+        # existing relation `Annotation.image`.
+        related_name='+')
+
     @property
     def valset(self):
         return self.pk % 8 == 0

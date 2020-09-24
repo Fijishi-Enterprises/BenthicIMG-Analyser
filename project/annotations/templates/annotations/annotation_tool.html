@@ -235,6 +235,12 @@
 <ul class="detail_list">
     <li>Annotation points: {{ image.point_gen_method_display }}</li>
     <li>Annotation area: {{ image.annotation_area_display|default:"(Not specified)" }}</li>
+
+    {% if image.last_annotation %}
+      <li>
+        Last annotation update: {{ image.last_annotation.user }} on {{ image.last_annotation.annotation_date }}
+      </li>
+    {% endif %}
 </ul>
     
 

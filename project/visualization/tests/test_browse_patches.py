@@ -51,9 +51,12 @@ class SearchTest(ClientTest):
             aux1='', aux2='', aux3='', aux4='', aux5='',
             height_in_cm='', latitude='', longitude='', depth='',
             photographer='', framing='', balance='',
-            date_filter_0='year', date_filter_1='',
-            date_filter_2='', date_filter_3='',
-            annotation_status='', label='', annotator='',
+            photo_date_0='', photo_date_1='', photo_date_2='',
+            photo_date_3='', photo_date_4='',
+            image_name='', annotation_status='', label='',
+            annotation_date_0='', annotation_date_1='', annotation_date_2='',
+            annotation_date_3='', annotation_date_4='',
+            annotator_0='', annotator_1='',
         )
 
     def test_page_landing(self):
@@ -132,7 +135,7 @@ class SearchTest(ClientTest):
         field = search_form.fields['label']
         self.assertListEqual(
             list(field.choices),
-            [('', "All"),
+            [('', "Any"),
              (self.source.labelset.get_global_by_code('A').pk, "A"),
              (self.source.labelset.get_global_by_code('B').pk, "B")]
         )
@@ -146,7 +149,8 @@ class SearchTest(ClientTest):
             {4: 'A', 5: 'A'})
 
         post_data = self.default_search_params.copy()
-        post_data['annotator'] = self.user.pk
+        post_data['annotator_0'] = 'annotation_tool'
+        post_data['annotator_1'] = self.user.pk
 
         self.client.force_login(self.user)
         response = self.client.post(self.url, post_data)
@@ -165,10 +169,10 @@ class SearchTest(ClientTest):
         response = self.client.get(self.url)
 
         search_form = response.context['patch_search_form']
-        field = search_form.fields['annotator']
+        field = search_form.fields['annotator'].fields[1]
         self.assertListEqual(
             list(field.choices),
-            [('', "All"), (self.user.pk, self.user.username),
+            [('', "Any user"), (self.user.pk, self.user.username),
              (self.user_editor.pk, self.user_editor.username)]
         )
 
@@ -208,9 +212,12 @@ class NoLabelsetTest(ClientTest):
             aux1='', aux2='', aux3='', aux4='', aux5='',
             height_in_cm='', latitude='', longitude='', depth='',
             photographer='', framing='', balance='',
-            date_filter_0='year', date_filter_1='',
-            date_filter_2='', date_filter_3='',
-            annotation_status='', label='', annotator='',
+            photo_date_0='', photo_date_1='', photo_date_2='',
+            photo_date_3='', photo_date_4='',
+            image_name='', annotation_status='', label='',
+            annotation_date_0='', annotation_date_1='', annotation_date_2='',
+            annotation_date_3='', annotation_date_4='',
+            annotator_0='', annotator_1='',
         )
 
     def test_default_search(self):

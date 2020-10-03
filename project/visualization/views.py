@@ -34,22 +34,21 @@ def browse_images(request, source_id):
 
     # Defaults
     empty_message = "No image results."
-    image_search_form = ImageSearchForm(
-        source=source, has_annotation_status=True)
+    image_search_form = ImageSearchForm(source=source)
     hidden_image_form = None
 
     # The primary way to filter images is by POST params due to the possible
     # length of some of the params. However, in some cases like the source main
     # page's image-status links, it can be easier to use GET.
-    image_form = create_image_filter_form(
-        request.POST or request.GET, source, has_annotation_status=True)
+    image_form = create_image_filter_form(request.POST or request.GET, source)
     if image_form:
         if image_form.is_valid():
             image_results = image_form.get_images()
             hidden_image_form = HiddenForm(forms=[image_form])
         else:
-            image_results = Image.objects.none()
             empty_message = "Search parameters were invalid."
+            # If this isn't ordered, paginate() emits a warning.
+            image_results = Image.objects.none().order_by('pk')
 
         # If a search form was submitted, use that as the displayed
         # search form. Otherwise we'll display a default-values search form.
@@ -57,9 +56,7 @@ def browse_images(request, source_id):
             image_search_form = image_form
     else:
         # Coming from a straight link or URL entry
-        image_results = Image.objects.filter(source=source)
-
-    image_results = image_results.order_by('metadata__name')
+        image_results = source.image_set.order_by('metadata__name', 'pk')
 
     page_results = paginate(
         image_results,
@@ -109,11 +106,10 @@ def edit_metadata(request, source_id):
 
     # Defaults
     empty_message = "No image results."
-    image_search_form = ImageSearchForm(
-        source=source, has_annotation_status=True)
+    image_search_form = ImageSearchForm(source=source, for_edit_metadata=True)
 
     image_form = create_image_filter_form(
-        request.POST or request.GET, source, has_annotation_status=True)
+        request.POST or request.GET, source, for_edit_metadata=True)
     if image_form:
         if image_form.is_valid():
             image_results = image_form.get_images()
@@ -129,7 +125,14 @@ def edit_metadata(request, source_id):
         # Coming from a straight link or URL entry
         image_results = Image.objects.filter(source=source)
 
-    image_results = image_results.order_by('metadata__name')
+    # Sort options aren't supported for Edit Metadata for now. The part we
+    # can't (efficiently) do yet is the transformation from a sorted image
+    # queryset to a sorted metadata queryset. Maybe if Image-Metadata were
+    # defined as a one-to-one relationship, it'd be possible, because we'd
+    # be able to do Metadata lookups like `image__last_annotation`.
+    #
+    # But for now, we always just sort by image name.
+    image_results = image_results.order_by('metadata__name', 'pk')
     num_images = image_results.count()
 
     # Formset of MetadataForms.
@@ -189,12 +192,12 @@ def browse_patches(request, source_id):
     )
     annotation_results = Annotation.objects.none()
     image_search_form = ImageSearchForm(
-        source=source, has_annotation_status=False)
+        source=source, for_browse_patches=True)
     patch_search_form = PatchSearchOptionsForm(source=source)
     hidden_image_and_patch_form = None
 
     image_form = create_image_filter_form(
-        request.POST or request.GET, source, has_annotation_status=False)
+        request.POST or request.GET, source, for_browse_patches=True)
     if request.POST:
         patch_search_form = PatchSearchOptionsForm(request.POST, source=source)
 
@@ -307,8 +310,7 @@ def browse_delete_ajax(request, source_id):
     """
     source = get_object_or_404(Source, id=source_id)
 
-    image_form = create_image_filter_form(
-        request.POST, source, has_annotation_status=True)
+    image_form = create_image_filter_form(request.POST, source)
     if not image_form:
         # There's nothing invalid about a user wanting to delete all images
         # in the source, but it's somewhat plausible that we'd accidentally

@@ -137,7 +137,7 @@ class ImageSetTest(BaseExportTest):
         self.upload_image(self.user, self.source)
 
         post_data = self.default_search_params.copy()
-        post_data['date_filter_0'] = 'abc'
+        post_data['photo_date_0'] = 'abc'
         response = self.export_image_covers(post_data)
 
         # Display an error in HTML instead of serving CSV.

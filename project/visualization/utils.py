@@ -8,20 +8,24 @@ from io import BytesIO
 import django.db.models.fields as model_fields
 from PIL import Image as PILImage
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.core.files.storage import get_storage_class
 from django.db.models import Q
 
-from images.models import Point, Image, Metadata
+from images.models import Point, Metadata
+
+User = get_user_model()
 
 
 def image_search_kwargs_to_queryset(search_kwargs, source):
     # Q objects which will be ANDed together at the end
     qs = []
 
-    # Date
-    date_filter_kwargs = search_kwargs.get('date_filter', None)
-    if date_filter_kwargs:
-        qs.append(Q(**date_filter_kwargs))
+    # Multi-value fields already have the search kwargs passed in
+    for field_name in ['photo_date', 'last_annotated', 'last_annotator']:
+        field_kwargs = search_kwargs.get(field_name, None)
+        if field_kwargs:
+            qs.append(Q(**field_kwargs))
 
     # Metadata fields
     metadata_kwargs = dict()
@@ -78,10 +82,49 @@ def image_search_kwargs_to_queryset(search_kwargs, source):
 
     # AND all of the constraints so far, and remember to search within
     # the source
-    image_results = Image.objects.filter(
-        reduce(operator.and_, qs), source=source)
+    image_results = source.image_set.filter(reduce(operator.and_, qs))
+
+    # Sorting
+
+    sort_method = search_kwargs.get('sort_method', 'name')
+    sort_direction = search_kwargs.get('sort_direction', 'asc')
+
+    # Add pk as a secondary key when needed to create an unambiguous ordering.
+    # TODO: For nullable dates, we need some extra work to make NULL handling well-defined.
+    if sort_method == 'photo_date':
+        sort_fields = ['metadata__photo_date', 'pk']
+    elif sort_method == 'last_annotation_date':
+        sort_fields = ['last_annotation__annotation_date', 'pk']
+    elif sort_method == 'name':
+        # metadata__name is SUPPOSED to be unique for each image, but
+        # occasionally it's not due to a bug (issue #251), so we also use pk.
+        # TODO: Natural-sort by name.
+        sort_fields = ['metadata__name', 'pk']
+    else:
+        # 'upload_date'
+        sort_fields = ['pk']
+
+    if sort_direction == 'asc':
+        sort_keys = sort_fields
+    else:
+        # 'desc'
+        sort_keys = ['-'+field for field in sort_fields]
+
+    image_results = image_results.order_by(*sort_keys)
 
     return image_results
+
+
+def get_annotation_tool_users(source):
+    annotations = source.annotation_set.all()
+    return (
+        User.objects.filter(annotation__in=annotations)
+        .order_by('username')
+        .distinct()
+        .exclude(username__in=[
+            settings.IMPORTED_USERNAME, settings.ROBOT_USERNAME,
+            settings.ALLEVIATE_USERNAME])
+    )
 
 
 def get_patch_path(point_id):

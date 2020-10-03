@@ -132,9 +132,13 @@ class NavigationTest(ClientTest):
             aux1='', aux2='', aux3='', aux4='', aux5='',
             height_in_cm='', latitude='', longitude='', depth='',
             photographer='', framing='', balance='',
-            date_filter_0='year', date_filter_1='',
-            date_filter_2='', date_filter_3='',
-            annotation_status='',
+            photo_date_0='', photo_date_1='', photo_date_2='',
+            photo_date_3='', photo_date_4='',
+            image_name='', annotation_status='',
+            last_annotated_0='', last_annotated_1='', last_annotated_2='',
+            last_annotated_3='', last_annotated_4='',
+            last_annotator_0='', last_annotator_1='',
+            sort_method='name', sort_direction='asc',
         )
 
     def test_next(self):
@@ -178,7 +182,7 @@ class NavigationTest(ClientTest):
         response = self.client.post(
             reverse('annotation_tool', args=[self.img1.pk]), post_data)
         self.assertEqual(response.context['next_image'].pk, self.img3.pk)
-        self.assertContains(response, "Filtering by: aux1")
+        self.assertContains(response, "Filtering by aux1;")
 
     def test_search_filter_year(self):
         self.img1.metadata.photo_date = datetime.date(2020, 4, 9)
@@ -190,15 +194,15 @@ class NavigationTest(ClientTest):
 
         # Exclude img2 with the filter
         post_data = self.default_search_params.copy()
-        post_data['date_filter_0'] = 'year'
-        post_data['date_filter_1'] = '2020'
+        post_data['photo_date_0'] = 'year'
+        post_data['photo_date_1'] = '2020'
 
         # img1 next -> img3
         self.client.force_login(self.user)
         response = self.client.post(
             reverse('annotation_tool', args=[self.img1.pk]), post_data)
         self.assertEqual(response.context['next_image'].pk, self.img3.pk)
-        self.assertContains(response, "Filtering by: year")
+        self.assertContains(response, "Filtering by photo date;")
 
     def test_search_filter_date(self):
         self.img1.metadata.photo_date = datetime.date(2020, 4, 1)
@@ -210,15 +214,15 @@ class NavigationTest(ClientTest):
 
         # Exclude img2 with the filter
         post_data = self.default_search_params.copy()
-        post_data['date_filter_0'] = 'date'
-        post_data['date_filter_2'] = '2020-04-01'
+        post_data['photo_date_0'] = 'date'
+        post_data['photo_date_2'] = '2020-04-01'
 
         # img1 next -> img3
         self.client.force_login(self.user)
         response = self.client.post(
             reverse('annotation_tool', args=[self.img1.pk]), post_data)
         self.assertEqual(response.context['next_image'].pk, self.img3.pk)
-        self.assertContains(response, "Filtering by: date")
+        self.assertContains(response, "Filtering by photo date;")
 
     def test_search_filter_date_range(self):
         self.img1.metadata.photo_date = datetime.date(2020, 3, 18)
@@ -230,16 +234,16 @@ class NavigationTest(ClientTest):
 
         # Exclude img2 with the filter
         post_data = self.default_search_params.copy()
-        post_data['date_filter_0'] = 'date_range'
-        post_data['date_filter_3'] = '2020-03-10'
-        post_data['date_filter_4'] = '2020-03-20'
+        post_data['photo_date_0'] = 'date_range'
+        post_data['photo_date_3'] = '2020-03-10'
+        post_data['photo_date_4'] = '2020-03-20'
 
         # img1 next -> img3
         self.client.force_login(self.user)
         response = self.client.post(
             reverse('annotation_tool', args=[self.img1.pk]), post_data)
         self.assertEqual(response.context['next_image'].pk, self.img3.pk)
-        self.assertContains(response, "Filtering by: date range")
+        self.assertContains(response, "Filtering by photo date;")
 
     def test_image_id_filter(self):
         # Exclude img2 with the filter

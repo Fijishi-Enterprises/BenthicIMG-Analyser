@@ -459,14 +459,11 @@ def image_detail(request, image_id):
         # No thumbnail needed
         thumbnail_dimensions = False
 
-    # Next and previous image links
-    source_images = Image.objects.filter(source=source)
-    next_image = utils.get_next_image(
-        image, source_images,
-        ('metadata__name', image.metadata.name, False), wrap=False)
-    prev_image = utils.get_prev_image(
-        image, source_images,
-        ('metadata__name', image.metadata.name, False), wrap=False)
+    # Next and previous image links.
+    # Ensure the ordering is unambiguous.
+    source_images = source.image_set.order_by('metadata__name', 'pk')
+    next_image = utils.get_next_image(image, source_images, wrap=False)
+    prev_image = utils.get_prev_image(image, source_images, wrap=False)
 
     # Annotation status
     if image.confirmed:

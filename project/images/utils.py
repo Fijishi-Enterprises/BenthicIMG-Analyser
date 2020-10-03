@@ -5,7 +5,7 @@ import math
 import random
 
 from django.conf import settings
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.urls import reverse
 
 from accounts.utils import get_robot_user, get_alleviate_user
@@ -17,77 +17,114 @@ from .model_utils import PointGen
 from .models import Source, Point, Image, Metadata
 
 
-def get_next_image(current_image, image_queryset, ordering, wrap=False):
+def _get_next_images_queryset(current_image, image_queryset):
+    """
+    Get the images that are ordered after current_image, based on the
+    queryset's ordering.
+    """
+    # Start this Q object out as 'always False' because we want to make this
+    # the starting value of an 'OR' reduce chain.
+    # From: https://stackoverflow.com/questions/35893867/
+    filter_q = Q(pk__in=[])
+    # Start this Q object out as 'always True' because we want to make this
+    # the starting value of an 'AND' reduce chain.
+    # From: https://stackoverflow.com/questions/33517468/
+    previous_keys_equal_q = ~Q(pk__in=[])
+
+    # query.order_by example: ['metadata__name', 'pk']
+    #
+    # The query we want gets more complicated depending on the number of
+    # order_by keys:
+    # 1 key: key1 greater
+    # 2 keys: key1 greater OR (key1 equal AND key2 greater)
+    # 3 keys: key1 greater OR (key1 equal AND key2 greater)
+    #   OR (key1 equal AND key2 equal AND key3 greater)
+    # Etc.
+    for ordering_key in image_queryset.query.order_by:
+
+        descending = ordering_key.startswith('-')
+        if not image_queryset.query.standard_ordering:
+            # The queryset's reverse() method was called.
+            descending = not descending
+
+        field_name = ordering_key.lstrip('-')
+
+        current_image_ordering_value = \
+            Image.objects.filter(pk=current_image.pk) \
+            .values_list(field_name, flat=True)[0]
+
+        if current_image_ordering_value is None:
+            # Nullable fields have a complication: we can't specify
+            # `...__gt=None` as a filter kwarg. That gets
+            # `ValueError: Cannot use None as a query value`.
+            # So instead we'll use the fact that None is ordered after all
+            # non-None values. Thus, 'greater than None' means no possible
+            # values, and 'less than None' means all non-None values.
+            if descending:
+                # 'less than None' (all non-None values)
+                current_key_after_q = Q(**{field_name + '__isnull': False})
+            else:
+                # 'greater than None' (always False)
+                current_key_after_q = Q(pk__in=[])
+        else:
+            if descending:
+                # 'less than current value'
+                current_key_after_q = Q(**{
+                    field_name + '__lt': current_image_ordering_value})
+            else:
+                # 'greater than current value' (greater value or None)
+                current_key_after_q = (
+                    Q(**{field_name + '__gt': current_image_ordering_value})
+                    |
+                    Q(**{field_name + '__isnull': True}))
+
+        filter_q = filter_q | (previous_keys_equal_q & current_key_after_q)
+
+        previous_keys_equal_q = previous_keys_equal_q & Q(
+            **{field_name: current_image_ordering_value})
+
+    return image_queryset.filter(filter_q)
+
+
+def get_next_image(current_image, image_queryset, wrap=False):
     """
     Get the next image in the image_queryset, relative to current_image.
-
-    ordering is a tuple.
-    1st element specifies how to order the queryset;
-    this is a string that you could pass into order_by.
-    2nd element is the order-able attribute of current_image.
-    3rd element is True if descending order, False if ascending.
+    image_queryset should already be ordered, with an unambiguous ordering
+    (no ties).
 
     If wrap is True, then the definition of 'next' is extended to allow
     wrapping from the last image to the first.
 
     If there is no next image, return None.
     """
-    ordering_key, current_image_ordering_value, descending = ordering
+    if image_queryset.count() <= 1:
+        return None
 
-    if descending:
-        # Descending order specified
-        kwargs = {ordering_key+'__lt': current_image_ordering_value}
-        ordered_images = image_queryset.order_by(ordering_key).reverse()
-    else:
-        kwargs = {ordering_key+'__gt': current_image_ordering_value}
-        ordered_images = image_queryset.order_by(ordering_key)
-    next_images = ordered_images.filter(**kwargs)
+    next_images = _get_next_images_queryset(current_image, image_queryset)
 
-    if next_images:
+    if next_images.exists():
         return next_images[0]
     elif wrap:
         # No matching images after this image,
         # so we wrap around to the first image.
-
-        if not ordered_images:
-            # No matching images at all.
-            return None
-
-        target_image = ordered_images[0]
-
-        # Don't allow getting the current image as the target image.
-        if target_image.pk == current_image.pk:
-            return None
-        else:
-            return target_image
+        return image_queryset[0]
     else:
         # No matching images after this image, and we're not allowed to wrap.
         return None
 
 
-def get_prev_image(current_image, image_queryset, ordering, wrap=False):
+def get_prev_image(current_image, image_queryset, wrap=False):
     """
     Get the previous image in the image_queryset, relative to current_image.
     """
     # Finding the previous image is equivalent to
     # finding the next image in the reverse queryset.
-    # Reverse the 3rd element, which denotes ascending or descending.
-    ordering = (ordering[0], ordering[1], not ordering[2])
-    return get_next_image(
-        current_image, image_queryset, ordering, wrap)
+    return get_next_image(current_image, image_queryset.reverse(), wrap)
 
 
-def get_image_order_placement(image_queryset, ordering):
-    ordering_key, current_image_ordering_value, descending = ordering
-
-    if descending:
-        # Descending order specified
-        kwargs = {ordering_key + '__gt': current_image_ordering_value}
-        ordered_images = image_queryset.order_by(ordering_key).reverse()
-    else:
-        kwargs = {ordering_key + '__lt': current_image_ordering_value}
-        ordered_images = image_queryset.order_by(ordering_key)
-    prev_images = ordered_images.filter(**kwargs)
+def get_image_order_placement(current_image, image_queryset):
+    prev_images = _get_next_images_queryset(
+        current_image, image_queryset.reverse())
 
     # e.g. if there's 4 images that are ordered before the current image,
     # then we return 5

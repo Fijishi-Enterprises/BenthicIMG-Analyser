@@ -31,9 +31,13 @@ default_search_params = dict(
     aux1='', aux2='', aux3='', aux4='', aux5='',
     height_in_cm='', latitude='', longitude='', depth='',
     photographer='', framing='', balance='',
-    date_filter_0='year', date_filter_1='',
-    date_filter_2='', date_filter_3='',
-    annotation_status='', image_name='',
+    photo_date_0='', photo_date_1='', photo_date_2='',
+    photo_date_3='', photo_date_4='',
+    image_name='', annotation_status='',
+    last_annotated_0='', last_annotated_1='', last_annotated_2='',
+    last_annotated_3='', last_annotated_4='',
+    last_annotator_0='', last_annotator_1='',
+    sort_method='name', sort_direction='asc',
 )
 
 
@@ -87,11 +91,11 @@ class SearchTest(ClientTest):
         # 2 other images left with no date
 
         self.client.force_login(self.user)
-        response = self.submit_search(date_filter_1=2012)
+        response = self.submit_search(photo_date_0='year', photo_date_1=2012)
         self.assertEqual(
             response.context['page_results'].paginator.count, 2)
 
-    def test_filter_by_year_none(self):
+    def test_filter_to_null_date(self):
         self.imgs[0].metadata.photo_date = datetime.date(2011, 12, 28)
         self.imgs[0].metadata.save()
         self.imgs[1].metadata.photo_date = datetime.date(2012, 1, 13)
@@ -101,7 +105,7 @@ class SearchTest(ClientTest):
         # 2 other images left with no date
 
         self.client.force_login(self.user)
-        response = self.submit_search(date_filter_1='(none)')
+        response = self.submit_search(photo_date_0='(none)')
         self.assertEqual(
             response.context['page_results'].paginator.count, 2)
 
@@ -117,12 +121,11 @@ class SearchTest(ClientTest):
         response = self.client.get(self.url)
 
         search_form = response.context['image_search_form']
-        year_field = search_form.fields['date_filter'].fields[1]
+        year_field = search_form.fields['photo_date'].fields[1]
         year_choices = [value for value, label in year_field.choices]
         self.assertListEqual(
             year_choices,
-            ['', 2011, 2012, 2013, '(none)']
-        )
+            ['2011', '2012', '2013'])
 
     def test_filter_by_date(self):
         self.imgs[0].metadata.photo_date = datetime.date(2012, 1, 12)
@@ -135,7 +138,7 @@ class SearchTest(ClientTest):
 
         self.client.force_login(self.user)
         response = self.submit_search(
-            date_filter_0='date', date_filter_2=datetime.date(2012, 1, 13))
+            photo_date_0='date', photo_date_2=datetime.date(2012, 1, 13))
         self.assertEqual(
             response.context['page_results'].paginator.count, 2)
 
@@ -153,9 +156,9 @@ class SearchTest(ClientTest):
 
         self.client.force_login(self.user)
         response = self.submit_search(
-            date_filter_0='date_range',
-            date_filter_3=datetime.date(2012, 3, 10),
-            date_filter_4=datetime.date(2012, 3, 20))
+            photo_date_0='date_range',
+            photo_date_3=datetime.date(2012, 3, 10),
+            photo_date_4=datetime.date(2012, 3, 20))
         self.assertEqual(
             response.context['page_results'].paginator.count, 3)
         # Make sure that it's the middle three images
@@ -414,7 +417,8 @@ class SearchTest(ClientTest):
         self.imgs[3].metadata.save()
 
         self.client.force_login(self.user)
-        response = self.submit_search(date_filter_1=2013, height_in_cm=30)
+        response = self.submit_search(
+            photo_date_0='year', photo_date_1=2013, height_in_cm=30)
         self.assertEqual(
             response.context['page_results'].paginator.count, 1)
 
@@ -464,7 +468,7 @@ class SearchTest(ClientTest):
 
     def test_invalid_search_parameters(self):
         self.client.force_login(self.user)
-        response = self.submit_search(date_filter_0='abc')
+        response = self.submit_search(photo_date_0='abc')
 
         self.assertContains(response, "Search parameters were invalid.")
         self.assertEqual(
@@ -489,8 +493,8 @@ class ResultsAndPagesTest(ClientTest):
 
     def test_zero_results(self):
         post_data = default_search_params.copy()
-        post_data['date_filter_0'] = 'date'
-        post_data['date_filter_2'] = datetime.date(2000, 1, 1)
+        post_data['photo_date_0'] = 'date'
+        post_data['photo_date_2'] = datetime.date(2000, 1, 1)
 
         self.client.force_login(self.user)
         response = self.client.post(self.url, post_data)

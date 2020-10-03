@@ -12,6 +12,7 @@ from django.contrib.auth import get_user_model
 from django.core.files.storage import get_storage_class
 from django.db.models import Q
 
+from accounts.utils import get_alleviate_user, get_imported_user, get_robot_user
 from images.models import Point, Metadata
 
 User = get_user_model()
@@ -116,15 +117,21 @@ def image_search_kwargs_to_queryset(search_kwargs, source):
 
 
 def get_annotation_tool_users(source):
+    """
+    Return a queryset of users who have made annotations using the annotation
+    tool in the given source.
+    """
     annotations = source.annotation_set.all()
-    return (
-        User.objects.filter(annotation__in=annotations)
-        .order_by('username')
+    tool_annotations = annotations.exclude(
+        user__in=[get_robot_user(), get_alleviate_user(), get_imported_user()])
+    # Beware of changing this query; it's performance sensitive. Any changes
+    # should be tried on a source with 100,000s of annotations.
+    tool_user_pks = (
+        tool_annotations.order_by('user')
+        .values_list('user', flat=True)
         .distinct()
-        .exclude(username__in=[
-            settings.IMPORTED_USERNAME, settings.ROBOT_USERNAME,
-            settings.ALLEVIATE_USERNAME])
     )
+    return User.objects.filter(pk__in=tool_user_pks).order_by('username')
 
 
 def get_patch_path(point_id):

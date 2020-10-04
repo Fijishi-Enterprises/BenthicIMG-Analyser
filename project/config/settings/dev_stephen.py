@@ -68,3 +68,16 @@ CAROUSEL_IMAGE_COUNT = 2
 CAROUSEL_IMAGE_POOL = [
     516, 515, 514
 ]
+
+# # Log all database queries.
+# LOGGING['handlers']['database'] = {
+#     'filename': LOG_DIR.child('database.log'),
+#     'class': 'logging.FileHandler',
+#     'level': 'DEBUG',
+#     'formatter': 'standard',
+# }
+# LOGGING['loggers']['django.db.backends'] = {
+#     'handlers': ['database'],
+#     'level': 'DEBUG',
+#     'propagate': True,
+# }

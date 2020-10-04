@@ -1,5 +1,7 @@
 from __future__ import unicode_literals
 from io import BytesIO
+import six
+from unittest import skipIf
 
 from django.core.files.base import ContentFile
 from django_migration_testcase import MigrationTest
@@ -119,6 +121,10 @@ class PointValidationTest(ClientTest):
             point.save()
 
 
+@skipIf(
+    six.PY3,
+    "This migration doesn't work in Python 3; it gets a TypeError in the"
+    " Image model's post_init signal handler.")
 class PopulateLastAnnotationMigrationTest(MigrationTest, ClientTest):
 
     app_name = 'images'

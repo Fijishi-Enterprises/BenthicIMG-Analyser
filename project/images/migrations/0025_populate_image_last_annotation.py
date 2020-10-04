@@ -11,6 +11,11 @@ def populate_last_annotation_field(apps, schema_editor):
     """
     Populate all images' last_annotation foreign key fields.
     This can take a long time.
+
+    NOTE: This doesn't work on Python 3. It gets a TypeError in the Image
+    model's post_init signal handler, specifically when updating the
+    width and height fields. Root cause is unknown.
+    Make sure to run this migration in Python 2.
     """
     Source = apps.get_model('images', 'Source')
 

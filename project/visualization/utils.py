@@ -91,7 +91,6 @@ def image_search_kwargs_to_queryset(search_kwargs, source):
     sort_direction = search_kwargs.get('sort_direction', 'asc')
 
     # Add pk as a secondary key when needed to create an unambiguous ordering.
-    # TODO: For nullable dates, we need some extra work to make NULL handling well-defined.
     if sort_method == 'photo_date':
         sort_fields = ['metadata__photo_date', 'pk']
     elif sort_method == 'last_annotation_date':

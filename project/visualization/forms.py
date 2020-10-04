@@ -1,4 +1,4 @@
-from datetime import timedelta
+import datetime
 
 from django import forms
 from django.core.exceptions import ValidationError
@@ -18,6 +18,8 @@ from images.utils import (
     get_num_aux_fields)
 from labels.models import LabelGroup, Label
 from .utils import get_annotation_tool_users, image_search_kwargs_to_queryset
+
+tz = timezone.get_current_timezone()
 
 
 class DateFilterWidget(MultiWidget):
@@ -77,7 +79,7 @@ class DateFilterWidget(MultiWidget):
                     None,
                     queryset_kwargs[self.date_lookup + '__range'][0],
                     queryset_kwargs[self.date_lookup + '__range'][1]
-                    - timedelta(days=1),
+                    - datetime.timedelta(days=1),
                 ]
             else:
                 return [
@@ -195,7 +197,9 @@ class DateFilterField(MultiValueField):
             queryset_kwargs[self.date_lookup] = None
 
         elif date_filter_type == 'year':
-            if year is None:
+            try:
+                int(year)
+            except ValueError:
                 raise ValidationError("Must specify a year.")
             queryset_kwargs[self.date_lookup + '__year'] = year
 
@@ -206,8 +210,10 @@ class DateFilterField(MultiValueField):
                 # Matching `date` alone just matches exactly 00:00:00 on that
                 # date, so we need to make a range for the entire 24 hours of
                 # the date instead.
+                dt = datetime.datetime(
+                    date.year, date.month, date.day, tzinfo=tz)
                 queryset_kwargs[self.date_lookup + '__range'] = [
-                    date, date + timedelta(days=1)]
+                    dt, dt + datetime.timedelta(days=1)]
             else:
                 queryset_kwargs[self.date_lookup] = date
 
@@ -219,8 +225,13 @@ class DateFilterField(MultiValueField):
             if self.is_datetime_field:
                 # Accept anything from the start of the start date to the end
                 # of the end date.
+                start_dt = datetime.datetime(
+                    start_date.year, start_date.month, start_date.day,
+                    tzinfo=tz)
+                end_dt = datetime.datetime(
+                    end_date.year, end_date.month, end_date.day, tzinfo=tz)
                 queryset_kwargs[self.date_lookup + '__range'] = [
-                    start_date, end_date + timedelta(days=1)]
+                    start_dt, end_dt + datetime.timedelta(days=1)]
             else:
                 queryset_kwargs[self.date_lookup + '__range'] = \
                     [start_date, end_date]

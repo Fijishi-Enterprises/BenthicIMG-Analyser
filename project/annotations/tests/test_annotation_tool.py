@@ -1,18 +1,21 @@
 from __future__ import unicode_literals
 import datetime
+import mock
 import six
 
 from bs4 import BeautifulSoup
 from django.db import IntegrityError
 from django.shortcuts import resolve_url
 from django.urls import reverse
-from mock import patch
+from django.utils import timezone
 
 from accounts.utils import is_alleviate_user, is_robot_user
 from annotations.models import Annotation, AnnotationToolSettings
 from images.model_utils import PointGen
 from images.models import Source
 from lib.tests.utils import BasePermissionTest, ClientTest
+
+tz = timezone.get_current_timezone()
 
 
 class PermissionTest(BasePermissionTest):
@@ -106,6 +109,21 @@ class LoadImageTest(ClientTest):
         self.assertStatusOK(response)
 
 
+default_search_params = dict(
+    image_form_type='search',
+    aux1='', aux2='', aux3='', aux4='', aux5='',
+    height_in_cm='', latitude='', longitude='', depth='',
+    photographer='', framing='', balance='',
+    photo_date_0='', photo_date_1='', photo_date_2='',
+    photo_date_3='', photo_date_4='',
+    image_name='', annotation_status='',
+    last_annotated_0='', last_annotated_1='', last_annotated_2='',
+    last_annotated_3='', last_annotated_4='',
+    last_annotator_0='', last_annotator_1='',
+    sort_method='name', sort_direction='asc',
+)
+
+
 class NavigationTest(ClientTest):
     """
     Test the annotation tool buttons that let you navigate to other images.
@@ -117,145 +135,497 @@ class NavigationTest(ClientTest):
         cls.user = cls.create_user()
 
         cls.source = cls.create_source(cls.user)
-        labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
-        cls.create_labelset(cls.user, cls.source, labels)
+        cls.labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
+        cls.create_labelset(cls.user, cls.source, cls.labels)
 
-        cls.img1 = cls.upload_image(
-            cls.user, cls.source, dict(filename='1.png'))
-        cls.img2 = cls.upload_image(
-            cls.user, cls.source, dict(filename='2.png'))
-        cls.img3 = cls.upload_image(
-            cls.user, cls.source, dict(filename='3.png'))
+        cls.img1 = cls.upload_image(cls.user, cls.source)
+        cls.img2 = cls.upload_image(cls.user, cls.source)
+        cls.img3 = cls.upload_image(cls.user, cls.source)
+        cls.img4 = cls.upload_image(cls.user, cls.source)
+        cls.img5 = cls.upload_image(cls.user, cls.source)
+        # Default ordering is by name, so this ensures they're in order
+        cls.update_multiple_metadatas(
+            'name',
+            [(cls.img1, '1.png'),
+             (cls.img2, '2.png'),
+             (cls.img3, '3.png'),
+             (cls.img4, '4.png'),
+             (cls.img5, '5.png')])
 
-        cls.default_search_params = dict(
-            image_form_type='search',
-            aux1='', aux2='', aux3='', aux4='', aux5='',
-            height_in_cm='', latitude='', longitude='', depth='',
-            photographer='', framing='', balance='',
-            photo_date_0='', photo_date_1='', photo_date_2='',
-            photo_date_3='', photo_date_4='',
-            image_name='', annotation_status='',
-            last_annotated_0='', last_annotated_1='', last_annotated_2='',
-            last_annotated_3='', last_annotated_4='',
-            last_annotator_0='', last_annotator_1='',
-            sort_method='name', sort_direction='asc',
-        )
+    @staticmethod
+    def update_multiple_metadatas(field_name, image_value_pairs):
+        """Update a particular metadata field on multiple images."""
+        for image, value in image_value_pairs:
+            setattr(image.metadata, field_name, value)
+            image.metadata.save()
 
-    def test_next(self):
+    def set_last_annotation(self, image, dt=None, annotator=None):
+        """
+        Update the image's last annotation. This simply assigns the desired
+        annotation field values to the image's first point.
+        """
+        if not dt:
+            dt = timezone.now()
+        if not annotator:
+            annotator = self.user
+
+        first_point = image.point_set.get(point_number=1)
+        try:
+            # If the first point has an annotation, delete it.
+            first_point.annotation.delete()
+        except Annotation.DoesNotExist:
+            pass
+
+        # Add a new annotation to the first point.
+        annotation = Annotation(
+            source=image.source, image=image, point=first_point,
+            user=annotator, label=self.labels.get(default_code='A'))
+        # Fake the current date when saving the annotation, in order to
+        # set the annotation_date field to what we want.
+        # https://devblog.kogan.com/blog/testing-auto-now-datetime-fields-in-django/
+        with mock.patch('django.utils.timezone.now') as mock_now:
+            mock_now.return_value = dt
+            annotation.save()
+
+        image.last_annotation = annotation
+        image.save()
+
+    def enter_annotation_tool(self, search_kwargs, current_image):
+        data = default_search_params.copy()
+        data.update(**search_kwargs)
         self.client.force_login(self.user)
-        response = self.client.get(
-            reverse('annotation_tool', args=[self.img2.pk]))
-        self.assertEqual(response.context['next_image'].pk, self.img3.pk)
+        response = self.client.post(
+            reverse('annotation_tool', args=[current_image.pk]), data)
+        return response
 
-    def test_prev(self):
-        self.client.force_login(self.user)
-        response = self.client.get(
-            reverse('annotation_tool', args=[self.img2.pk]))
-        self.assertEqual(response.context['prev_image'].pk, self.img1.pk)
+    def assert_navigation_details(
+            self, search_kwargs, current_image,
+            expected_prev=None, expected_next=None,
+            expected_x_of_y_display=None, expected_search_display=None):
+
+        response = self.enter_annotation_tool(search_kwargs, current_image)
+
+        if expected_prev:
+            self.assertEqual(
+                response.context['prev_image'].pk, expected_prev.pk)
+        if expected_next:
+            self.assertEqual(
+                response.context['next_image'].pk, expected_next.pk)
+        if expected_x_of_y_display:
+            # This isn't a particularly strict check; it just checks that the
+            # given text is on the page.
+            self.assertContains(response, expected_x_of_y_display)
+        if expected_search_display:
+            # Also not a particularly strict check.
+            self.assertContains(response, expected_search_display)
+
+    def test_basic_prev_next(self):
+        self.assert_navigation_details(
+            dict(), self.img2,
+            expected_prev=self.img1, expected_next=self.img3)
 
     def test_next_wrap_to_first(self):
-        self.client.force_login(self.user)
-        response = self.client.get(
-            reverse('annotation_tool', args=[self.img3.pk]))
-        self.assertEqual(response.context['next_image'].pk, self.img1.pk)
+        self.assert_navigation_details(
+            dict(), self.img5,
+            expected_next=self.img1)
 
     def test_prev_wrap_to_last(self):
-        self.client.force_login(self.user)
-        response = self.client.get(
-            reverse('annotation_tool', args=[self.img1.pk]))
-        self.assertEqual(response.context['prev_image'].pk, self.img3.pk)
+        self.assert_navigation_details(
+            dict(), self.img1,
+            expected_prev=self.img5)
 
     def test_search_filter_aux_meta(self):
-        self.img1.metadata.aux1 = 'SiteA'
-        self.img1.metadata.save()
-        self.img2.metadata.aux1 = 'SiteB'
-        self.img2.metadata.save()
-        self.img3.metadata.aux1 = 'SiteA'
-        self.img3.metadata.save()
-
         # Exclude img2 with the filter
-        post_data = self.default_search_params.copy()
-        post_data['aux1'] = 'SiteA'
+        self.update_multiple_metadatas(
+            'aux1',
+            [(self.img1, 'SiteA'),
+             (self.img2, 'SiteB'),
+             (self.img3, 'SiteA')])
 
         # img1 next -> img3
-        self.client.force_login(self.user)
-        response = self.client.post(
-            reverse('annotation_tool', args=[self.img1.pk]), post_data)
-        self.assertEqual(response.context['next_image'].pk, self.img3.pk)
-        self.assertContains(response, "Filtering by aux1;")
+        self.assert_navigation_details(
+            dict(aux1='SiteA'), self.img1,
+            expected_next=self.img3,
+            expected_x_of_y_display="Image 1 of 2",
+            expected_search_display="Filtering by aux1;")
 
-    def test_search_filter_year(self):
-        self.img1.metadata.photo_date = datetime.date(2020, 4, 9)
-        self.img1.metadata.save()
-        self.img2.metadata.photo_date = datetime.date(2019, 12, 31)
-        self.img2.metadata.save()
-        self.img3.metadata.photo_date = datetime.date(2020, 1, 1)
-        self.img3.metadata.save()
+    def test_search_filter_photo_date_year(self):
+        # Exclude img2 with the filter
+        self.update_multiple_metadatas(
+            'photo_date',
+            [(self.img1, datetime.date(2020, 4, 9)),
+             (self.img2, datetime.date(2019, 12, 31)),
+             (self.img3, datetime.date(2020, 1, 1))])
+
+        self.assert_navigation_details(
+            dict(photo_date_0='year', photo_date_1='2020'), self.img1,
+            expected_next=self.img3,
+            expected_x_of_y_display="Image 1 of 2",
+            expected_search_display="Filtering by photo date;")
+
+    def test_search_filter_photo_date_exact_date(self):
+        # Exclude img2 with the filter
+        self.update_multiple_metadatas(
+            'photo_date',
+            [(self.img1, datetime.date(2020, 4, 1)),
+             (self.img2, datetime.date(2020, 4, 2)),
+             (self.img3, datetime.date(2020, 4, 1))])
+
+        self.assert_navigation_details(
+            dict(photo_date_0='date', photo_date_2='2020-04-01'), self.img1,
+            expected_next=self.img3,
+            expected_x_of_y_display="Image 1 of 2",
+            expected_search_display="Filtering by photo date;")
+
+    def test_search_filter_photo_date_range(self):
+        # Exclude img2 with the filter
+        self.update_multiple_metadatas(
+            'photo_date',
+            [(self.img1, datetime.date(2020, 3, 18)),
+             (self.img2, datetime.date(2020, 3, 21)),
+             (self.img3, datetime.date(2020, 3, 12))])
+
+        self.assert_navigation_details(
+            dict(
+                photo_date_0='date_range',
+                photo_date_3='2020-03-10',
+                photo_date_4='2020-03-20',
+            ),
+            self.img1,
+            expected_next=self.img3,
+            expected_x_of_y_display="Image 1 of 2",
+            expected_search_display="Filtering by photo date;")
+
+    def test_search_filter_annotation_date_range(self):
+        # Exclude img2 with the filter
+        self.set_last_annotation(
+            self.img1, dt=datetime.datetime(2020, 3, 10, 0, 0, tzinfo=tz))
+        self.set_last_annotation(
+            self.img2, dt=datetime.datetime(2020, 3, 21, 0, 1, tzinfo=tz))
+        self.set_last_annotation(
+            self.img3, dt=datetime.datetime(2020, 3, 20, 23, 59, tzinfo=tz))
+
+        self.assert_navigation_details(
+            dict(
+                last_annotated_0='date_range',
+                last_annotated_3='2020-03-10',
+                last_annotated_4='2020-03-20',
+            ),
+            self.img1,
+            expected_next=self.img3,
+            expected_x_of_y_display="Image 1 of 2",
+            expected_search_display="Filtering by last annotation date;")
+
+    def test_search_filter_annotator(self):
+        user2 = self.create_user()
+        self.add_source_member(
+            self.user, self.source, user2, Source.PermTypes.EDIT.code)
 
         # Exclude img2 with the filter
-        post_data = self.default_search_params.copy()
-        post_data['photo_date_0'] = 'year'
-        post_data['photo_date_1'] = '2020'
+        self.set_last_annotation(
+            self.img1, annotator=self.user)
+        self.set_last_annotation(
+            self.img2, annotator=user2)
+        self.set_last_annotation(
+            self.img3, annotator=self.user)
 
-        # img1 next -> img3
-        self.client.force_login(self.user)
-        response = self.client.post(
-            reverse('annotation_tool', args=[self.img1.pk]), post_data)
-        self.assertEqual(response.context['next_image'].pk, self.img3.pk)
-        self.assertContains(response, "Filtering by photo date;")
+        self.assert_navigation_details(
+            dict(
+                last_annotator_0='annotation_tool',
+                last_annotator_1=self.user.pk,
+            ),
+            self.img1,
+            expected_next=self.img3,
+            expected_x_of_y_display="Image 1 of 2",
+            expected_search_display="Filtering by last annotator;")
 
-    def test_search_filter_date(self):
-        self.img1.metadata.photo_date = datetime.date(2020, 4, 1)
-        self.img1.metadata.save()
-        self.img2.metadata.photo_date = datetime.date(2020, 4, 2)
-        self.img2.metadata.save()
-        self.img3.metadata.photo_date = datetime.date(2020, 4, 1)
-        self.img3.metadata.save()
+    def test_search_filter_multiple_keys(self):
+        user2 = self.create_user()
+        self.add_source_member(
+            self.user, self.source, user2, Source.PermTypes.EDIT.code)
 
-        # Exclude img2 with the filter
-        post_data = self.default_search_params.copy()
-        post_data['photo_date_0'] = 'date'
-        post_data['photo_date_2'] = '2020-04-01'
+        img4 = self.upload_image(self.user, self.source)
 
-        # img1 next -> img3
-        self.client.force_login(self.user)
-        response = self.client.post(
-            reverse('annotation_tool', args=[self.img1.pk]), post_data)
-        self.assertEqual(response.context['next_image'].pk, self.img3.pk)
-        self.assertContains(response, "Filtering by photo date;")
+        # Exclude img2 and img3 with the filters
+        self.set_last_annotation(
+            self.img1, annotator=self.user,
+            dt=datetime.datetime(2020, 3, 10, 0, 0, tzinfo=tz))
+        # In date range, but wrong user
+        self.set_last_annotation(
+            self.img2, annotator=user2,
+            dt=datetime.datetime(2020, 3, 10, 0, 0, tzinfo=tz))
+        # Right user, but not in date range
+        self.set_last_annotation(
+            self.img3, annotator=self.user,
+            dt=datetime.datetime(2020, 3, 21, 0, 1, tzinfo=tz))
+        self.set_last_annotation(
+            img4, annotator=self.user,
+            dt=datetime.datetime(2020, 3, 20, 23, 59, tzinfo=tz))
 
-    def test_search_filter_date_range(self):
-        self.img1.metadata.photo_date = datetime.date(2020, 3, 18)
-        self.img1.metadata.save()
-        self.img2.metadata.photo_date = datetime.date(2020, 3, 21)
-        self.img2.metadata.save()
-        self.img3.metadata.photo_date = datetime.date(2020, 3, 12)
-        self.img3.metadata.save()
-
-        # Exclude img2 with the filter
-        post_data = self.default_search_params.copy()
-        post_data['photo_date_0'] = 'date_range'
-        post_data['photo_date_3'] = '2020-03-10'
-        post_data['photo_date_4'] = '2020-03-20'
-
-        # img1 next -> img3
-        self.client.force_login(self.user)
-        response = self.client.post(
-            reverse('annotation_tool', args=[self.img1.pk]), post_data)
-        self.assertEqual(response.context['next_image'].pk, self.img3.pk)
-        self.assertContains(response, "Filtering by photo date;")
+        self.assert_navigation_details(
+            dict(
+                last_annotator_0='annotation_tool',
+                last_annotator_1=self.user.pk,
+                last_annotated_0='date_range',
+                last_annotated_3='2020-03-10',
+                last_annotated_4='2020-03-20',
+            ),
+            self.img1,
+            expected_next=img4,
+            expected_x_of_y_display="Image 1 of 2",
+            # TODO: Once we're on Python 3.6+ only, the order of fields here
+            # SHOULD be consistent due to the cleaned_data dict being ordered.
+            # Until then, the order is arbitrary, and we can't safely assert on
+            # this display.
+            # expected_search_display=(
+            #     "Filtering by last annotator, last annotation date;"),
+        )
 
     def test_image_id_filter(self):
         # Exclude img2 with the filter
-        post_data = self.default_search_params.copy()
-        post_data['image_form_type'] = 'ids'
-        post_data['ids'] = ','.join([str(self.img1.pk), str(self.img3.pk)])
+        self.assert_navigation_details(
+            dict(
+                image_form_type='ids',
+                ids=','.join([str(self.img1.pk), str(self.img3.pk)]),
+            ),
+            self.img3,
+            expected_prev=self.img1,
+            expected_x_of_y_display="Image 2 of 2",
+            expected_search_display=(
+                "Filtering to a specific set of images"))
 
-        # img3 prev -> img1
-        self.client.force_login(self.user)
-        response = self.client.post(
-            reverse('annotation_tool', args=[self.img3.pk]), post_data)
-        self.assertEqual(response.context['prev_image'].pk, self.img1.pk)
+    def test_sort_by_name(self):
+        self.update_multiple_metadatas(
+            'name',
+            [(self.img1, 'B'),
+             (self.img2, 'A'),
+             (self.img3, 'C'),
+             (self.img4, 'D'),
+             (self.img5, 'E')])
+
+        # Ascending
+
+        self.assert_navigation_details(
+            dict(sort_method='name', sort_direction='asc'), self.img2,
+            expected_prev=self.img5, expected_next=self.img1,
+            expected_x_of_y_display="Image 1 of 5",
+            expected_search_display=(
+                "Sorting by name, ascending"))
+
+        self.assert_navigation_details(
+            dict(sort_method='name', sort_direction='asc'), self.img3,
+            expected_prev=self.img1, expected_next=self.img4,
+            expected_x_of_y_display="Image 3 of 5")
+
+        self.assert_navigation_details(
+            dict(sort_method='name', sort_direction='asc'), self.img5,
+            expected_prev=self.img4, expected_next=self.img2,
+            expected_x_of_y_display="Image 5 of 5")
+
+        # Descending
+
+        self.assert_navigation_details(
+            dict(sort_method='name', sort_direction='desc'), self.img5,
+            expected_prev=self.img2, expected_next=self.img4,
+            expected_x_of_y_display="Image 1 of 5",
+            expected_search_display=(
+                "Sorting by name, descending"))
+
+        self.assert_navigation_details(
+            dict(sort_method='name', sort_direction='desc'), self.img3,
+            expected_prev=self.img4, expected_next=self.img1,
+            expected_x_of_y_display="Image 3 of 5")
+
+        self.assert_navigation_details(
+            dict(sort_method='name', sort_direction='desc'), self.img2,
+            expected_prev=self.img1, expected_next=self.img5,
+            expected_x_of_y_display="Image 5 of 5")
+
+    def test_sort_by_upload(self):
+
+        # Ascending
+
+        self.assert_navigation_details(
+            dict(sort_method='upload_date', sort_direction='asc'), self.img1,
+            expected_prev=self.img5, expected_next=self.img2,
+            expected_x_of_y_display="Image 1 of 5",
+            expected_search_display=(
+                "Sorting by upload date, ascending"))
+
+        self.assert_navigation_details(
+            dict(sort_method='upload_date', sort_direction='asc'), self.img3,
+            expected_prev=self.img2, expected_next=self.img4,
+            expected_x_of_y_display="Image 3 of 5")
+
+        self.assert_navigation_details(
+            dict(sort_method='upload_date', sort_direction='asc'), self.img5,
+            expected_prev=self.img4, expected_next=self.img1,
+            expected_x_of_y_display="Image 5 of 5")
+
+        # Descending
+
+        self.assert_navigation_details(
+            dict(sort_method='upload_date', sort_direction='desc'), self.img5,
+            expected_prev=self.img1, expected_next=self.img4,
+            expected_x_of_y_display="Image 1 of 5",
+            expected_search_display=(
+                "Sorting by upload date, descending"))
+
+        self.assert_navigation_details(
+            dict(sort_method='upload_date', sort_direction='desc'), self.img3,
+            expected_prev=self.img4, expected_next=self.img2,
+            expected_x_of_y_display="Image 3 of 5")
+
+        self.assert_navigation_details(
+            dict(sort_method='upload_date', sort_direction='desc'), self.img1,
+            expected_prev=self.img2, expected_next=self.img5,
+            expected_x_of_y_display="Image 5 of 5")
+
+    def test_sort_by_photo_date(self):
+        self.update_multiple_metadatas(
+            'photo_date',
+            [(self.img1, datetime.date(2012, 3, 2)),
+             (self.img2, datetime.date(2012, 3, 1)),
+             (self.img5, datetime.date(2012, 3, 1))])
+        # Other 2 have null date and will be ordered after the ones with date.
+        # pk is the tiebreaker.
+
+        # Ascending
+        # We'll test more images to make sure ties behave as expected.
+
+        self.assert_navigation_details(
+            dict(sort_method='photo_date', sort_direction='asc'), self.img2,
+            expected_prev=self.img4, expected_next=self.img5,
+            expected_x_of_y_display="Image 1 of 5",
+            expected_search_display=(
+                "Sorting by photo date, ascending"))
+
+        self.assert_navigation_details(
+            dict(sort_method='photo_date', sort_direction='asc'), self.img5,
+            expected_prev=self.img2, expected_next=self.img1,
+            expected_x_of_y_display="Image 2 of 5")
+
+        self.assert_navigation_details(
+            dict(sort_method='photo_date', sort_direction='asc'), self.img1,
+            expected_prev=self.img5, expected_next=self.img3,
+            expected_x_of_y_display="Image 3 of 5")
+
+        self.assert_navigation_details(
+            dict(sort_method='photo_date', sort_direction='asc'), self.img3,
+            expected_prev=self.img1, expected_next=self.img4,
+            expected_x_of_y_display="Image 4 of 5")
+
+        self.assert_navigation_details(
+            dict(sort_method='photo_date', sort_direction='asc'), self.img4,
+            expected_prev=self.img3, expected_next=self.img2,
+            expected_x_of_y_display="Image 5 of 5")
+
+        # Descending
+
+        self.assert_navigation_details(
+            dict(sort_method='photo_date', sort_direction='desc'), self.img4,
+            expected_prev=self.img2, expected_next=self.img3,
+            expected_x_of_y_display="Image 1 of 5",
+            expected_search_display=(
+                "Sorting by photo date, descending"))
+
+        self.assert_navigation_details(
+            dict(sort_method='photo_date', sort_direction='desc'), self.img3,
+            expected_prev=self.img4, expected_next=self.img1,
+            expected_x_of_y_display="Image 2 of 5")
+
+        self.assert_navigation_details(
+            dict(sort_method='photo_date', sort_direction='desc'), self.img1,
+            expected_prev=self.img3, expected_next=self.img5,
+            expected_x_of_y_display="Image 3 of 5")
+
+        self.assert_navigation_details(
+            dict(sort_method='photo_date', sort_direction='desc'), self.img5,
+            expected_prev=self.img1, expected_next=self.img2,
+            expected_x_of_y_display="Image 4 of 5")
+
+        self.assert_navigation_details(
+            dict(sort_method='photo_date', sort_direction='desc'), self.img2,
+            expected_prev=self.img5, expected_next=self.img4,
+            expected_x_of_y_display="Image 5 of 5")
+
+    def test_sort_by_last_annotated(self):
+        self.set_last_annotation(
+            self.img1, dt=datetime.datetime(2012, 3, 2, 0, 0, tzinfo=tz))
+        self.set_last_annotation(
+            self.img2, dt=datetime.datetime(2012, 3, 1, 22, 15, tzinfo=tz))
+        self.set_last_annotation(
+            self.img5, dt=datetime.datetime(2012, 3, 1, 22, 15, tzinfo=tz))
+        # Other 2 have null date and will be ordered after the ones with date.
+        # pk is the tiebreaker.
+
+        # Ascending
+
+        self.assert_navigation_details(
+            dict(sort_method='last_annotation_date', sort_direction='asc'),
+            self.img2,
+            expected_prev=self.img4, expected_next=self.img5,
+            expected_x_of_y_display="Image 1 of 5",
+            expected_search_display=(
+                "Sorting by last annotation date, ascending"))
+
+        self.assert_navigation_details(
+            dict(sort_method='last_annotation_date', sort_direction='asc'),
+            self.img5,
+            expected_prev=self.img2, expected_next=self.img1,
+            expected_x_of_y_display="Image 2 of 5")
+
+        self.assert_navigation_details(
+            dict(sort_method='last_annotation_date', sort_direction='asc'),
+            self.img1,
+            expected_prev=self.img5, expected_next=self.img3,
+            expected_x_of_y_display="Image 3 of 5")
+
+        self.assert_navigation_details(
+            dict(sort_method='last_annotation_date', sort_direction='asc'),
+            self.img3,
+            expected_prev=self.img1, expected_next=self.img4,
+            expected_x_of_y_display="Image 4 of 5")
+
+        self.assert_navigation_details(
+            dict(sort_method='last_annotation_date', sort_direction='asc'),
+            self.img4,
+            expected_prev=self.img3, expected_next=self.img2,
+            expected_x_of_y_display="Image 5 of 5")
+
+        # Descending
+
+        self.assert_navigation_details(
+            dict(sort_method='last_annotation_date', sort_direction='desc'),
+            self.img4,
+            expected_prev=self.img2, expected_next=self.img3,
+            expected_x_of_y_display="Image 1 of 5",
+            expected_search_display=(
+                "Sorting by last annotation date, descending"))
+
+        self.assert_navigation_details(
+            dict(sort_method='last_annotation_date', sort_direction='desc'),
+            self.img3,
+            expected_prev=self.img4, expected_next=self.img1,
+            expected_x_of_y_display="Image 2 of 5")
+
+        self.assert_navigation_details(
+            dict(sort_method='last_annotation_date', sort_direction='desc'),
+            self.img1,
+            expected_prev=self.img3, expected_next=self.img5,
+            expected_x_of_y_display="Image 3 of 5")
+
+        self.assert_navigation_details(
+            dict(sort_method='last_annotation_date', sort_direction='desc'),
+            self.img5,
+            expected_prev=self.img1, expected_next=self.img2,
+            expected_x_of_y_display="Image 4 of 5")
+
+        self.assert_navigation_details(
+            dict(sort_method='last_annotation_date', sort_direction='desc'),
+            self.img2,
+            expected_prev=self.img5, expected_next=self.img4,
+            expected_x_of_y_display="Image 5 of 5")
 
 
 class LoadAnnotationFormTest(ClientTest):
@@ -811,7 +1181,7 @@ class SaveAnnotationsTest(ClientTest):
         self.assertEqual(response['error'], "Invalid robot field value: asdf")
         self.assert_didnt_save_anything()
 
-    @patch(
+    @mock.patch(
         'annotations.models.Annotation.objects.update_point_annotation_if_applicable',
         mock_update_annotation)
     def test_integrity_error_when_saving(self):

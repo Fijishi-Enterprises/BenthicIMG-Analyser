@@ -21,7 +21,6 @@ from .utils import get_map_sources
 from annotations.forms import AnnotationAreaPercentsForm
 from annotations.model_utils import AnnotationAreaUtils
 from annotations.utils import (
-    after_saving_points_or_annotations,
     get_sitewide_annotation_count,
     image_annotation_area_is_editable,
     image_has_any_human_annotations)
@@ -558,8 +557,6 @@ def image_delete_annotations(request, image_id):
     image = get_object_or_404(Image, id=image_id)
     for ann in Annotation.objects.filter(image=image):
         ann.delete()
-
-    after_saving_points_or_annotations(image)
 
     backend_tasks.classify_image.apply_async(
         args=[image_id], eta=now()+timedelta(seconds=10))

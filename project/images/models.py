@@ -1,4 +1,5 @@
 from __future__ import division
+import datetime
 import posixpath
 
 from django.conf import settings
@@ -8,6 +9,7 @@ from django.core.mail import mail_admins
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils.encoding import python_2_unicode_compatible
+from django.utils import timezone
 
 from easy_thumbnails.fields import ThumbnailerImageField
 from guardian.shortcuts import (
@@ -693,6 +695,42 @@ class Image(models.Model):
         # Highest row (y) pixel within the image dimensions.
         return self.original_height - 1
 
+    def save(self, *args, **kwargs):
+        """
+        Ensure the redundant annotation-status fields (which exist for
+        performance reasons) are up to date.
+        """
+        # Update the last_annotation.
+        # If there are no annotations, then first() returns None.
+        last_annotation = self.annotation_set.order_by(
+            '-annotation_date').first()
+        self.last_annotation = last_annotation
+
+        # Must import within this function to avoid circular import
+        # at the module level.
+        from annotations.utils import image_annotation_all_done
+        # Are all points human annotated?
+        all_done = image_annotation_all_done(self)
+
+        # Update image status, if needed
+        if self.confirmed != all_done:
+            self.confirmed = all_done
+
+            if self.confirmed:
+                # With a new image confirmed, let's try to train a new
+                # robot. The task will simply exit if there are not enough new
+                # images or if a robot is already being trained.
+                #
+                # We have to import the task here, instead of at the top of the
+                # module, to avoid circular import issues (VB tasks ->
+                # VB task helpers -> this module).
+                from vision_backend.tasks import submit_classifier
+                submit_classifier.apply_async(
+                    args=[self.source.id],
+                    eta=timezone.now()+datetime.timedelta(seconds=10))
+
+        super(Image, self).save(*args, **kwargs)
+
     def __str__(self):
         return self.metadata.name
 
@@ -821,6 +859,9 @@ class Point(models.Model):
         assert self.column <= self.image.max_column, "Column above maximum"
 
         super(Point, self).save(*args, **kwargs)
+
+        # The image's annotation status may need updating.
+        self.image.save()
 
     def __str__(self):
         """

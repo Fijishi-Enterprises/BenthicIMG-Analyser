@@ -20,8 +20,8 @@ from .forms import (
 from .model_utils import AnnotationAreaUtils
 from .models import Annotation, AnnotationToolAccess, AnnotationToolSettings
 from .utils import (
-    after_saving_points_or_annotations, apply_alleviate,
-    get_annotation_version_user_display, image_annotation_all_done)
+    apply_alleviate, get_annotation_version_user_display,
+    image_annotation_all_done)
 from images.models import Source, Image, Point
 from images.utils import (
     generate_points, get_next_image, get_date_and_aux_metadata_table,
@@ -351,8 +351,6 @@ def save_annotations_ajax(request, image_id):
             "Failed to save annotations. It's possible that the"
             " annotations changed at the same time that you submitted."
             " Try again and see if it works.")))
-
-    after_saving_points_or_annotations(image)
 
     all_done = image_annotation_all_done(image)
     return JsonResponse(dict(all_done=all_done))

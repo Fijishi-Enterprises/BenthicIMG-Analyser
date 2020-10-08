@@ -11,7 +11,6 @@ from django.urls import reverse
 from accounts.utils import get_robot_user, get_alleviate_user
 from annotations.model_utils import AnnotationAreaUtils
 from annotations.models import Annotation
-from annotations.utils import after_saving_points_or_annotations
 from vision_backend.models import Features, Classifier
 from .model_utils import PointGen
 from .models import Source, Point, Image, Metadata
@@ -380,8 +379,6 @@ def generate_points(img, usesourcemethod=True):
               point_number=new_point['point_number'],
               image=img,
         ).save()
-
-    after_saving_points_or_annotations(img)
 
 
 def source_robot_status(source_id):

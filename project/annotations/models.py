@@ -32,6 +32,16 @@ class Annotation(models.Model):
             global_label=self.label, labelset=self.source.labelset)
         return local_label.code
 
+    def save(self, *args, **kwargs):
+        super(Annotation, self).save(*args, **kwargs)
+        # The image's annotation status may need updating.
+        self.image.save()
+
+    def delete(self, *args, **kwargs):
+        super(Annotation, self).delete(*args, **kwargs)
+        # The image's annotation status may need updating.
+        self.image.save()
+
     def __str__(self):
         return u"%s - %s - %s" % (
             self.image, self.point.point_number, self.label_code)

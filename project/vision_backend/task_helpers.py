@@ -16,7 +16,6 @@ from reversion import revisions
 
 from images.models import Image, Point
 from annotations.models import Annotation
-from annotations.utils import after_saving_points_or_annotations
 from api_core.models import ApiJobUnit
 
 from .models import Classifier, Score
@@ -71,8 +70,6 @@ def _add_annotations(image_id, scores, label_objs, classifier):
                 point=pt, label=label,
                 now_confirmed=False,
                 user_or_robot_version=classifier)
-
-        after_saving_points_or_annotations(img)
 
 
 def _add_scores(image_id, scores, label_objs):

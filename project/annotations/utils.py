@@ -161,44 +161,8 @@ def apply_alleviate(img, label_scores_all_points):
             alleviate_was_applied = True
 
     if alleviate_was_applied:
-        after_saving_points_or_annotations(img)
-
-
-def after_saving_points_or_annotations(image):
-    """
-    Run this function after creating, updating, or deleting Annotations for
-    an Image.
-    :param image: Image for which Annotations were saved
-    """
-    # Refresh `image` just in case it's not synced with the DB.
-    image.refresh_from_db()
-
-    # Update the last_annotation.
-    # If there are no annotations, then first() returns None.
-    last_annotation = image.annotation_set.order_by('-annotation_date').first()
-    image.last_annotation = last_annotation
-    image.save()
-
-    # Are all points human annotated?
-    all_done = image_annotation_all_done(image)
-
-    # Update image status, if needed
-    if image.confirmed != all_done:
-        image.confirmed = all_done
-        image.save()
-
-        if image.confirmed:
-            # With a new image confirmed, let's try to train a new
-            # robot. The task will simply exit if there are not enough new
-            # images or if a robot is already being trained.
-            #
-            # We have to import the task here, instead of at the top of the
-            # module, to avoid circular import issues (VB tasks ->
-            # VB task helpers -> this module).
-            from vision_backend.tasks import submit_classifier
-            submit_classifier.apply_async(
-                args=[image.source.id],
-                eta=timezone.now()+datetime.timedelta(seconds=10))
+        # Ensure that the last-annotation display on the page is up to date.
+        img.refresh_from_db()
 
 
 def update_sitewide_annotation_count():

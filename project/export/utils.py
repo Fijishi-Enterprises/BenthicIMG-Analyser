@@ -17,15 +17,14 @@ from django.core.exceptions import ValidationError
 from django.http import HttpResponse
 
 from annotations.model_utils import AnnotationAreaUtils
-from images.models import Image, Point
+from images.models import Point
 from images.utils import metadata_field_names_to_labels
 from vision_backend.utils import get_label_scores_for_point
 from visualization.forms import create_image_filter_form
 
 
 def get_request_images(request, source):
-    image_form = create_image_filter_form(
-        request.POST, source, has_annotation_status=True)
+    image_form = create_image_filter_form(request.POST, source)
     if image_form:
         if image_form.is_valid():
             image_set = image_form.get_images()
@@ -35,9 +34,7 @@ def get_request_images(request, source):
             # subsequent export.
             raise ValidationError("Image-search parameters were invalid.")
     else:
-        image_set = Image.objects.filter(source=source)
-
-    image_set = image_set.order_by('metadata__name')
+        image_set = source.image_set.order_by('metadata__name', 'pk')
     return image_set
 
 
@@ -406,8 +403,8 @@ def write_annotations_csv(response, source, image_set, optional_columns):
     writer = csv.DictWriter(response, fieldnames)
     writer.writeheader()
 
-    # One image at a time, ordered by image name.
-    for image in image_set.order_by('metadata__name'):
+    # One image at a time.
+    for image in image_set:
 
         # Order image annotations by point number.
         for annotation in image.annotation_set.order_by('point__point_number'):

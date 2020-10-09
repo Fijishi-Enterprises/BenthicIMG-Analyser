@@ -61,9 +61,12 @@ class LoadPageTest(ClientTest):
             aux1='', aux2='', aux3='', aux4='', aux5='',
             height_in_cm='', latitude='', longitude='', depth='',
             photographer='', framing='', balance='',
-            date_filter_0='year', date_filter_1='',
-            date_filter_2='', date_filter_3='',
-            annotation_status='',
+            photo_date_0='', photo_date_1='', photo_date_2='',
+            photo_date_3='', photo_date_4='',
+            image_name='', annotation_status='',
+            last_annotated_0='', last_annotated_1='', last_annotated_2='',
+            last_annotated_3='', last_annotated_4='',
+            last_annotator_0='', last_annotator_1='',
         )
 
     def test_page_landing(self):
@@ -118,8 +121,8 @@ class LoadPageTest(ClientTest):
 
     def test_zero_images(self):
         post_data = self.default_search_params.copy()
-        post_data['date_filter_0'] = 'date'
-        post_data['date_filter_2'] = datetime.date(2000, 1, 1)
+        post_data['photo_date_0'] = 'date'
+        post_data['photo_date_2'] = datetime.date(2000, 1, 1)
 
         self.client.force_login(self.user)
         response = self.client.post(self.url, post_data)

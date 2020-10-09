@@ -17,10 +17,14 @@ div#search-form-box, div#action-box {
     margin: 10px auto;
 }
 form {
-    display: inline-block;
     margin: 0;
     padding: 0;
     width: auto;
+}
+div#action-box form {
+    /* When the action box doesn't have any extra options, the "Go" button
+       should be on the same line as the dropdowns. */
+    display: inline-block;
 }
 label {
     width: auto;

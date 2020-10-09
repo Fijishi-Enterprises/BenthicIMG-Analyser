@@ -20,7 +20,10 @@ from .models import Source, Image, SourceInvite, Metadata
 from .utils import get_map_sources
 from annotations.forms import AnnotationAreaPercentsForm
 from annotations.model_utils import AnnotationAreaUtils
-from annotations.utils import image_annotation_area_is_editable, image_has_any_human_annotations, get_sitewide_annotation_count
+from annotations.utils import (
+    get_sitewide_annotation_count,
+    image_annotation_area_is_editable,
+    image_has_any_human_annotations)
 from labels.models import LabelGroup
 from annotations.models import Annotation
 from newsfeed.models import NewsItem
@@ -455,14 +458,11 @@ def image_detail(request, image_id):
         # No thumbnail needed
         thumbnail_dimensions = False
 
-    # Next and previous image links
-    source_images = Image.objects.filter(source=source)
-    next_image = utils.get_next_image(
-        image, source_images,
-        ('metadata__name', image.metadata.name, False), wrap=False)
-    prev_image = utils.get_prev_image(
-        image, source_images,
-        ('metadata__name', image.metadata.name, False), wrap=False)
+    # Next and previous image links.
+    # Ensure the ordering is unambiguous.
+    source_images = source.image_set.order_by('metadata__name', 'pk')
+    next_image = utils.get_next_image(image, source_images, wrap=False)
+    prev_image = utils.get_prev_image(image, source_images, wrap=False)
 
     # Annotation status
     if image.confirmed:
@@ -555,11 +555,9 @@ def image_delete_annotations(request, image_id):
     Delete an image's annotations.
     """
     image = get_object_or_404(Image, id=image_id)
-
     for ann in Annotation.objects.filter(image=image):
         ann.delete()
-    image.confirmed = False
-    image.save()
+
     backend_tasks.classify_image.apply_async(
         args=[image_id], eta=now()+timedelta(seconds=10))
 

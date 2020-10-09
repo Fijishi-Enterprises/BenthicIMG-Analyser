@@ -24,32 +24,7 @@
   </div>
 
   {# Search form #}
-  <div id="search-form-box" class="box">
-    <form action="" method="post" id="search-form">
-      {% csrf_token %}
-
-      {% with form=image_search_form %}
-
-        {% for field in form.metadata_choice_fields %}
-          {# Put label+field in a div to ensure they stay on the same line. #}
-          <div style="display: inline-block">
-            {{ field.label }}: {{ field }} </div>
-        {% endfor %}
-        <br/>
-        {{ form.date_filter.label }}: {{ form.date_filter }}
-        {{ form.annotation_status.label }}: {{ form.annotation_status }}
-        <br/>
-        {{ form.image_name.label }}: {{ form.image_name }}
-        {# Hidden field #}
-        {{ form.image_form_type }}
-
-      {% endwith %}
-
-      <div class="submit_button_wrapper_center">
-        <input type='submit' value="Search">
-      </div>
-    </form>
-  </div>
+  {% include "visualization/browse_search_form.html" with form=image_search_form %}
 
   {% if num_images == 0 %}
     {{ empty_message }}

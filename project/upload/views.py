@@ -489,10 +489,6 @@ def upload_annotations_ajax(request, source_id):
         img.metadata.annotation_area = AnnotationAreaUtils.IMPORTED_STR
         img.metadata.save()
 
-        # Update relevant image status fields.
-        img.confirmed = (len(new_points) == len(new_annotations))
-        img.save()
-        
         # Submit job with 1 hour delay to allow the view and thus DB transaction 
         # to conclude before jobs are submitted.
         # Details: https://github.com/beijbom/coralnet-system/issues/31.

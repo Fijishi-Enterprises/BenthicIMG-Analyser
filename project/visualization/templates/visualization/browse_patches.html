@@ -22,35 +22,7 @@
   </div>
 
   {# Search form #}
-  <div id="search-form-box" class="box">
-    <form action="" method="post" id="search-form">
-      {% csrf_token %}
-
-      {% with image_form=image_search_form patch_form=patch_search_form %}
-
-        {% for field in image_form.metadata_choice_fields %}
-          {# Put label+field in a div to ensure they stay on the same line. #}
-          <div style="display: inline-block">
-            {{ field.label }}: {{ field }} </div>
-        {% endfor %}
-        <br/>
-        {{ image_form.date_filter.label }}: {{ image_form.date_filter }}
-        {{ image_form.image_name.label }}: {{ image_form.image_name }}
-        {# Hidden field #}
-        {{ image_form.image_form_type }}
-        <br/>
-        {{ patch_form.label.label }}: {{ patch_form.label }}
-        {{ patch_form.annotation_status.label }}:
-          {{ patch_form.annotation_status }}
-        {{ patch_form.annotator.label }}: {{ patch_form.annotator }}
-
-      {% endwith %}
-
-      <div class="submit_button_wrapper_center">
-        <input type='submit' value="Search">
-      </div>
-    </form>
-  </div>
+  {% include "visualization/browse_search_form.html" with form=image_search_form patch_form=patch_search_form %}
 
   {% if page_results.paginator.count == 0 %}
     {{ empty_message }}

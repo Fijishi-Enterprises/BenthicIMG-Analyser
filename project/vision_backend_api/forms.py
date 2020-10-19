@@ -59,7 +59,7 @@ def validate_deploy(post_data):
         validate_array(
             image_spec['attributes']['points'],
             img_json_path + ['attributes', 'points'],
-            check_non_empty=True, max_length=1000)
+            check_non_empty=True, max_length=200)
 
         for pt_index, point in enumerate(image_spec['attributes']['points']):
 

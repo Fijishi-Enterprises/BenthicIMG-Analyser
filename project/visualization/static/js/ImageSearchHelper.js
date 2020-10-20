@@ -1,61 +1,69 @@
 var ImageSearchHelper = (function() {
 
-    var $searchForm;
-    var dateFieldNameToIndex = {
-        filter_type: 0,
-        year: 1,
-        date: 2,
-        start_date: 3,
-        end_date: 4
-    };
+    var searchForm;
 
-    function get$dateField(name) {
-        return $searchForm.find(
-            'input[name=date_filter_{0}], select[name=date_filter_{0}]'.format(
-                dateFieldNameToIndex[name]));
+    function showField(field) {
+        field.style.display = 'inline-block';
     }
 
-    function onDateFilterTypeChange() {
-        // Show different date sub-fields
-        // according to the filter type value.
-        var value = get$dateField('filter_type').val();
+    function hideField(field) {
+        field.style.display = 'none';
+    }
 
-        if (value === 'year') {
-            get$dateField('year').show();
-            get$dateField('date').hide();
-            get$dateField('start_date').hide();
-            get$dateField('end_date').hide();
+    function onControlFieldChange(
+            controlFieldName, conditionallyVisibleFieldName, requiredValue) {
+        var controlField = searchForm.querySelector(
+            '[name="{0}"]'.format(controlFieldName));
+        var conditionallyVisibleField = searchForm.querySelector(
+            '[name="{0}"]'.format(conditionallyVisibleFieldName));
+
+        if (controlField.value === requiredValue) {
+            showField(conditionallyVisibleField);
         }
-        else if (value === 'date') {
-            get$dateField('year').hide();
-            get$dateField('date').show();
-            get$dateField('start_date').hide();
-            get$dateField('end_date').hide();
-        }
-        else if (value === 'date_range') {
-            get$dateField('year').hide();
-            get$dateField('date').hide();
-            get$dateField('start_date').show();
-            get$dateField('end_date').show();
+        else {
+            hideField(conditionallyVisibleField);
         }
     }
 
     return {
-        init: function() {
-            $searchForm = $('#search-form');
+        init: function(params) {
+            searchForm = document.getElementById('search-form');
 
-            /* Date filter fields. */
-            // Add a handler.
-            var $dateFilterTypeField = get$dateField('filter_type');
-            $dateFilterTypeField.change(onDateFilterTypeChange);
+            var conditionallyVisibleFields = searchForm.querySelectorAll(
+                '[data-visibility-condition]')
+
+            // Example conditions: `0=annotation_tool` `2=date_range`
+            var conditionRegex = /^(\d+)=([^=]+)$/;
+            // Example subfield name: `date-filter-0`
+            var subFieldNameRegex = /^(.+_)\d+$/;
+
+            conditionallyVisibleFields.forEach(function(field) {
+                var condition =
+                    field.attributes['data-visibility-condition'].value;
+                var match = condition.match(conditionRegex);
+                var index = match[1];
+                var value = match[2];
+                var subFieldName = field.attributes['name'].value;
+                var subFieldNamePrefix = subFieldName.match(
+                    subFieldNameRegex)[1];
+                var controlFieldName = subFieldNamePrefix + index.toString();
+                var controlField = searchForm.querySelector(
+                    '[name="{0}"]'.format(controlFieldName));
+
+                // When the control field changes, update visibility of the
+                // conditionally visible field.
+                var onControlFieldChangeCurried = onControlFieldChange.curry(
+                    controlFieldName, subFieldName, value)
+                controlField.addEventListener(
+                    'change', onControlFieldChangeCurried);
+
+                // Initialize field visibility.
+                onControlFieldChangeCurried();
+            });
 
             // Add datepickers.
-            get$dateField('date').datepicker({dateFormat: 'yy-mm-dd'});
-            get$dateField('start_date').datepicker({dateFormat: 'yy-mm-dd'});
-            get$dateField('end_date').datepicker({dateFormat: 'yy-mm-dd'});
-
-            // Initialize the date field appearance.
-            onDateFilterTypeChange();
+            $('input[data-has-datepicker]').datepicker(
+                {dateFormat: 'yy-mm-dd'});
         }
     }
 })();

@@ -18,9 +18,13 @@ class BaseExportTest(ClientTest):
             aux1='', aux2='', aux3='', aux4='', aux5='',
             height_in_cm='', latitude='', longitude='', depth='',
             photographer='', framing='', balance='',
-            date_filter_0='year', date_filter_1='',
-            date_filter_2='', date_filter_3='',
-            annotation_status='', image_name='',
+            photo_date_0='', photo_date_1='', photo_date_2='',
+            photo_date_3='', photo_date_4='',
+            image_name='', annotation_status='',
+            last_annotated_0='', last_annotated_1='', last_annotated_2='',
+            last_annotated_3='', last_annotated_4='',
+            last_annotator_0='', last_annotator_1='',
+            sort_method='name', sort_direction='asc',
         )
 
     def export_annotations(self, post_data):

@@ -26,7 +26,8 @@ var AnnotationToolImageHelper = (function() {
         }
         catch (e) {
             if (e.message.includes("invalid file data")
-                    || e.message.includes("'unpack' error")) {
+                    || e.message.includes("'unpack' error")
+                    || e.message.includes("incorrect value type to decode")) {
                 // piexifjs couldn't properly load the exif.
                 try {
                     // Since we can't edit the exif, Plan B: remove the

@@ -332,14 +332,14 @@ class DeployImagesParamErrorTest(DeployBaseTest):
 
     def test_too_many_points(self):
         images = [
-            dict(type='image', attributes=dict(url='URL 1', points=[{}]*1001))]
+            dict(type='image', attributes=dict(url='URL 1', points=[{}]*201))]
         data = json.dumps(dict(data=images))
         response = self.client.post(
             self.deploy_url, data, **self.request_kwargs)
 
         self.assert_expected_400_error(
             response, dict(
-                detail="This array exceeds the max length of 1000.",
+                detail="This array exceeds the max length of 200.",
                 source=dict(pointer='/data/0/attributes/points')))
 
     def test_point_not_hash(self):

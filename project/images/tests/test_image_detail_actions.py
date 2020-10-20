@@ -254,6 +254,23 @@ class DeleteAnnotationsTest(ImageDetailActionBaseTest):
             msg="Annotations should be deleted")
         self.assertFalse(img.confirmed, msg="Image should not be confirmed")
 
+    def test_last_annotation_field_updated(self):
+        """The image's last_annotation field should get cleared."""
+        img = self.upload_image(self.user, self.source)
+
+        self.add_annotations(self.user, img, {1: 'A', 2: 'B'})
+        img.refresh_from_db()
+        self.assertIsNotNone(
+            img.last_annotation, msg="Should have a last annotation")
+
+        response = self.post_to_action_view(self.user, img)
+        self.assertContains(
+            response, "Successfully removed all annotations from this image.",
+            msg_prefix="Page should show the success message")
+        img.refresh_from_db()
+        self.assertIsNone(
+            img.last_annotation, msg="Should not have a last annotation")
+
     def test_show_button_if_all_points_have_confirmed_annotations(self):
         self.add_annotations(self.user, self.img, {1: 'A', 2: 'B'})
 
@@ -313,6 +330,28 @@ class RegeneratePointsTest(
         self.assertTrue(
             [new_pk not in old_point_pks for new_pk in new_point_pks],
             msg="New points should have different IDs from the old ones")
+
+    def test_last_annotation_field_updated(self):
+        """
+        If the image previously had unconfirmed annotations, and the
+        points are regenerated (thus deleting the annotations), the
+        image's last_annotation field should get cleared.
+        """
+        img = self.upload_image(self.user, self.source)
+
+        robot = self.create_robot(self.source)
+        self.add_robot_annotations(robot, img, {1: 'A', 2: 'B'})
+        img.refresh_from_db()
+        self.assertIsNotNone(
+            img.last_annotation, msg="Should have a last annotation")
+
+        response = self.post_to_action_view(self.user, img)
+        self.assertContains(
+            response, "Successfully regenerated point locations.",
+            msg_prefix="Page should show the success message")
+        img.refresh_from_db()
+        self.assertIsNone(
+            img.last_annotation, msg="Should not have a last annotation")
 
     def test_deny_if_all_points_have_confirmed_annotations(self):
         self.add_annotations(self.user, self.img, {1: 'A', 2: 'B'})

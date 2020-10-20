@@ -62,6 +62,7 @@
 
     <div class="details">
         <h3>Annotation and point location status</h3>
+
         <ul>
         <li>
         <div class="tutorial-message">
@@ -85,7 +86,13 @@
         </li>
         <li>Annotation status: <b>{{ annotation_status }}</b>
         </li>
+        {% if image.last_annotation %}
+          <li>
+            Last annotation update: {{ image.last_annotation.user }} on {{ image.last_annotation.annotation_date }}
+          </li>
+        {% endif %}
         </ul>
+
         {% if "source_edit" in source_perms %}
 
             {% if annotation_area_editable %}

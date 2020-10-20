@@ -20,8 +20,8 @@ from .forms import (
 from .model_utils import AnnotationAreaUtils
 from .models import Annotation, AnnotationToolAccess, AnnotationToolSettings
 from .utils import (
-    after_saving_annotations, apply_alleviate,
-    get_annotation_version_user_display, image_annotation_all_done)
+    apply_alleviate, get_annotation_version_user_display,
+    image_annotation_all_done)
 from images.models import Source, Image, Point
 from images.utils import (
     generate_points, get_next_image, get_date_and_aux_metadata_table,
@@ -134,29 +134,23 @@ def annotation_tool(request, image_id):
     metadata = image.metadata
 
     # The set of images we're annotating.
-    image_set = Image.objects.filter(source=source)
+    # Ensure it has an unambiguous ordering.
+    image_set = source.image_set.order_by('metadata__name', 'pk')
     hidden_image_set_form = None
-    filters_used_display = None
+    applied_search_display = None
 
-    image_form = create_image_filter_form(
-        request.POST, source, has_annotation_status=True)
+    image_form = create_image_filter_form(request.POST, source)
     if image_form:
         if image_form.is_valid():
             image_set = image_form.get_images()
             hidden_image_set_form = HiddenForm(forms=[image_form])
-            filters_used_display = image_form.get_filters_used_display()
+            applied_search_display = image_form.get_applied_search_display()
 
     # Get the next and previous images in the image set.
-    # TODO: Natural-sort by name.
-    prev_image = get_prev_image(
-        image, image_set,
-        ('metadata__name', image.metadata.name, False), wrap=True)
-    next_image = get_next_image(
-        image, image_set,
-        ('metadata__name', image.metadata.name, False), wrap=True)
+    prev_image = get_prev_image(image, image_set, wrap=True)
+    next_image = get_next_image(image, image_set, wrap=True)
     # Get the image's ordered placement in the image set, e.g. 5th.
-    image_set_order_placement = get_image_order_placement(
-        image_set, ('metadata__name', image.metadata.name, False))
+    image_set_order_placement = get_image_order_placement(image, image_set)
 
     # Get the settings object for this user.
     # If there is no such settings object, then populate the form with
@@ -194,10 +188,10 @@ def annotation_tool(request, image_id):
             # Accomplishing this may or may not involve moving Alleviate
             # to a separate request from the main annotation tool request.
             if reversion.is_active():
-                apply_alleviate(image_id, label_scores)
+                apply_alleviate(image, label_scores)
             else:
                 with create_revision():
-                    apply_alleviate(image_id, label_scores)
+                    apply_alleviate(image, label_scores)
         else:
             messages.error(
                 request,
@@ -253,7 +247,7 @@ def annotation_tool(request, image_id):
         'prev_image': prev_image,
         'image_set_size': image_set.count(),
         'image_set_order_placement': image_set_order_placement,
-        'filters_used_display': filters_used_display,
+        'applied_search_display': applied_search_display,
         'metadata': metadata,
         'image_meta_table': get_date_and_aux_metadata_table(image),
         'labels': labels,
@@ -357,8 +351,6 @@ def save_annotations_ajax(request, image_id):
             "Failed to save annotations. It's possible that the"
             " annotations changed at the same time that you submitted."
             " Try again and see if it works.")))
-
-    after_saving_annotations(image)
 
     all_done = image_annotation_all_done(image)
     return JsonResponse(dict(all_done=all_done))

@@ -11,7 +11,7 @@ import images.models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('images', '0023_point_rowcol_zero_indexing'),
+        ('images', '0025_populate_image_last_annotation'),
     ]
 
     operations = [

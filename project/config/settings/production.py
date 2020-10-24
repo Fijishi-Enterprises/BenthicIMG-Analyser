@@ -32,11 +32,10 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 # [Custom setting]
 # Which vision backend to use.
-SPACER_QUEUE_CHOICE = 'vision_backend.queues.SQSQueue'
+SPACER_QUEUE_CHOICE = 'vision_backend.queues.BatchQueue'
 
 # Configure the SQS queue name to use
-SQS_JOBS = 'coralnet_prod_jobs'
-SQS_RES = 'coralnet_prod_results'
+BATCH_QUEUE = 'production'
 
 # [Custom setting]
 # Front page carousel images.

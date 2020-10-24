@@ -1,22 +1,20 @@
 # Base settings for any type of server.
 
 import json
-import os
-import sys
 import logging
-
-from unipath import Path
-
-# Normally you should not import ANYTHING from Django directly
-# into your settings, but ImproperlyConfigured is an exception.
-from django.core.exceptions import ImproperlyConfigured
-
-from .vision_backend import *
+import sys
 
 # Configure Pillow to be tolerant of image files that are truncated (missing
 # data from the last block).
 # https://stackoverflow.com/a/23575424/
 from PIL import ImageFile
+# Normally you should not import ANYTHING from Django directly
+# into your settings, but ImproperlyConfigured is an exception.
+from django.core.exceptions import ImproperlyConfigured
+from unipath import Path
+
+from .vision_backend import *
+
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
@@ -671,7 +669,7 @@ LABELPATCH_NCOLS = 150  # Size of patch (after scaling)
 LABELPATCH_NROWS = 150  # Size of patch (after scaling)
 LABELPATCH_SIZE_FRACTION = 0.2  # Patch covers this proportion of the original image's greater dimension
 
-# Spacer job hash to identify this server instance in the SQS queue.
+# Spacer job hash to identify this server instance in the AWS queue.
 if has_secrets:
     SPACER_JOB_HASH = get_secret('SPACER_JOB_HASH')
 else:

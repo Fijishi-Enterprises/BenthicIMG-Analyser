@@ -115,3 +115,43 @@ class Score(models.Model):
     def __str__(self):
         return "%s - %s - %s - %s" % (
             self.image, self.point.point_number, self.label_code, self.score)
+
+
+class BatchJob(models.Model):
+    """
+    Simple table that tracks the AWS Batch job tokens and status.
+    """
+    STATUS_CHOICES = [
+        ('SUBMITTED', 'SUBMITTED'),
+        ('PENDING', 'PENDING'),
+        ('RUNNABLE', 'RUNNABLE'),
+        ('STARTING', 'STARTING'),
+        ('RUNNING', 'RUNNING'),
+        ('SUCCEEDED', 'SUCCEEDED'),
+        ('FAILED', 'FAILED'),
+    ]
+
+    def __str__(self):
+        return "Batch token: {}, job token: {} job id: {}".format(
+            self.batch_token, self.job_token, self.pk)
+
+    # The status taxonomy is from AWS Batch.
+    status = models.CharField(
+        max_length=12, choices=STATUS_CHOICES, default='SUBMITTED')
+
+    # Unique job identifier returned by Batch.
+    batch_token = models.CharField(max_length=128, null=True)
+
+    # Internal job token that identifies the job.
+    job_token = models.CharField(max_length=256, null=False)
+
+    # This can be used to report how long the job unit took.
+    create_date = models.DateTimeField("Date created", auto_now_add=True)
+
+    @property
+    def job_key(self):
+        return settings.BATCH_JOB_PATTERN.format(pk=self.id)
+
+    @property
+    def res_key(self):
+        return settings.BATCH_RES_PATTERN.format(pk=self.id)

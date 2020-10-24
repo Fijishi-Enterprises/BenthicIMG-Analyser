@@ -31,12 +31,10 @@ class TestJobTokenEncode(BaseTest):
     def test_encode_one(self):
 
         job_token = th.encode_spacer_job_token([4])
-        self.assertIn(settings.SPACER_JOB_HASH, job_token)
         self.assertIn('4', job_token)
 
     def test_encode_three(self):
         job_token = th.encode_spacer_job_token([4, 5, 6])
-        self.assertIn(settings.SPACER_JOB_HASH, job_token)
         self.assertIn('4', job_token)
         self.assertIn('5', job_token)
         self.assertIn('6', job_token)
@@ -350,9 +348,9 @@ class TrainClassifierTest(ClientTest):
 
         # Check that the point-counts in val_res is equal to val_data.
         val_res = ValResults.load(job_msg.tasks[0].valresult_loc)
-        val_data = ImageLabels.load(job_msg.tasks[0].valdata_loc)
+        val_labels = job_msg.tasks[0].val_labels
         self.assertEqual(len(val_res.gt),
-                         len(val_data) * val_data.samples_per_image)
+                         len(val_labels) * val_labels.samples_per_image)
 
 
 @override_settings(SPACER_QUEUE_CHOICE='vision_backend.queues.LocalQueue')

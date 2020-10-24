@@ -10,10 +10,10 @@ from vision_backend.models import Classifier
 from vision_backend.tasks import collect_all_jobs, submit_classifier
 
 reg_test_config = {
-    372: {'small': (20, 5),
+    372: {'small': (25, 5),
           'medium': (250, 30),
           'large': (1400, 50)},
-    504: {'small': (20, 5),
+    504: {'small': (25, 5),
           'medium': (100, 15),
           'large': (100, 15)}
 }
@@ -49,17 +49,15 @@ class Command(BaseCommand):
         from .storage_s3 import *.
         ```
         ## AWS ECS cluster. 
-        This uses the AWS SQS and ECS to process the jobs. 
-        The jobs are submitted to the spacer_test_queue, 
-        so this is safe to run.
+        This uses the AWS Batch to process the jobs. 
         ```
         CELERY_ALWAYS_EAGER = False
-        SPACER_QUEUE_CHOICE = 'vision_backend.queues.SQSQueue'
+        SPACER_QUEUE_CHOICE = 'vision_backend.queues.BatchQueue'
         from .storage_s3 import *
         ```
         
         Etc. etc. Most combinations work. The only requirement is that if you 
-        use the `SQSQueue` you need to use the `storage_s3` setting. 
+        use the `BatchQueue` you need to use the `storage_s3` setting. 
         
         NOTE1: 
         If you use `.storage_local` you need to add these lines to your 

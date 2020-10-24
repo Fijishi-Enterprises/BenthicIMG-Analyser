@@ -6,6 +6,7 @@ from django.conf import settings
 from django.core.files.storage import get_storage_class
 from django.core.mail import mail_admins
 from django.db import IntegrityError
+from django.utils import timezone
 from django.utils.timezone import now
 from spacer.messages import \
     ExtractFeaturesMsg, \
@@ -24,7 +25,7 @@ from api_core.models import ApiJobUnit
 from images.models import Source, Image, Point
 from labels.models import Label
 from . import task_helpers as th
-from .models import Classifier, Score
+from .models import Classifier, Score, BatchJob
 from .queues import get_queue_class
 
 logger = logging.getLogger(__name__)
@@ -70,8 +71,6 @@ def submit_features(image_id, force=False):
     queue.submit_job(msg)
 
     logger.info(u"Submitted feature extraction for {}".format(log_str))
-    logger.debug(u"Submitted feature extraction for {}. Message: {}".
-                 format(log_str, msg.serialize()))
     return msg
 
 
@@ -109,16 +108,10 @@ def submit_classifier(source_id, nbr_images=1e5, force=False):
 
     # Write train-labels to file storage
     storage = get_storage_class()()
-    traindata = th.make_dataset([image for image in images if image.trainset])
-    traindata_loc = storage.spacer_data_loc(
-        settings.ROBOT_MODEL_TRAINDATA_PATTERN.format(pk=classifier.pk))
-    traindata.store(traindata_loc)
+    train_labels = th.make_dataset([image for image in images if image.trainset])
 
     # Write val-labels to file storage
-    valdata = th.make_dataset([image for image in images if image.valset])
-    valdata_loc = storage.spacer_data_loc(
-        settings.ROBOT_MODEL_VALDATA_PATTERN.format(pk=classifier.pk))
-    valdata.store(valdata_loc)
+    val_labels = th.make_dataset([image for image in images if image.valset])
 
     # This will not include the one we just created, b/c it is not valid.
     prev_classifiers = Classifier.objects.filter(source=source, valid=True)
@@ -131,8 +124,9 @@ def submit_classifier(source_id, nbr_images=1e5, force=False):
         job_token=th.encode_spacer_job_token([classifier.pk] + pc_pks),
         trainer_name='minibatch',
         nbr_epochs=settings.NBR_TRAINING_EPOCHS,
-        traindata_loc=traindata_loc,
-        valdata_loc=valdata_loc,
+        clf_type=settings.CLASSIFIER_MAPPINGS[source.feature_extractor],
+        train_labels=train_labels,
+        val_labels=val_labels,
         features_loc=storage.spacer_data_loc(''),
         previous_model_locs=[storage.spacer_data_loc(
             settings.ROBOT_MODEL_FILE_PATTERN.format(pk=pc.pk))
@@ -152,9 +146,6 @@ def submit_classifier(source_id, nbr_images=1e5, force=False):
 
     logger.info(u"Submitted classifier {} for source {} [{}] with {} images.".
                 format(classifier.pk, source.name, source.id, len(images)))
-    logger.debug(u"Submitted classifier for source {} [{}] with {} images. "
-                 u"Message: {}".format(source.name, source.id,
-                                       len(images), msg))
     return msg
 
 
@@ -197,9 +188,6 @@ def deploy(job_unit_id):
 
     logger.info(u"Submitted image at url: {} for deploy with job unit {}.".
                 format(job_unit.request_json['url'], job_unit.pk))
-    logger.debug(u"Submitted image at url: {} for deploy with job unit {}. "
-                 u"Message: {}".format(job_unit.request_json['url'],
-                                       job_unit.pk, msg))
 
     return msg
 
@@ -285,12 +273,10 @@ def _handle_job_result(job_res: JobReturnMsg):
     """Handles the job results found in queue. """
 
     if not job_res.ok:
-        print("Job failed: {}".format(job_res))
+        logger.error("Job failed: {}".format(job_res.error_message))
+        mail_admins("Spacer job failed", repr(job_res))
         if job_res.original_job.task_name == 'classify_image':
             th.deploy_fail(job_res)
-        else:
-            logger.error("Job failed: {}".format(job_res))
-            mail_admins("Spacer job failed", repr(job_res))
         return
 
     task_name = job_res.original_job.task_name
@@ -322,7 +308,6 @@ def _handle_job_result(job_res: JobReturnMsg):
 
         # Conclude
         logger.info("Collected job: {} with pk: {}".format(task_name, pk))
-        logger.debug("Collected job: {}".format(job_res))
 
 
 @task(name="Reset Source")
@@ -368,3 +353,16 @@ def reset_features(image_id):
     # Re-submit feature extraction.
     submit_features.apply_async(args=[img.id],
                                 eta=now() + timedelta(seconds=10))
+
+
+@periodic_task(
+    run_every=timedelta(days=1),
+    name="Clean up old Batch jobs",
+    ignore_result=True,
+)
+def clean_up_old_batch_jobs():
+    thirty_days_ago = timezone.now() - timedelta(days=30)
+    for job in BatchJob.objects.filter(create_date__lt=thirty_days_ago):
+        job.delete()
+        mail_admins("Job {} not completed after 30 days.".format(
+            job.batch_token), str(job))

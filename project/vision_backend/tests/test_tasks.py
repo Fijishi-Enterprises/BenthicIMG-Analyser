@@ -1,8 +1,11 @@
+from datetime import timedelta
 import mock
+
 import numpy as np
 from django.core.urlresolvers import reverse
 from django.test import override_settings
 from django.conf import settings
+from django.utils import timezone
 from spacer.config import MIN_TRAINIMAGES
 from spacer.data_classes import ImageFeatures, ValResults
 from spacer.messages import ClassifyReturnMsg
@@ -15,9 +18,10 @@ from images.models import Image, Point
 from django.core.files.storage import get_storage_class
 from lib.tests.utils import BaseTest, ClientTest
 from upload.tests.utils import UploadAnnotationsTestMixin
-from vision_backend.models import Score, Classifier
+from vision_backend.models import BatchJob, Score, Classifier
 from vision_backend.tasks import \
     classify_image, \
+    clean_up_old_batch_jobs, \
     collect_all_jobs, \
     reset_after_labelset_change, \
     submit_classifier
@@ -549,3 +553,55 @@ class ClassifyImageTest(BaseTaskTest):
             len(self.rowcols_with_dupes_included),
             Annotation.objects.filter(image__id=img.id).count(),
             "New image should be classified, including dupe points")
+
+
+class BatchJobCleanupTest(ClientTest):
+    """
+    Test cleanup of old AWS Batch jobs.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super(BatchJobCleanupTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+
+    def test_job_selection(self):
+        """
+        Only jobs eligible for cleanup should be cleaned up.
+        """
+        # More than one job too new to be cleaned up.
+
+        job = BatchJob(job_token='new')
+        job.save()
+
+        job = BatchJob(job_token='29 days ago')
+        job.save()
+        job.create_date = timezone.now() - timedelta(days=29)
+        job.save()
+
+        # More than one job old enough to be cleaned up.
+
+        job = BatchJob(job_token='31 days ago')
+        job.save()
+        job.create_date = timezone.now() - timedelta(days=31)
+        job.save()
+
+        job = BatchJob(job_token='32 days ago')
+        job.save()
+        job.create_date = timezone.now() - timedelta(days=32)
+        job.save()
+
+        clean_up_old_batch_jobs()
+
+        self.assertTrue(
+            BatchJob.objects.filter(job_token='new').exists(),
+            "Shouldn't clean up new job")
+        self.assertTrue(
+            BatchJob.objects.filter(job_token='29 days ago').exists(),
+            "Shouldn't clean up 29 day old job")
+        self.assertFalse(
+            BatchJob.objects.filter(job_token='31 days ago').exists(),
+            "Shouldn't clean up 31 day old job")
+        self.assertFalse(
+            BatchJob.objects.filter(job_token='32 days ago').exists(),
+            "Shouldn't clean up 32 day old job")

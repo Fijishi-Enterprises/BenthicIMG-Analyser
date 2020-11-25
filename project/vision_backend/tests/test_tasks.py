@@ -1,10 +1,11 @@
+import mock
 import numpy as np
 from django.core.urlresolvers import reverse
 from django.test import override_settings
 from django.conf import settings
 from spacer.config import MIN_TRAINIMAGES
+from spacer.data_classes import ImageFeatures, ValResults
 from spacer.messages import ClassifyReturnMsg
-from spacer.data_classes import ValResults, ImageLabels
 
 import vision_backend.task_helpers as th
 from accounts.utils import is_robot_user
@@ -13,6 +14,7 @@ from images.model_utils import PointGen
 from images.models import Image, Point
 from django.core.files.storage import get_storage_class
 from lib.tests.utils import BaseTest, ClientTest
+from upload.tests.utils import UploadAnnotationsTestMixin
 from vision_backend.models import Score, Classifier
 from vision_backend.tasks import \
     classify_image, \
@@ -267,59 +269,122 @@ class ClassifyUtilsTest(ClientTest):
             self.assertEqual(scores[int(np.argmax(posteriors))].label, ann.label)
 
 
-@override_settings(SPACER_QUEUE_CHOICE='vision_backend.queues.LocalQueue')
-class ExtractFeaturesTest(ClientTest):
-
-    @classmethod
-    def setUpTestData(cls):
-        super(ExtractFeaturesTest, cls).setUpTestData()
-
-        cls.user = cls.create_user()
-        cls.source = cls.create_source(cls.user)
-
-    def test_success(self):
-        # After an image upload, features are ready to be submitted.
-        img = self.upload_image(self.user, self.source)
-
-        storage = get_storage_class()()
-
-        self.assertTrue(storage.exists(
-            settings.FEATURE_VECTOR_FILE_PATTERN.format(
-                full_image_path=img.original_file.name)))
-
-        # Then assuming we're using the mock backend, the result should be
-        # available for collection immediately.
-        collect_all_jobs()
-
-        # Features should be successfully extracted.
-        self.assertTrue(img.features.extracted)
-
-
-@override_settings(SPACER_QUEUE_CHOICE='vision_backend.queues.LocalQueue')
+# Note that spacer also has its own minimum image count for training.
 @override_settings(MIN_NBR_ANNOTATED_IMAGES=1)
-class TrainClassifierTest(ClientTest):
+@override_settings(SPACER_QUEUE_CHOICE='vision_backend.queues.LocalQueue')
+class BaseTaskTest(ClientTest, UploadAnnotationsTestMixin):
+    """Base test class for testing the backend's 'main' tasks."""
 
     @classmethod
     def setUpTestData(cls):
-        super(TrainClassifierTest, cls).setUpTestData()
+        super(BaseTaskTest, cls).setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(
             cls.user,
             point_generation_type=PointGen.Types.SIMPLE,
             simple_number_of_points=5)
+        cls.labels = cls.create_labels(cls.user, ['A', 'B'], "Group1")
+        cls.create_labelset(cls.user, cls.source, cls.labels)
 
-        labels = cls.create_labels(cls.user, ['A', 'B'], "Group1")
-        cls.create_labelset(cls.user, cls.source, labels)
+    def assertExistsInStorage(self, filepath):
+        storage = get_storage_class()()
+        self.assertTrue(storage.exists(filepath))
 
-        for i in range(MIN_IMAGES):
-            img = cls.upload_image(cls.user, cls.source)
-            cls.add_annotations(
-                cls.user, img, {1: 'A', 2: 'B', 3: 'A', 4: 'A', 5: 'B'})
+    def upload_n_images_with_annotations(self, num_images):
+        for i in range(num_images):
+            img = self.upload_image(self.user, self.source)
+            self.add_annotations(
+                self.user, img, {1: 'A', 2: 'B', 3: 'A', 4: 'A', 5: 'B'})
 
+    def upload_image_with_dupe_points(self, filename, with_labels=False):
+        img = self.upload_image(
+            self.user, self.source, image_options=dict(filename=filename))
+
+        # Upload points, including a duplicate.
+        if with_labels:
+            rows = [
+                ['Name', 'Row', 'Column', 'Label'],
+                [filename, 50, 50, 'A'],
+                [filename, 40, 60, 'B'],
+                [filename, 50, 50, 'A'],
+            ]
+        else:
+            rows = [
+                ['Name', 'Row', 'Column'],
+                [filename, 50, 50],
+                [filename, 40, 60],
+                [filename, 50, 50],
+            ]
+        csv_file = self.make_csv_file('A.csv', rows)
+        self.preview_csv_annotations(
+            self.user, self.source, csv_file)
+        self.upload_annotations(self.user, self.source)
+
+        img.refresh_from_db()
+        self.assertEqual(
+            PointGen.args_to_db_format(
+                point_generation_type=PointGen.Types.IMPORTED,
+                imported_number_of_points=3),
+            img.point_generation_method,
+            "Points should be saved successfully")
+
+        return img
+
+    rowcols_with_dupes_included = [(40, 60), (50, 50), (50, 50)]
+    rowcols_with_dupes_removed = [(40, 60), (50, 50)]
+
+
+class ExtractFeaturesTest(BaseTaskTest):
+
+    def test_success(self):
+        # After an image upload, features are ready to be submitted.
+        img = self.upload_image(self.user, self.source)
+
+        self.assertExistsInStorage(
+            settings.FEATURE_VECTOR_FILE_PATTERN.format(
+                full_image_path=img.original_file.name))
+
+        # With LocalQueue, the result should be
+        # available for collection immediately.
         collect_all_jobs()
 
-    def test_train_success(self):
+        # Features should be successfully extracted.
+        self.assertTrue(img.features.extracted)
+
+    def test_with_dupe_points(self):
+        """
+        The image to have features extracted has two points with the same
+        row/column.
+        """
+
+        # Upload.
+        img = self.upload_image_with_dupe_points('1.png')
+        # Process feature extraction result.
+        collect_all_jobs()
+
+        self.assertTrue(img.features.extracted, "Features should be extracted")
+
+        # Ensure the features are of the uploaded points, without dupes.
+        storage = get_storage_class()()
+        feature_loc = storage.spacer_data_loc(
+            settings.FEATURE_VECTOR_FILE_PATTERN.format(
+                full_image_path=img.original_file.name))
+        features = ImageFeatures.load(feature_loc)
+        rowcols = [(f.row, f.col) for f in features.point_features]
+        self.assertListEqual(
+            self.rowcols_with_dupes_removed, sorted(rowcols),
+            "Feature rowcols should match the actual points, without dupes")
+
+
+class TrainClassifierTest(BaseTaskTest):
+
+    def test_success(self):
+        # Provide enough data for training. Upload images with annotations, and
+        # extract features.
+        self.upload_n_images_with_annotations(MIN_IMAGES)
+        collect_all_jobs()
+
         # Create a classifier
         job_msg = submit_classifier(self.source.id)
 
@@ -352,40 +417,135 @@ class TrainClassifierTest(ClientTest):
         self.assertEqual(len(val_res.gt),
                          len(val_labels) * val_labels.samples_per_image)
 
+    def test_with_dupe_points(self):
+        """
+        Images in the training set and validation set have two points with the
+        same row/column.
+        """
 
-@override_settings(SPACER_QUEUE_CHOICE='vision_backend.queues.LocalQueue')
-@override_settings(MIN_NBR_ANNOTATED_IMAGES=1)
-class ClassifyImageTest(ClientTest):
+        class MyPropertyMock(mock.Mock):
+            """
+            An alternative to PropertyMock which allows us to replace the
+            property callable with another callable (instead of just setting a
+            constant return value).
+            https://stackoverflow.com/a/64460168
+            """
+            def __get__(self, obj, obj_type=None):
+                return self(obj, obj_type)
 
-    @classmethod
-    def setUpTestData(cls):
-        super(ClassifyImageTest, cls).setUpTestData()
+        def mock_valset_get(self, obj_type=None):
+            """
+            It can be tricky to assert on train set / validation sets when it's
+            based on image primary key. Make it based on the image name
+            instead. If name starts with 'val', it's in val set. Else, it's in
+            train set.
+            """
+            return self.metadata.name.startswith('val')
 
-        cls.user = cls.create_user()
-        cls.source = cls.create_source(
-            cls.user,
-            point_generation_type=PointGen.Types.SIMPLE,
-            simple_number_of_points=5)
+        # Upload annotated images with dupe points
+        val_image_with_dupe_point = self.upload_image_with_dupe_points(
+            'val.png', with_labels=True)
+        training_image_with_dupe_point = self.upload_image_with_dupe_points(
+            'train.png', with_labels=True)
+        # Other annotated images (these will be training)
+        self.upload_n_images_with_annotations(MIN_IMAGES - 2)
 
-        labels = cls.create_labels(cls.user, ['A', 'B'], "Group1")
-        cls.create_labelset(cls.user, cls.source, labels)
-
-        # Two images with features
-        for i in range(MIN_IMAGES):
-            img = cls.upload_image(cls.user, cls.source)
-            cls.add_annotations(
-                cls.user, img, {1: 'A', 2: 'B', 3: 'A', 4: 'A', 5: 'B'})
-
-        # Add one more without annotations
-        cls.img = cls.upload_image(cls.user, cls.source)
+        # Process feature extraction results
         collect_all_jobs()
 
         # Train classifier
-        submit_classifier(cls.source.id)
+        with mock.patch(
+                'images.models.Image.valset',
+                new_callable=MyPropertyMock) as mock_valset:
+            mock_valset.side_effect = mock_valset_get
+            job_msg = submit_classifier(self.source.id)
         collect_all_jobs()
 
+        # Check training data
+
+        storage = get_storage_class()()
+        train_data = job_msg.tasks[0].train_labels.data
+        feature_filepath = settings.FEATURE_VECTOR_FILE_PATTERN.format(
+            full_image_path=training_image_with_dupe_point.original_file.name)
+        feature_location = storage.spacer_data_loc(feature_filepath)
+        image_train_data = train_data[feature_location.key]
+        self.assertEqual(
+            len(self.rowcols_with_dupes_included), len(image_train_data),
+            "Training data count should include dupe points")
+        rowcols = [
+            (row, col) for row, col, label in image_train_data]
+        self.assertListEqual(
+            self.rowcols_with_dupes_included, sorted(rowcols),
+            "Training data rowcols should include dupe points")
+
+        # Check validation data
+
+        val_data = job_msg.tasks[0].val_labels.data
+        feature_filepath = settings.FEATURE_VECTOR_FILE_PATTERN.format(
+            full_image_path=val_image_with_dupe_point.original_file.name)
+        feature_location = storage.spacer_data_loc(feature_filepath)
+        image_val_data = val_data[feature_location.key]
+        self.assertEqual(
+            len(self.rowcols_with_dupes_included), len(image_val_data),
+            "Validation data count should include dupe points")
+        rowcols = [
+            (row, col) for row, col, label in image_val_data]
+        self.assertListEqual(
+            self.rowcols_with_dupes_included, sorted(rowcols),
+            "Validation data rowcols should include dupe points")
+
+        # Check valresults
+
+        val_res = ValResults.load(job_msg.tasks[0].valresult_loc)
+        self.assertEqual(
+            len(self.rowcols_with_dupes_included), len(val_res.gt),
+            "Valresults count should include dupe points")
+
+        # Check that there's a valid classifier.
+
+        latest_classifier = self.source.get_latest_robot()
+        self.assertTrue(latest_classifier.valid)
+
+
+class ClassifyImageTest(BaseTaskTest):
+
     def test_classify_unannotated_image(self):
-        classify_image(self.img.id)
+        # Provide enough data for training
+        self.upload_n_images_with_annotations(MIN_IMAGES)
+        # Add one image without annotations
+        img = self.upload_image(self.user, self.source)
+        # Process feature extraction results
+        collect_all_jobs()
+
+        # Train classifier
+        submit_classifier(self.source.id)
+        collect_all_jobs()
+
+        # Classify the unclassified image
+        classify_image(img.id)
 
         self.assertEqual(
-            Annotation.objects.filter(image__id=self.img.id).count(), 5)
+            5, Annotation.objects.filter(image__id=img.id).count(),
+            "New image should be classified")
+
+    def test_with_dupe_points(self):
+        """
+        The image to be classified has two points with the same row/column.
+        """
+        # Provide enough data for training
+        self.upload_n_images_with_annotations(MIN_IMAGES)
+        # Add one image without annotations, including a duplicate point
+        img = self.upload_image_with_dupe_points('has_dupe.png')
+        # Extract features
+        collect_all_jobs()
+
+        # Train classifier
+        submit_classifier(self.source.id)
+        collect_all_jobs()
+
+        # Classify image
+        classify_image(img.id)
+        self.assertEqual(
+            len(self.rowcols_with_dupes_included),
+            Annotation.objects.filter(image__id=img.id).count(),
+            "New image should be classified, including dupe points")

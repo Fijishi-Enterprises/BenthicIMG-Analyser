@@ -138,136 +138,6 @@ class ResetTaskTest(ClientTest):
         self.assertFalse(Image.objects.get(id=img.id).features.classified)
 
 
-@override_settings(SPACER_QUEUE_CHOICE='vision_backend.queues.LocalQueue')
-class ClassifyUtilsTest(ClientTest):
-    """Test helper/utility functions used by the classify-image task."""
-
-    @classmethod
-    def setUpTestData(cls):
-        super(ClassifyUtilsTest, cls).setUpTestData()
-
-        cls.user = cls.create_user()
-        cls.points_per_image = 3
-        cls.source = cls.create_source(
-            cls.user,
-            point_generation_type=PointGen.Types.SIMPLE,
-            simple_number_of_points=cls.points_per_image,
-        )
-
-        cls.labels = cls.create_labels(
-            cls.user, ['A', 'B', 'C', 'D'], "Group1")
-        cls.create_labelset(cls.user, cls.source, cls.labels)
-        # Make the order predictable so that we can specify scores easily
-        cls.labels.order_by('default_code')
-
-    @classmethod
-    def classify(cls, img, classifier=None, scores=None):
-        if not classifier:
-            classifier = Classifier(source=cls.source, valid=True)
-            classifier.save()
-        if not scores:
-            scores = [
-                np.random.rand(cls.labels.count())
-                for _ in range(cls.points_per_image)]
-
-        return_msg = ClassifyReturnMsg(
-            runtime=0.0,
-            scores=[(0, 0, [float(s) for s in scrs]) for scrs in scores],
-            classes=[label.pk for label in cls.labels],
-            valid_rowcol=False,
-        )
-
-        th.add_scores(img.pk, return_msg, cls.labels)
-        th.add_annotations(img.pk, return_msg, cls.labels, classifier)
-        img.features.extracted = True
-        img.features.classified = True
-        img.features.save()
-
-    def test_classify_for_unannotated_image(self):
-        """Classify an image which has no annotations yet."""
-        img = self.upload_image(self.user, self.source)
-        self.classify(img)
-
-        # Should have only robot annotations
-        for ann in Annotation.objects.filter(image_id=img.id):
-            self.assertTrue(is_robot_user(ann.user))
-
-    def test_classify_for_unconfirmed_image(self):
-        """Classify an image where all points have unconfirmed annotations.
-        We'll assume we have a robot which is better than the previous (it's
-        not _add_annotations()'s job to determine this)."""
-        img = self.upload_image(self.user, self.source)
-
-        classifier_1 = Classifier(source=self.source, valid=True)
-        classifier_1.save()
-        scores = [
-            [0.8, 0.5, 0.5, 0.5],  # Point 1: A
-            [0.5, 0.5, 0.5, 0.8],  # Point 2: D
-            [0.5, 0.8, 0.5, 0.5],  # Point 3: B
-        ]
-        self.classify(img, classifier=classifier_1, scores=scores)
-
-        classifier_2 = Classifier(source=self.source, valid=True)
-        classifier_2.save()
-        scores = [
-            [0.6, 0.6, 0.7, 0.6],  # Point 1: C
-            [0.6, 0.6, 0.6, 0.7],  # Point 2: D (same as before)
-            [0.7, 0.6, 0.6, 0.6],  # Point 3: A
-        ]
-        self.classify(img, classifier=classifier_2, scores=scores)
-
-        # Should have only robot annotations, with point 2 still being from
-        # classifier 1
-        for ann in Annotation.objects.filter(image_id=img.id):
-            # Should be robot
-            self.assertTrue(is_robot_user(ann.user))
-            if ann.point.point_number == 2:
-                self.assertTrue(ann.robot_version.pk == classifier_1.pk)
-            else:
-                self.assertTrue(ann.robot_version.pk == classifier_2.pk)
-
-    def test_classify_for_partially_confirmed_image(self):
-        """Classify an image where some, but not all points have confirmed
-        annotations."""
-        img = self.upload_image(self.user, self.source)
-        # Human annotations
-        self.add_annotations(self.user, img, {1: 'A'})
-        # Robot annotations
-        self.classify(img)
-
-        for ann in Annotation.objects.filter(image_id=img.id):
-            if ann.point.point_number == 1:
-                # Should still be human
-                self.assertFalse(is_robot_user(ann.user))
-            else:
-                # Should be robot
-                self.assertTrue(is_robot_user(ann.user))
-
-    def test_classify_for_fully_confirmed_image(self):
-        """Classify an image where all points have confirmed annotations."""
-        img = self.upload_image(self.user, self.source)
-        # Human annotations
-        self.add_annotations(
-            self.user, img, {1: 'A', 2: 'B', 3: 'C'})
-        # Robot annotations
-        self.classify(img)
-
-        # Should have only human annotations
-        for ann in Annotation.objects.filter(image_id=img.id):
-            self.assertFalse(is_robot_user(ann.user))
-
-    def test_classify_scores_and_labels_match(self):
-        img = self.upload_image(self.user, self.source)
-        self.classify(img)
-
-        # Check that the max score label matches the annotation label.
-        for point in Point.objects.filter(image=img):
-            ann = point.annotation
-            scores = Score.objects.filter(point=point)
-            posteriors = [score.score for score in scores]
-            self.assertEqual(scores[int(np.argmax(posteriors))].label, ann.label)
-
-
 class MockImage:
     # Prevent IDE warning about unresolved attribute.
     metadata = None
@@ -310,6 +180,7 @@ class BaseTaskTest(ClientTest, UploadAnnotationsTestMixin):
             self.user, self.source, image_options=dict(filename=filename))
         self.add_annotations(
             self.user, img, {1: 'A', 2: 'B', 3: 'A', 4: 'A', 5: 'B'})
+        return img
 
     def upload_images_for_training(self, train_image_count, val_image_count):
         for _ in range(train_image_count):
@@ -514,12 +385,10 @@ class TrainClassifierTest(BaseTaskTest):
 @mock.patch('images.models.Image.valset', MockImage.valset)
 class ClassifyImageTest(BaseTaskTest):
 
-    def test_classify_unannotated_image(self):
+    def train_classifier(self):
         # Provide enough data for training
         self.upload_images_for_training(
             train_image_count=spacer_config.MIN_TRAINIMAGES, val_image_count=1)
-        # Add one image without annotations
-        img = self.upload_image(self.user, self.source)
         # Process feature extraction results
         collect_all_jobs()
 
@@ -527,12 +396,217 @@ class ClassifyImageTest(BaseTaskTest):
         submit_classifier(self.source.id)
         collect_all_jobs()
 
-        # Classify the unclassified image
+    def test_classify_unannotated_image(self):
+        """Classify an image where all points are unannotated."""
+        self.train_classifier()
+
+        # Image without annotations
+        img = self.upload_image(self.user, self.source)
+        # Process feature extraction results + classify image
+        collect_all_jobs()
+
+        for point in Point.objects.filter(image__id=img.id):
+            self.assertTrue(
+                point.annotation is not None,
+                "New image's points should be classified")
+            self.assertTrue(
+                is_robot_user(point.annotation.user),
+                "Image should have robot annotations")
+            # Score count per point should be label count or 5,
+            # whichever is less. (In this case it's label count)
+            self.assertEqual(
+                2, point.score_set.count(), "Each point should have scores")
+
+    def test_more_than_5_labels(self):
+        """
+        When there are more than 5 labels, score count should be capped to 5.
+        """
+        # Increase label count from 2 to 8.
+        labels = self.create_labels(
+            self.user, ['C', 'D', 'E', 'F', 'G', 'H'], "Group2")
+        self.create_labelset(self.user, self.source, labels | self.labels)
+
+        # Use each label, so that they all have enough training
+        # data to be considered during classification.
+        img = self.upload_image(self.user, self.source)
+        self.add_annotations(
+            self.user, img, {1: 'A', 2: 'B', 3: 'C', 4: 'D', 5: 'E'})
+        img = self.upload_image(self.user, self.source)
+        self.add_annotations(
+            self.user, img, {1: 'F', 2: 'G', 3: 'H', 4: 'B', 5: 'C'})
+        img = self.upload_image(self.user, self.source)
+        self.add_annotations(
+            self.user, img, {1: 'D', 2: 'E', 3: 'F', 4: 'G', 5: 'H'})
+
+        # This uploads a bunch of images using nothing but A/B, then runs
+        # tasks needed to train a classifier.
+        self.train_classifier()
+
+        # Upload, extract features, classify
+        img = self.upload_image(self.user, self.source)
+        collect_all_jobs()
+
+        for point in Point.objects.filter(image__id=img.id):
+            # Score count per point should be label count or 5,
+            # whichever is less. (In this case it's 5)
+            self.assertEqual(
+                5, point.score_set.count(), "Each point should have 5 scores")
+
+    def test_classify_unconfirmed_image(self):
+        """
+        Classify an image which has already been machine-classified
+        previously.
+        """
+        def mock_classify_msg_1(
+                self_, runtime, scores, classes, valid_rowcol):
+            self_.runtime = runtime
+            self_.classes = classes
+            self_.valid_rowcol = valid_rowcol
+
+            # 1 list per point; 1 float score per label per point.
+            # This would classify as all A.
+            scores_simple = [
+                [0.8, 0.2], [0.8, 0.2], [0.8, 0.2], [0.8, 0.2], [0.8, 0.2],
+            ]
+            self_.scores = []
+            for i, score in enumerate(scores):
+                self_.scores.append((score[0], score[1], scores_simple[i]))
+
+        def mock_classify_msg_2(
+                self_, runtime, scores, classes, valid_rowcol):
+            self_.runtime = runtime
+            self_.classes = classes
+            self_.valid_rowcol = valid_rowcol
+
+            # This would classify as 3 A's, 2 B's.
+            # We'll just check the count of each label later to check
+            # correctness of results, since assigning specific scores to
+            # specific points is trickier to keep track of.
+            scores_simple = [
+                [0.6, 0.4], [0.4, 0.6], [0.4, 0.6], [0.6, 0.4], [0.6, 0.4],
+            ]
+            self_.scores = []
+            for i, score in enumerate(scores):
+                self_.scores.append((score[0], score[1], scores_simple[i]))
+
+        self.train_classifier()
+        clf_1 = self.source.get_latest_robot()
+
+        # Upload
+        img = self.upload_image(self.user, self.source)
+        # Extract features + classify with a particular set of scores
+        with mock.patch(
+                'spacer.messages.ClassifyReturnMsg.__init__',
+                mock_classify_msg_1):
+            collect_all_jobs()
+
+        # Create another valid classifier. Override settings so that 1) we
+        # don't need more images to train a new classifier, and 2) we don't
+        # need improvement to mark a new classifier as valid.
+        with override_settings(
+                NEW_CLASSIFIER_TRAIN_TH=0.0001,
+                NEW_CLASSIFIER_IMPROVEMENT_TH=0.0001):
+            submit_classifier(self.source.id)
+            # 1) Save classifier. 2) re-classify with a different set of
+            # scores so that specific points get their labels changed (and
+            # other points don't).
+            with mock.patch(
+                    'spacer.messages.ClassifyReturnMsg.__init__',
+                    mock_classify_msg_2):
+                collect_all_jobs()
+
+        clf_2 = self.source.get_latest_robot()
+        self.assertNotEqual(
+            clf_1.id, clf_2.id, "Should have a new valid classifier")
+
+        for point in Point.objects.filter(image=img):
+            self.assertTrue(
+                is_robot_user(point.annotation.user),
+                "Should still have robot annotations")
+        self.assertEqual(
+            3,
+            Point.objects.filter(
+                image=img, annotation__label__name='A').count(),
+            "3 points should be labeled A")
+        self.assertEqual(
+            2,
+            Point.objects.filter(
+                image=img, annotation__label__name='B').count(),
+            "2 points should be labeled B")
+        self.assertEqual(
+            3,
+            Point.objects.filter(
+                image=img, annotation__robot_version=clf_1).count(),
+            "3 points should still be under classifier 1")
+        self.assertEqual(
+            2,
+            Point.objects.filter(
+                image=img, annotation__robot_version=clf_2).count(),
+            "2 points should have been updated by classifier 2")
+
+    def test_classify_partially_confirmed_image(self):
+        """
+        Classify an image where some, but not all points have confirmed
+        annotations.
+        """
+        self.train_classifier()
+
+        # Image without annotations
+        img = self.upload_image(self.user, self.source)
+        # Add partial annotations
+        self.add_annotations(self.user, img, {1: 'A'})
+        # Process feature extraction results + classify image
+        collect_all_jobs()
+
+        for point in Point.objects.filter(image__id=img.id):
+            if point.point_number == 1:
+                self.assertFalse(
+                    is_robot_user(point.annotation.user),
+                    "The confirmed annotation should still be confirmed")
+            else:
+                self.assertTrue(
+                    is_robot_user(point.annotation.user),
+                    "The other annotations should be unconfirmed")
+            self.assertEqual(
+                2, point.score_set.count(), "Each point should have scores")
+
+    def test_classify_confirmed_image(self):
+        """Attempt to classify an image where all points are confirmed."""
+        self.train_classifier()
+
+        # Image with annotations
+        img = self.upload_image_with_annotations('confirmed.png')
+        # Process feature extraction results
+        collect_all_jobs()
+        # Try to classify
         classify_image(img.id)
 
-        self.assertEqual(
-            5, Annotation.objects.filter(image__id=img.id).count(),
-            "New image should be classified")
+        for point in Point.objects.filter(image__id=img.id):
+            self.assertFalse(
+                is_robot_user(point.annotation.user),
+                "Image should still have confirmed annotations")
+            self.assertEqual(
+                2, point.score_set.count(), "Each point should have scores")
+
+    def test_classify_scores_and_labels_match(self):
+        """
+        Check that the Scores and the labels assigned by classification are
+        consistent with each other.
+        """
+        self.train_classifier()
+
+        # Upload, extract features, classify
+        img = self.upload_image(self.user, self.source)
+        collect_all_jobs()
+
+        for point in Point.objects.filter(image__id=img.id):
+            ann = point.annotation
+            scores = Score.objects.filter(point=point)
+            posteriors = [score.score for score in scores]
+            self.assertEqual(
+                scores[int(np.argmax(posteriors))].label, ann.label,
+                "Max score label should match the annotation label."
+                " Posteriors: {}".format(posteriors))
 
     def test_with_dupe_points(self):
         """
@@ -546,12 +620,10 @@ class ClassifyImageTest(BaseTaskTest):
         # Extract features
         collect_all_jobs()
 
-        # Train classifier
+        # Train classifier + classify image
         submit_classifier(self.source.id)
         collect_all_jobs()
 
-        # Classify image
-        classify_image(img.id)
         self.assertEqual(
             len(self.rowcols_with_dupes_included),
             Annotation.objects.filter(image__id=img.id).count(),

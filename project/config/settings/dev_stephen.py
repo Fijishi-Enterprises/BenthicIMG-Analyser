@@ -6,7 +6,23 @@ from .base_devserver import *
 # Pick one.
 from .storage_local import *
 # from .storage_s3 import *
-# from .storage_s3_regtests import *
+
+# Use this if you're not using AWS. Or if you just want feature extraction to
+# be faster.
+FORCE_DUMMY_EXTRACTOR = True
+
+# Needed for regtests.
+# ALLOWED_HOSTS = ['127.0.0.1', 'testserver', 'localhost']
+
+# Needed for regtests and BatchQueue.
+AWS_ACCESS_KEY_ID = get_secret('AWS_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY = get_secret('AWS_SECRET_ACCESS_KEY')
+os.environ['SPACER_AWS_ACCESS_KEY_ID'] = AWS_ACCESS_KEY_ID
+os.environ['SPACER_AWS_SECRET_ACCESS_KEY'] = AWS_SECRET_ACCESS_KEY
+
+# Options for regtests. BatchQueue needs storage_s3 as well.
+# CELERY_ALWAYS_EAGER = True
+# SPACER_QUEUE_CHOICE = 'vision_backend.queues.BatchQueue'
 
 MAP_IMAGE_COUNT_TIERS = [5, 20, 50]
 

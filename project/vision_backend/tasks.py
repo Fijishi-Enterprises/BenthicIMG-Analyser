@@ -57,7 +57,7 @@ def submit_features(image_id, force=False):
     task = ExtractFeaturesMsg(
         job_token=th.encode_spacer_job_token([image_id]),
         feature_extractor_name=img.source.feature_extractor,
-        rowcols=list(set(rowcols)),
+        rowcols=rowcols,
         image_loc=storage.spacer_data_loc(img.original_file.name),
         feature_loc=storage.spacer_data_loc(
             settings.FEATURE_VECTOR_FILE_PATTERN.format(

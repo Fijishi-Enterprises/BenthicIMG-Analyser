@@ -93,4 +93,3 @@ class BaseTaskTest(ClientTest, UploadAnnotationsTestMixin):
         return img
 
     rowcols_with_dupes_included = [(40, 60), (50, 50), (50, 50)]
-    rowcols_with_dupes_removed = [(40, 60), (50, 50)]

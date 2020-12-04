@@ -45,8 +45,8 @@ class ExtractFeaturesTest(BaseTaskTest):
         features = ImageFeatures.load(feature_loc)
         rowcols = [(f.row, f.col) for f in features.point_features]
         self.assertListEqual(
-            self.rowcols_with_dupes_removed, sorted(rowcols),
-            "Feature rowcols should match the actual points, without dupes")
+            self.rowcols_with_dupes_included, sorted(rowcols),
+            "Feature rowcols should match the actual points including dupes")
 
 
 class AbortCasesTest(BaseTaskTest):

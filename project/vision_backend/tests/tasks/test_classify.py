@@ -154,8 +154,20 @@ class ClassifyImageTest(BaseClassifyTest):
                 collect_all_jobs()
 
         clf_2 = self.source.get_latest_robot()
+        all_classifiers = self.source.classifier_set.all()
+        message = (
+            "clf 1 and 2 IDs: {}, {}".format(clf_1.pk, clf_2.pk)
+            + " | All classifier IDs: {}".format(
+                list(all_classifiers.values_list('pk', flat=True)))
+            + "".join([
+                " | pk {} details: valid={}, accuracy={}, images={}".format(
+                    clf.pk, clf.valid, clf.accuracy, clf.nbr_train_images)
+                for clf in all_classifiers])
+        )
         self.assertNotEqual(
-            clf_1.id, clf_2.id, "Should have a new valid classifier")
+            clf_1.pk, clf_2.pk,
+            "Should have a new valid classifier. Debug info: {}".format(
+                message))
 
         for point in Point.objects.filter(image=img):
             self.assertTrue(

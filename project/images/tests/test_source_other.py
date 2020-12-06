@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+import re
 
 from bs4 import BeautifulSoup
 from django.test import override_settings
@@ -484,24 +485,44 @@ class SourceMainTest(ClientTest):
 
         self.client.force_login(self.user)
         response = self.client.get(reverse('source_main', args=[source.pk]))
+        source_main_content = response.content.decode('utf-8')
 
-        self.assertInHTML(
-            'Unclassified: <a href="{}">1</a>'.format(
-                reverse('browse_images', args=[source.pk])
-                + '?image_form_type=search&annotation_status=unclassified'),
-            response.content.decode('utf-8'))
+        # Grab the browse URLs from the image status box, and assert that
+        # following the URLs works as expected.
 
-        self.assertInHTML(
-            'Unconfirmed: <a href="{}">2</a>'.format(
-                reverse('browse_images', args=[source.pk])
-                + '?image_form_type=search&annotation_status=unconfirmed'),
-            response.content.decode('utf-8'))
+        for status_main_page, status_browse_thumb, count in [
+                ('Unclassified', 'needs_annotation', 1),
+                ('Unconfirmed', 'unconfirmed', 2),
+                ('Confirmed', 'confirmed', 1),
+                ('Total images', None, 4)]:
 
-        self.assertInHTML(
-            'Confirmed: <a href="{}">1</a>'.format(
-                reverse('browse_images', args=[source.pk])
-                + '?image_form_type=search&annotation_status=confirmed'),
-            response.content.decode('utf-8'))
+            # Example: `Unconfirmed: <a href="/source/12/browse/images">2</a>`
+            status_line_regex = re.compile(r'\s*'.join([
+                '{}:'.format(status_main_page),
+                r'<a href="([^"]+)">',
+                '{}'.format(count),
+                r'<\/a>',
+            ]))
+            self.assertRegexpMatches(
+                source_main_content, status_line_regex,
+                "Line for this status should be present with the correct count")
+
+            match = status_line_regex.search(source_main_content)
+            browse_url = match.group(1)
+            response = self.client.get(browse_url)
+            self.assertContains(
+                response, 'img class="thumb', count=count,
+                msg_prefix=(
+                    "Following the browse link should show the correct"
+                    " number of results"))
+
+            if status_browse_thumb:
+                self.assertContains(
+                    response, 'img class="thumb {}'.format(status_browse_thumb),
+                    count=count,
+                    msg_prefix=(
+                        "Following the browse link should show only image"
+                        " results of the specified status"))
 
     @override_settings(MIN_NBR_ANNOTATED_IMAGES=3)
     def test_automated_annotation_section(self):

@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 import copy
 import json
+import operator
 
 from django.conf import settings
 from django.test import override_settings
@@ -535,23 +536,55 @@ class SuccessTest(DeployBaseTest):
             ApiJobUnit.SUCCESS, deploy_unit.status,
             "Unit should be done")
 
-        # Verify result. Not sure if the label order or scores can vary in this
-        # case. If so, modify the assertions accordingly.
-        classifications = [
-            dict(
-                label_id=self.labels_by_name['B'].pk, label_name='B',
-                label_code='B_mycode', score=0.5),
-            dict(
-                label_id=self.labels_by_name['A'].pk, label_name='A',
-                label_code='A_mycode', score=0.5),
-        ]
+        # Verify result. The classifications can vary, so we can't just verify
+        # in a single assertion.
+
+        expected_json_without_classifications = dict(
+            url='URL 1',
+            points=[dict(row=10, column=10)],
+        )
+        actual_classifications = \
+            deploy_unit.result_json['points'][0].pop('classifications')
+        actual_json_without_classifications = deploy_unit.result_json
+
         self.assertDictEqual(
-            deploy_unit.result_json,
-            dict(
-                url='URL 1',
-                points=[dict(
-                    row=10, column=10, classifications=classifications)]),
-            "Unit's result_json should be as expected")
+            expected_json_without_classifications,
+            actual_json_without_classifications,
+            "Result JSON besides classifications should be as expected")
+
+        # The following is an example of what the classifications may
+        # look like, but the label order or scores may vary.
+        # [
+        #     dict(
+        #         label_id=self.labels_by_name['B'].pk, label_name='B',
+        #         label_code='B_mycode', score=0.5),
+        #     dict(
+        #         label_id=self.labels_by_name['A'].pk, label_name='A',
+        #         label_code='A_mycode', score=0.5),
+        # ]
+
+        scores = [
+            label_dict.pop('score') for label_dict in actual_classifications]
+        self.assertAlmostEqual(
+            1.0, sum(scores), places=3,
+            msg="Scores for each point should add up to 1")
+        self.assertGreaterEqual(
+            scores[0], scores[1], "Scores should be in descending order")
+
+        classifications_without_scores = actual_classifications
+        classifications_without_scores.sort(
+            key=operator.itemgetter('label_name'))
+        self.assertListEqual(
+            [
+                dict(
+                    label_id=self.labels_by_name['A'].pk, label_name='A',
+                    label_code='A_mycode'),
+                dict(
+                    label_id=self.labels_by_name['B'].pk, label_name='B',
+                    label_code='B_mycode'),
+            ],
+            classifications_without_scores,
+            "Classifications JSON besides scores should be as expected")
 
 
 class TaskErrorsTest(DeployBaseTest):

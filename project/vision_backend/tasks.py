@@ -57,7 +57,7 @@ def submit_features(image_id, force=False):
     task = ExtractFeaturesMsg(
         job_token=th.encode_spacer_job_token([image_id]),
         feature_extractor_name=img.source.feature_extractor,
-        rowcols=list(set(rowcols)),
+        rowcols=rowcols,
         image_loc=storage.spacer_data_loc(img.original_file.name),
         feature_loc=storage.spacer_data_loc(
             settings.FEATURE_VECTOR_FILE_PATTERN.format(
@@ -106,11 +106,11 @@ def submit_classifier(source_id, nbr_images=1e5, force=False):
     logger.info(u"Preparing new classifier ({}) for {} [{}].".format(
         classifier.pk, source.name, source.pk))
 
-    # Write train-labels to file storage
+    # Create train-labels
     storage = get_storage_class()()
     train_labels = th.make_dataset([image for image in images if image.trainset])
 
-    # Write val-labels to file storage
+    # Create val-labels
     val_labels = th.make_dataset([image for image in images if image.valset])
 
     # This will not include the one we just created, b/c it is not valid.

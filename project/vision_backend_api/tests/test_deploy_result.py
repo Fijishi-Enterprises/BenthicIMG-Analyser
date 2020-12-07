@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 import copy
 import json
+import operator
 
 from django.conf import settings
 from django.test import override_settings
@@ -209,46 +210,83 @@ class DeployResultEndpointTest(DeployBaseTest):
 
         self.assertStatusOK(response)
 
-        # Not sure if the label order or scores can vary in this
-        # case. If so, modify the assertions accordingly.
-        classifications = [
-            dict(
-                label_id=self.labels_by_name['B'].pk, label_name='B',
-                label_code='B_mycode', score=0.5),
-            dict(
-                label_id=self.labels_by_name['A'].pk, label_name='A',
-                label_code='A_mycode', score=0.5),
+        # Check the response content. The classifications can vary, so this
+        # will take some doing.
+
+        points_1_without_classifications = [
+            dict(row=10, column=10),
+            dict(row=20, column=5),
         ]
-        points_1 = [
-            dict(
-                row=10, column=10,
-                classifications=classifications,
-            ),
-            dict(
-                row=20, column=5,
-                classifications=classifications,
-            ),
+        points_2_without_classifications = [
+            dict(row=10, column=10),
         ]
-        points_2 = [dict(
-            row=10, column=10,
-            classifications=classifications,
-        )]
+
+        response_json = response.json()
+        point_classifications = [
+            response_json['data'][0]['attributes']['points'][0]
+                .pop('classifications'),
+            response_json['data'][0]['attributes']['points'][1]
+                .pop('classifications'),
+            response_json['data'][1]['attributes']['points'][0]
+                .pop('classifications'),
+        ]
+        response_json_without_classifications = response_json
+
         self.assertDictEqual(
-            response.json(),
+            response_json_without_classifications,
             dict(
                 data=[
                     dict(
                         type='image',
                         id='URL 1',
-                        attributes=dict(url='URL 1', points=points_1),
+                        attributes=dict(
+                            url='URL 1',
+                            points=points_1_without_classifications),
                     ),
                     dict(
                         type='image',
                         id='URL 2',
-                        attributes=dict(url='URL 2', points=points_2),
+                        attributes=dict(
+                            url='URL 2',
+                            points=points_2_without_classifications),
                     ),
                 ]),
-            "Response JSON should be as expected")
+            "Response JSON besides classifications should be as expected")
+
+        # The following is an example of what a point's classifications may
+        # look like, but the label order or scores may vary.
+        # [
+        #     dict(
+        #         label_id=self.labels_by_name['B'].pk, label_name='B',
+        #         label_code='B_mycode', score=0.5),
+        #     dict(
+        #         label_id=self.labels_by_name['A'].pk, label_name='A',
+        #         label_code='A_mycode', score=0.5),
+        # ]
+
+        for point_classification in point_classifications:
+            scores = [
+                label_dict.pop('score') for label_dict in point_classification]
+            self.assertAlmostEqual(
+                1.0, sum(scores), places=3,
+                msg="Scores for each point should add up to 1")
+            self.assertGreaterEqual(
+                scores[0], scores[1], "Scores should be in descending order")
+
+            point_classification_without_scores = point_classification
+            point_classification_without_scores.sort(
+                key=operator.itemgetter('label_name'))
+            self.assertListEqual(
+                [
+                    dict(
+                        label_id=self.labels_by_name['A'].pk, label_name='A',
+                        label_code='A_mycode'),
+                    dict(
+                        label_id=self.labels_by_name['B'].pk, label_name='B',
+                        label_code='B_mycode'),
+                ],
+                point_classification_without_scores,
+                "Classifications JSON besides scores should be as expected")
 
     @patch('vision_backend.tasks.deploy.run', noop_task)
     def test_failure(self):

@@ -77,6 +77,19 @@ This form template is meant to be used with the "include" template tag.
 
         {% include "form_generic_one_field.html" with field=sourceForm.confidence_threshold dont_show_help_text="True" %}
     {% endif %}
+
+    {% if source_form_type == "new" or source.enable_robot_classifier %}
+        <hr class="light"/>
+
+        <legend class="smaller">Feature extractor</legend>
+
+        <span class="helptext_long">
+        {# TODO #}
+        (TODO: Explain what this is and how to choose it.)
+        </span>
+
+        {% include "form_generic_one_field.html" with field=sourceForm.feature_extractor_setting dont_show_help_text="True" %}
+    {% endif %}
 </fieldset>
 
 <fieldset>

@@ -396,18 +396,22 @@ class SourceMainTest(ClientTest):
             point_generation_type=PointGen.Types.SIMPLE,
             simple_number_of_points=5,
             confidence_threshold=80,
+            feature_extractor_setting='efficientnet_b0_ver1',
             description="This is a\nmultiline description.")
         self.create_robot(source)
 
         self.client.force_login(self.user)
         response = self.client.get(reverse('source_main', args=[source.pk]))
 
+        self.assertContains(response, "Last classifier saved:")
         self.assertContains(response, "Last classifier trained:")
         self.assertContains(
             response,
             "Default image annotation area: X: 0 - 100% / Y: 5 - 95%")
         self.assertContains(
             response, "Annotation point generation: Simple random, 5 points")
+        self.assertContains(
+            response, "Feature extractor: EfficientNet (default)")
         self.assertContains(response, "Confidence threshold: 80%")
         self.assertInHTML(
             '<br><br>This is a<br>multiline description.',

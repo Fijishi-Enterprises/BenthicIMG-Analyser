@@ -49,6 +49,7 @@ class SourceNewTest(ClientTest):
             point_generation_type=PointGen.Types.SIMPLE,
             simple_number_of_points=16, number_of_cell_rows='',
             number_of_cell_columns='', stratified_points_per_cell='',
+            feature_extractor_setting='efficientnet_b0_ver1',
             latitude='-17.3776', longitude='25.1982')
         data.update(**kwargs)
         response = self.client.post(
@@ -79,6 +80,8 @@ class SourceNewTest(ClientTest):
         self.assertEqual(form['key3'].value(), 'Aux3')
         self.assertEqual(form['key4'].value(), 'Aux4')
         self.assertEqual(form['key5'].value(), 'Aux5')
+        self.assertEqual(
+            form['feature_extractor_setting'].value(), 'efficientnet_b0_ver1')
 
     def test_source_create(self):
         """
@@ -564,6 +567,7 @@ class SourceEditTest(ClientTest):
                 number_of_cell_columns=6,
                 stratified_points_per_cell=3,
                 confidence_threshold=80,
+                feature_extractor_setting='vgg16_coralnet_ver1',
                 latitude='5.789',
                 longitude='-50',
             ),
@@ -600,5 +604,7 @@ class SourceEditTest(ClientTest):
             )
         )
         self.assertEqual(self.source.confidence_threshold, 80)
+        self.assertEqual(
+            self.source.feature_extractor_setting, 'vgg16_coralnet_ver1')
         self.assertEqual(self.source.latitude, '5.789')
         self.assertEqual(self.source.longitude, '-50')

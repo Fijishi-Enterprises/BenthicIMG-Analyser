@@ -176,6 +176,7 @@ class ClientUtilsMixin(object):
         point_generation_type=PointGen.Types.SIMPLE,
         simple_number_of_points=5,
         confidence_threshold=100,
+        feature_extractor_setting='efficientnet_b0_ver1',
         latitude='0.0',
         longitude='0.0',
     )

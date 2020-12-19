@@ -37,6 +37,7 @@ class ImageSourceForm(ModelForm):
             'name', 'visibility', 'description', 'affiliation',
             'key1', 'key2', 'key3', 'key4', 'key5',
             'confidence_threshold',
+            'feature_extractor_setting',
             'longitude', 'latitude',
         ]
         widgets = {

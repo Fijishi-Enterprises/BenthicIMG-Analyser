@@ -142,6 +142,16 @@ class Source(models.Model):
             " slate."),
     )
 
+    FEATURE_EXTRACTOR_CHOICES = (
+        ('efficientnet_b0_ver1', "EfficientNet (default)"),
+        ('vgg16_coralnet_ver1', "VGG16 (legacy)"),
+    )
+    feature_extractor_setting = models.CharField(
+        "Feature extractor",
+        max_length=50,
+        choices=FEATURE_EXTRACTOR_CHOICES,
+        default='efficientnet_b0_ver1')
+
     longitude = models.CharField(max_length=20, blank=True)
     latitude = models.CharField(max_length=20, blank=True)
 
@@ -171,7 +181,6 @@ class Source(models.Model):
             fullCode = 'images.' + code
             verbose = 'View'
 
-    # TODO: replace this with a DB entry. Still need the dummy over-ride tho.
     @property
     def feature_extractor(self) -> str:
         if settings.FORCE_DUMMY_EXTRACTOR:
@@ -179,8 +188,8 @@ class Source(models.Model):
             # The real extractors are relatively slow.
             return 'dummy'
 
-        # TODO: read feature extractor name from DB
-        return 'efficientnet_b0_ver1'
+        # Else, read feature extractor name from DB.
+        return self.feature_extractor_setting
 
     ##########
     # Helper methods for sources

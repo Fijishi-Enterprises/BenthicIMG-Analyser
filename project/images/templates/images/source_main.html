@@ -96,6 +96,7 @@ $(document).ready(function() {
                     <li>Default image annotation area: {{ source.image_annotation_area_display }}</li>
                 {% endif %}
                 <li>Annotation point generation: {{ source.point_gen_method_display }}</li>
+                <li>Feature extractor: {{ source.get_feature_extractor_setting_display }}</li>
                 <li>
                     Confidence threshold: {{ source.confidence_threshold }}% <a href="{% url 'source_edit' source.id%}">(edit)</a>
                 </li>

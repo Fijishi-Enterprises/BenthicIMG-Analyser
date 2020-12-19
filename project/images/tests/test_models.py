@@ -1,18 +1,36 @@
 from __future__ import unicode_literals
 
 from io import BytesIO
-from unittest import skipIf
 
 import piexif
-import six
 from PIL import Image as PILImage
 from django.core.files.base import ContentFile
-from django_migration_testcase import MigrationTest
+from django.test import override_settings
 from easy_thumbnails.files import get_thumbnailer
 
-from images.model_utils import PointGen
 from images.models import Point
 from lib.tests.utils import ClientTest
+
+
+class SourceExtractorPropertyTest(ClientTest):
+    """
+    Test the feature_extractor property of the Source model.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super(SourceExtractorPropertyTest, cls).setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(
+            cls.user, feature_extractor_setting='efficientnet_b0_ver1')
+
+    @override_settings(FORCE_DUMMY_EXTRACTOR=False)
+    def test_do_not_force_dummy(self):
+        self.assertEqual('efficientnet_b0_ver1', self.source.feature_extractor)
+
+    @override_settings(FORCE_DUMMY_EXTRACTOR=True)
+    def test_force_dummy(self):
+        self.assertEqual('dummy', self.source.feature_extractor)
 
 
 class ImageExifOrientationTest(ClientTest):
@@ -120,74 +138,3 @@ class PointValidationTest(ClientTest):
         point = Point(image=image, column=50, row=39, point_number=3)
         with self.assertRaisesMessage(AssertionError, "Column above maximum"):
             point.save()
-
-@skipIf(
-    six.PY3,
-    "This migration doesn't work in Python 3; it gets a TypeError in the"
-    " Image model's post_init signal handler.")
-class PopulateLastAnnotationMigrationTest(MigrationTest, ClientTest):
-
-    app_name = 'images'
-    before = '0024'
-    after = '0025'
-
-    def test_migration(self):
-        user = self.create_user()
-        source = self.create_source(
-            user,
-            point_generation_type=PointGen.Types.SIMPLE,
-            simple_number_of_points=2)
-        labels = self.create_labels(user, ['A', 'B'], 'GroupA')
-        self.create_labelset(user, source, labels)
-
-        # No annotations.
-        img1 = self.upload_image(user, source)
-
-        # One annotation.
-        img2 = self.upload_image(user, source)
-        self.add_annotations(user, img2, {1: 'A'})
-
-        # Two annotations, latest on point 1.
-        img3 = self.upload_image(user, source)
-        self.add_annotations(user, img3, {2: 'B'})
-        self.add_annotations(user, img3, {1: 'A'})
-
-        # Two annotations, latest on point 2.
-        img4 = self.upload_image(user, source)
-        self.add_annotations(user, img4, {1: 'A'})
-        self.add_annotations(user, img4, {2: 'B'})
-
-        # Reset last_annotation fields.
-        img1.last_annotation = None
-        img1.save()
-        img2.last_annotation = None
-        img2.save()
-        img3.last_annotation = None
-        img3.save()
-        img4.last_annotation = None
-        img4.save()
-
-        # Set last_annotation fields with the migration.
-        self.run_migration()
-
-        # Check last_annotation values.
-        img1.refresh_from_db()
-        self.assertIsNone(img1.last_annotation)
-
-        img2.refresh_from_db()
-        self.assertIsNotNone(img2.last_annotation)
-        self.assertEqual(
-            img2.last_annotation.pk,
-            img2.annotation_set.get(point__point_number=1).pk)
-
-        img3.refresh_from_db()
-        self.assertIsNotNone(img3.last_annotation)
-        self.assertEqual(
-            img3.last_annotation.pk,
-            img3.annotation_set.get(point__point_number=1).pk)
-
-        img4.refresh_from_db()
-        self.assertIsNotNone(img4.last_annotation)
-        self.assertEqual(
-            img4.last_annotation.pk,
-            img4.annotation_set.get(point__point_number=2).pk)

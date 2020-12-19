@@ -6,6 +6,7 @@ from annotations.model_utils import AnnotationAreaUtils
 from images.model_utils import PointGen
 from images.models import Source
 from lib.tests.utils import BasePermissionTest, ClientTest
+from vision_backend.models import Classifier
 
 
 class PermissionTest(BasePermissionTest):
@@ -21,6 +22,15 @@ class PermissionTest(BasePermissionTest):
     def test_source_edit(self):
         url = reverse('source_edit', args=[self.source.pk])
         template = 'images/source_edit.html'
+
+        self.source_to_private()
+        self.assertPermissionLevel(url, self.SOURCE_ADMIN, template=template)
+        self.source_to_public()
+        self.assertPermissionLevel(url, self.SOURCE_ADMIN, template=template)
+
+    def test_source_edit_cancel(self):
+        url = reverse('source_edit_cancel', args=[self.source.pk])
+        template = 'images/source_main.html'
 
         self.source_to_private()
         self.assertPermissionLevel(url, self.SOURCE_ADMIN, template=template)
@@ -538,6 +548,31 @@ class SourceEditTest(ClientTest):
         cls.source = cls.create_source(cls.user)
         cls.url = reverse('source_edit', args=[cls.source.pk])
 
+    # Make these all different from what the source was created with.
+    edit_kwargs = dict(
+        name="Test Source 2",
+        visibility=Source.VisibilityTypes.PUBLIC,
+        affiliation="Testing Association",
+        description="This is\na description.",
+        key1="Island",
+        key2="Site",
+        key3="Habitat",
+        key4="Section",
+        key5="Transect",
+        min_x=5,
+        max_x=95,
+        min_y=5,
+        max_y=95,
+        point_generation_type=PointGen.Types.STRATIFIED,
+        number_of_cell_rows=4,
+        number_of_cell_columns=6,
+        stratified_points_per_cell=3,
+        confidence_threshold=80,
+        feature_extractor_setting='vgg16_coralnet_ver1',
+        latitude='5.789',
+        longitude='-50',
+    )
+
     def test_access_page(self):
         self.client.force_login(self.user)
         response = self.client.get(self.url)
@@ -546,32 +581,7 @@ class SourceEditTest(ClientTest):
 
     def test_source_edit(self):
         self.client.force_login(self.user)
-        response = self.client.post(
-            self.url,
-            dict(
-                name="Test Source 2",
-                visibility=Source.VisibilityTypes.PUBLIC,
-                affiliation="Testing Association",
-                description="This is\na description.",
-                key1="Island",
-                key2="Site",
-                key3="Habitat",
-                key4="Section",
-                key5="Transect",
-                min_x=5,
-                max_x=95,
-                min_y=5,
-                max_y=95,
-                point_generation_type=PointGen.Types.STRATIFIED,
-                number_of_cell_rows=4,
-                number_of_cell_columns=6,
-                stratified_points_per_cell=3,
-                confidence_threshold=80,
-                feature_extractor_setting='vgg16_coralnet_ver1',
-                latitude='5.789',
-                longitude='-50',
-            ),
-        )
+        response = self.client.post(self.url, self.edit_kwargs)
 
         self.assertRedirects(
             response,
@@ -608,3 +618,51 @@ class SourceEditTest(ClientTest):
             self.source.feature_extractor_setting, 'vgg16_coralnet_ver1')
         self.assertEqual(self.source.latitude, '5.789')
         self.assertEqual(self.source.longitude, '-50')
+
+    def test_cancel(self):
+        """Test the view tied to the cancel button."""
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse('source_edit_cancel', args=[self.source.pk]), follow=True)
+        self.assertTemplateUsed(
+            response, 'images/source_main.html',
+            "Should redirect to source main")
+        self.assertContains(
+            response, "Edit cancelled.",
+            msg_prefix="Should show the appropriate message")
+
+    def test_backend_reset_if_extractor_changed(self):
+        robot_id = self.create_robot(self.source).pk
+
+        edit_kwargs = self.edit_kwargs.copy()
+        edit_kwargs['feature_extractor_setting'] = 'vgg16_coralnet_ver1'
+        self.client.force_login(self.user)
+        response = self.client.post(self.url, edit_kwargs, follow=True)
+
+        self.assertContains(
+            response,
+            "Source successfully edited. Classifier history will be cleared.",
+            msg_prefix="Page should show the appropriate message")
+
+        self.assertRaises(
+            Classifier.DoesNotExist,
+            callableObj=Classifier.objects.get, pk=robot_id,
+            msg="Classifier should be deleted")
+
+    def test_backend_not_reset_if_extractor_same(self):
+        robot_id = self.create_robot(self.source).pk
+
+        edit_kwargs = self.edit_kwargs.copy()
+        edit_kwargs['feature_extractor_setting'] = 'efficientnet_b0_ver1'
+        self.client.force_login(self.user)
+        response = self.client.post(self.url, edit_kwargs, follow=True)
+
+        self.assertContains(
+            response, "Source successfully edited.",
+            msg_prefix="Page should show the appropriate message")
+        self.assertNotContains(
+            response, "Classifier history will be cleared.",
+            msg_prefix="Page should show the appropriate message")
+
+        # Classifier shouldn't be deleted, and so this shouldn't raise an error
+        Classifier.objects.get(pk=robot_id)

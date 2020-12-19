@@ -323,7 +323,7 @@ def _handle_job_result(job_res: JobReturnMsg):
 
 
 @task(name="Reset Source")
-def reset_after_labelset_change(source_id):
+def reset_backend_for_source(source_id):
     """The removes ALL TRACES of the vision backend for this source, including:
     1) Delete all Score objects for all images
     2) Delete Classifier objects

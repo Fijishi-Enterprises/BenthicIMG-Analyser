@@ -102,5 +102,5 @@ class Command(BaseCommand):
         source.labelset.locallabel_set.get(global_label=old_label).delete()
 
         # Reset the backend state for this source.
-        backend_tasks.reset_after_labelset_change.apply_async(
+        backend_tasks.reset_backend_for_source.apply_async(
             args=[source.pk], eta=now()+timedelta(seconds=10))

@@ -159,7 +159,7 @@ def labelset_add(request, source_id):
                 messages.success(request, "Labelset successfully changed.")
             
             # After changing or adding labelset, reset vision backend.
-            backend_tasks.reset_after_labelset_change.apply_async(args = [source_id], eta = now() + timedelta(seconds = 10))
+            backend_tasks.reset_backend_for_source.apply_async(args = [source_id], eta = now() + timedelta(seconds = 10))
             return HttpResponseRedirect(
                 reverse('labelset_main', args=[source.id]))
         else:

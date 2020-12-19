@@ -4,6 +4,7 @@
 
 {% block page-specific-includes %}
     {% include "form_media_versioned.html" with form=pointGenForm %}
+    {% include "form_media_versioned.html" with form=editSourceForm %}
 {% endblock %}
 
 {% block js-includes %}
@@ -12,19 +13,29 @@
 
 {% block content %}
 
-    <legend>Edit Source</legend>
+  <legend>Edit Source</legend>
 
-    {% with source_form_type="edit" %}
+  {# TODO: The inline styles below are a big hack to allow the cancel button to line up well with the save button, while both are in separate forms. The form and submit-button styles need to be reworked to make this less hacky. This will involve double-checking the appearance of most forms on the site. #}
 
-    <form action="" method="post">{% csrf_token %}
+  {% with source_form_type="edit" %}
+
+    <form action="" method="post"
+        onsubmit="return SourceFormHelper.submitEditForm();"
+        style="margin-bottom: 0; padding-bottom: 0;">
+      {% csrf_token %}
       {% include "images/form_source.html" with sourceForm=editSourceForm pointGenForm=pointGenForm annotationAreaForm=annotationAreaForm %}
 
       <div class="submit_button_wrapper_column_form">
         <input type="submit" value="Save Changes" />
-        <input name="cancel" type="submit" value="Cancel Changes" />
       </div>
     </form>
 
-    {% endwith %}
+  {% endwith %}
+
+  <form action="{% url 'source_edit_cancel' source.pk %}" method="get" class="inline">
+    <div class="submit_button_wrapper_column_form" style="margin-left: 346px;">
+      <input type="submit" value="Cancel Changes" />
+    </div>
+  </form>
 
 {% endblock %}

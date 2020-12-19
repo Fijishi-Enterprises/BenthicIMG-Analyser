@@ -11,7 +11,7 @@ from lib.tests.utils import BaseTest, ClientTest
 from vision_backend.models import BatchJob, Score, Classifier
 import vision_backend.task_helpers as th
 from vision_backend.tasks import (
-    clean_up_old_batch_jobs, reset_after_labelset_change)
+    clean_up_old_batch_jobs, reset_backend_for_source)
 
 
 class TestJobTokenEncode(BaseTest):
@@ -97,7 +97,7 @@ class ResetTaskTest(ClientTest):
         self.assertTrue(Image.objects.get(id=img.id).features.classified)
 
         # Now, reset the source.
-        reset_after_labelset_change(self.source.id)
+        reset_backend_for_source(self.source.id)
 
         self.assertEqual(Classifier.objects.filter(
             source=self.source).count(), 0)

@@ -84,8 +84,7 @@ This form template is meant to be used with the "include" template tag.
         <legend class="smaller">Feature extractor</legend>
 
         <span class="helptext_long">
-        {# TODO #}
-        (TODO: Explain what this is and how to choose it.)
+        We recommend the EfficientNet extractor for all use-cases. It is faster and 2-3% more accurate on average. It is a more modern neural network architecture and trained on more data. The legacy VGG16 extractor is provided only for sources that want to retain their old classifiers, for example, if they are already deployed in a survey.
         </span>
 
         {% if source_form_type == "edit" %}

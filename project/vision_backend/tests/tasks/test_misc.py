@@ -10,7 +10,7 @@ from lib.tests.utils import BaseTest, ClientTest
 from vision_backend.models import BatchJob, Score, Classifier
 import vision_backend.task_helpers as th
 from vision_backend.tasks import (
-    clean_up_old_batch_jobs, reset_backend_for_source,
+    clean_up_old_batch_jobs, collect_all_jobs, reset_backend_for_source,
     reset_classifiers_for_source)
 from vision_backend.tests.tasks.utils import BaseTaskTest
 
@@ -78,6 +78,21 @@ class ResetTaskTest(BaseTaskTest):
             Annotation.objects.filter(image=img).count(), 0,
             "img shouldn't have annotations")
 
+        # Classification should be re-done after a few job collections
+
+        collect_all_jobs()
+        collect_all_jobs()
+        collect_all_jobs()
+
+        img.features.refresh_from_db()
+        self.assertTrue(img.features.classified, "img should be classified")
+        self.assertGreater(
+            Score.objects.filter(image=img).count(), 0,
+            "img should have scores")
+        self.assertGreater(
+            Annotation.objects.filter(image=img).count(), 0,
+            "img should have annotations")
+
     def test_reset_backend_for_source(self):
 
         # Classify image and verify that it worked
@@ -117,6 +132,22 @@ class ResetTaskTest(BaseTaskTest):
         self.assertEqual(
             Annotation.objects.filter(image=img).count(), 0,
             "img shouldn't have annotations")
+
+        # Backend objects should be re-created after a few job collections
+
+        collect_all_jobs()
+        collect_all_jobs()
+        collect_all_jobs()
+
+        img.features.refresh_from_db()
+        self.assertTrue(img.features.extracted, "img should have features")
+        self.assertTrue(img.features.classified, "img should be classified")
+        self.assertGreater(
+            Score.objects.filter(image=img).count(), 0,
+            "img should have scores")
+        self.assertGreater(
+            Annotation.objects.filter(image=img).count(), 0,
+            "img should have annotations")
 
     def test_point_change_cleanup(self):
         """

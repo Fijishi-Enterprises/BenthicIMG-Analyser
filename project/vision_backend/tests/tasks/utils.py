@@ -1,9 +1,13 @@
+import mock
+
 from django.core.files.storage import get_storage_class
 from django.test import override_settings
+import spacer.config as spacer_config
 
 from images.model_utils import PointGen
 from lib.tests.utils import ClientTest
 from upload.tests.utils import UploadAnnotationsTestMixin
+from vision_backend.tasks import collect_all_jobs, submit_classifier
 
 
 class MockImage:
@@ -57,6 +61,29 @@ class BaseTaskTest(ClientTest, UploadAnnotationsTestMixin):
         for _ in range(val_image_count):
             self.upload_image_with_annotations(
                 'val{}.png'.format(self.image_count))
+
+    def submit_classifier_with_filename_based_valset(self, source_id):
+        with mock.patch('images.models.Image.valset', MockImage.valset):
+            return submit_classifier(source_id)
+
+    def upload_data_and_train_classifier(self):
+        # Provide enough data for training
+        self.upload_images_for_training(
+            train_image_count=spacer_config.MIN_TRAINIMAGES, val_image_count=1)
+        # Process feature extraction results
+        collect_all_jobs()
+
+        # Train classifier
+        self.submit_classifier_with_filename_based_valset(self.source.pk)
+        collect_all_jobs()
+
+    def upload_image_and_machine_classify(self, user, source):
+        # Image without annotations
+        img = self.upload_image(user, source)
+        # Process feature extraction results + classify image
+        collect_all_jobs()
+
+        return img
 
     def upload_image_with_dupe_points(self, filename, with_labels=False):
         img = self.upload_image(

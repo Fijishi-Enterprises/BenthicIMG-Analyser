@@ -3,15 +3,16 @@ from datetime import timedelta
 from django.core.urlresolvers import reverse
 from django.test import override_settings
 from django.utils import timezone
-import numpy as np
-from spacer.messages import ClassifyReturnMsg
 
-from images.models import Image, Point
+from annotations.models import Annotation
+from images.models import Image
 from lib.tests.utils import BaseTest, ClientTest
 from vision_backend.models import BatchJob, Score, Classifier
 import vision_backend.task_helpers as th
 from vision_backend.tasks import (
-    clean_up_old_batch_jobs, reset_backend_for_source)
+    clean_up_old_batch_jobs, reset_backend_for_source,
+    reset_classifiers_for_source)
+from vision_backend.tests.tasks.utils import BaseTaskTest
 
 
 class TestJobTokenEncode(BaseTest):
@@ -35,74 +36,87 @@ class TestJobTokenEncode(BaseTest):
 
 
 @override_settings(SPACER_QUEUE_CHOICE='vision_backend.queues.LocalQueue')
-class ResetTaskTest(ClientTest):
+class ResetTaskTest(BaseTaskTest):
 
-    @classmethod
-    def setUpTestData(cls):
-        super(ResetTaskTest, cls).setUpTestData()
+    def test_reset_classifiers_for_source(self):
 
-        cls.user = cls.create_user()
-        cls.source = cls.create_source(cls.user)
+        # Classify image and verify that it worked
 
-        labels = cls.create_labels(cls.user,
-                                   ['A', 'B', 'C', 'D', 'E', 'F', 'G'],
-                                   "Group1")
+        self.upload_data_and_train_classifier()
+        img = self.upload_image_and_machine_classify(self.user, self.source)
 
-        cls.create_labelset(cls.user, cls.source, labels.filter(
-            name__in=['A', 'B', 'C', 'D', 'E', 'F', 'G'])
-        )
+        classifier = self.source.get_latest_robot()
+        self.assertIsNotNone(classifier, "Should have a classifier")
+        classifier_id = classifier.pk
 
-    def test_labelset_change_cleanup(self):
-        """
-        If the labelset is changed, the whole backend must be reset.
-        """
+        self.assertTrue(img.features.extracted, "img should have features")
+        self.assertTrue(img.features.classified, "img should be classified")
+        self.assertGreater(
+            Score.objects.filter(image=img).count(), 0,
+            "img should have scores")
+        self.assertGreater(
+            Annotation.objects.filter(image=img).count(), 0,
+            "img should have annotations")
 
-        # Create some dummy classifiers
-        Classifier(source=self.source).save()
-        Classifier(source=self.source).save()
+        # Reset classifiers
+        reset_classifiers_for_source(self.source.pk)
 
-        self.assertEqual(Classifier.objects.filter(
-            source=self.source).count(), 2)
+        # Verify that classifier-related objects were cleared, but not features
 
-        # Create some dummy scores
-        img = self.upload_image(self.user, self.source)
+        self.assertRaises(
+            Classifier.DoesNotExist,
+            callableObj=Classifier.objects.get, pk=classifier_id,
+            msg="Classifier should be deleted")
 
-        # Pre-fetch label objects
-        label_objs = self.source.labelset.get_globals()
+        img.features.refresh_from_db()
+        self.assertTrue(img.features.extracted, "img SHOULD have features")
+        self.assertFalse(img.features.classified, "img shouldn't be classified")
+        self.assertEqual(
+            Score.objects.filter(image=img).count(), 0,
+            "img shouldn't have scores")
+        self.assertEqual(
+            Annotation.objects.filter(image=img).count(), 0,
+            "img shouldn't have annotations")
 
-        # Check number of points per image
-        nbr_points = Point.objects.filter(image=img).count()
+    def test_reset_backend_for_source(self):
 
-        # Fake creation of scores.
-        scores = []
-        for i in range(nbr_points):
-            scores.append(np.random.rand(label_objs.count()))
+        # Classify image and verify that it worked
 
-        return_msg = ClassifyReturnMsg(
-            runtime=0.0,
-            scores=[(0, 0, [float(s) for s in scrs]) for scrs in scores],
-            classes=[label.pk for label in label_objs],
-            valid_rowcol=False,
-        )
+        self.upload_data_and_train_classifier()
+        img = self.upload_image_and_machine_classify(self.user, self.source)
 
-        th.add_scores(img.pk, return_msg, label_objs)
+        classifier = self.source.get_latest_robot()
+        self.assertIsNotNone(classifier, "Should have a classifier")
+        classifier_id = classifier.pk
 
-        expected_nbr_scores = min(5, label_objs.count())
-        self.assertEqual(Score.objects.filter(image=img).count(),
-                         nbr_points * expected_nbr_scores)
+        self.assertTrue(img.features.extracted, "img should have features")
+        self.assertTrue(img.features.classified, "img should be classified")
+        self.assertGreater(
+            Score.objects.filter(image=img).count(), 0,
+            "img should have scores")
+        self.assertGreater(
+            Annotation.objects.filter(image=img).count(), 0,
+            "img should have annotations")
 
-        # Fake that the image is classified
-        img.features.classified = True
-        img.features.save()
-        self.assertTrue(Image.objects.get(id=img.id).features.classified)
+        # Reset backend
+        reset_backend_for_source(self.source.pk)
 
-        # Now, reset the source.
-        reset_backend_for_source(self.source.id)
+        # Verify that backend objects were cleared
 
-        self.assertEqual(Classifier.objects.filter(
-            source=self.source).count(), 0)
-        self.assertEqual(Score.objects.filter(image=img).count(), 0)
-        self.assertFalse(Image.objects.get(id=img.id).features.classified)
+        self.assertRaises(
+            Classifier.DoesNotExist,
+            callableObj=Classifier.objects.get, pk=classifier_id,
+            msg="Classifier should be deleted")
+
+        img.features.refresh_from_db()
+        self.assertFalse(img.features.extracted, "img shouldn't have features")
+        self.assertFalse(img.features.classified, "img shouldn't be classified")
+        self.assertEqual(
+            Score.objects.filter(image=img).count(), 0,
+            "img shouldn't have scores")
+        self.assertEqual(
+            Annotation.objects.filter(image=img).count(), 0,
+            "img shouldn't have annotations")
 
     def test_point_change_cleanup(self):
         """

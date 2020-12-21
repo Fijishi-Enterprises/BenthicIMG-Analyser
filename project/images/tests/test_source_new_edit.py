@@ -1,4 +1,6 @@
 from __future__ import unicode_literals
+import mock
+
 from django.urls import reverse
 from django.utils import timezone
 
@@ -6,7 +8,7 @@ from annotations.model_utils import AnnotationAreaUtils
 from images.model_utils import PointGen
 from images.models import Source
 from lib.tests.utils import BasePermissionTest, ClientTest
-from vision_backend.models import Classifier
+from vision_backend.tests.tasks.utils import BaseTaskTest
 
 
 class PermissionTest(BasePermissionTest):
@@ -534,6 +536,32 @@ class SourceNewTest(ClientTest):
         self.assertEqual(Source.objects.all().count(), 0)
 
 
+# Make these all different from what create_source() would use.
+source_kwargs_2 = dict(
+    name="Test Source 2",
+    visibility=Source.VisibilityTypes.PUBLIC,
+    affiliation="Testing Association",
+    description="This is\na description.",
+    key1="Island",
+    key2="Site",
+    key3="Habitat",
+    key4="Section",
+    key5="Transect",
+    min_x=5,
+    max_x=95,
+    min_y=5,
+    max_y=95,
+    point_generation_type=PointGen.Types.STRATIFIED,
+    number_of_cell_rows=4,
+    number_of_cell_columns=6,
+    stratified_points_per_cell=3,
+    confidence_threshold=80,
+    feature_extractor_setting='vgg16_coralnet_ver1',
+    latitude='5.789',
+    longitude='-50',
+)
+
+
 class SourceEditTest(ClientTest):
     """
     Test the Edit Source page.
@@ -548,31 +576,6 @@ class SourceEditTest(ClientTest):
         cls.source = cls.create_source(cls.user)
         cls.url = reverse('source_edit', args=[cls.source.pk])
 
-    # Make these all different from what the source was created with.
-    edit_kwargs = dict(
-        name="Test Source 2",
-        visibility=Source.VisibilityTypes.PUBLIC,
-        affiliation="Testing Association",
-        description="This is\na description.",
-        key1="Island",
-        key2="Site",
-        key3="Habitat",
-        key4="Section",
-        key5="Transect",
-        min_x=5,
-        max_x=95,
-        min_y=5,
-        max_y=95,
-        point_generation_type=PointGen.Types.STRATIFIED,
-        number_of_cell_rows=4,
-        number_of_cell_columns=6,
-        stratified_points_per_cell=3,
-        confidence_threshold=80,
-        feature_extractor_setting='vgg16_coralnet_ver1',
-        latitude='5.789',
-        longitude='-50',
-    )
-
     def test_access_page(self):
         self.client.force_login(self.user)
         response = self.client.get(self.url)
@@ -581,7 +584,7 @@ class SourceEditTest(ClientTest):
 
     def test_source_edit(self):
         self.client.force_login(self.user)
-        response = self.client.post(self.url, self.edit_kwargs)
+        response = self.client.post(self.url, source_kwargs_2)
 
         self.assertRedirects(
             response,
@@ -631,31 +634,43 @@ class SourceEditTest(ClientTest):
             response, "Edit cancelled.",
             msg_prefix="Should show the appropriate message")
 
-    def test_backend_reset_if_extractor_changed(self):
-        robot_id = self.create_robot(self.source).pk
 
-        edit_kwargs = self.edit_kwargs.copy()
+class SourceEditBackendStatusTest(BaseTaskTest):
+
+    @classmethod
+    def setUpTestData(cls):
+        super(SourceEditBackendStatusTest, cls).setUpTestData()
+
+        cls.url = reverse('source_edit', args=[cls.source.pk])
+
+    def test_backend_reset_if_extractor_changed(self):
+        edit_kwargs = source_kwargs_2.copy()
         edit_kwargs['feature_extractor_setting'] = 'vgg16_coralnet_ver1'
         self.client.force_login(self.user)
-        response = self.client.post(self.url, edit_kwargs, follow=True)
+
+        with mock.patch('vision_backend.tasks.reset_backend_for_source.run') \
+                as mock_method:
+            # Edit source with changed extractor setting
+            response = self.client.post(self.url, edit_kwargs, follow=True)
+            # Assert that the task was called
+            mock_method.assert_called()
 
         self.assertContains(
             response,
             "Source successfully edited. Classifier history will be cleared.",
             msg_prefix="Page should show the appropriate message")
 
-        self.assertRaises(
-            Classifier.DoesNotExist,
-            callableObj=Classifier.objects.get, pk=robot_id,
-            msg="Classifier should be deleted")
-
     def test_backend_not_reset_if_extractor_same(self):
-        robot_id = self.create_robot(self.source).pk
-
-        edit_kwargs = self.edit_kwargs.copy()
+        edit_kwargs = source_kwargs_2.copy()
         edit_kwargs['feature_extractor_setting'] = 'efficientnet_b0_ver1'
         self.client.force_login(self.user)
-        response = self.client.post(self.url, edit_kwargs, follow=True)
+
+        with mock.patch('vision_backend.tasks.reset_backend_for_source.run') \
+                as mock_method:
+            # Edit source with same extractor setting
+            response = self.client.post(self.url, edit_kwargs, follow=True)
+            # Assert that the task was NOT called
+            mock_method.assert_not_called()
 
         self.assertContains(
             response, "Source successfully edited.",
@@ -663,6 +678,3 @@ class SourceEditTest(ClientTest):
         self.assertNotContains(
             response, "Classifier history will be cleared.",
             msg_prefix="Page should show the appropriate message")
-
-        # Classifier shouldn't be deleted, and so this shouldn't raise an error
-        Classifier.objects.get(pk=robot_id)

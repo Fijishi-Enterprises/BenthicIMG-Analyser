@@ -1,4 +1,5 @@
 from datetime import timedelta
+import mock
 
 from django.core.urlresolvers import reverse
 from django.test import override_settings
@@ -12,7 +13,7 @@ import vision_backend.task_helpers as th
 from vision_backend.tasks import (
     clean_up_old_batch_jobs, collect_all_jobs, reset_backend_for_source,
     reset_classifiers_for_source)
-from vision_backend.tests.tasks.utils import BaseTaskTest
+from vision_backend.tests.tasks.utils import BaseTaskTest, MockImage
 
 
 class TestJobTokenEncode(BaseTest):
@@ -59,7 +60,8 @@ class ResetTaskTest(BaseTaskTest):
             "img should have annotations")
 
         # Reset classifiers
-        reset_classifiers_for_source(self.source.pk)
+        with mock.patch('images.models.Image.valset', MockImage.valset):
+            reset_classifiers_for_source(self.source.pk)
 
         # Verify that classifier-related objects were cleared, but not features
 
@@ -78,10 +80,9 @@ class ResetTaskTest(BaseTaskTest):
             Annotation.objects.filter(image=img).count(), 0,
             "img shouldn't have annotations")
 
-        # Classification should be re-done after a few job collections
+        # Classification should be re-done after collecting jobs (note that
+        # this single call can set off a chain of jobs and collections)
 
-        collect_all_jobs()
-        collect_all_jobs()
         collect_all_jobs()
 
         img.features.refresh_from_db()
@@ -114,7 +115,8 @@ class ResetTaskTest(BaseTaskTest):
             "img should have annotations")
 
         # Reset backend
-        reset_backend_for_source(self.source.pk)
+        with mock.patch('images.models.Image.valset', MockImage.valset):
+            reset_backend_for_source(self.source.pk)
 
         # Verify that backend objects were cleared
 
@@ -133,10 +135,8 @@ class ResetTaskTest(BaseTaskTest):
             Annotation.objects.filter(image=img).count(), 0,
             "img shouldn't have annotations")
 
-        # Backend objects should be re-created after a few job collections
+        # Backend objects should be re-created after collecting jobs
 
-        collect_all_jobs()
-        collect_all_jobs()
         collect_all_jobs()
 
         img.features.refresh_from_db()

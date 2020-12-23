@@ -323,8 +323,23 @@ def _handle_job_result(job_res: JobReturnMsg):
 
 
 @task(name="Reset Source")
-def reset_after_labelset_change(source_id):
-    """The removes ALL TRACES of the vision backend for this source, including:
+def reset_backend_for_source(source_id):
+    """
+    Removes all traces of the backend for this source, including
+    classifiers and features.
+    """
+    reset_classifiers_for_source.apply_async(
+        args=[source_id], eta=now() + timedelta(seconds=10))
+
+    for image in Image.objects.filter(source_id=source_id):
+        reset_features.apply_async(
+            args=[image.pk], eta=now() + timedelta(seconds=10))
+
+
+@task(name="Reset Classifiers")
+def reset_classifiers_for_source(source_id):
+    """
+    Removes all traces of the classifiers for this source, including:
     1) Delete all Score objects for all images
     2) Delete Classifier objects
     3) Sets all image.features.classified = False
@@ -344,11 +359,12 @@ def reset_after_labelset_change(source_id):
 
 @task(name="Reset Features")
 def reset_features(image_id):
-    """Resets features for image. Call this after any change that affects the image
-    point locations. E.g:
+    """
+    Resets features for image. Call this after any change that affects
+    the image point locations. E.g:
     Re-generate point locations.
     Change annotation area.
-    Add new poits.
+    Add new points.
     """
 
     try:

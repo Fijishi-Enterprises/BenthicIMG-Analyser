@@ -9,13 +9,10 @@ import spacer.config as spacer_config
 from spacer.data_classes import ValResults
 
 from vision_backend.models import Classifier
-from vision_backend.tasks import collect_all_jobs, submit_classifier
-from .utils import BaseTaskTest, MockImage
+from vision_backend.tasks import collect_all_jobs
+from .utils import BaseTaskTest
 
 
-# Note: applying this patch decorator to the base class doesn't seem to work
-# for some reason (the patch doesn't end up affecting the subclass).
-@mock.patch('images.models.Image.valset', MockImage.valset)
 class TrainClassifierTest(BaseTaskTest):
 
     def test_success(self):
@@ -25,7 +22,8 @@ class TrainClassifierTest(BaseTaskTest):
         collect_all_jobs()
 
         # Create a classifier
-        job_msg = submit_classifier(self.source.id)
+        job_msg = self.submit_classifier_with_filename_based_valset(
+            self.source.id)
 
         # This source should now have a classifier (though not trained yet)
         self.assertTrue(
@@ -79,7 +77,7 @@ class TrainClassifierTest(BaseTaskTest):
         self.upload_images_for_training(
             train_image_count=spacer_config.MIN_TRAINIMAGES, val_image_count=1)
         collect_all_jobs()
-        submit_classifier(self.source.id)
+        self.submit_classifier_with_filename_based_valset(self.source.id)
         # Collect classifier. Use mock to specify a particular accuracy.
         with mock.patch(
                 'spacer.messages.TrainClassifierReturnMsg.__init__',
@@ -98,7 +96,7 @@ class TrainClassifierTest(BaseTaskTest):
         # Collect extracted features.
         collect_all_jobs()
 
-        submit_classifier(self.source.id)
+        self.submit_classifier_with_filename_based_valset(self.source.id)
         # Collect classifier. Use mock to ensure a high enough accuracy
         # improvement to consider the classifier valid.
         with mock.patch(
@@ -136,7 +134,8 @@ class TrainClassifierTest(BaseTaskTest):
         collect_all_jobs()
 
         # Train classifier
-        job_msg = submit_classifier(self.source.id)
+        job_msg = self.submit_classifier_with_filename_based_valset(
+            self.source.id)
         collect_all_jobs()
 
         # Check training data
@@ -185,7 +184,6 @@ class TrainClassifierTest(BaseTaskTest):
         self.assertTrue(latest_classifier.valid)
 
 
-@mock.patch('images.models.Image.valset', MockImage.valset)
 class AbortCasesTest(BaseTaskTest):
     """
     Test cases where the task or collection would abort before reaching the
@@ -201,7 +199,7 @@ class AbortCasesTest(BaseTaskTest):
         source.delete()
 
         with patch_logger('vision_backend.tasks', 'info') as log_messages:
-            submit_classifier(source_id)
+            self.submit_classifier_with_filename_based_valset(source_id)
 
             log_message = "Can't find source [{}]".format(source_id)
             self.assertIn(
@@ -220,7 +218,7 @@ class AbortCasesTest(BaseTaskTest):
         self.source.save()
 
         with patch_logger('vision_backend.tasks', 'info') as log_messages:
-            submit_classifier(self.source.pk)
+            self.submit_classifier_with_filename_based_valset(self.source.pk)
 
             log_message = "Source {} [{}] don't need new classifier.".format(
                 self.source.name, self.source.pk)
@@ -243,7 +241,8 @@ class AbortCasesTest(BaseTaskTest):
 
         with patch_logger('vision_backend.tasks', 'info') as log_messages:
             with override_settings(MIN_NBR_ANNOTATED_IMAGES=min_images):
-                submit_classifier(self.source.pk)
+                self.submit_classifier_with_filename_based_valset(
+                    self.source.pk)
 
             log_message = "Source {} [{}] don't need new classifier.".format(
                 self.source.name, self.source.pk)
@@ -260,12 +259,12 @@ class AbortCasesTest(BaseTaskTest):
         self.upload_images_for_training(
             train_image_count=spacer_config.MIN_TRAINIMAGES, val_image_count=1)
         collect_all_jobs()
-        submit_classifier(self.source.pk)
+        self.submit_classifier_with_filename_based_valset(self.source.pk)
         collect_all_jobs()
 
         # Attempt to train another classifier without adding more images.
         with patch_logger('vision_backend.tasks', 'info') as log_messages:
-            submit_classifier(self.source.pk)
+            self.submit_classifier_with_filename_based_valset(self.source.pk)
 
             log_message = "Source {} [{}] don't need new classifier.".format(
                 self.source.name, self.source.pk)
@@ -281,7 +280,7 @@ class AbortCasesTest(BaseTaskTest):
         self.upload_images_for_training(
             train_image_count=spacer_config.MIN_TRAINIMAGES, val_image_count=1)
         collect_all_jobs()
-        msg = submit_classifier(self.source.pk)
+        msg = self.submit_classifier_with_filename_based_valset(self.source.pk)
 
         clf = self.source.get_latest_robot(only_valid=False)
         clf.delete()
@@ -312,7 +311,7 @@ class AbortCasesTest(BaseTaskTest):
         self.upload_images_for_training(
             train_image_count=spacer_config.MIN_TRAINIMAGES, val_image_count=1)
         collect_all_jobs()
-        submit_classifier(self.source.pk)
+        self.submit_classifier_with_filename_based_valset(self.source.pk)
         collect_all_jobs()
 
         # Upload enough additional images for the next training to happen.
@@ -323,7 +322,7 @@ class AbortCasesTest(BaseTaskTest):
         self.upload_images_for_training(
             train_image_count=added_image_count, val_image_count=0)
         collect_all_jobs()
-        submit_classifier(self.source.pk)
+        self.submit_classifier_with_filename_based_valset(self.source.pk)
 
         with patch_logger(
                 'vision_backend.task_helpers', 'info') as log_messages:

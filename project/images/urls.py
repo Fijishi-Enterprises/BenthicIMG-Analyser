@@ -11,6 +11,7 @@ source_general_urlpatterns = [
 source_specific_urlpatterns = [
     url(r'^$', views.source_main, name="source_main"),
     url(r'^edit/$', views.source_edit, name="source_edit"),
+    url(r'^edit/cancel/$', views.source_edit_cancel, name='source_edit_cancel'),
     url(r'^admin/$', views.source_admin, name="source_admin"),
     url(r'^detail_box/$', views.source_detail_box, name="source_detail_box"),
 ]

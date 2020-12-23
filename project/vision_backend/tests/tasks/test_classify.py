@@ -11,31 +11,15 @@ from accounts.utils import get_robot_user, is_robot_user
 from annotations.models import Annotation
 from images.models import Point
 from vision_backend.models import Score
-from vision_backend.tasks import (
-    classify_image, collect_all_jobs, submit_classifier)
-from .utils import BaseTaskTest, MockImage
+from vision_backend.tasks import classify_image, collect_all_jobs
+from .utils import BaseTaskTest
 
 
-class BaseClassifyTest(BaseTaskTest):
-
-    def train_classifier(self):
-        # Provide enough data for training
-        self.upload_images_for_training(
-            train_image_count=spacer_config.MIN_TRAINIMAGES, val_image_count=1)
-        # Process feature extraction results
-        collect_all_jobs()
-
-        # Train classifier
-        submit_classifier(self.source.id)
-        collect_all_jobs()
-
-
-@mock.patch('images.models.Image.valset', MockImage.valset)
-class ClassifyImageTest(BaseClassifyTest):
+class ClassifyImageTest(BaseTaskTest):
 
     def test_classify_unannotated_image(self):
         """Classify an image where all points are unannotated."""
-        self.train_classifier()
+        self.upload_data_and_train_classifier()
 
         # Image without annotations
         img = self.upload_image(self.user, self.source)
@@ -78,7 +62,7 @@ class ClassifyImageTest(BaseClassifyTest):
 
         # This uploads a bunch of images using nothing but A/B, then runs
         # tasks needed to train a classifier.
-        self.train_classifier()
+        self.upload_data_and_train_classifier()
 
         # Upload, extract features, classify
         img = self.upload_image(self.user, self.source)
@@ -127,7 +111,7 @@ class ClassifyImageTest(BaseClassifyTest):
             for i, score in enumerate(scores):
                 self_.scores.append((score[0], score[1], scores_simple[i]))
 
-        self.train_classifier()
+        self.upload_data_and_train_classifier()
         clf_1 = self.source.get_latest_robot()
 
         # Upload
@@ -144,7 +128,7 @@ class ClassifyImageTest(BaseClassifyTest):
         with override_settings(
                 NEW_CLASSIFIER_TRAIN_TH=0.0001,
                 NEW_CLASSIFIER_IMPROVEMENT_TH=0.0001):
-            submit_classifier(self.source.id)
+            self.submit_classifier_with_filename_based_valset(self.source.pk)
             # 1) Save classifier. 2) re-classify with a different set of
             # scores so that specific points get their labels changed (and
             # other points don't).
@@ -199,7 +183,7 @@ class ClassifyImageTest(BaseClassifyTest):
         Classify an image where some, but not all points have confirmed
         annotations.
         """
-        self.train_classifier()
+        self.upload_data_and_train_classifier()
 
         # Image without annotations
         img = self.upload_image(self.user, self.source)
@@ -222,7 +206,7 @@ class ClassifyImageTest(BaseClassifyTest):
 
     def test_classify_confirmed_image(self):
         """Attempt to classify an image where all points are confirmed."""
-        self.train_classifier()
+        self.upload_data_and_train_classifier()
 
         # Image with annotations
         img = self.upload_image_with_annotations('confirmed.png')
@@ -243,7 +227,7 @@ class ClassifyImageTest(BaseClassifyTest):
         Check that the Scores and the labels assigned by classification are
         consistent with each other.
         """
-        self.train_classifier()
+        self.upload_data_and_train_classifier()
 
         # Upload, extract features, classify
         img = self.upload_image(self.user, self.source)
@@ -271,7 +255,7 @@ class ClassifyImageTest(BaseClassifyTest):
         collect_all_jobs()
 
         # Train classifier + classify image
-        submit_classifier(self.source.id)
+        self.submit_classifier_with_filename_based_valset(self.source.pk)
         collect_all_jobs()
 
         self.assertEqual(
@@ -294,7 +278,7 @@ class ClassifyImageTest(BaseClassifyTest):
             self_.classes = classes
             self_.valid_rowcol = False
 
-        self.train_classifier()
+        self.upload_data_and_train_classifier()
 
         # Image without annotations
         img = self.upload_image(self.user, self.source)
@@ -326,8 +310,7 @@ class ClassifyImageTest(BaseClassifyTest):
             "Applied labels match the given scores")
 
 
-@mock.patch('images.models.Image.valset', MockImage.valset)
-class AbortCasesTest(BaseClassifyTest):
+class AbortCasesTest(BaseTaskTest):
     """Test cases where the task would abort before reaching the end."""
 
     def test_classify_nonexistent_image(self):
@@ -351,7 +334,7 @@ class AbortCasesTest(BaseClassifyTest):
 
     def test_classify_without_features(self):
         """Try to classify an image without features extracted."""
-        self.train_classifier()
+        self.upload_data_and_train_classifier()
 
         img = self.upload_image(self.user, self.source)
         classify_image(img.pk)
@@ -374,7 +357,7 @@ class AbortCasesTest(BaseClassifyTest):
 
     def test_integrity_error_when_saving_annotations(self):
         """Get an IntegrityError when saving annotations."""
-        self.train_classifier()
+        self.upload_data_and_train_classifier()
         classifier = self.source.get_latest_robot()
 
         img = self.upload_image(self.user, self.source)

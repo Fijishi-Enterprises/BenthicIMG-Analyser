@@ -77,6 +77,24 @@ This form template is meant to be used with the "include" template tag.
 
         {% include "form_generic_one_field.html" with field=sourceForm.confidence_threshold dont_show_help_text="True" %}
     {% endif %}
+
+    {% if source_form_type == "new" or source.enable_robot_classifier %}
+        <hr class="light"/>
+
+        <legend class="smaller">Feature extractor</legend>
+
+        <span class="helptext_long">
+        We recommend the EfficientNet extractor for all use-cases. It is faster and 2-3% more accurate on average. It is a more modern neural network architecture and trained on more data. The legacy VGG16 extractor is provided only for sources that want to retain their old classifiers, for example, if they are already deployed in a survey.
+        </span>
+
+        {% if source_form_type == "edit" %}
+          <span id="feature-extractor-change-warning">
+          WARNING: The feature extractor has been changed. If you save this change, this source's entire classifier history will be deleted, and a new classifier will be generated.
+          </span>
+        {% endif %}
+
+        {% include "form_generic_one_field.html" with field=sourceForm.feature_extractor_setting dont_show_help_text="True" %}
+    {% endif %}
 </fieldset>
 
 <fieldset>

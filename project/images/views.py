@@ -8,7 +8,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.contrib import messages
 from django.http import HttpResponseRedirect
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import redirect, render, get_object_or_404
 from django.urls import reverse
 from django.utils.timezone import now
 from django.views.decorators.http import require_POST
@@ -238,13 +238,6 @@ def source_edit(request, source_id):
 
     if request.method == 'POST':
 
-        # Cancel
-        cancel = request.POST.get('cancel', None)
-        if cancel:
-            messages.success(request, 'Edit cancelled.')
-            return HttpResponseRedirect(reverse('source_main', args=[source_id]))
-
-        # Submit
         sourceForm = ImageSourceForm(request.POST, instance=source)
         pointGenForm = PointGenForm(request.POST)
         annotationAreaForm = AnnotationAreaPercentsForm(request.POST)
@@ -262,9 +255,24 @@ def source_edit(request, source_id):
 
             editedSource.default_point_generation_method = PointGen.args_to_db_format(**pointGenForm.cleaned_data)
             editedSource.image_annotation_area = AnnotationAreaUtils.percentages_to_db_format(**annotationAreaForm.cleaned_data)
-            editedSource.save()
 
-            messages.success(request, 'Source successfully edited.')
+            if 'feature_extractor_setting' in sourceForm.changed_data:
+
+                # Feature extractor setting changed. Wipe this source's
+                # features and classifiers.
+                editedSource.save()
+                backend_tasks.reset_backend_for_source.apply_async(
+                    args=[source_id], eta=now()+timedelta(seconds=10))
+                messages.success(
+                    request,
+                    "Source successfully edited."
+                    " Classifier history will be cleared.")
+
+            else:
+
+                editedSource.save()
+                messages.success(request, "Source successfully edited.")
+
             return HttpResponseRedirect(reverse('source_main', args=[source_id]))
 
         else:
@@ -283,6 +291,12 @@ def source_edit(request, source_id):
         'annotationAreaForm': annotationAreaForm,
         'map_minimum_images': settings.MAP_IMAGE_COUNT_TIERS[0],
     })
+
+
+@source_permission_required('source_id', perm=Source.PermTypes.ADMIN.code)
+def source_edit_cancel(request, source_id):
+    messages.success(request, "Edit cancelled.")
+    return redirect('source_main', source_id)
 
 
 def source_detail_box(request, source_id):

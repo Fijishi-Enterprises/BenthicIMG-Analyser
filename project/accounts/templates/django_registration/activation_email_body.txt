@@ -22,7 +22,7 @@ Here are some resources to help get you started with the site:
 
 A few other things to keep in mind:
 
-1) Please be aware that the site is in 'Beta' mode, and things are not yet optimized for the best user experience. We are working hard on making the site better and better, and we appreciate your feedback.
+1) We are always looking to improve the site and the user experience. We do have limited resources and won't always have the opportunity to implement suggestions, but we appreciate your feedback.
 
 2) Please make your data public if possible. The more public data on the site, the better for the community.
 

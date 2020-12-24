@@ -1,6 +1,7 @@
 from __future__ import division
 import datetime
 import posixpath
+import six
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -15,7 +16,7 @@ from easy_thumbnails.fields import ThumbnailerImageField
 from guardian.shortcuts import (
     get_objects_for_user, get_users_with_perms, get_perms, assign, remove_perm)
 
-from .model_utils import PointGen, to_ascii_str
+from .model_utils import PointGen
 from accounts.utils import is_robot_user
 from annotations.model_utils import AnnotationAreaUtils
 from labels.models import LabelSet
@@ -141,6 +142,16 @@ class Source(models.Model):
             " slate."),
     )
 
+    FEATURE_EXTRACTOR_CHOICES = (
+        ('efficientnet_b0_ver1', "EfficientNet (default)"),
+        ('vgg16_coralnet_ver1', "VGG16 (legacy)"),
+    )
+    feature_extractor_setting = models.CharField(
+        "Feature extractor",
+        max_length=50,
+        choices=FEATURE_EXTRACTOR_CHOICES,
+        default='efficientnet_b0_ver1')
+
     longitude = models.CharField(max_length=20, blank=True)
     latitude = models.CharField(max_length=20, blank=True)
 
@@ -169,6 +180,16 @@ class Source(models.Model):
             code = 'source_view'
             fullCode = 'images.' + code
             verbose = 'View'
+
+    @property
+    def feature_extractor(self) -> str:
+        if settings.FORCE_DUMMY_EXTRACTOR:
+            # Use dummy extractor for tests.
+            # The real extractors are relatively slow.
+            return 'dummy'
+
+        # Else, read feature extractor name from DB.
+        return self.feature_extractor_setting
 
     ##########
     # Helper methods for sources
@@ -452,7 +473,7 @@ class Source(models.Model):
                        'nbr_confirmed_images', 'nbr_images', 'description',
                        'affiliation', 'nbr_valid_robots', 'best_robot_accuracy']
 
-        return {field: to_ascii_str(getattr(self, field)) for
+        return {field: six.text_type(getattr(self, field)) for
                 field in field_names}
 
     def __str__(self):
@@ -558,7 +579,7 @@ class Metadata(models.Model):
             {field_name: field_value}
         Both field name and values are strings.
         """
-        return {field: to_ascii_str(getattr(self, field)) for
+        return {field: six.text_type(getattr(self, field)) for
                 field in self.EDIT_FORM_FIELDS}
 
 

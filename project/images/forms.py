@@ -29,6 +29,11 @@ def validate_aux_meta_field_name(field_name):
 
 class ImageSourceForm(ModelForm):
 
+    class Media:
+        js = (
+            "js/SourceFormHelper.js",
+        )
+
     class Meta:
         model = Source
         # Some of the fields are handled by separate forms, so this form
@@ -37,6 +42,7 @@ class ImageSourceForm(ModelForm):
             'name', 'visibility', 'description', 'affiliation',
             'key1', 'key2', 'key3', 'key4', 'key5',
             'confidence_threshold',
+            'feature_extractor_setting',
             'longitude', 'latitude',
         ]
         widgets = {
@@ -49,7 +55,14 @@ class ImageSourceForm(ModelForm):
 
         super(ImageSourceForm, self).__init__(*args, **kwargs)
 
-        if not self.instance.pk:
+        if self.instance.pk:
+            # Edit source form should have a way to detect and indicate (via
+            # Javascript) that the feature extractor setting has changed.
+            self.fields['feature_extractor_setting'].widget.attrs.update({
+                'data-original-value': self.instance.feature_extractor_setting,
+                'onchange': 'SourceFormHelper.updateVisibilityOfExtractorChangeWarning()',
+            })
+        else:
             # New source form shouldn't have this field.
             del self.fields['confidence_threshold']
 
@@ -352,7 +365,6 @@ class PointGenForm(Form):
 
     class Media:
         js = (
-            # From annotations static directory
             "js/PointGenFormHelper.js",
         )
 

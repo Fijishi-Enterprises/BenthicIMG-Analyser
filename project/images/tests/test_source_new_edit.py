@@ -1,4 +1,6 @@
 from __future__ import unicode_literals
+import mock
+
 from django.urls import reverse
 from django.utils import timezone
 
@@ -6,6 +8,7 @@ from annotations.model_utils import AnnotationAreaUtils
 from images.model_utils import PointGen
 from images.models import Source
 from lib.tests.utils import BasePermissionTest, ClientTest
+from vision_backend.tests.tasks.utils import BaseTaskTest
 
 
 class PermissionTest(BasePermissionTest):
@@ -21,6 +24,15 @@ class PermissionTest(BasePermissionTest):
     def test_source_edit(self):
         url = reverse('source_edit', args=[self.source.pk])
         template = 'images/source_edit.html'
+
+        self.source_to_private()
+        self.assertPermissionLevel(url, self.SOURCE_ADMIN, template=template)
+        self.source_to_public()
+        self.assertPermissionLevel(url, self.SOURCE_ADMIN, template=template)
+
+    def test_source_edit_cancel(self):
+        url = reverse('source_edit_cancel', args=[self.source.pk])
+        template = 'images/source_main.html'
 
         self.source_to_private()
         self.assertPermissionLevel(url, self.SOURCE_ADMIN, template=template)
@@ -49,6 +61,7 @@ class SourceNewTest(ClientTest):
             point_generation_type=PointGen.Types.SIMPLE,
             simple_number_of_points=16, number_of_cell_rows='',
             number_of_cell_columns='', stratified_points_per_cell='',
+            feature_extractor_setting='efficientnet_b0_ver1',
             latitude='-17.3776', longitude='25.1982')
         data.update(**kwargs)
         response = self.client.post(
@@ -79,6 +92,8 @@ class SourceNewTest(ClientTest):
         self.assertEqual(form['key3'].value(), 'Aux3')
         self.assertEqual(form['key4'].value(), 'Aux4')
         self.assertEqual(form['key5'].value(), 'Aux5')
+        self.assertEqual(
+            form['feature_extractor_setting'].value(), 'efficientnet_b0_ver1')
 
     def test_source_create(self):
         """
@@ -521,6 +536,32 @@ class SourceNewTest(ClientTest):
         self.assertEqual(Source.objects.all().count(), 0)
 
 
+# Make these all different from what create_source() would use.
+source_kwargs_2 = dict(
+    name="Test Source 2",
+    visibility=Source.VisibilityTypes.PUBLIC,
+    affiliation="Testing Association",
+    description="This is\na description.",
+    key1="Island",
+    key2="Site",
+    key3="Habitat",
+    key4="Section",
+    key5="Transect",
+    min_x=5,
+    max_x=95,
+    min_y=5,
+    max_y=95,
+    point_generation_type=PointGen.Types.STRATIFIED,
+    number_of_cell_rows=4,
+    number_of_cell_columns=6,
+    stratified_points_per_cell=3,
+    confidence_threshold=80,
+    feature_extractor_setting='vgg16_coralnet_ver1',
+    latitude='5.789',
+    longitude='-50',
+)
+
+
 class SourceEditTest(ClientTest):
     """
     Test the Edit Source page.
@@ -543,31 +584,7 @@ class SourceEditTest(ClientTest):
 
     def test_source_edit(self):
         self.client.force_login(self.user)
-        response = self.client.post(
-            self.url,
-            dict(
-                name="Test Source 2",
-                visibility=Source.VisibilityTypes.PUBLIC,
-                affiliation="Testing Association",
-                description="This is\na description.",
-                key1="Island",
-                key2="Site",
-                key3="Habitat",
-                key4="Section",
-                key5="Transect",
-                min_x=5,
-                max_x=95,
-                min_y=5,
-                max_y=95,
-                point_generation_type=PointGen.Types.STRATIFIED,
-                number_of_cell_rows=4,
-                number_of_cell_columns=6,
-                stratified_points_per_cell=3,
-                confidence_threshold=80,
-                latitude='5.789',
-                longitude='-50',
-            ),
-        )
+        response = self.client.post(self.url, source_kwargs_2)
 
         self.assertRedirects(
             response,
@@ -600,5 +617,64 @@ class SourceEditTest(ClientTest):
             )
         )
         self.assertEqual(self.source.confidence_threshold, 80)
+        self.assertEqual(
+            self.source.feature_extractor_setting, 'vgg16_coralnet_ver1')
         self.assertEqual(self.source.latitude, '5.789')
         self.assertEqual(self.source.longitude, '-50')
+
+    def test_cancel(self):
+        """Test the view tied to the cancel button."""
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse('source_edit_cancel', args=[self.source.pk]), follow=True)
+        self.assertTemplateUsed(
+            response, 'images/source_main.html',
+            "Should redirect to source main")
+        self.assertContains(
+            response, "Edit cancelled.",
+            msg_prefix="Should show the appropriate message")
+
+
+class SourceEditBackendStatusTest(BaseTaskTest):
+
+    @classmethod
+    def setUpTestData(cls):
+        super(SourceEditBackendStatusTest, cls).setUpTestData()
+
+        cls.url = reverse('source_edit', args=[cls.source.pk])
+
+    def test_backend_reset_if_extractor_changed(self):
+        edit_kwargs = source_kwargs_2.copy()
+        edit_kwargs['feature_extractor_setting'] = 'vgg16_coralnet_ver1'
+        self.client.force_login(self.user)
+
+        with mock.patch('vision_backend.tasks.reset_backend_for_source.run') \
+                as mock_method:
+            # Edit source with changed extractor setting
+            response = self.client.post(self.url, edit_kwargs, follow=True)
+            # Assert that the task was called
+            mock_method.assert_called()
+
+        self.assertContains(
+            response,
+            "Source successfully edited. Classifier history will be cleared.",
+            msg_prefix="Page should show the appropriate message")
+
+    def test_backend_not_reset_if_extractor_same(self):
+        edit_kwargs = source_kwargs_2.copy()
+        edit_kwargs['feature_extractor_setting'] = 'efficientnet_b0_ver1'
+        self.client.force_login(self.user)
+
+        with mock.patch('vision_backend.tasks.reset_backend_for_source.run') \
+                as mock_method:
+            # Edit source with same extractor setting
+            response = self.client.post(self.url, edit_kwargs, follow=True)
+            # Assert that the task was NOT called
+            mock_method.assert_not_called()
+
+        self.assertContains(
+            response, "Source successfully edited.",
+            msg_prefix="Page should show the appropriate message")
+        self.assertNotContains(
+            response, "Classifier history will be cleared.",
+            msg_prefix="Page should show the appropriate message")

@@ -4,6 +4,8 @@ from lib.tests.utils import ClientTest
 from images.models import Point
 from vision_backend.models import Score
 
+from spacer.messages import ClassifyReturnMsg
+
 import vision_backend.task_helpers as th
 
 
@@ -55,7 +57,15 @@ class CascadeDeleteTest(ClientTest):
         scores = []
         for i in range(nbr_points):
             scores.append(np.random.rand(label_objs.count()))
-        th._add_scores(img.pk, scores, label_objs)
+
+        return_msg = ClassifyReturnMsg(
+            runtime=0.0,
+            scores=[(0, 0, [float(s) for s in scrs]) for scrs in scores],
+            classes=[label.pk for label in label_objs],
+            valid_rowcol=False,
+        )
+
+        th.add_scores(img.pk, return_msg, label_objs)
 
         expected_nbr_scores = min(5, label_objs.count())
         self.assertEqual(Score.objects.filter(image=img).count(),

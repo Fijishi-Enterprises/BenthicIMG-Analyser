@@ -1,21 +1,20 @@
 # Base settings for any type of server.
 
 import json
-import os
+import logging
 import sys
-
-from unipath import Path
-
-# Normally you should not import ANYTHING from Django directly
-# into your settings, but ImproperlyConfigured is an exception.
-from django.core.exceptions import ImproperlyConfigured
-
-from .vision_backend import *
 
 # Configure Pillow to be tolerant of image files that are truncated (missing
 # data from the last block).
 # https://stackoverflow.com/a/23575424/
 from PIL import ImageFile
+# Normally you should not import ANYTHING from Django directly
+# into your settings, but ImproperlyConfigured is an exception.
+from django.core.exceptions import ImproperlyConfigured
+from unipath import Path
+
+from .vision_backend import *
+
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
@@ -30,8 +29,12 @@ PROJECT_DIR = SETTINGS_DIR.ancestor(2)
 # Directory for any site related files, not just the repository.
 SITE_DIR = PROJECT_DIR.ancestor(2)
 
-# Directory containing log files
+# Directory containing log files.
 LOG_DIR = SITE_DIR.child('log')
+
+# Disable logging during tests.
+if len(sys.argv) > 1 and sys.argv[1] == 'test':
+    logging.disable(logging.CRITICAL)
 
 # JSON-based secrets module, expected to be in the SETTINGS_DIR
 if os.path.exists(SETTINGS_DIR.child('secrets.json')):
@@ -565,7 +568,7 @@ CELERY_RESULT_SERIALIZER = 'json'
 # LOG
 LOGGING = {
     'version': 1,
-    'disable_existing_loggers': False,
+    'disable_existing_loggers': True,
     'formatters': {
         'standard': {
             'format': '[%(name)s.%(funcName)s, %(asctime)s]: %(message)s'
@@ -665,3 +668,15 @@ NEWS_ITEM_CATEGORIES = ['ml', 'source', 'image', 'annotation', 'account']
 LABELPATCH_NCOLS = 150  # Size of patch (after scaling)
 LABELPATCH_NROWS = 150  # Size of patch (after scaling)
 LABELPATCH_SIZE_FRACTION = 0.2  # Patch covers this proportion of the original image's greater dimension
+
+# Spacer job hash to identify this server instance in the AWS queue.
+if has_secrets:
+    SPACER_JOB_HASH = get_secret('SPACER_JOB_HASH')
+else:
+    SPACER_JOB_HASH = 'dummy_identifier'
+
+# For regression tests, spacer expects a local model path.
+os.environ['SPACER_LOCAL_MODEL_PATH'] = LOG_DIR
+
+# This flag is used to over-ride feature extractor names for unit-tests.
+FORCE_DUMMY_EXTRACTOR = False

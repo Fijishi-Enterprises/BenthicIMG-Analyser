@@ -101,6 +101,6 @@ class Command(BaseCommand):
         # Remove label from labelset.
         source.labelset.locallabel_set.get(global_label=old_label).delete()
 
-        # Reset the backend state for this source.
-        backend_tasks.reset_after_labelset_change.apply_async(
+        # Reset the classifiers for this source.
+        backend_tasks.reset_classifiers_for_source.apply_async(
             args=[source.pk], eta=now()+timedelta(seconds=10))

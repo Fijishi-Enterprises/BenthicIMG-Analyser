@@ -11,6 +11,8 @@ import random
 import six
 from six.moves.urllib.parse import quote as url_quote
 
+from spacer.messages import ClassifyReturnMsg
+
 from PIL import Image as PILImage
 from selenium import webdriver
 from selenium.common.exceptions import NoAlertPresentException
@@ -73,9 +75,9 @@ test_settings['CACHES'] = {
 # This is needed since the celery agent runs in a different 
 # context (e.g. Database)
 test_settings['CELERY_ALWAYS_EAGER'] = True
-
-# Make sure backend tasks do not run.
-test_settings['FORCE_NO_BACKEND_SUBMIT'] = True
+# Also force spacer jobs to use the dummy extractor.
+# Otherwise tests will run slow.
+test_settings['FORCE_DUMMY_EXTRACTOR'] = True
 
 
 # Abstract class
@@ -95,6 +97,7 @@ class ClientUtilsMixin(object):
         self.assertEqual(response.status_code, 200, msg)
 
     user_count = 0
+
     @classmethod
     def create_user(
             cls, username=None, password='SamplePassword', email=None,
@@ -173,9 +176,11 @@ class ClientUtilsMixin(object):
         point_generation_type=PointGen.Types.SIMPLE,
         simple_number_of_points=5,
         confidence_threshold=100,
+        feature_extractor_setting='efficientnet_b0_ver1',
         latitude='0.0',
         longitude='0.0',
     )
+
     @classmethod
     def create_source(cls, user, name=None, **options):
         """
@@ -293,6 +298,7 @@ class ClientUtilsMixin(object):
         return source.labelset
 
     image_count = 0
+
     @classmethod
     def upload_image(cls, user, source, image_options=None, image_file=None):
         """
@@ -757,7 +763,7 @@ class BasePermissionTest(ClientTest):
 
         # TODO: We should probably use this assertion, but a lot of our views
         # don't yet use 403 when denying access.
-        #self.assertEqual(response.status_code, 403)
+        # self.assertEqual(response.status_code, 403)
 
         # Response should use the permission-denied template, and
         # contain the deny_wording (if provided)
@@ -811,7 +817,7 @@ class BasePermissionTest(ClientTest):
 
         # TODO: We should probably use this assertion, but a lot of our views
         # don't yet use 403 when denying access.
-        #self.assertEqual(response.status_code, 403)
+        # self.assertEqual(response.status_code, 403)
 
         # Response should include an error that contains the deny_wording
         # (if provided)
@@ -828,7 +834,7 @@ class BasePermissionTest(ClientTest):
 
         # TODO: We should probably use this assertion, but a lot of our views
         # don't yet use 403 when denying access.
-        #self.assertEqual(response.status_code, 403)
+        # self.assertEqual(response.status_code, 403)
 
         # Response should include an error that contains the words "signed in"
         self.assertIn('error', response_json)
@@ -983,7 +989,7 @@ class ManagementCommandTest(ClientTest):
             patch_target = '{}.management.commands.{}.six.moves.input'.format(
                 app_name, command_name)
 
-            def input_without_prompt(message):
+            def input_without_prompt(_):
                 # Instead of prompting for user input, this just returns a
                 # constant value.
                 return patch_input_value
@@ -1208,16 +1214,24 @@ def add_robot_annotations(robot, image, annotations=None):
         # Up to now we've represented 65% as the integer 65, for easier math.
         # But the utility functions we'll call actually expect the float 0.65.
         # So divide by 100.
-        scores.append([s / 100 for s in scores_for_point])
+        scores.append((
+            point.row, point.column, [s / 100 for s in scores_for_point]))
 
     global_labels = [ll.global_label for ll in local_labels]
 
-    # Add scores. Note that this function expects scores for all labels, but
-    # will only save the top NBR_SCORES_PER_ANNOTATION per point.
-    backend_task_helpers._add_scores(image.pk, scores, global_labels)
-    # Add annotations.
-    backend_task_helpers._add_annotations(
-        image.pk, scores, global_labels, robot)
+    # Package scores into a ClassifyReturnMsg. Note that this function expects
+    # scores for all labels, but will only save the top
+    # NBR_SCORES_PER_ANNOTATION per point.
+    clf_return_msg = ClassifyReturnMsg(
+        runtime=1.0,
+        scores=scores,
+        classes=[label.pk for label in global_labels],
+        valid_rowcol=True
+    )
+
+    backend_task_helpers.add_scores(image.pk, clf_return_msg, global_labels)
+    backend_task_helpers.add_annotations(
+        image.pk, clf_return_msg, global_labels, robot)
 
     image.features.classified = True
     image.features.save()

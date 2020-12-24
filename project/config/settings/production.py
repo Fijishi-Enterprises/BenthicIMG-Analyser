@@ -31,6 +31,13 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 WSGI_APPLICATION = 'config.wsgi.application'
 
 # [Custom setting]
+# Which vision backend to use.
+SPACER_QUEUE_CHOICE = 'vision_backend.queues.BatchQueue'
+
+# Configure the SQS queue name to use
+BATCH_QUEUE = 'production'
+
+# [Custom setting]
 # Front page carousel images.
 CAROUSEL_IMAGE_COUNT = 5
 CAROUSEL_IMAGE_POOL = [

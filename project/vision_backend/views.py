@@ -1,33 +1,33 @@
 from __future__ import division
+
 import json
-from backports import csv
 
 import numpy as np
-
-from django.shortcuts import render
-from django.http import  HttpResponse
-from django.contrib.auth.decorators import permission_required
+from backports import csv
 from celery.task.control import inspect
-
-from lib.decorators import source_visibility_required
+from django.contrib.auth.decorators import permission_required
+from django.http import HttpResponse
+from django.shortcuts import render
+from spacer.data_classes import ValResults
 
 from images.models import Source, Image
 from images.utils import source_robot_status
-
-from .forms import TreshForm, CmTestForm
+from lib.decorators import source_visibility_required
 from .confmatrix import ConfMatrix
-from .utils import labelset_mapper, map_labels, get_total_messages_in_jobs_queue, get_alleviate
+from .forms import TreshForm, CmTestForm
 from .models import Classifier
+from .utils import labelset_mapper, map_labels, \
+    get_total_messages_in_jobs_queue, get_alleviate
 
 
 @permission_required('is_superuser')
 def backend_overview(request):
-
     nimgs = Image.objects.filter().count()
-    nconfirmed = Image.objects.filter(confirmed = True).count()
-    nclassified = Image.objects.filter(features__classified = True).count()
-    nextracted = Image.objects.filter(features__extracted = True).count()
-    nnaked = Image.objects.filter(features__extracted = False, confirmed = False).count()
+    nconfirmed = Image.objects.filter(confirmed=True).count()
+    nclassified = Image.objects.filter(features__classified=True).count()
+    nextracted = Image.objects.filter(features__extracted=True).count()
+    nnaked = Image.objects.filter(features__extracted=False,
+                                  confirmed=False).count()
 
     img_stats = {
         'nimgs': nimgs,
@@ -45,44 +45,49 @@ def backend_overview(request):
         'nclassifiers': Classifier.objects.filter().count(),
         'nvalidclassifiers': Classifier.objects.filter(valid=True).count(),
         'nsources': Source.objects.filter().count(),
-        'valid_ratio': '{:.1f}'.format(Classifier.objects.filter(valid=True).count() / Source.objects.filter().count())
+        'valid_ratio': '{:.1f}'.format(Classifier.objects.filter(
+            valid=True).count() / Source.objects.filter().count())
     }
 
     def first_queue_length(inspect_category):
         # For a given inspect category, there should be only one queue (e.g.
         # 'celery@Ubuntu'). This function gets the length of that queue.
-        first_queue = next(iter(inspect_category.values()))
-        return len(first_queue)
+        try:
+            first_queue = next(iter(inspect_category.values()))
+            return len(first_queue)
+        except AttributeError:
+            return 0
 
     i = inspect()
-    isch = i.scheduled()
-    iact = i.active()
-    iqu = i.reserved()
+    i_sch = i.scheduled()
+    i_act = i.active()
+    i_qu = i.reserved()
     q_stats = {
         'spacer': get_total_messages_in_jobs_queue(),
-        'celery_scheduled': first_queue_length(isch),
-        'celery_active': first_queue_length(iact),
-        'celery_queued': first_queue_length(iqu),
+        'celery_scheduled': first_queue_length(i_sch),
+        'celery_active': first_queue_length(i_act),
+        'celery_queued': first_queue_length(i_qu),
     }
 
     laundry_list = []
     for source in Source.objects.filter().order_by('-id'):
         laundry_list.append(source_robot_status(source.id))
 
-    laundry_list = sorted(laundry_list, key=lambda k: (-k['need_attention'], -k['id']))
-    
+    laundry_list = sorted(laundry_list,
+                          key=lambda k: (-k['need_attention'], -k['id']))
+
     return render(request, 'vision_backend/overview.html', {
         'laundry_list': laundry_list,
         'img_stats': img_stats,
         'clf_stats': clf_stats,
-        'q_stats':q_stats
+        'q_stats': q_stats
     })
 
 
 @source_visibility_required('source_id')
 def backend_main(request, source_id):
-    
-    # Read plotting input from the request. (Using GET is OK here as this view only reads from DB).
+    # Read plotting input from the request.
+    # (Using GET is OK here as this view only reads from DB).
     confidence_threshold = int(request.GET.get('confidence_threshold', 0))
     labelmode = request.GET.get('labelmode', 'full')
     
@@ -91,42 +96,46 @@ def backend_main(request, source_id):
     form.initial['confidence_threshold'] = confidence_threshold
     form.initial['labelmode'] = labelmode
 
-    # Mapper for pretty priting.
+    # Mapper for pretty printing.
     labelmodestr = {
         'full': 'full labelset',
         'func': 'functional groups',
     }
 
     # Get source
-    source = Source.objects.get(id = source_id)
-    
+    source = Source.objects.get(id=source_id)
+
     # Make sure that there is a classifier for this source.
     if not source.has_robot():
         return render(request, 'vision_backend/backend_main.html', {
-        'form': form,
-        'has_classifier': False,
-        'source': source,
-    })
-    
+            'form': form,
+            'has_classifier': False,
+            'source': source,
+        })
+
     cc = source.get_latest_robot()
-    if 'valres' in request.session.keys() and 'ccpk' in request.session.keys() and request.session['ccpk'] == cc.pk:
+    if 'valres' in request.session.keys() and \
+            'ccpk' in request.session.keys() and \
+            request.session['ccpk'] == cc.pk:
         pass
     else:
-        valres = source.get_latest_robot().valres
-        request.session['valres'] = valres
+        valres: ValResults = source.get_latest_robot().valres
+        request.session['valres'] = valres.serialize()
         request.session['ccpk'] = cc.pk
     
-    # Load stored variables to local namsspace
-    valres = request.session['valres']
+    # Load stored variables to local namespace
+    valres: ValResults = ValResults.deserialize(request.session['valres'])
     
-    # find classmap and class names for selected labelmode
-    classmap, classnames = labelset_mapper(labelmode, valres['classes'], source)
+    # find classmap and class names for selected label-mode
+    classmap, classnames = labelset_mapper(labelmode, valres.classes, source)
 
     # Initialize confusion matrix
-    cm = ConfMatrix(len(classnames), labelset = classnames)
+    cm = ConfMatrix(len(classnames), labelset=classnames)
 
-    # Add datapoints above the threhold.
-    cm.add_select(map_labels(valres['gt'], classmap), map_labels(valres['est'], classmap), valres['scores'], confidence_threshold / 100)
+    # Add data-points above the threshold.
+    cm.add_select(map_labels(valres.gt, classmap),
+                  map_labels(valres.est, classmap), valres.scores,
+                  confidence_threshold / 100)
 
     # Sort by descending order.
     cm.sort()
@@ -135,36 +144,46 @@ def backend_main(request, source_id):
     
     if cm.nclasses > max_display_labels:
         cm.cut(max_display_labels)
-    
-    # Export for heatmap
+
+    # Export for heat-map
     cm_render = dict()
-    cm_render['data_'], cm_render['xlabels'], cm_render['ylabels'] = cm.render_for_heatmap()
-    cm_render['title_'] = json.dumps('Confusion matrix for {} (acc:{}, n: {})'.format(labelmodestr[labelmode], round(100*cm.get_accuracy()[0], 1), int(np.sum(np.sum(cm.cm)))))
+    cm_render['data_'], cm_render['xlabels'], cm_render[
+        'ylabels'] = cm.render_for_heatmap()
+    cm_render['title_'] = json.dumps(
+        'Confusion matrix for {} (acc:{}, n: {})'.format(
+            labelmodestr[labelmode], round(100 * cm.get_accuracy()[0], 1),
+            int(np.sum(np.sum(cm.cm)))))
     cm_render['css_height'] = max(500, cm.nclasses * 22 + 320)
     cm_render['css_width'] = max(600, cm.nclasses * 22 + 360)
-    
-    
+
     # Prepare the alleviate plot if not allready in session
-    if not 'alleviate_data' in request.session.keys():
-        acc_full, ratios, confs = get_alleviate(valres['gt'], valres['est'], valres['scores'])
-        classmap, _ = labelset_mapper('func', valres['classes'], source)
-        acc_func, _, _ = get_alleviate(map_labels(valres['gt'], classmap), map_labels(valres['est'], classmap), valres['scores'])
+    if 'alleviate_data' not in request.session.keys():
+        acc_full, ratios, confs = get_alleviate(valres.gt, valres.est,
+                                                valres.scores)
+        classmap, _ = labelset_mapper('func', valres.classes, source)
+        acc_func, _, _ = get_alleviate(map_labels(valres.gt, classmap),
+                                       map_labels(valres.est, classmap),
+                                       valres.scores)
         request.session['alleviate'] = dict()
         for member in ['acc_full', 'acc_func', 'ratios']:
-            request.session['alleviate'][member] = [[conf, val] for val, conf in zip(eval(member), confs)]
+            request.session['alleviate'][member] = [[conf, val] for val, conf
+                                                    in
+                                                    zip(eval(member), confs)]
 
     # Handle the case where we are exporting the confusion matrix.
     if request.method == 'POST' and request.POST.get('export_cm', None):
         vecfmt = np.vectorize(myfmt)
-        
-        #create csv file
+
+        # create CSV file
         response = HttpResponse()
-        response['Content-Disposition'] = 'attachment;filename=confusion_matrix_{}_{}.csv'.format(labelmode, confidence_threshold)
+        response[
+            'Content-Disposition'] = \
+            'attachment;filename=confusion_matrix_{}_{}.csv'.format(
+                labelmode, confidence_threshold)
         writer = csv.writer(response)
-        
+
         for enu, classname in enumerate(cm.labelset):
-            row = []
-            row.append(classname)
+            row = [classname]
             row.extend(vecfmt(cm.cm[enu, :]))
             writer.writerow(row)
 
@@ -178,8 +197,9 @@ def backend_main(request, source_id):
         'alleviate': request.session['alleviate'],
     })
 
-# helper function to format numpy outputs
+
 def myfmt(r):
+    """Helper function to format numpy outputs"""
     return "%.0f" % (r,)
 
 
@@ -190,35 +210,35 @@ def cm_test(request):
     """
     nlabels = int(request.GET.get('nlabels', 5))
     namelength = int(request.GET.get('namelength', 25))
-    
+
     # Initialize form
-    form = CmTestForm()    
+    form = CmTestForm()
     form.initial['nlabels'] = nlabels
     form.initial['namelength'] = namelength
-    
+
     # Initialize confusion matrix
-    cm = ConfMatrix(nlabels, labelset = ['a'*namelength]*nlabels)
+    cm = ConfMatrix(nlabels, labelset=['a' * namelength] * nlabels)
 
     # Add datapoints above the threhold.
-    cm.add(np.random.choice(nlabels, size = 10*nlabels), np.random.choice(nlabels, size = 10*nlabels))
+    cm.add(np.random.choice(nlabels, size=10 * nlabels),
+           np.random.choice(nlabels, size=10 * nlabels))
 
     # Sort by descending order.
     cm.sort()
 
     max_display_labels = 50
-    
+
     if nlabels > max_display_labels:
         cm.cut(max_display_labels)
     # Export for heatmap
     cm_render = dict()
-    cm_render['data_'], cm_render['xlabels'], cm_render['ylabels'] = cm.render_for_heatmap()
+    cm_render['data_'], cm_render['xlabels'], cm_render[
+        'ylabels'] = cm.render_for_heatmap()
     cm_render['title_'] = '"This is a title"'
     cm_render['css_height'] = max(500, cm.nclasses * 22 + 320)
     cm_render['css_width'] = max(600, cm.nclasses * 22 + 360)
-    
 
     return render(request, 'vision_backend/cm_test.html', {
         'form': form,
         'cm': cm_render,
     })
-

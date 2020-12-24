@@ -13,7 +13,7 @@ from django.test.client import Client
 from django.test.utils import override_settings
 
 from ..forms import get_one_form_error, get_one_formset_error
-from ..utils import direct_s3_write, direct_s3_read
+from ..regtest_utils import direct_s3_read, direct_s3_write
 from .utils import (
     BasePermissionTest, BaseTest, ClientTest, sample_image_as_file)
 

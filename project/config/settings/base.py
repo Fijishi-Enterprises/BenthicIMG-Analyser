@@ -568,7 +568,8 @@ CELERY_RESULT_SERIALIZER = 'json'
 # LOG
 LOGGING = {
     'version': 1,
-    'disable_existing_loggers': True,
+    # Existing (default) logging includes error emails to admins.
+    'disable_existing_loggers': False,
     'formatters': {
         'standard': {
             'format': '[%(name)s.%(funcName)s, %(asctime)s]: %(message)s'

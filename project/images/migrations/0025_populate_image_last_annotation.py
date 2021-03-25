@@ -37,5 +37,6 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.RunPython(
-            populate_last_annotation_field, migrations.RunPython.noop),
+            populate_last_annotation_field, migrations.RunPython.noop,
+            elidable=True),
     ]

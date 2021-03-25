@@ -37,7 +37,10 @@ class Migration(migrations.Migration):
         ),
 
         # Populate all nulls
-        migrations.RunPython(initialize_features_for_images, initialize_features_for_images_backwards),
+        migrations.RunPython(
+            initialize_features_for_images,
+            initialize_features_for_images_backwards,
+            elidable=True),
 		
         # Now, dis-allow nulls
         migrations.AlterField(

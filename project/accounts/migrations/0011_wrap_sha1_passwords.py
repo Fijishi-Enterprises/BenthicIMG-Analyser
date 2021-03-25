@@ -32,5 +32,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(forwards_func, do_nothing),
+        migrations.RunPython(forwards_func, do_nothing, elidable=True),
     ]

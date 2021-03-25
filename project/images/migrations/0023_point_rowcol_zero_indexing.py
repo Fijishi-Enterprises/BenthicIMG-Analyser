@@ -95,5 +95,5 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.RunPython(
-            indexing_one_to_zero, indexing_zero_to_one),
+            indexing_one_to_zero, indexing_zero_to_one, elidable=True),
     ]

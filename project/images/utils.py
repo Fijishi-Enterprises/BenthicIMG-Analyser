@@ -11,7 +11,7 @@ from django.urls import reverse
 from accounts.utils import get_robot_user, get_alleviate_user
 from annotations.model_utils import AnnotationAreaUtils
 from annotations.models import Annotation
-from vision_backend.models import Features, Classifier
+from vision_backend.models import Classifier
 from .model_utils import PointGen
 from .models import Source, Point, Image, Metadata
 
@@ -189,7 +189,6 @@ def delete_images(image_queryset):
     # can't trigger a cascade delete on these objects. So we have to get
     # these objects and delete them separately.
     metadata_queryset = Metadata.objects.filter(image__in=image_queryset)
-    features_queryset = Features.objects.filter(image__in=image_queryset)
 
     # Since these querysets are obtained based on their related images,
     # the querysets will change once the images are deleted!
@@ -197,9 +196,6 @@ def delete_images(image_queryset):
     # https://docs.djangoproject.com/en/dev/ref/models/querysets/#when-querysets-are-evaluated
     metadata_pks = list(metadata_queryset.values_list('pk', flat=True))
     metadata_queryset = Metadata.objects.filter(pk__in=metadata_pks)
-        
-    features_pks = list(features_queryset.values_list('pk', flat=True))
-    features_queryset = Features.objects.filter(pk__in=features_pks)
 
     # We call delete() on the querysets rather than the individual
     # objects for faster performance.
@@ -209,7 +205,6 @@ def delete_images(image_queryset):
     # We delete the related objects AFTER deleting the images to not trigger
     # PROTECT-related errors on those ForeignKeys.
     metadata_queryset.delete()
-    features_queryset.delete()
 
     return delete_count
 

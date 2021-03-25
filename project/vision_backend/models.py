@@ -70,6 +70,8 @@ class Features(models.Model):
     """
     This class manages the bookkeeping of features for each image.
     """
+    image = models.OneToOneField('images.Image', on_delete=models.CASCADE)
+
     # Indicates whether the features are extracted. Set when jobs are collected
     extracted = models.BooleanField(default=False)
 

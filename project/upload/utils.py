@@ -17,7 +17,7 @@ except ImportError:
 from django.urls import reverse
 
 from accounts.utils import get_robot_user
-from annotations.models import Annotation
+from annotations.models import Annotation, ImageAnnotationInfo
 from images.forms import MetadataForm
 from images.models import Metadata, Image
 from images.utils import generate_points, aux_label_name_collisions, \
@@ -751,6 +751,9 @@ def upload_image_process(image_file, image_name, source, current_user):
         source=source,
     )
     img.save()
+
+    annotation_info = ImageAnnotationInfo(image=img)
+    annotation_info.save()
 
     features = Features(image=img)
     features.save()

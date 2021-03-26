@@ -460,7 +460,7 @@ class ImageSearchForm(forms.Form):
             self.fields['last_annotated'] = DateFilterField(
                 label="Last annotation date",
                 year_choices=annotation_year_choices,
-                date_lookup='last_annotation__annotation_date',
+                date_lookup='annoinfo__last_annotation__annotation_date',
                 is_datetime_field=True, required=False)
 
             # Last annotator
@@ -468,7 +468,7 @@ class ImageSearchForm(forms.Form):
             self.fields['last_annotator'] = AnnotatorFilterField(
                 label="By",
                 source=self.source,
-                annotator_lookup='last_annotation__user',
+                annotator_lookup='annoinfo__last_annotation__user',
                 required=False)
             # 'verbose name' separate from the label, for use by
             # get_applied_search_display().

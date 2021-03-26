@@ -17,5 +17,5 @@ class Command(BaseCommand):
         for image in Image.objects.filter(source=source,
                                           features__extracted=True,
                                           features__classified=False,
-                                          confirmed=False):
+                                          annoinfo__confirmed=False):
             classify_image.delay(image.id)

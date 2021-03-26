@@ -23,11 +23,11 @@ from .utils import labelset_mapper, map_labels, \
 @permission_required('is_superuser')
 def backend_overview(request):
     nimgs = Image.objects.filter().count()
-    nconfirmed = Image.objects.filter(confirmed=True).count()
+    nconfirmed = Image.objects.filter(annoinfo__confirmed=True).count()
     nclassified = Image.objects.filter(features__classified=True).count()
     nextracted = Image.objects.filter(features__extracted=True).count()
     nnaked = Image.objects.filter(features__extracted=False,
-                                  confirmed=False).count()
+                                  annoinfo__confirmed=False).count()
 
     img_stats = {
         'nimgs': nimgs,

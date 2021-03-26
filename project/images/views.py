@@ -480,7 +480,7 @@ def image_detail(request, image_id):
     prev_image = utils.get_prev_image(image, source_images, wrap=False)
 
     # Annotation status
-    if image.confirmed:
+    if image.annoinfo.confirmed:
         annotation_status = "Complete"
     elif image_has_any_human_annotations(image):
         annotation_status = "Partially annotated"

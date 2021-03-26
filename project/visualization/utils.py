@@ -73,12 +73,12 @@ def image_search_kwargs_to_queryset(search_kwargs, source):
         # Don't filter
         pass
     elif annotation_status == 'confirmed':
-        qs.append(Q(confirmed=True))
+        qs.append(Q(annoinfo__confirmed=True))
     elif annotation_status == 'unconfirmed':
-        qs.append(Q(confirmed=False))
+        qs.append(Q(annoinfo__confirmed=False))
         qs.append(Q(features__classified=True))
     elif annotation_status == 'unclassified':
-        qs.append(Q(confirmed=False))
+        qs.append(Q(annoinfo__confirmed=False))
         qs.append(Q(features__classified=False))
 
     # AND all of the constraints so far, and remember to search within
@@ -94,7 +94,7 @@ def image_search_kwargs_to_queryset(search_kwargs, source):
     if sort_method == 'photo_date':
         sort_fields = ['metadata__photo_date', 'pk']
     elif sort_method == 'last_annotation_date':
-        sort_fields = ['last_annotation__annotation_date', 'pk']
+        sort_fields = ['annoinfo__last_annotation__annotation_date', 'pk']
     elif sort_method == 'name':
         # metadata__name is SUPPOSED to be unique for each image, but
         # occasionally it's not due to a bug (issue #251), so we also use pk.

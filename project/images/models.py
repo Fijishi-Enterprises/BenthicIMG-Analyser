@@ -1,5 +1,4 @@
 from __future__ import division
-import datetime
 import posixpath
 import six
 
@@ -10,7 +9,6 @@ from django.core.mail import mail_admins
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils.encoding import python_2_unicode_compatible
-from django.utils import timezone
 
 from easy_thumbnails.fields import ThumbnailerImageField
 from guardian.shortcuts import (
@@ -339,7 +337,7 @@ class Source(models.Model):
     @property
     def nbr_confirmed_images(self):
         qs = self.get_all_images()
-        return qs.exclude(confirmed=False).count()
+        return qs.exclude(annoinfo__confirmed=False).count()
 
     @property
     def nbr_images(self):
@@ -422,7 +420,8 @@ class Source(models.Model):
         """
         
         nbr_verified_images_with_features = Image.objects.filter(
-            source=self, confirmed=True, features__extracted=True).count()
+            source=self, annoinfo__confirmed=True,
+            features__extracted=True).count()
         return (
             nbr_verified_images_with_features >
             settings.NEW_CLASSIFIER_TRAIN_TH * self.nbr_images_in_latest_robot()
@@ -647,8 +646,6 @@ class Image(models.Model):
         User, on_delete=models.SET_NULL,
         editable=False, null=True)
 
-    confirmed = models.BooleanField(default=False)
-
     POINT_GENERATION_CHOICES = (
         (PointGen.Types.SIMPLE, PointGen.Types.SIMPLE_VERBOSE),
         (PointGen.Types.STRATIFIED, PointGen.Types.STRATIFIED_VERBOSE),
@@ -679,17 +676,6 @@ class Image(models.Model):
 
     source = models.ForeignKey(Source, on_delete=models.CASCADE)
 
-    # Latest updated annotation for this image. This is a redundant field, but
-    # necessary for performance of queries such as 'find the 20 most recently
-    # annotated images'.
-    last_annotation = models.ForeignKey(
-        'annotations.Annotation', on_delete=models.SET_NULL,
-        editable=False, null=True,
-        # + means don't define a reverse relation. It wouldn't be helpful, and
-        # the default name for the relation would clash with the already
-        # existing relation `Annotation.image`.
-        related_name='+')
-
     @property
     def valset(self):
         return self.pk % 8 == 0
@@ -708,42 +694,6 @@ class Image(models.Model):
         # Highest row (y) pixel within the image dimensions.
         return self.original_height - 1
 
-    def save(self, *args, **kwargs):
-        """
-        Ensure the redundant annotation-status fields (which exist for
-        performance reasons) are up to date.
-        """
-        # Update the last_annotation.
-        # If there are no annotations, then first() returns None.
-        last_annotation = self.annotation_set.order_by(
-            '-annotation_date').first()
-        self.last_annotation = last_annotation
-
-        # Must import within this function to avoid circular import
-        # at the module level.
-        from annotations.utils import image_annotation_all_done
-        # Are all points human annotated?
-        all_done = image_annotation_all_done(self)
-
-        # Update image status, if needed
-        if self.confirmed != all_done:
-            self.confirmed = all_done
-
-            if self.confirmed:
-                # With a new image confirmed, let's try to train a new
-                # robot. The task will simply exit if there are not enough new
-                # images or if a robot is already being trained.
-                #
-                # We have to import the task here, instead of at the top of the
-                # module, to avoid circular import issues (VB tasks ->
-                # VB task helpers -> this module).
-                from vision_backend.tasks import submit_classifier
-                submit_classifier.apply_async(
-                    args=[self.source.id],
-                    eta=timezone.now()+datetime.timedelta(seconds=10))
-
-        super(Image, self).save(*args, **kwargs)
-
     def __str__(self):
         return self.metadata.name
 
@@ -760,14 +710,14 @@ class Image(models.Model):
         Returns a code for the annotation status of this image.
         """
         if self.source.enable_robot_classifier:
-            if self.confirmed:
+            if self.annoinfo.confirmed:
                 return "confirmed"
             elif self.features.classified:
                 return "unconfirmed"
             else:
                 return "needs_annotation"
         else:
-            if self.confirmed:
+            if self.annoinfo.confirmed:
                 return "annotated"
             else:
                 return "needs_annotation"
@@ -874,7 +824,7 @@ class Point(models.Model):
         super(Point, self).save(*args, **kwargs)
 
         # The image's annotation status may need updating.
-        self.image.save()
+        self.image.annoinfo.update_annotation_progress_fields()
 
     def __str__(self):
         """

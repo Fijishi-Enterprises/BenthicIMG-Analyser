@@ -1,6 +1,9 @@
+import datetime
+
 from django.contrib.auth.models import User
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.utils import timezone
 from django.utils.encoding import python_2_unicode_compatible
 
 from .managers import AnnotationManager
@@ -34,17 +37,78 @@ class Annotation(models.Model):
 
     def save(self, *args, **kwargs):
         super(Annotation, self).save(*args, **kwargs)
-        # The image's annotation status may need updating.
-        self.image.save()
+        # The image's annotation progress info may need updating.
+        self.image.annoinfo.update_annotation_progress_fields()
 
     def delete(self, *args, **kwargs):
         super(Annotation, self).delete(*args, **kwargs)
-        # The image's annotation status may need updating.
-        self.image.save()
+        # The image's annotation progress info may need updating.
+        self.image.annoinfo.update_annotation_progress_fields()
 
     def __str__(self):
         return u"%s - %s - %s" % (
             self.image, self.point.point_number, self.label_code)
+
+
+class ImageAnnotationInfo(models.Model):
+    """
+    Annotation-related info for a single image.
+    """
+    image = models.OneToOneField(
+        Image, on_delete=models.CASCADE, editable=False,
+        # Name of reverse relation
+        related_name='annoinfo')
+
+    # Whether the image has confirmed annotations on all points. This is a
+    # redundant field, in the sense that it can be computed from other fields.
+    # But it's necessary for image-searching performance.
+    confirmed = models.BooleanField(default=False)
+
+    # Latest updated annotation for this image. This is a redundant field, in
+    # the sense that it can be computed from other fields. But it's
+    # necessary for performance of queries such as 'find the 20 most recently
+    # annotated images'.
+    last_annotation = models.ForeignKey(
+        'annotations.Annotation', on_delete=models.SET_NULL,
+        editable=False, null=True,
+        # + means don't define a reverse relation. It wouldn't be helpful in
+        # this case.
+        related_name='+')
+
+    def update_annotation_progress_fields(self):
+        """
+        Ensure the redundant annotation-progress fields (which exist for
+        performance reasons) are up to date.
+        """
+        # Update the last_annotation.
+        # If there are no annotations, then first() returns None.
+        last_annotation = self.image.annotation_set.order_by(
+            '-annotation_date').first()
+        self.last_annotation = last_annotation
+
+        # Must import within this function to avoid circular import
+        # at the module level.
+        from .utils import image_annotation_all_done
+        # Are all points human annotated?
+        all_done = image_annotation_all_done(self.image)
+
+        # Update confirmed status, if needed.
+        if self.confirmed != all_done:
+            self.confirmed = all_done
+
+            if self.confirmed:
+                # With a new image confirmed, let's try to train a new
+                # robot. The task will simply exit if there are not enough new
+                # images or if a robot is already being trained.
+                #
+                # We have to import the task here, instead of at the top of the
+                # module, to avoid circular import issues.
+                from vision_backend.tasks import submit_classifier
+                submit_classifier.apply_async(
+                    args=[self.image.source.id],
+                    eta=timezone.now()+datetime.timedelta(seconds=10))
+
+        self.save()
 
 
 class AnnotationToolAccess(models.Model):

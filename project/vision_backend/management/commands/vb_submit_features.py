@@ -35,7 +35,7 @@ class Command(BaseCommand):
 
                 images = Image.objects.filter(source=source, features__extracted=False)
                 if confirmed_only:
-                    images = images.filter(confirmed=True)
+                    images = images.filter(annoinfo__confirmed=True)
                     
                 print(u"Submitting {} jobs for {}... ".format(images.count(), source.name))
                 
@@ -52,7 +52,7 @@ class Command(BaseCommand):
 
                 images = Image.objects.filter(source=source, features__extracted=False)
                 if confirmed_only:
-                    images = images.filter(confirmed=True)
+                    images = images.filter(annoinfo__confirmed=True)
                 images = images[:nbr_images]
 
                 print(u"Submitting {} jobs for {}... ".format(images.count(), source.name))

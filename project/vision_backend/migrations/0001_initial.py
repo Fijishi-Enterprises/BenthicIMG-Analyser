@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('images', '0011_rename_dupe_image_names'),
-        ('annotations', '0007_color_setting_typo_fix'),
+        # ('annotations', '0007_color_setting_typo_fix'),
     ]
 
     operations = [

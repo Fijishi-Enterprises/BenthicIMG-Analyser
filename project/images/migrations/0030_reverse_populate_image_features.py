@@ -31,7 +31,7 @@ class Migration(migrations.Migration):
         ('images', '0029_image_features_nullable'),
         # The Features.image_new field (with related name features_new)
         # should exist and be populated.
-        ('vision_backend', '0008_populate_features_image'),
+        # ('vision_backend', '0008_populate_features_image'),
     ]
 
     # To remove this field while making the migration process reversible,

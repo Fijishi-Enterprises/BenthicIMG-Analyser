@@ -13,7 +13,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('annotations', '0012_rename_label_table'),
+        # ('annotations', '0012_rename_label_table'),
         ('labels', '0001_initial'),
     ]
 

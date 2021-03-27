@@ -27,7 +27,7 @@ def populate_image_fields(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('annotations', '0021_populate_imageannotationinfo'),
+        # ('annotations', '0021_populate_imageannotationinfo'),
         ('images', '0031_remove_image_features'),
     ]
 

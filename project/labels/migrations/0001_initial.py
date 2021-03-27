@@ -10,7 +10,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('annotations', '0009_rename_labelgroup_table'),
+        # ('annotations', '0009_rename_labelgroup_table'),
     ]
 
     # Convert "operations" to only be "state_operations"

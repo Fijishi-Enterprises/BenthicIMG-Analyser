@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('annotations', '0015_rename_labelset_table'),
+        # ('annotations', '0015_rename_labelset_table'),
         ('labels', '0002_label'),
     ]
 

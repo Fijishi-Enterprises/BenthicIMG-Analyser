@@ -9,7 +9,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('annotations', '0018_annotation_point_one_to_one'),
+        # ('annotations', '0018_annotation_point_one_to_one'),
         ('images', '0023_point_rowcol_zero_indexing'),
     ]
 

@@ -8,8 +8,6 @@ import django.db.models.deletion
 
 class Migration(migrations.Migration):
 
-    replaces = [('vision_backend', '0001_initial'), ('vision_backend', '0002_remove_legacy_robot_fields'), ('vision_backend', '0003_alter_score_label_foreignkey'), ('vision_backend', '0004_features_model_was_cashed'), ('vision_backend', '0005_more_classifier_fields'), ('vision_backend', '0006_batchjob'), ('vision_backend', '0007_features_add_image_field'), ('vision_backend', '0008_populate_features_image'), ('vision_backend', '0009_rename_features_image'), ('vision_backend', '0010_features_image_null_cleanup'), ('vision_backend', '0011_features_image_non_null')]
-
     initial = True
 
     dependencies = [

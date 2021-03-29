@@ -54,8 +54,6 @@ def delete_labelset_committee_user_group(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    replaces = [('labels', '0001_initial'), ('labels', '0002_label'), ('labels', '0003_labelset'), ('labels', '0004_locallabel'), ('labels', '0005_create_locallabels_for_existing_labelsets'), ('labels', '0006_label_rename_code_to_default_code'), ('labels', '0007_alter_label_default_code_verbose_name'), ('labels', '0008_remove_labelset_labels'), ('labels', '0009_add_verified_field_and_permission'), ('labels', '0010_add_labelset_committee'), ('labels', '0011_label_duplicate'), ('labels', '0012_field_string_attributes_to_unicode')]
-
     initial = True
 
     dependencies = [

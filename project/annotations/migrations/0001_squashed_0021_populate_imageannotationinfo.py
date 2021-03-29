@@ -10,8 +10,6 @@ import django.db.models.deletion
 
 class Migration(migrations.Migration):
 
-    replaces = [('annotations', '0001_initial'), ('annotations', '0002_auto_20160415_1727'), ('annotations', '0003_add_empty_labelset'), ('annotations', '0004_alter_specify_on_delete'), ('annotations', '0005_remove_empty_labelset'), ('annotations', '0006_update_label_thumbnail_filepaths'), ('annotations', '0007_color_setting_typo_fix'), ('annotations', '0008_rename_vision_backend_fields'), ('annotations', '0009_rename_labelgroup_table'), ('annotations', '0010_alter_label_group_foreignkey'), ('annotations', '0011_delete_labelgroup'), ('annotations', '0012_rename_label_table'), ('annotations', '0013_alter_annotation_label_foreignkey'), ('annotations', '0014_delete_label'), ('annotations', '0015_rename_labelset_table'), ('annotations', '0016_delete_labelset'), ('annotations', '0017_tool_settings_one_to_one'), ('annotations', '0018_annotation_point_one_to_one'), ('annotations', '0019_field_string_attributes_to_unicode'), ('annotations', '0020_imageannotationinfo'), ('annotations', '0021_populate_imageannotationinfo')]
-
     initial = True
 
     dependencies = [

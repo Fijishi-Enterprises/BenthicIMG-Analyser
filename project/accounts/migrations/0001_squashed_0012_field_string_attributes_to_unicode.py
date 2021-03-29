@@ -26,8 +26,6 @@ def add_special_users(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    replaces = [('accounts', '0001_initial'), ('accounts', '0002_add_special_users'), ('accounts', '0003_alter_language_choices'), ('accounts', '0004_remove_language_and_other_alterations'), ('accounts', '0005_about_me_max_length_increase'), ('accounts', '0006_add_affiliation_and_other_fields'), ('accounts', '0007_avatar_additions'), ('accounts', '0008_mugshot_rename_to_avatar_file'), ('accounts', '0009_update_avatar_filepaths'), ('accounts', '0010_make_distinct_gravatar_hashes'), ('accounts', '0011_wrap_sha1_passwords'), ('accounts', '0012_field_string_attributes_to_unicode')]
-
     initial = True
 
     dependencies = [

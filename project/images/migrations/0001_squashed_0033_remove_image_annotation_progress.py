@@ -12,8 +12,6 @@ import images.models
 
 class Migration(migrations.Migration):
 
-    replaces = [('images', '0001_initial'), ('images', '0002_alter_specify_on_delete'), ('images', '0003_alter_source_labelset_null'), ('images', '0004_update_image_filepaths'), ('images', '0005_add_metadata_aux_charfields'), ('images', '0006_port_metadata_values_to_aux'), ('images', '0007_remove_metadata_value_foreignkeys'), ('images', '0008_alter_location_keys_not_blank'), ('images', '0009_update_blank_aux_names_to_default'), ('images', '0010_alter_name_comments_verbose_names'), ('images', '0011_rename_dupe_image_names'), ('images', '0012_remove_vision_backend_fields'), ('images', '0013_add_features_foreignkey'), ('images', '0014_alter_source_labelset_foreignkey'), ('images', '0015_remove_imagestatus_class'), ('images', '0016_remove_imagestatus_structure'), ('images', '0017_source_confidence_threshold'), ('images', '0018_remove_source_alleviate_threshold'), ('images', '0019_remove_source_cm_height_and_other_alterations'), ('images', '0020_add_cpc_fields'), ('images', '0021_image_cpc_filename'), ('images', '0022_modified_some_defaults'), ('images', '0023_point_rowcol_zero_indexing'), ('images', '0024_image_last_annotation'), ('images', '0025_populate_image_last_annotation'), ('images', '0026_field_string_attributes_to_unicode'), ('images', '0027_source_feature_extractor_setting'), ('images', '0028_change_default_extractor'), ('images', '0029_image_features_nullable'), ('images', '0030_reverse_populate_image_features'), ('images', '0031_remove_image_features'), ('images', '0032_reverse_populate_image_annotation_progress'), ('images', '0033_remove_image_annotation_progress')]
-
     initial = True
 
     dependencies = [

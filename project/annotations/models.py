@@ -159,10 +159,3 @@ class AnnotationToolSettings(models.Model):
     selected_point_color = models.CharField(max_length=6, default='00FF00')
 
     show_machine_annotations = models.BooleanField(default=True)
-
-
-# TODO: Delete this function once migrations have been reset.
-# Until then, this function must be kept so that old migrations
-# don't trigger an error.
-def get_label_thumbnail_upload_path(instance, filename):
-    pass

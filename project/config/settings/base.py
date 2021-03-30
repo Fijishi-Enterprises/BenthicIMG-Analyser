@@ -162,7 +162,6 @@ INSTALLED_APPS = [
     'api_management',
     'async_media',
     'blog',
-    'bug_reporting',
     # Saves internal server error messages for viewing in the admin site
     'errorlogs.apps.ErrorlogsConfig',
     'export',

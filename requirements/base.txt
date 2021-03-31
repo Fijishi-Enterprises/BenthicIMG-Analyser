@@ -110,12 +110,6 @@ beautifulsoup4>=4.8.1,<4.9
 # Changelog: https://numpy.org/devdocs/release.html
 numpy==1.18.1
 
-# Library for testing; can replace parts of the system under test with
-# mock objects.
-# Can be replaced with Python standard library's mock from Python 3.3 onward.
-# Changelog: https://mock.readthedocs.io/en/latest/changelog.html
-mock==2.0.0
-
 # More elegant filepath calculations compared to os.path.
 # Changelog: https://github.com/mcmtroffaes/pathlib2/blob/develop/CHANGELOG.rst
 #

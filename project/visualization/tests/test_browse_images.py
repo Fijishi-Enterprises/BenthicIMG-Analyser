@@ -1,5 +1,5 @@
 import datetime
-import mock
+from unittest import mock
 
 from bs4 import BeautifulSoup
 from django.test import override_settings

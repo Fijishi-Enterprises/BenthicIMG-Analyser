@@ -1,7 +1,7 @@
-import os
 from io import BytesIO
+import os
+from unittest import mock
 
-import mock
 from PIL import Image as PILImage
 from PIL.Image import SAVE as PIL_SAVE
 from django.conf import settings

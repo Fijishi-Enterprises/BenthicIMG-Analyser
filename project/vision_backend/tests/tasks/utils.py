@@ -1,4 +1,4 @@
-import mock
+from unittest import mock
 
 from django.core.files.storage import get_storage_class
 from django.test import override_settings

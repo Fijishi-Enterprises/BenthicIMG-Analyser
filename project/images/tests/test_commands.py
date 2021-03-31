@@ -1,7 +1,6 @@
-import mock
 import os
 import tempfile
-from unittest import skip
+from unittest import mock, skip
 
 from images.model_utils import PointGen
 from images.models import Point

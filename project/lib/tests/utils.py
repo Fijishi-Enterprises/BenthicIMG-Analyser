@@ -4,11 +4,11 @@ from contextlib import contextmanager
 from io import BytesIO
 import json
 import math
-import mock
 import posixpath
 import random
 import six
 from six.moves.urllib.parse import quote as url_quote
+from unittest import mock
 
 from spacer.messages import ClassifyReturnMsg
 

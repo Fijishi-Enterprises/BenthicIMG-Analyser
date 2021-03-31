@@ -1,6 +1,6 @@
 import datetime
-import mock
 import six
+from unittest import mock
 
 from bs4 import BeautifulSoup
 from django.db import IntegrityError

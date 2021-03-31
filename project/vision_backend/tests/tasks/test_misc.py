@@ -1,5 +1,5 @@
 from datetime import timedelta
-import mock
+from unittest import mock
 
 from django.core.urlresolvers import reverse
 from django.test import override_settings

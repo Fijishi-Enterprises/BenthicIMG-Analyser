@@ -7,7 +7,6 @@
 # So we more or less roll our own validation. We still put it in 'forms.py'
 # since that filename is generally associated with validating user input.
 
-from __future__ import unicode_literals
 import six
 from six.moves import collections_abc
 

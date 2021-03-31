@@ -1,4 +1,3 @@
-from __future__ import unicode_literals
 import six
 
 from django.shortcuts import resolve_url

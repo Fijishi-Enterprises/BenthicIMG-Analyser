@@ -1,8 +1,6 @@
 # This app is based on this SO answer:
 # http://stackoverflow.com/a/7579467
 
-from __future__ import unicode_literals
-
 from django.apps import AppConfig
 from django.core.signals import got_request_exception
 

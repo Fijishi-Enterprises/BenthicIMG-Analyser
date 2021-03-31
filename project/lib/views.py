@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 from django.conf import settings
 from django.contrib.auth.decorators import permission_required
 from django.http import HttpResponseRedirect, HttpResponseServerError

@@ -1,7 +1,4 @@
-# -*- coding: utf-8 -*-
-#
 # Lib tests and non-app-specific tests.
-from __future__ import unicode_literals
 from unittest import skip, skipIf
 
 from django.conf import settings

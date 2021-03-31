@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import (
     AuthenticationForm as DefaultAuthenticationForm)

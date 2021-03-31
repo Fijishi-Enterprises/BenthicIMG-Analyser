@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 from rest_framework.settings import api_settings
 from rest_framework.throttling import (
     UserRateThrottle as DefaultUserRateThrottle)

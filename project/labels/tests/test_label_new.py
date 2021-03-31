@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 from django.core import mail
 from django.shortcuts import resolve_url
 from django.test import override_settings

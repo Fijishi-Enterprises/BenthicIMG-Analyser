@@ -1,4 +1,3 @@
-from __future__ import unicode_literals
 from six.moves import collections_abc
 
 from rest_framework import status

@@ -1,8 +1,4 @@
-# -*- coding: utf-8 -*-
-#
 # Tests that only apply to CSV annotation uploads.
-
-from __future__ import unicode_literals
 
 from django.core.files.base import ContentFile
 from django.urls import reverse

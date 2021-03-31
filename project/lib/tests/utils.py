@@ -1,5 +1,4 @@
 # Utility classes and functions for tests.
-from __future__ import division, unicode_literals
 from abc import ABCMeta
 from contextlib import contextmanager
 from io import BytesIO

@@ -1,4 +1,3 @@
-from __future__ import unicode_literals
 from django.urls import reverse
 
 from images.models import Image, Metadata, Source, SourceInvite

@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 from django.db.models import Model
 from django.db.models.fields import CharField, DateTimeField, TextField, URLField
 from django.utils.encoding import python_2_unicode_compatible

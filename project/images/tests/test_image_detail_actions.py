@@ -1,6 +1,5 @@
 # Test the action buttons available from the image detail page.
 
-from __future__ import unicode_literals
 from abc import ABCMeta
 import six
 

@@ -1,4 +1,3 @@
-from __future__ import unicode_literals
 from abc import ABCMeta
 from distutils.dir_util import copy_tree
 import os

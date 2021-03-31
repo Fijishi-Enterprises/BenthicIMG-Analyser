@@ -1,4 +1,3 @@
-from __future__ import unicode_literals
 from backports import csv
 from io import StringIO
 import six

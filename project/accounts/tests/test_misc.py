@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 from django.core import mail
 from django.urls import reverse
 from django.utils.html import escape

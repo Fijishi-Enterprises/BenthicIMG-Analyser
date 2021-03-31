@@ -1,8 +1,5 @@
-# -*- coding: utf-8 -*-
-#
 # Tests that only apply to CPC annotation uploads.
 
-from __future__ import unicode_literals
 from io import StringIO
 
 from django.core.files.base import ContentFile

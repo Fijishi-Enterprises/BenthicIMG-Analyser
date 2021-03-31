@@ -1,6 +1,5 @@
 # General-use custom template tags and filters.
 
-from __future__ import unicode_literals
 from datetime import datetime
 import json
 import pytz

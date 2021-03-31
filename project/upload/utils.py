@@ -1,4 +1,3 @@
-from __future__ import division, unicode_literals
 import codecs
 from collections import OrderedDict
 from backports import csv

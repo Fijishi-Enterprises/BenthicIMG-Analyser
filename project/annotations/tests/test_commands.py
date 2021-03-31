@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 from labels.models import Label
 from lib.tests.utils import ManagementCommandTest
 

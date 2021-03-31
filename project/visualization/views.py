@@ -1,4 +1,3 @@
-from __future__ import division, unicode_literals
 import six
 
 from django.conf import settings

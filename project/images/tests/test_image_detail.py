@@ -1,6 +1,5 @@
 # Test image_detail and image_detail_edit views.
 
-from __future__ import unicode_literals
 import datetime
 
 from bs4 import BeautifulSoup

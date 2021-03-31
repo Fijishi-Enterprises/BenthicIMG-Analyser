@@ -1,4 +1,3 @@
-from __future__ import unicode_literals
 from io import BytesIO
 import json
 from mock import patch

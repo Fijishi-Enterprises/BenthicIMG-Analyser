@@ -1,4 +1,3 @@
-from __future__ import division, unicode_literals
 from backports import csv
 
 from django.contrib.auth.decorators import login_required

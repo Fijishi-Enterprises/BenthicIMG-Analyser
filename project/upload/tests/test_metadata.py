@@ -1,4 +1,4 @@
-from backports import csv
+import csv
 import datetime
 from io import StringIO
 

@@ -1,4 +1,4 @@
-from backports import csv
+import csv
 from io import StringIO
 
 from django.core.files.base import ContentFile

@@ -1,6 +1,6 @@
 import codecs
 from collections import OrderedDict
-from backports import csv
+import csv
 
 from django.conf import settings
 from django.core.exceptions import ValidationError

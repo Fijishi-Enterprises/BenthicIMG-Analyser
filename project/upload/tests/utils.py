@@ -1,5 +1,5 @@
 from abc import ABCMeta
-from backports import csv
+import csv
 from io import StringIO
 import six
 

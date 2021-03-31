@@ -1,6 +1,6 @@
 import codecs
 from collections import OrderedDict
-from backports import csv
+import csv
 import functools
 import re
 import six

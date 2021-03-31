@@ -99,17 +99,6 @@ djangorestframework>=3.9.4,<3.10
 # Writing tests for database migrations.
 django-migration-testcase==0.0.14
 
-# Python 2's CSV module has poor support for Unicode and multiplatform
-# newline chars. This backport of Python 3's CSV module is less painful to
-# work with, even in a Python 2 system.
-# Changelog: https://github.com/ryanhiebert/backports.csv/blob/master/HISTORY.rst
-#
-# Usage: `from backports import csv`
-# This package should also work for Python 3, so no conditional imports should
-# be needed. But after moving to Python-3-only, it would be best to simplify to
-# `import csv`.
-backports.csv==1.0.7
-
 # HTML parsing.
 # Changelog: https://bazaar.launchpad.net/~leonardr/beautifulsoup/bs4/view/head:/CHANGELOG
 #

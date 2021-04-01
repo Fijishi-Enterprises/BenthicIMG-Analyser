@@ -13,7 +13,7 @@ class ImageInitialStatusTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(ImageInitialStatusTest, cls).setUpTestData()
+        super().setUpTestData()
 
     def test_features_extracted_false(self):
         self.user = self.create_user()
@@ -26,7 +26,7 @@ class CascadeDeleteTest(ClientTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(CascadeDeleteTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)

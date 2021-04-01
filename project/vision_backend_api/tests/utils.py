@@ -21,7 +21,7 @@ class DeployBaseTest(BaseAPITest, metaclass=ABCMeta):
 
     @classmethod
     def setUpTestData(cls):
-        super(DeployBaseTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user(
             username='testuser', password='SamplePassword')

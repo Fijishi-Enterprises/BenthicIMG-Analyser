@@ -55,7 +55,7 @@ class UploadImagePreviewTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(UploadImagePreviewTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -134,7 +134,7 @@ class UploadImageTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(UploadImageTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -235,7 +235,7 @@ class UploadImageFormatTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(UploadImageFormatTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -441,7 +441,7 @@ class UploadImageFilenameCollisionTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(UploadImageFilenameCollisionTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)

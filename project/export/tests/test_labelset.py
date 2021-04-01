@@ -27,7 +27,7 @@ class GeneralTest(BaseExportTest, LabelTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(GeneralTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)

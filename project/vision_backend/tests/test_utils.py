@@ -16,7 +16,7 @@ class TestLabelSetMapper(ClientTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(TestLabelSetMapper, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 

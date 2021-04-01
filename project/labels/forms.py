@@ -190,7 +190,7 @@ class LabelForm(ModelForm):
         fields = ['name', 'default_code', 'group', 'description', 'thumbnail']
 
     def __init__(self, *args, **kwargs):
-        super(LabelForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.fields['default_code'].widget.attrs['size'] = \
             Label._meta.get_field('default_code').max_length
@@ -299,7 +299,7 @@ class LabelFormForCurators(LabelForm):
         ]
 
     def __init__(self, *args, **kwargs):
-        super(LabelFormForCurators, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # Order the 'is duplicate of' candidate labels alphabetically
         # by label name.
@@ -377,7 +377,7 @@ class LabelSetForm(Form):
 
     def __init__(self, *args, **kwargs):
         self.source = kwargs.pop('source')
-        super(LabelSetForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         if not self.is_bound:
             if self.source.labelset:

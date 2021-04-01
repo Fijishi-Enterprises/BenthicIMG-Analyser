@@ -7,7 +7,7 @@ class BaseExportTest(ClientTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(BaseExportTest, cls).setUpTestData()
+        super().setUpTestData()
 
         # Image search parameters
         cls.default_search_params = dict(

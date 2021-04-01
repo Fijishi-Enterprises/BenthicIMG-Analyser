@@ -39,7 +39,7 @@ class CpcPrefsForm(Form):
         else:
             source = None
 
-        super(CpcPrefsForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         if source:
             confirmed_and_confident_label = (

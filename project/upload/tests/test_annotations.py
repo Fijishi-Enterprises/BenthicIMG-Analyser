@@ -18,7 +18,7 @@ class PermissionTest(BasePermissionTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(PermissionTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
         cls.create_labelset(cls.user, cls.source, cls.labels)
@@ -81,7 +81,7 @@ class UploadAnnotationsNoLabelsetTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(UploadAnnotationsNoLabelsetTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -145,7 +145,7 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(UploadAnnotationsTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -847,7 +847,7 @@ class UploadAnnotationsMultipleSourcesTest(UploadAnnotationsBaseTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(UploadAnnotationsMultipleSourcesTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -1023,7 +1023,7 @@ class UploadAnnotationsContentsTest(UploadAnnotationsBaseTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(UploadAnnotationsContentsTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -1339,7 +1339,7 @@ class UploadAnnotationsFormatTest(UploadAnnotationsBaseTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(UploadAnnotationsFormatTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)

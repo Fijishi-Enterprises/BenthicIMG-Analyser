@@ -45,7 +45,7 @@ class BackendMainTest(ClientTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(BackendMainTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 
@@ -173,7 +173,7 @@ class BackendMainConfusionMatrixExportTest(BaseExportTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(BackendMainConfusionMatrixExportTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 

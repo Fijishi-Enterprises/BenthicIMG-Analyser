@@ -31,7 +31,7 @@ class ImageSetTest(BaseExportTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(ImageSetTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(
@@ -217,7 +217,7 @@ class AnnotationStatusTest(BaseExportTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(AnnotationStatusTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(
@@ -292,7 +292,7 @@ class AnnotatorInfoColumnsTest(BaseExportTest, UploadAnnotationsTestMixin):
 
     @classmethod
     def setUpTestData(cls):
-        super(AnnotatorInfoColumnsTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(
@@ -372,7 +372,7 @@ class MachineSuggestionColumnsTest(BaseExportTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(MachineSuggestionColumnsTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(
@@ -448,7 +448,7 @@ class MetadataAuxColumnsTest(BaseExportTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(MetadataAuxColumnsTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(
@@ -521,7 +521,7 @@ class MetadataOtherColumnsTest(BaseExportTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(MetadataOtherColumnsTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(
@@ -585,7 +585,7 @@ class MoreOptionalColumnsCasesTest(BaseExportTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(MoreOptionalColumnsCasesTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(
@@ -742,7 +742,7 @@ class UnicodeTest(BaseExportTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(UnicodeTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(
@@ -776,7 +776,7 @@ class UploadAndExportSameDataTest(BaseExportTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(UploadAndExportSameDataTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(

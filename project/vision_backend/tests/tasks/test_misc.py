@@ -176,7 +176,7 @@ class BatchJobCleanupTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(BatchJobCleanupTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 

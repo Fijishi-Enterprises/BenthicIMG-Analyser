@@ -22,7 +22,7 @@ class PermissionTest(BasePermissionTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(PermissionTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.img = cls.upload_image(cls.user, cls.source)
         cls.labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
@@ -68,7 +68,7 @@ class PermissionTest(BasePermissionTest):
 class LoadImageTest(ClientTest):
     @classmethod
     def setUpTestData(cls):
-        super(LoadImageTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 
@@ -128,7 +128,7 @@ class NavigationTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(NavigationTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 
@@ -633,7 +633,7 @@ class LoadAnnotationFormTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(LoadAnnotationFormTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 
@@ -738,7 +738,7 @@ class LoadAnnotationFormTest(ClientTest):
 class IsAnnotationAllDoneTest(ClientTest):
     @classmethod
     def setUpTestData(cls):
-        super(IsAnnotationAllDoneTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 
@@ -821,7 +821,7 @@ class SaveAnnotationsTest(ClientTest):
     of the annotation tool."""
     @classmethod
     def setUpTestData(cls):
-        super(SaveAnnotationsTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 
@@ -1209,7 +1209,7 @@ class AlleviateTest(ClientTest):
     get auto-confirmed when entering the annotation tool."""
     @classmethod
     def setUpTestData(cls):
-        super(AlleviateTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(
@@ -1342,7 +1342,7 @@ class SettingsTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(SettingsTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 

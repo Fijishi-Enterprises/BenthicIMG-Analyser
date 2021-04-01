@@ -15,7 +15,7 @@ class AnnotationsCSVFormatTest(UploadAnnotationsBaseTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(AnnotationsCSVFormatTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)

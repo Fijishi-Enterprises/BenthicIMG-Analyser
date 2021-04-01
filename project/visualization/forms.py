@@ -30,7 +30,7 @@ class DateFilterWidget(MultiWidget):
         widgets = [
             getattr(date_filter_field, field_name).widget
             for field_name in date_filter_field.field_order]
-        super(DateFilterWidget, self).__init__(widgets, attrs)
+        super().__init__(widgets, attrs)
 
     def decompress(self, value):
         if value is None:
@@ -173,7 +173,7 @@ class DateFilterField(MultiValueField):
         self.start_date.widget.attrs['data-has-datepicker'] = True
         self.end_date.widget.attrs['data-has-datepicker'] = True
 
-        super(DateFilterField, self).__init__(
+        super().__init__(
             fields=[
                 getattr(self, field_name) for field_name in self.field_order],
             require_all_fields=False, *args, **kwargs)
@@ -246,7 +246,7 @@ class AnnotatorFilterWidget(MultiWidget):
         widgets = [
             getattr(annotator_filter_field, field_name).widget
             for field_name in annotator_filter_field.field_order]
-        super(AnnotatorFilterWidget, self).__init__(widgets, attrs)
+        super().__init__(widgets, attrs)
 
     def decompress(self, value):
         if value is None:
@@ -329,7 +329,7 @@ class AnnotatorFilterField(MultiValueField):
 
         self.widget = AnnotatorFilterWidget(annotator_filter_field=self)
 
-        super(AnnotatorFilterField, self).__init__(
+        super().__init__(
             fields=[
                 getattr(self, field_name) for field_name in self.field_order],
             require_all_fields=False, *args, **kwargs)
@@ -377,7 +377,7 @@ class ImageSearchForm(forms.Form):
         self.source = kwargs.pop('source')
         for_browse_patches = kwargs.pop('for_browse_patches', False)
         for_edit_metadata = kwargs.pop('for_edit_metadata', False)
-        super(ImageSearchForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # Date filter
         metadatas = Metadata.objects.filter(image__source=self.source)
@@ -559,7 +559,7 @@ class PatchSearchOptionsForm(Form):
     def __init__(self, *args, **kwargs):
 
         source = kwargs.pop('source')
-        super(PatchSearchOptionsForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # Label
 
@@ -656,7 +656,7 @@ class ImageSpecifyByIdForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         self.source = kwargs.pop('source')
-        super(ImageSpecifyByIdForm,self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def clean_image_form_type(self):
         value = self.cleaned_data['image_form_type']
@@ -729,7 +729,7 @@ class HiddenForm(forms.Form):
     """
     def __init__(self, *args, **kwargs):
         forms = kwargs.pop('forms')
-        super(HiddenForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         for form in forms:
             for name, field in form.fields.items():
@@ -761,7 +761,7 @@ class StatisticsSearchForm(forms.Form):
               'aux4', 'aux5', 'labels', 'groups', 'include_robot')
 
     def __init__(self,source_id,*args,**kwargs):
-        super(StatisticsSearchForm,self).__init__(*args,**kwargs)
+        super().__init__(*args,**kwargs)
 
         # Grab the source and its labels
         source = Source.objects.filter(id=source_id)[0]

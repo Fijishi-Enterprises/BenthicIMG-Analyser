@@ -34,12 +34,12 @@ class Annotation(models.Model):
         return local_label.code
 
     def save(self, *args, **kwargs):
-        super(Annotation, self).save(*args, **kwargs)
+        super().save(*args, **kwargs)
         # The image's annotation progress info may need updating.
         self.image.annoinfo.update_annotation_progress_fields()
 
     def delete(self, *args, **kwargs):
-        super(Annotation, self).delete(*args, **kwargs)
+        super().delete(*args, **kwargs)
         # The image's annotation progress info may need updating.
         self.image.annoinfo.update_annotation_progress_fields()
 

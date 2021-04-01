@@ -27,7 +27,7 @@ class ImageSetTest(BaseExportTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(ImageSetTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -155,7 +155,7 @@ class MetadataColumnsTest(BaseExportTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(MetadataColumnsTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -228,7 +228,7 @@ class UnicodeTest(BaseExportTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(UnicodeTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -257,7 +257,7 @@ class UploadAndExportSameDataTest(BaseExportTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(UploadAndExportSameDataTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)

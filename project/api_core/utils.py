@@ -11,7 +11,7 @@ class UserRateThrottle(DefaultUserRateThrottle):
     """
     def __init__(self):
         self.THROTTLE_RATES = api_settings.DEFAULT_THROTTLE_RATES
-        super(UserRateThrottle, self).__init__()
+        super().__init__()
 
 
 # The following classes allow us to define multiple throttle rates.

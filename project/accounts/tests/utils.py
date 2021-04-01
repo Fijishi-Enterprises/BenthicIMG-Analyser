@@ -9,7 +9,7 @@ class BaseAccountsTest(ClientTest):
     @classmethod
     def setUpTestData(cls):
         # Call the parent's setup (while still using this class as cls)
-        super(BaseAccountsTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 

@@ -12,7 +12,7 @@ class PermissionTest(BasePermissionTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(PermissionTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.img = cls.upload_image(cls.user, cls.source)
 
@@ -41,7 +41,7 @@ class ImageDetailTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(ImageDetailTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -110,7 +110,7 @@ class ImageDetailEditTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(ImageDetailEditTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(

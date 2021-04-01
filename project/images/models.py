@@ -814,7 +814,7 @@ class Point(models.Model):
         assert self.column >= 0, "Column below minimum"
         assert self.column <= self.image.max_column, "Column above maximum"
 
-        super(Point, self).save(*args, **kwargs)
+        super().save(*args, **kwargs)
 
         # The image's annotation status may need updating.
         self.image.annoinfo.update_annotation_progress_fields()

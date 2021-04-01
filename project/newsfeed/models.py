@@ -69,7 +69,7 @@ class NewsItem(models.Model):
 
     def save(self, *args, **kwargs):
         self.clean()
-        super(NewsItem, self).save(*args, **kwargs)
+        super().save(*args, **kwargs)
 
     def clean(self):
         if self.category not in settings.NEWS_ITEM_CATEGORIES:

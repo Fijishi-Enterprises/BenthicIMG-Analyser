@@ -40,7 +40,7 @@ class CPCExportBaseTest(ClientTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(CPCExportBaseTest, cls).setUpTestData()
+        super().setUpTestData()
 
         # Image search parameters
         cls.default_search_params = dict(
@@ -147,7 +147,7 @@ class CodeFileAndImageDirFieldsTest(CPCExportBaseTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(CodeFileAndImageDirFieldsTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(
@@ -417,7 +417,7 @@ class AnnotationAreaTest(
     """
     @classmethod
     def setUpTestData(cls):
-        super(AnnotationAreaTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(
@@ -560,7 +560,7 @@ class PointLocationsTest(CPCExportBaseTest, UploadAnnotationsTestMixin):
     """
     @classmethod
     def setUpTestData(cls):
-        super(PointLocationsTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(
@@ -635,7 +635,7 @@ class CPCFullContentsTest(CPCExportBaseTest, UploadAnnotationsTestMixin):
     """
     @classmethod
     def setUpTestData(cls):
-        super(CPCFullContentsTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -817,7 +817,7 @@ class AnnotationStatusTest(CPCExportBaseTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(AnnotationStatusTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(
@@ -931,7 +931,7 @@ class CPCDirectoryTreeTest(CPCExportBaseTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(CPCDirectoryTreeTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -992,7 +992,7 @@ class UnicodeTest(CPCExportBaseTest):
     works."""
     @classmethod
     def setUpTestData(cls):
-        super(UnicodeTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(
@@ -1045,7 +1045,7 @@ class DiscardCPCAfterPointsChangeTest(
     """
     @classmethod
     def setUpTestData(cls):
-        super(DiscardCPCAfterPointsChangeTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -1131,7 +1131,7 @@ class UtilsTest(ClientTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(UtilsTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)

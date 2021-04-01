@@ -80,7 +80,7 @@ class Command(BaseCommand):
 
     def create_parser(self, *args, **kwargs):
         """ This makes the help text more nicely formatted. """
-        parser = super(Command, self).create_parser(*args, **kwargs)
+        parser = super().create_parser(*args, **kwargs)
         parser.formatter_class = RawTextHelpFormatter
         return parser
 

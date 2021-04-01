@@ -23,7 +23,7 @@ class MultipleFileInput(FileInput):
         default_attrs = {'multiple': 'multiple'}
         if attrs is not None:
             default_attrs.update(attrs)
-        super(MultipleFileInput, self).__init__(attrs=default_attrs)
+        super().__init__(attrs=default_attrs)
 
     def value_from_datadict(self, data, files, name):
         """
@@ -56,7 +56,7 @@ class MultipleFileField(FileField):
 
         for list_item in data:
             try:
-                f = super(MultipleFileField, self).to_python(list_item)
+                f = super().to_python(list_item)
             except ValidationError as err:
                 raise ValidationError(err.messages[0])
             data_out.append(f)
@@ -82,7 +82,7 @@ class MultipleImageField(ImageField):
 
         for list_item in data:
             try:
-                f = super(MultipleImageField, self).to_python(list_item)
+                f = super().to_python(list_item)
             except ValidationError as err:
                 raise ValidationError(err.messages[0])
             data_out.append(f)

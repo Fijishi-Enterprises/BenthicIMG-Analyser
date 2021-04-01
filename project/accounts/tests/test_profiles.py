@@ -13,7 +13,7 @@ class ProfilePermissionTest(BasePermissionTest):
     @classmethod
     def setUpTestData(cls):
         # Call the parent's setup (while still using this class as cls)
-        super(ProfilePermissionTest, cls).setUpTestData()
+        super().setUpTestData()
 
         # Profile is open to everyone
         cls.user_open = cls.create_user_with_privacy('open')
@@ -98,7 +98,7 @@ class ProfileListItemCountsTest(ClientTest):
     @classmethod
     def setUpTestData(cls):
         # Call the parent's setup (while still using this class as cls)
-        super(ProfileListItemCountsTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.url = resolve_url('profile_list')
 
@@ -225,7 +225,7 @@ class ProfileEditTest(ClientTest):
     @classmethod
     def setUpTestData(cls):
         # Call the parent's setup (while still using this class as cls)
-        super(ProfileEditTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.url = resolve_url('profile_edit')
 

@@ -31,5 +31,5 @@ class ErrorLogAdmin(admin.ModelAdmin):
             'error_body': mark_safe(obj.html),
         })
 
-        return super(ErrorLogAdmin, self).change_view(
+        return super().change_view(
             request, object_id, form_url, extra_context)

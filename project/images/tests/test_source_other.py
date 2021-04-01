@@ -41,7 +41,7 @@ class SourceAboutTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(SourceAboutTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user_with_sources = cls.create_user()
         cls.user_without_sources = cls.create_user()
@@ -89,7 +89,7 @@ class SourceListTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(SourceListTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.admin = cls.create_user()
 
@@ -192,7 +192,7 @@ class SourceMapTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(SourceMapTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 
@@ -307,7 +307,7 @@ class SourceDetailBoxTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(SourceDetailBoxTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 
@@ -360,7 +360,7 @@ class SourceMainTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(SourceMainTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user("user1")
 

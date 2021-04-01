@@ -34,8 +34,7 @@ class AuthenticationForm(DefaultAuthenticationForm):
     )
 
     def __init__(self, request=None, *args, **kwargs):
-        super(AuthenticationForm, self).__init__(
-            request=request, *args, **kwargs)
+        super().__init__(request=request, *args, **kwargs)
 
         # Set the label for the username field.
         # Although it's slightly inaccurate now, we'll keep the field name
@@ -60,7 +59,7 @@ class RegistrationForm(DefaultRegistrationForm):
         ]
 
     def __init__(self, *args, **kwargs):
-        super(RegistrationForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # The default help text has a few minor issues:
         # - The word "Required" which seems redundant considering everything
@@ -139,7 +138,7 @@ class RegistrationProfileForm(ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
-        super(RegistrationProfileForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # These aren't required on the Profile model so that old profiles
         # aren't broken, but we want it to be required for new profiles.
@@ -194,7 +193,7 @@ class ProfileEditForm(ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
-        super(ProfileEditForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # This isn't required on the Profile model so that old profiles aren't
         # broken, but we want it to be required for new/updated profiles.
@@ -208,7 +207,7 @@ class ProfileUserEditForm(ModelForm):
         fields = ['first_name', 'last_name']
 
     def __init__(self, *args, **kwargs):
-        super(ProfileUserEditForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # These aren't required on the User model, but we want them to be
         # required on the form.

@@ -15,7 +15,7 @@ class PermissionTest(BasePermissionTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(PermissionTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
 
@@ -37,7 +37,7 @@ class LabelMainTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(LabelMainTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 
@@ -184,7 +184,7 @@ class LabelMainPatchesTest(ClientTest):
     @classmethod
     def setUpTestData(cls):
         # Call the parent's setup (while still using this class as cls)
-        super(LabelMainPatchesTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(
@@ -257,7 +257,7 @@ class LabelMainPatchLinksTest(ClientTest):
     @classmethod
     def setUpTestData(cls):
         # Call the parent's setup (while still using this class as cls)
-        super(LabelMainPatchLinksTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.users_private_source = cls.create_source(
@@ -324,7 +324,7 @@ class PopularityTest(ClientTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(PopularityTest, cls).setUpTestData()
+        super().setUpTestData()
         cls.user = cls.create_user()
         cls.source = cls.create_source(
             cls.user,
@@ -338,7 +338,7 @@ class PopularityTest(ClientTest):
         cls.img = cls.upload_image(cls.user, cls.source)
 
     def setUp(self):
-        super(PopularityTest, self).setUp()
+        super().setUp()
 
         # Popularities are cached when computed, so we clear the cache to
         # prevent a previous test from affecting the next one.

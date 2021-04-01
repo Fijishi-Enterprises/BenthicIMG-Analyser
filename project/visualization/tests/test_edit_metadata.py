@@ -45,7 +45,7 @@ class LoadPageTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(LoadPageTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -182,7 +182,7 @@ class SubmitEditsTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(SubmitEditsTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)

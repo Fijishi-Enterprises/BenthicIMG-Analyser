@@ -45,7 +45,7 @@ class SearchTest(ClientTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(SearchTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 
@@ -375,7 +375,7 @@ class NoLabelsetTest(ClientTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(NoLabelsetTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)

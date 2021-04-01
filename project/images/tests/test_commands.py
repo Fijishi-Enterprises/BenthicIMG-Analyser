@@ -12,7 +12,7 @@ def save_without_checks(self, *args, **kwargs):
     Mock version of Point.save().
     Doesn't run assertions, so we can save any row/column values we want.
     """
-    super(Point, self).save(*args, **kwargs)
+    super().save(*args, **kwargs)
 
 
 @skip(

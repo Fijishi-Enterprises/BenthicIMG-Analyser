@@ -33,7 +33,7 @@ class BaseTaskTest(ClientTest, UploadAnnotationsTestMixin):
 
     @classmethod
     def setUpTestData(cls):
-        super(BaseTaskTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(

@@ -20,7 +20,7 @@ class ImageDetailActionBaseTest(BasePermissionTest, metaclass=ABCMeta):
 
     @classmethod
     def setUpTestData(cls):
-        super(ImageDetailActionBaseTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.source.default_point_generation_method = \
             PointGen.args_to_db_format(

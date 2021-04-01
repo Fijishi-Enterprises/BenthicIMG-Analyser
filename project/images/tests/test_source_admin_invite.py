@@ -31,7 +31,7 @@ class SourceInviteTest(BasePermissionTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(SourceInviteTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.source_to_private()
 
@@ -202,7 +202,7 @@ class ChangeMemberPermissionLevelTest(BasePermissionTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(ChangeMemberPermissionLevelTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.source_to_private()
 
@@ -246,7 +246,7 @@ class RemoveMemberTest(BasePermissionTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(RemoveMemberTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.source_to_private()
 

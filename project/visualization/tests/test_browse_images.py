@@ -51,7 +51,7 @@ class BaseSearchTest(ClientTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(BaseSearchTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(
@@ -992,7 +992,7 @@ class ResultsAndPagesTest(ClientTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(ResultsAndPagesTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -1069,7 +1069,7 @@ class ImageStatusIndicatorTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(ImageStatusIndicatorTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(

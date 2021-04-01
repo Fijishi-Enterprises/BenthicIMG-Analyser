@@ -18,7 +18,7 @@ class AnnotationForm(forms.Form):
     def __init__(self, *args, **kwargs):
         image = kwargs.pop('image')
         show_machine_annotations = kwargs.pop('show_machine_annotations')
-        super(AnnotationForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         labelFieldMaxLength = LocalLabel._meta.get_field('code').max_length
 
@@ -81,7 +81,7 @@ class AnnotationToolSettingsForm(ModelForm):
         ]
 
     def __init__(self, *args, **kwargs):
-        super(AnnotationToolSettingsForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # Make text fields have the appropriate size.
         #
@@ -149,7 +149,7 @@ class AnnotationAreaPercentsForm(Form):
 
         self.form_help_text = Source._meta.get_field('image_annotation_area').help_text
 
-        super(AnnotationAreaPercentsForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
 
     def clean(self):
@@ -170,7 +170,7 @@ class AnnotationAreaPercentsForm(Form):
                 del data['min_y']
 
         self.cleaned_data = data
-        super(AnnotationAreaPercentsForm, self).clean()
+        super().clean()
 
 
 class AnnotationAreaPixelsForm(Form):
@@ -205,7 +205,7 @@ class AnnotationAreaPixelsForm(Form):
             elif annoarea_type == AnnotationAreaUtils.TYPE_IMPORTED:
                 raise ValueError("Points were imported; annotation area should be un-editable.")
 
-        super(AnnotationAreaPixelsForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.fields['min_x'] = IntegerField(
             label="Left boundary X", required=False,
@@ -258,4 +258,4 @@ class AnnotationAreaPixelsForm(Form):
                 del data['max_y']
 
         self.cleaned_data = data
-        super(AnnotationAreaPixelsForm, self).clean()
+        super().clean()

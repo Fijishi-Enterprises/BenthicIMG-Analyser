@@ -401,7 +401,7 @@ class TempStorageTestRunner(DiscoverRunner):
 
         # Run tests with the above storage settings applied.
         with override_settings(**test_storage_settings):
-            return_code = super(TempStorageTestRunner, self).run_tests(
+            return_code = super().run_tests(
                 test_labels, extra_tests=extra_tests, **kwargs)
 
         # Clean up the temp dirs after the tests are done.
@@ -428,7 +428,7 @@ class BaseTest(TestCase):
         skipped = getattr(cls, "__unittest_skip__", False)
         if skipped:
             # This test class is being skipped. Don't bother with storage dirs.
-            super(BaseTest, cls).setUpClass()
+            super().setUpClass()
             return
 
         # Empty contents of the test storage dir.
@@ -437,7 +437,7 @@ class BaseTest(TestCase):
 
         # Call the super setUpClass(), which includes the call to
         # setUpTestData().
-        super(BaseTest, cls).setUpClass()
+        super().setUpClass()
 
         # Now that setUpTestData() is done, save the contents of the test
         # storage dir.
@@ -453,7 +453,7 @@ class BaseTest(TestCase):
         storage_manager.copy_dir(
             settings.POST_SETUPTESTDATA_STATE_DIR, settings.TEST_STORAGE_DIR)
 
-        super(BaseTest, self).setUp()
+        super().setUp()
 
 
 class ClientTest(ClientUtilsMixin, BaseTest):
@@ -463,7 +463,7 @@ class ClientTest(ClientUtilsMixin, BaseTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(ClientTest, cls).setUpTestData()
+        super().setUpTestData()
 
         # Test client. Subclasses' setUpTestData() calls can use this client
         # to set up more data before running the class's test functions.
@@ -473,7 +473,7 @@ class ClientTest(ClientUtilsMixin, BaseTest):
         cls.superuser = cls.create_superuser()
 
     def setUp(self):
-        super(ClientTest, self).setUp()
+        super().setUp()
 
         # Test client. By setting this in setUp(), we initialize this before
         # each test function, so that stuff like login status gets reset
@@ -550,7 +550,7 @@ class BrowserTest(StaticLiveServerTestCase, ClientTest):
 
     @classmethod
     def setUpClass(cls):
-        super(BrowserTest, cls).setUpClass()
+        super().setUpClass()
 
         # Selenium driver.
         # TODO: Look into running tests with multiple browsers. Right now it
@@ -606,7 +606,7 @@ class BrowserTest(StaticLiveServerTestCase, ClientTest):
     def tearDownClass(cls):
         cls.selenium.quit()
 
-        super(BrowserTest, cls).tearDownClass()
+        super().tearDownClass()
 
     @contextmanager
     def wait_for_page_load(self, old_element=None):
@@ -680,7 +680,7 @@ class BasePermissionTest(ClientTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(BasePermissionTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)

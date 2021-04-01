@@ -5,7 +5,7 @@ class EntryManager(models.Manager):
 
     def get_visible_to_user(self, user):
         default_queryset = \
-            super(EntryManager, self).get_queryset()
+            super().get_queryset()
 
         if user.is_superuser:
             # Superusers can see every blog post.
@@ -18,6 +18,6 @@ class EntryManager(models.Manager):
         return queryset.order_by('is_published', '-published_timestamp')
 
     def get_published(self):
-        default_queryset = super(EntryManager, self).get_queryset()
+        default_queryset = super().get_queryset()
         published = default_queryset.filter(is_published=True)
         return published.order_by('-published_timestamp')

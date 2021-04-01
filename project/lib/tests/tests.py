@@ -120,7 +120,7 @@ class DirectS3Test(BaseTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(DirectS3Test, cls).setUpTestData()
+        super().setUpTestData()
 
     def test_write_and_read(self):
         var = {'A':10, 'B':20}
@@ -136,7 +136,7 @@ class GoogleAnalyticsTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(GoogleAnalyticsTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -206,7 +206,7 @@ class FormUtilsTest(ClientTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(FormUtilsTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -239,7 +239,7 @@ class InternationalizationTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(InternationalizationTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -275,7 +275,7 @@ class TestSettingsStorageTest(BaseTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(TestSettingsStorageTest, cls).setUpTestData()
+        super().setUpTestData()
 
         storage = DefaultStorage()
         storage.save('1.png', sample_image_as_file('1.png'))
@@ -320,7 +320,7 @@ class TestSettingsDecoratorTest(BaseTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(TestSettingsDecoratorTest, cls).setUpTestData()
+        super().setUpTestData()
 
     def test_class_override(self):
         # Class decorator should work.

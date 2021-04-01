@@ -1,14 +1,12 @@
 from django.conf import settings
 from django.core.files.storage import get_storage_class
 from django.db import models
-from django.utils.encoding import python_2_unicode_compatible
 from spacer.data_classes import ValResults
 from spacer.messages import DataLocation
 
 from labels.models import Label, LocalLabel
 
 
-@python_2_unicode_compatible
 class Classifier(models.Model):
     """
     Computer vision classifier.
@@ -89,7 +87,6 @@ class Features(models.Model):
     extracted_date = models.DateTimeField(null=True)
 
 
-@python_2_unicode_compatible
 class Score(models.Model):
     """
     Tracks scores for each point in each image. For each point,

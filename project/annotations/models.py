@@ -4,7 +4,6 @@ from django.contrib.auth.models import User
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
-from django.utils.encoding import python_2_unicode_compatible
 
 from .managers import AnnotationManager
 from images.models import Image, Point, Source
@@ -12,7 +11,6 @@ from labels.models import Label, LocalLabel
 from vision_backend.models import Classifier
 
 
-@python_2_unicode_compatible
 class Annotation(models.Model):
     objects = AnnotationManager()
 

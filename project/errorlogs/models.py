@@ -1,9 +1,7 @@
 from django.db.models import Model
 from django.db.models.fields import CharField, DateTimeField, TextField, URLField
-from django.utils.encoding import python_2_unicode_compatible
 
 
-@python_2_unicode_compatible
 class ErrorLog(Model):
     """
     Model for storing logs for individual errors.

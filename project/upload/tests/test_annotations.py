@@ -1499,7 +1499,7 @@ class UploadAnnotationsFormatTest(UploadAnnotationsBaseTest):
 
     def test_utf8_bom_csv(self):
         content = (
-            codecs.BOM_UTF8.decode('utf-8') + 'Name,Column,Row,Label\n'
+            codecs.BOM_UTF8.decode() + 'Name,Column,Row,Label\n'
             '1.png,50,50,A\n'
         )
         csv_file = ContentFile(content, name='A.csv')
@@ -1518,7 +1518,7 @@ class UploadAnnotationsFormatTest(UploadAnnotationsBaseTest):
             '1.cpc', r"C:\My Photos\2017-05-13 GBR\1.png",
             [(50*15, 50*15, 'A')])
         cpc_file_crlf_content = (
-            codecs.BOM_UTF8.decode('utf-8') + cpc_file_lf.read())
+            codecs.BOM_UTF8.decode() + cpc_file_lf.read())
         cpc_files = [
             ContentFile(cpc_file_crlf_content, name='1.cpc'),
         ]

@@ -247,7 +247,7 @@ class ProfileEditTest(ClientTest):
 
     @staticmethod
     def user_email_hexdigest(user):
-        return hashlib.md5(user.email.lower().encode('utf-8')).hexdigest()
+        return hashlib.md5(user.email.lower().encode()).hexdigest()
 
     def test_submit(self):
         user = self.create_user()

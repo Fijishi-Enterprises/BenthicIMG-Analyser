@@ -102,7 +102,7 @@ def create_zipped_cpcs_stream_response(cpc_strings, zip_filename):
     response = create_zip_stream_response(zip_filename)
     # Convert Unicode strings to byte strings
     cpc_byte_strings = dict([
-        (cpc_filename, cpc_content.encode('utf-8'))
+        (cpc_filename, cpc_content.encode())
         for cpc_filename, cpc_content in six.iteritems(cpc_strings)
     ])
     write_zip(response, cpc_byte_strings)

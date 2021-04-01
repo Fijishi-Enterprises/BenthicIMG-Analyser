@@ -97,7 +97,7 @@ class Profile(models.Model):
     def get_avatar_url(self):
         if self.use_email_gravatar:
             # User chose to use an email-based gravatar
-            email_byte_string = self.user.email.lower().encode('utf-8')
+            email_byte_string = self.user.email.lower().encode()
             return self._get_gravatar_url(
                 hashlib.md5(email_byte_string).hexdigest())
         if self.avatar_file:

@@ -279,7 +279,7 @@ class DeployStatusEndpointTest(DeployBaseTest):
             "Should get 303")
 
         self.assertEqual(
-            response.content.decode('utf-8'), '',
+            response.content.decode(), '',
             "Response content should be empty")
 
         self.assertEqual(
@@ -310,7 +310,7 @@ class DeployStatusEndpointTest(DeployBaseTest):
             "Should get 303")
 
         self.assertEqual(
-            response.content.decode('utf-8'), '',
+            response.content.decode(), '',
             "Response content should be empty")
 
         self.assertEqual(

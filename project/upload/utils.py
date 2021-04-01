@@ -36,7 +36,7 @@ def metadata_csv_to_dict(csv_stream, source):
     column_names = next(reader)
     # There could be a UTF-8 BOM character at the start of the file.
     # Strip it in that case.
-    column_names[0] = column_names[0].lstrip(codecs.BOM_UTF8.decode('utf-8'))
+    column_names[0] = column_names[0].lstrip(codecs.BOM_UTF8.decode())
     column_names = [n.lower().strip() for n in column_names]
 
     # The column names are field labels (e.g. Date) while we want
@@ -212,7 +212,7 @@ def annotations_csv_to_dict(csv_stream, source):
     column_names = next(reader)
     # There could be a UTF-8 BOM character at the start of the file.
     # Strip it in that case.
-    column_names[0] = column_names[0].lstrip(codecs.BOM_UTF8.decode('utf-8'))
+    column_names[0] = column_names[0].lstrip(codecs.BOM_UTF8.decode())
     column_names = [name.lower().strip() for name in column_names]
 
     required_field_names = ['name', 'row', 'column']

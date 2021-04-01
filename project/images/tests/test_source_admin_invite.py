@@ -185,7 +185,7 @@ class SourceInviteTest(BasePermissionTest):
             "Sorry, there was an error with this invite."
             "<br>Maybe the user who sent it withdrew the invite,"
             " or you already accepted or declined earlier.",
-            response.content.decode('utf-8'))
+            response.content.decode())
 
         # Test for lack of permission
         self.assertPermissionDenied(

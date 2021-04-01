@@ -386,7 +386,7 @@ class SourceMainTest(ClientTest):
                 reverse('profile_detail', args=[user_editor.pk]), "user3",
                 reverse('profile_detail', args=[user_viewer.pk]), "user2",
             ),
-            response.content.decode('utf-8'))
+            response.content.decode())
 
     def test_source_fields_box_1(self):
         source = self.create_source(
@@ -414,7 +414,7 @@ class SourceMainTest(ClientTest):
         self.assertContains(response, "Confidence threshold: 80%")
         self.assertInHTML(
             '<br><br>This is a<br>multiline description.',
-            response.content.decode('utf-8'))
+            response.content.decode())
 
     def test_source_fields_box_2(self):
         source = self.create_source(
@@ -488,7 +488,7 @@ class SourceMainTest(ClientTest):
 
         self.client.force_login(self.user)
         response = self.client.get(reverse('source_main', args=[source.pk]))
-        source_main_content = response.content.decode('utf-8')
+        source_main_content = response.content.decode()
 
         # Grab the browse URLs from the image status box, and assert that
         # following the URLs works as expected.

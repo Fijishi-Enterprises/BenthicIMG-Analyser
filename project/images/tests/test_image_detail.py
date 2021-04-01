@@ -87,7 +87,7 @@ class ImageDetailTest(ClientTest):
         self.assertInHTML(
             '| <a href="{}" title="2.png"> Next &gt;</a>'.format(
                 reverse('image_detail', args=[img2.pk])),
-            response.content.decode('utf-8'))
+            response.content.decode())
 
         response = self.client.get(reverse('image_detail', args=[img2.pk]))
         self.assertInHTML(
@@ -95,13 +95,13 @@ class ImageDetailTest(ClientTest):
             ' | <a href="{}" title="3.png"> Next &gt;</a>'.format(
                 reverse('image_detail', args=[img1.pk]),
                 reverse('image_detail', args=[img3.pk])),
-            response.content.decode('utf-8'))
+            response.content.decode())
 
         response = self.client.get(reverse('image_detail', args=[img3.pk]))
         self.assertInHTML(
             '<a href="{}" title="2.png"> &lt; Previous</a>'.format(
                 reverse('image_detail', args=[img2.pk])),
-            response.content.decode('utf-8'))
+            response.content.decode())
 
 
 class ImageDetailEditTest(ClientTest):

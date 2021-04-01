@@ -74,7 +74,7 @@ class CPCExportBaseTest(ClientTest):
     def export_response_to_cpc(response, cpc_filename):
         zf = ZipFile(BytesIO(response.content))
         # Use decode() to get a Unicode string
-        return zf.read(cpc_filename).decode('utf-8')
+        return zf.read(cpc_filename).decode()
 
     def upload_cpcs(self, cpc_files):
         self.client.force_login(self.user)

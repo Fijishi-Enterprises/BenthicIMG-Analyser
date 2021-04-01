@@ -32,7 +32,7 @@ def csv_to_dict(
     # There could be a UTF-8 BOM character at the start of the file.
     # Strip it in that case.
     column_headers[0] = column_headers[0].lstrip(
-        codecs.BOM_UTF8.decode('utf-8'))
+        codecs.BOM_UTF8.decode())
     # Strip whitespace in general.
     column_headers = [h.strip() for h in column_headers]
 

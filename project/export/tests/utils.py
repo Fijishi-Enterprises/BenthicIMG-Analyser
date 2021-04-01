@@ -63,7 +63,7 @@ class BaseExportTest(ClientTest):
         """
         # Convert from bytes to Unicode if necessary.
         if isinstance(actual_csv_content, six.binary_type):
-            actual_csv_content = actual_csv_content.decode('utf-8')
+            actual_csv_content = actual_csv_content.decode()
 
         # The Python csv module uses \r\n by default (as part of the Excel
         # dialect). Due to the way we compare line by line, splitting on

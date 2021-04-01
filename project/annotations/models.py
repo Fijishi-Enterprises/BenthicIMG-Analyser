@@ -44,7 +44,7 @@ class Annotation(models.Model):
         self.image.annoinfo.update_annotation_progress_fields()
 
     def __str__(self):
-        return u"%s - %s - %s" % (
+        return "%s - %s - %s" % (
             self.image, self.point.point_number, self.label_code)
 
 

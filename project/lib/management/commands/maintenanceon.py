@@ -32,7 +32,7 @@ class Command(BaseCommand):
         time_until = timeuntil(maintenance_datetime, now_local)
         # Django's timeuntil has unicode non-breaking spaces (\xa0), but
         # that doesn't seem to play nice with string.format in Python 2.x.
-        time_until = time_until.replace(u'\xa0', ' ')
+        time_until = time_until.replace('\xa0', ' ')
 
         self.stdout.write(
             "The site will be considered under maintenance starting at:"

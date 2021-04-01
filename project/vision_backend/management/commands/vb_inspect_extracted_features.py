@@ -44,15 +44,15 @@ class Command(BaseCommand):
         for key in arg_keys:
             args_str += '{}: {}, '.format(key, options[key])
 
-        self.log(u"Starting inspection of {} sources with args: [{}]\n{}".format(
+        self.log("Starting inspection of {} sources with args: [{}]\n{}".format(
             sources.count(), args_str, "-"*70))
         for itt, source in enumerate(sources):
 
-            self.log(u"Inspecting {}, id:{}. [{}({})] with {} images...".format(
+            self.log("Inspecting {}, id:{}. [{}({})] with {} images...".format(
                 source.name, source.pk, itt, len(sources) - 1,
                 source.nbr_images))
             if itt < options['skip_to']:
-                self.log(u"Skipping...")
+                self.log("Skipping...")
                 continue
 
             for image in Image.objects.filter(source=source):
@@ -77,7 +77,7 @@ class Command(BaseCommand):
                     # TODO: matches also.
                 except Exception as err:
                     errors[source.id].append((image.id, repr(err)))
-                    self.log(u"Img: {}, error: {}".format(image.id, repr(err)))
+                    self.log("Img: {}, error: {}".format(image.id, repr(err)))
                     if options['do_correct']:
                         reset_features.delay(image.id)
         with open('feature_errors.json', 'w') as fp:

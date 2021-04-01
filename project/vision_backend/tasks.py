@@ -40,11 +40,11 @@ def submit_features(image_id, force=False):
     except Image.DoesNotExist:
         logger.info("Image {} does not exist.".format(image_id))
         return
-    log_str = u"Image {} [Source: {} [{}]]".format(image_id, img.source,
+    log_str = "Image {} [Source: {} [{}]]".format(image_id, img.source,
                                                    img.source_id)
 
     if img.features.extracted and not force:
-        logger.info(u"{} already has features".format(log_str))
+        logger.info("{} already has features".format(log_str))
         return
 
     # Setup the job payload.
@@ -70,7 +70,7 @@ def submit_features(image_id, force=False):
     queue = get_queue_class()()
     queue.submit_job(msg)
 
-    logger.info(u"Submitted feature extraction for {}".format(log_str))
+    logger.info("Submitted feature extraction for {}".format(log_str))
     return msg
 
 
@@ -93,7 +93,7 @@ def submit_classifier(source_id, nbr_images=1e5, force=False):
         return
 
     if not source.need_new_robot() and not force:
-        logger.info(u"Source {} [{}] don't need new classifier.".format(
+        logger.info("Source {} [{}] don't need new classifier.".format(
             source.name, source.pk))
         return
 
@@ -104,7 +104,7 @@ def submit_classifier(source_id, nbr_images=1e5, force=False):
     classifier = Classifier(source=source, nbr_train_images=len(images))
     classifier.save()
 
-    logger.info(u"Preparing new classifier ({}) for {} [{}].".format(
+    logger.info("Preparing new classifier ({}) for {} [{}].".format(
         classifier.pk, source.name, source.pk))
 
     # Create train-labels
@@ -145,7 +145,7 @@ def submit_classifier(source_id, nbr_images=1e5, force=False):
     queue = get_queue_class()()
     queue.submit_job(msg)
 
-    logger.info(u"Submitted classifier {} for source {} [{}] with {} images.".
+    logger.info("Submitted classifier {} for source {} [{}] with {} images.".
                 format(classifier.pk, source.name, source.id, len(images)))
     return msg
 
@@ -199,7 +199,7 @@ def deploy(job_unit_id):
     queue = get_queue_class()()
     queue.submit_job(msg)
 
-    logger.info(u"Submitted image at url: {} for deploy with job unit {}.".
+    logger.info("Submitted image at url: {} for deploy with job unit {}.".
                 format(job_unit.request_json['url'], job_unit.pk))
 
     return msg
@@ -247,9 +247,9 @@ def classify_image(image_id):
             th.add_annotations(image_id, res, label_objs, classifier)
         except IntegrityError:
             logger_message = \
-                u"Failed to classify Image {} [Source: {} [{}] with " \
-                u"classifier {}. There might have been a race condition " \
-                u"when trying to save annotations. Will try again later."
+                "Failed to classify Image {} [Source: {} [{}] with " \
+                "classifier {}. There might have been a race condition " \
+                "when trying to save annotations. Will try again later."
             logger.info(logger_message.format(img.id, img.source,
                                               img.source_id, classifier.id))
             classify_image.apply_async(args=[image_id],
@@ -262,7 +262,7 @@ def classify_image(image_id):
     img.features.classified = True
     img.features.save()
 
-    logger.info(u"Classified Image {} [Source: {} [{}]] with classifier {}".
+    logger.info("Classified Image {} [Source: {} [{}]] with classifier {}".
                 format(img.id, img.source, img.source_id, classifier.id))
 
 

@@ -37,7 +37,7 @@ class Command(BaseCommand):
                 if confirmed_only:
                     images = images.filter(annoinfo__confirmed=True)
                     
-                print(u"Submitting {} jobs for {}... ".format(images.count(), source.name))
+                print("Submitting {} jobs for {}... ".format(images.count(), source.name))
                 
                 for image in images:
                     submit_features.delay(image.id)
@@ -55,7 +55,7 @@ class Command(BaseCommand):
                     images = images.filter(annoinfo__confirmed=True)
                 images = images[:nbr_images]
 
-                print(u"Submitting {} jobs for {}... ".format(images.count(), source.name))
+                print("Submitting {} jobs for {}... ".format(images.count(), source.name))
 
                 for image in images:
                     submit_features.delay(image.id)

@@ -7,15 +7,14 @@
 # So we more or less roll our own validation. We still put it in 'forms.py'
 # since that filename is generally associated with validating user input.
 
-import six
-from six.moves import collections_abc
+import collections.abc
 
 from .exceptions import ApiRequestDataError
 
 
 def validate_array(element, json_path, check_non_empty=False, max_length=None):
     # We use MutableSequence instead of Sequence to avoid matching strings.
-    if not isinstance(element, collections_abc.MutableSequence):
+    if not isinstance(element, collections.abc.MutableSequence):
         raise ApiRequestDataError(
             "Ensure this element is an array.", json_path)
     if check_non_empty:
@@ -30,7 +29,7 @@ def validate_array(element, json_path, check_non_empty=False, max_length=None):
 
 
 def validate_hash(element, json_path, expected_keys=None):
-    if not isinstance(element, collections_abc.Mapping):
+    if not isinstance(element, collections.abc.Mapping):
         raise ApiRequestDataError("Ensure this element is a hash.", json_path)
     if expected_keys:
         for key in expected_keys:
@@ -60,7 +59,7 @@ def validate_integer(element, json_path, min_value=None, max_value=None):
 
 
 def validate_string(element, json_path, equal_to=None):
-    if not isinstance(element, six.text_type):
+    if not isinstance(element, str):
         raise ApiRequestDataError(
             "Ensure this element is a string.", json_path)
     if equal_to is not None:

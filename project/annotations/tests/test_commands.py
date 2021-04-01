@@ -18,8 +18,7 @@ class ReplaceLabelInSourceTest(ManagementCommandTest):
         label_b = Label.objects.get(name='B')
         args = [source.pk, label_a.pk, label_b.pk, user.pk]
         stdout_text, _ = self.call_command_and_get_output(
-            'annotations', 'replace_label_in_source', args=args,
-            patch_input=True)
+            'annotations', 'replace_label_in_source', args=args)
 
         # Verify output
         self.assertEqual(

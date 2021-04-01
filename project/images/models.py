@@ -1,5 +1,4 @@
 import posixpath
-import six
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -464,7 +463,7 @@ class Source(models.Model):
                        'nbr_confirmed_images', 'nbr_images', 'description',
                        'affiliation', 'nbr_valid_robots', 'best_robot_accuracy']
 
-        return {field: six.text_type(getattr(self, field)) for
+        return {field: str(getattr(self, field)) for
                 field in field_names}
 
     def __str__(self):
@@ -569,7 +568,7 @@ class Metadata(models.Model):
             {field_name: field_value}
         Both field name and values are strings.
         """
-        return {field: six.text_type(getattr(self, field)) for
+        return {field: str(getattr(self, field)) for
                 field in self.EDIT_FORM_FIELDS}
 
 

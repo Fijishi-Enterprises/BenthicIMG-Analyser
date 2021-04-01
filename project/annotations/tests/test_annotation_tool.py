@@ -1,5 +1,4 @@
 import datetime
-import six
 from unittest import mock
 
 from bs4 import BeautifulSoup
@@ -1382,7 +1381,7 @@ class SettingsTest(ClientTest):
         )
 
         cls.field_names_to_defaults = dict()
-        for field_name in six.iterkeys(cls.field_names_to_types):
+        for field_name in cls.field_names_to_types.keys():
             field_meta = AnnotationToolSettings._meta.get_field(field_name)
             cls.field_names_to_defaults[field_name] = field_meta.default
 
@@ -1419,7 +1418,7 @@ class SettingsTest(ClientTest):
         form_soup = response_soup.find(
             'form', dict(id='annotationToolSettingsForm'))
 
-        for field_name, field_type in six.iteritems(self.field_names_to_types):
+        for field_name, field_type in self.field_names_to_types.items():
             field_value = self.get_field_value_from_soup(field_name, form_soup)
             field_meta = AnnotationToolSettings._meta.get_field(field_name)
             expected_value = field_meta.default
@@ -1442,7 +1441,7 @@ class SettingsTest(ClientTest):
         form_soup = response_soup.find(
             'form', dict(id='annotationToolSettingsForm'))
 
-        for field_name, field_type in six.iteritems(self.field_names_to_types):
+        for field_name, field_type in self.field_names_to_types.items():
             field_value = self.get_field_value_from_soup(field_name, form_soup)
             expected_value = self.sample_settings[field_name]
             self.assertEqual(
@@ -1461,7 +1460,7 @@ class SettingsTest(ClientTest):
 
         # Check settings in database
         settings = AnnotationToolSettings.objects.get(user=self.user)
-        for field_name, setting in six.iteritems(self.sample_settings):
+        for field_name, setting in self.sample_settings.items():
             self.assertEqual(getattr(settings, field_name), setting)
 
     def test_update_existing_settings(self):
@@ -1480,7 +1479,7 @@ class SettingsTest(ClientTest):
 
         # Check settings in database
         settings = AnnotationToolSettings.objects.get(user=self.user)
-        for field_name, sample_setting in six.iteritems(self.sample_settings):
+        for field_name, sample_setting in self.sample_settings.items():
             if field_name == 'point_marker':
                 self.assertEqual(
                     getattr(settings, field_name), 'crosshair and circle')

@@ -2,7 +2,7 @@ from datetime import datetime
 import json
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
-from django.utils import dateformat, six, timezone
+from django.utils import dateformat, timezone
 from django.utils.timesince import timeuntil
 
 
@@ -45,7 +45,7 @@ class Command(BaseCommand):
         # Interactivity taken from squashmigrations code.
         answer = None
         while not answer or answer not in "yn":
-            answer = six.moves.input("Is this OK? [yN] ")
+            answer = input("Is this OK? [yN] ")
             if not answer:
                 answer = "n"
                 break

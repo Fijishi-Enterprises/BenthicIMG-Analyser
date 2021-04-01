@@ -1,7 +1,6 @@
 import datetime
-from six.moves.urllib.parse import urlencode
-
 from datetime import timedelta
+from urllib.parse import urlencode
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required

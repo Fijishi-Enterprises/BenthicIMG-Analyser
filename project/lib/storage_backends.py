@@ -5,7 +5,6 @@ from pathlib import Path
 import posixpath
 import random
 import shutil
-import six
 import string
 import tempfile
 
@@ -19,8 +18,7 @@ from .exceptions import FileStorageUsageError
 
 
 # Abstract class
-@six.add_metaclass(ABCMeta)
-class StorageManager(object):
+class StorageManager(object, metaclass=ABCMeta):
 
     def copy_dir(self, src, dst):
         """

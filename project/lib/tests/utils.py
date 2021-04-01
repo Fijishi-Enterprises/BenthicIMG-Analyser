@@ -1,14 +1,13 @@
 # Utility classes and functions for tests.
 from abc import ABCMeta
 from contextlib import contextmanager
-from io import BytesIO
+from io import BytesIO, StringIO
 import json
 import math
 import posixpath
 import random
-import six
-from six.moves.urllib.parse import quote as url_quote
 from unittest import mock
+from urllib.parse import quote as url_quote
 
 from spacer.messages import ClassifyReturnMsg
 
@@ -80,8 +79,7 @@ test_settings['FORCE_DUMMY_EXTRACTOR'] = True
 
 
 # Abstract class
-@six.add_metaclass(ABCMeta)
-class ClientUtilsMixin(object):
+class ClientUtilsMixin(object, metaclass=ABCMeta):
     """
     Utility-function mixin for tests that use a test client.
 
@@ -965,7 +963,7 @@ class ManagementCommandTest(ClientTest):
     """
     @staticmethod
     def call_command_and_get_output(
-            app_name, command_name, patch_input=False, patch_input_value='y',
+            app_name, command_name, patch_input_value='y',
             args=None, options=None):
         """
         Based loosely on: https://stackoverflow.com/questions/59382486/
@@ -974,33 +972,20 @@ class ManagementCommandTest(ClientTest):
         options = options or dict()
 
         # Store output here instead of printing to console.
-        # Django wants this to take bytes on Py2 and Unicode on Py3, so we
-        # have to use six.StringIO instead of io.StringIO during the 2 to 3
-        # transition.
-        stdout = six.StringIO()
+        stdout = StringIO()
         options['stdout'] = stdout
         # tqdm output, for example, would go to stderr.
-        stderr = six.StringIO()
+        stderr = StringIO()
         options['stderr'] = stderr
 
-        if patch_input:
+        # When input() is called, instead of prompting for user input, just
+        # return a constant value.
+        patch_target = '{}.management.commands.{}.input'.format(
+            app_name, command_name)
+        def input_without_prompt(_):
+            return patch_input_value
 
-            patch_target = '{}.management.commands.{}.six.moves.input'.format(
-                app_name, command_name)
-
-            def input_without_prompt(_):
-                # Instead of prompting for user input, this just returns a
-                # constant value.
-                return patch_input_value
-
-            with mock.patch(patch_target, input_without_prompt):
-                management.call_command(command_name, *args, **options)
-
-        else:
-
-            # If the command's module doesn't import six, it'll get an error.
-            # So we only patch `input` when asked to. (This could be
-            # simplified if we no longer use six later.)
+        with mock.patch(patch_target, input_without_prompt):
             management.call_command(command_name, *args, **options)
 
         return stdout.getvalue().rstrip(), stderr.getvalue().rstrip()
@@ -1170,7 +1155,7 @@ def add_robot_annotations(robot, image, annotations=None):
                 " annotations for all points in this image.").format(
                     num=point.point_number))
 
-        if isinstance(annotation, six.string_types):
+        if isinstance(annotation, str):
             # Only top label specified
             label_code = annotation
             # Pick a top score, which is possible to be an UNTIED top score

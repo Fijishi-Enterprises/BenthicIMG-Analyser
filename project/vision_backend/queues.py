@@ -1,4 +1,5 @@
 import abc
+from io import StringIO
 import json
 import logging
 import posixpath
@@ -13,7 +14,6 @@ from django.conf import settings
 from django.core.files.storage import get_storage_class
 from django.core.mail import mail_admins
 from django.utils.module_loading import import_string
-from six import StringIO
 from spacer.messages import JobMsg, JobReturnMsg
 from spacer.tasks import process_job
 

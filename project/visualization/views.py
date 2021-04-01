@@ -1,5 +1,3 @@
-import six
-
 from django.conf import settings
 from django.contrib import messages
 from django.db import transaction
@@ -263,7 +261,7 @@ def edit_metadata_ajax(request, source_id):
 
             # TODO: Would be nice to list the errors in the order they
             # appear in the form
-            for field_name, error_messages in six.iteritems(form.errors):
+            for field_name, error_messages in form.errors.items():
 
                 # The form prefix looks something like form-2. The id of the
                 # form field element is expected to look like id_form-2-date.

@@ -4,9 +4,6 @@ import csv
 import functools
 from pathlib import PureWindowsPath
 import re
-import six
-from six import next, viewitems
-from six.moves import range
 
 from django.urls import reverse
 
@@ -176,9 +173,8 @@ def metadata_preview(csv_metadata, source):
 
         row = []
         for field_name in metadata_for_image.keys():
-            new_value = six.text_type(
-                metadata_form.cleaned_data[field_name] or '')
-            old_value = six.text_type(metadata_form.initial[field_name] or '')
+            new_value = str(metadata_form.cleaned_data[field_name] or '')
+            old_value = str(metadata_form.initial[field_name] or '')
 
             if (not old_value) or (old_value == new_value):
                 # Old value is blank, or old value is equal to new value.
@@ -264,7 +260,7 @@ def annotations_csv_verify_contents(csv_annotations, source):
     """
     annotations = OrderedDict()
 
-    for image_name, annotations_for_image in viewitems(csv_annotations):
+    for image_name, annotations_for_image in csv_annotations.items():
         try:
             img = Image.objects.get(metadata__name=image_name, source=source)
         except Image.DoesNotExist:

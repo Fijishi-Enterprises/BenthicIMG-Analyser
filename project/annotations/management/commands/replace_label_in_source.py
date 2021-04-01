@@ -1,5 +1,4 @@
 from datetime import timedelta
-import six
 
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
@@ -81,7 +80,7 @@ class Command(BaseCommand):
             "Also, {label} will be removed from".format(label=old_label.name)
             + " the labelset, and a source backend-reset will be initiated.")
 
-        input_text = six.moves.input("OK? [y/N]: ")
+        input_text = input("OK? [y/N]: ")
 
         # Must input 'y' or 'Y' to proceed. Else, will abort.
         if input_text.lower() != 'y':

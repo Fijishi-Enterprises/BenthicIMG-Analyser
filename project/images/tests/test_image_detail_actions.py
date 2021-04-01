@@ -1,7 +1,6 @@
 # Test the action buttons available from the image detail page.
 
 from abc import ABCMeta
-import six
 
 from django.urls import reverse
 
@@ -14,8 +13,7 @@ from vision_backend.models import Features
 
 
 # Abstract class
-@six.add_metaclass(ABCMeta)
-class ImageDetailActionBaseTest(BasePermissionTest):
+class ImageDetailActionBaseTest(BasePermissionTest, metaclass=ABCMeta):
 
     # Subclasses should fill this in.
     action_url_name = None

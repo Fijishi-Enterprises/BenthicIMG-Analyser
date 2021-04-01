@@ -1,8 +1,6 @@
 import csv
 from io import StringIO
 from pathlib import PureWindowsPath
-import six
-from six.moves import range
 from zipfile import ZipFile
 
 from django.conf import settings
@@ -103,7 +101,7 @@ def create_zipped_cpcs_stream_response(cpc_strings, zip_filename):
     # Convert Unicode strings to byte strings
     cpc_byte_strings = dict([
         (cpc_filename, cpc_content.encode())
-        for cpc_filename, cpc_content in six.iteritems(cpc_strings)
+        for cpc_filename, cpc_content in cpc_strings.items()
     ])
     write_zip(response, cpc_byte_strings)
     return response
@@ -333,7 +331,7 @@ def write_zip(zip_stream, file_strings):
       None.
     """
     zip_file = ZipFile(zip_stream, 'w')
-    for filepath, content_string in six.iteritems(file_strings):
+    for filepath, content_string in file_strings.items():
         zip_file.writestr(filepath, content_string)
 
 

@@ -1,5 +1,3 @@
-import six
-
 from django.shortcuts import resolve_url
 
 from lib.tests.utils import ClientTest
@@ -62,7 +60,7 @@ class BaseExportTest(ClientTest):
         Throws AssertionError if actual and expected CSVs are not equal.
         """
         # Convert from bytes to Unicode if necessary.
-        if isinstance(actual_csv_content, six.binary_type):
+        if isinstance(actual_csv_content, bytes):
             actual_csv_content = actual_csv_content.decode()
 
         # The Python csv module uses \r\n by default (as part of the Excel

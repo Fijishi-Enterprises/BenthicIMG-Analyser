@@ -5,7 +5,6 @@ from django.core.files.storage import get_storage_class
 from django import template
 from django.template import TemplateSyntaxError
 from django.utils.html import escape
-from django.utils import six
 from easy_thumbnails.files import get_thumbnailer
 
 from async_media.utils import set_async_media_request
@@ -21,7 +20,7 @@ def parse_size(size):
     valid string.
     This is similar to how easy-thumbnails' template tag parses size.
     """
-    if isinstance(size, six.string_types):
+    if isinstance(size, str):
         m = RE_SIZE.match(size)
         if m:
             size = (int(m.group(1)), int(m.group(2)))

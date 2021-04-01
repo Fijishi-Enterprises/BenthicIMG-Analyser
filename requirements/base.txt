@@ -110,17 +110,6 @@ beautifulsoup4>=4.8.1,<4.9
 # Changelog: https://numpy.org/devdocs/release.html
 numpy==1.18.1
 
-# More elegant filepath calculations compared to os.path.
-# Changelog: https://github.com/mcmtroffaes/pathlib2/blob/develop/CHANGELOG.rst
-#
-# pathlib has become part of the Python 3 standard library. pathlib2, an
-# unofficial backport of pathlib to Python 2, is the best bet for migrating
-# cleanly and idiomatically to Python 3.
-# However, pathlib2 does have a major flaw: paths with non-ASCII characters
-# are not supported. The only way to support that is to move to Python 3
-# eventually. https://github.com/mcmtroffaes/pathlib2/issues/34
-pathlib2==2.3.5
-
 # Another filepath calculations module.
 #
 # unipath hasn't been updated since early 2015 (as of late 2017).

@@ -1,15 +1,9 @@
 import csv
 from io import StringIO
+from pathlib import PureWindowsPath
 import six
 from six.moves import range
 from zipfile import ZipFile
-
-try:
-    # Python 3.4+
-    from pathlib import PureWindowsPath
-except ImportError:
-    # Python 2.x with pathlib2 package
-    from pathlib2 import PureWindowsPath
 
 from django.conf import settings
 from django.core.exceptions import ValidationError

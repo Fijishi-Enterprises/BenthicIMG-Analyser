@@ -1004,24 +1004,29 @@ class UnicodeTest(CPCExportBaseTest):
         cls.create_labelset(cls.user, cls.source, labels)
 
         cls.img1 = cls.upload_image(
-            cls.user, cls.source, dict(filename='1.jpg'))
+            cls.user, cls.source, dict(
+                filename='あ.jpg', width=100, height=100))
 
     def test(self):
-        # The local image filepath gets path-manipulated at some point, and in
-        # Python 2.x, pathlib2 doesn't support Unicode. So we'll only test
-        # Unicode on the label code, not the filepath.
         self.add_annotations(
             self.user, self.img1, {1: 'い'})
 
         post_data = self.default_search_params.copy()
         post_data.update(
             # CPC prefs
-            local_code_filepath=r'C:\CPCe codefiles\My codes.txt',
-            local_image_dir=r'C:\Panama dataset',
+            local_code_filepath=r'C:\CPCe codefiles\コード.txt',
+            local_image_dir=r'C:\パナマ',
             annotation_filter='confirmed_only',
         )
         response = self.export_cpcs(post_data)
-        actual_cpc_content = self.export_response_to_cpc(response, '1.cpc')
+        actual_cpc_content = self.export_response_to_cpc(response, 'あ.cpc')
+
+        expected_first_line_beginning = (
+            r'"C:\CPCe codefiles\コード.txt","C:\パナマ\あ.jpg",'
+        )
+        self.assertTrue(
+            actual_cpc_content.splitlines()[0].startswith(
+                expected_first_line_beginning))
 
         expected_point_lines = [
             '"1","い","Notes",""',

@@ -1,7 +1,7 @@
 from abc import ABCMeta
 from distutils.dir_util import copy_tree
 import os
-from pathlib2 import Path
+from pathlib import Path
 import posixpath
 import random
 import shutil

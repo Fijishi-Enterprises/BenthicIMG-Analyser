@@ -1399,6 +1399,7 @@ class UploadAnnotationsFormatTest(UploadAnnotationsBaseTest):
         })
 
     def test_unicode_csv(self):
+        """Test Unicode image filenames and label codes."""
         content = (
             'Name,Column,Row,Label\n'
             'あ.png,50,50,い\n'
@@ -1412,11 +1413,18 @@ class UploadAnnotationsFormatTest(UploadAnnotationsBaseTest):
         self.check(preview_response, upload_response, self.imgA, 'い')
 
     def test_unicode_cpc(self):
-        """Don't know if CPC with non-ASCII is possible in practice, but
-        might as well test that it works."""
-        # The local image filepath gets path-manipulated at some point, and in
-        # Python 2.x, pathlib2 doesn't support Unicode. So we'll only test
-        # Unicode on the label code, not the filepath.
+        """
+        Test Unicode label codes. Don't know if CPC with
+        non-ASCII is possible in practice, but might as well test that it
+        works.
+
+        TODO: Once we upgrade to Python 3.7, test Unicode image filenames as
+        well. re.escape() (used in annotations_cpc_verify_contents()) has
+        undesired behavior with Unicode in Python 3.6 (adds too many
+        backslashes).
+        To test that, change the filename to あ.png and pass self.imgA to
+        self.check().
+        """
         cpc_files = [
             self.make_cpc_file(
                 self.image_dimensions,

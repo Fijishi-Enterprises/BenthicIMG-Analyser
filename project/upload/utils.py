@@ -2,16 +2,11 @@ import codecs
 from collections import OrderedDict
 import csv
 import functools
+from pathlib import PureWindowsPath
 import re
 import six
 from six import next, viewitems
 from six.moves import range
-try:
-    # Python 3.4+
-    from pathlib import PureWindowsPath
-except ImportError:
-    # Python 2.x with pathlib2 package
-    from pathlib2 import PureWindowsPath
 
 from django.urls import reverse
 

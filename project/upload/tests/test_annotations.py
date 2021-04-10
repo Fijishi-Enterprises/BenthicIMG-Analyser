@@ -663,12 +663,12 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
                 point_number=2, image=self.img3).pk, self.img3.pk),
         })
 
-        self.img1.refresh_from_db()
-        self.assertIsNotNone(self.img1.last_annotation)
-        self.img2.refresh_from_db()
-        self.assertIsNone(self.img2.last_annotation)
-        self.img3.refresh_from_db()
-        self.assertIsNotNone(self.img3.last_annotation)
+        self.img1.annoinfo.refresh_from_db()
+        self.assertIsNotNone(self.img1.annoinfo.last_annotation)
+        self.img2.annoinfo.refresh_from_db()
+        self.assertIsNone(self.img2.annoinfo.last_annotation)
+        self.img3.annoinfo.refresh_from_db()
+        self.assertIsNotNone(self.img3.annoinfo.last_annotation)
 
     def test_label_codes_different_case_csv(self):
         """

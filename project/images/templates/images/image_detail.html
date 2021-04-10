@@ -86,9 +86,9 @@
         </li>
         <li>Annotation status: <b>{{ annotation_status }}</b>
         </li>
-        {% if image.last_annotation %}
+        {% if image.annoinfo.last_annotation %}
           <li>
-            Last annotation update: {{ image.last_annotation.user }} on {{ image.last_annotation.annotation_date }}
+            Last annotation update: {{ image.annoinfo.last_annotation.user }} on {{ image.annoinfo.last_annotation.annotation_date }}
           </li>
         {% endif %}
         </ul>

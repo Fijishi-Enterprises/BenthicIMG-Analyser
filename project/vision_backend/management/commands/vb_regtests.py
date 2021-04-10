@@ -165,10 +165,12 @@ class Command(BaseCommand):
             time.sleep(3)
             collect_all_jobs()
             n_classified = Image.objects.filter(
-                source=s.source, confirmed=False,
+                source=s.source,
+                annoinfo__confirmed=False,
                 features__classified=True).count()
-            n_imgs = Image.objects.filter(source=s.source,
-                                          confirmed=False).count()
+            n_imgs = Image.objects.filter(
+                source=s.source,
+                annoinfo__confirmed=False).count()
 
             print("-> {} out of images {} are classified.".format(
                 n_classified, n_imgs))

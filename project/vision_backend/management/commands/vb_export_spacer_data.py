@@ -134,7 +134,7 @@ class Command(BaseCommand):
             images_prefix = source_prefix + '/' + 'images'
 
             for image in tqdm(Image.objects.filter(source=source,
-                                                   confirmed=True,
+                                                   annoinfo__confirmed=True,
                                                    features__extracted=True)):
 
                 image_prefix = images_prefix + '/i' + str(image.pk)

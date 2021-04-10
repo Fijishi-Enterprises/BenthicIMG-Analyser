@@ -105,8 +105,8 @@ class BaseSearchTest(ClientTest):
             mock_now.return_value = dt
             annotation.save()
 
-        image.last_annotation = annotation
-        image.save()
+        image.annoinfo.last_annotation = annotation
+        image.annoinfo.save()
 
     def submit_search(self, **kwargs):
         """

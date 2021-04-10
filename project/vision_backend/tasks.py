@@ -98,7 +98,8 @@ def submit_classifier(source_id, nbr_images=1e5, force=False):
         return
 
     # Create new classifier model
-    images = Image.objects.filter(source=source, confirmed=True,
+    images = Image.objects.filter(source=source,
+                                  annoinfo__confirmed=True,
                                   features__extracted=True)[:nbr_images]
     classifier = Classifier(source=source, nbr_train_images=len(images))
     classifier.save()
@@ -241,7 +242,7 @@ def classify_image(image_id):
     label_objs = [Label.objects.get(pk=pk) for pk in res.classes]
 
     # Add annotations if image isn't already confirmed    
-    if not img.confirmed:
+    if not img.annoinfo.confirmed:
         try:
             th.add_annotations(image_id, res, label_objs, classifier)
         except IntegrityError:
@@ -308,7 +309,7 @@ def _handle_job_result(job_res: JobReturnMsg):
                 classifier = Classifier.objects.get(pk=pk)
                 for image in Image.objects.filter(source=classifier.source,
                                                   features__extracted=True,
-                                                  confirmed=False):
+                                                  annoinfo__confirmed=False):
                     classify_image.apply_async(
                         args=[image.id],
                         eta=now() + timedelta(seconds=10))

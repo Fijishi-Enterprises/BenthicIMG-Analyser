@@ -16,7 +16,7 @@ def image_annotation_all_done(image):
     """
     Return True if all of the image's annotation points are human annotated.
     Return False otherwise.
-    Don't use image.confirmed.  That field depends
+    Don't use image.annoinfo.confirmed.  That field depends
     on this function, not the other way around!
     """
     annotations = Annotation.objects.filter(image=image)
@@ -162,7 +162,7 @@ def apply_alleviate(img, label_scores_all_points):
 
     if alleviate_was_applied:
         # Ensure that the last-annotation display on the page is up to date.
-        img.refresh_from_db()
+        img.annoinfo.refresh_from_db()
 
 
 def update_sitewide_annotation_count():

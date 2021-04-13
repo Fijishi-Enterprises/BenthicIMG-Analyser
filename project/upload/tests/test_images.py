@@ -1,7 +1,7 @@
 from io import BytesIO
 import json
-from mock import patch
 import re
+from unittest import mock
 
 from django.conf import settings
 from django.core.files.base import ContentFile
@@ -432,7 +432,7 @@ class ThreeNameGenerator:
 
 # Patch the rand_string function when used in the images.models module.
 # The patched function can only generate 3 possible base names.
-@patch('images.models.rand_string', ThreeNameGenerator.generate_name)
+@mock.patch('images.models.rand_string', ThreeNameGenerator.generate_name)
 @override_settings(ADMINS=[('Admin', 'admin@example.com')])
 class UploadImageFilenameCollisionTest(ClientTest):
     """

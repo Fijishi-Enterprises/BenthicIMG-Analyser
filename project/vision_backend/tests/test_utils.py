@@ -1,4 +1,3 @@
-from __future__ import unicode_literals
 import random
 
 import numpy as np
@@ -17,7 +16,7 @@ class TestLabelSetMapper(ClientTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(TestLabelSetMapper, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 

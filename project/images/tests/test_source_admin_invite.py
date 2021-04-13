@@ -1,4 +1,3 @@
-from __future__ import unicode_literals
 from django.urls import reverse
 
 from images.models import Image, Metadata, Source, SourceInvite
@@ -32,7 +31,7 @@ class SourceInviteTest(BasePermissionTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(SourceInviteTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.source_to_private()
 
@@ -186,7 +185,7 @@ class SourceInviteTest(BasePermissionTest):
             "Sorry, there was an error with this invite."
             "<br>Maybe the user who sent it withdrew the invite,"
             " or you already accepted or declined earlier.",
-            response.content.decode('utf-8'))
+            response.content.decode())
 
         # Test for lack of permission
         self.assertPermissionDenied(
@@ -203,7 +202,7 @@ class ChangeMemberPermissionLevelTest(BasePermissionTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(ChangeMemberPermissionLevelTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.source_to_private()
 
@@ -247,7 +246,7 @@ class RemoveMemberTest(BasePermissionTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(RemoveMemberTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.source_to_private()
 

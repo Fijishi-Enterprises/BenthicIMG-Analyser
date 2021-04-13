@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 from django.urls import reverse
 
 from images.models import Image, Metadata
@@ -25,7 +23,7 @@ class PermissionTest(BasePermissionTest):
 class SuccessTest(ClientTest):
     @classmethod
     def setUpTestData(cls):
-        super(SuccessTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -143,7 +141,7 @@ class OtherSourceTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(OtherSourceTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -210,7 +208,7 @@ class OtherSourceTest(ClientTest):
 class ErrorTest(ClientTest):
     @classmethod
     def setUpTestData(cls):
-        super(ErrorTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)

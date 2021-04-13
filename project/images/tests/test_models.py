@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 from io import BytesIO
 
 import piexif
@@ -18,7 +16,7 @@ class SourceExtractorPropertyTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(SourceExtractorPropertyTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(
@@ -39,7 +37,7 @@ class ImageExifOrientationTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(ImageExifOrientationTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)

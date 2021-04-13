@@ -1,6 +1,3 @@
-from __future__ import unicode_literals
-import six
-
 from django.shortcuts import resolve_url
 
 from lib.tests.utils import ClientTest
@@ -10,7 +7,7 @@ class BaseExportTest(ClientTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(BaseExportTest, cls).setUpTestData()
+        super().setUpTestData()
 
         # Image search parameters
         cls.default_search_params = dict(
@@ -63,8 +60,8 @@ class BaseExportTest(ClientTest):
         Throws AssertionError if actual and expected CSVs are not equal.
         """
         # Convert from bytes to Unicode if necessary.
-        if isinstance(actual_csv_content, six.binary_type):
-            actual_csv_content = actual_csv_content.decode('utf-8')
+        if isinstance(actual_csv_content, bytes):
+            actual_csv_content = actual_csv_content.decode()
 
         # The Python csv module uses \r\n by default (as part of the Excel
         # dialect). Due to the way we compare line by line, splitting on

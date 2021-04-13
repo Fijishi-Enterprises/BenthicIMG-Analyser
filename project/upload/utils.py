@@ -1,18 +1,9 @@
-from __future__ import division, unicode_literals
 import codecs
 from collections import OrderedDict
-from backports import csv
+import csv
 import functools
+from pathlib import PureWindowsPath
 import re
-import six
-from six import next, viewitems
-from six.moves import range
-try:
-    # Python 3.4+
-    from pathlib import PureWindowsPath
-except ImportError:
-    # Python 2.x with pathlib2 package
-    from pathlib2 import PureWindowsPath
 
 from django.urls import reverse
 
@@ -42,7 +33,7 @@ def metadata_csv_to_dict(csv_stream, source):
     column_names = next(reader)
     # There could be a UTF-8 BOM character at the start of the file.
     # Strip it in that case.
-    column_names[0] = column_names[0].lstrip(codecs.BOM_UTF8.decode('utf-8'))
+    column_names[0] = column_names[0].lstrip(codecs.BOM_UTF8.decode())
     column_names = [n.lower().strip() for n in column_names]
 
     # The column names are field labels (e.g. Date) while we want
@@ -182,9 +173,8 @@ def metadata_preview(csv_metadata, source):
 
         row = []
         for field_name in metadata_for_image.keys():
-            new_value = six.text_type(
-                metadata_form.cleaned_data[field_name] or '')
-            old_value = six.text_type(metadata_form.initial[field_name] or '')
+            new_value = str(metadata_form.cleaned_data[field_name] or '')
+            old_value = str(metadata_form.initial[field_name] or '')
 
             if (not old_value) or (old_value == new_value):
                 # Old value is blank, or old value is equal to new value.
@@ -218,7 +208,7 @@ def annotations_csv_to_dict(csv_stream, source):
     column_names = next(reader)
     # There could be a UTF-8 BOM character at the start of the file.
     # Strip it in that case.
-    column_names[0] = column_names[0].lstrip(codecs.BOM_UTF8.decode('utf-8'))
+    column_names[0] = column_names[0].lstrip(codecs.BOM_UTF8.decode())
     column_names = [name.lower().strip() for name in column_names]
 
     required_field_names = ['name', 'row', 'column']
@@ -270,7 +260,7 @@ def annotations_csv_verify_contents(csv_annotations, source):
     """
     annotations = OrderedDict()
 
-    for image_name, annotations_for_image in viewitems(csv_annotations):
+    for image_name, annotations_for_image in csv_annotations.items():
         try:
             img = Image.objects.get(metadata__name=image_name, source=source)
         except Image.DoesNotExist:

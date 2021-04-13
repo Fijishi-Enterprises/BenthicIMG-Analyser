@@ -1,4 +1,3 @@
-from __future__ import unicode_literals
 import copy
 from datetime import timedelta
 import json
@@ -21,7 +20,7 @@ class AuthTest(BaseAPITest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(AuthTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user(
             username='testuser', password='SamplePassword')
@@ -85,7 +84,7 @@ class ContentTypeTest(BaseAPITest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(ContentTypeTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user(
             username='testuser', password='SamplePassword')
@@ -162,7 +161,7 @@ class ThrottleTest(BaseAPITest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(ThrottleTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user(
             username='testuser', password='SamplePassword')
@@ -286,7 +285,7 @@ class JobCleanupTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(JobCleanupTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 

@@ -1,4 +1,3 @@
-from __future__ import unicode_literals
 import re
 
 from bs4 import BeautifulSoup
@@ -30,7 +29,7 @@ class FlatpagesTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(FlatpagesTest, cls).setUpTestData()
+        super().setUpTestData()
 
     def test_new_flatpage(self):
         """Create a flatpage and view it at its URL."""

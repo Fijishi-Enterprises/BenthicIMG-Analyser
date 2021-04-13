@@ -1,4 +1,3 @@
-from __future__ import unicode_literals
 import hashlib
 
 from bs4 import BeautifulSoup
@@ -14,7 +13,7 @@ class ProfilePermissionTest(BasePermissionTest):
     @classmethod
     def setUpTestData(cls):
         # Call the parent's setup (while still using this class as cls)
-        super(ProfilePermissionTest, cls).setUpTestData()
+        super().setUpTestData()
 
         # Profile is open to everyone
         cls.user_open = cls.create_user_with_privacy('open')
@@ -99,7 +98,7 @@ class ProfileListItemCountsTest(ClientTest):
     @classmethod
     def setUpTestData(cls):
         # Call the parent's setup (while still using this class as cls)
-        super(ProfileListItemCountsTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.url = resolve_url('profile_list')
 
@@ -226,7 +225,7 @@ class ProfileEditTest(ClientTest):
     @classmethod
     def setUpTestData(cls):
         # Call the parent's setup (while still using this class as cls)
-        super(ProfileEditTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.url = resolve_url('profile_edit')
 
@@ -248,7 +247,7 @@ class ProfileEditTest(ClientTest):
 
     @staticmethod
     def user_email_hexdigest(user):
-        return hashlib.md5(user.email.lower().encode('utf-8')).hexdigest()
+        return hashlib.md5(user.email.lower().encode()).hexdigest()
 
     def test_submit(self):
         user = self.create_user()

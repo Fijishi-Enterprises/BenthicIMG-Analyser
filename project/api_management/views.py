@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 from django.contrib.auth.decorators import permission_required
 from django.shortcuts import get_object_or_404, render
 

@@ -1,5 +1,4 @@
-from __future__ import unicode_literals
-import mock
+from unittest import mock
 
 from django.urls import reverse
 from django.utils import timezone
@@ -46,7 +45,7 @@ class SourceNewTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(SourceNewTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 
@@ -568,7 +567,7 @@ class SourceEditTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(SourceEditTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 
@@ -639,7 +638,7 @@ class SourceEditBackendStatusTest(BaseTaskTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(SourceEditBackendStatusTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.url = reverse('source_edit', args=[cls.source.pk])
 

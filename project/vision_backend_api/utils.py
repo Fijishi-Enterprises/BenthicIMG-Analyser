@@ -1,4 +1,3 @@
-from __future__ import unicode_literals
 from vision_backend.models import Classifier
 
 

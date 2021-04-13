@@ -1,13 +1,9 @@
-from __future__ import unicode_literals
-import six
-
-
 def get_one_form_error(form, include_field_name=True):
     """
     Use this if form validation failed and you just want to get the string for
     one error.
     """
-    for field_name, error_messages in six.iteritems(form.errors):
+    for field_name, error_messages in form.errors.items():
         if error_messages:
             if not include_field_name:
                 # Requested not to include the field name in the message

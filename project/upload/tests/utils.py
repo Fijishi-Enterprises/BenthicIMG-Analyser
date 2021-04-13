@@ -1,8 +1,6 @@
-from __future__ import unicode_literals
 from abc import ABCMeta
-from backports import csv
+import csv
 from io import StringIO
-import six
 
 from django.core.files.base import ContentFile
 from django.urls import reverse
@@ -11,8 +9,7 @@ from lib.tests.utils import ClientTest
 
 
 # Abstract class
-@six.add_metaclass(ABCMeta)
-class UploadAnnotationsTestMixin(object):
+class UploadAnnotationsTestMixin(object, metaclass=ABCMeta):
 
     @staticmethod
     def make_csv_file(csv_filename, rows):

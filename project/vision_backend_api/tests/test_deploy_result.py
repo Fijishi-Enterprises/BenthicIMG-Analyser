@@ -1,12 +1,11 @@
-from __future__ import unicode_literals
 import copy
 import json
 import operator
+from unittest import mock
 
 from django.conf import settings
 from django.test import override_settings
 from django.urls import reverse
-from mock import patch
 from rest_framework import status
 
 from api_core.models import ApiJob, ApiJobUnit
@@ -94,7 +93,7 @@ class DeployResultAccessTest(BaseAPIPermissionTest):
             response, msg="4th request should be denied by throttling")
 
 
-@patch('spacer.tasks.load_image', mocked_load_image)
+@mock.patch('spacer.tasks.load_image', mocked_load_image)
 class DeployResultEndpointTest(DeployBaseTest):
     """
     Test the deploy result endpoint.
@@ -140,14 +139,14 @@ class DeployResultEndpointTest(DeployBaseTest):
                 dict(detail="This job isn't finished yet")]),
             "Response JSON should be as expected")
 
-    @patch('vision_backend.tasks.deploy.run', noop_task)
+    @mock.patch('vision_backend.tasks.deploy.run', noop_task)
     def test_no_progress_yet(self):
         job = self.deploy()
         response = self.get_job_result(job)
 
         self.assert_result_response_not_finished(response)
 
-    @patch('vision_backend.tasks.deploy.run', noop_task)
+    @mock.patch('vision_backend.tasks.deploy.run', noop_task)
     def test_some_images_in_progress(self):
         job = self.deploy()
 
@@ -161,7 +160,7 @@ class DeployResultEndpointTest(DeployBaseTest):
 
         self.assert_result_response_not_finished(response)
 
-    @patch('vision_backend.tasks.deploy.run', noop_task)
+    @mock.patch('vision_backend.tasks.deploy.run', noop_task)
     def test_all_images_in_progress(self):
         job = self.deploy()
 
@@ -174,7 +173,7 @@ class DeployResultEndpointTest(DeployBaseTest):
 
         self.assert_result_response_not_finished(response)
 
-    @patch('vision_backend.tasks.deploy.run', noop_task)
+    @mock.patch('vision_backend.tasks.deploy.run', noop_task)
     def test_some_images_success(self):
         job = self.deploy()
 
@@ -188,7 +187,7 @@ class DeployResultEndpointTest(DeployBaseTest):
 
         self.assert_result_response_not_finished(response)
 
-    @patch('vision_backend.tasks.deploy.run', noop_task)
+    @mock.patch('vision_backend.tasks.deploy.run', noop_task)
     def test_some_images_failure(self):
         job = self.deploy()
 
@@ -288,7 +287,7 @@ class DeployResultEndpointTest(DeployBaseTest):
                 point_classification_without_scores,
                 "Classifications JSON besides scores should be as expected")
 
-    @patch('vision_backend.tasks.deploy.run', noop_task)
+    @mock.patch('vision_backend.tasks.deploy.run', noop_task)
     def test_failure(self):
         job = self.deploy()
 

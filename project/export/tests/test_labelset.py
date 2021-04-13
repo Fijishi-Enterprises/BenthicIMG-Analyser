@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
 from django.core.files.base import ContentFile
 from django.shortcuts import resolve_url
 from django.urls import reverse
@@ -30,7 +27,7 @@ class GeneralTest(BaseExportTest, LabelTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(GeneralTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)

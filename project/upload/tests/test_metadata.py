@@ -1,6 +1,4 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-from backports import csv
+import csv
 import datetime
 from io import StringIO
 
@@ -50,7 +48,7 @@ class UploadMetadataTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(UploadMetadataTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -650,7 +648,7 @@ class UploadMetadataMultipleSourcesTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(UploadMetadataMultipleSourcesTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -769,7 +767,7 @@ class UploadMetadataPreviewTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(UploadMetadataPreviewTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -861,7 +859,7 @@ class UploadMetadataErrorTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(UploadMetadataErrorTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -936,7 +934,7 @@ class UploadMetadataPreviewErrorTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(UploadMetadataPreviewErrorTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -1177,7 +1175,7 @@ class UploadMetadataPreviewFormatTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(UploadMetadataPreviewFormatTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)

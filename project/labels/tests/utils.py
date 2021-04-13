@@ -1,6 +1,4 @@
-from __future__ import unicode_literals
 from abc import ABCMeta
-import six
 
 from django.urls import reverse
 
@@ -9,8 +7,7 @@ from ..models import LabelGroup, Label
 
 
 # Abstract class
-@six.add_metaclass(ABCMeta)
-class LabelTest(ClientTest):
+class LabelTest(ClientTest, metaclass=ABCMeta):
 
     @classmethod
     def create_label_group(cls, group_name):

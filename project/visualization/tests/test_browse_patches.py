@@ -1,6 +1,5 @@
-from __future__ import unicode_literals
 import datetime
-import mock
+from unittest import mock
 
 from django.urls import reverse
 from django.utils import timezone
@@ -46,7 +45,7 @@ class SearchTest(ClientTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(SearchTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 
@@ -376,7 +375,7 @@ class NoLabelsetTest(ClientTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(NoLabelsetTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)

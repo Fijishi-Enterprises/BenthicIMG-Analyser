@@ -1,8 +1,5 @@
-# -*- coding: utf-8 -*-
-#
 # Tests that only apply to CPC annotation uploads.
 
-from __future__ import unicode_literals
 from io import StringIO
 
 from django.core.files.base import ContentFile
@@ -17,7 +14,7 @@ class CPCFormatTest(UploadAnnotationsBaseTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(CPCFormatTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -305,7 +302,7 @@ class CPCPixelScaleFactorTest(UploadAnnotationsBaseTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(CPCPixelScaleFactorTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -423,7 +420,7 @@ class SaveCPCInfoTest(UploadAnnotationsBaseTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(SaveCPCInfoTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -527,7 +524,7 @@ class CPCImageMatchingTest(UploadAnnotationsBaseTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(CPCImageMatchingTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)

@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import (
     make_password, SHA1PasswordHasher)
@@ -35,7 +33,7 @@ class SignInTest(BaseAccountsTest):
     @classmethod
     def setUpTestData(cls):
         # Call the parent's setup (while still using this class as cls)
-        super(SignInTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user(
             username='testUsername', password='testPassword',
@@ -128,7 +126,7 @@ class StaySignedInTest(BrowserTest):
     @classmethod
     def setUpTestData(cls):
         # Call the parent's setup (while still using this class as cls)
-        super(StaySignedInTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user(
             username='testUsername', password='testPassword',
@@ -154,7 +152,7 @@ class SignInRedirectTest(BaseAccountsTest):
     @classmethod
     def setUpTestData(cls):
         # Call the parent's setup (while still using this class as cls)
-        super(SignInRedirectTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user(
             username='testUsername', password='testPassword',
@@ -202,7 +200,7 @@ class PasswordTest(BaseAccountsTest):
     @classmethod
     def setUpTestData(cls):
         # Call the parent's setup (while still using this class as cls)
-        super(PasswordTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user(
             username='testUsername', password='testPassword',
@@ -261,7 +259,7 @@ class SignOutTest(ClientTest):
     @classmethod
     def setUpTestData(cls):
         # Call the parent's setup (while still using this class as cls)
-        super(SignOutTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 

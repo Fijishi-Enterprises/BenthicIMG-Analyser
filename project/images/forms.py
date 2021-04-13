@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.forms import Form, ModelForm, BaseModelFormSet
@@ -53,7 +51,7 @@ class ImageSourceForm(ModelForm):
 
     def __init__(self, *args, **kwargs):
 
-        super(ImageSourceForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         if self.instance.pk:
             # Edit source form should have a way to detect and indicate (via
@@ -109,7 +107,7 @@ class ImageSourceForm(ModelForm):
         Since this involves comparing the aux labels with each other,
         it has to be implemented in the form-wide clean function.
         """
-        cleaned_data = super(ImageSourceForm, self).clean()
+        cleaned_data = super().clean()
 
         aux_label_kwargs = dict(
             (n, cleaned_data.get(n))
@@ -143,7 +141,7 @@ class SourceChangePermissionForm(Form):
     def __init__(self, *args, **kwargs):
         self.source_id = kwargs.pop('source_id')
         user = kwargs.pop('user')
-        super(SourceChangePermissionForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         source = Source.objects.get(pk=self.source_id)
         members = source.get_members_ordered_by_role()
         member_list = [(member.id, member.username) for member in members]
@@ -162,7 +160,7 @@ class SourceRemoveUserForm(Form):
     def __init__(self, *args, **kwargs):
         self.source_id = kwargs.pop('source_id')
         self.user = kwargs.pop('user')
-        super(SourceRemoveUserForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         source = Source.objects.get(pk=self.source_id)
         members = source.get_members_ordered_by_role()
         member_list = [(member.id, member.username) for member in members]
@@ -193,7 +191,7 @@ class SourceInviteForm(Form):
 
     def __init__(self, *args, **kwargs):
         self.source_id = kwargs.pop('source_id')
-        super(SourceInviteForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def clean_recipient(self):
         """
@@ -225,7 +223,7 @@ class SourceInviteForm(Form):
         """
 
         if 'recipient' not in self.cleaned_data:
-            return super(SourceInviteForm, self).clean()
+            return super().clean()
 
         recipient_user = User.objects.get(
             username=self.cleaned_data['recipient'])
@@ -235,7 +233,7 @@ class SourceInviteForm(Form):
             msg = "{username} is already in this Source.".format(
                 username=recipient_user.username)
             self.add_error('recipient', msg)
-            return super(SourceInviteForm, self).clean()
+            return super().clean()
 
         try:
             SourceInvite.objects.get(recipient=recipient_user, source=source)
@@ -246,7 +244,7 @@ class SourceInviteForm(Form):
                 username=recipient_user.username)
             self.add_error('recipient', msg)
 
-        super(SourceInviteForm, self).clean()
+        super().clean()
 
 
 class MetadataForm(ModelForm):
@@ -259,7 +257,7 @@ class MetadataForm(ModelForm):
 
     def __init__(self, *args, **kwargs):
         self.source = kwargs.pop('source')
-        super(MetadataForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # Specify aux. fields' labels. These depend on the source,
         # so this must be done during init.
@@ -423,10 +421,10 @@ class PointGenForm(Form):
         self.form_help_text = \
             Source._meta.get_field('default_point_generation_method').help_text
 
-        super(PointGenForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def clean(self):
-        cleaned_data = super(PointGenForm, self).clean()
+        cleaned_data = super().clean()
         point_gen_type = cleaned_data.get('point_generation_type')
         if not point_gen_type:
             # Already have an error on the type, no need to clean further

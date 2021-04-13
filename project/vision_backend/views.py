@@ -1,9 +1,7 @@
-from __future__ import division
-
+import csv
 import json
 
 import numpy as np
-from backports import csv
 from celery.task.control import inspect
 from django.contrib.auth.decorators import permission_required
 from django.http import HttpResponse

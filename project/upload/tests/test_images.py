@@ -1,8 +1,7 @@
-from __future__ import unicode_literals
 from io import BytesIO
 import json
-from mock import patch
 import re
+from unittest import mock
 
 from django.conf import settings
 from django.core.files.base import ContentFile
@@ -56,7 +55,7 @@ class UploadImagePreviewTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(UploadImagePreviewTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -135,7 +134,7 @@ class UploadImageTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(UploadImageTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -236,7 +235,7 @@ class UploadImageFormatTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(UploadImageFormatTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -433,7 +432,7 @@ class ThreeNameGenerator:
 
 # Patch the rand_string function when used in the images.models module.
 # The patched function can only generate 3 possible base names.
-@patch('images.models.rand_string', ThreeNameGenerator.generate_name)
+@mock.patch('images.models.rand_string', ThreeNameGenerator.generate_name)
 @override_settings(ADMINS=[('Admin', 'admin@example.com')])
 class UploadImageFilenameCollisionTest(ClientTest):
     """
@@ -442,7 +441,7 @@ class UploadImageFilenameCollisionTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(UploadImageFilenameCollisionTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)

@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 from django.contrib.auth.models import Group
 from django.core.cache import cache
 from django.urls import reverse
@@ -13,7 +11,7 @@ class PermissionTest(BasePermissionTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(PermissionTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
 
@@ -36,7 +34,7 @@ class LabelListTest(ClientTest):
     @classmethod
     def setUpTestData(cls):
         # Call the parent's setup (while still using this class as cls)
-        super(LabelListTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 
@@ -85,7 +83,7 @@ class BaseLabelSearchTest(ClientTest):
         return response
 
     def setUp(self):
-        super(BaseLabelSearchTest, self).setUp()
+        super().setUp()
 
         # Popularities are cached when computed, so we clear the cache to
         # prevent a previous test from affecting the next one.
@@ -98,7 +96,7 @@ class LabelSearchNameFieldTest(BaseLabelSearchTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(LabelSearchNameFieldTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.url = reverse('label_list_search_ajax')
@@ -173,7 +171,7 @@ class LabelSearchOtherFieldsTest(BaseLabelSearchTest):
     """Test fields other than name."""
     @classmethod
     def setUpTestData(cls):
-        super(LabelSearchOtherFieldsTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.url = reverse('label_list_search_ajax')

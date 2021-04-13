@@ -1,8 +1,6 @@
-from __future__ import unicode_literals
-import mock
 import os
 import tempfile
-from unittest import skip
+from unittest import mock, skip
 
 from images.model_utils import PointGen
 from images.models import Point
@@ -14,7 +12,7 @@ def save_without_checks(self, *args, **kwargs):
     Mock version of Point.save().
     Doesn't run assertions, so we can save any row/column values we want.
     """
-    super(Point, self).save(*args, **kwargs)
+    super().save(*args, **kwargs)
 
 
 @skip(

@@ -1,6 +1,5 @@
 # Test image_detail and image_detail_edit views.
 
-from __future__ import unicode_literals
 import datetime
 
 from bs4 import BeautifulSoup
@@ -13,7 +12,7 @@ class PermissionTest(BasePermissionTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(PermissionTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.img = cls.upload_image(cls.user, cls.source)
 
@@ -42,7 +41,7 @@ class ImageDetailTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(ImageDetailTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -88,7 +87,7 @@ class ImageDetailTest(ClientTest):
         self.assertInHTML(
             '| <a href="{}" title="2.png"> Next &gt;</a>'.format(
                 reverse('image_detail', args=[img2.pk])),
-            response.content.decode('utf-8'))
+            response.content.decode())
 
         response = self.client.get(reverse('image_detail', args=[img2.pk]))
         self.assertInHTML(
@@ -96,13 +95,13 @@ class ImageDetailTest(ClientTest):
             ' | <a href="{}" title="3.png"> Next &gt;</a>'.format(
                 reverse('image_detail', args=[img1.pk]),
                 reverse('image_detail', args=[img3.pk])),
-            response.content.decode('utf-8'))
+            response.content.decode())
 
         response = self.client.get(reverse('image_detail', args=[img3.pk]))
         self.assertInHTML(
             '<a href="{}" title="2.png"> &lt; Previous</a>'.format(
                 reverse('image_detail', args=[img2.pk])),
-            response.content.decode('utf-8'))
+            response.content.decode())
 
 
 class ImageDetailEditTest(ClientTest):
@@ -111,7 +110,7 @@ class ImageDetailEditTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(ImageDetailEditTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(

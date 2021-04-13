@@ -1,8 +1,5 @@
-# -*- coding: utf-8 -*-
-#
 # Tests that generally apply to both CSV and CPC annotation uploads.
 
-from __future__ import unicode_literals
 import codecs
 
 from django.core.files.base import ContentFile
@@ -21,7 +18,7 @@ class PermissionTest(BasePermissionTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(PermissionTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
         cls.create_labelset(cls.user, cls.source, cls.labels)
@@ -84,7 +81,7 @@ class UploadAnnotationsNoLabelsetTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(UploadAnnotationsNoLabelsetTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -148,7 +145,7 @@ class UploadAnnotationsTest(UploadAnnotationsBaseTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(UploadAnnotationsTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -850,7 +847,7 @@ class UploadAnnotationsMultipleSourcesTest(UploadAnnotationsBaseTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(UploadAnnotationsMultipleSourcesTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -1026,7 +1023,7 @@ class UploadAnnotationsContentsTest(UploadAnnotationsBaseTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(UploadAnnotationsContentsTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -1342,7 +1339,7 @@ class UploadAnnotationsFormatTest(UploadAnnotationsBaseTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(UploadAnnotationsFormatTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -1402,6 +1399,7 @@ class UploadAnnotationsFormatTest(UploadAnnotationsBaseTest):
         })
 
     def test_unicode_csv(self):
+        """Test Unicode image filenames and label codes."""
         content = (
             'Name,Column,Row,Label\n'
             'あ.png,50,50,い\n'
@@ -1415,11 +1413,18 @@ class UploadAnnotationsFormatTest(UploadAnnotationsBaseTest):
         self.check(preview_response, upload_response, self.imgA, 'い')
 
     def test_unicode_cpc(self):
-        """Don't know if CPC with non-ASCII is possible in practice, but
-        might as well test that it works."""
-        # The local image filepath gets path-manipulated at some point, and in
-        # Python 2.x, pathlib2 doesn't support Unicode. So we'll only test
-        # Unicode on the label code, not the filepath.
+        """
+        Test Unicode label codes. Don't know if CPC with
+        non-ASCII is possible in practice, but might as well test that it
+        works.
+
+        TODO: Once we upgrade to Python 3.7, test Unicode image filenames as
+        well. re.escape() (used in annotations_cpc_verify_contents()) has
+        undesired behavior with Unicode in Python 3.6 (adds too many
+        backslashes).
+        To test that, change the filename to あ.png and pass self.imgA to
+        self.check().
+        """
         cpc_files = [
             self.make_cpc_file(
                 self.image_dimensions,
@@ -1494,7 +1499,7 @@ class UploadAnnotationsFormatTest(UploadAnnotationsBaseTest):
 
     def test_utf8_bom_csv(self):
         content = (
-            codecs.BOM_UTF8.decode('utf-8') + 'Name,Column,Row,Label\n'
+            codecs.BOM_UTF8.decode() + 'Name,Column,Row,Label\n'
             '1.png,50,50,A\n'
         )
         csv_file = ContentFile(content, name='A.csv')
@@ -1513,7 +1518,7 @@ class UploadAnnotationsFormatTest(UploadAnnotationsBaseTest):
             '1.cpc', r"C:\My Photos\2017-05-13 GBR\1.png",
             [(50*15, 50*15, 'A')])
         cpc_file_crlf_content = (
-            codecs.BOM_UTF8.decode('utf-8') + cpc_file_lf.read())
+            codecs.BOM_UTF8.decode() + cpc_file_lf.read())
         cpc_files = [
             ContentFile(cpc_file_crlf_content, name='1.cpc'),
         ]

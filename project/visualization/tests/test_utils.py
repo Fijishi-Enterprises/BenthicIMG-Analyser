@@ -1,9 +1,7 @@
-from __future__ import unicode_literals
-
-import os
 from io import BytesIO
+import os
+from unittest import mock
 
-import mock
 from PIL import Image as PILImage
 from PIL.Image import SAVE as PIL_SAVE
 from django.conf import settings
@@ -23,7 +21,7 @@ class LabelPatchGenerationTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(LabelPatchGenerationTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -107,7 +105,7 @@ class PatchCropTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(PatchCropTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)

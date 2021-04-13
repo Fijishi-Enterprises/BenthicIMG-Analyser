@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 from django.core import mail
 from django.urls import reverse
 from django.utils.html import escape
@@ -39,7 +37,7 @@ class PasswordChangeTest(ClientTest):
     @classmethod
     def setUpTestData(cls):
         # Call the parent's setup (while still using this class as cls)
-        super(PasswordChangeTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user('sampleUsername', 'oldPassword')
 
@@ -146,7 +144,7 @@ class EmailAllTest(ClientTest):
     @classmethod
     def setUpTestData(cls):
         # Call the parent's setup (while still using this class as cls)
-        super(EmailAllTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.inactive_user = cls.create_user(activate=False)

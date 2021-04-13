@@ -4,7 +4,6 @@
 # there will be circular import dependencies.  Utility functions
 # that use models.py should go in the general utility functions
 # file, utils.py.
-from __future__ import division
 from decimal import Decimal
 import math
 

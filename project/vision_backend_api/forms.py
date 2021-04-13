@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 from api_core.forms import (
     validate_array, validate_hash, validate_integer, validate_string)
 

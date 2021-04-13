@@ -6,7 +6,6 @@ from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.utils.encoding import python_2_unicode_compatible
 from easy_thumbnails.fields import ThumbnailerImageField
 from lib.utils import rand_string
 
@@ -19,7 +18,6 @@ class LabelGroupManager(models.Manager):
         return self.get(code=code)
 
 
-@python_2_unicode_compatible
 class LabelGroup(models.Model):
     objects = LabelGroupManager()
 
@@ -51,7 +49,6 @@ class LabelManager(models.Manager):
         return self.get(code=code)
 
 
-@python_2_unicode_compatible
 class Label(models.Model):
     class Meta:
         permissions = (
@@ -152,7 +149,6 @@ class Label(models.Model):
         return popularity
 
 
-@python_2_unicode_compatible
 class LabelSet(models.Model):
     # description and location are obsolete if we're staying with a 1-to-1
     # correspondence between labelsets and sources.
@@ -202,7 +198,6 @@ class LabelSet(models.Model):
             return "(Labelset not used in any source) " + self.description
 
 
-@python_2_unicode_compatible
 class LocalLabel(models.Model):
     code = models.CharField('Short Code', max_length=10)
     global_label = models.ForeignKey(Label)

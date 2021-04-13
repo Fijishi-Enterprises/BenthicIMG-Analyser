@@ -1,5 +1,3 @@
-from __future__ import division
-
 import boto
 import numpy as np
 from django.conf import settings

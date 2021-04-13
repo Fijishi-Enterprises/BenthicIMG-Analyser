@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 from bs4 import BeautifulSoup
 from django.urls import reverse
 
@@ -15,7 +13,7 @@ class PermissionTest(BasePermissionTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(PermissionTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.img = cls.upload_image(cls.user, cls.source)
         cls.labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
@@ -37,7 +35,7 @@ class AnnotationHistoryTest(ClientTest, UploadAnnotationsTestMixin):
     """
     @classmethod
     def setUpTestData(cls):
-        super(AnnotationHistoryTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 

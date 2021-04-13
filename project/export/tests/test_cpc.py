@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
 from io import BytesIO
 from zipfile import ZipFile
 
@@ -42,7 +40,7 @@ class CPCExportBaseTest(ClientTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(CPCExportBaseTest, cls).setUpTestData()
+        super().setUpTestData()
 
         # Image search parameters
         cls.default_search_params = dict(
@@ -76,7 +74,7 @@ class CPCExportBaseTest(ClientTest):
     def export_response_to_cpc(response, cpc_filename):
         zf = ZipFile(BytesIO(response.content))
         # Use decode() to get a Unicode string
-        return zf.read(cpc_filename).decode('utf-8')
+        return zf.read(cpc_filename).decode()
 
     def upload_cpcs(self, cpc_files):
         self.client.force_login(self.user)
@@ -149,7 +147,7 @@ class CodeFileAndImageDirFieldsTest(CPCExportBaseTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(CodeFileAndImageDirFieldsTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(
@@ -419,7 +417,7 @@ class AnnotationAreaTest(
     """
     @classmethod
     def setUpTestData(cls):
-        super(AnnotationAreaTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(
@@ -562,7 +560,7 @@ class PointLocationsTest(CPCExportBaseTest, UploadAnnotationsTestMixin):
     """
     @classmethod
     def setUpTestData(cls):
-        super(PointLocationsTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(
@@ -637,7 +635,7 @@ class CPCFullContentsTest(CPCExportBaseTest, UploadAnnotationsTestMixin):
     """
     @classmethod
     def setUpTestData(cls):
-        super(CPCFullContentsTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -819,7 +817,7 @@ class AnnotationStatusTest(CPCExportBaseTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(AnnotationStatusTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(
@@ -933,7 +931,7 @@ class CPCDirectoryTreeTest(CPCExportBaseTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(CPCDirectoryTreeTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -994,7 +992,7 @@ class UnicodeTest(CPCExportBaseTest):
     works."""
     @classmethod
     def setUpTestData(cls):
-        super(UnicodeTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(
@@ -1006,24 +1004,29 @@ class UnicodeTest(CPCExportBaseTest):
         cls.create_labelset(cls.user, cls.source, labels)
 
         cls.img1 = cls.upload_image(
-            cls.user, cls.source, dict(filename='1.jpg'))
+            cls.user, cls.source, dict(
+                filename='あ.jpg', width=100, height=100))
 
     def test(self):
-        # The local image filepath gets path-manipulated at some point, and in
-        # Python 2.x, pathlib2 doesn't support Unicode. So we'll only test
-        # Unicode on the label code, not the filepath.
         self.add_annotations(
             self.user, self.img1, {1: 'い'})
 
         post_data = self.default_search_params.copy()
         post_data.update(
             # CPC prefs
-            local_code_filepath=r'C:\CPCe codefiles\My codes.txt',
-            local_image_dir=r'C:\Panama dataset',
+            local_code_filepath=r'C:\CPCe codefiles\コード.txt',
+            local_image_dir=r'C:\パナマ',
             annotation_filter='confirmed_only',
         )
         response = self.export_cpcs(post_data)
-        actual_cpc_content = self.export_response_to_cpc(response, '1.cpc')
+        actual_cpc_content = self.export_response_to_cpc(response, 'あ.cpc')
+
+        expected_first_line_beginning = (
+            r'"C:\CPCe codefiles\コード.txt","C:\パナマ\あ.jpg",'
+        )
+        self.assertTrue(
+            actual_cpc_content.splitlines()[0].startswith(
+                expected_first_line_beginning))
 
         expected_point_lines = [
             '"1","い","Notes",""',
@@ -1042,7 +1045,7 @@ class DiscardCPCAfterPointsChangeTest(
     """
     @classmethod
     def setUpTestData(cls):
-        super(DiscardCPCAfterPointsChangeTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -1128,7 +1131,7 @@ class UtilsTest(ClientTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(UtilsTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)

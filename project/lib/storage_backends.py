@@ -1,12 +1,10 @@
-from __future__ import unicode_literals
 from abc import ABCMeta
 from distutils.dir_util import copy_tree
 import os
-from pathlib2 import Path
+from pathlib import Path
 import posixpath
 import random
 import shutil
-import six
 import string
 import tempfile
 
@@ -20,8 +18,7 @@ from .exceptions import FileStorageUsageError
 
 
 # Abstract class
-@six.add_metaclass(ABCMeta)
-class StorageManager(object):
+class StorageManager(object, metaclass=ABCMeta):
 
     def copy_dir(self, src, dst):
         """
@@ -226,11 +223,11 @@ class MediaStorageS3(S3BotoStorage):
         # default `location` kwarg equal to the appropriate setting.
         if 'location' not in kwargs:
             kwargs['location'] = settings.AWS_LOCATION
-        super(MediaStorageS3, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
     def exists(self, name):
         # Check for existing file. This doesn't work on dirs.
-        if super(MediaStorageS3, self).exists(name):
+        if super().exists(name):
             return True
 
         # Check for existing dir (Django's local storage class also returns
@@ -240,7 +237,7 @@ class MediaStorageS3(S3BotoStorage):
         return bool(dirs or files)
 
     def get_available_name(self, name, max_length=None):
-        available_name = super(MediaStorageS3, self).get_available_name(
+        available_name = super().get_available_name(
             name, max_length=max_length)
 
         # Django's suffix-appending code uses os.path.join(), so if we're

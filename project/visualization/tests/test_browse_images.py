@@ -1,6 +1,5 @@
-from __future__ import unicode_literals
 import datetime
-import mock
+from unittest import mock
 
 from bs4 import BeautifulSoup
 from django.test import override_settings
@@ -52,7 +51,7 @@ class BaseSearchTest(ClientTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(BaseSearchTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(
@@ -993,7 +992,7 @@ class ResultsAndPagesTest(ClientTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(ResultsAndPagesTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
@@ -1070,7 +1069,7 @@ class ImageStatusIndicatorTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(ImageStatusIndicatorTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(

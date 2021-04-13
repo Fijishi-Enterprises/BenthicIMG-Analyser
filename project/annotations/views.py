@@ -1,4 +1,3 @@
-from __future__ import division, unicode_literals
 from datetime import timedelta
 import json
 

@@ -1,6 +1,4 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-from backports import csv
+import csv
 from io import StringIO
 
 from django.core.files.base import ContentFile
@@ -18,7 +16,7 @@ class PermissionTest(BasePermissionTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(PermissionTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
         cls.create_labelset(cls.user, cls.source, cls.labels)
@@ -104,7 +102,7 @@ class LabelsetCreateTest(LabelTest):
     @classmethod
     def setUpTestData(cls):
         # Call the parent's setup (while still using this class as cls)
-        super(LabelsetCreateTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 
@@ -172,7 +170,7 @@ class LabelsetAddRemoveTest(LabelTest):
     @classmethod
     def setUpTestData(cls):
         # Call the parent's setup (while still using this class as cls)
-        super(LabelsetAddRemoveTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 
@@ -415,7 +413,7 @@ class LabelsetImportCreateTest(LabelsetImportBaseTest):
     @classmethod
     def setUpTestData(cls):
         # Call the parent's setup (while still using this class as cls)
-        super(LabelsetImportCreateTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 
@@ -610,7 +608,7 @@ class LabelsetImportModifyTest(LabelsetImportBaseTest):
     @classmethod
     def setUpTestData(cls):
         # Call the parent's setup (while still using this class as cls)
-        super(LabelsetImportModifyTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 
@@ -724,7 +722,7 @@ class LabelsetImportFormatTest(LabelsetImportBaseTest):
     @classmethod
     def setUpTestData(cls):
         # Call the parent's setup (while still using this class as cls)
-        super(LabelsetImportFormatTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 
@@ -835,7 +833,7 @@ class LabelsetEditTest(LabelTest):
     @classmethod
     def setUpTestData(cls):
         # Call the parent's setup (while still using this class as cls)
-        super(LabelsetEditTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 

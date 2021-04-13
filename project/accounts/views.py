@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model
@@ -33,7 +31,7 @@ class LoginView(DefaultLoginView):
     def form_valid(self, form):
         """Action to take when the form is valid."""
         # Log in and create a redirect response.
-        response = super(LoginView, self).form_valid(form)
+        response = super().form_valid(form)
 
         if not form.cleaned_data.get('stay_signed_in'):
             # stay_signed_in checkbox is NOT checked, so make the session
@@ -51,8 +49,7 @@ class BaseRegistrationView(ThirdPartyRegistrationView):
         """
         Build the template context used for the activation email.
         """
-        context = \
-            super(BaseRegistrationView, self).get_email_context(activation_key)
+        context = super().get_email_context(activation_key)
         context['account_questions_link'] = settings.ACCOUNT_QUESTIONS_LINK
         context['forum_link'] = settings.FORUM_LINK
         return context
@@ -248,7 +245,7 @@ class EmailChangeConfirmView(LoginRequiredMixin, TemplateView):
         confirmed = self.confirm_email_change(*args, **kwargs)
         if confirmed:
             return redirect(self.success_url)
-        return super(EmailChangeConfirmView, self).get(*args, **kwargs)
+        return super().get(*args, **kwargs)
 
     def confirm_email_change(self, *args, **kwargs):
         new_email_address = self.validate_key(kwargs.get('confirmation_key'))

@@ -2,7 +2,7 @@ from datetime import datetime
 import json
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
-from django.utils import dateformat, six, timezone
+from django.utils import dateformat, timezone
 from django.utils.timesince import timeuntil
 
 
@@ -32,7 +32,7 @@ class Command(BaseCommand):
         time_until = timeuntil(maintenance_datetime, now_local)
         # Django's timeuntil has unicode non-breaking spaces (\xa0), but
         # that doesn't seem to play nice with string.format in Python 2.x.
-        time_until = time_until.replace(u'\xa0', ' ')
+        time_until = time_until.replace('\xa0', ' ')
 
         self.stdout.write(
             "The site will be considered under maintenance starting at:"
@@ -45,7 +45,7 @@ class Command(BaseCommand):
         # Interactivity taken from squashmigrations code.
         answer = None
         while not answer or answer not in "yn":
-            answer = six.moves.input("Is this OK? [yN] ")
+            answer = input("Is this OK? [yN] ")
             if not answer:
                 answer = "n"
                 break

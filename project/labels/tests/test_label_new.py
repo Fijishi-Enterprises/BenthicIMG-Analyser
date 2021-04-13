@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 from django.core import mail
 from django.shortcuts import resolve_url
 from django.test import override_settings
@@ -14,7 +12,7 @@ class PermissionTest(BasePermissionTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(PermissionTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
 
@@ -41,7 +39,7 @@ class NewLabelAjaxTest(ClientTest):
     @classmethod
     def setUpTestData(cls):
         # Call the parent's setup (while still using this class as cls)
-        super(NewLabelAjaxTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 
@@ -143,7 +141,7 @@ class NewLabelNonAjaxTest(ClientTest):
     @classmethod
     def setUpTestData(cls):
         # Call the parent's setup (while still using this class as cls)
-        super(NewLabelNonAjaxTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 

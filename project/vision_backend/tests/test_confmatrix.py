@@ -1,4 +1,3 @@
-from __future__ import unicode_literals
 import json
 import random
 import string
@@ -13,7 +12,7 @@ class ConfMatrixBasics(BaseTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(ConfMatrixBasics, cls).setUpTestData()
+        super().setUpTestData()
 
     @staticmethod
     def makelabelset(k):

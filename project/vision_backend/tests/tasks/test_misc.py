@@ -1,5 +1,5 @@
 from datetime import timedelta
-import mock
+from unittest import mock
 
 from django.core.urlresolvers import reverse
 from django.test import override_settings
@@ -176,7 +176,7 @@ class BatchJobCleanupTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(BatchJobCleanupTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 

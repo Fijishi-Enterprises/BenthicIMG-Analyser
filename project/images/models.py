@@ -1,6 +1,4 @@
-from __future__ import division
 import posixpath
-import six
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -8,7 +6,6 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.core.mail import mail_admins
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
-from django.utils.encoding import python_2_unicode_compatible
 
 from easy_thumbnails.fields import ThumbnailerImageField
 from guardian.shortcuts import (
@@ -29,7 +26,6 @@ class SourceManager(models.Manager):
         return self.get(name=name)
 
 
-@python_2_unicode_compatible
 class Source(models.Model):
     objects = SourceManager()
 
@@ -467,7 +463,7 @@ class Source(models.Model):
                        'nbr_confirmed_images', 'nbr_images', 'description',
                        'affiliation', 'nbr_valid_robots', 'best_robot_accuracy']
 
-        return {field: six.text_type(getattr(self, field)) for
+        return {field: str(getattr(self, field)) for
                 field in field_names}
 
     def __str__(self):
@@ -505,7 +501,6 @@ class SourceInvite(models.Model):
                 return permType.verbose
 
 
-@python_2_unicode_compatible
 class Metadata(models.Model):
     name = models.CharField("Name", max_length=200, blank=True)
     photo_date = models.DateField(
@@ -573,7 +568,7 @@ class Metadata(models.Model):
             {field_name: field_value}
         Both field name and values are strings.
         """
-        return {field: six.text_type(getattr(self, field)) for
+        return {field: str(getattr(self, field)) for
                 field in self.EDIT_FORM_FIELDS}
 
 
@@ -625,7 +620,6 @@ def get_original_image_upload_path(instance, filename):
         name=base_name, extension=posixpath.splitext(filename)[-1])
 
 
-@python_2_unicode_compatible
 class Image(models.Model):
     # width_field and height_field allow Django to cache the
     # width and height values, so that the image file doesn't have
@@ -766,7 +760,6 @@ class Image(models.Model):
             self.process_date.day)
 
 
-@python_2_unicode_compatible
 class Point(models.Model):
     row = models.IntegerField()
     column = models.IntegerField()
@@ -821,7 +814,7 @@ class Point(models.Model):
         assert self.column >= 0, "Column below minimum"
         assert self.column <= self.image.max_column, "Column above maximum"
 
-        super(Point, self).save(*args, **kwargs)
+        super().save(*args, **kwargs)
 
         # The image's annotation status may need updating.
         self.image.annoinfo.update_annotation_progress_fields()

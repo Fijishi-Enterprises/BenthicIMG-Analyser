@@ -1,13 +1,12 @@
-from __future__ import unicode_literals
 import copy
 import json
 import operator
+from unittest import mock
 
 from django.conf import settings
 from django.test import override_settings
 from django.test.utils import patch_logger
 from django.urls import reverse
-from mock import patch
 from rest_framework import status
 
 from api_core.models import ApiJob, ApiJobUnit
@@ -100,7 +99,7 @@ class DeployAccessTest(BaseAPIPermissionTest):
         self.assertThrottleResponse(
             response, msg="4th request should be denied by throttling")
 
-    @patch('vision_backend_api.views.deploy.run', noop_task)
+    @mock.patch('vision_backend_api.views.deploy.run', noop_task)
     @override_settings(MAX_CONCURRENT_API_JOBS_PER_USER=3)
     def test_active_job_throttling(self):
         classifier = self.create_robot(self.public_source)
@@ -435,7 +434,7 @@ class DeployImagesParamErrorTest(DeployBaseTest):
                 source=dict(pointer='/data/0/attributes/points/1')))
 
 
-@patch('spacer.tasks.load_image', mocked_load_image)
+@mock.patch('spacer.tasks.load_image', mocked_load_image)
 class SuccessTest(DeployBaseTest):
     """
     Test the deploy process's success case from start to finish.
@@ -457,7 +456,7 @@ class SuccessTest(DeployBaseTest):
         deploy_job = ApiJob.objects.latest('pk')
 
         self.assertEqual(
-            response.content.decode('utf-8'), '',
+            response.content.decode(), '',
             "Response content should be empty")
 
         self.assertEqual(
@@ -465,7 +464,7 @@ class SuccessTest(DeployBaseTest):
             reverse('api:deploy_status', args=[deploy_job.pk]),
             "Response should contain status endpoint URL")
 
-    @patch('vision_backend_api.views.deploy.run', noop_task)
+    @mock.patch('vision_backend_api.views.deploy.run', noop_task)
     def test_pre_deploy(self):
         """
         Test pre-deploy state. To do this, we disable the task by patching it.
@@ -622,7 +621,7 @@ class TaskErrorsTest(DeployBaseTest):
                 url='URL 1', points=[dict(row=10, column=10)]))]
         data = json.dumps(dict(data=images))
 
-        with patch('vision_backend_api.views.deploy.run', noop_task):
+        with mock.patch('vision_backend_api.views.deploy.run', noop_task):
             # Since the task is a no-op, this'll just create the job unit,
             # without actually deploying yet.
             self.client.post(self.deploy_url, data, **self.request_kwargs)
@@ -662,7 +661,7 @@ class TaskErrorsTest(DeployBaseTest):
         # errors coming from the spacer call.
         def raise_error(*args):
             raise ValueError("A spacer error")
-        with patch('spacer.tasks.classify_image', raise_error):
+        with mock.patch('spacer.tasks.classify_image', raise_error):
             self.client.post(self.deploy_url, data, **self.request_kwargs)
         collect_all_jobs()
 

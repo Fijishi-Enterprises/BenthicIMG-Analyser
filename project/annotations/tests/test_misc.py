@@ -1,4 +1,3 @@
-from __future__ import division, unicode_literals
 import math
 from unittest import skip
 
@@ -36,7 +35,7 @@ class SitewideAnnotationCountTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(SitewideAnnotationCountTest, cls).setUpTestData()
+        super().setUpTestData()
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
         labels = cls.create_labels(cls.user, ['A', 'B'], "Group1")
@@ -45,7 +44,7 @@ class SitewideAnnotationCountTest(ClientTest):
         cls.add_annotations(cls.user, cls.img, {1: 'A', 2: 'B', 3: 'A'})
 
     def setUp(self):
-        super(SitewideAnnotationCountTest, self).setUp()
+        super().setUp()
 
         # Sitewide annotation count gets cached after computation.
         # We must ensure subsequent tests can't interfere with each other.
@@ -78,7 +77,7 @@ class AnnotationAreaEditTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(AnnotationAreaEditTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(
@@ -216,7 +215,7 @@ class PointGenTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(PointGenTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 

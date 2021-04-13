@@ -1,4 +1,3 @@
-from __future__ import unicode_literals
 import json
 
 from django.core.cache import cache
@@ -12,7 +11,7 @@ from lib.tests.utils import ClientTest
 class BaseAPITest(ClientTest):
 
     def setUp(self):
-        super(BaseAPITest, self).setUp()
+        super().setUp()
 
         # DRF implements throttling by tracking usage counts in the cache.
         # We don't want usages in one test to trigger throttling in another
@@ -21,7 +20,7 @@ class BaseAPITest(ClientTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(BaseAPITest, cls).setUpTestData()
+        super().setUpTestData()
 
         # Don't want DRF throttling to be a factor during class setup, either.
         cache.clear()
@@ -102,7 +101,7 @@ class BaseAPIPermissionTest(BaseAPITest):
 
     @classmethod
     def setUpTestData(cls):
-        super(BaseAPIPermissionTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user(username='user', password='SamplePass')
         cls.user_request_kwargs = cls.get_request_kwargs_for_user(

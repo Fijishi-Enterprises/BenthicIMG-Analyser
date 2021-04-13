@@ -1,6 +1,5 @@
 # General utility functions and classes can go here.
 
-from __future__ import division
 import random
 import string
 

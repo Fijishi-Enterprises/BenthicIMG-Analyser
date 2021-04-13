@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 from django.contrib.auth.models import Group
 from django.urls import reverse
 
@@ -13,7 +11,7 @@ class EditLabelPermissionTest(BasePermissionTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(EditLabelPermissionTest, cls).setUpTestData()
+        super().setUpTestData()
 
         # Create labels and group
         labels = cls.create_labels(cls.user, ['A', 'B', 'C'], "Group1")
@@ -105,7 +103,7 @@ class EditLabelTest(LabelTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(EditLabelTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 

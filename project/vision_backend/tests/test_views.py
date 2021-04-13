@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
 from unittest import skip
 
 from django.urls import reverse
@@ -47,7 +45,7 @@ class BackendMainTest(ClientTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(BackendMainTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 
@@ -175,7 +173,7 @@ class BackendMainConfusionMatrixExportTest(BaseExportTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(BackendMainConfusionMatrixExportTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 

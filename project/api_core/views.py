@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 from .parsers import JSONAPIParser
 from .renderers import JSONAPIRenderer
 from .utils import BurstRateThrottle, SustainedRateThrottle

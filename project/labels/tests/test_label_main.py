@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 from django.core.cache import cache
 from django.urls import reverse
 from django.utils.html import escape as html_escape
@@ -17,7 +15,7 @@ class PermissionTest(BasePermissionTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(PermissionTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
 
@@ -39,7 +37,7 @@ class LabelMainTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(LabelMainTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 
@@ -69,12 +67,12 @@ class LabelMainTest(ClientTest):
 
         self.assertInHTML(
             "This is a<br>multiline description.",
-            response.content.decode('utf-8'))
+            response.content.decode())
 
         self.assertInHTML(
             '<img src="{}" alt="Label A" class="label-thumbnail">'.format(
                 label.thumbnail.url),
-            response.content.decode('utf-8'))
+            response.content.decode())
 
         # Too lazy to check the date itself, but there should be a line for it.
         self.assertContains(response, "Create Date:")
@@ -103,14 +101,14 @@ class LabelMainTest(ClientTest):
             'THIS LABEL IS A DUPLICATE OF: <a href="{}">B</a>'.format(
                 reverse('label_main', args=[label_b.pk])
             ),
-            response.content.decode('utf-8'))
+            response.content.decode())
 
     def test_verified(self):
         labels = self.create_labels(self.user, ['A'], "Group1")
         label_a = labels.get(name='A')
 
         response = self.client.get(reverse('label_main', args=[label_a.pk]))
-        self.assertInHTML("Verified: No", response.content.decode('utf-8'))
+        self.assertInHTML("Verified: No", response.content.decode())
 
         label_a.verified = True
         label_a.save()
@@ -119,7 +117,7 @@ class LabelMainTest(ClientTest):
 
         status_icon_html = status_icon_tag(label_a)
         verified_html = 'Verified: Yes {}'.format(status_icon_html)
-        self.assertInHTML(verified_html, response.content.decode('utf-8'))
+        self.assertInHTML(verified_html, response.content.decode())
 
     def test_usage_info(self):
         labels = self.create_labels(self.user, ['A', 'B'], "Group1")
@@ -153,7 +151,7 @@ class LabelMainTest(ClientTest):
         # Usage stats.
         self.assertInHTML(
             'Stats: Used in 2 sources and for 1 annotations',
-            response.content.decode('utf-8'))
+            response.content.decode())
 
         # Sources using the label.
         # Viewer's private sources first, with strong links.
@@ -168,7 +166,7 @@ class LabelMainTest(ClientTest):
                 html_escape("User's private source"),
                 reverse('source_main', args=[user2_public_s.pk]),
                 html_escape("User 2's public source")),
-            response.content.decode('utf-8'))
+            response.content.decode())
 
         # Popularity.
         popularity_str = str(int(label_a.popularity)) + '%'
@@ -176,7 +174,7 @@ class LabelMainTest(ClientTest):
         self.assertInHTML(
             'Popularity: {} {}'.format(
                 popularity_str, popularity_bar_html),
-            response.content.decode('utf-8'))
+            response.content.decode())
 
 
 class LabelMainPatchesTest(ClientTest):
@@ -186,7 +184,7 @@ class LabelMainPatchesTest(ClientTest):
     @classmethod
     def setUpTestData(cls):
         # Call the parent's setup (while still using this class as cls)
-        super(LabelMainPatchesTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(
@@ -259,7 +257,7 @@ class LabelMainPatchLinksTest(ClientTest):
     @classmethod
     def setUpTestData(cls):
         # Call the parent's setup (while still using this class as cls)
-        super(LabelMainPatchLinksTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.users_private_source = cls.create_source(
@@ -326,7 +324,7 @@ class PopularityTest(ClientTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(PopularityTest, cls).setUpTestData()
+        super().setUpTestData()
         cls.user = cls.create_user()
         cls.source = cls.create_source(
             cls.user,
@@ -340,7 +338,7 @@ class PopularityTest(ClientTest):
         cls.img = cls.upload_image(cls.user, cls.source)
 
     def setUp(self):
-        super(PopularityTest, self).setUp()
+        super().setUp()
 
         # Popularities are cached when computed, so we clear the cache to
         # prevent a previous test from affecting the next one.

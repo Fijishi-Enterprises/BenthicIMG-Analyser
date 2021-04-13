@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
 import os
 from unittest import skipIf
 
@@ -38,14 +36,14 @@ class BrowseImagesThumbnailsTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(BrowseImagesThumbnailsTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
         cls.browse_url = reverse('browse_images', args=[cls.source.pk])
 
     def setUp(self):
-        super(BrowseImagesThumbnailsTest, self).setUp()
+        super().setUp()
 
         # Async media uses the cache to store media generation requests.
         # Probably best to ensure subsequent tests can't interfere with

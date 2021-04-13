@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 #
 # CoralNet documentation build configuration file, created by
 # sphinx-quickstart on Fri Apr 29 21:30:17 2016.

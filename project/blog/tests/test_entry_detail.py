@@ -1,4 +1,3 @@
-from __future__ import unicode_literals
 import time
 
 from bs4 import BeautifulSoup
@@ -12,7 +11,7 @@ class PermissionTest(BasePermissionTest, BlogTestMixin):
 
     @classmethod
     def setUpTestData(cls):
-        super(PermissionTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.public_entry = cls.create_entry(is_published=True)
         cls.draft = cls.create_entry(is_published=False)
@@ -92,7 +91,7 @@ class LinkTest(ClientTest, BlogTestMixin):
     """
     @classmethod
     def setUpTestData(cls):
-        super(LinkTest, cls).setUpTestData()
+        super().setUpTestData()
 
         list_url = resolve_url('blog:entry_list')
         cls.blog_home_link_expected_html = \

@@ -1,5 +1,4 @@
-from __future__ import unicode_literals
-from backports import csv
+import csv
 from io import open
 import os
 import posixpath

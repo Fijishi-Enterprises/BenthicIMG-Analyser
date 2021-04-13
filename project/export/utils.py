@@ -1,16 +1,7 @@
-from __future__ import unicode_literals
-from backports import csv
+import csv
 from io import StringIO
-import six
-from six.moves import range
+from pathlib import PureWindowsPath
 from zipfile import ZipFile
-
-try:
-    # Python 3.4+
-    from pathlib import PureWindowsPath
-except ImportError:
-    # Python 2.x with pathlib2 package
-    from pathlib2 import PureWindowsPath
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -109,8 +100,8 @@ def create_zipped_cpcs_stream_response(cpc_strings, zip_filename):
     response = create_zip_stream_response(zip_filename)
     # Convert Unicode strings to byte strings
     cpc_byte_strings = dict([
-        (cpc_filename, cpc_content.encode('utf-8'))
-        for cpc_filename, cpc_content in six.iteritems(cpc_strings)
+        (cpc_filename, cpc_content.encode())
+        for cpc_filename, cpc_content in cpc_strings.items()
     ])
     write_zip(response, cpc_byte_strings)
     return response
@@ -193,10 +184,10 @@ def write_annotations_cpc(cpc_stream, img, cpc_prefs):
 
     # Line 1: Environment info and image dimensions
     local_image_path = PureWindowsPath(
-        cpc_prefs[u'local_image_dir'], img.metadata.name)
+        cpc_prefs['local_image_dir'], img.metadata.name)
     row = [
-        u'"' + cpc_prefs[u'local_code_filepath'] + u'"',
-        u'"' + str(local_image_path) + u'"',
+        '"' + cpc_prefs['local_code_filepath'] + '"',
+        '"' + str(local_image_path) + '"',
         # Image dimensions. CPCe typically operates in units of 1/15th of a
         # pixel. If a different DPI setting is used in an older version of CPCe
         # (like CPCe 3.5), it can be something else like 1/12th. But we'll
@@ -222,7 +213,7 @@ def write_annotations_cpc(cpc_stream, img, cpc_prefs):
 
     anno_area = AnnotationAreaUtils.db_format_to_numbers(
         img.metadata.annotation_area)
-    anno_area_type = anno_area.pop(u'type')
+    anno_area_type = anno_area.pop('type')
     if anno_area_type == AnnotationAreaUtils.TYPE_PIXELS:
         # This is the format we want
         pass
@@ -235,10 +226,10 @@ def write_annotations_cpc(cpc_stream, img, cpc_prefs):
         anno_area = dict(
             min_x=0, max_x=img.max_column,
             min_y=0, max_y=img.max_row)
-    bound_left = anno_area[u'min_x'] * 15
-    bound_right = anno_area[u'max_x'] * 15
-    bound_top = anno_area[u'min_y'] * 15
-    bound_bottom = anno_area[u'max_y'] * 15
+    bound_left = anno_area['min_x'] * 15
+    bound_right = anno_area['max_x'] * 15
+    bound_top = anno_area['min_y'] * 15
+    bound_bottom = anno_area['max_y'] * 15
     writer.writerow([bound_left, bound_bottom])
     writer.writerow([bound_right, bound_bottom])
     writer.writerow([bound_right, bound_top])
@@ -266,14 +257,14 @@ def write_annotations_cpc(cpc_stream, img, cpc_prefs):
     for point in points:
         row = [point.point_number,
                point_to_cpc_export_label_code(
-                   point, cpc_prefs[u'annotation_filter']),
-               u'Notes', u'']
-        row = [u'"{s}"'.format(s=s) for s in row]
+                   point, cpc_prefs['annotation_filter']),
+               'Notes', '']
+        row = ['"{s}"'.format(s=s) for s in row]
         writer.writerow(row)
 
     # Next 28 lines: header fields.
     for _ in range(28):
-        writer.writerow([u'" "'])
+        writer.writerow(['" "'])
 
 
 def write_annotations_cpc_based_on_prev_cpc(cpc_stream, img, cpc_prefs):
@@ -302,7 +293,7 @@ def write_annotations_cpc_based_on_prev_cpc(cpc_stream, img, cpc_prefs):
         # Just change the label code, and ensure it's in double quotes.
         # The other tokens on this line stay the same (point number, notes).
         label_code = point_to_cpc_export_label_code(
-            point, cpc_prefs[u'annotation_filter'])
+            point, cpc_prefs['annotation_filter'])
         new_tokens = [
             old_tokens[0], '"{}"'.format(label_code),
             old_tokens[2], old_tokens[3]]
@@ -340,7 +331,7 @@ def write_zip(zip_stream, file_strings):
       None.
     """
     zip_file = ZipFile(zip_stream, 'w')
-    for filepath, content_string in six.iteritems(file_strings):
+    for filepath, content_string in file_strings.items():
         zip_file.writestr(filepath, content_string)
 
 

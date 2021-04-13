@@ -1,7 +1,5 @@
-from __future__ import unicode_literals
 import datetime
-import mock
-import six
+from unittest import mock
 
 from bs4 import BeautifulSoup
 from django.db import IntegrityError
@@ -24,7 +22,7 @@ class PermissionTest(BasePermissionTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(PermissionTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.img = cls.upload_image(cls.user, cls.source)
         cls.labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
@@ -70,7 +68,7 @@ class PermissionTest(BasePermissionTest):
 class LoadImageTest(ClientTest):
     @classmethod
     def setUpTestData(cls):
-        super(LoadImageTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 
@@ -130,7 +128,7 @@ class NavigationTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(NavigationTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 
@@ -635,7 +633,7 @@ class LoadAnnotationFormTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(LoadAnnotationFormTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 
@@ -740,7 +738,7 @@ class LoadAnnotationFormTest(ClientTest):
 class IsAnnotationAllDoneTest(ClientTest):
     @classmethod
     def setUpTestData(cls):
-        super(IsAnnotationAllDoneTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 
@@ -823,7 +821,7 @@ class SaveAnnotationsTest(ClientTest):
     of the annotation tool."""
     @classmethod
     def setUpTestData(cls):
-        super(SaveAnnotationsTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 
@@ -1211,7 +1209,7 @@ class AlleviateTest(ClientTest):
     get auto-confirmed when entering the annotation tool."""
     @classmethod
     def setUpTestData(cls):
-        super(AlleviateTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(
@@ -1344,7 +1342,7 @@ class SettingsTest(ClientTest):
     """
     @classmethod
     def setUpTestData(cls):
-        super(SettingsTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 
@@ -1383,7 +1381,7 @@ class SettingsTest(ClientTest):
         )
 
         cls.field_names_to_defaults = dict()
-        for field_name in six.iterkeys(cls.field_names_to_types):
+        for field_name in cls.field_names_to_types.keys():
             field_meta = AnnotationToolSettings._meta.get_field(field_name)
             cls.field_names_to_defaults[field_name] = field_meta.default
 
@@ -1420,7 +1418,7 @@ class SettingsTest(ClientTest):
         form_soup = response_soup.find(
             'form', dict(id='annotationToolSettingsForm'))
 
-        for field_name, field_type in six.iteritems(self.field_names_to_types):
+        for field_name, field_type in self.field_names_to_types.items():
             field_value = self.get_field_value_from_soup(field_name, form_soup)
             field_meta = AnnotationToolSettings._meta.get_field(field_name)
             expected_value = field_meta.default
@@ -1443,7 +1441,7 @@ class SettingsTest(ClientTest):
         form_soup = response_soup.find(
             'form', dict(id='annotationToolSettingsForm'))
 
-        for field_name, field_type in six.iteritems(self.field_names_to_types):
+        for field_name, field_type in self.field_names_to_types.items():
             field_value = self.get_field_value_from_soup(field_name, form_soup)
             expected_value = self.sample_settings[field_name]
             self.assertEqual(
@@ -1462,7 +1460,7 @@ class SettingsTest(ClientTest):
 
         # Check settings in database
         settings = AnnotationToolSettings.objects.get(user=self.user)
-        for field_name, setting in six.iteritems(self.sample_settings):
+        for field_name, setting in self.sample_settings.items():
             self.assertEqual(getattr(settings, field_name), setting)
 
     def test_update_existing_settings(self):
@@ -1481,7 +1479,7 @@ class SettingsTest(ClientTest):
 
         # Check settings in database
         settings = AnnotationToolSettings.objects.get(user=self.user)
-        for field_name, sample_setting in six.iteritems(self.sample_settings):
+        for field_name, sample_setting in self.sample_settings.items():
             if field_name == 'point_marker':
                 self.assertEqual(
                     getattr(settings, field_name), 'crosshair and circle')

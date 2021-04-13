@@ -1,5 +1,3 @@
-from __future__ import division
-
 import operator
 import re
 from functools import reduce

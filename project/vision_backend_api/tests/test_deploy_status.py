@@ -1,11 +1,10 @@
-from __future__ import unicode_literals
 import copy
 import json
+from unittest import mock
 
 from django.conf import settings
 from django.test import override_settings
 from django.urls import reverse
-from mock import patch
 from rest_framework import status
 
 from api_core.models import ApiJob, ApiJobUnit
@@ -93,7 +92,7 @@ class DeployStatusAccessTest(BaseAPIPermissionTest):
             response, msg="4th request should be denied by throttling")
 
 
-@patch('spacer.tasks.load_image', mocked_load_image)
+@mock.patch('spacer.tasks.load_image', mocked_load_image)
 class DeployStatusEndpointTest(DeployBaseTest):
     """
     Test the deploy status endpoint.
@@ -130,7 +129,7 @@ class DeployStatusEndpointTest(DeployBaseTest):
         response = self.client.get(status_url, **self.request_kwargs)
         return response
 
-    @patch('vision_backend_api.views.deploy.run', noop_task)
+    @mock.patch('vision_backend_api.views.deploy.run', noop_task)
     def test_no_progress_yet(self):
         job = self.deploy()
         response = self.get_job_status(job)
@@ -155,7 +154,7 @@ class DeployStatusEndpointTest(DeployBaseTest):
             'application/vnd.api+json', response.get('content-type'),
             "Content type should be as expected")
 
-    @patch('vision_backend_api.views.deploy.run', noop_task)
+    @mock.patch('vision_backend_api.views.deploy.run', noop_task)
     def test_some_images_in_progress(self):
         job = self.deploy()
 
@@ -183,7 +182,7 @@ class DeployStatusEndpointTest(DeployBaseTest):
                             total=2))]),
             "Response JSON should be as expected")
 
-    @patch('vision_backend.tasks.deploy.run', noop_task)
+    @mock.patch('vision_backend.tasks.deploy.run', noop_task)
     def test_all_images_in_progress(self):
         job = self.deploy()
 
@@ -210,7 +209,7 @@ class DeployStatusEndpointTest(DeployBaseTest):
                             total=2))]),
             "Response JSON should be as expected")
 
-    @patch('vision_backend.tasks.deploy.run', noop_task)
+    @mock.patch('vision_backend.tasks.deploy.run', noop_task)
     def test_some_images_success(self):
         job = self.deploy()
 
@@ -241,7 +240,7 @@ class DeployStatusEndpointTest(DeployBaseTest):
                             total=2))]),
             "Response JSON should be as expected")
 
-    @patch('vision_backend.tasks.deploy.run', noop_task)
+    @mock.patch('vision_backend.tasks.deploy.run', noop_task)
     def test_some_images_failure(self):
         job = self.deploy()
 
@@ -280,7 +279,7 @@ class DeployStatusEndpointTest(DeployBaseTest):
             "Should get 303")
 
         self.assertEqual(
-            response.content.decode('utf-8'), '',
+            response.content.decode(), '',
             "Response content should be empty")
 
         self.assertEqual(
@@ -288,7 +287,7 @@ class DeployStatusEndpointTest(DeployBaseTest):
             reverse('api:deploy_result', args=[job.pk]),
             "Location header should be as expected")
 
-    @patch('vision_backend.tasks.deploy.run', noop_task)
+    @mock.patch('vision_backend.tasks.deploy.run', noop_task)
     def test_failure(self):
         job = self.deploy()
 
@@ -311,7 +310,7 @@ class DeployStatusEndpointTest(DeployBaseTest):
             "Should get 303")
 
         self.assertEqual(
-            response.content.decode('utf-8'), '',
+            response.content.decode(), '',
             "Response content should be empty")
 
         self.assertEqual(

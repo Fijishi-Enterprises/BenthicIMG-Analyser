@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -72,7 +69,7 @@ class NewsItem(models.Model):
 
     def save(self, *args, **kwargs):
         self.clean()
-        super(NewsItem, self).save(*args, **kwargs)
+        super().save(*args, **kwargs)
 
     def clean(self):
         if self.category not in settings.NEWS_ITEM_CATEGORIES:

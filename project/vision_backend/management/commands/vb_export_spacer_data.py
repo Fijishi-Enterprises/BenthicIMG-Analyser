@@ -94,7 +94,7 @@ class Command(BaseCommand):
         args_str = ''
         for key in arg_keys:
             args_str += '{}: {}, '.format(key, options[key])
-        self.log(u"Starting data export with args: [{}]\n{}".
+        self.log("Starting data export with args: [{}]\n{}".
                  format(args_str, '-'*70))
 
         # Start by exporting the label-set
@@ -112,7 +112,7 @@ class Command(BaseCommand):
 
         # Iterate over sources
         for itt, source in enumerate(sources):
-            self.log(u"Exporting {}, id:{}. [{}({})] with {} images...".format(
+            self.log("Exporting {}, id:{}. [{}({})] with {} images...".format(
                 source.name, source.pk, itt, len(sources) - 1,
                 source.nbr_confirmed_images))
 
@@ -122,7 +122,7 @@ class Command(BaseCommand):
             bucket = c.get_bucket(options['bucket'])
 
             if itt < options['skip_to']:
-                self.log(u"Skipping...")
+                self.log("Skipping...")
                 continue
             source_prefix = options['name']+'/'+'s'+str(source.pk)
 

@@ -1,5 +1,4 @@
-from __future__ import unicode_literals
-from six.moves import collections_abc
+import collections.abc
 
 from rest_framework import status
 from rest_framework.views import exception_handler as default_exception_handler
@@ -21,7 +20,7 @@ def exception_handler(exc, context):
     # that it complies with jsonapi.org.
     if 'errors' not in response.data:
         # Also ensure we have a list of errors.
-        if not isinstance(response.data, collections_abc.Sequence):
+        if not isinstance(response.data, collections.abc.Sequence):
             response.data = [response.data]
         response.data = {'errors': response.data}
 

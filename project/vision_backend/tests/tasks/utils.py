@@ -1,4 +1,4 @@
-import mock
+from unittest import mock
 
 from django.core.files.storage import get_storage_class
 from django.test import override_settings
@@ -33,7 +33,7 @@ class BaseTaskTest(ClientTest, UploadAnnotationsTestMixin):
 
     @classmethod
     def setUpTestData(cls):
-        super(BaseTaskTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(

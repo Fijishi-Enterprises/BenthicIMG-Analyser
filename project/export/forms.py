@@ -1,6 +1,3 @@
-from __future__ import unicode_literals
-import six
-
 from django.forms import Form
 from django.forms.fields import CharField, ChoiceField, MultipleChoiceField
 from django.forms.widgets import CheckboxSelectMultiple, RadioSelect
@@ -42,7 +39,7 @@ class CpcPrefsForm(Form):
         else:
             source = None
 
-        super(CpcPrefsForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         if source:
             confirmed_and_confident_label = (
@@ -72,5 +69,5 @@ class CpcPrefsForm(Form):
             local_image_dir=50,
             local_code_filepath=50,
         )
-        for field_name, field_size in six.iteritems(field_sizes):
+        for field_name, field_size in field_sizes.items():
             self.fields[field_name].widget.attrs['size'] = str(field_size)

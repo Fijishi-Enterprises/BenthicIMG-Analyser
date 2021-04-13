@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
 from django.urls import reverse
 
 from export.tests.utils import BaseExportTest
@@ -12,7 +9,7 @@ class PermissionTest(BasePermissionTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(PermissionTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
         cls.create_labelset(cls.user, cls.source, cls.labels)
@@ -34,7 +31,7 @@ class ImageSetTest(BaseExportTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(ImageSetTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(
@@ -173,7 +170,7 @@ class ColumnOrderTest(BaseExportTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(ColumnOrderTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(
@@ -219,7 +216,7 @@ class UnicodeTest(BaseExportTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(UnicodeTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(

@@ -15,7 +15,7 @@ class TestDeployCollector(ClientTest):
     @classmethod
     def setUpTestData(cls):
 
-        super(TestDeployCollector, cls).setUpTestData()
+        super().setUpTestData()
 
         # Mock up the DB entries we need
         cls.user = cls.create_user()

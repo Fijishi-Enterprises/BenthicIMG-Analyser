@@ -1,6 +1,4 @@
-from __future__ import unicode_literals
 from abc import ABCMeta
-import six
 
 from django.test import override_settings
 from django.urls import reverse
@@ -19,12 +17,11 @@ MIN_IMAGES = int(MIN_TRAINIMAGES * (1+1/8) + 1)
 
 
 @override_settings(MIN_NBR_ANNOTATED_IMAGES=1)
-@six.add_metaclass(ABCMeta)
-class DeployBaseTest(BaseAPITest):
+class DeployBaseTest(BaseAPITest, metaclass=ABCMeta):
 
     @classmethod
     def setUpTestData(cls):
-        super(DeployBaseTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user(
             username='testuser', password='SamplePassword')

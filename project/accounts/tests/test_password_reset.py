@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 from django.conf import settings
 from django.core import mail
 from django.urls import reverse
@@ -47,7 +45,7 @@ class PasswordResetTest(ClientTest):
     @classmethod
     def setUpTestData(cls):
         # Call the parent's setup (while still using this class as cls)
-        super(PasswordResetTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user(
             username='sampleUsername', password='oldPassword',

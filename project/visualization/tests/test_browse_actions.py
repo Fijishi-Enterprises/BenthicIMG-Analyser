@@ -20,7 +20,7 @@ class DeleteTest(BrowserTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(DeleteTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user(username='userA', password='DeleteTest')
         cls.source = cls.create_source(

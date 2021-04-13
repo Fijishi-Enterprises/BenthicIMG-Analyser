@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 from bs4 import BeautifulSoup
 from django.urls import reverse
 
@@ -42,7 +40,7 @@ class JobListTest(ClientTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(JobListTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
 
@@ -138,7 +136,7 @@ class JobDetailTest(ClientTest):
 
     @classmethod
     def setUpTestData(cls):
-        super(JobDetailTest, cls).setUpTestData()
+        super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)

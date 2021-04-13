@@ -21,11 +21,13 @@ Updating to the latest repository code
 
 Upgrading Python
 ----------------
-If you are just upgrading the patch version (2.7.15 -> 2.7.16), you should be able to just download and install the new version, allowing it to overwrite your old version. (`Source <https://stackoverflow.com/a/17954487/>`__)
+If you are just upgrading the patch version (3.6.12 -> 3.6.13), you should be able to just download and install the new version, allowing it to overwrite your old version. (`Source <https://stackoverflow.com/a/17954487/>`__)
 
 - If using Windows, you should also create a new virtualenv using the new version, because virtualenv on Windows copies core files/scripts over instead of using symlinks.
 
-If you are upgrading the major version (2 -> 3) or minor version (2.6 -> 2.7), first download and install the new version. It should install in a separate location, such as ``python27`` instead of ``python26``. You'll then want to :ref:`create a new virtualenv <virtualenv>` using the new Python version, and :ref:`reinstall packages <python-packages>` to that new virtualenv.
+If you are upgrading the major version (2 -> 3) or minor version (3.6 -> 3.7), first download and install the new version. It should install in a separate location, such as ``python37`` instead of ``python36``. You'll then want to :ref:`create a new virtualenv <virtualenv>` using the new Python version, and :ref:`reinstall packages <python-packages>` to that new virtualenv.
+
+The Django file-based cache uses a different pickle protocol in Python 2 versus 3, so you'll have to clear the Django cache when switching between Python 2 and 3, otherwise you may see errors on the website.
 
 
 Upgrading PostgreSQL
@@ -55,10 +57,14 @@ Environment setup and services start - Windows
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Run this as a ``.bat`` file:
 
-::
+.. code-block:: doscon
 
-  cd D:\<path up to Git repo>\coralnet\project
+  cd <path up to Git repo>\coralnet\project
   set "DJANGO_SETTINGS_MODULE=config.settings.<module name>"
+
+  rem Add ffmpeg DLL to PATH. torchvision 0.5.0 appears to need this.
+  rem https://github.com/pytorch/vision/issues/1877
+  set "PATH=%PATH%;<path up to ffmpeg>\ffmpeg-4.1-win64-shared\bin"
 
   rem Start the PostgreSQL service (this does nothing if it's already started)
   net start postgresql-x64-<version number>
@@ -68,6 +74,9 @@ Run this as a ``.bat`` file:
   rem similarly to & in Linux.
   <path to virtualenv>\Scripts\activate.bat
   start /B celery -A config worker
+
+  rem If this file exists, it could interfere with celerybeat starting up.
+  del <path up to Git repo>\coralnet\project\celerybeat.pid
 
   rem Start celery beat. Could consider commenting this out if you don't
   rem need to submit spacer jobs.
@@ -81,10 +90,7 @@ Run this as a ``.bat`` file:
   rem Run the redis server in this window
   <path to redis>\redis-server.exe
 
-When you're done working:
-
-- Close the command windows
-- If you ran celery beat, delete the ``celerybeat.pid`` file from the ``project`` directory (otherwise, a subsequent start of celerybeat will see that file, assume a celerybeat process is still running, and fail to start)
+When you're done working, close the command windows.
 
 
 Environment setup -- Mac

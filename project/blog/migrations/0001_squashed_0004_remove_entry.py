@@ -4,8 +4,6 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    replaces = [('blog', '0001_initial'), ('blog', '0002_add_blogpost'), ('blog', '0003_port_entries_to_blogposts'), ('blog', '0004_remove_entry')]
-
     initial = True
 
     dependencies = []

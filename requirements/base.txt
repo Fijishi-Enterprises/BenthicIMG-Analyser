@@ -7,7 +7,7 @@ Django>=1.11.23,<2
 # e.g. "can edit this source" not just "can edit sources"
 # Requires: django
 # Changelog: https://github.com/django-guardian/django-guardian/blob/devel/CHANGES
-django-guardian==1.4.9
+django-guardian==1.5.1
 
 # Python Imaging Library
 # (A currently active, package friendly fork of it; also endorsed by Django)
@@ -27,7 +27,14 @@ Markdown>=3.1.1,<4
 # System for generating smaller versions of images.
 # Requires: django, Pillow
 # Changelog: https://github.com/SmileyChris/easy-thumbnails/blob/master/CHANGES.rst
-easy-thumbnails==2.5.0
+#
+# 2.7.1 has a breaking bug. Needs to be fixed before we can upgrade to that.
+# https://github.com/SmileyChris/easy-thumbnails/issues/563
+#
+# 2.7.0 has another breaking bug on certain images. This commit gives us the
+# old 'image file is truncated' errors.
+# https://github.com/SmileyChris/easy-thumbnails/commit/2abd400c8e005045591eb1003d1dcbc0602923c5
+easy-thumbnails==2.6.0
 
 # Add email activation to user registration process;
 # unlike in userena, this is implemented without additional models.
@@ -80,7 +87,7 @@ django-storages==1.6.5
 djangorestframework>=3.9.4,<3.10
 
 # Writing tests for database migrations.
-django-migration-testcase==0.0.14
+django-migration-testcase==0.0.15
 
 # HTML parsing.
 # Changelog: https://bazaar.launchpad.net/~leonardr/beautifulsoup/bs4/view/head:/CHANGELOG

@@ -386,12 +386,32 @@ def reset_features(image_id):
 
 @periodic_task(
     run_every=timedelta(days=1),
-    name="Clean up old Batch jobs",
+    name="Purge old batch jobs.",
     ignore_result=True,
 )
 def clean_up_old_batch_jobs():
     thirty_days_ago = timezone.now() - timedelta(days=30)
     for job in BatchJob.objects.filter(create_date__lt=thirty_days_ago):
         job.delete()
-        mail_admins("Job {} not completed after 30 days.".format(
+
+
+@periodic_task(
+    run_every=timedelta(days=1),
+    name="Alert if batch jobs did not succeed.",
+    ignore_result=True,
+)
+def warn_about_stuck_jobs():
+    """
+    Warn about each stuck job that has crossed the 5 day mark. Since this
+    task runs every day, only grab jobs between 5-6 days so we don't issue
+    a repeat warning after 6 days, 7 days, etc.
+    """
+    five_days_ago = timezone.now() - timedelta(days=5)
+    six_days_ago = five_days_ago - timedelta(days=1)
+    stuck_jobs_between_5_and_6_days_old = BatchJob.objects \
+        .filter(create_date__lt=five_days_ago, create_date__gt=six_days_ago) \
+        .exclude(status='SUCCEEDED') \
+        .exclude(status='FAILED')
+    for job in stuck_jobs_between_5_and_6_days_old:
+        mail_admins("Job {} not completed after 5 days.".format(
             job.batch_token), str(job))

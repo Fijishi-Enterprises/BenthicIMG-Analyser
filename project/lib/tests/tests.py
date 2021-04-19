@@ -1,5 +1,7 @@
 # Lib tests and non-app-specific tests.
+import datetime
 from unittest import skip, skipIf
+from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
 
 from django.conf import settings
 from django.core.files.storage import DefaultStorage
@@ -8,6 +10,7 @@ from django.shortcuts import resolve_url
 from django.urls import reverse
 from django.test.client import Client
 from django.test.utils import override_settings
+import requests
 
 from ..forms import get_one_form_error, get_one_formset_error
 from ..regtest_utils import direct_s3_read, direct_s3_write
@@ -113,10 +116,10 @@ class IndexTest(ClientTest):
                 len(list(response.context['carousel_images'])), 3)
 
 
-@skipIf(not settings.DEFAULT_FILE_STORAGE == 'lib.storage_backends.MediaStorageS3', "Can't run backend tests locally")
+@skipIf(not settings.DEFAULT_FILE_STORAGE == 'lib.storage_backends.MediaStorageS3', "Requires S3 storage")
 class DirectS3Test(BaseTest):
     """
-    Test the direct s3 read and write tests.
+    Test the direct s3 read and write functions.
     """
     @classmethod
     def setUpTestData(cls):
@@ -128,6 +131,107 @@ class DirectS3Test(BaseTest):
             direct_s3_write('testkey', enc, var)
             var_recovered = direct_s3_read('testkey', enc)
             self.assertEqual(var, var_recovered)
+
+
+@skipIf(not settings.DEFAULT_FILE_STORAGE == 'lib.storage_backends.MediaStorageS3', "Requires S3 storage")
+class S3UrlAccessTest(ClientTest):
+    """
+    Test accessing uploaded S3 objects by URL.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(cls.user)
+
+        # Upload an image using django-storages + boto.
+        cls.img = cls.upload_image(
+            cls.user, cls.source, image_options=dict(filename='1.png'))
+
+    def test_image_url_query_args(self):
+        url = self.img.original_file.url
+        current_timestamp = datetime.datetime.now().timestamp()
+        query_string = urlsplit(url).query
+        query_args = parse_qs(query_string)
+
+        self.assertIn('AWSAccessKeyId', query_args, "Should have an access key")
+        self.assertIn('Expires', query_args, "Should have an expire time")
+        self.assertIn('Signature', query_args, "Should have a signature")
+
+        expire_timestamp = int(query_args['Expires'][0])
+        self.assertGreaterEqual(
+            expire_timestamp, current_timestamp + 3300,
+            "Expire time should be about 1 hour into the future")
+        self.assertLessEqual(
+            expire_timestamp, current_timestamp + 3900,
+            "Expire time should be about 1 hour into the future")
+
+    def test_image_url_allowed_access(self):
+        url = self.img.original_file.url
+        base_url = urlunsplit(urlsplit(url)._replace(query=''))
+        query_string = urlsplit(url).query
+        query_args = parse_qs(query_string)
+
+        response = requests.get(url)
+        self.assertEqual(
+            response.status_code, 200, "Getting the URL should work")
+        self.assertEqual(
+            response.headers['Content-Type'], 'image/png',
+            "URL response should have the expected content type")
+
+        alt_query_args = query_args.copy()
+        alt_query_args.pop('AWSAccessKeyId')
+        response = requests.get(base_url + '?' + urlencode(alt_query_args))
+        self.assertEqual(
+            response.status_code, 403,
+            "Getting the URL without the access key shouldn't work")
+
+        alt_query_args = query_args.copy()
+        alt_query_args.pop('Expires')
+        response = requests.get(base_url + '?' + urlencode(alt_query_args))
+        self.assertEqual(
+            response.status_code, 403,
+            "Getting the URL without the expire time shouldn't work")
+
+        alt_query_args = query_args.copy()
+        alt_query_args.pop('Signature')
+        response = requests.get(base_url + '?' + urlencode(alt_query_args))
+        self.assertEqual(
+            response.status_code, 403,
+            "Getting the URL without the signature shouldn't work")
+
+        response = requests.get(base_url)
+        self.assertEqual(
+            response.status_code, 403,
+            "Getting the URL without any query args shouldn't work")
+
+        alt_query_args = query_args.copy()
+        alt_query_args['AWSAccessKeyId'][0] = \
+            alt_query_args['AWSAccessKeyId'][0].replace(
+                alt_query_args['AWSAccessKeyId'][0][5], 'X')
+        response = requests.get(base_url + '?' + urlencode(alt_query_args))
+        self.assertEqual(
+            response.status_code, 403,
+            "Getting the URL with a modified access key shouldn't work")
+
+        alt_query_args = query_args.copy()
+        alt_query_args['Expires'][0] = \
+            alt_query_args['Expires'][0].replace(
+                alt_query_args['Expires'][0][5], '0')
+        response = requests.get(base_url + '?' + urlencode(alt_query_args))
+        self.assertEqual(
+            response.status_code, 403,
+            "Getting the URL with a modified expire time shouldn't work")
+
+        alt_query_args = query_args.copy()
+        alt_query_args['Signature'][0] = \
+            alt_query_args['Signature'][0].replace(
+                alt_query_args['Signature'][0][5], 'X')
+        response = requests.get(base_url + '?' + urlencode(alt_query_args))
+        self.assertEqual(
+            response.status_code, 403,
+            "Getting the URL with a modified signature shouldn't work")
 
 
 class GoogleAnalyticsTest(ClientTest):

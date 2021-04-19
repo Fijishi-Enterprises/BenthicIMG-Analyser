@@ -128,7 +128,7 @@ Look under ``project/config/settings``.
 - If you are setting up a development server, use one of the dev-specific settings modules (such as ``dev_stephen.py``) or make your own. The module should include:
 
   - An import of ``base_devserver``
-  - An import of either ``storage_local`` or ``storage_s3``, depending on whether you want to store media files locally or in an S3 bucket. Local storage works fine for most functionality, but the vision backend requires S3.
+  - An import of either ``storage_local`` or ``storage_s3``, depending on whether you want to store media files locally or in an S3 bucket. Local storage works fine for most functionality, but some tests require S3.
   - Any settings values you want to customize for your environment specifically
 
 By default, Django expects the settings to be in a ``settings.py`` at the project root, so we have to tell it otherwise. One way is with the ``DJANGO_SETTINGS_MODULE`` environment variable. Set this variable to ``config.settings.<module name>``, where ``<module name>`` is ``dev_stephen``, ``dev_oscar``, etc.
@@ -167,6 +167,8 @@ At this point, you should be ready to run the unit test suite to check if everyt
 Run ``python manage.py test``. Test failures will be shown as F, and errors will be shown as E.
 
 If you want to run a subset of the tests, you can use ``python manage.py test <app_name>``, or ``python manage.py test <app_name>.<module>.<TestClass>``.
+
+Note: running the whole test suite with S3 storage can take a long time. As of April 2021, one particular development machine takes 7 minutes to run the test suite with local storage, and 2 hours 40 minutes with S3 storage.
 
 
 Django migrations

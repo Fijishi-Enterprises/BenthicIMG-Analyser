@@ -1,44 +1,44 @@
-from django.conf.urls import include, url
+from django.urls import include, path
 from . import views
 
 label_general_urlpatterns = [
-    url(r'^list/$', views.label_list, name="label_list"),
-    url(r'^list_search_ajax/$', views.label_list_search_ajax,
-        name="label_list_search_ajax"),
-    url(r'^new/$', views.label_new, name="label_new"),
-    url(r'^new_ajax/$', views.label_new_ajax, name="label_new_ajax"),
-    url(r'^add_search_ajax/$', views.labelset_add_search_ajax,
-        name="labelset_add_search_ajax"),
-    url(r'^duplicates/$', views.duplicates_overview,
-        name="labelset_duplicates"),
+    path('list/', views.label_list, name="label_list"),
+    path('list_search_ajax/', views.label_list_search_ajax,
+         name="label_list_search_ajax"),
+    path('new/', views.label_new, name="label_new"),
+    path('new_ajax/', views.label_new_ajax, name="label_new_ajax"),
+    path('add_search_ajax/', views.labelset_add_search_ajax,
+         name="labelset_add_search_ajax"),
+    path('duplicates/', views.duplicates_overview,
+         name="labelset_duplicates"),
 ]
 
 label_specific_urlpatterns = [
-    url(r'^$', views.label_main, name="label_main"),
-    url(r'^example_patches_ajax/$',
-        views.label_example_patches_ajax, name="label_example_patches_ajax"),
-    url(r'^edit/$', views.label_edit, name="label_edit"),
+    path('', views.label_main, name="label_main"),
+    path('example_patches_ajax/',
+         views.label_example_patches_ajax, name="label_example_patches_ajax"),
+    path('edit/', views.label_edit, name="label_edit"),
 ]
 
 labelset_urlpatterns = [
-    url(r'^$', views.labelset_main,
-        name="labelset_main"),
-    url(r'^add/$', views.labelset_add,
-        name="labelset_add"),
-    url(r'^edit/$', views.labelset_edit,
-        name="labelset_edit"),
-    url(r'^import/$', views.labelset_import,
-        name="labelset_import"),
-    url(r'^import_preview_ajax/$',
-        views.labelset_import_preview_ajax,
-        name="labelset_import_preview_ajax"),
-    url(r'^import_ajax/$',
-        views.labelset_import_ajax,
-        name="labelset_import_ajax"),
+    path('', views.labelset_main,
+         name="labelset_main"),
+    path('add/', views.labelset_add,
+         name="labelset_add"),
+    path('edit/', views.labelset_edit,
+         name="labelset_edit"),
+    path('import/', views.labelset_import,
+         name="labelset_import"),
+    path('import_preview_ajax/',
+         views.labelset_import_preview_ajax,
+         name="labelset_import_preview_ajax"),
+    path('import_ajax/',
+         views.labelset_import_ajax,
+         name="labelset_import_ajax"),
 ]
 
 urlpatterns = [
-    url(r'^label/', include(label_general_urlpatterns)),
-    url(r'^label/(?P<label_id>\d+)/', include(label_specific_urlpatterns)),
-    url(r'^source/(?P<source_id>\d+)/labelset/', include(labelset_urlpatterns)),
+    path('label/', include(label_general_urlpatterns)),
+    path('label/<int:label_id>/', include(label_specific_urlpatterns)),
+    path('source/<int:source_id>/labelset/', include(labelset_urlpatterns)),
 ]

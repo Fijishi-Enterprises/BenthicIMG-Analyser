@@ -55,6 +55,15 @@ def handler500(request, template_name='500.html'):
 
 
 @permission_required('is_superuser')
+def error_500_test(request):
+    """
+    View to test 500 internal server errors. It's superuser-only to prevent
+    abuse (i.e. clogging up admins' inboxes).
+    """
+    raise Exception("You entered the 500-error test view.")
+
+
+@permission_required('is_superuser')
 def nav_test(request, source_id):
     """
     Test page for a new navigation header layout.

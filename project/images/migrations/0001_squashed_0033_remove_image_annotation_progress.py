@@ -103,8 +103,8 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('source_perm', models.CharField(choices=[('source_view', 'View'), ('source_edit', 'Edit'), ('source_admin', 'Admin')], max_length=50)),
-                ('recipient', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name=b'invites_received', to=settings.AUTH_USER_MODEL)),
-                ('sender', models.ForeignKey(editable=False, on_delete=django.db.models.deletion.CASCADE, related_name=b'invites_sent', to=settings.AUTH_USER_MODEL)),
+                ('recipient', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='invites_received', to=settings.AUTH_USER_MODEL)),
+                ('sender', models.ForeignKey(editable=False, on_delete=django.db.models.deletion.CASCADE, related_name='invites_sent', to=settings.AUTH_USER_MODEL)),
                 ('source', models.ForeignKey(editable=False, on_delete=django.db.models.deletion.CASCADE, to='images.Source')),
             ],
             options={

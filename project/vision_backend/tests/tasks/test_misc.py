@@ -2,8 +2,8 @@ from datetime import timedelta
 from unittest import mock
 
 from django.core import mail
-from django.core.urlresolvers import reverse
 from django.test import override_settings
+from django.urls import reverse
 from django.utils import timezone
 
 from annotations.models import Annotation

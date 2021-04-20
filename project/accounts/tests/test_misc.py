@@ -47,8 +47,8 @@ class PasswordChangeTest(ClientTest):
             reverse('password_change'),
             dict(
                 old_password='oldPassword',
-                new_password1='newPassword',
-                new_password2='newPassword',
+                new_password1='shinyNewPassword',
+                new_password2='shinyNewPassword',
             ),
             follow=True,
         )
@@ -58,7 +58,8 @@ class PasswordChangeTest(ClientTest):
         # Check that the password has changed: attempt to log in with the
         # new password, and check that we're signed in as the expected user.
         self.client.logout()
-        self.client.login(username='sampleUsername', password='newPassword')
+        self.client.login(
+            username='sampleUsername', password='shinyNewPassword')
         self.assertIn('_auth_user_id', self.client.session)
         self.assertEqual(
             int(self.client.session['_auth_user_id']), self.user.pk)
@@ -69,8 +70,8 @@ class PasswordChangeTest(ClientTest):
             reverse('password_change'),
             dict(
                 old_password='OLDPASSWORD',
-                new_password1='newPassword',
-                new_password2='newPassword',
+                new_password1='shinyNewPassword',
+                new_password2='shinyNewPassword',
             ),
             follow=True,
         )
@@ -95,8 +96,8 @@ class PasswordChangeTest(ClientTest):
             reverse('password_change'),
             dict(
                 old_password='oldPassword',
-                new_password1='newPassword',
-                new_password2='newPassWORD',
+                new_password1='shinyNewPassword',
+                new_password2='shinyNewPassWORD',
             ),
             follow=True,
         )

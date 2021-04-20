@@ -13,7 +13,7 @@ class UsernameOrEmailModelBackend(ModelBackend):
     The authentication implementation is pretty similar to that of
     userena's auth backend.
     """
-    def authenticate(self, username=None, password=None, **kwargs):
+    def authenticate(self, request, username=None, password=None, **kwargs):
 
         # The default authentication form just passes the first field as
         # 'username', but we'll interpret it as username or email.

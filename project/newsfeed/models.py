@@ -82,7 +82,7 @@ class NewsSubItem(models.Model):
     """ These are sub-items on main news items. For examples, individual
     images annotated as part of a annotation session. """
 
-    news_item = models.ForeignKey(NewsItem)
+    news_item = models.ForeignKey(NewsItem, on_delete=models.CASCADE)
     message = models.TextField(null=False, blank=False, max_length=500)
     datetime = models.DateTimeField(auto_now_add=True, editable=False)
 

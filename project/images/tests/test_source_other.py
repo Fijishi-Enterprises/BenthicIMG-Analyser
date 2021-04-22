@@ -1,3 +1,4 @@
+import html
 import re
 
 from bs4 import BeautifulSoup
@@ -512,6 +513,9 @@ class SourceMainTest(ClientTest):
 
             match = status_line_regex.search(source_main_content)
             browse_url = match.group(1)
+            # &amp; -> &
+            browse_url = html.unescape(browse_url)
+
             response = self.client.get(browse_url)
             self.assertContains(
                 response, 'img class="thumb', count=count,

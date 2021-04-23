@@ -7,7 +7,7 @@ Django>=2.2.20,<3.0
 # e.g. "can edit this source" not just "can edit sources"
 # Requires: django
 # Changelog: https://github.com/django-guardian/django-guardian/blob/devel/CHANGES
-django-guardian==1.5.1
+django-guardian==2.3.0
 
 # Python Imaging Library
 # (A currently active, package friendly fork of it; also endorsed by Django)
@@ -43,11 +43,11 @@ easy-thumbnails==2.6.0
 # Add email activation to user registration process;
 # unlike in userena, this is implemented without additional models.
 # Changelog: https://django-registration.readthedocs.io/en/stable/upgrade.html
-django-registration>=3.0.1,<3.1
+django-registration==3.1.2
 
 # Versioning of database objects. Requires django.
 # Changelog: https://github.com/etianen/django-reversion/blob/master/CHANGELOG.rst
-django-reversion==3.0.7
+django-reversion==3.0.9
 
 # Allow Django to connect to a PostgreSQL database.
 # Changelog: http://initd.org/psycopg/docs/news.html
@@ -86,9 +86,7 @@ django-storages==1.8
 
 # REST API framework.
 # Changelog: https://www.django-rest-framework.org/community/release-notes/
-#
-# 3.10 requires Python 3.
-djangorestframework>=3.9.4,<3.10
+djangorestframework==3.12.2
 
 # Writing tests for database migrations.
 django-migration-testcase==0.0.15
@@ -151,7 +149,7 @@ tqdm==4.43.0
 # with live preview and drag-and-drop image uploads.
 # Requires: Markdown
 # Changelog: https://github.com/neutronX/django-markdownx/releases
-django-markdownx==2.0.28
+django-markdownx==3.0.1
 
 # Import spacer which powers the ML stuff.
 pyspacer==0.3.1

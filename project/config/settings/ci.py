@@ -11,9 +11,9 @@ DATABASES['default'].update({
     'USER': 'postgres',
     'PASSWORD': 'postgres',
     # Set to empty string for localhost.
-    'HOST': '',
+    'HOST': 'localhost',
     # Set to empty string for default.
-    'PORT': '',
+    'PORT': 5432,
 })
 
 # Default file storage mechanism that holds media.

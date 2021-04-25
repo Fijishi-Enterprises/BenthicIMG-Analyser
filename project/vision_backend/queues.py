@@ -6,9 +6,7 @@ import posixpath
 import time
 from typing import Optional
 
-import boto
 from botocore.exceptions import ClientError
-import boto.sqs
 import boto3
 from django.conf import settings
 from django.core.files.storage import get_storage_class
@@ -24,10 +22,6 @@ logger = logging.getLogger(__name__)
 
 def get_queue_class():
     """This function is modeled after Django's get_storage_class()."""
-
-    if settings.SPACER_QUEUE_CHOICE == 'vision_backend.queues.SQSQueue':
-        raise ValueError('SQSQueue no longer supported. '
-                         'Please use BatchQueue instead')
 
     if settings.SPACER_QUEUE_CHOICE == 'vision_backend.queues.BatchQueue' and \
             settings.DEFAULT_FILE_STORAGE == \
@@ -48,65 +42,6 @@ class BaseQueue(abc.ABC):
     @abc.abstractmethod
     def collect_job(self) -> Optional[JobReturnMsg]:
         pass
-
-
-class SQSQueue(BaseQueue):
-    """Communicates remotely with Spacer. Requires AWS SQS and S3."""
-
-    def submit_job(self, job: JobMsg):
-        """
-        Submits message to the SQS spacer_jobs
-        """
-
-        conn = boto.sqs.connect_to_region(
-            "us-west-2",
-            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
-        )
-
-        queue = conn.get_queue(settings.SQS_JOBS)
-        msg = queue.new_message(body=json.dumps(job.serialize()))
-        queue.write(msg)
-
-    def collect_job(self) -> Optional[JobReturnMsg]:
-        """
-        If an AWS SQS job result is available, collect it, delete from queue
-        if it's a job for this server instance, and return it.
-        Else, return None.
-        """
-
-        # Grab a message
-        message = self._read_message(settings.SQS_RES)
-        if message is None:
-            return None
-
-        return_msg = JobReturnMsg.deserialize(json.loads(message.get_body()))
-
-        # Delete message (at this point, if it is not handled correctly,
-        # we still want to delete it from queue.)
-        message.delete()
-
-        return return_msg
-
-    @staticmethod
-    def _read_message(queue_name):
-        """
-        helper function for reading messages from AWS SQS.
-        """
-
-        conn = boto.sqs.connect_to_region(
-            "us-west-2",
-            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
-        )
-
-        queue = conn.get_queue(queue_name)
-
-        message = queue.read()
-        if message is None:
-            return None
-        else:
-            return message
 
 
 class BatchQueue(BaseQueue):
@@ -205,6 +140,7 @@ class LocalQueue(BaseQueue):
     Used for testing the vision-backend Django tasks.
     Uses a local filesystem queue and calls spacer directly.
     """
+
     def submit_job(self, job: JobMsg):
 
         # Process the job right away.

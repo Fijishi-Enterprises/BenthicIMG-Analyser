@@ -2,7 +2,7 @@ import csv
 import json
 
 import numpy as np
-from celery.task.control import inspect
+
 from django.contrib.auth.decorators import permission_required
 from django.http import HttpResponse
 from django.shortcuts import render
@@ -14,8 +14,7 @@ from lib.decorators import source_visibility_required
 from .confmatrix import ConfMatrix
 from .forms import TreshForm, CmTestForm
 from .models import Classifier
-from .utils import labelset_mapper, map_labels, \
-    get_total_messages_in_jobs_queue, get_alleviate
+from .utils import labelset_mapper, map_labels, get_alleviate
 
 
 @permission_required('is_superuser')
@@ -47,26 +46,6 @@ def backend_overview(request):
             valid=True).count() / Source.objects.filter().count())
     }
 
-    def first_queue_length(inspect_category):
-        # For a given inspect category, there should be only one queue (e.g.
-        # 'celery@Ubuntu'). This function gets the length of that queue.
-        try:
-            first_queue = next(iter(inspect_category.values()))
-            return len(first_queue)
-        except AttributeError:
-            return 0
-
-    i = inspect()
-    i_sch = i.scheduled()
-    i_act = i.active()
-    i_qu = i.reserved()
-    q_stats = {
-        'spacer': get_total_messages_in_jobs_queue(),
-        'celery_scheduled': first_queue_length(i_sch),
-        'celery_active': first_queue_length(i_act),
-        'celery_queued': first_queue_length(i_qu),
-    }
-
     laundry_list = []
     for source in Source.objects.filter().order_by('-id'):
         laundry_list.append(source_robot_status(source.id))
@@ -78,7 +57,6 @@ def backend_overview(request):
         'laundry_list': laundry_list,
         'img_stats': img_stats,
         'clf_stats': clf_stats,
-        'q_stats': q_stats
     })
 
 

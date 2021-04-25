@@ -1,9 +1,9 @@
 import re
-from django.contrib.staticfiles.templatetags.staticfiles \
-    import static as to_static_path
+
 from django.core.files.storage import get_storage_class
 from django import template
 from django.template import TemplateSyntaxError
+from django.templatetags.static import static as to_static_path
 from django.utils.html import escape
 from easy_thumbnails.files import get_thumbnailer
 

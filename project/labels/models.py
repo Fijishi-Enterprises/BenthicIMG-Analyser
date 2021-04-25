@@ -200,8 +200,8 @@ class LabelSet(models.Model):
 
 class LocalLabel(models.Model):
     code = models.CharField('Short Code', max_length=10)
-    global_label = models.ForeignKey(Label)
-    labelset = models.ForeignKey(LabelSet)
+    global_label = models.ForeignKey(Label, on_delete=models.PROTECT)
+    labelset = models.ForeignKey(LabelSet, on_delete=models.CASCADE)
 
     @property
     def name(self):

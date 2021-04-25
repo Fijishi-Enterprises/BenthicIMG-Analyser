@@ -1,7 +1,6 @@
-from django.contrib.staticfiles.templatetags.staticfiles \
-    import static as to_static_path
 from django.core.cache import cache
 from django.http import JsonResponse
+from django.templatetags.static import static as to_static_path
 import easy_thumbnails.exceptions as easy_thumbnails_exceptions
 from easy_thumbnails.files import get_thumbnailer
 

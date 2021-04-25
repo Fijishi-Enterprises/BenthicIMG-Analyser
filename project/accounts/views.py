@@ -133,6 +133,11 @@ class RegistrationView(BaseRegistrationView):
 
 
 class ActivationResendView(BaseRegistrationView):
+    """
+    Activation-email sending functionality is defined in the registration view,
+    so this view inherits from that view to re-use that functionality.
+    However, we have to replace some parts obviously.
+    """
     form_class = ActivationResendForm
     success_url = 'activation_resend_complete'
     template_name = 'django_registration/activation_resend_form.html'
@@ -146,6 +151,15 @@ class ActivationResendView(BaseRegistrationView):
         # a corresponding user.
         # This shouldn't be common, so it's not urgent, but would be nice.
         return redirect(self.success_url)
+
+    def get_form(self, form_class=None):
+        """
+        django-registration implements a get_form() method in its registration
+        view, but we don't want that implementation, because that assumes a
+        form class which is a user ModelForm. We just want the plain old
+        FormView get_form() implementation.
+        """
+        return FormView.get_form(self, form_class=form_class)
 
 
 class EmailChangeView(LoginRequiredMixin, FormView):

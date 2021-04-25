@@ -9,7 +9,7 @@ from django.db import models
 
 from easy_thumbnails.fields import ThumbnailerImageField
 from guardian.shortcuts import (
-    get_objects_for_user, get_users_with_perms, get_perms, assign, remove_perm)
+    get_objects_for_user, get_users_with_perms, get_perms, assign_perm, remove_perm)
 
 from .model_utils import PointGen
 from accounts.utils import is_robot_user
@@ -268,14 +268,14 @@ class Source(models.Model):
         """
 
         if role == Source.PermTypes.ADMIN.code:
-            assign(Source.PermTypes.ADMIN.code, user, self)
-            assign(Source.PermTypes.EDIT.code, user, self)
-            assign(Source.PermTypes.VIEW.code, user, self)
+            assign_perm(Source.PermTypes.ADMIN.code, user, self)
+            assign_perm(Source.PermTypes.EDIT.code, user, self)
+            assign_perm(Source.PermTypes.VIEW.code, user, self)
         elif role == Source.PermTypes.EDIT.code:
-            assign(Source.PermTypes.EDIT.code, user, self)
-            assign(Source.PermTypes.VIEW.code, user, self)
+            assign_perm(Source.PermTypes.EDIT.code, user, self)
+            assign_perm(Source.PermTypes.VIEW.code, user, self)
         elif role == Source.PermTypes.VIEW.code:
-            assign(Source.PermTypes.VIEW.code, user, self)
+            assign_perm(Source.PermTypes.VIEW.code, user, self)
         else:
             raise ValueError("Invalid Source role: %s" % role)
 

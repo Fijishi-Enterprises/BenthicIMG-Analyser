@@ -128,7 +128,7 @@ def metadata_csv_verify_contents(csv_metadata_by_image_name, source):
             # error message and return that.
             for field_name, error_messages in metadata_form.errors.items():
                 field_label = metadata_form.fields[field_name].label
-                if error_messages != []:
+                if len(error_messages) > 0:
                     error_message = error_messages[0]
                     raise FileProcessError(
                         "({filename} - {field_label}) {message}".format(

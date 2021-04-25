@@ -144,8 +144,8 @@ class PasswordResetTest(ClientTest):
         response = self.client.post(
             reset_redirect_url,
             dict(
-                new_password1='newPassword',
-                new_password2='newPassword',
+                new_password1='shinyNewPassword',
+                new_password2='shinyNewPassword',
             ),
             follow=True,
         )
@@ -155,7 +155,8 @@ class PasswordResetTest(ClientTest):
         # Check that the password has changed: attempt to log in with the
         # new password, and check that we're signed in as the expected user.
         self.client.logout()
-        self.client.login(username='sampleUsername', password='newPassword')
+        self.client.login(
+            username='sampleUsername', password='shinyNewPassword')
         self.assertIn('_auth_user_id', self.client.session)
         self.assertEqual(
             int(self.client.session['_auth_user_id']), self.user.pk)
@@ -173,8 +174,8 @@ class PasswordResetTest(ClientTest):
         response = self.client.post(
             reset_redirect_url,
             dict(
-                new_password1='newPassword',
-                new_password2='newPassWORD',
+                new_password1='shinyNewPassword',
+                new_password2='shinyNewPassWORD',
             ),
             follow=True,
         )

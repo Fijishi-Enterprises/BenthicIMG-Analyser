@@ -484,8 +484,6 @@ def annotation_history(request, image_id):
             events.append("Point {num}: {label}".format(
                 num=point_number, label=label_display))
 
-        if rev.comment:
-            events.append(rev.comment)
         event_log.append(
             dict(
                 date=rev.date_created,

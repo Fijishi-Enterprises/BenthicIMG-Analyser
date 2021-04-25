@@ -1,20 +1,19 @@
-# Settings to be used for Travis CI.
+# Settings to be used for continuous integration (e.g. GitHub Actions).
 # Here we don't use secrets.json since these settings are just for testing
 
 from .base_devserver import *
 
 
 DATABASES['default'].update({
-    # Database name, or path to database file if using sqlite3.
-    'NAME': 'travis_ci_test',
-    # Not used with sqlite3.
-    'USER': "",
-    # Not used with sqlite3.
-    'PASSWORD': "",
-    # Set to empty string for localhost. Not used with sqlite3.
-    'HOST': "",
-    # Set to empty string for default. Not used with sqlite3.
-    'PORT': "",
+    # Database name.
+    'NAME': 'postgres',
+    # Username and password.
+    'USER': 'postgres',
+    'PASSWORD': 'postgres',
+    # Set to empty string for localhost.
+    'HOST': 'localhost',
+    # Set to empty string for default.
+    'PORT': 5432,
 })
 
 # Default file storage mechanism that holds media.

@@ -17,11 +17,3 @@ SITE_DOMAIN = 'ec2-35-162-62-60.us-west-2.compute.amazonaws.com'
 # Hosts/domain names that are valid for this site.
 # "*" matches anything, ".example.com" matches example.com and all subdomains
 ALLOWED_HOSTS = [SITE_DOMAIN]
-
-# Let's Encrypt doesn't accept amazonaws domain names, so we can't use
-# HTTPS on the staging server.
-# For this reason, it's highly recommended to use different admin passwords
-# from those used at the production site.
-SESSION_COOKIE_SECURE = False
-CSRF_COOKIE_SECURE = False
-SECURE_PROXY_SSL_HEADER = None

@@ -102,6 +102,7 @@ class Profile(models.Model):
                 hashlib.md5(email_byte_string).hexdigest())
         if self.avatar_file:
             # User provided an uploaded image
-            return posixpath.join(settings.MEDIA_URL, self.avatar_file.name)
+            # https://docs.djangoproject.com/en/dev/ref/models/fields/#django.db.models.fields.files.FieldFile.url
+            return self.avatar_file.url
         # Fall back to a random gravatar
         return self._get_gravatar_url(self.random_gravatar_hash)

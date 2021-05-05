@@ -750,8 +750,13 @@ class UnicodeTest(BaseExportTest):
             point_generation_type=PointGen.Types.UNIFORM,
             number_of_cell_rows=1, number_of_cell_columns=1,
         )
-        labels = cls.create_labels(cls.user, ['A', 'い'], 'GroupA')
+
+        labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
         cls.create_labelset(cls.user, cls.source, labels)
+        # Unicode custom label code
+        local_label = cls.source.labelset.locallabel_set.get(code='B')
+        local_label.code = 'い'
+        local_label.save()
 
         cls.img1 = cls.upload_image(
             cls.user, cls.source,

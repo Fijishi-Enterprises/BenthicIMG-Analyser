@@ -1,12 +1,16 @@
 import math
 import posixpath
 import random
+import re
+
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
+from django.core.validators import RegexValidator
 from django.db import models
 from easy_thumbnails.fields import ThumbnailerImageField
+
 from lib.utils import rand_string
 
 
@@ -57,11 +61,36 @@ class Label(models.Model):
 
     objects = LabelManager()
 
-    name = models.CharField(max_length=45)
-    default_code = models.CharField('Default Short Code', max_length=10)
+    name = models.CharField(
+        max_length=45,
+        validators=[RegexValidator(
+            r'^[a-zA-Z0-9{punctuation}]+\Z'.format(
+                punctuation=re.escape(" &'()+,-./:;<>_")),
+            message="You entered disallowed characters or punctuation.")],
+        help_text="Please use English words and names.",
+    )
+
+    default_code = models.CharField(
+        'Default Short Code', max_length=10,
+        validators=[RegexValidator(
+            r'^[a-zA-Z0-9{punctuation}]+\Z'.format(
+                punctuation=re.escape(" &*+-./_")),
+            message="You entered disallowed characters or punctuation.")],
+        help_text=(
+            "Up to 10 characters. Only a few types of punctuation are"
+            " accepted. Note that this is just a default code; you can"
+            " later customize the codes that are used in your source."),
+    )
+
     group = models.ForeignKey(
         LabelGroup, on_delete=models.PROTECT, verbose_name='Functional Group')
-    description = models.TextField(null=True)
+
+    description = models.TextField(
+        null=True,
+        max_length=2000,
+        help_text="Please use English.",
+    )
+
     verified = models.BooleanField(default=False)
     duplicate = models.ForeignKey("Label", on_delete=models.SET_NULL,
                                   blank=True, null=True,

@@ -348,7 +348,7 @@ var LabelsetAdd = (function() {
             $('#new-label-form-show-button').click(function() {
                 $('#new-label-form-popup').dialog({
                     width: 600,
-                    height: 400,
+                    height: 600,
                     modal: false,
                     // This option adds an extra CSS class to the dialog.
                     // But this way of doing it is deprecated in jQuery 1.12+:

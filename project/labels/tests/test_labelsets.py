@@ -733,13 +733,14 @@ class LabelsetImportFormatTest(LabelsetImportBaseTest):
             B=cls.create_label(cls.user, "Label B", 'B', cls.group),
             C=cls.create_label(cls.user, "Label C", 'C', cls.group),
             D=cls.create_label(cls.user, "Label D", 'D', cls.group),
-            E=cls.create_label(cls.user, "Label い", 'い', cls.group),
+            E=cls.create_label(cls.user, "Label E", 'E', cls.group),
         )
 
         # Create source
         cls.source = cls.create_source(cls.user)
 
     def test_unicode(self):
+        """Can import a label with a Unicode custom short code."""
         csv_content = (
             'Label ID,Short code'
             '\r\n{label_id},い'.format(label_id=self.labels['E'].pk)
@@ -880,6 +881,34 @@ class LabelsetEditTest(LabelTest):
         self.assertEqual(label_A.code, 'newCodeA')
         label_B = local_labels.get(global_label_id=self.global_labels['B'].pk)
         self.assertEqual(label_B.code, 'newCodeB')
+
+    def test_unicode(self):
+        """Accept any Unicode characters in custom label codes."""
+        local_labels = self.source.labelset.get_labels()
+        post_data = {
+            'form-TOTAL_FORMS': 2,
+            'form-INITIAL_FORMS': 2,
+            'form-MAX_NUM_FORMS': '',
+            'form-0-id': local_labels.get(
+                global_label_id=self.global_labels['A'].pk).pk,
+            'form-0-code': 'Rödalger',
+            'form-1-id': local_labels.get(
+                global_label_id=self.global_labels['B'].pk).pk,
+            'form-1-code': '紅藻',
+        }
+
+        self.client.force_login(self.user)
+        response = self.client.post(self.url, post_data, follow=True)
+        self.assertContains(
+            response, "Label entries successfully edited.",
+            msg_prefix="Page should show the success message")
+
+        self.source.labelset.refresh_from_db()
+        local_labels = self.source.labelset.get_labels()
+        label_A = local_labels.get(global_label_id=self.global_labels['A'].pk)
+        self.assertEqual(label_A.code, 'Rödalger')
+        label_B = local_labels.get(global_label_id=self.global_labels['B'].pk)
+        self.assertEqual(label_B.code, '紅藻')
 
     def test_code_missing(self):
         local_labels = self.source.labelset.get_labels()

@@ -222,8 +222,13 @@ class UnicodeTest(BaseExportTest):
         cls.source = cls.create_source(
             cls.user,
             min_x=0, max_x=100, min_y=0, max_y=100, simple_number_of_points=5)
-        labels = cls.create_labels(cls.user, ['い'], 'GroupA')
+
+        labels = cls.create_labels(cls.user, ['A'], 'GroupA')
         cls.create_labelset(cls.user, cls.source, labels)
+        # Unicode custom label code
+        local_label = cls.source.labelset.locallabel_set.get(code='A')
+        local_label.code = 'い'
+        local_label.save()
 
     def test(self):
         self.img1 = self.upload_image(

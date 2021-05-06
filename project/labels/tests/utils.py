@@ -33,3 +33,10 @@ class LabelTest(ClientTest, metaclass=ABCMeta):
         cls.client.logout()
 
         return Label.objects.get(name=name)
+
+    @staticmethod
+    def get_label(default_code):
+        try:
+            return Label.objects.get(default_code=default_code)
+        except Label.DoesNotExist:
+            return None

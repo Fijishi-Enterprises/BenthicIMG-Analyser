@@ -1343,8 +1343,13 @@ class UploadAnnotationsFormatTest(UploadAnnotationsBaseTest):
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
-        labels = cls.create_labels(cls.user, ['A', 'い'], 'Group1')
+
+        labels = cls.create_labels(cls.user, ['A', 'B'], 'Group1')
         cls.create_labelset(cls.user, cls.source, labels)
+        # Unicode custom label code
+        local_label = cls.source.labelset.locallabel_set.get(code='B')
+        local_label.code = 'い'
+        local_label.save()
 
         cls.img1 = cls.upload_image(
             cls.user, cls.source,

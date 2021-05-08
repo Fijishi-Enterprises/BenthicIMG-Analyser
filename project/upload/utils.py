@@ -2,9 +2,14 @@ import codecs
 from collections import OrderedDict
 import csv
 import functools
+from io import StringIO
 from pathlib import PureWindowsPath
 import re
 
+# PyCharm may warn that this isn't declared in __all__, but this import
+# simply matches BS4's docs as of 2018/12:
+# https://www.crummy.com/software/BeautifulSoup/bs4/doc/#unicode-dammit
+from bs4 import UnicodeDammit
 from django.urls import reverse
 
 from accounts.utils import get_robot_user
@@ -15,6 +20,104 @@ from images.utils import generate_points, aux_label_name_collisions, \
     metadata_field_names_to_labels
 from vision_backend.models import Features
 from lib.exceptions import FileProcessError
+
+
+def text_file_to_unicode_stream(text_file):
+    # Detect charset and convert to Unicode as needed.
+    unicode_text = UnicodeDammit(text_file.read()).unicode_markup
+    # Convert the text into a line-by-line stream.
+    return StringIO(unicode_text, newline='')
+
+
+# TODO: See if this function can be re-used for metadata and annotation upload.
+def csv_to_dict(
+        csv_stream, required_columns, optional_columns,
+        key_columns, multiple_rows_per_key):
+    reader = csv.reader(csv_stream, dialect='excel')
+
+    # Read the first row, which should have column headers.
+    column_headers = next(reader)
+    # There could be a UTF-8 BOM character at the start of the file.
+    # Strip it in that case.
+    column_headers[0] = column_headers[0].lstrip(
+        codecs.BOM_UTF8.decode())
+    # Strip whitespace in general.
+    column_headers = [h.strip() for h in column_headers]
+
+    # Ensure column header recognition is case insensitive.
+    column_headers = [h.lower() for h in column_headers]
+
+    # Enforce required column headers.
+    required_column_headers = [h for key, h in required_columns]
+    for h in required_column_headers:
+        if h.lower() not in column_headers:
+            raise FileProcessError(
+                "CSV must have a column called {h}".format(h=h))
+
+    # Map column text headers to string keys we want in the result dict.
+    # Ignore columns we don't recognize. We'll indicate this by making the
+    # column key None.
+    recognized_columns = required_columns + optional_columns
+    column_headers_to_keys = dict(
+        (h.lower(), key) for key, h in recognized_columns)
+    column_keys = [
+        column_headers_to_keys.get(h, None)
+        for h in column_headers
+    ]
+
+    # Use these later.
+    required_column_keys = [key for key, header in required_columns]
+    column_keys_to_headers = dict(
+        (k, h) for k, h in recognized_columns)
+
+    csv_data = OrderedDict()
+
+    # Read the data rows.
+    for row_number, row in enumerate(reader, start=2):
+        # strip() removes leading/trailing whitespace from the CSV value.
+        # A column key of None indicates that we're ignoring that column.
+        row_data = OrderedDict(
+            (k, value.strip())
+            for (k, value) in zip(column_keys, row)
+            if k is not None
+        )
+
+        # Enforce presence of a value for each required column.
+        for k in required_column_keys:
+            if row_data[k] == '':
+                raise FileProcessError(
+                    "CSV row {n}: Must have a value for {h}".format(
+                        n=row_number, h=column_keys_to_headers[k]))
+
+        # "Key columns" are the columns that 'identify' each row. There must be
+        # at least one key column name given. More than one can be given.
+        if len(key_columns) > 1:
+            data_key = tuple([row_data[col] for col in key_columns])
+        else:
+            data_key = row_data[key_columns[0]]
+
+        if multiple_rows_per_key:
+            # A defaultdict could make this a bit cleaner, but there's no
+            # ordered AND default dict built into Python.
+            if data_key not in csv_data:
+                csv_data[data_key] = []
+            csv_data[data_key].append(row_data)
+        else:
+            # Only one data value allowed per key.
+            if data_key in csv_data:
+                key_headers = " + ".join(
+                    [column_keys_to_headers[col] for col in key_columns])
+                raise FileProcessError(
+                    "More than one row with the same {key_headers}:"
+                    " {data_key}".format(
+                        key_headers=key_headers,
+                        data_key=data_key))
+            csv_data[data_key] = row_data
+
+    if len(csv_data) == 0:
+        raise FileProcessError("No data rows found in the CSV.")
+
+    return csv_data
 
 
 def metadata_csv_to_dict(csv_stream, source):

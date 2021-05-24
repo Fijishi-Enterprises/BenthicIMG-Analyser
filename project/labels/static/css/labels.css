@@ -1,7 +1,10 @@
 #label-table td.name {
-    /* Some names are long due to multiple words. Let these word wrap
-     instead of stretching the table really wide. */
+    /* Some label names are long and would normally stretch the label
+     list really wide. Make them word wrap after a certain point. */
     max-width: 200px;
+    /* And there are a few names where there aren't enough word breaks to
+     word wrap. Force these to wrap on any character as necessary. */
+    overflow-wrap: break-word;
 }
 
 .label-add-box, .label-remove-box,

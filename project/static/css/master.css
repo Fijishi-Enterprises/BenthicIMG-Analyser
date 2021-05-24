@@ -479,11 +479,6 @@ label.section_header.disabled {
     /* Separate rows of checkboxes a bit, so that multi-line labels
      * don't run so close to the label of the next row */
     margin: 3px 0;    /* top/bottom left/right */
-
-    /* TODO: Find a way to handle a really long single word in a label.
-     * It may happen with species names of corals and stuff. Any nice way
-     * to handle text overflow, detect text overflow, or do
-     * auto-hyphenation of long words? */
 }
 
 input[type=text], input[type=number], input[type=email], input[type=url],

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load popularity_bar status_icon from labels %}
+{% load calcify_icon popularity_bar status_icon from labels %}
 
 {% block title %}Label list - CoralNet{% endblock %}
 
@@ -57,7 +57,10 @@
         <td class="name"><a href="{% url 'label_main' label.id %}">{{ label.name }}</a></td>
         <td>{{ label.group }}</td>
         <td>{% popularity_bar label %}</td>
-        <td>{% status_icon label %}</td>
+        <td class="status-cell">
+          {% status_icon label %}
+          {% calcify_icon label has_calcify_info %}
+        </td>
         <td>{{ label.default_code }}</td>
       </tr>
     {% endfor %}

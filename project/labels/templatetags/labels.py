@@ -38,8 +38,29 @@ def status_icon(label):
         alt_text = "Duplicate"
         title_text = "Duplicate of {name}".format(name=label.duplicate.name)
     else:
-        # This blank icon ensures that the 'label box'
-        # (on add/remove labels) is a consistent size.
+        # This blank icon ensures that:
+        # - The calcification icons line up well on the label list page.
+        # - The 'label box' on add/remove labels is a consistent size.
+        icon_relative_path = 'img/label-icon-neutral__16x16.png'
+        alt_text = ""
+        title_text = ""
+
+    # Call the 'static' template tag's code to get the full path.
+    icon_full_path = static(icon_relative_path)
+
+    return mark_safe(
+        '<img class="label-status-image" src="{src}" alt="{alt}"'
+        ' title="{title}" />'.format(
+            src=icon_full_path, alt=alt_text, title=title_text))
+
+
+@register.simple_tag
+def calcify_icon(label, has_calcify_info):
+    if has_calcify_info[label.pk]:
+        icon_relative_path = 'img/label-icon-calcify__16x16.png'
+        alt_text = "Has calcification rate data"
+        title_text = "Has calcification rate data"
+    else:
         icon_relative_path = 'img/label-icon-neutral__16x16.png'
         alt_text = ""
         title_text = ""

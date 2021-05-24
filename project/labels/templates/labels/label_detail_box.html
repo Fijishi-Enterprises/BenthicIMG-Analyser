@@ -7,32 +7,7 @@
 
   <div class="label-basic-info">
 
-    <p>Name: <strong>{{ label.name }}</strong></p>
-    <p>Functional Group: {{ label.group.name }}</p>
-    <p>Default Short Code: {{ label.default_code }}</p>
-
-    {% if label.duplicate %}
-      <p>
-        <strong>
-          THIS LABEL IS A DUPLICATE OF:
-          <a href="{% url 'label_main' label.duplicate.id %}">
-            {{ label.duplicate }}
-          </a>
-        </strong>
-      </p>
-    {% endif %}
-
-    <div class="line">Verified:
-      {{ label.verified|yesno|title }}
-      {% if label.verified %}
-        {% status_icon label %}
-      {% endif %}
-    </div>
-
-    <div class="line">Popularity:
-      {{ label.popularity|truncate_float }}%
-      {% popularity_bar label %}
-    </div>
+    {% include 'labels/label_basic_fields.html' %}
 
   </div>
 

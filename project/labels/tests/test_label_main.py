@@ -1,7 +1,9 @@
+from bs4 import BeautifulSoup
 from django.core.cache import cache
 from django.urls import reverse
 from django.utils.html import escape as html_escape
 
+from calcification.tests.utils import CalcifyTestMixin
 from images.model_utils import PointGen
 from images.models import Source
 from lib.tests.utils import (
@@ -389,3 +391,98 @@ class PopularityTest(ClientTest):
         self.assertEqual(
             self.label_a.popularity, 0,
             msg="Cached popularity of 0 should still be used")
+
+
+class CalcificationRatesTest(ClientTest, CalcifyTestMixin):
+    """Label-main-page tests related to label calcification rates."""
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(cls.user)
+
+        cls.labels = cls.create_labels(
+            cls.user, ['A', 'B'], "Group1")
+        cls.label_a = cls.labels.get(name='A')
+        cls.label_b = cls.labels.get(name='B')
+
+    def get_label_main(self):
+        self.client.force_login(self.user)
+
+        # We'll test on label A's page.
+        return self.client.get(reverse('label_main', args=[self.label_a.pk]))
+
+    def test_no_data(self):
+        """No calcification rate data for the label."""
+
+        # 2 regions defined, but only label B gets rates
+        self.create_global_rate_table(
+            'Atlantic', {
+                self.label_b.pk: dict(mean=2, lower_bound=1, upper_bound=3)})
+        self.create_global_rate_table(
+            'Indo-Pacific', {
+                self.label_b.pk: dict(mean=2, lower_bound=1, upper_bound=3)})
+
+        response = self.get_label_main()
+        response_soup = BeautifulSoup(response.content, 'html.parser')
+        calcify_data_soup = response_soup.find(
+            'dd', class_='calcification-rate-data')
+
+        self.assertEqual(
+            "(Not available)",
+            calcify_data_soup.get_text().strip(),
+            msg="Should say rate data isn't available")
+
+    def test_data_for_some_regions(self):
+        """
+        The label has calcification rate data for at least one, but not
+        all of the regions.
+        """
+        self.create_global_rate_table(
+            'Atlantic', {
+                self.label_b.pk: dict(mean=2, lower_bound=1, upper_bound=3)})
+        self.create_global_rate_table(
+            'Indo-Pacific', {
+                self.label_a.pk: dict(mean=5, lower_bound=4, upper_bound=6),
+                self.label_b.pk: dict(mean=2, lower_bound=1, upper_bound=3)})
+
+        response = self.get_label_main()
+        response_soup = BeautifulSoup(response.content, 'html.parser')
+        calcify_data_soup = response_soup.find(
+            'dd', class_='calcification-rate-data')
+
+        self.assertNotIn(
+            'Atlantic', str(calcify_data_soup),
+            msg="Should not have rate data for the Atlantic region")
+        self.assertInHTML(
+            '<td>Indo-Pacific</td> <td>5</td> <td>4</td> <td>6</td>',
+            str(calcify_data_soup),
+            msg_prefix="Should include Indo-Pacific rate: ")
+
+    def test_data_for_all_regions(self):
+        """
+        The label has calcification rate data for all regions.
+        """
+        self.create_global_rate_table(
+            'Atlantic', {
+                self.label_a.pk: dict(mean=4, lower_bound=3, upper_bound=5),
+                self.label_b.pk: dict(mean=2, lower_bound=1, upper_bound=3)})
+        self.create_global_rate_table(
+            'Indo-Pacific', {
+                self.label_a.pk: dict(mean=5, lower_bound=4, upper_bound=6),
+                self.label_b.pk: dict(mean=2, lower_bound=1, upper_bound=3)})
+
+        response = self.get_label_main()
+        response_soup = BeautifulSoup(response.content, 'html.parser')
+        calcify_data_soup = response_soup.find(
+            'dd', class_='calcification-rate-data')
+
+        self.assertInHTML(
+            '<td>Atlantic</td> <td>4</td> <td>3</td> <td>5</td>',
+            str(calcify_data_soup),
+            msg_prefix="Should include Atlantic rate: ")
+        self.assertInHTML(
+            '<td>Indo-Pacific</td> <td>5</td> <td>4</td> <td>6</td>',
+            str(calcify_data_soup),
+            msg_prefix="Should include Indo-Pacific rate: ")

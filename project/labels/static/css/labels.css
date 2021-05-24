@@ -187,11 +187,6 @@ img.label-thumbnail {
     height: 150px;
 }
 
-span.label-description {
-    display: block;
-    margin-left: 30px;
-}
-
 div#patches-container {
     margin: 0.5em 0;
 }

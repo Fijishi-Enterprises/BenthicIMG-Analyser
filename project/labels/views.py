@@ -17,6 +17,7 @@ from django.views.decorators.http import require_POST, require_GET
 from accounts.utils import get_robot_user
 from annotations.models import Annotation
 from annotations.utils import label_ids_with_confirmed_annotations_in_source
+from calcification.utils import get_default_calcify_rates
 from images.models import Source
 from images.utils import filter_out_test_sources
 from lib.decorators import (
@@ -388,13 +389,24 @@ def label_main(request, label_id):
     other_private = other_private.annotate(image_count=Count('image'))
     other_private = other_private.exclude(image_count__lt=100)
 
-    # Stats
+    # Create a dict of the rates from each region, if available for this label.
+    # If this label doesn't have rates defined in any region, then this is an
+    # empty dict.
+    rates_by_region = get_default_calcify_rates()
+    calcification_rates = {
+        region: region_rates[str(label_id)]
+        for region, region_rates in rates_by_region.items()
+        if str(label_id) in region_rates
+    }
+
+    # Label usage stats
     source_count = all_sources_with_label.count()
     annotation_count = Annotation.objects.filter(label=label).count()
 
     return render(request, 'labels/label_main.html', {
         'label': label,
         'can_edit_label': is_label_editable_by_user(label, request.user),
+        'calcification_rates': calcification_rates,
         'users_sources': users_sources,
         'other_public_sources': other_public,
         'other_private_sources': other_private,

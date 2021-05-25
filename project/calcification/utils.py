@@ -12,6 +12,6 @@ def get_default_calcify_tables():
 def get_default_calcify_rates():
     tables = get_default_calcify_tables()
     return {
-        table.region: json.loads(table.rates_json)
+        table.region: table.rates_json
         for table in tables
     }

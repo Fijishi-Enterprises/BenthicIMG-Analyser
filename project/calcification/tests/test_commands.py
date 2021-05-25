@@ -71,7 +71,7 @@ class ImportDefaultTableTest(ManagementCommandTest):
             indo_pacific_table.name, "Name goes here - Indo-Pacific")
         self.assertEqual(
             indo_pacific_table.description, "Description goes here")
-        self.assertJSONEqual(
+        self.assertDictEqual(
             indo_pacific_table.rates_json,
             {
                 str(labels.get(name='A').pk): dict(
@@ -87,7 +87,7 @@ class ImportDefaultTableTest(ManagementCommandTest):
             atlantic_table.name, "Name goes here - Atlantic")
         self.assertEqual(
             atlantic_table.description, "Description goes here")
-        self.assertJSONEqual(
+        self.assertDictEqual(
             atlantic_table.rates_json,
             {
                 str(labels.get(name='A').pk): dict(

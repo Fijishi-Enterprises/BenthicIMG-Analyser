@@ -1,5 +1,3 @@
-import json
-
 from ..models import CalcifyRateTable
 
 
@@ -10,7 +8,7 @@ class CalcifyTestMixin:
         table = CalcifyRateTable(
             name="Table Name - {}".format(region),
             description="Table Description",
-            rates_json=json.dumps(rates_dict),
+            rates_json=rates_dict,
             source=None,
             region=region,
         )

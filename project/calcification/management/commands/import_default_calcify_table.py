@@ -1,5 +1,4 @@
 from collections import defaultdict
-import json
 
 from django.core.management.base import BaseCommand, CommandError
 
@@ -86,7 +85,7 @@ class Command(BaseCommand):
             table = CalcifyRateTable(
                 name=f"{options['name']} - {region}",
                 description=options['description'],
-                rates_json=json.dumps(data),
+                rates_json=data,
                 source=None,
                 region=region,
             )

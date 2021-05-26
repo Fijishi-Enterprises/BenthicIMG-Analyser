@@ -13,3 +13,4 @@ class CalcifyTestMixin:
             region=region,
         )
         table.save()
+        return table

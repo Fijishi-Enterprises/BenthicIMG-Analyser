@@ -486,3 +486,33 @@ class CalcificationRatesTest(ClientTest, CalcifyTestMixin):
             '<td>Indo-Pacific</td> <td>5</td> <td>4</td> <td>6</td>',
             str(calcify_data_soup),
             msg_prefix="Should include Indo-Pacific rate: ")
+
+    def test_links_to_default_tables(self):
+        """
+        The calcification rates help dialog should have download links to the
+        latest default tables.
+        """
+        atlantic_table = self.create_global_rate_table(
+            'Atlantic', {
+                self.label_b.pk: dict(mean=2, lower_bound=1, upper_bound=3)})
+        indo_pacific_table = self.create_global_rate_table(
+            'Indo-Pacific', {
+                self.label_a.pk: dict(mean=5, lower_bound=4, upper_bound=6),
+                self.label_b.pk: dict(mean=2, lower_bound=1, upper_bound=3)})
+
+        response = self.get_label_main()
+        response_soup = BeautifulSoup(response.content, 'html.parser')
+        help_dialog_tag = response_soup.select('div.tutorial-message')[0]
+
+        atlantic_download_url = reverse(
+            'calcification:rate_table_download', args=[atlantic_table.pk])
+        indo_pacific_download_url = reverse(
+            'calcification:rate_table_download', args=[indo_pacific_table.pk])
+        self.assertIn(
+            f'<a href="{atlantic_download_url}">Atlantic</a>',
+            str(help_dialog_tag),
+            msg="Atlantic table download link should be present")
+        self.assertIn(
+            f'<a href="{indo_pacific_download_url}">Indo-Pacific</a>',
+            str(help_dialog_tag),
+            msg="Indo-Pacific table download link should be present")

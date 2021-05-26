@@ -17,7 +17,7 @@ from django.views.decorators.http import require_POST, require_GET
 from accounts.utils import get_robot_user
 from annotations.models import Annotation
 from annotations.utils import label_ids_with_confirmed_annotations_in_source
-from calcification.utils import get_default_calcify_rates
+from calcification.utils import get_default_calcify_tables
 from images.models import Source
 from images.utils import filter_out_test_sources
 from lib.decorators import (
@@ -392,11 +392,15 @@ def label_main(request, label_id):
     # Create a dict of the rates from each region, if available for this label.
     # If this label doesn't have rates defined in any region, then this is an
     # empty dict.
-    rates_by_region = get_default_calcify_rates()
+    tables_by_region = get_default_calcify_tables()
     calcification_rates = {
-        region: region_rates[str(label_id)]
-        for region, region_rates in rates_by_region.items()
-        if str(label_id) in region_rates
+        region: table.rates_json[str(label_id)]
+        for region, table in tables_by_region.items()
+        if str(label_id) in table.rates_json
+    }
+    calcification_table_ids = {
+        region: table.pk
+        for region, table in tables_by_region.items()
     }
 
     # Label usage stats
@@ -407,6 +411,7 @@ def label_main(request, label_id):
         'label': label,
         'can_edit_label': is_label_editable_by_user(label, request.user),
         'calcification_rates': calcification_rates,
+        'calcification_table_ids': calcification_table_ids,
         'users_sources': users_sources,
         'other_public_sources': other_public,
         'other_private_sources': other_private,
@@ -512,10 +517,10 @@ def label_list(request):
 
     # Create a boolean lookup which says whether a label ID has a default
     # calcification rate defined in at least 1 region.
-    rates_by_region = get_default_calcify_rates()
+    tables_by_region = get_default_calcify_tables()
     labels_with_any_region_rate = set()
-    for region, region_rates in rates_by_region.items():
-        labels_with_this_region_rate = set(region_rates.keys())
+    for region, table in tables_by_region.items():
+        labels_with_this_region_rate = set(table.rates_json.keys())
         labels_with_any_region_rate = \
             labels_with_any_region_rate | labels_with_this_region_rate
     has_calcify_info = {

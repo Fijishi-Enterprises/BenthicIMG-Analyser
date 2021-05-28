@@ -515,22 +515,8 @@ def label_list(request):
     """
     labels = Label.objects.all().order_by('group__id', 'name')
 
-    # Create a boolean lookup which says whether a label ID has a default
-    # calcification rate defined in at least 1 region.
-    tables_by_region = get_default_calcify_tables()
-    labels_with_any_region_rate = set()
-    for region, table in tables_by_region.items():
-        labels_with_this_region_rate = set(table.rates_json.keys())
-        labels_with_any_region_rate = \
-            labels_with_any_region_rate | labels_with_this_region_rate
-    has_calcify_info = {
-        label.pk: str(label.pk) in labels_with_any_region_rate
-        for label in labels
-    }
-
     return render(request, 'labels/label_list.html', {
         'labels': labels,
-        'has_calcify_info': has_calcify_info,
         'can_edit_labels': request.user.has_perm('labels.change_label'),
         'search_form': LabelSearchForm(),
     })

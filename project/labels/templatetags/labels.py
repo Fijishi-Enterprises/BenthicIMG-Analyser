@@ -52,23 +52,3 @@ def status_icon(label):
         '<img class="label-status-image" src="{src}" alt="{alt}"'
         ' title="{title}" />'.format(
             src=icon_full_path, alt=alt_text, title=title_text))
-
-
-@register.simple_tag
-def calcify_icon(label, has_calcify_info):
-    if has_calcify_info[label.pk]:
-        icon_relative_path = 'img/label-icon-calcify__16x16.png'
-        alt_text = "Has calcification rate data"
-        title_text = "Has calcification rate data"
-    else:
-        icon_relative_path = 'img/label-icon-neutral__16x16.png'
-        alt_text = ""
-        title_text = ""
-
-    # Call the 'static' template tag's code to get the full path.
-    icon_full_path = static(icon_relative_path)
-
-    return mark_safe(
-        '<img class="label-status-image" src="{src}" alt="{alt}"'
-        ' title="{title}" />'.format(
-            src=icon_full_path, alt=alt_text, title=title_text))

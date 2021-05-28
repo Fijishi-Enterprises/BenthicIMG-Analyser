@@ -22,6 +22,14 @@ def get_default_calcify_rates():
     }
 
 
+def label_has_calcify_rates(label):
+    rates_by_region = get_default_calcify_rates()
+    return any([
+        str(label.pk) in region_rates
+        for _, region_rates in rates_by_region.items()
+    ])
+
+
 def rate_table_json_to_csv(csv_stream, rate_table):
     fieldnames = [
         "Label",

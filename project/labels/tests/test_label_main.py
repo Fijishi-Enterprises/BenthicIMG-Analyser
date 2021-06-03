@@ -1,5 +1,4 @@
 from bs4 import BeautifulSoup
-from django.core.cache import cache
 from django.urls import reverse
 from django.utils.html import escape as html_escape
 

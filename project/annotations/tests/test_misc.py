@@ -2,7 +2,6 @@ import math
 from unittest import skip
 
 from bs4 import BeautifulSoup
-from django.core.cache import cache
 from django.urls import reverse
 
 from annotations.model_utils import AnnotationAreaUtils

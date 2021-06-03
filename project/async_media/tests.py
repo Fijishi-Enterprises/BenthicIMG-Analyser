@@ -3,7 +3,6 @@ from unittest import skipIf
 
 from bs4 import BeautifulSoup
 from django.conf import settings
-from django.core.cache import cache
 from django.urls import reverse
 from easy_thumbnails.files import get_thumbnailer
 

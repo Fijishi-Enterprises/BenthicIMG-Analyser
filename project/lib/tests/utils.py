@@ -21,6 +21,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from django.contrib.auth import get_user_model
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.core import mail, management
+from django.core.cache import cache
 from django.core.files.base import ContentFile
 from django.conf import settings
 from django.test import override_settings, skipIfDBFeature, tag, TestCase
@@ -452,6 +453,11 @@ class BaseTest(TestCase):
         storage_manager.empty_temp_dir(settings.TEST_STORAGE_DIR)
         storage_manager.copy_dir(
             settings.POST_SETUPTESTDATA_STATE_DIR, settings.TEST_STORAGE_DIR)
+
+        # Some site functionality uses the cache for performance, but leaving
+        # the cache uncleared between cache-using tests can mess up test
+        # results.
+        cache.clear()
 
         super().setUp()
 

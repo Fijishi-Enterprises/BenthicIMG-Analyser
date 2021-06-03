@@ -42,14 +42,6 @@ class BrowseImagesThumbnailsTest(ClientTest):
         cls.source = cls.create_source(cls.user)
         cls.browse_url = reverse('browse_images', args=[cls.source.pk])
 
-    def setUp(self):
-        super().setUp()
-
-        # Async media uses the cache to store media generation requests.
-        # Probably best to ensure subsequent tests can't interfere with
-        # each other.
-        cache.clear()
-
     def test_load_existing_thumbnail(self):
         img = self.upload_image(self.user, self.source)
 

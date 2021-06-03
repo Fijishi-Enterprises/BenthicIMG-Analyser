@@ -1,6 +1,5 @@
 from bs4 import BeautifulSoup
 from django.contrib.auth.models import Group
-from django.core.cache import cache
 from django.urls import reverse
 
 from calcification.tests.utils import CalcifyTestMixin
@@ -160,13 +159,6 @@ class BaseLabelSearchTest(ClientTest):
         data.update(kwargs)
         response = self.client.get(self.url, data)
         return response
-
-    def setUp(self):
-        super().setUp()
-
-        # Popularities are cached when computed, so we clear the cache to
-        # prevent a previous test from affecting the next one.
-        cache.clear()
 
 
 class LabelSearchNameFieldTest(BaseLabelSearchTest):

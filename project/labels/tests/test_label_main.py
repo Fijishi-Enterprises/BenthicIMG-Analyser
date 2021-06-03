@@ -339,13 +339,6 @@ class PopularityTest(ClientTest):
 
         cls.img = cls.upload_image(cls.user, cls.source)
 
-    def setUp(self):
-        super().setUp()
-
-        # Popularities are cached when computed, so we clear the cache to
-        # prevent a previous test from affecting the next one.
-        cache.clear()
-
     def test_zero_sources(self):
         # There's a labelset, but it doesn't have A
         self.create_labelset(

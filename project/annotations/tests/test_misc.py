@@ -43,13 +43,6 @@ class SitewideAnnotationCountTest(ClientTest):
         cls.img = cls.upload_image(cls.user, cls.source)
         cls.add_annotations(cls.user, cls.img, {1: 'A', 2: 'B', 3: 'A'})
 
-    def setUp(self):
-        super().setUp()
-
-        # Sitewide annotation count gets cached after computation.
-        # We must ensure subsequent tests can't interfere with each other.
-        cache.clear()
-
     def test_set_on_demand(self):
         self.assertEqual(get_sitewide_annotation_count(), 3)
 

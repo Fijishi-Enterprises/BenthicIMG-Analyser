@@ -341,3 +341,48 @@ class LabelSearchOtherFieldsTest(BaseLabelSearchTest):
             functional_group=LabelGroup.objects.get(name='Group1').pk,
             min_popularity=1)
         self.assertLabels(response, ['A'])
+
+
+class PerformanceTest(ClientTest):
+    """
+    Test performance of the label list related views.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        # Call the parent's setup (while still using this class as cls)
+        super().setUpTestData()
+
+        cls.user = cls.create_user()
+
+        # Create 20 labels
+        cls.labels = cls.create_labels(
+            cls.user, [str(i) for i in range(20)], "Group1")
+
+    def test_list_num_queries(self):
+        # First allow label popularities to be cached.
+        self.client.get(reverse('label_list'))
+
+        # We just want the number of queries to be less than 20
+        # (the label count), but assertNumQueries only asserts on an exact
+        # number of queries.
+        with self.assertNumQueries(5):
+            response = self.client.get(reverse('label_list'))
+        self.assertStatusOK(response)
+
+    def test_search_ajax_num_queries(self):
+        url = reverse('label_list_search_ajax')
+        data = dict(
+            name_search='',
+            show_verified=True,
+            show_regular=True,
+            show_duplicate=False,
+            functional_group='',
+            min_popularity='',
+        )
+
+        # We just want the number of queries to be less than 20
+        # (the label count), but assertNumQueries only asserts on an exact
+        # number of queries.
+        with self.assertNumQueries(3):
+            response = self.client.get(url, data)
+        self.assertStatusOK(response)

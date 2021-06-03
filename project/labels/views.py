@@ -5,7 +5,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core import serializers
 from django.core.paginator import Paginator, EmptyPage, InvalidPage
-from django.db.models import Count
+from django.db.models import Count, F
 from django.forms import modelformset_factory
 from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import render, get_object_or_404
@@ -513,7 +513,8 @@ def label_list(request):
     """
     Page with a list of all the labels
     """
-    labels = Label.objects.all().order_by('group__id', 'name')
+    labels = Label.objects.all().order_by('group__id', 'name').annotate(
+        group__name=F('group__name'))
 
     return render(request, 'labels/label_list.html', {
         'labels': labels,

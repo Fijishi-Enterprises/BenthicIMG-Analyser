@@ -1,5 +1,7 @@
 import csv
 
+from django.core.cache import cache
+
 from labels.models import Label
 from .models import CalcifyRateTable
 
@@ -15,11 +17,22 @@ def get_default_calcify_tables():
 
 
 def get_default_calcify_rates():
+    cache_key = 'default_calcify_rates'
+
+    # Check for cached value
+    cached_value = cache.get(cache_key)
+    if cached_value is not None:
+        return cached_value
+
+    # No cached value available
     tables = get_default_calcify_tables()
-    return {
+    rates = {
         region: table.rates_json
         for region, table in tables.items()
     }
+    # Cache for 10 minutes
+    cache.set(cache_key, rates, 60*10)
+    return rates
 
 
 def label_has_calcify_rates(label):

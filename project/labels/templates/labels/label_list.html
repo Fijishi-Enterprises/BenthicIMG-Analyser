@@ -58,7 +58,7 @@
     {% for label in labels %}
       <tr data-label-id="{{ label.id }}">
         <td class="name"><a href="{% url 'label_main' label.id %}">{{ label.name }}</a></td>
-        <td>{{ label.group }}</td>
+        <td>{{ label.group__name }}</td>
         <td>{% popularity_bar label %}</td>
         <td class="status-cell">
           {% status_icon label %}

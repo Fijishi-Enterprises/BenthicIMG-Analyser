@@ -38,8 +38,9 @@ def status_icon(label):
         alt_text = "Duplicate"
         title_text = "Duplicate of {name}".format(name=label.duplicate.name)
     else:
-        # This blank icon ensures that the 'label box'
-        # (on add/remove labels) is a consistent size.
+        # This blank icon ensures that:
+        # - The calcification icons line up well on the label list page.
+        # - The 'label box' on add/remove labels is a consistent size.
         icon_relative_path = 'img/label-icon-neutral__16x16.png'
         alt_text = ""
         title_text = ""

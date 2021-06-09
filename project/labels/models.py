@@ -1,6 +1,5 @@
 import math
 import posixpath
-import random
 import re
 
 from django.conf import settings
@@ -168,12 +167,12 @@ class Label(models.Model):
             # Map to a 0-100 scale.
             popularity = 100 * (1 - raw_score**(-0.15))
 
-        # Cache the value for a random duration between 2 and 3 days.
-        # The duration is random so that the cached popularities don't all
-        # expire at the same time.
-        POPULARITY_CACHE_DURATION = random.randint(60*60*24*2, 60*60*24*3)
+        # Normally, popularities should be asynchronously refreshed. But if
+        # the async tasks fail to run for some reason, the values should
+        # expire after 30 days and then get recomputed on-demand.
+        thirty_days = 60*60*24*30
         cache_key = 'label_popularity_{pk}'.format(pk=self.pk)
-        cache.set(cache_key, popularity, POPULARITY_CACHE_DURATION)
+        cache.set(key=cache_key, value=popularity, timeout=thirty_days)
 
         return popularity
 

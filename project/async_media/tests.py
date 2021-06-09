@@ -3,7 +3,6 @@ from unittest import skipIf
 
 from bs4 import BeautifulSoup
 from django.conf import settings
-from django.core.cache import cache
 from django.urls import reverse
 from easy_thumbnails.files import get_thumbnailer
 
@@ -41,14 +40,6 @@ class BrowseImagesThumbnailsTest(ClientTest):
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
         cls.browse_url = reverse('browse_images', args=[cls.source.pk])
-
-    def setUp(self):
-        super().setUp()
-
-        # Async media uses the cache to store media generation requests.
-        # Probably best to ensure subsequent tests can't interfere with
-        # each other.
-        cache.clear()
 
     def test_load_existing_thumbnail(self):
         img = self.upload_image(self.user, self.source)

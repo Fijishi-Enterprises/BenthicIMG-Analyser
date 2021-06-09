@@ -2,7 +2,6 @@ import math
 from unittest import skip
 
 from bs4 import BeautifulSoup
-from django.core.cache import cache
 from django.urls import reverse
 
 from annotations.model_utils import AnnotationAreaUtils
@@ -42,13 +41,6 @@ class SitewideAnnotationCountTest(ClientTest):
         cls.create_labelset(cls.user, cls.source, labels)
         cls.img = cls.upload_image(cls.user, cls.source)
         cls.add_annotations(cls.user, cls.img, {1: 'A', 2: 'B', 3: 'A'})
-
-    def setUp(self):
-        super().setUp()
-
-        # Sitewide annotation count gets cached after computation.
-        # We must ensure subsequent tests can't interfere with each other.
-        cache.clear()
 
     def test_set_on_demand(self):
         self.assertEqual(get_sitewide_annotation_count(), 3)

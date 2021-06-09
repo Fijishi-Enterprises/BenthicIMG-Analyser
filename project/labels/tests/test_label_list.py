@@ -1,7 +1,8 @@
+from bs4 import BeautifulSoup
 from django.contrib.auth.models import Group
-from django.core.cache import cache
 from django.urls import reverse
 
+from calcification.tests.utils import CalcifyTestMixin
 from images.model_utils import PointGen
 from lib.tests.utils import BasePermissionTest, ClientTest
 from ..models import LabelGroup, Label
@@ -27,7 +28,7 @@ class PermissionTest(BasePermissionTest):
         self.assertPermissionLevel(url, self.SIGNED_OUT, is_json=True)
 
 
-class LabelListTest(ClientTest):
+class LabelListTest(ClientTest, CalcifyTestMixin):
     """
     Test the label list page.
     """
@@ -44,7 +45,7 @@ class LabelListTest(ClientTest):
 
         # Create labels
         cls.labels = cls.create_labels(
-            cls.user, ['A', 'B'], "Group1")
+            cls.user, ['A', 'B', 'C'], "Group1")
 
     def test_load_page(self):
         response = self.client.get(reverse('label_list'))
@@ -59,6 +60,83 @@ class LabelListTest(ClientTest):
         self.client.force_login(self.user_committee_member)
         response = self.client.get(reverse('label_list'))
         self.assertContains(response, "Create a new label")
+
+    def test_duplicate_verified_status_indicators(self):
+        """
+        Test the possible 'endorsement status' levels: verified, duplicate,
+        neither.
+        """
+        label_a = self.labels.get(name='A')
+        label_a.verified = True
+        label_a.save()
+
+        label_b = self.labels.get(name='B')
+        label_b.duplicate = label_a
+        label_b.save()
+
+        label_c = self.labels.get(name='C')
+
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('label_list'))
+        response_soup = BeautifulSoup(response.content, 'html.parser')
+
+        label_a_row_tag = response_soup.select(
+            f'tr[data-label-id="{label_a.pk}"]')[0]
+        status_cell_tag = label_a_row_tag.select('td.status-cell')[0]
+        self.assertIn('alt="Verified"', str(status_cell_tag))
+        self.assertNotIn('alt="Duplicate"', str(status_cell_tag))
+
+        label_b_row_tag = response_soup.select(
+            f'tr[data-label-id="{label_b.pk}"]')[0]
+        status_cell_tag = label_b_row_tag.select('td.status-cell')[0]
+        self.assertNotIn('alt="Verified"', str(status_cell_tag))
+        self.assertIn('alt="Duplicate"', str(status_cell_tag))
+
+        label_c_row_tag = response_soup.select(
+            f'tr[data-label-id="{label_c.pk}"]')[0]
+        status_cell_tag = label_c_row_tag.select('td.status-cell')[0]
+        self.assertNotIn('alt="Verified"', str(status_cell_tag))
+        self.assertNotIn('alt="Duplicate"', str(status_cell_tag))
+
+    def test_calcify_data_indicators(self):
+        """
+        Test the calcification rate status icon. 1 label with no data,
+        1 label with data for some regions, 1 label with data for all regions.
+        """
+        # A = none (no icon), B = some (icon), C = all (icon)
+        label_a = self.labels.get(name='A')
+        label_b = self.labels.get(name='B')
+        label_c = self.labels.get(name='C')
+
+        self.create_global_rate_table(
+            'Atlantic', {
+                label_c.pk: dict(mean=2, lower_bound=1, upper_bound=3)})
+        self.create_global_rate_table(
+            'Indo-Pacific', {
+                label_b.pk: dict(mean=5, lower_bound=4, upper_bound=6),
+                label_c.pk: dict(mean=2, lower_bound=1, upper_bound=3)})
+
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('label_list'))
+        response_soup = BeautifulSoup(response.content, 'html.parser')
+
+        label_a_row_tag = response_soup.select(
+            f'tr[data-label-id="{label_a.pk}"]')[0]
+        status_cell_tag = label_a_row_tag.select('td.status-cell')[0]
+        self.assertNotIn(
+            'alt="Has calcification rate data"', str(status_cell_tag))
+
+        label_b_row_tag = response_soup.select(
+            f'tr[data-label-id="{label_b.pk}"]')[0]
+        status_cell_tag = label_b_row_tag.select('td.status-cell')[0]
+        self.assertIn(
+            'alt="Has calcification rate data"', str(status_cell_tag))
+
+        label_c_row_tag = response_soup.select(
+            f'tr[data-label-id="{label_c.pk}"]')[0]
+        status_cell_tag = label_c_row_tag.select('td.status-cell')[0]
+        self.assertIn(
+            'alt="Has calcification rate data"', str(status_cell_tag))
 
 
 class BaseLabelSearchTest(ClientTest):
@@ -81,13 +159,6 @@ class BaseLabelSearchTest(ClientTest):
         data.update(kwargs)
         response = self.client.get(self.url, data)
         return response
-
-    def setUp(self):
-        super().setUp()
-
-        # Popularities are cached when computed, so we clear the cache to
-        # prevent a previous test from affecting the next one.
-        cache.clear()
 
 
 class LabelSearchNameFieldTest(BaseLabelSearchTest):
@@ -270,3 +341,48 @@ class LabelSearchOtherFieldsTest(BaseLabelSearchTest):
             functional_group=LabelGroup.objects.get(name='Group1').pk,
             min_popularity=1)
         self.assertLabels(response, ['A'])
+
+
+class PerformanceTest(ClientTest):
+    """
+    Test performance of the label list related views.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        # Call the parent's setup (while still using this class as cls)
+        super().setUpTestData()
+
+        cls.user = cls.create_user()
+
+        # Create 20 labels
+        cls.labels = cls.create_labels(
+            cls.user, [str(i) for i in range(20)], "Group1")
+
+    def test_list_num_queries(self):
+        # First allow label popularities to be cached.
+        self.client.get(reverse('label_list'))
+
+        # We just want the number of queries to be less than 20
+        # (the label count), but assertNumQueries only asserts on an exact
+        # number of queries.
+        with self.assertNumQueries(5):
+            response = self.client.get(reverse('label_list'))
+        self.assertStatusOK(response)
+
+    def test_search_ajax_num_queries(self):
+        url = reverse('label_list_search_ajax')
+        data = dict(
+            name_search='',
+            show_verified=True,
+            show_regular=True,
+            show_duplicate=False,
+            functional_group='',
+            min_popularity='',
+        )
+
+        # We just want the number of queries to be less than 20
+        # (the label count), but assertNumQueries only asserts on an exact
+        # number of queries.
+        with self.assertNumQueries(3):
+            response = self.client.get(url, data)
+        self.assertStatusOK(response)

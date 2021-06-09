@@ -8,6 +8,9 @@ class LabelAdmin(admin.ModelAdmin):
 
 
 @admin.register(LocalLabel)
+class LocalLabelAdmin(admin.ModelAdmin):
+    list_display = ('labelset', 'name', 'code')
+
 
 @admin.register(LabelGroup)
 class LabelGroupAdmin(admin.ModelAdmin):

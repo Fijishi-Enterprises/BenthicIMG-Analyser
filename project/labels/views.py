@@ -5,7 +5,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core import serializers
 from django.core.paginator import Paginator, EmptyPage, InvalidPage
-from django.db.models import Count
+from django.db.models import Count, F
 from django.forms import modelformset_factory
 from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import render, get_object_or_404
@@ -17,6 +17,7 @@ from django.views.decorators.http import require_POST, require_GET
 from accounts.utils import get_robot_user
 from annotations.models import Annotation
 from annotations.utils import label_ids_with_confirmed_annotations_in_source
+from calcification.utils import get_default_calcify_tables
 from images.models import Source
 from images.utils import filter_out_test_sources
 from lib.decorators import (
@@ -388,13 +389,29 @@ def label_main(request, label_id):
     other_private = other_private.annotate(image_count=Count('image'))
     other_private = other_private.exclude(image_count__lt=100)
 
-    # Stats
+    # Create a dict of the rates from each region, if available for this label.
+    # If this label doesn't have rates defined in any region, then this is an
+    # empty dict.
+    tables_by_region = get_default_calcify_tables()
+    calcification_rates = {
+        region: table.rates_json[str(label_id)]
+        for region, table in tables_by_region.items()
+        if str(label_id) in table.rates_json
+    }
+    calcification_table_ids = {
+        region: table.pk
+        for region, table in tables_by_region.items()
+    }
+
+    # Label usage stats
     source_count = all_sources_with_label.count()
     annotation_count = Annotation.objects.filter(label=label).count()
 
     return render(request, 'labels/label_main.html', {
         'label': label,
         'can_edit_label': is_label_editable_by_user(label, request.user),
+        'calcification_rates': calcification_rates,
+        'calcification_table_ids': calcification_table_ids,
         'users_sources': users_sources,
         'other_public_sources': other_public,
         'other_private_sources': other_private,
@@ -496,7 +513,8 @@ def label_list(request):
     """
     Page with a list of all the labels
     """
-    labels = Label.objects.all().order_by('group__id', 'name')
+    labels = Label.objects.all().order_by('group__id', 'name').annotate(
+        group__name=F('group__name'))
 
     return render(request, 'labels/label_list.html', {
         'labels': labels,

@@ -1,6 +1,4 @@
-import codecs
 from collections import OrderedDict
-import csv
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -18,91 +16,9 @@ from django.utils.safestring import mark_safe
 from annotations.utils import label_ids_with_confirmed_annotations_in_source
 from lib.exceptions import FileProcessError
 from lib.forms import get_one_form_error
+from upload.utils import csv_to_dict
 from .models import Label, LabelGroup, LabelSet, LocalLabel
 from .utils import search_labels_by_text
-
-
-def csv_to_dict(
-        csv_stream, required_columns, optional_columns,
-        key_column, multiple_rows_per_key):
-    reader = csv.reader(csv_stream, dialect='excel')
-
-    # Read the first row, which should have column headers.
-    column_headers = next(reader)
-    # There could be a UTF-8 BOM character at the start of the file.
-    # Strip it in that case.
-    column_headers[0] = column_headers[0].lstrip(
-        codecs.BOM_UTF8.decode())
-    # Strip whitespace in general.
-    column_headers = [h.strip() for h in column_headers]
-
-    # Ensure column header recognition is case insensitive.
-    column_headers = [h.lower() for h in column_headers]
-
-    # Enforce required column headers.
-    required_column_headers = [h for key, h in required_columns]
-    for h in required_column_headers:
-        if h.lower() not in column_headers:
-            raise FileProcessError(
-                "CSV must have a column called {h}".format(h=h))
-
-    # Map column text headers to string keys we want in the result dict.
-    # Ignore columns we don't recognize. We'll indicate this by making the
-    # column key None.
-    recognized_columns = required_columns + optional_columns
-    column_headers_to_keys = dict(
-        (h.lower(), key) for key, h in recognized_columns)
-    column_keys = [
-        column_headers_to_keys.get(h, None)
-        for h in column_headers
-    ]
-
-    # Use these later.
-    required_column_keys = [key for key, header in required_columns]
-    column_keys_to_headers = dict(
-        (k, h) for k, h in recognized_columns)
-
-    csv_data = OrderedDict()
-
-    # Read the data rows.
-    for row_number, row in enumerate(reader, start=2):
-        # strip() removes leading/trailing whitespace from the CSV value.
-        # A column key of None indicates that we're ignoring that column.
-        row_data = OrderedDict(
-            (k, value.strip())
-            for (k, value) in zip(column_keys, row)
-            if k is not None
-        )
-
-        # Enforce presence of a value for each required column.
-        for k in required_column_keys:
-            if row_data[k] == '':
-                raise FileProcessError(
-                    "CSV row {n}: Must have a value for {h}".format(
-                        n=row_number, h=column_keys_to_headers[k]))
-
-        data_key = row_data[key_column]
-
-        if multiple_rows_per_key:
-            # A defaultdict could make this a bit cleaner, but there's no
-            # ordered AND default dict built into Python.
-            if data_key not in csv_data:
-                csv_data[data_key] = []
-            csv_data[data_key].append(row_data)
-        else:
-            # Only one data value allowed per key.
-            if data_key in csv_data:
-                raise FileProcessError(
-                    "More than one row with the same {key_header}:"
-                    " {value}".format(
-                        key_header=column_keys_to_headers[key_column],
-                        value=data_key))
-            csv_data[data_key] = row_data
-
-    if len(csv_data) == 0:
-        raise FileProcessError("No data rows found in the CSV.")
-
-    return csv_data
 
 
 def labels_csv_process(csv_stream, source):
@@ -113,7 +29,7 @@ def labels_csv_process(csv_stream, source):
             ('code', "Short code"),
         ],
         optional_columns=[],
-        key_column='global_label_id',
+        key_columns=['global_label_id'],
         multiple_rows_per_key=False,
     )
 

@@ -10,19 +10,13 @@ from lib.tests.utils import ClientTest
 
 class BaseAPITest(ClientTest):
 
-    def setUp(self):
-        super().setUp()
-
-        # DRF implements throttling by tracking usage counts in the cache.
-        # We don't want usages in one test to trigger throttling in another
-        # test. So we clear the cache between tests.
-        cache.clear()
-
     @classmethod
     def setUpTestData(cls):
         super().setUpTestData()
 
-        # Don't want DRF throttling to be a factor during class setup, either.
+        # DRF implements throttling by tracking usage counts in the cache.
+        # We don't want usages during class setup to affect throttling in
+        # the actual test.
         cache.clear()
 
     def assertForbiddenResponse(

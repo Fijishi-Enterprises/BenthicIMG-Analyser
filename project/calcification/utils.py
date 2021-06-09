@@ -8,12 +8,8 @@ from .models import CalcifyRateTable
 
 def get_default_calcify_tables():
     # Get the latest global table from each region.
-    tables = CalcifyRateTable.objects.filter(source__isnull=True).order_by(
+    return CalcifyRateTable.objects.filter(source__isnull=True).order_by(
         'region', '-date').distinct('region')
-    return {
-        table.region: table
-        for table in tables
-    }
 
 
 def get_default_calcify_rates():
@@ -27,8 +23,8 @@ def get_default_calcify_rates():
     # No cached value available
     tables = get_default_calcify_tables()
     rates = {
-        region: table.rates_json
-        for region, table in tables.items()
+        table.region: table.rates_json
+        for table in tables
     }
     # Cache for 10 minutes
     cache.set(cache_key, rates, 60*10)

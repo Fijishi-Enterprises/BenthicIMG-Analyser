@@ -79,11 +79,6 @@ class ExportTest(BaseCalcifyStatsExportTest):
         img1 = self.upload_image(
             self.user, self.source, dict(filename='1.jpg'))
         self.add_annotations(self.user, img1, {
-            1: 'A', 2: 'A', 3: 'A', 4: 'A', 5: 'A'})
-
-        img2 = self.upload_image(
-            self.user, self.source, dict(filename='2.jpg'))
-        self.add_annotations(self.user, img2, {
             1: 'A', 2: 'B', 3: 'A', 4: 'B', 5: 'A'})
 
         calcify_table = create_default_calcify_table(
@@ -103,11 +98,10 @@ class ExportTest(BaseCalcifyStatsExportTest):
         # should be as expected; and should work with multiple images
         expected_lines = [
             'Image ID,Image name,Mean rate,Lower bound,Upper bound',
-            f'{img1.pk},1.jpg,4.000,3.200,4.800',
             # 4.0*0.6 + 1.0*0.4
             # 3.2*0.6 + 0.8*0.4
             # 4.8*0.6 + 1.3*0.4
-            f'{img2.pk},2.jpg,2.800,2.240,3.400',
+            f'{img1.pk},1.jpg,2.800,2.240,3.400',
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
@@ -257,6 +251,52 @@ class ExportTest(BaseCalcifyStatsExportTest):
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
+    def test_multiple_images(self):
+        """
+        Test with multiple images, which makes the CSV include a summary row.
+        """
+        img1 = self.upload_image(
+            self.user, self.source, dict(filename='1.jpg'))
+        self.add_annotations(self.user, img1, {
+            1: 'A', 2: 'A', 3: 'A', 4: 'A', 5: 'A'})
+
+        img2 = self.upload_image(
+            self.user, self.source, dict(filename='2.jpg'))
+        self.add_annotations(self.user, img2, {
+            1: 'A', 2: 'B', 3: 'A', 4: 'B', 5: 'A'})
+
+        calcify_table = create_default_calcify_table(
+            'Atlantic',
+            {
+                self.label_pks['A']: dict(
+                    mean=4.0, lower_bound=3.2, upper_bound=4.8),
+                self.label_pks['B']: dict(
+                    mean=1.0, lower_bound=0.8, upper_bound=1.3),
+            },
+        )
+
+        response = self.export_calcify_stats(
+            dict(
+                rate_table_id=calcify_table.pk,
+                optional_columns=['per_label_mean', 'per_label_bounds']))
+
+        # Column headers, image IDs/names, calculations, and decimal places
+        # should be as expected; and should work with multiple images
+        expected_lines = [
+            'Image ID,Image name,Mean rate,Lower bound,Upper bound,A M,B M,C M,A LB,B LB,C LB,A UB,B UB,C UB',
+            f'{img1.pk},1.jpg,4.000,3.200,4.800,'
+            '4.000,0.000,0.000,3.200,0.000,0.000,4.800,0.000,0.000',
+            # 4.0*0.6 + 1.0*0.4
+            # 3.2*0.6 + 0.8*0.4
+            # 4.8*0.6 + 1.3*0.4
+            f'{img2.pk},2.jpg,2.800,2.240,3.400,'
+            '2.400,0.400,0.000,1.920,0.320,0.000,2.880,0.520,0.000',
+            # Averages
+            'ALL IMAGES,ALL IMAGES,3.400,2.720,4.100,'
+            '3.200,0.200,0.000,2.560,0.160,0.000,3.840,0.260,0.000',
+        ]
+        self.assert_csv_content_equal(response.content, expected_lines)
+
     def test_no_negative_zero(self):
         """
         Should not show -0.000 for zero contributions on labels with
@@ -340,23 +380,29 @@ class ImageSetTest(BaseCalcifyStatsExportTest):
         # dialect). Due to the way we compare line by line, splitting on
         # \n would mess up the comparison, so we use split() instead of
         # splitlines().
-        actual_lines = actual_csv_content.split('\r\n')
+        actual_rows = actual_csv_content.split('\r\n')
         # Since we're not using splitlines(), we have to deal with ending
         # newlines manually.
-        if actual_lines[-1] == "":
-            actual_lines.pop()
+        if actual_rows[-1] == "":
+            actual_rows.pop()
 
         # expected_images should be an iterable of Image objects. We'll check
-        # that expected_images are exactly the images represented in line 2
-        # of the CSV onward.
+        # that expected_images are exactly the images represented in the CSV,
+        # minus the header row and any summary row.
+        if len(expected_images) > 1:
+            # Expecting summary row
+            actual_image_rows = actual_rows[1:-1]
+        else:
+            # Not expecting summary row
+            actual_image_rows = actual_rows[1:]
         self.assertEqual(
-            len(expected_images), len(actual_lines)-1,
-            msg="Number of images in the CSV should be as expected")
+            len(expected_images), len(actual_image_rows),
+            msg="Number of rows in the CSV should be as expected")
 
-        for line, image in zip(actual_lines[1:], expected_images):
+        for row, image in zip(actual_image_rows, expected_images):
             self.assertTrue(
-                line.startswith(f'{image.pk},{image.metadata.name},'),
-                msg="CSV line should have the expected image ID and name")
+                row.startswith(f'{image.pk},{image.metadata.name},'),
+                msg="CSV row should have the expected image ID and name")
 
     def test_all_images_single(self):
         """Export for 1 out of 1 images."""

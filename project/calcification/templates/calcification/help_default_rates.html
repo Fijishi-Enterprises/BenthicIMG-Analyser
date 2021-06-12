@@ -1,13 +1,11 @@
 <div class="article-body">
 
 
-<p>Rates are in units of kg CaCO<sub>3</sub> m<sup>-2</sup> yr<sup>-1</sup>. A rate above 0 means that this label's presence contributes to positive carbonate production (i.e., calcification). A rate below 0 means that this label's presence contributes to negative carbonate production (i.e., bioerosion).</p>
-
-<p>Note that only some of CoralNet's labels have rates provided.
-
-  {# Links to default rate tables #}
+<p>
+  Note that only some of CoralNet's labels have rates provided, and many of those labels only have rates provided in one region.
   You can view all the rates CoralNet provides in CSV format here:
 
+  {# Links to default rate tables #}
   {% for table in calcification_tables %}
     <a href="{% url 'calcification:rate_table_download' table.pk %}">
       {{ table.region }}
@@ -19,9 +17,7 @@
   {% endfor %}
 </p>
 
-<p>CoralNet's calcification rates are derived from <a href="http://geography.exeter.ac.uk/reefbudget/" target="_blank">ReefBudget</a>'s data.</p>
+{% include 'calcification/help_rates.html' %}
 
-
-{# TODO: Link to Zenodo repo with rate table change history #}
 
 </div>

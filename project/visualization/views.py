@@ -12,6 +12,8 @@ from .forms import CheckboxForm, StatisticsSearchForm, ImageSearchForm, \
     PatchSearchOptionsForm, HiddenForm, create_image_filter_form
 from accounts.utils import get_robot_user
 from annotations.models import Annotation
+from calcification.forms import ExportCalcifyStatsForm
+from calcification.utils import get_default_calcify_tables
 from export.forms import CpcPrefsForm, ExportAnnotationsForm
 from export.utils import get_previous_cpcs_status
 from images.forms import MetadataFormForGrid, BaseMetadataFormSet
@@ -88,6 +90,8 @@ def browse_images(request, source_id):
         'links': links,
         'hidden_image_form': hidden_image_form,
         'export_annotations_form': ExportAnnotationsForm(),
+        'export_calcify_rates_form': ExportCalcifyStatsForm(source=source),
+        'default_calcification_tables': get_default_calcify_tables(),
         'cpc_prefs_form': CpcPrefsForm(source=source),
         'previous_cpcs_status': previous_cpcs_status,
         'empty_message': empty_message,

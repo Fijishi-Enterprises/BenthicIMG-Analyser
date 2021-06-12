@@ -500,11 +500,11 @@ class CalcificationRatesTest(ClientTest):
             'calcification:rate_table_download', args=[atlantic_table.pk])
         indo_pacific_download_url = reverse(
             'calcification:rate_table_download', args=[indo_pacific_table.pk])
-        self.assertIn(
+        self.assertInHTML(
             f'<a href="{atlantic_download_url}">Atlantic</a>',
             str(help_dialog_tag),
-            msg="Atlantic table download link should be present")
-        self.assertIn(
+            msg_prefix="Atlantic table download link should be present")
+        self.assertInHTML(
             f'<a href="{indo_pacific_download_url}">Indo-Pacific</a>',
             str(help_dialog_tag),
-            msg="Indo-Pacific table download link should be present")
+            msg_prefix="Indo-Pacific table download link should be present")

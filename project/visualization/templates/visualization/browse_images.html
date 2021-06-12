@@ -50,6 +50,13 @@
     {# Annotation and deletion require edit perms, and export requires login to keep out bots. So, no actions are available if not logged in. #}
     {% if user.is_authenticated %}
 
+      {# Modal dialog contents live in this hidden element until they're needed. #}
+      <div hidden>
+        <div id="manage-calcify-tables">
+          {% include "calcification/manage_tables.html" with default_calcification_tables=default_calcification_tables %}
+        </div>
+      </div>
+
       {# Fields to perform an action on one or more images #}
       <div id="action-box" class="box">
 
@@ -84,6 +91,7 @@
               <option value="annotations_cpc">Annotations, CPCe</option>
             {% endif %}
             <option value="image_covers">Image Covers</option>
+            <option value="calcify_rates">Calcification Rates</option>
           </select>
           for
         </span>
@@ -142,6 +150,20 @@
         id="export-image-covers-form">
           {% csrf_token %}
           <span class="image-select-field-container"></span>
+          <button type="button" class="submit">Go</button>
+        </form>
+
+        <form action="{% url 'calcification:stats_export' source.pk %}"
+        method="get" id="export-calcify-rates-form">
+          <hr/>
+          <span class="image-select-field-container"></span>
+
+          <button type="button" id="manage-calcify-tables-button">
+            Click here to view label rate tables
+          </button>
+
+          {% include "form_generic.html" with form=export_calcify_rates_form %}
+
           <button type="button" class="submit">Go</button>
         </form>
 

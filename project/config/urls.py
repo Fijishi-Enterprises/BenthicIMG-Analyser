@@ -12,6 +12,7 @@ urlpatterns = [
     # These apps don't have uniform prefixes. We'll trust them to provide
     # their own non-clashing URL patterns.
     path('', include('annotations.urls')),
+    path('', include('calcification.urls', namespace='calcification')),
     path('', include('images.urls')),
     path('', include('labels.urls')),
 
@@ -20,8 +21,6 @@ urlpatterns = [
     path('async_media/',
          include('async_media.urls', namespace='async_media')),
     path('blog/', include('blog.urls', namespace='blog')),
-    path('calcification/',
-         include('calcification.urls', namespace='calcification')),
     path('source/<int:source_id>/browse/', include('visualization.urls')),
     path('source/<int:source_id>/export/', include('export.urls')),
     path('source/<int:source_id>/upload/', include('upload.urls')),

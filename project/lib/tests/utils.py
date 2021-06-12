@@ -7,6 +7,7 @@ import math
 import posixpath
 import random
 from unittest import mock
+import urllib.parse
 from urllib.parse import quote as url_quote
 
 from spacer.messages import ClassifyReturnMsg
@@ -718,6 +719,18 @@ class BasePermissionTest(ClientTest):
     def source_to_public(cls):
         cls.source.visibility = Source.VisibilityTypes.PUBLIC
         cls.source.save()
+
+    @staticmethod
+    def make_url_with_params(base_url, params):
+        """
+        Any permission tests involving GET params should encode the GET data in
+        the URL, rather than handling it the way POST data is handled (passing
+        a dict).
+        This way, any `assertRedirects` calls within a `assertPermissionLevel`
+        call can compare against the correct URL (including the GET params).
+        This is a helper method to build said URL.
+        """
+        return base_url + '?' + urllib.parse.urlencode(params)
 
     def _make_request(self, url, user, post_data):
         if user:

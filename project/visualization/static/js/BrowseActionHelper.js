@@ -46,6 +46,9 @@ var BrowseActionHelper = (function() {
         else if (action === 'export' && export_type === 'image_covers') {
             $currentActionForm = $('#export-image-covers-form');
         }
+        else if (action === 'export' && export_type === 'calcify_rates') {
+            $currentActionForm = $('#export-calcify-rates-form');
+        }
         else if (action === 'delete') {
             $currentActionForm = $('#delete-form');
         }
@@ -223,6 +226,18 @@ var BrowseActionHelper = (function() {
 
             // Add submit button handlers.
             $actionForms.find('button.submit').click(actionSubmit);
+
+            // Show calcify table management dialog when the appropriate button
+            // is clicked.
+            document.getElementById('manage-calcify-tables-button')
+                    .addEventListener('click', function() {
+                $('#manage-calcify-tables').dialog({
+                    width: 500,
+                    height: 300,
+                    modal: true,
+                    title: "Calcification rate tables"
+                });
+            });
 
             // Initialize.
             onActionChange();

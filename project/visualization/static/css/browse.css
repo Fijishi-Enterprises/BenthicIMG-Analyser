@@ -29,7 +29,11 @@ div#action-box form {
 label {
     width: auto;
 }
-
+button#manage-calcify-tables-button {
+    /* Horizontally center the button */
+    display: block;
+    margin: auto;
+}
 
 /* Image/patch thumbnail grid, indicating annotation status. */
 img.thumb.confirmed, img.thumb.annotated {

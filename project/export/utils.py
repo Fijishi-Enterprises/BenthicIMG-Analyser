@@ -15,7 +15,11 @@ from visualization.forms import create_image_filter_form
 
 
 def get_request_images(request, source):
-    image_form = create_image_filter_form(request.POST, source)
+    if request.POST:
+        image_form = create_image_filter_form(request.POST, source)
+    else:
+        image_form = create_image_filter_form(request.GET, source)
+
     if image_form:
         if image_form.is_valid():
             image_set = image_form.get_images()

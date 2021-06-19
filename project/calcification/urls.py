@@ -9,12 +9,18 @@ general_urlpatterns = [
     path('table_download/<int:table_id>/',
          views.rate_table_download,
          name='rate_table_download'),
+    path('table_delete/<int:table_id>/',
+         views.rate_table_delete_ajax,
+         name='rate_table_delete_ajax'),
 ]
 
 source_urlpatterns = [
     path('stats_export/',
          views.CalcifyStatsExportView.as_view(),
          name='stats_export'),
+    path('table_upload/',
+         views.rate_table_upload_ajax,
+         name='rate_table_upload_ajax'),
 ]
 
 urlpatterns = [

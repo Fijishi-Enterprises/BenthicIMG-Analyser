@@ -1,8 +1,11 @@
+from bs4 import BeautifulSoup
 from django.urls import reverse
 
 from export.tests.utils import BaseExportTest
 from lib.tests.utils import BasePermissionTest, ClientTest
-from .utils import create_default_calcify_table
+from .utils import (
+    create_default_calcify_table, create_source_calcify_table,
+    grid_of_tables_html_to_tuples)
 
 
 class PermissionTest(BasePermissionTest):
@@ -13,6 +16,9 @@ class PermissionTest(BasePermissionTest):
 
         cls.labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
         cls.create_labelset(cls.user, cls.source, cls.labels)
+
+        # Make the action form available on Browse Images
+        cls.upload_image(cls.user, cls.source)
 
         cls.calcify_table = create_default_calcify_table('Atlantic', dict())
 
@@ -29,6 +35,23 @@ class PermissionTest(BasePermissionTest):
         self.assertPermissionLevel(
             url, self.SIGNED_IN, content_type='text/csv',
             deny_type=self.REQUIRE_LOGIN)
+
+    def test_export_form_requires_login(self):
+        url = reverse('browse_images', args=[self.source.pk])
+
+        def form_is_present():
+            response = self.client.get(url, follow=True)
+            response_soup = BeautifulSoup(response.content, 'html.parser')
+
+            export_form = response_soup.find(
+                'form', id='export-calcify-rates-form')
+            return bool(export_form)
+
+        self.source_to_public()
+        self.client.force_login(self.user_outsider)
+        self.assertTrue(form_is_present())
+        self.client.logout()
+        self.assertFalse(form_is_present())
 
 
 class BaseCalcifyStatsExportTest(BaseExportTest):
@@ -351,7 +374,22 @@ class ExportTest(BaseCalcifyStatsExportTest):
             "Label rates to use: Select a valid choice."
             " 1 is not one of the available choices.")
 
-    # TODO: Test ID of a table belonging to another source.
+    def test_other_source_table_id(self):
+        """
+        Table ID from another source should return to Browse with an error
+        message.
+        """
+        source2 = self.create_source(self.user)
+        table = create_source_calcify_table(source2, {})
+
+        response = self.export_calcify_stats(
+            dict(rate_table_id=table.pk))
+
+        self.assertTrue(response['content-type'].startswith('text/html'))
+        self.assertContains(
+            response,
+            "Label rates to use: Select a valid choice."
+            f" {table.pk} is not one of the available choices.")
 
 
 class ImageSetTest(BaseCalcifyStatsExportTest):
@@ -516,14 +554,20 @@ class UnicodeTest(BaseCalcifyStatsExportTest):
         self.assert_csv_content_equal(response.content, expected_lines)
 
 
-class BrowseActionsTest(ClientTest):
-
+class BrowseFormsTest(ClientTest):
+    """
+    Test how the calcification related forms are rendered on Browse.
+    """
     @classmethod
     def setUpTestData(cls):
         super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
+
+        # Make the action form available on Browse Images
+        cls.upload_image(cls.user, cls.source)
+
         group1_labels = cls.create_labels(
             cls.user, ['A', 'B', 'C', 'D', 'E', 'F'], 'Group1')
         cls.create_labels(cls.user, ['G', 'H'], 'Group2')
@@ -531,4 +575,114 @@ class BrowseActionsTest(ClientTest):
         # Create a labelset with only a subset of the labels (6 of 8)
         cls.create_labelset(cls.user, cls.source, group1_labels)
 
-    # TODO
+    def test_optional_columns_help_text(self):
+        """
+        Test the help text on the extra-columns options.
+        The help text should depend on how many labels are in the labelset.
+        """
+        url = reverse('browse_images', args=[self.source.pk])
+        self.client.force_login(self.user)
+        response = self.client.get(url)
+
+        response_soup = BeautifulSoup(response.content, 'html.parser')
+        export_form = response_soup.find(
+            'form', id='export-calcify-rates-form')
+
+        option_1 = export_form.select('label[for="id_optional_columns_0"]')[0]
+        self.assertEqual(
+            option_1.text.strip(),
+            "Per-label contributions to mean rate (adds 6 columns)")
+        option_2 = export_form.select('label[for="id_optional_columns_1"]')[0]
+        self.assertEqual(
+            option_2.text.strip(),
+            "Per-label contributions to confidence bounds (adds 12 columns)")
+
+    def test_rate_table_choices(self):
+        """Test the dropdown of rate table choices in the export form."""
+
+        default_t1 = create_default_calcify_table('Atlantic', dict())
+        default_t2 = create_default_calcify_table('Indo-Pacific', dict())
+        # Create these out of order to test alphabetical order.
+        source_t2 = create_source_calcify_table(self.source, dict(), name="S2")
+        source_t1 = create_source_calcify_table(self.source, dict(), name="S1")
+        # Test tables from other sources.
+        source_b = self.create_source(self.user)
+        create_source_calcify_table(source_b, dict(), name="S3")
+
+        url = reverse('browse_images', args=[self.source.pk])
+        self.client.force_login(self.user)
+        response = self.client.get(url)
+
+        response_soup = BeautifulSoup(response.content, 'html.parser')
+        tables_dropdown = response_soup.find('select', id='id_rate_table_id')
+
+        self.assertHTMLEqual(
+            str(tables_dropdown),
+            '<select id="id_rate_table_id" name="rate_table_id">'
+            f'  <option value="{source_t1.pk}">S1</option>'
+            f'  <option value="{source_t2.pk}">S2</option>'
+            f'  <option value="{default_t1.pk}">'
+            f'    {default_t1.name}</option>'
+            f'  <option value="{default_t2.pk}">'
+            f'    {default_t2.name}</option>'
+            '</select>',
+            msg="Should have custom tables in order, then default tables"
+                " in order, without having tables from other sources")
+
+    def test_grid_of_tables_content(self):
+        """Test the content of the grid of tables."""
+
+        default_a = create_default_calcify_table('Atlantic', dict(), name="A")
+        default_i = create_default_calcify_table(
+            'Indo-Pacific', dict(), name="I")
+        # Create these out of order to test alphabetical order.
+        source_t2 = create_source_calcify_table(
+            self.source, dict(), name="S2", description="A description")
+        source_t1 = create_source_calcify_table(
+            self.source, dict(), name="S1", description="A description")
+        # Test tables from other sources.
+        source_b = self.create_source(self.user)
+        create_source_calcify_table(source_b, dict(), name="S3")
+
+        url = reverse('browse_images', args=[self.source.pk])
+        self.client.force_login(self.user)
+        response = self.client.get(url)
+
+        response_soup = BeautifulSoup(response.content, 'html.parser')
+        grid_of_tables_soup = response_soup.find(
+            'table', id='table-of-calcify-tables')
+
+        self.assertListEqual(
+            grid_of_tables_html_to_tuples(
+                str(grid_of_tables_soup)),
+            [
+                ("S1", "A description",
+                 reverse(
+                     'calcification:rate_table_download', args=[source_t1.pk]),
+                 reverse(
+                     'calcification:rate_table_delete_ajax',
+                     args=[source_t1.pk])),
+                ("S2", "A description",
+                 reverse(
+                     'calcification:rate_table_download', args=[source_t2.pk]),
+                 reverse(
+                     'calcification:rate_table_delete_ajax',
+                     args=[source_t2.pk])),
+                ("A", "",
+                 reverse(
+                     'calcification:rate_table_download',
+                     args=[default_a.pk]),
+                 reverse(
+                     'calcification:rate_table_download',
+                     args=[default_a.pk])),
+                ("I", "",
+                 reverse(
+                     'calcification:rate_table_download',
+                     args=[default_i.pk]),
+                 reverse(
+                     'calcification:rate_table_download',
+                     args=[default_i.pk])),
+            ],
+            msg="Should have custom tables in order, then default tables"
+                " in order, without having tables from other sources",
+        )

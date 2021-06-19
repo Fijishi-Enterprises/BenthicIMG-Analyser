@@ -227,19 +227,7 @@ var BrowseActionHelper = (function() {
             // Add submit button handlers.
             $actionForms.find('button.submit').click(actionSubmit);
 
-            // Show calcify table management dialog when the appropriate button
-            // is clicked.
-            document.getElementById('manage-calcify-tables-button')
-                    .addEventListener('click', function() {
-                $('#manage-calcify-tables').dialog({
-                    width: 500,
-                    height: 300,
-                    modal: true,
-                    title: "Calcification rate tables"
-                });
-            });
-
-            // Initialize.
+            // Initialize action-related states.
             onActionChange();
         }
     }

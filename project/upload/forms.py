@@ -1,3 +1,5 @@
+import mimetypes
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.files.images import get_image_dimensions
@@ -143,6 +145,28 @@ class ImageUploadForm(Form):
         return self.cleaned_data['file']
 
 
+class CsvFileField(FileField):
+    default_error_messages = {
+        'required': "Please select a CSV file.",
+    }
+
+    def clean(self, data, initial=None):
+        data = super().clean(data, initial=initial)
+
+        # Naively validate that the file is a CSV file through
+        # (1) given MIME type, or (2) file extension. Either of them
+        # can be faked though.
+        if data.content_type == 'text/csv':
+            pass
+        elif mimetypes.guess_type(data.name) == 'text/csv':
+            pass
+        else:
+            raise ValidationError("The selected file is not a CSV file.")
+
+        return data
+
+
+# TODO: Consider porting usages to the newer CsvFileField instead.
 class CSVImportForm(Form):
     csv_file = FileField(
         label='CSV file',

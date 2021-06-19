@@ -11,6 +11,7 @@
 {% block page-specific-includes %}
   {% include "static-local-include.html" with type="js" path="js/ImageSearchHelper.js" %}
   {% include "static-local-include.html" with type="js" path="js/BrowseActionHelper.js" %}
+  {% include "static-local-include.html" with type="js" path="js/CalcifyTablesHelper.js" %}
 
   {% include "static-local-include.html" with type="css" path="css/browse.css" %}
 {% endblock %}
@@ -53,7 +54,7 @@
       {# Modal dialog contents live in this hidden element until they're needed. #}
       <div hidden>
         <div id="manage-calcify-tables">
-          {% include "calcification/manage_tables.html" with default_calcification_tables=default_calcification_tables %}
+          {% include "calcification/manage_tables.html" with calcify_table_form=calcify_table_form default_calcification_tables=default_calcification_tables %}
         </div>
       </div>
 
@@ -159,7 +160,11 @@
           <span class="image-select-field-container"></span>
 
           <button type="button" id="manage-calcify-tables-button">
-            Click here to view label rate tables
+            {% if can_manage_calcification_tables %}
+              Click here to manage label-rate tables
+            {% else %}
+              Click here to view label-rate tables
+            {% endif %}
           </button>
 
           {% include "form_generic.html" with form=export_calcify_rates_form %}
@@ -258,6 +263,8 @@
           pageImageIds: {{ page_image_ids|jsonify }},
           links: {{ links|jsonify }}
       });
+
+      let calcifyTablesHelper = new CalcifyTablesHelper({{ can_manage_calcification_tables|jsonify }});
     {% endif %}
 
     window.seleniumDebugInitRan = true;

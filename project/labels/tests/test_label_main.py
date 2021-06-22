@@ -2,7 +2,7 @@ from bs4 import BeautifulSoup
 from django.urls import reverse
 from django.utils.html import escape as html_escape
 
-from calcification.tests.utils import CalcifyTestMixin
+from calcification.tests.utils import create_default_calcify_table
 from images.model_utils import PointGen
 from images.models import Source
 from lib.tests.utils import (
@@ -385,7 +385,7 @@ class PopularityTest(ClientTest):
             msg="Cached popularity of 0 should still be used")
 
 
-class CalcificationRatesTest(ClientTest, CalcifyTestMixin):
+class CalcificationRatesTest(ClientTest):
     """Label-main-page tests related to label calcification rates."""
 
     @classmethod
@@ -409,10 +409,10 @@ class CalcificationRatesTest(ClientTest, CalcifyTestMixin):
         """No calcification rate data for the label."""
 
         # 2 regions defined, but only label B gets rates
-        self.create_global_rate_table(
+        create_default_calcify_table(
             'Atlantic', {
                 self.label_b.pk: dict(mean=2, lower_bound=1, upper_bound=3)})
-        self.create_global_rate_table(
+        create_default_calcify_table(
             'Indo-Pacific', {
                 self.label_b.pk: dict(mean=2, lower_bound=1, upper_bound=3)})
 
@@ -431,10 +431,10 @@ class CalcificationRatesTest(ClientTest, CalcifyTestMixin):
         The label has calcification rate data for at least one, but not
         all of the regions.
         """
-        self.create_global_rate_table(
+        create_default_calcify_table(
             'Atlantic', {
                 self.label_b.pk: dict(mean=2, lower_bound=1, upper_bound=3)})
-        self.create_global_rate_table(
+        create_default_calcify_table(
             'Indo-Pacific', {
                 self.label_a.pk: dict(mean=5, lower_bound=4, upper_bound=6),
                 self.label_b.pk: dict(mean=2, lower_bound=1, upper_bound=3)})
@@ -456,11 +456,11 @@ class CalcificationRatesTest(ClientTest, CalcifyTestMixin):
         """
         The label has calcification rate data for all regions.
         """
-        self.create_global_rate_table(
+        create_default_calcify_table(
             'Atlantic', {
                 self.label_a.pk: dict(mean=4, lower_bound=3, upper_bound=5),
                 self.label_b.pk: dict(mean=2, lower_bound=1, upper_bound=3)})
-        self.create_global_rate_table(
+        create_default_calcify_table(
             'Indo-Pacific', {
                 self.label_a.pk: dict(mean=5, lower_bound=4, upper_bound=6),
                 self.label_b.pk: dict(mean=2, lower_bound=1, upper_bound=3)})
@@ -484,10 +484,10 @@ class CalcificationRatesTest(ClientTest, CalcifyTestMixin):
         The calcification rates help dialog should have download links to the
         latest default tables.
         """
-        atlantic_table = self.create_global_rate_table(
+        atlantic_table = create_default_calcify_table(
             'Atlantic', {
                 self.label_b.pk: dict(mean=2, lower_bound=1, upper_bound=3)})
-        indo_pacific_table = self.create_global_rate_table(
+        indo_pacific_table = create_default_calcify_table(
             'Indo-Pacific', {
                 self.label_a.pk: dict(mean=5, lower_bound=4, upper_bound=6),
                 self.label_b.pk: dict(mean=2, lower_bound=1, upper_bound=3)})
@@ -500,11 +500,11 @@ class CalcificationRatesTest(ClientTest, CalcifyTestMixin):
             'calcification:rate_table_download', args=[atlantic_table.pk])
         indo_pacific_download_url = reverse(
             'calcification:rate_table_download', args=[indo_pacific_table.pk])
-        self.assertIn(
+        self.assertInHTML(
             f'<a href="{atlantic_download_url}">Atlantic</a>',
             str(help_dialog_tag),
-            msg="Atlantic table download link should be present")
-        self.assertIn(
+            msg_prefix="Atlantic table download link should be present")
+        self.assertInHTML(
             f'<a href="{indo_pacific_download_url}">Indo-Pacific</a>',
             str(help_dialog_tag),
-            msg="Indo-Pacific table download link should be present")
+            msg_prefix="Indo-Pacific table download link should be present")

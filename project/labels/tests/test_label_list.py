@@ -2,7 +2,7 @@ from bs4 import BeautifulSoup
 from django.contrib.auth.models import Group
 from django.urls import reverse
 
-from calcification.tests.utils import CalcifyTestMixin
+from calcification.tests.utils import create_default_calcify_table
 from images.model_utils import PointGen
 from lib.tests.utils import BasePermissionTest, ClientTest
 from ..models import LabelGroup, Label
@@ -28,7 +28,7 @@ class PermissionTest(BasePermissionTest):
         self.assertPermissionLevel(url, self.SIGNED_OUT, is_json=True)
 
 
-class LabelListTest(ClientTest, CalcifyTestMixin):
+class LabelListTest(ClientTest):
     """
     Test the label list page.
     """
@@ -108,10 +108,10 @@ class LabelListTest(ClientTest, CalcifyTestMixin):
         label_b = self.labels.get(name='B')
         label_c = self.labels.get(name='C')
 
-        self.create_global_rate_table(
+        create_default_calcify_table(
             'Atlantic', {
                 label_c.pk: dict(mean=2, lower_bound=1, upper_bound=3)})
-        self.create_global_rate_table(
+        create_default_calcify_table(
             'Indo-Pacific', {
                 label_b.pk: dict(mean=5, lower_bound=4, upper_bound=6),
                 label_c.pk: dict(mean=2, lower_bound=1, upper_bound=3)})

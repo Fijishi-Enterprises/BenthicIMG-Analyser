@@ -57,7 +57,7 @@ class ImageSetTest(BaseExportTest):
         self.assert_csv_content_equal(response.content, expected_lines)
 
     def test_all_images_multiple(self):
-        """Export for 1 out of 1 images."""
+        """Export for n out of n images."""
         self.img1 = self.upload_image(
             self.user, self.source, dict(filename='1.jpg'))
         self.img2 = self.upload_image(

@@ -7,6 +7,8 @@ from django.db import transaction
 from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
+from django.utils.decorators import method_decorator
+from django.views import View
 
 from .forms import CpcPrefsForm, ExportAnnotationsForm
 from .utils import create_cpc_strings, \
@@ -21,11 +23,56 @@ from lib.decorators import source_permission_required, \
 from lib.forms import get_one_form_error
 
 
+# TODO: Use this View class to improve DRY among more of the export views.
+
+decorators = [
+    # Access control.
+    source_visibility_required('source_id'),
+    # These exports can be resource intensive, so no bots allowed.
+    login_required,
+    # This is a potentially slow view that doesn't modify the database,
+    # so don't open a transaction for the view.
+    transaction.non_atomic_requests]
+@method_decorator(decorators, name='dispatch')
+class SourceCsvExportView(View):
+    """
+    Stats export on a subset of an source's images.
+    """
+    def get_export_filename(self, source):
+        raise NotImplementedError
+
+    def get_export_form(self, source, data):
+        raise NotImplementedError
+
+    def write_csv(self, response, source, image_set, export_form_data):
+        raise NotImplementedError
+
+    def get(self, request, source_id):
+        source = get_object_or_404(Source, id=source_id)
+
+        try:
+            image_set = get_request_images(request, source)
+        except ValidationError as e:
+            messages.error(request, e.message)
+            return HttpResponseRedirect(
+                reverse('browse_images', args=[source_id]))
+
+        export_form = self.get_export_form(source, request.GET)
+        if not export_form.is_valid():
+            messages.error(request, get_one_form_error(export_form))
+            return HttpResponseRedirect(
+                reverse('browse_images', args=[source_id]))
+
+        filename = self.get_export_filename(source)
+        response = create_csv_stream_response(filename)
+
+        self.write_csv(response, source, image_set, export_form.cleaned_data)
+
+        return response
+
+
 @source_visibility_required('source_id')
-# This is a potentially resource intensive view, so no bots allowed.
 @login_required
-# This is a potentially slow view that doesn't modify the database,
-# so don't open a transaction for the view.
 @transaction.non_atomic_requests
 def export_metadata(request, source_id):
     source = get_object_or_404(Source, id=source_id)

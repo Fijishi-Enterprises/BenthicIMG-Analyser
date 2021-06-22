@@ -1,0 +1,47 @@
+{% include 'calcification/grid_of_tables.html' with default_calcification_tables=default_calcification_tables source_calcification_tables=source_calcification_tables %}
+
+{% if can_manage_calcification_tables %}
+  <button id="new-rate-table-form-show-button">+ Upload a new table</button>
+{% endif %}
+
+<p>If a table does not define a rate for a particular label, CoralNet's computation assumes a rate of 0 for that label.</p>
+
+{% include 'calcification/help_rates.html' %}
+
+
+{# Modal dialog contents live in this hidden element until they're needed. #}
+<div hidden>
+  <div id="new-rate-table-form-popup">
+    <div class="line">
+      If you want to create a rate table for this source, we recommend you start off with a template table by clicking the "Download CSV (labelset entries only)" button next to one of the default tables.
+    </div>
+
+    <form id="new-rate-table-form"
+      action="{% url 'calcification:rate_table_upload_ajax' source.pk %}"
+      method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+
+      {% for field in calcify_table_form %}
+        <div class="line">
+          {% if field.field.required %}
+            <span style="color:red;">
+              *
+            </span>
+          {% endif %}
+
+          {{ field.label }}: {{ field }}
+        </div>
+
+        {% if field.help_text %}
+          <div class="helptext_small">
+            {{ field.help_text|safe|linebreaksbr }}</div>
+        {% endif %}
+      {% endfor %}
+
+      {# This status element is for error messages, etc. #}
+      <div class="line" id="new-rate-table-form-status" style="font-weight: bold;"></div>
+
+      <input type="submit" value="Upload Table" />
+    </form>
+  </div>
+</div>

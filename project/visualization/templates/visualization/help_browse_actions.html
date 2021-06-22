@@ -64,7 +64,18 @@
     </ul>
   </li>
 
-  <li><strong>Image Covers:</strong> Coverage statistics for each image in the set; for example, this image consists of 5% label A, 10% label B, etc. based on the annotations. Also included is the image's "annotation area", which is the area of the image where the random points are scattered.</li>
+  <li><strong>Image Covers:</strong> Coverage statistics for each image in the set; for example, image 0001.JPG consists of 5% Acropora, 10% Porites, etc. based on the annotations. Also included is the image's "annotation area", which is the area of the image where the random points are scattered.</li>
+
+  <li><strong>Calcification Rates:</strong> Calcification rates for each image in the set. For example, image 0001.JPG's calcification rates are: mean 4.8, lower bound 3.2, upper bound 6.0. The rates are computed based on the image's annotations, and the calcification rates specified for each label (you must pick a label rate table to use). There are optional sets of columns available:
+
+    <ul>
+      <li>Per-label contributions to mean rate: This shows the per-label breakdown for the mean rate calculation. For example, image 0001.JPG has a 4.8 mean rate, and the per-label breakdown is: 4.0 from Acropora, 1.5 from Porites, -0.7 from Hard substrate. These columns will be named like "Acropora M", "Porites M", etc.</li>
+
+      <li>Per-label contributions to confidence bounds: This shows the per-label breakdowns for the lower bound and upper bound rate calculations. These columns will be named like "Acropora LB", "Porites LB", "Acropora UB", "Porites UB", etc.</li>
+    </ul>
+
+    An "ALL IMAGES" summary row is included as the last row. This summary averages the stats over all the images, with each image being weighted equally (regardless of the number of point annotations).
+  </li>
 </ul>
 
 <h3>Delete</h3>

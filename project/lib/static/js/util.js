@@ -25,6 +25,31 @@ var util = {
         }
     },
 
+    /*
+    Wrapper around the standard fetch() which does error handling.
+    @param resource - url or other resource to fetch (see standard fetch())
+    @param init - options (see standard fetch())
+    @param callback - function to call when the response status is OK
+    */
+    fetch: function(resource, init, callback) {
+        fetch(resource, init)
+            .then(response => {
+                if (!response.ok) {
+                    // This can be "Internal server error" for example.
+                    throw new Error(response.statusText);
+                }
+                return response.json();
+            })
+            .then(callback)
+            .catch(error => {
+                alert(
+                    "There was an error:" +
+                    `\n${error}` +
+                    "\nIf the problem persists, please notify us on the forum."
+                );
+            });
+    },
+
     /* Takes a number representing a number of bytes, and returns a
      * human-readable filesize string in B, KB, or MB. */
     filesizeDisplay: function(bytes) {
@@ -42,6 +67,10 @@ var util = {
         }
     },
 
+    /*
+    Can be used to catch and alert about errors from jQuery ajax calls.
+    For the non-jQuery fetch(), see util.fetch() instead.
+    */
     handleServerError: function(jqXHR, textStatus, errorThrown) {
         if (textStatus === 'abort') {
             // A manually aborted request, not a server issue.

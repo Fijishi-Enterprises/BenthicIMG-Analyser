@@ -46,6 +46,9 @@ var BrowseActionHelper = (function() {
         else if (action === 'export' && export_type === 'image_covers') {
             $currentActionForm = $('#export-image-covers-form');
         }
+        else if (action === 'export' && export_type === 'calcify_rates') {
+            $currentActionForm = $('#export-calcify-rates-form');
+        }
         else if (action === 'delete') {
             $currentActionForm = $('#delete-form');
         }
@@ -224,7 +227,7 @@ var BrowseActionHelper = (function() {
             // Add submit button handlers.
             $actionForms.find('button.submit').click(actionSubmit);
 
-            // Initialize.
+            // Initialize action-related states.
             onActionChange();
         }
     }

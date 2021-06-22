@@ -10,7 +10,7 @@ from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views import View
 
-from .forms import CpcPrefsForm, ExportAnnotationsForm
+from .forms import CpcPrefsForm, ExportAnnotationsForm, ExportImageCoversForm
 from .utils import create_cpc_strings, \
     create_csv_stream_response, \
     create_zipped_cpcs_stream_response, get_request_images, \
@@ -218,55 +218,46 @@ def export_annotations_cpc_serve(request, source_id):
     return response
 
 
-@source_visibility_required('source_id')
-@login_required
-@transaction.non_atomic_requests
-def export_image_covers(request, source_id):
-    source = get_object_or_404(Source, id=source_id)
+class ImageCoversExportView(SourceCsvExportView):
 
-    try:
-        image_set = get_request_images(request, source)
-    except ValidationError as e:
-        messages.error(request, e.message)
-        return HttpResponseRedirect(
-            reverse('browse_images', args=[source_id]))
+    def get_export_filename(self, source):
+        return 'percent_covers.csv'
 
-    response = create_csv_stream_response('percent_covers.csv')
-    writer = csv.writer(response)
+    def get_export_form(self, source, data):
+        return ExportImageCoversForm(data)
 
-    local_labels = source.labelset.get_locals_ordered_by_group_and_code()
+    def write_csv(self, response, source, image_set, export_form_data):
 
-    # Header row
-    row = ["Name", "Annotation status", "Annotation area"]
-    row.extend(local_labels.values_list('code', flat=True))
-    writer.writerow(row)
+        writer = csv.writer(response)
+        local_labels = source.labelset.get_locals_ordered_by_group_and_code()
 
-    # One row per image
-    for image in image_set:
-        row = [
-            image.metadata.name,
-            image.get_annotation_status_str(),
-            image.annotation_area_display(),
-        ]
-
-        image_annotations = Annotation.objects.filter(image=image)
-        image_annotation_count = image_annotations.count()
-        for local_label in local_labels:
-            if image_annotation_count == 0:
-                coverage_fraction = 0
-            else:
-                global_label = local_label.global_label
-                coverage_fraction = (
-                    image_annotations.filter(label=global_label).count()
-                    / image_annotation_count
-                )
-            # Python 2.x: PyCharm might complain here about expecting type str
-            # but getting unicode. Don't worry about it; unicode works too.
-            coverage_percent_str = format(coverage_fraction * 100.0, '.3f')
-            row.append(coverage_percent_str)
+        # Header row
+        row = ["Name", "Annotation status", "Annotation area"]
+        row.extend(local_labels.values_list('code', flat=True))
         writer.writerow(row)
 
-    return response
+        # One row per image
+        for image in image_set:
+            row = [
+                image.metadata.name,
+                image.get_annotation_status_str(),
+                image.annotation_area_display(),
+            ]
+
+            image_annotations = Annotation.objects.filter(image=image)
+            image_annotation_count = image_annotations.count()
+            for local_label in local_labels:
+                if image_annotation_count == 0:
+                    coverage_fraction = 0
+                else:
+                    global_label = local_label.global_label
+                    coverage_fraction = (
+                        image_annotations.filter(label=global_label).count()
+                        / image_annotation_count
+                    )
+                coverage_percent_str = format(coverage_fraction * 100.0, '.3f')
+                row.append(coverage_percent_str)
+            writer.writerow(row)
 
 
 @source_visibility_required('source_id')

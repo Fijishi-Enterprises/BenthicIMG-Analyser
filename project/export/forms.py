@@ -71,3 +71,9 @@ class CpcPrefsForm(Form):
         )
         for field_name, field_size in field_sizes.items():
             self.fields[field_name].widget.attrs['size'] = str(field_size)
+
+
+class ExportImageCoversForm(Form):
+    # Stub form to make the corresponding view work.
+    # Later we'll add export options to this form though.
+    pass

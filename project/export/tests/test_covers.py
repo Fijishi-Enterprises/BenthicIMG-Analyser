@@ -19,10 +19,10 @@ class PermissionTest(BasePermissionTest):
 
         self.source_to_private()
         self.assertPermissionLevel(
-            url, self.SOURCE_VIEW, content_type='text/csv')
+            url, self.SOURCE_VIEW, post_data={}, content_type='text/csv')
         self.source_to_public()
         self.assertPermissionLevel(
-            url, self.SIGNED_IN, content_type='text/csv',
+            url, self.SIGNED_IN, post_data={}, content_type='text/csv',
             deny_type=self.REQUIRE_LOGIN)
 
 

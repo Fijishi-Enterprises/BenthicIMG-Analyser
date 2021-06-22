@@ -155,7 +155,8 @@
         </form>
 
         <form action="{% url 'calcification:stats_export' source.pk %}"
-        method="get" id="export-calcify-rates-form">
+        method="post" id="export-calcify-rates-form">
+          {% csrf_token %}
           <hr/>
           <span class="image-select-field-container"></span>
 

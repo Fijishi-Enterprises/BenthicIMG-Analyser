@@ -23,17 +23,15 @@ class PermissionTest(BasePermissionTest):
         cls.calcify_table = create_default_calcify_table('Atlantic', dict())
 
     def test_calcify_stats_export(self):
-        get_params = dict(rate_table_id=self.calcify_table.pk)
-        url = self.make_url_with_params(
-            reverse('calcification:stats_export', args=[self.source.pk]),
-            get_params)
+        data = dict(rate_table_id=self.calcify_table.pk)
+        url = reverse('calcification:stats_export', args=[self.source.pk])
 
         self.source_to_private()
         self.assertPermissionLevel(
-            url, self.SOURCE_VIEW, content_type='text/csv')
+            url, self.SOURCE_VIEW, post_data=data, content_type='text/csv')
         self.source_to_public()
         self.assertPermissionLevel(
-            url, self.SIGNED_IN, content_type='text/csv',
+            url, self.SIGNED_IN, post_data=data, content_type='text/csv',
             deny_type=self.REQUIRE_LOGIN)
 
     def test_export_form_requires_login(self):
@@ -58,9 +56,9 @@ class BaseCalcifyStatsExportTest(BaseExportTest):
     """Subclasses must define self.client and self.source."""
 
     def export_calcify_stats(self, data):
-        """GET the export view and return the response."""
+        """POST the export view and return the response."""
         self.client.force_login(self.user)
-        return self.client.get(
+        return self.client.post(
             reverse('calcification:stats_export', args=[self.source.pk]),
             data, follow=True)
 
@@ -367,8 +365,8 @@ class ExportTest(BaseCalcifyStatsExportTest):
         # Display an error in HTML instead of serving CSV.
         self.assertTrue(response['content-type'].startswith('text/html'))
         # It's not the most intuitive error message, but it shouldn't be a
-        # common error case either (e.g. people typing URLs with GET params
-        # manually).
+        # common error case either (e.g. people editing params with
+        # Inspect Element).
         self.assertContains(
             response,
             "Label rates to use: Select a valid choice."

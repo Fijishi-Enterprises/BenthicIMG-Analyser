@@ -47,7 +47,15 @@ class SourceCsvExportView(View):
     def write_csv(self, response, source, image_set, export_form_data):
         raise NotImplementedError
 
-    def get(self, request, source_id):
+    def post(self, request, source_id):
+        """
+        We define these views as POST, not GET, because we want to save
+        database stats for some of the source-level exports.
+
+        Also, none of the advantages of GET particularly apply to these
+        export views (bookmarking the URL, bots indexing the response,
+        avoiding browser resend warnings on Back/Refresh, etc.)
+        """
         source = get_object_or_404(Source, id=source_id)
 
         try:
@@ -57,7 +65,7 @@ class SourceCsvExportView(View):
             return HttpResponseRedirect(
                 reverse('browse_images', args=[source_id]))
 
-        export_form = self.get_export_form(source, request.GET)
+        export_form = self.get_export_form(source, request.POST)
         if not export_form.is_valid():
             messages.error(request, get_one_form_error(export_form))
             return HttpResponseRedirect(

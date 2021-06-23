@@ -132,15 +132,6 @@ class CalcifyStatsExportView(SourceCsvExportView):
         writer = csv.DictWriter(response, fieldnames)
         writer.writeheader()
 
-        # Limit decimal places in the final numbers.
-        def float_format(flt):
-            # Always 3 decimal places (even if the trailing places are 0).
-            s = format(flt, '.3f')
-            if s == '-0.000':
-                # Python has negative 0, but we don't care for that here.
-                return '0.000'
-            return s
-
         mean_rate_sum = 0
         lower_bound_sum = 0
         upper_bound_sum = 0
@@ -203,14 +194,15 @@ class CalcifyStatsExportView(SourceCsvExportView):
 
                 if 'per_label_mean' in optional_columns:
 
-                    row[f"{label_name} M"] = float_format(mean_contribution)
+                    row[f"{label_name} M"] = self.float_format(
+                        mean_contribution)
                     mean_contribution_sums[label_name] += mean_contribution
 
                 if 'per_label_bounds' in optional_columns:
 
-                    row[f"{label_name} LB"] = float_format(
+                    row[f"{label_name} LB"] = self.float_format(
                         lower_bound_contribution)
-                    row[f"{label_name} UB"] = float_format(
+                    row[f"{label_name} UB"] = self.float_format(
                         upper_bound_contribution)
                     lower_bound_contribution_sums[label_name] += \
                         lower_bound_contribution
@@ -218,9 +210,9 @@ class CalcifyStatsExportView(SourceCsvExportView):
                         upper_bound_contribution
 
             # Add image stats to CSV as fixed-places strings
-            row["Mean rate"] = float_format(image_mean_rate)
-            row["Lower bound"] = float_format(image_lower_bound)
-            row["Upper bound"] = float_format(image_upper_bound)
+            row["Mean rate"] = self.float_format(image_mean_rate)
+            row["Lower bound"] = self.float_format(image_lower_bound)
+            row["Upper bound"] = self.float_format(image_upper_bound)
 
             # Add to summary stats computation
             mean_rate_sum += image_mean_rate
@@ -239,18 +231,18 @@ class CalcifyStatsExportView(SourceCsvExportView):
         summary_row = {
             "Image ID": "ALL IMAGES",
             "Image name": "ALL IMAGES",
-            "Mean rate": float_format(mean_rate_sum / num_images),
-            "Lower bound": float_format(lower_bound_sum / num_images),
-            "Upper bound": float_format(upper_bound_sum / num_images),
+            "Mean rate": self.float_format(mean_rate_sum / num_images),
+            "Lower bound": self.float_format(lower_bound_sum / num_images),
+            "Upper bound": self.float_format(upper_bound_sum / num_images),
         }
         for _, label_name in label_ids_to_names.items():
             if 'per_label_mean' in optional_columns:
-                summary_row[f"{label_name} M"] = float_format(
+                summary_row[f"{label_name} M"] = self.float_format(
                     mean_contribution_sums[label_name] / num_images)
             if 'per_label_bounds' in optional_columns:
-                summary_row[f"{label_name} LB"] = float_format(
+                summary_row[f"{label_name} LB"] = self.float_format(
                     lower_bound_contribution_sums[label_name] / num_images)
-                summary_row[f"{label_name} UB"] = float_format(
+                summary_row[f"{label_name} UB"] = self.float_format(
                     upper_bound_contribution_sums[label_name] / num_images)
         writer.writerow(summary_row)
 

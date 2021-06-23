@@ -1,3 +1,4 @@
+import collections
 import csv
 
 from django.contrib.auth.decorators import login_required
@@ -46,6 +47,17 @@ class SourceCsvExportView(View):
 
     def write_csv(self, response, source, image_set, export_form_data):
         raise NotImplementedError
+
+    @staticmethod
+    def float_format(flt):
+        """Limit decimal places in the CSV's final numbers."""
+
+        # Always 3 decimal places (even if the trailing places are 0).
+        s = format(flt, '.3f')
+        if s == '-0.000':
+            # Python has negative 0, but we don't care for that here.
+            return '0.000'
+        return s
 
     def post(self, request, source_id):
         """
@@ -228,25 +240,35 @@ class ImageCoversExportView(SourceCsvExportView):
 
     def write_csv(self, response, source, image_set, export_form_data):
 
-        writer = csv.writer(response)
         local_labels = source.labelset.get_locals_ordered_by_group_and_code()
+        codes = local_labels.values_list('code', flat=True)
 
         # Header row
-        row = ["Name", "Annotation status", "Annotation area"]
-        row.extend(local_labels.values_list('code', flat=True))
-        writer.writerow(row)
+        fieldnames = ["Name", "Annotation status", "Annotation area"]
+        fieldnames.extend(codes)
+
+        writer = csv.DictWriter(response, fieldnames)
+        writer.writeheader()
+
+        coverage_sums = collections.defaultdict(float)
+        num_images_with_annotations = 0
 
         # One row per image
         for image in image_set:
-            row = [
-                image.metadata.name,
-                image.get_annotation_status_str(),
-                image.annotation_area_display(),
-            ]
+            row = {
+                "Name": image.metadata.name,
+                "Annotation status": image.get_annotation_status_str(),
+                "Annotation area": image.annotation_area_display(),
+            }
 
             image_annotations = Annotation.objects.filter(image=image)
             image_annotation_count = image_annotations.count()
+
+            if image_annotation_count > 0:
+                num_images_with_annotations += 1
+
             for local_label in local_labels:
+
                 if image_annotation_count == 0:
                     coverage_fraction = 0
                 else:
@@ -255,9 +277,34 @@ class ImageCoversExportView(SourceCsvExportView):
                         image_annotations.filter(label=global_label).count()
                         / image_annotation_count
                     )
-                coverage_percent_str = format(coverage_fraction * 100.0, '.3f')
-                row.append(coverage_percent_str)
+                coverage_percent_str = self.float_format(
+                    coverage_fraction * 100.0)
+                row[local_label.code] = coverage_percent_str
+
+                # Add to summary stats computation
+                coverage_sums[local_label.code] += coverage_fraction
+
             writer.writerow(row)
+
+        if num_images_with_annotations <= 1:
+            # Summary stats code ends up being a pain with 0 images, since we'd
+            # have to catch division by 0 several times.
+            # Also, we only need to bother with the summary row
+            # if there are multiple images with annotations.
+            return
+
+        summary_row = {
+            "Name": "ALL IMAGES",
+            "Annotation status": "",
+            "Annotation area": "",
+        }
+        for code in codes:
+            # Divide by the number of images with annotations. If we include
+            # images without annotations (i.e. rows with all 0s), then the
+            # summary percents won't add up to 100.
+            summary_row[code] = self.float_format(
+                100.0 * coverage_sums[code] / num_images_with_annotations)
+        writer.writerow(summary_row)
 
 
 @source_visibility_required('source_id')

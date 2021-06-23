@@ -26,6 +26,50 @@ class PermissionTest(BasePermissionTest):
             deny_type=self.REQUIRE_LOGIN)
 
 
+class CalculationsTest(BaseExportTest):
+    """Test the image covers calculations."""
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(
+            cls.user,
+            min_x=0, max_x=100, min_y=0, max_y=100, simple_number_of_points=5)
+        cls.labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
+        cls.create_labelset(cls.user, cls.source, cls.labels)
+
+    def test_summary_row_ignores_unannotated_images(self):
+        """
+        Summary row should ignore unannotated images, so that the
+        summary percentages add up to 100.
+        """
+        img1 = self.upload_image(
+            self.user, self.source, dict(filename='1.jpg'))
+        img2 = self.upload_image(
+            self.user, self.source, dict(filename='2.jpg'))
+        self.upload_image(
+            self.user, self.source, dict(filename='3.jpg'))
+        self.add_annotations(self.user, img1, {
+            1: 'A', 2: 'B', 3: 'A', 4: 'B', 5: 'A'})
+        self.add_annotations(self.user, img2, {
+            1: 'A', 2: 'B', 3: 'B', 4: 'B', 5: 'B'})
+        # None for the third image
+
+        post_data = self.default_search_params.copy()
+        response = self.export_image_covers(post_data)
+
+        expected_lines = [
+            'Name,Annotation status,Annotation area,A,B',
+            '1.jpg,Confirmed,X: 0 - 100% / Y: 0 - 100%,60.000,40.000',
+            '2.jpg,Confirmed,X: 0 - 100% / Y: 0 - 100%,20.000,80.000',
+            '3.jpg,Needs annotation,X: 0 - 100% / Y: 0 - 100%,0.000,0.000',
+            'ALL IMAGES,,,40.000,60.000',
+        ]
+        self.assert_csv_content_equal(response.content, expected_lines)
+
+
 class ImageSetTest(BaseExportTest):
     """Test image covers export to CSV for different kinds of image subsets."""
 
@@ -79,6 +123,7 @@ class ImageSetTest(BaseExportTest):
             '1.jpg,Confirmed,X: 0 - 100% / Y: 0 - 100%,60.000,40.000',
             '2.jpg,Confirmed,X: 0 - 100% / Y: 0 - 100%,20.000,80.000',
             '3.jpg,Confirmed,X: 0 - 100% / Y: 0 - 100%,100.000,0.000',
+            'ALL IMAGES,,,60.000,40.000',
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
@@ -111,6 +156,7 @@ class ImageSetTest(BaseExportTest):
             'Name,Annotation status,Annotation area,A,B',
             '1.jpg,Confirmed,X: 0 - 100% / Y: 0 - 100%,60.000,40.000',
             '3.jpg,Confirmed,X: 0 - 100% / Y: 0 - 100%,100.000,0.000',
+            'ALL IMAGES,,,80.000,20.000',
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 

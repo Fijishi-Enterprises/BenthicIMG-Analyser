@@ -151,6 +151,9 @@
         id="export-image-covers-form">
           {% csrf_token %}
           <span class="image-select-field-container"></span>
+
+          {% include "form_generic.html" with form=export_image_covers_form %}
+
           <button type="button" class="submit">Go</button>
         </form>
 

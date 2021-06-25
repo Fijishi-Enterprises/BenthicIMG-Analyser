@@ -73,7 +73,18 @@ class CpcPrefsForm(Form):
             self.fields[field_name].widget.attrs['size'] = str(field_size)
 
 
-class ExportImageCoversForm(Form):
-    # Stub form to make the corresponding view work.
-    # Later we'll add export options to this form though.
+class ExportImageStatsForm(Form):
+    """Form for ImageStatsExportView."""
+    label_display = ChoiceField(
+        label="Label displays in column headers",
+        choices=(
+            ('code', "Short code"),
+            ('name', "Full name"),
+        ),
+        initial='code',
+        widget=RadioSelect,
+    )
+
+
+class ExportImageCoversForm(ExportImageStatsForm):
     pass

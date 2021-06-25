@@ -16,58 +16,15 @@ class PermissionTest(BasePermissionTest):
 
     def test_image_covers(self):
         url = reverse('export_image_covers', args=[self.source.pk])
+        data = dict(label_display='code')
 
         self.source_to_private()
         self.assertPermissionLevel(
-            url, self.SOURCE_VIEW, post_data={}, content_type='text/csv')
+            url, self.SOURCE_VIEW, post_data=data, content_type='text/csv')
         self.source_to_public()
         self.assertPermissionLevel(
-            url, self.SIGNED_IN, post_data={}, content_type='text/csv',
+            url, self.SIGNED_IN, post_data=data, content_type='text/csv',
             deny_type=self.REQUIRE_LOGIN)
-
-
-class CalculationsTest(BaseExportTest):
-    """Test the image covers calculations."""
-
-    @classmethod
-    def setUpTestData(cls):
-        super().setUpTestData()
-
-        cls.user = cls.create_user()
-        cls.source = cls.create_source(
-            cls.user,
-            min_x=0, max_x=100, min_y=0, max_y=100, simple_number_of_points=5)
-        cls.labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
-        cls.create_labelset(cls.user, cls.source, cls.labels)
-
-    def test_summary_row_ignores_unannotated_images(self):
-        """
-        Summary row should ignore unannotated images, so that the
-        summary percentages add up to 100.
-        """
-        img1 = self.upload_image(
-            self.user, self.source, dict(filename='1.jpg'))
-        img2 = self.upload_image(
-            self.user, self.source, dict(filename='2.jpg'))
-        self.upload_image(
-            self.user, self.source, dict(filename='3.jpg'))
-        self.add_annotations(self.user, img1, {
-            1: 'A', 2: 'B', 3: 'A', 4: 'B', 5: 'A'})
-        self.add_annotations(self.user, img2, {
-            1: 'A', 2: 'B', 3: 'B', 4: 'B', 5: 'B'})
-        # None for the third image
-
-        post_data = self.default_search_params.copy()
-        response = self.export_image_covers(post_data)
-
-        expected_lines = [
-            'Name,Annotation status,Annotation area,A,B',
-            '1.jpg,Confirmed,X: 0 - 100% / Y: 0 - 100%,60.000,40.000',
-            '2.jpg,Confirmed,X: 0 - 100% / Y: 0 - 100%,20.000,80.000',
-            '3.jpg,Needs annotation,X: 0 - 100% / Y: 0 - 100%,0.000,0.000',
-            'ALL IMAGES,,,40.000,60.000',
-        ]
-        self.assert_csv_content_equal(response.content, expected_lines)
 
 
 class ImageSetTest(BaseExportTest):
@@ -86,102 +43,130 @@ class ImageSetTest(BaseExportTest):
 
     def test_all_images_single(self):
         """Export for 1 out of 1 images."""
-        self.img1 = self.upload_image(
+        img1 = self.upload_image(
             self.user, self.source, dict(filename='1.jpg'))
-        self.add_annotations(self.user, self.img1, {
+        self.add_annotations(self.user, img1, {
             1: 'A', 2: 'B', 3: 'A', 4: 'B', 5: 'A'})
 
-        post_data = self.default_search_params.copy()
-        response = self.export_image_covers(post_data)
+        response = self.export_image_covers(dict())
 
         expected_lines = [
-            'Name,Annotation status,Annotation area,A,B',
-            '1.jpg,Confirmed,X: 0 - 100% / Y: 0 - 100%,60.000,40.000',
+            'Image ID,Image name,Annotation status,Points,A,B',
+            f'{img1.pk},1.jpg,Confirmed,5,60.000,40.000',
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
     def test_all_images_multiple(self):
         """Export for n out of n images."""
-        self.img1 = self.upload_image(
+        img1 = self.upload_image(
             self.user, self.source, dict(filename='1.jpg'))
-        self.img2 = self.upload_image(
+        img2 = self.upload_image(
             self.user, self.source, dict(filename='2.jpg'))
-        self.img3 = self.upload_image(
+        img3 = self.upload_image(
             self.user, self.source, dict(filename='3.jpg'))
-        self.add_annotations(self.user, self.img1, {
+        self.add_annotations(self.user, img1, {
             1: 'A', 2: 'B', 3: 'A', 4: 'B', 5: 'A'})
-        self.add_annotations(self.user, self.img2, {
+        self.add_annotations(self.user, img2, {
             1: 'A', 2: 'B', 3: 'B', 4: 'B', 5: 'B'})
-        self.add_annotations(self.user, self.img3, {
+        self.add_annotations(self.user, img3, {
             1: 'A', 2: 'A', 3: 'A', 4: 'A', 5: 'A'})
 
-        post_data = self.default_search_params.copy()
-        response = self.export_image_covers(post_data)
+        response = self.export_image_covers(dict())
 
         expected_lines = [
-            'Name,Annotation status,Annotation area,A,B',
-            '1.jpg,Confirmed,X: 0 - 100% / Y: 0 - 100%,60.000,40.000',
-            '2.jpg,Confirmed,X: 0 - 100% / Y: 0 - 100%,20.000,80.000',
-            '3.jpg,Confirmed,X: 0 - 100% / Y: 0 - 100%,100.000,0.000',
-            'ALL IMAGES,,,60.000,40.000',
+            'Image ID,Image name,Annotation status,Points,A,B',
+            f'{img1.pk},1.jpg,Confirmed,5,60.000,40.000',
+            f'{img2.pk},2.jpg,Confirmed,5,20.000,80.000',
+            f'{img3.pk},3.jpg,Confirmed,5,100.000,0.000',
+            'ALL IMAGES,,,,60.000,40.000',
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
     def test_image_subset_by_metadata(self):
         """Export for some, but not all, images."""
-        self.img1 = self.upload_image(
+        img1 = self.upload_image(
             self.user, self.source, dict(filename='1.jpg'))
-        self.img2 = self.upload_image(
+        img2 = self.upload_image(
             self.user, self.source, dict(filename='2.jpg'))
-        self.img3 = self.upload_image(
+        img3 = self.upload_image(
             self.user, self.source, dict(filename='3.jpg'))
-        self.add_annotations(self.user, self.img1, {
+        self.add_annotations(self.user, img1, {
             1: 'A', 2: 'B', 3: 'A', 4: 'B', 5: 'A'})
-        self.add_annotations(self.user, self.img2, {
+        self.add_annotations(self.user, img2, {
             1: 'A', 2: 'B', 3: 'B', 4: 'B', 5: 'B'})
-        self.add_annotations(self.user, self.img3, {
+        self.add_annotations(self.user, img3, {
             1: 'A', 2: 'A', 3: 'A', 4: 'A', 5: 'A'})
-        self.img1.metadata.aux1 = 'X'
-        self.img1.metadata.save()
-        self.img2.metadata.aux1 = 'Y'
-        self.img2.metadata.save()
-        self.img3.metadata.aux1 = 'X'
-        self.img3.metadata.save()
+        img1.metadata.aux1 = 'X'
+        img1.metadata.save()
+        img2.metadata.aux1 = 'Y'
+        img2.metadata.save()
+        img3.metadata.aux1 = 'X'
+        img3.metadata.save()
 
-        post_data = self.default_search_params.copy()
-        post_data['aux1'] = 'X'
-        response = self.export_image_covers(post_data)
+        data = self.default_search_params.copy()
+        data['aux1'] = 'X'
+        response = self.export_image_covers(data)
 
         expected_lines = [
-            'Name,Annotation status,Annotation area,A,B',
-            '1.jpg,Confirmed,X: 0 - 100% / Y: 0 - 100%,60.000,40.000',
-            '3.jpg,Confirmed,X: 0 - 100% / Y: 0 - 100%,100.000,0.000',
-            'ALL IMAGES,,,80.000,20.000',
+            'Image ID,Image name,Annotation status,Points,A,B',
+            f'{img1.pk},1.jpg,Confirmed,5,60.000,40.000',
+            f'{img3.pk},3.jpg,Confirmed,5,100.000,0.000',
+            'ALL IMAGES,,,,80.000,20.000',
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
     def test_image_empty_set(self):
         """Export for 0 images."""
-        self.img1 = self.upload_image(
+        img1 = self.upload_image(
             self.user, self.source, dict(filename='1.jpg'))
-        self.add_annotations(self.user, self.img1, {
+        self.add_annotations(self.user, img1, {
             1: 'A', 2: 'B', 3: 'A', 4: 'B', 5: 'A'})
 
-        post_data = self.default_search_params.copy()
-        post_data['image_name'] = '5.jpg'
-        response = self.export_image_covers(post_data)
+        data = self.default_search_params.copy()
+        data['image_name'] = '5.jpg'
+        response = self.export_image_covers(data)
 
         expected_lines = [
-            'Name,Annotation status,Annotation area,A,B',
+            'Image ID,Image name,Annotation status,Points,A,B',
+        ]
+        self.assert_csv_content_equal(response.content, expected_lines)
+
+    def test_exclude_unannotated_images(self):
+        """
+        CSV should exclude unannotated images, regardless of whether the
+        search filters include such images.
+        """
+        img1 = self.upload_image(
+            self.user, self.source, dict(filename='1.jpg'))
+        img2 = self.upload_image(
+            self.user, self.source, dict(filename='2.jpg'))
+        self.upload_image(
+            self.user, self.source, dict(filename='3.jpg'))
+        # 1st image confirmed
+        self.add_annotations(self.user, img1, {
+            1: 'A', 2: 'B', 3: 'A', 4: 'B', 5: 'A'})
+        # 2nd image unconfirmed
+        robot = self.create_robot(self.source)
+        self.add_robot_annotations(robot, img2, {
+            1: 'A', 2: 'B', 3: 'B', 4: 'B', 5: 'B'})
+        # 3rd image unannotated
+
+        response = self.export_image_covers(dict())
+
+        expected_lines = [
+            'Image ID,Image name,Annotation status,Points,A,B',
+            f'{img1.pk},1.jpg,Confirmed,5,60.000,40.000',
+            f'{img2.pk},2.jpg,Unconfirmed,5,20.000,80.000',
+            'ALL IMAGES,,,,40.000,60.000',
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
     def test_invalid_image_set_params(self):
         self.upload_image(self.user, self.source)
 
-        post_data = self.default_search_params.copy()
-        post_data['photo_date_0'] = 'abc'
-        response = self.export_image_covers(post_data)
+        data = self.default_search_params.copy()
+        data['photo_date_0'] = 'abc'
+        response = self.export_image_covers(data)
 
         # Display an error in HTML instead of serving CSV.
         self.assertTrue(response['content-type'].startswith('text/html'))
@@ -189,9 +174,9 @@ class ImageSetTest(BaseExportTest):
 
     def test_dont_get_other_sources_images(self):
         """Don't export for other sources' images."""
-        self.img1 = self.upload_image(
+        img1 = self.upload_image(
             self.user, self.source, dict(filename='1.jpg'))
-        self.add_annotations(self.user, self.img1, {
+        self.add_annotations(self.user, img1, {
             1: 'A', 2: 'B', 3: 'A', 4: 'B', 5: 'A'})
 
         source2 = self.create_source(self.user, simple_number_of_points=5)
@@ -200,19 +185,18 @@ class ImageSetTest(BaseExportTest):
         self.add_annotations(self.user, img2, {
             1: 'A', 2: 'B', 3: 'A', 4: 'B', 5: 'A'})
 
-        post_data = self.default_search_params.copy()
-        response = self.export_image_covers(post_data)
+        response = self.export_image_covers(dict())
 
         # Should have image 1, but not 2
         expected_lines = [
-            'Name,Annotation status,Annotation area,A,B',
-            '1.jpg,Confirmed,X: 0 - 100% / Y: 0 - 100%,60.000,40.000',
+            'Image ID,Image name,Annotation status,Points,A,B',
+            f'{img1.pk},1.jpg,Confirmed,5,60.000,40.000',
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
 
-class ColumnOrderTest(BaseExportTest):
-    """Test column order in the exported covers CSV."""
+class LabelColumnsTest(BaseExportTest):
+    """Test naming and ordering of the per-label CSV columns."""
 
     @classmethod
     def setUpTestData(cls):
@@ -222,37 +206,64 @@ class ColumnOrderTest(BaseExportTest):
         cls.source = cls.create_source(
             cls.user,
             min_x=0, max_x=100, min_y=0, max_y=100, simple_number_of_points=5)
-        labels = cls.create_labels(cls.user, ['A', 'B', 'C'], 'GroupA')
-        cls.create_labelset(cls.user, cls.source, labels)
+        # To test ordering by group and then name/code, we'll stagger the
+        # alphabetical ordering between two label groups.
+        labels_a = cls.create_labels(cls.user, ['A1', 'B1', 'C1'], 'Group1')
+        labels_b = cls.create_labels(cls.user, ['A2', 'B2'], 'Group2')
+        cls.create_labelset(cls.user, cls.source, labels_a | labels_b)
 
         # Custom codes; ordering by these codes gives a different order from
-        # ordering by name or default code
+        # ordering by name or default code. Again, alpha order is staggered
+        # between groups.
         local_a = LocalLabel.objects.get(
-            labelset=cls.source.labelset, code='A')
-        local_a.code = '2'
+            labelset=cls.source.labelset, code='A1')
+        local_a.code = '21'
         local_a.save()
         local_b = LocalLabel.objects.get(
-            labelset=cls.source.labelset, code='B')
-        local_b.code = '1'
+            labelset=cls.source.labelset, code='B1')
+        local_b.code = '31'
         local_b.save()
         local_c = LocalLabel.objects.get(
-            labelset=cls.source.labelset, code='C')
-        local_c.code = '3'
+            labelset=cls.source.labelset, code='C1')
+        local_c.code = '11'
         local_c.save()
 
-    def test(self):
-        self.img1 = self.upload_image(
+        local_d = LocalLabel.objects.get(
+            labelset=cls.source.labelset, code='A2')
+        local_d.code = '22'
+        local_d.save()
+        local_e = LocalLabel.objects.get(
+            labelset=cls.source.labelset, code='B2')
+        local_e.code = '12'
+        local_e.save()
+
+    def test_order_by_group_and_code(self):
+        img1 = self.upload_image(
             self.user, self.source, dict(filename='1.jpg'))
-        self.add_annotations(self.user, self.img1, {
-            1: '3', 2: '1', 3: '2', 4: '1', 5: '3'})
+        self.add_annotations(self.user, img1, {
+            1: '21', 2: '31', 3: '31', 4: '22', 5: '12'})
 
-        post_data = self.default_search_params.copy()
-        response = self.export_image_covers(post_data)
+        response = self.export_image_covers(dict())
 
-        # Columns should be ordered by LocalLabel short code
+        # Columns should have LocalLabel short codes
         expected_lines = [
-            'Name,Annotation status,Annotation area,1,2,3',
-            '1.jpg,Confirmed,X: 0 - 100% / Y: 0 - 100%,40.000,20.000,40.000',
+            'Image ID,Image name,Annotation status,Points,11,21,31,12,22',
+            f'{img1.pk},1.jpg,Confirmed,5,0.000,20.000,40.000,20.000,20.000',
+        ]
+        self.assert_csv_content_equal(response.content, expected_lines)
+
+    def test_order_by_group_and_name(self):
+        img1 = self.upload_image(
+            self.user, self.source, dict(filename='1.jpg'))
+        self.add_annotations(self.user, img1, {
+            1: '21', 2: '31', 3: '31', 4: '22', 5: '12'})
+
+        response = self.export_image_covers(dict(label_display='name'))
+
+        # Columns should have global label names
+        expected_lines = [
+            'Image ID,Image name,Annotation status,Points,A1,B1,C1,A2,B2',
+            f'{img1.pk},1.jpg,Confirmed,5,20.000,40.000,0.000,20.000,20.000',
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
 
@@ -277,16 +288,15 @@ class UnicodeTest(BaseExportTest):
         local_label.save()
 
     def test(self):
-        self.img1 = self.upload_image(
+        img1 = self.upload_image(
             self.user, self.source, dict(filename='あ.jpg'))
-        self.add_annotations(self.user, self.img1, {
+        self.add_annotations(self.user, img1, {
             1: 'い', 2: 'い', 3: 'い', 4: 'い', 5: 'い'})
 
-        post_data = self.default_search_params.copy()
-        response = self.export_image_covers(post_data)
+        response = self.export_image_covers(dict())
 
         expected_lines = [
-            'Name,Annotation status,Annotation area,い',
-            'あ.jpg,Confirmed,X: 0 - 100% / Y: 0 - 100%,100.000',
+            'Image ID,Image name,Annotation status,Points,い',
+            f'{img1.pk},あ.jpg,Confirmed,5,100.000',
         ]
         self.assert_csv_content_equal(response.content, expected_lines)

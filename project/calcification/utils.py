@@ -46,7 +46,7 @@ def rate_table_csv_to_json(csv_stream):
         csv_stream=csv_stream,
         required_columns=[
             ('label_name', "Label"),
-            ('mean', "Mean rate"),
+            ('mean', "Mean"),
             ('lower_bound', "Lower bound"),
             ('upper_bound', "Upper bound"),
         ],
@@ -87,7 +87,7 @@ def rate_table_csv_to_json(csv_stream):
 def rate_table_json_to_csv(csv_stream, rate_table, source=None):
     fieldnames = [
         "Label",
-        "Mean rate",
+        "Mean",
         "Lower bound",
         "Upper bound",
     ]
@@ -116,7 +116,7 @@ def rate_table_json_to_csv(csv_stream, rate_table, source=None):
 
             writer.writerow({
                 "Label": label_name,
-                "Mean rate": label_rates['mean'],
+                "Mean": label_rates['mean'],
                 "Lower bound": label_rates['lower_bound'],
                 "Upper bound": label_rates['upper_bound'],
             })
@@ -136,7 +136,7 @@ def rate_table_json_to_csv(csv_stream, rate_table, source=None):
         for label_id, label_rates in rates.items():
             writer.writerow({
                 "Label": label_names[label_id],
-                "Mean rate": label_rates['mean'],
+                "Mean": label_rates['mean'],
                 "Lower bound": label_rates['lower_bound'],
                 "Upper bound": label_rates['upper_bound'],
             })

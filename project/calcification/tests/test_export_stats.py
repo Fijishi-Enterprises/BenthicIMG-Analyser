@@ -123,7 +123,7 @@ class ExportTest(BaseCalcifyStatsExportTest):
         # should be as expected; and should work with multiple images
         expected_lines = [
             'Image ID,Image name,Annotation status,Points,'
-            'Mean rate,Lower bound,Upper bound',
+            'Mean,Lower bound,Upper bound',
 
             # 4.0*0.6 + 1.0*0.4
             # 3.2*0.6 + 0.8*0.4
@@ -153,7 +153,7 @@ class ExportTest(BaseCalcifyStatsExportTest):
 
         expected_lines = [
             'Image ID,Image name,Annotation status,Points,'
-            'Mean rate,Lower bound,Upper bound',
+            'Mean,Lower bound,Upper bound',
 
             # 4.0*0.6
             # 3.2*0.6
@@ -193,7 +193,7 @@ class ExportTest(BaseCalcifyStatsExportTest):
             dict(rate_table_id=calcify_table_1.pk))
         expected_lines = [
             'Image ID,Image name,Annotation status,Points,'
-            'Mean rate,Lower bound,Upper bound',
+            'Mean,Lower bound,Upper bound',
 
             # 4.0*0.2 + 1.0*0.4
             # 3.2*0.2 + 0.8*0.4
@@ -207,7 +207,7 @@ class ExportTest(BaseCalcifyStatsExportTest):
             dict(rate_table_id=calcify_table_2.pk))
         expected_lines = [
             'Image ID,Image name,Annotation status,Points,'
-            'Mean rate,Lower bound,Upper bound',
+            'Mean,Lower bound,Upper bound',
 
             # 1.5*0.4 + -3.0*0.4
             # 1.0*0.4 + -4.2*0.4
@@ -240,7 +240,7 @@ class ExportTest(BaseCalcifyStatsExportTest):
                 optional_columns='per_label_mean'))
         expected_lines = [
             'Image ID,Image name,Annotation status,Points,'
-            'Mean rate,Lower bound,Upper bound,'
+            'Mean,Lower bound,Upper bound,'
             'A M,B M,C M',
 
             # 4.0*0.6 + 1.0*0.4
@@ -261,7 +261,7 @@ class ExportTest(BaseCalcifyStatsExportTest):
                 optional_columns='per_label_bounds'))
         expected_lines = [
             'Image ID,Image name,Annotation status,Points,'
-            'Mean rate,Lower bound,Upper bound,'
+            'Mean,Lower bound,Upper bound,'
             'A LB,B LB,C LB,A UB,B UB,C UB',
 
             f'{img1.pk},1.jpg,Confirmed,5,2.800,2.240,3.400,'
@@ -282,7 +282,7 @@ class ExportTest(BaseCalcifyStatsExportTest):
                 optional_columns=['per_label_mean', 'per_label_bounds']))
         expected_lines = [
             'Image ID,Image name,Annotation status,Points,'
-            'Mean rate,Lower bound,Upper bound,'
+            'Mean,Lower bound,Upper bound,'
             'A M,B M,C M,A LB,B LB,C LB,A UB,B UB,C UB',
 
             f'{img1.pk},1.jpg,Confirmed,5,2.800,2.240,3.400,'
@@ -323,7 +323,7 @@ class ExportTest(BaseCalcifyStatsExportTest):
         # should be as expected; and should work with multiple images
         expected_lines = [
             'Image ID,Image name,Annotation status,Points,'
-            'Mean rate,Lower bound,Upper bound,'
+            'Mean,Lower bound,Upper bound,'
             'A M,B M,C M,A LB,B LB,C LB,A UB,B UB,C UB',
 
             f'{img1.pk},1.jpg,Confirmed,5,4.000,3.200,4.800,'
@@ -368,7 +368,7 @@ class ExportTest(BaseCalcifyStatsExportTest):
                 optional_columns=['per_label_mean', 'per_label_bounds']))
         expected_lines = [
             'Image ID,Image name,Annotation status,Points,'
-            'Mean rate,Lower bound,Upper bound,'
+            'Mean,Lower bound,Upper bound,'
             'A M,B M,C M,A LB,B LB,C LB,A UB,B UB,C UB',
 
             f'{img1.pk},1.jpg,Confirmed,5,4.000,3.200,4.800,'
@@ -648,7 +648,7 @@ class LabelColumnsTest(BaseCalcifyStatsExportTest):
         # Columns should have LocalLabel short codes
         expected_lines = [
             'Image ID,Image name,Annotation status,Points,'
-            'Mean rate,Lower bound,Upper bound,'
+            'Mean,Lower bound,Upper bound,'
             '11 M,21 M,31 M,12 M,22 M,'
             '11 LB,21 LB,31 LB,12 LB,22 LB,11 UB,21 UB,31 UB,12 UB,22 UB',
 
@@ -674,7 +674,7 @@ class LabelColumnsTest(BaseCalcifyStatsExportTest):
         # Columns should have global label names
         expected_lines = [
             'Image ID,Image name,Annotation status,Points,'
-            'Mean rate,Lower bound,Upper bound,'
+            'Mean,Lower bound,Upper bound,'
             'A1 M,B1 M,C1 M,A2 M,B2 M,'
             'A1 LB,B1 LB,C1 LB,A2 LB,B2 LB,A1 UB,B1 UB,C1 UB,A2 UB,B2 UB',
 
@@ -718,7 +718,7 @@ class UnicodeTest(BaseCalcifyStatsExportTest):
                 optional_columns='per_label_mean'))
         expected_lines = [
             'Image ID,Image name,Annotation status,Points,'
-            'Mean rate,Lower bound,Upper bound,'
+            'Mean,Lower bound,Upper bound,'
             'い M',
 
             f'{img1.pk},あ.jpg,Confirmed,5,0.000,0.000,0.000,0.000',

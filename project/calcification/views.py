@@ -101,7 +101,7 @@ class CalcifyStatsExportView(ImageStatsExportView):
     def finish_fieldnames_and_image_loop_prep(
             self, fieldnames, export_form_data):
 
-        fieldnames.extend(["Mean rate", "Lower bound", "Upper bound"])
+        fieldnames.extend(["Mean", "Lower bound", "Upper bound"])
 
         self.optional_columns = export_form_data['optional_columns']
         if 'per_label_mean' in self.optional_columns:
@@ -182,7 +182,7 @@ class CalcifyStatsExportView(ImageStatsExportView):
                     upper_bound_contribution
 
         # Add image stats to CSV as fixed-places strings
-        row["Mean rate"] = self.float_format(image_mean_rate)
+        row["Mean"] = self.float_format(image_mean_rate)
         row["Lower bound"] = self.float_format(image_lower_bound)
         row["Upper bound"] = self.float_format(image_upper_bound)
 
@@ -196,7 +196,7 @@ class CalcifyStatsExportView(ImageStatsExportView):
     def finish_summary_row(self, summary_row, num_annotated_images):
 
         summary_row.update({
-            "Mean rate": self.float_format(
+            "Mean": self.float_format(
                 self.mean_rate_sum / num_annotated_images),
             "Lower bound": self.float_format(
                 self.lower_bound_sum / num_annotated_images),

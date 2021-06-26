@@ -37,7 +37,7 @@ class Command(BaseCommand):
             required_columns=[
                 ('label_name', "Label"),
                 ('region', "Region"),
-                ('mean', "Mean rate"),
+                ('mean', "Mean"),
                 ('lower_bound', "Lower bound"),
                 ('upper_bound', "Upper bound"),
             ],

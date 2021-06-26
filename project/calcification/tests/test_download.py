@@ -78,7 +78,7 @@ class RateTableDownloadTest(BaseExportTest):
             reverse('calcification:rate_table_download', args=[table.pk]))
 
         expected_lines = [
-            'Label,Mean rate,Lower bound,Upper bound',
+            'Label,Mean,Lower bound,Upper bound',
             'A,2.0,1.0,3.0',
             'B,-2.0,-3.0,-1.0',
         ]
@@ -105,7 +105,7 @@ class RateTableDownloadTest(BaseExportTest):
             reverse('calcification:rate_table_download', args=[table.pk]))
 
         expected_lines = [
-            'Label,Mean rate,Lower bound,Upper bound',
+            'Label,Mean,Lower bound,Upper bound',
             'B,2.0,1.0,3.0',
             'C,-2.0,-3.0,-1.0',
         ]
@@ -133,7 +133,7 @@ class RateTableDownloadTest(BaseExportTest):
         )
 
         expected_lines = [
-            'Label,Mean rate,Lower bound,Upper bound',
+            'Label,Mean,Lower bound,Upper bound',
             # A isn't in the labelset
             # B is in the labelset and in the table
             'B,-2.0,-3.0,-1.0',

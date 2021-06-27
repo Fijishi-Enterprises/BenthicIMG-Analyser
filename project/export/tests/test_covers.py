@@ -414,3 +414,36 @@ class UnicodeTest(BaseImageCoversExportTest):
             f'{img1.pk},あ.jpg,Confirmed,5,100.000',
         ]
         self.assert_csv_content_equal(response.content, expected_lines)
+
+
+class PerformanceTest(BaseImageCoversExportTest):
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(
+            cls.user,
+            min_x=0, max_x=100, min_y=0, max_y=100, simple_number_of_points=20)
+        cls.labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
+        cls.create_labelset(cls.user, cls.source, cls.labels)
+
+    def test_num_queries(self):
+        for i in range(15):
+            img = self.upload_image(
+                self.user, self.source, dict(filename=f'{i}.png'))
+            self.add_annotations(
+                self.user, img, {p: 'A' for p in range(1, 20+1)})
+
+        url = reverse('export_image_covers', args=[self.source.pk])
+        data = dict(label_display='code', export_format='csv')
+        self.client.force_login(self.user)
+
+        # We just want the number of queries to be reasonably close to 15
+        # (image count), and definitely less than 300 (annotation count),
+        # but assertNumQueries only asserts on an exact number of queries.
+        with self.assertNumQueries(26):
+            response = self.client.post(url, data)
+        self.assertStatusOK(response)
+        self.assertEquals(response['content-type'], 'text/csv')

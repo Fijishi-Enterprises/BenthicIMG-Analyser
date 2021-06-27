@@ -7,6 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Count
 from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
@@ -197,7 +198,8 @@ class ImageStatsExportView(SourceCsvExportView, ABC):
         writer.writeheader()
 
         # One row per image
-        for image in image_set:
+        for image in image_set.select_related('annoinfo', 'metadata') \
+                .annotate(num_points=Count('point')):
 
             if image.get_annotation_status_code() == 'needs_annotation':
                 # The image is unannotated or partially annotated, so chances
@@ -213,6 +215,9 @@ class ImageStatsExportView(SourceCsvExportView, ABC):
                 for label_id in self.label_ids_to_displays.keys()
             })
 
+            # This runs one database query per image, but there doesn't seem to
+            # be a way to avoid that without blowing up the export's memory
+            # requirements (i.e. loading all annotations at once).
             annotation_labels = image.annotation_set.values_list(
                 'label_id', flat=True)
             annotation_labels = [pk for pk in annotation_labels]
@@ -223,7 +228,7 @@ class ImageStatsExportView(SourceCsvExportView, ABC):
                 "Image ID": image.pk,
                 "Image name": image.metadata.name,
                 "Annotation status": image.get_annotation_status_str(),
-                "Points": image.point_set.count(),
+                "Points": image.num_points,
             }
             row = self.image_loop_main_body(
                 row, label_counter, num_annotations_in_image)

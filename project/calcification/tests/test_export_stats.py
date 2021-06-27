@@ -962,3 +962,48 @@ class BrowseFormsTest(ClientTest):
             msg="Should have custom tables in order, then default tables"
                 " in order, without having tables from other sources",
         )
+
+
+class PerformanceTest(BaseCalcifyStatsExportTest):
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(
+            cls.user,
+            min_x=0, max_x=100, min_y=0, max_y=100, simple_number_of_points=20)
+        cls.labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
+        cls.create_labelset(cls.user, cls.source, cls.labels)
+
+    def test_num_queries(self):
+        for i in range(15):
+            img = self.upload_image(
+                self.user, self.source, dict(filename=f'{i}.png'))
+            self.add_annotations(
+                self.user, img, {p: 'A' for p in range(1, 20+1)})
+
+        calcify_table = create_default_calcify_table(
+            'Atlantic',
+            {
+                self.labels.get(name='A').pk: dict(
+                    mean=4.0, lower_bound=3.2, upper_bound=4.8),
+                self.labels.get(name='B').pk: dict(
+                    mean=1.0, lower_bound=0.8, upper_bound=1.3),
+            },
+        )
+
+        url = reverse('calcification:stats_export', args=[self.source.pk])
+        data = dict(
+            rate_table_id=calcify_table.pk,
+            label_display='code', export_format='csv')
+        self.client.force_login(self.user)
+
+        # We just want the number of queries to be reasonably close to 15
+        # (image count), and definitely less than 300 (annotation count),
+        # but assertNumQueries only asserts on an exact number of queries.
+        with self.assertNumQueries(30):
+            response = self.client.post(url, data)
+        self.assertStatusOK(response)
+        self.assertEquals(response['content-type'], 'text/csv')

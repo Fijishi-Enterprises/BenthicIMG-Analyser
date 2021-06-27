@@ -1,4 +1,5 @@
 from django.urls import reverse
+import pyexcel
 
 from export.tests.utils import BaseExportTest
 from labels.models import LocalLabel
@@ -16,7 +17,7 @@ class PermissionTest(BasePermissionTest):
 
     def test_image_covers(self):
         url = reverse('export_image_covers', args=[self.source.pk])
-        data = dict(label_display='code')
+        data = dict(label_display='code', export_format='csv')
 
         self.source_to_private()
         self.assertPermissionLevel(
@@ -27,7 +28,120 @@ class PermissionTest(BasePermissionTest):
             deny_type=self.REQUIRE_LOGIN)
 
 
-class ImageSetTest(BaseExportTest):
+class BaseImageCoversExportTest(BaseExportTest):
+    """Subclasses must define self.client and self.source."""
+
+    def export_image_covers(self, data):
+        """POST to export_image_covers, and return the response."""
+        if 'label_display' not in data:
+            data['label_display'] = 'code'
+        if 'export_format' not in data:
+            data['export_format'] = 'csv'
+
+        self.client.force_login(self.user)
+        return self.client.post(
+            reverse('export_image_covers', args=[self.source.pk]),
+            data, follow=True)
+
+
+class FileTypeTest(BaseImageCoversExportTest):
+    """Test the Excel export option."""
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(
+            cls.user,
+            min_x=0, max_x=100, min_y=0, max_y=100, simple_number_of_points=5)
+        cls.labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
+        cls.create_labelset(cls.user, cls.source, cls.labels)
+
+        cls.img1 = cls.upload_image(
+            cls.user, cls.source, dict(filename='1.jpg'))
+        cls.img2 = cls.upload_image(
+            cls.user, cls.source, dict(filename='2.jpg'))
+        cls.img3 = cls.upload_image(
+            cls.user, cls.source, dict(filename='3.jpg'))
+        cls.add_annotations(cls.user, cls.img1, {
+            1: 'A', 2: 'A', 3: 'A', 4: 'A', 5: 'A'})
+        cls.add_annotations(cls.user, cls.img2, {
+            1: 'A', 2: 'A', 3: 'A', 4: 'A', 5: 'A'})
+        cls.add_annotations(cls.user, cls.img3, {
+            1: 'A', 2: 'A', 3: 'A', 4: 'A', 5: 'A'})
+        cls.img1.metadata.aux1 = 'X'
+        cls.img1.metadata.save()
+        cls.img2.metadata.aux1 = 'Y'
+        cls.img2.metadata.save()
+        cls.img3.metadata.aux1 = 'X'
+        cls.img3.metadata.save()
+
+    def test_csv(self):
+        response = self.export_image_covers(dict())
+
+        self.assertEquals(
+            response['content-disposition'],
+            'attachment;filename="percent_covers.csv"',
+            msg="Filename should be as expected")
+
+        self.assertEquals(
+            response['content-type'], 'text/csv',
+            msg="Content type should be CSV")
+
+        # CSV contents are already covered by other tests, so no need to
+        # re-test that here.
+
+    def test_excel(self):
+        data = self.default_search_params.copy()
+        # Some, but not all, images
+        data['aux1'] = 'X'
+        data['export_format'] = 'excel'
+        response = self.export_image_covers(data)
+
+        self.assertEquals(
+            response['content-disposition'],
+            'attachment;filename="percent_covers.xlsx"',
+            msg="Filename should be as expected")
+
+        self.assertEquals(
+            response['content-type'],
+            'application/'
+            'vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            msg="Content type should correspond to xlsx")
+
+        book = pyexcel.get_book(
+            file_type='xlsx', file_content=response.content)
+
+        # Check data sheet contents
+        expected_lines = [
+            'Image ID,Image name,Annotation status,Points,A,B',
+            # Excel will trim trailing zeros
+            f'{self.img1.pk},1.jpg,Confirmed,5,100,0',
+            f'{self.img3.pk},3.jpg,Confirmed,5,100,0',
+            f'ALL IMAGES,,,,100,0',
+        ]
+        self.assert_csv_content_equal(book["Data"].csv, expected_lines)
+
+        # Check meta sheet contents
+        actual_rows = book["Meta"].array
+        self.assertEqual(5, len(actual_rows))
+        self.assertEqual(
+            ["Source name", self.source.name], actual_rows[0])
+        self.assertEqual(
+            ["Image search method",
+             "Filtering by aux1; Sorting by name, ascending"],
+            actual_rows[1])
+        self.assertEqual(
+            ["Images in export", 2], actual_rows[2])
+        self.assertEqual(
+            ["Images in source", 3], actual_rows[3])
+        # Currently being lazy and not checking the actual date here.
+        self.assertEqual(
+            "Export date", actual_rows[4][0])
+
+
+class ImageSetTest(BaseImageCoversExportTest):
     """Test image covers export to CSV for different kinds of image subsets."""
 
     @classmethod
@@ -195,7 +309,7 @@ class ImageSetTest(BaseExportTest):
         self.assert_csv_content_equal(response.content, expected_lines)
 
 
-class LabelColumnsTest(BaseExportTest):
+class LabelColumnsTest(BaseImageCoversExportTest):
     """Test naming and ordering of the per-label CSV columns."""
 
     @classmethod
@@ -268,7 +382,7 @@ class LabelColumnsTest(BaseExportTest):
         self.assert_csv_content_equal(response.content, expected_lines)
 
 
-class UnicodeTest(BaseExportTest):
+class UnicodeTest(BaseImageCoversExportTest):
     """Test that non-ASCII characters don't cause problems."""
 
     @classmethod

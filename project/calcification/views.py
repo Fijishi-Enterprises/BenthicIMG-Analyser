@@ -1,11 +1,13 @@
 import collections
 import datetime
+from io import StringIO
 import re
 
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.template.loader import render_to_string
 from django.views.decorators.http import require_GET, require_POST
+import pyexcel
 
 from export.utils import create_csv_stream_response
 from export.views import ImageStatsExportView
@@ -89,11 +91,11 @@ def rate_table_download(request, table_id):
 
 class CalcifyStatsExportView(ImageStatsExportView):
 
-    def get_export_filename(self, source):
+    def get_export_filename(self, source, suffix='.csv'):
         # Current date as YYYY-MM-DD
         current_date = datetime.datetime.now(
             datetime.timezone.utc).strftime('%Y-%m-%d')
-        return f'{source.name} - Calcification rates - {current_date}.csv'
+        return f'{source.name} - Calcification rates - {current_date}{suffix}'
 
     def get_export_form(self, source, data):
         return ExportCalcifyStatsForm(source=source, data=data)
@@ -116,9 +118,9 @@ class CalcifyStatsExportView(ImageStatsExportView):
                 f"{disp} UB" for disp in self.label_ids_to_displays.values()
             ])
 
-        calcify_rate_table = CalcifyRateTable.objects.get(
+        self.calcify_rate_table = CalcifyRateTable.objects.get(
             pk=export_form_data['rate_table_id'])
-        self.calcify_rates = calcify_rate_table.rates_json
+        self.calcify_rates = self.calcify_rate_table.rates_json
 
         self.mean_rate_sum = 0
         self.lower_bound_sum = 0
@@ -220,6 +222,20 @@ class CalcifyStatsExportView(ImageStatsExportView):
                     / num_annotated_images)
 
         return summary_row
+
+    def finish_workbook(self, book, source):
+        book["Meta"].extend_rows(
+            [["Calcification table", self.calcify_rate_table.name]])
+
+        csv_stream = StringIO()
+        rate_table_json_to_csv(
+            csv_stream, self.calcify_rate_table, source=source)
+        label_rates_sheet = pyexcel.get_sheet(
+            file_type='csv', file_content=csv_stream.getvalue())
+        label_rates_sheet.name = "Label rates"
+        book += label_rates_sheet
+
+        return book
 
 
 def response_after_table_upload_or_delete(request, source):

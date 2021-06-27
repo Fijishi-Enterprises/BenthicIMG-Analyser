@@ -1,5 +1,7 @@
+from abc import ABC
 import collections
 import csv
+from io import BytesIO, StringIO
 
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -8,14 +10,16 @@ from django.db import transaction
 from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views import View
+import pyexcel
 
 from .forms import CpcPrefsForm, ExportAnnotationsForm, ExportImageCoversForm
-from .utils import create_cpc_strings, \
-    create_csv_stream_response, \
-    create_zipped_cpcs_stream_response, get_request_images, \
-    write_annotations_csv, write_labelset_csv
+from .utils import (
+    create_cpc_strings, create_csv_stream_response, create_stream_response,
+    create_zipped_cpcs_stream_response, get_request_images,
+    write_annotations_csv, write_labelset_csv)
 from images.models import Source
 from images.utils import metadata_field_names_to_labels
 from lib.decorators import source_permission_required, \
@@ -34,18 +38,32 @@ decorators = [
     # so don't open a transaction for the view.
     transaction.non_atomic_requests]
 @method_decorator(decorators, name='dispatch')
-class SourceCsvExportView(View):
+class SourceCsvExportView(View, ABC):
     """
     Data export on a subset of an source's images.
     """
-    def get_export_filename(self, source):
+    def get_export_filename(self, source, suffix='.csv'):
         raise NotImplementedError
 
     def get_export_form(self, source, data):
         raise NotImplementedError
 
-    def write_csv(self, response, source, image_set, export_form_data):
+    def write_csv(self, stream, source, image_set, export_form_data):
+        """
+        Write CSV data to the given stream. Return the number of images in the
+        CSV data (this may not necessarily match the size of the passed
+        image_set - for example, if unannotated images are not applicable to
+        the export subclass).
+        """
         raise NotImplementedError
+
+    def finish_workbook(self, book, source):
+        """
+        Finish the contents of the pyexcel.Book, and return the book.
+        If an export subclass has nothing specific to add, then just
+        return the book and do nothing else.
+        """
+        return book
 
     def post(self, request, source_id):
         """
@@ -59,7 +77,8 @@ class SourceCsvExportView(View):
         source = get_object_or_404(Source, id=source_id)
 
         try:
-            image_set = get_request_images(request, source)
+            image_set, applied_search_display = get_request_images(
+                request, source)
         except ValidationError as e:
             messages.error(request, e.message)
             return HttpResponseRedirect(
@@ -71,15 +90,55 @@ class SourceCsvExportView(View):
             return HttpResponseRedirect(
                 reverse('browse_images', args=[source_id]))
 
-        filename = self.get_export_filename(source)
-        response = create_csv_stream_response(filename)
+        if export_form.cleaned_data['export_format'] == 'excel':
 
-        self.write_csv(response, source, image_set, export_form.cleaned_data)
+            # Excel with meta information in additional sheet(s)
+            filename = self.get_export_filename(source, '.xlsx')
+            book = pyexcel.Book()
+
+            csv_stream = StringIO()
+            num_images_in_export = self.write_csv(
+                csv_stream, source, image_set, export_form.cleaned_data)
+            data_sheet = pyexcel.get_sheet(
+                file_type='csv', file_content=csv_stream.getvalue())
+            data_sheet.name = "Data"
+            book += data_sheet
+
+            meta_contents = [
+                ["Source name", source.name],
+                ["Image search method", applied_search_display],
+                ["Images in export", num_images_in_export],
+                ["Images in source", source.image_set.count()],
+                ["Export date", timezone.now().isoformat()],
+            ]
+            meta_sheet = pyexcel.get_sheet(array=meta_contents)
+            meta_sheet.name = "Meta"
+            book += meta_sheet
+
+            book = self.finish_workbook(book, source)
+
+            # For some reason, pyexcel can't seem to accept HttpResponse as
+            # a stream, so we give it a BytesIO instead.
+            temp_stream = BytesIO()
+            book.save_to_memory('xlsx', stream=temp_stream)
+            response = create_stream_response(
+                'application/'
+                'vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                filename)
+            response.content = temp_stream.getvalue()
+
+        else:
+
+            # CSV
+            filename = self.get_export_filename(source)
+            response = create_csv_stream_response(filename)
+            self.write_csv(
+                response, source, image_set, export_form.cleaned_data)
 
         return response
 
 
-class ImageStatsExportView(SourceCsvExportView):
+class ImageStatsExportView(SourceCsvExportView, ABC):
     """
     Stats export where each row pertains to a single image's annotation data.
     """
@@ -106,7 +165,7 @@ class ImageStatsExportView(SourceCsvExportView):
             return '0.000'
         return s
 
-    def write_csv(self, response, source, image_set, export_form_data):
+    def write_csv(self, stream, source, image_set, export_form_data):
 
         # Make a dict of global label IDs to string displays for the
         # source's labelset. The form of the string display depends on the
@@ -134,7 +193,7 @@ class ImageStatsExportView(SourceCsvExportView):
 
         num_annotated_images = 0
 
-        writer = csv.DictWriter(response, fieldnames)
+        writer = csv.DictWriter(stream, fieldnames)
         writer.writeheader()
 
         # One row per image
@@ -170,21 +229,19 @@ class ImageStatsExportView(SourceCsvExportView):
                 row, label_counter, num_annotations_in_image)
             writer.writerow(row)
 
-        if num_annotated_images <= 1:
-            # Summary stats code ends up being a pain with 0 images, since we'd
-            # have to catch division by 0 several times.
-            # Also, we only need to bother with the summary row
-            # if there are multiple annotated images.
-            return
+        if num_annotated_images > 1:
 
-        summary_row = {
-            "Image ID": "ALL IMAGES",
-            "Image name": "",
-            "Annotation status": "",
-            "Points": "",
-        }
-        summary_row = self.finish_summary_row(summary_row, num_annotated_images)
-        writer.writerow(summary_row)
+            summary_row = {
+                "Image ID": "ALL IMAGES",
+                "Image name": "",
+                "Annotation status": "",
+                "Points": "",
+            }
+            summary_row = self.finish_summary_row(
+                summary_row, num_annotated_images)
+            writer.writerow(summary_row)
+
+        return num_annotated_images
 
 
 @source_visibility_required('source_id')
@@ -194,7 +251,7 @@ def export_metadata(request, source_id):
     source = get_object_or_404(Source, id=source_id)
 
     try:
-        image_set = get_request_images(request, source)
+        image_set, _ = get_request_images(request, source)
     except ValidationError as e:
         messages.error(request, e.message)
         return HttpResponseRedirect(
@@ -231,7 +288,7 @@ def export_annotations(request, source_id):
     source = get_object_or_404(Source, id=source_id)
 
     try:
-        image_set = get_request_images(request, source)
+        image_set, _ = get_request_images(request, source)
     except ValidationError as e:
         messages.error(request, e.message)
         return HttpResponseRedirect(
@@ -268,7 +325,7 @@ def export_annotations_cpc_create_ajax(request, source_id):
     source = get_object_or_404(Source, id=source_id)
 
     try:
-        image_set = get_request_images(request, source)
+        image_set, _ = get_request_images(request, source)
     except ValidationError as e:
         return JsonResponse(dict(
             error=e.message
@@ -328,8 +385,8 @@ def export_annotations_cpc_serve(request, source_id):
 
 class ImageCoversExportView(ImageStatsExportView):
 
-    def get_export_filename(self, source):
-        return 'percent_covers.csv'
+    def get_export_filename(self, source, suffix='.csv'):
+        return f'percent_covers{suffix}'
 
     def get_export_form(self, source, data):
         return ExportImageCoversForm(data)

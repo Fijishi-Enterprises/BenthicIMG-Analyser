@@ -1,5 +1,6 @@
 from django.forms import Form
-from django.forms.fields import CharField, ChoiceField, MultipleChoiceField
+from django.forms.fields import (
+    CharField, ChoiceField, MultipleChoiceField)
 from django.forms.widgets import CheckboxSelectMultiple, RadioSelect
 
 
@@ -82,6 +83,18 @@ class ExportImageStatsForm(Form):
             ('name', "Full name"),
         ),
         initial='code',
+        widget=RadioSelect,
+    )
+
+    export_format = ChoiceField(
+        label="Export format",
+        choices=(
+            ('csv', "CSV"),
+            ('excel',
+             "Excel workbook with meta information"
+             " (image search filters, etc.)"),
+        ),
+        initial='csv',
         widget=RadioSelect,
     )
 

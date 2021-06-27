@@ -31,16 +31,6 @@ class BaseExportTest(ClientTest):
             resolve_url('export_annotations', self.source.pk), post_data,
             follow=True)
 
-    def export_image_covers(self, post_data):
-        """POST to export_image_covers, and return the response."""
-        if 'label_display' not in post_data:
-            post_data['label_display'] = 'code'
-
-        self.client.force_login(self.user)
-        return self.client.post(
-            resolve_url('export_image_covers', self.source.pk), post_data,
-            follow=True)
-
     def export_metadata(self, post_data):
         """POST to export_metadata, and return the response."""
         self.client.force_login(self.user)

@@ -1,5 +1,6 @@
 from bs4 import BeautifulSoup
 from django.urls import reverse
+import pyexcel
 
 from export.tests.utils import BaseExportTest
 from labels.models import LocalLabel
@@ -24,7 +25,9 @@ class PermissionTest(BasePermissionTest):
         cls.calcify_table = create_default_calcify_table('Atlantic', dict())
 
     def test_calcify_stats_export(self):
-        data = dict(rate_table_id=self.calcify_table.pk, label_display='code')
+        data = dict(
+            rate_table_id=self.calcify_table.pk,
+            label_display='code', export_format='csv')
         url = reverse('calcification:stats_export', args=[self.source.pk])
 
         self.source_to_private()
@@ -60,11 +63,130 @@ class BaseCalcifyStatsExportTest(BaseExportTest):
         """POST the export view and return the response."""
         if 'label_display' not in data:
             data['label_display'] = 'code'
+        if 'export_format' not in data:
+            data['export_format'] = 'csv'
 
         self.client.force_login(self.user)
         return self.client.post(
             reverse('calcification:stats_export', args=[self.source.pk]),
             data, follow=True)
+
+
+class FileTypeTest(BaseCalcifyStatsExportTest):
+    """Test the Excel export option."""
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(
+            cls.user,
+            min_x=0, max_x=100, min_y=0, max_y=100, simple_number_of_points=5)
+        cls.labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
+        cls.create_labelset(cls.user, cls.source, cls.labels)
+
+        cls.img1 = cls.upload_image(
+            cls.user, cls.source, dict(filename='1.jpg'))
+        cls.img2 = cls.upload_image(
+            cls.user, cls.source, dict(filename='2.jpg'))
+        cls.img3 = cls.upload_image(
+            cls.user, cls.source, dict(filename='3.jpg'))
+        cls.add_annotations(cls.user, cls.img1, {
+            1: 'A', 2: 'A', 3: 'A', 4: 'A', 5: 'A'})
+        cls.add_annotations(cls.user, cls.img2, {
+            1: 'A', 2: 'A', 3: 'A', 4: 'A', 5: 'A'})
+        cls.add_annotations(cls.user, cls.img3, {
+            1: 'A', 2: 'A', 3: 'A', 4: 'A', 5: 'A'})
+        cls.img1.metadata.aux1 = 'X'
+        cls.img1.metadata.save()
+        cls.img2.metadata.aux1 = 'Y'
+        cls.img2.metadata.save()
+        cls.img3.metadata.aux1 = 'X'
+        cls.img3.metadata.save()
+
+    def test_csv(self):
+        calcify_table = create_default_calcify_table('Atlantic', {})
+        response = self.export_calcify_stats(
+            dict(rate_table_id=calcify_table.pk))
+
+        self.assertEqual(
+            response['content-type'], 'text/csv',
+            msg="Content type should be CSV")
+
+        # Currently being lazy and not checking the date in the filename.
+        self.assertTrue(
+            response['content-disposition'].startswith(
+                f'attachment;'
+                f'filename="{self.source.name} - Calcification rates - '),
+            msg="Filename should have the source name as expected")
+        self.assertTrue(
+            response['content-disposition'].endswith('.csv"'))
+
+        # CSV contents are already covered by other tests, so no need to
+        # re-test that here.
+
+    def test_excel(self):
+        calcify_table = create_default_calcify_table(
+            'Atlantic', {}, name="Test table")
+
+        data = self.default_search_params.copy()
+        # Some, but not all, images
+        data['aux1'] = 'X'
+        data['export_format'] = 'excel'
+        data['rate_table_id'] = calcify_table.pk
+        response = self.export_calcify_stats(data)
+
+        self.assertEquals(
+            response['content-type'],
+            'application/'
+            'vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            msg="Content type should correspond to xlsx")
+
+        # Currently being lazy and not checking the date in the filename.
+        self.assertTrue(
+            response['content-disposition'].startswith(
+                f'attachment;'
+                f'filename="{self.source.name} - Calcification rates - '),
+            msg="Filename should have the source name as expected")
+        self.assertTrue(
+            response['content-disposition'].endswith('.xlsx"'))
+
+        book = pyexcel.get_book(
+            file_type='xlsx', file_content=response.content)
+
+        # Check data sheet contents
+        expected_lines = [
+            'Image ID,Image name,Annotation status,Points,'
+            'Mean,Lower bound,Upper bound',
+
+            # Excel will trim trailing zeros
+            f'{self.img1.pk},1.jpg,Confirmed,5,0,0,0',
+            f'{self.img3.pk},3.jpg,Confirmed,5,0,0,0',
+            f'ALL IMAGES,,,,0,0,0',
+        ]
+        self.assert_csv_content_equal(book["Data"].csv, expected_lines)
+
+        # Check meta sheet contents
+        actual_rows = book["Meta"].array
+        self.assertEqual(6, len(actual_rows))
+        self.assertEqual(
+            ["Source name", self.source.name], actual_rows[0])
+        self.assertEqual(
+            ["Image search method",
+             "Filtering by aux1; Sorting by name, ascending"],
+            actual_rows[1])
+        self.assertEqual(
+            ["Images in export", 2], actual_rows[2])
+        self.assertEqual(
+            ["Images in source", 3], actual_rows[3])
+        # Currently being lazy and not checking the actual date here.
+        self.assertEqual(
+            "Export date", actual_rows[4][0])
+        self.assertEqual(
+            ["Calcification table", "Test table"], actual_rows[5])
+
+        # Check label rates sheet contents
 
 
 class ExportTest(BaseCalcifyStatsExportTest):
@@ -81,24 +203,6 @@ class ExportTest(BaseCalcifyStatsExportTest):
             cls.user, ['A', 'B', 'C'], 'GroupA')
         cls.create_labelset(cls.user, cls.source, cls.labels)
         cls.label_pks = {label.name: label.pk for label in cls.labels}
-
-    def test_filename_and_content_type(self):
-        calcify_table = create_default_calcify_table('Atlantic', {})
-        response = self.export_calcify_stats(
-            dict(rate_table_id=calcify_table.pk))
-
-        # TODO: Also test for the correct date in the filename, perhaps
-        # allowing for being 1 day off so the test is robust
-        self.assertTrue(
-            response['content-disposition'].startswith(
-                'attachment;filename="Test source - Calcification rates - '),
-            msg="Filename should have the source name as expected")
-        self.assertTrue(
-            response['content-disposition'].endswith('.csv"'))
-
-        self.assertTrue(
-            response['content-type'].startswith('text/csv'),
-            msg="Content type should be CSV")
 
     def test_basic_contents(self):
         img1 = self.upload_image(

@@ -18,11 +18,11 @@ class ImportDefaultTableTest(ManagementCommandTest):
         # Set up CSV contents
         stream = StringIO()
         columns = [
-            "Label", "Region", "Mean", "Lower bound", "Upper bound"]
+            "Name", "Region", "Mean", "Lower bound", "Upper bound"]
         writer = csv.DictWriter(stream, columns)
         writer.writeheader()
         writer.writerow({
-            'Label': 'A',
+            'Name': 'A',
             'Region': 'Indo-Pacific',
             'Mean': '2.0',
             'Lower bound': '1.0',
@@ -30,14 +30,14 @@ class ImportDefaultTableTest(ManagementCommandTest):
         })
         writer.writerow({
             # Should be case insensitive
-            'Label': 'a',
+            'Name': 'a',
             'Region': 'Atlantic',
             'Mean': '5.0',
             'Lower bound': '4.0',
             'Upper bound': '7.0',
         })
         writer.writerow({
-            'Label': 'B',
+            'Name': 'B',
             'Region': 'Indo-Pacific',
             'Mean': '-2.0',
             'Lower bound': '-3.0',

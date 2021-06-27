@@ -35,7 +35,7 @@ class Command(BaseCommand):
         csv_data = csv_to_dict(
             csv_stream=csv_unicode_stream,
             required_columns=[
-                ('label_name', "Label"),
+                ('label_name', "Name"),
                 ('region', "Region"),
                 ('mean', "Mean"),
                 ('lower_bound', "Lower bound"),

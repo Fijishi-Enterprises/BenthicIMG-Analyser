@@ -28,9 +28,11 @@ def get_request_images(request, source):
             # worked for the Browse-images page load, but not for the
             # subsequent export.
             raise ValidationError("Image-search parameters were invalid.")
+        applied_search_display = image_form.get_applied_search_display()
     else:
         image_set = source.image_set.order_by('metadata__name', 'pk')
-    return image_set
+        applied_search_display = "Sorting by name, ascending"
+    return image_set, applied_search_display
 
 
 def create_stream_response(content_type, filename):

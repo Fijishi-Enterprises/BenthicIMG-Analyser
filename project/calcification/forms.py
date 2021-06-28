@@ -1,8 +1,9 @@
 from django.core.exceptions import ValidationError
-from django.forms import Form, ModelForm
+from django.forms import ModelForm
 from django.forms.fields import ChoiceField, MultipleChoiceField
 from django.forms.widgets import CheckboxSelectMultiple, Textarea
 
+from export.forms import ExportImageStatsForm
 from upload.forms import CsvFileField
 from .models import CalcifyRateTable
 from .utils import get_default_calcify_tables
@@ -25,12 +26,14 @@ def get_calcify_table_choices(source):
     return choices
 
 
-class ExportCalcifyStatsForm(Form):
+class ExportCalcifyStatsForm(ExportImageStatsForm):
     rate_table_id = ChoiceField(
         label="Label rates to use")
 
     optional_columns = MultipleChoiceField(
         widget=CheckboxSelectMultiple, required=False)
+
+    field_order = ['rate_table_id', 'optional_columns', 'label_display']
 
     def __init__(self, source, *args, **kwargs):
 

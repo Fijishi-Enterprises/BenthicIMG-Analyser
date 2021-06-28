@@ -14,7 +14,8 @@ from accounts.utils import get_robot_user
 from annotations.models import Annotation
 from calcification.forms import CalcifyRateTableForm, ExportCalcifyStatsForm
 from calcification.utils import get_default_calcify_tables
-from export.forms import CpcPrefsForm, ExportAnnotationsForm
+from export.forms import (
+    CpcPrefsForm, ExportAnnotationsForm, ExportImageCoversForm)
 from export.utils import get_previous_cpcs_status
 from images.forms import MetadataFormForGrid, BaseMetadataFormSet
 from images.models import Source, Image, Metadata
@@ -90,6 +91,7 @@ def browse_images(request, source_id):
         'links': links,
         'hidden_image_form': hidden_image_form,
         'export_annotations_form': ExportAnnotationsForm(),
+        'export_image_covers_form': ExportImageCoversForm(),
 
         'export_calcify_rates_form': ExportCalcifyStatsForm(source=source),
         'calcify_table_form': CalcifyRateTableForm(source=source),

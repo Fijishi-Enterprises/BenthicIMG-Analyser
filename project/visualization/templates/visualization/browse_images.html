@@ -151,11 +151,15 @@
         id="export-image-covers-form">
           {% csrf_token %}
           <span class="image-select-field-container"></span>
+
+          {% include "form_generic.html" with form=export_image_covers_form %}
+
           <button type="button" class="submit">Go</button>
         </form>
 
         <form action="{% url 'calcification:stats_export' source.pk %}"
-        method="get" id="export-calcify-rates-form">
+        method="post" id="export-calcify-rates-form">
+          {% csrf_token %}
           <hr/>
           <span class="image-select-field-container"></span>
 

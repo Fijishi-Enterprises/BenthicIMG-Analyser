@@ -1,15 +1,16 @@
 import collections
-import csv
 import datetime
+from io import StringIO
 import re
 
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.template.loader import render_to_string
 from django.views.decorators.http import require_GET, require_POST
+import pyexcel
 
 from export.utils import create_csv_stream_response
-from export.views import SourceCsvExportView
+from export.views import ImageStatsExportView
 from images.models import Source
 from lib.decorators import source_permission_required
 from lib.exceptions import FileProcessError
@@ -88,171 +89,153 @@ def rate_table_download(request, table_id):
     return response
 
 
-class CalcifyStatsExportView(SourceCsvExportView):
+class CalcifyStatsExportView(ImageStatsExportView):
 
-    def get_export_filename(self, source):
+    def get_export_filename(self, source, suffix='.csv'):
         # Current date as YYYY-MM-DD
         current_date = datetime.datetime.now(
             datetime.timezone.utc).strftime('%Y-%m-%d')
-        return f'{source.name} - Calcification rates - {current_date}.csv'
+        return f'{source.name} - Calcification rates - {current_date}{suffix}'
 
     def get_export_form(self, source, data):
         return ExportCalcifyStatsForm(source=source, data=data)
 
-    def write_csv(self, response, source, image_set, export_form_data):
+    def finish_fieldnames_and_image_loop_prep(
+            self, fieldnames, export_form_data):
 
-        calcify_rate_table = CalcifyRateTable.objects.get(
+        fieldnames.extend(["Mean", "Lower bound", "Upper bound"])
+
+        self.optional_columns = export_form_data['optional_columns']
+        if 'per_label_mean' in self.optional_columns:
+            fieldnames.extend([
+                f"{disp} M" for disp in self.label_ids_to_displays.values()
+            ])
+        if 'per_label_bounds' in self.optional_columns:
+            fieldnames.extend([
+                f"{disp} LB" for disp in self.label_ids_to_displays.values()
+            ])
+            fieldnames.extend([
+                f"{disp} UB" for disp in self.label_ids_to_displays.values()
+            ])
+
+        self.calcify_rate_table = CalcifyRateTable.objects.get(
             pk=export_form_data['rate_table_id'])
-        calcify_rates = calcify_rate_table.rates_json
+        self.calcify_rates = self.calcify_rate_table.rates_json
 
-        label_ids_to_names = {
-            str(label['pk']): label['name']
-            for label
-            in source.labelset.get_globals().values('pk', 'name')
-        }
+        self.mean_rate_sum = 0
+        self.lower_bound_sum = 0
+        self.upper_bound_sum = 0
+        self.mean_contribution_sums = collections.defaultdict(float)
+        self.lower_bound_contribution_sums = collections.defaultdict(float)
+        self.upper_bound_contribution_sums = collections.defaultdict(float)
 
-        optional_columns = export_form_data['optional_columns']
+        return fieldnames
 
-        fieldnames = [
-            "Image ID", "Image name",
-            "Mean rate", "Lower bound", "Upper bound",
-        ]
-        if 'per_label_mean' in optional_columns:
-            fieldnames.extend([
-                f"{name} M" for name in label_ids_to_names.values()
-            ])
-        if 'per_label_bounds' in optional_columns:
-            fieldnames.extend([
-                f"{name} LB" for name in label_ids_to_names.values()
-            ])
-            fieldnames.extend([
-                f"{name} UB" for name in label_ids_to_names.values()
-            ])
+    def image_loop_main_body(
+            self, row, label_counter, num_annotations_in_image):
 
-        writer = csv.DictWriter(response, fieldnames)
-        writer.writeheader()
+        image_mean_rate = 0
+        image_lower_bound = 0
+        image_upper_bound = 0
 
-        # Limit decimal places in the final numbers.
-        def float_format(flt):
-            # Always 3 decimal places (even if the trailing places are 0).
-            s = format(flt, '.3f')
-            if s == '-0.000':
-                # Python has negative 0, but we don't care for that here.
-                return '0.000'
-            return s
+        for label_id, count in label_counter.items():
 
-        mean_rate_sum = 0
-        lower_bound_sum = 0
-        upper_bound_sum = 0
-        mean_contribution_sums = collections.defaultdict(float)
-        lower_bound_contribution_sums = collections.defaultdict(float)
-        upper_bound_contribution_sums = collections.defaultdict(float)
+            label_id_str = str(label_id)
+            if label_id_str in self.calcify_rates:
+                label_mean = float(self.calcify_rates[label_id_str]['mean'])
+                label_lower_bound = float(
+                    self.calcify_rates[label_id_str]['lower_bound'])
+                label_upper_bound = float(
+                    self.calcify_rates[label_id_str]['upper_bound'])
+            else:
+                # Default to 0 (meaning, this label is assumed to have
+                # no net effect on calcification)
+                label_mean = 0
+                label_lower_bound = 0
+                label_upper_bound = 0
 
-        for image in image_set:
+            coverage = count / num_annotations_in_image
 
-            # Counter for annotations of each label. Initialize by giving each
-            # label a 0 count.
-            label_counter = collections.Counter({
-                label_id: 0
-                for label_id in label_ids_to_names.keys()
-            })
+            mean_contribution = coverage * label_mean
+            lower_bound_contribution = coverage * label_lower_bound
+            upper_bound_contribution = coverage * label_upper_bound
 
-            annotation_labels = image.annotation_set.values_list(
-                'label_id', flat=True)
-            annotation_labels = [str(pk) for pk in annotation_labels]
-            label_counter.update(annotation_labels)
-            total = len(annotation_labels)
+            image_mean_rate += mean_contribution
+            image_lower_bound += lower_bound_contribution
+            image_upper_bound += upper_bound_contribution
 
-            row = {
-                "Image ID": image.pk,
-                "Image name": image.metadata.name,
-            }
-            image_mean_rate = 0
-            image_lower_bound = 0
-            image_upper_bound = 0
+            label_display = self.label_ids_to_displays[label_id]
 
-            for label_id, count in label_counter.items():
+            if 'per_label_mean' in self.optional_columns:
 
-                if label_id in calcify_rates:
-                    label_mean = float(calcify_rates[label_id]['mean'])
-                    label_lower_bound = float(
-                        calcify_rates[label_id]['lower_bound'])
-                    label_upper_bound = float(
-                        calcify_rates[label_id]['upper_bound'])
-                else:
-                    # Default to 0 (meaning, this label is assumed to have
-                    # no net effect on calcification)
-                    label_mean = 0
-                    label_lower_bound = 0
-                    label_upper_bound = 0
+                row[f"{label_display} M"] = self.float_format(
+                    mean_contribution)
+                self.mean_contribution_sums[label_display] += mean_contribution
 
-                if total > 0:
-                    coverage = count / total
-                else:
-                    coverage = 0
+            if 'per_label_bounds' in self.optional_columns:
 
-                mean_contribution = coverage * label_mean
-                lower_bound_contribution = coverage * label_lower_bound
-                upper_bound_contribution = coverage * label_upper_bound
+                row[f"{label_display} LB"] = self.float_format(
+                    lower_bound_contribution)
+                row[f"{label_display} UB"] = self.float_format(
+                    upper_bound_contribution)
+                self.lower_bound_contribution_sums[label_display] += \
+                    lower_bound_contribution
+                self.upper_bound_contribution_sums[label_display] += \
+                    upper_bound_contribution
 
-                image_mean_rate += mean_contribution
-                image_lower_bound += lower_bound_contribution
-                image_upper_bound += upper_bound_contribution
+        # Add image stats to CSV as fixed-places strings
+        row["Mean"] = self.float_format(image_mean_rate)
+        row["Lower bound"] = self.float_format(image_lower_bound)
+        row["Upper bound"] = self.float_format(image_upper_bound)
 
-                label_name = label_ids_to_names[label_id]
+        # Add to summary stats computation
+        self.mean_rate_sum += image_mean_rate
+        self.lower_bound_sum += image_lower_bound
+        self.upper_bound_sum += image_upper_bound
 
-                if 'per_label_mean' in optional_columns:
+        return row
 
-                    row[f"{label_name} M"] = float_format(mean_contribution)
-                    mean_contribution_sums[label_name] += mean_contribution
+    def finish_summary_row(self, summary_row, num_annotated_images):
 
-                if 'per_label_bounds' in optional_columns:
+        summary_row.update({
+            "Mean": self.float_format(
+                self.mean_rate_sum / num_annotated_images),
+            "Lower bound": self.float_format(
+                self.lower_bound_sum / num_annotated_images),
+            "Upper bound": self.float_format(
+                self.upper_bound_sum / num_annotated_images),
+        })
 
-                    row[f"{label_name} LB"] = float_format(
-                        lower_bound_contribution)
-                    row[f"{label_name} UB"] = float_format(
-                        upper_bound_contribution)
-                    lower_bound_contribution_sums[label_name] += \
-                        lower_bound_contribution
-                    upper_bound_contribution_sums[label_name] += \
-                        upper_bound_contribution
+        for label_display in self.label_ids_to_displays.values():
 
-            # Add image stats to CSV as fixed-places strings
-            row["Mean rate"] = float_format(image_mean_rate)
-            row["Lower bound"] = float_format(image_lower_bound)
-            row["Upper bound"] = float_format(image_upper_bound)
+            if 'per_label_mean' in self.optional_columns:
+                summary_row[f"{label_display} M"] = self.float_format(
+                    self.mean_contribution_sums[label_display]
+                    / num_annotated_images)
 
-            # Add to summary stats computation
-            mean_rate_sum += image_mean_rate
-            lower_bound_sum += image_lower_bound
-            upper_bound_sum += image_upper_bound
+            if 'per_label_bounds' in self.optional_columns:
+                summary_row[f"{label_display} LB"] = self.float_format(
+                    self.lower_bound_contribution_sums[label_display]
+                    / num_annotated_images)
+                summary_row[f"{label_display} UB"] = self.float_format(
+                    self.upper_bound_contribution_sums[label_display]
+                    / num_annotated_images)
 
-            writer.writerow(row)
+        return summary_row
 
-        num_images = image_set.count()
-        if num_images <= 1:
-            # Summary stats code ends up being a pain with 0 images, since we'd
-            # have to catch division by 0 several times. Only bother with the
-            # summary row if there are multiple images.
-            return
+    def finish_workbook(self, book, source):
+        book["Meta"].extend_rows(
+            [["Calcification table", self.calcify_rate_table.name]])
 
-        summary_row = {
-            "Image ID": "ALL IMAGES",
-            "Image name": "ALL IMAGES",
-            "Mean rate": float_format(mean_rate_sum / num_images),
-            "Lower bound": float_format(lower_bound_sum / num_images),
-            "Upper bound": float_format(upper_bound_sum / num_images),
-        }
-        for _, label_name in label_ids_to_names.items():
-            if 'per_label_mean' in optional_columns:
-                summary_row[f"{label_name} M"] = float_format(
-                    mean_contribution_sums[label_name] / num_images)
-            if 'per_label_bounds' in optional_columns:
-                summary_row[f"{label_name} LB"] = float_format(
-                    lower_bound_contribution_sums[label_name] / num_images)
-                summary_row[f"{label_name} UB"] = float_format(
-                    upper_bound_contribution_sums[label_name] / num_images)
-        writer.writerow(summary_row)
+        csv_stream = StringIO()
+        rate_table_json_to_csv(
+            csv_stream, self.calcify_rate_table, source=source)
+        label_rates_sheet = pyexcel.get_sheet(
+            file_type='csv', file_content=csv_stream.getvalue())
+        label_rates_sheet.name = "Label rates"
+        book += label_rates_sheet
+
+        return book
 
 
 def response_after_table_upload_or_delete(request, source):

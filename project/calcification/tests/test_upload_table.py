@@ -103,7 +103,7 @@ class TableUploadTest(ClientTest):
     def test_success(self):
         response = self.upload_table(
             [
-                'Label,Mean rate,Lower bound,Upper bound',
+                'Name,Mean,Lower bound,Upper bound',
                 'A,3.0,2.0,4.0',
             ],
             "Source Indo-Pacific rates",
@@ -196,7 +196,7 @@ class TableUploadTest(ClientTest):
         be matched to the expected column names.
         """
         self.upload_table([
-            'label,meaN RatE,LOWER BOUND,Upper bound',
+            'name,meaN,LOWER BOUND,Upper bound',
             'A,3.0,2.0,4.0',
         ])
 
@@ -209,7 +209,7 @@ class TableUploadTest(ClientTest):
     def test_csv_missing_column(self):
         """Should return an error when missing a required column."""
         response = self.upload_table([
-            'Label,Mean rate,Lower bound',
+            'Name,Mean,Lower bound',
             'A,3.0,2.0',
         ])
 
@@ -219,7 +219,7 @@ class TableUploadTest(ClientTest):
 
     def test_csv_unrecognized_label(self):
         response = self.upload_table([
-            'Label,Mean rate,Lower bound,Upper bound',
+            'Name,Mean,Lower bound,Upper bound',
             'F,3.0,2.0,4.0',
         ])
 
@@ -228,7 +228,7 @@ class TableUploadTest(ClientTest):
 
     def test_csv_non_number_mean_rate(self):
         response = self.upload_table([
-            'Label,Mean rate,Lower bound,Upper bound',
+            'Name,Mean,Lower bound,Upper bound',
             'A,three,2.0,4.0',
         ])
 
@@ -239,7 +239,7 @@ class TableUploadTest(ClientTest):
 
     def test_csv_non_number_lower_bound(self):
         response = self.upload_table([
-            'Label,Mean rate,Lower bound,Upper bound',
+            'Name,Mean,Lower bound,Upper bound',
             'A,3.0,two,4.0',
         ])
 
@@ -250,7 +250,7 @@ class TableUploadTest(ClientTest):
 
     def test_csv_non_number_upper_bound(self):
         response = self.upload_table([
-            'Label,Mean rate,Lower bound,Upper bound',
+            'Name,Mean,Lower bound,Upper bound',
             'A,3.0,2.0,four',
         ])
 
@@ -261,7 +261,7 @@ class TableUploadTest(ClientTest):
 
     def test_name_required(self):
         response = self.upload_table(
-            ['Label,Mean rate,Lower bound,Upper bound', 'A,3.0,2.0,4.0'],
+            ['Name,Mean,Lower bound,Upper bound', 'A,3.0,2.0,4.0'],
             name="",
         )
 
@@ -270,7 +270,7 @@ class TableUploadTest(ClientTest):
 
     def test_name_too_long(self):
         response = self.upload_table(
-            ['Label,Mean rate,Lower bound,Upper bound', 'A,3.0,2.0,4.0'],
+            ['Name,Mean,Lower bound,Upper bound', 'A,3.0,2.0,4.0'],
             name="A"*81,
         )
 
@@ -280,11 +280,11 @@ class TableUploadTest(ClientTest):
 
     def test_name_dupe_within_source(self):
         self.upload_table(
-            ['Label,Mean rate,Lower bound,Upper bound', 'A,3.0,2.0,4.0'],
+            ['Name,Mean,Lower bound,Upper bound', 'A,3.0,2.0,4.0'],
             name="A table",
         )
         response = self.upload_table(
-            ['Label,Mean rate,Lower bound,Upper bound', 'A,3.0,2.0,4.0'],
+            ['Name,Mean,Lower bound,Upper bound', 'A,3.0,2.0,4.0'],
             name="A table",
         )
 
@@ -294,14 +294,14 @@ class TableUploadTest(ClientTest):
 
     def test_name_same_as_other_source_table(self):
         self.upload_table(
-            ['Label,Mean rate,Lower bound,Upper bound', 'A,3.0,2.0,4.0'],
+            ['Name,Mean,Lower bound,Upper bound', 'A,3.0,2.0,4.0'],
             name="A table",
         )
 
         source2 = self.create_source(self.user)
         self.create_labelset(self.user, source2, self.labels)
         response = self.upload_table(
-            ['Label,Mean rate,Lower bound,Upper bound', 'A,3.0,2.0,4.0'],
+            ['Name,Mean,Lower bound,Upper bound', 'A,3.0,2.0,4.0'],
             name="A table",
             source=source2,
         )
@@ -313,7 +313,7 @@ class TableUploadTest(ClientTest):
 
     def test_name_same_as_default_table(self):
         response = self.upload_table(
-            ['Label,Mean rate,Lower bound,Upper bound', 'A,3.0,2.0,4.0'],
+            ['Name,Mean,Lower bound,Upper bound', 'A,3.0,2.0,4.0'],
             name="Default Atlantic rates",
         )
 
@@ -324,7 +324,7 @@ class TableUploadTest(ClientTest):
 
     def test_description_optional(self):
         self.upload_table(
-            ['Label,Mean rate,Lower bound,Upper bound', 'A,3.0,2.0,4.0'],
+            ['Name,Mean,Lower bound,Upper bound', 'A,3.0,2.0,4.0'],
             description="",
         )
 
@@ -333,7 +333,7 @@ class TableUploadTest(ClientTest):
 
     def test_description_too_long(self):
         response = self.upload_table(
-            ['Label,Mean rate,Lower bound,Upper bound', 'A,3.0,2.0,4.0'],
+            ['Name,Mean,Lower bound,Upper bound', 'A,3.0,2.0,4.0'],
             description="A"*501,
         )
 
@@ -345,11 +345,11 @@ class TableUploadTest(ClientTest):
     def test_already_have_5_tables(self):
         for i in range(5):
             self.upload_table(
-                ['Label,Mean rate,Lower bound,Upper bound', 'A,3.0,2.0,4.0'],
+                ['Name,Mean,Lower bound,Upper bound', 'A,3.0,2.0,4.0'],
                 name=f"Table {i}")
 
         response = self.upload_table(
-            ['Label,Mean rate,Lower bound,Upper bound', 'A,3.0,2.0,4.0'],
+            ['Name,Mean,Lower bound,Upper bound', 'A,3.0,2.0,4.0'],
             name="Another table")
 
         self.assertEqual(

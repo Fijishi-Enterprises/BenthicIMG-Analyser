@@ -484,9 +484,12 @@ class CalcificationRatesTest(ClientTest):
         The calcification rates help dialog should have download links to the
         latest default tables.
         """
-        atlantic_table = create_default_calcify_table(
+        atlantic_table_1 = create_default_calcify_table(
             'Atlantic', {
                 self.label_b.pk: dict(mean=2, lower_bound=1, upper_bound=3)})
+        atlantic_table_2 = create_default_calcify_table(
+            'Atlantic', {
+                self.label_b.pk: dict(mean=2, lower_bound=0.8, upper_bound=3)})
         indo_pacific_table = create_default_calcify_table(
             'Indo-Pacific', {
                 self.label_a.pk: dict(mean=5, lower_bound=4, upper_bound=6),
@@ -496,14 +499,22 @@ class CalcificationRatesTest(ClientTest):
         response_soup = BeautifulSoup(response.content, 'html.parser')
         help_dialog_tag = response_soup.select('div.tutorial-message')[0]
 
-        atlantic_download_url = reverse(
-            'calcification:rate_table_download', args=[atlantic_table.pk])
+        atlantic_1_download_url = reverse(
+            'calcification:rate_table_download', args=[atlantic_table_1.pk])
+        atlantic_2_download_url = reverse(
+            'calcification:rate_table_download', args=[atlantic_table_2.pk])
         indo_pacific_download_url = reverse(
             'calcification:rate_table_download', args=[indo_pacific_table.pk])
-        self.assertInHTML(
-            f'<a href="{atlantic_download_url}">Atlantic</a>',
+
+        # Latest Atlantic table only, and Indo-Pacific table
+        self.assertNotIn(
+            atlantic_1_download_url,
             str(help_dialog_tag),
-            msg_prefix="Atlantic table download link should be present")
+            msg="Atlantic table 1 download link should be absent")
+        self.assertInHTML(
+            f'<a href="{atlantic_2_download_url}">Atlantic</a>',
+            str(help_dialog_tag),
+            msg_prefix="Atlantic table 2 download link should be present")
         self.assertInHTML(
             f'<a href="{indo_pacific_download_url}">Indo-Pacific</a>',
             str(help_dialog_tag),

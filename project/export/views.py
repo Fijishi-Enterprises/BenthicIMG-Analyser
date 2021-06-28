@@ -198,7 +198,8 @@ class ImageStatsExportView(SourceCsvExportView, ABC):
         writer.writeheader()
 
         # One row per image
-        for image in image_set.select_related('annoinfo', 'metadata') \
+        for image in image_set \
+                .select_related('annoinfo', 'features', 'metadata') \
                 .annotate(num_points=Count('point')):
 
             if image.get_annotation_status_code() == 'needs_annotation':

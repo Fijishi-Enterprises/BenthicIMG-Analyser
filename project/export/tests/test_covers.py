@@ -430,20 +430,29 @@ class PerformanceTest(BaseImageCoversExportTest):
         cls.create_labelset(cls.user, cls.source, cls.labels)
 
     def test_num_queries(self):
-        for i in range(15):
+        robot = self.create_robot(self.source)
+
+        for i in range(20):
             img = self.upload_image(
                 self.user, self.source, dict(filename=f'{i}.png'))
-            self.add_annotations(
-                self.user, img, {p: 'A' for p in range(1, 20+1)})
+
+            if i < 10:
+                # Half confirmed
+                self.add_annotations(
+                    self.user, img, {p: 'A' for p in range(1, 20+1)})
+            else:
+                # Half unconfirmed
+                self.add_robot_annotations(
+                    robot, img, {p: 'A' for p in range(1, 20+1)})
 
         url = reverse('export_image_covers', args=[self.source.pk])
         data = dict(label_display='code', export_format='csv')
         self.client.force_login(self.user)
 
-        # We just want the number of queries to be reasonably close to 15
-        # (image count), and definitely less than 300 (annotation count),
+        # We just want the number of queries to be reasonably close to 20
+        # (image count), and definitely less than 400 (annotation count),
         # but assertNumQueries only asserts on an exact number of queries.
-        with self.assertNumQueries(26):
+        with self.assertNumQueries(31):
             response = self.client.post(url, data)
         self.assertStatusOK(response)
         self.assertEquals(response['content-type'], 'text/csv')

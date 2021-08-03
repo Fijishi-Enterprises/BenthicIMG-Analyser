@@ -47,7 +47,19 @@
     The .cpc file format contains several pieces of information besides point positions and labels; here's how we handle each one:
 
     <ul>
-      <li>Notes codes: Coral Point Count has a Notes column in the list of points. If a particular CoralNet image has a .cpc file saved, that .cpc file's Notes codes will be retained. If the image does not have a .cpc file saved, the Notes codes will be blank.</li>
+      <li>Notes codes: CPCe's interface has two fields for each point, "ID" and "Notes". Treatment of the Notes field depends on whether the "Support CPCe Notes codes using + as a separator" checkbox is checked.
+        <ul>
+          <li>If the checkbox is checked, we split up the CoralNet label code on the + symbol to get the ID and Notes codes. For example, if the CoralNet label code is "ROCK+TURF", then the exported .cpc file has ID of "ROCK" and Notes of "TURF" for the corresponding point. If the CoralNet label code is just "ROCK", then the .cpc gets ID of "ROCK" and a blank Notes field.</li>
+
+          <li>If the checkbox is unchecked, the CoralNet label codes will only be mapped to the .cpc ID fields, and here is what happens with the Notes codes:
+            <ul>
+              <li>If a particular CoralNet image has a .cpc file saved, that .cpc file's Notes codes will be retained.</li>
+
+              <li>If the image does not have a .cpc file saved, the Notes codes will be blank.</li>
+            </ul>
+          </li>
+        </ul>
+      </li>
 
       <li>Header data: When you create a .cpc file in Coral Point Count (at least in CPCe 4.1), at some point it shows a window with 28 header fields such as Project name, Site name, Latitude, Easting, etc. If a particular CoralNet image has a .cpc file saved, that .cpc file's header values will be retained. Otherwise, we will fill in blank header values. (You might notice that these header fields have some overlap with CoralNet's metadata fields, but CoralNet does not make any connection between these two sets of fields on import/export.)</li>
 

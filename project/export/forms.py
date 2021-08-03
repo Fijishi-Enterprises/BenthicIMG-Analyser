@@ -1,7 +1,9 @@
 from django.forms import Form
 from django.forms.fields import (
-    CharField, ChoiceField, MultipleChoiceField)
+    BooleanField, CharField, ChoiceField, MultipleChoiceField)
 from django.forms.widgets import CheckboxSelectMultiple, RadioSelect
+
+from labels.utils import labelset_has_plus_code
 
 
 class ExportAnnotationsForm(Form):
@@ -20,39 +22,30 @@ class CpcPrefsForm(Form):
     annotation_filter = None  # See __init__()
     local_image_dir = CharField(label="Folder with images", max_length=5000)
     local_code_filepath = CharField(label="Code file", max_length=5000)
+    plus_notes = BooleanField(
+        label="Support CPCe Notes codes using + as a separator",
+        required=False,
+    )
 
-    def __init__(self, *args, **kwargs):
-        """
-        When a non-Ajax view initializes this form, it's for display and user
-        interaction. It should pass in a Source to
-        1. initialize the CPCe environment values with the source's values, and
-        2. show the source's confidence threshold in one of the field labels.
-
-        When an Ajax view initializes this form, it's purely for processing
-        submitted values. Passing a source is not needed.
-        """
-        if 'source' in kwargs:
-            source = kwargs.pop('source')
-            kwargs['initial'] = dict(
-                local_image_dir=source.cpce_image_dir,
-                local_code_filepath=source.cpce_code_filepath,
-            )
-        else:
-            source = None
+    def __init__(self, source, *args, **kwargs):
+        kwargs['initial'] = dict(
+            local_image_dir=source.cpce_image_dir,
+            local_code_filepath=source.cpce_code_filepath,
+            # Only check the plus notes option by default if the labelset
+            # has codes with + in them. Otherwise, the user probably
+            # didn't intend to use plus codes, and if there were any
+            # previously-uploaded CPC files which contained Notes, those
+            # Notes would be excluded from this export.
+            plus_notes=(
+                source.labelset and labelset_has_plus_code(source.labelset)),
+        )
 
         super().__init__(*args, **kwargs)
 
-        if source:
-            confirmed_and_confident_label = (
-                "Confirmed annotations AND Unconfirmed annotations"
-                "\nabove the machine confidence threshold of {th}%").format(
-                    th=source.confidence_threshold)
-        else:
-            # The field shouldn't even be visible in this case, but may as well
-            # give a sensible label
-            confirmed_and_confident_label = (
-                "Confirmed annotations AND Unconfirmed annotations"
-                "\nabove the machine confidence threshold")
+        confirmed_and_confident_label = (
+            "Confirmed annotations AND Unconfirmed annotations"
+            "\nabove the machine confidence threshold of {th}%").format(
+                th=source.confidence_threshold)
 
         self.fields['annotation_filter'] = ChoiceField(
             choices=(

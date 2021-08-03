@@ -2,9 +2,11 @@
 
 from io import StringIO
 
+from bs4 import BeautifulSoup
 from django.core.files.base import ContentFile
 from django.urls import reverse
 
+from accounts.utils import get_imported_user
 from .utils import UploadAnnotationsBaseTest
 
 
@@ -412,6 +414,151 @@ class CPCPixelScaleFactorTest(UploadAnnotationsBaseTest):
             self.img1.point_set.all()
             .values_list('column', 'row', 'point_number'))
         self.assertSetEqual(values_set, {(80, 60, 1)})
+
+
+class PlusNotesTest(UploadAnnotationsBaseTest):
+    """
+    Ensure the 'plus notes' preference works.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(cls.user,)
+        labels = cls.create_labels(
+            cls.user, ['A', 'B', 'B+X', 'C', 'C+Y+Z'], 'GroupA')
+        cls.create_labelset(cls.user, cls.source, labels)
+
+        cls.img1 = cls.upload_image(
+            cls.user, cls.source,
+            image_options=dict(filename='1.png', width=100, height=100))
+
+        cls.image_dimensions = (100, 100)
+
+    def test_option_true(self):
+        cpc_files = [
+            self.make_cpc_file(
+                self.image_dimensions, '1.cpc',
+                r"C:\My Photos\2017-05-13 GBR\1.png", [
+                    (50*15, 50*15, 'A'),
+                    (60*15, 40*15, 'B', 'X'),
+                    (70*15, 30*15, 'C', 'Y+Z')]),
+        ]
+        preview_response = self.preview_cpc_annotations(
+            self.user, self.source, cpc_files, plus_notes=True)
+        upload_response = self.upload_annotations(self.user, self.source)
+
+        self.check_annotations(
+            preview_response, upload_response,
+            expected_label_codes=['A', 'B+X', 'C+Y+Z'])
+
+    def test_option_false(self):
+        cpc_files = [
+            self.make_cpc_file(
+                self.image_dimensions, '1.cpc',
+                r"C:\My Photos\2017-05-13 GBR\1.png", [
+                    (50*15, 50*15, 'A'),
+                    (60*15, 40*15, 'B', 'X'),
+                    (70*15, 30*15, 'C', 'Y+Z')]),
+        ]
+        preview_response = self.preview_cpc_annotations(
+            self.user, self.source, cpc_files, plus_notes=False)
+        upload_response = self.upload_annotations(self.user, self.source)
+
+        self.check_annotations(
+            preview_response, upload_response,
+            expected_label_codes=['A', 'B', 'C'])
+
+    def check_annotations(
+            self, preview_response, upload_response, expected_label_codes):
+
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(
+                success=True,
+                previewTable=[
+                    dict(
+                        name=self.img1.metadata.name,
+                        link=reverse(
+                            'annotation_tool',
+                            kwargs=dict(image_id=self.img1.pk)),
+                        createInfo="Will create 3 points, 3 annotations",
+                    ),
+                ],
+                previewDetails=dict(
+                    numImages=1,
+                    totalPoints=3,
+                    totalAnnotations=3,
+                    numImagesWithExistingAnnotations=0,
+                ),
+            ),
+        )
+
+        self.assertDictEqual(upload_response.json(), dict(success=True))
+
+        values_set = set(
+            self.img1.point_set
+            .values_list('column', 'row', 'point_number', 'image_id'))
+        self.assertSetEqual(values_set, {
+            (50, 50, 1, self.img1.pk),
+            (60, 40, 2, self.img1.pk),
+            (70, 30, 3, self.img1.pk),
+        })
+
+        annotations = self.img1.annotation_set.all()
+        values_set = set(
+            (a.label_code, a.point.pk, a.image.pk)
+            for a in annotations
+        )
+        self.assertSetEqual(values_set, {
+            (expected_label_codes[0], self.img1.point_set.get(
+                point_number=1).pk, self.img1.pk),
+            (expected_label_codes[1], self.img1.point_set.get(
+                point_number=2).pk, self.img1.pk),
+            (expected_label_codes[2], self.img1.point_set.get(
+                point_number=3).pk, self.img1.pk),
+        })
+        for annotation in annotations:
+            self.assertEqual(annotation.source.pk, self.source.pk)
+            self.assertEqual(annotation.user.pk, get_imported_user().pk)
+            self.assertEqual(annotation.robot_version, None)
+            self.assertLess(
+                self.source.create_date, annotation.annotation_date)
+
+    def test_form_init_no_plus_code(self):
+        # Ensure the labelset has no label codes with + chars in them.
+        local_bx = self.source.labelset.get_labels().get(code='B+X')
+        local_bx.code = 'D'
+        local_bx.save()
+        local_cyz = self.source.labelset.get_labels().get(code='C+Y+Z')
+        local_cyz.code = 'E'
+        local_cyz.save()
+
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse('upload_annotations_cpc', args=[self.source.pk]))
+
+        response_soup = BeautifulSoup(response.content, 'html.parser')
+        plus_notes_field = response_soup.find(
+            'input', dict(id='id_plus_notes'))
+        self.assertEqual(
+            plus_notes_field.attrs.get('checked'), None,
+            "Plus notes option should be unchecked by default")
+
+    def test_form_init_with_plus_code(self):
+        # Keep the labelset as-is, with label codes with + chars.
+
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse('upload_annotations_cpc', args=[self.source.pk]))
+
+        response_soup = BeautifulSoup(response.content, 'html.parser')
+        plus_notes_field = response_soup.find(
+            'input', dict(id='id_plus_notes'))
+        self.assertEqual(
+            plus_notes_field.attrs.get('checked'), '',
+            "Plus notes option should be checked by default")
 
 
 class SaveCPCInfoTest(UploadAnnotationsBaseTest):

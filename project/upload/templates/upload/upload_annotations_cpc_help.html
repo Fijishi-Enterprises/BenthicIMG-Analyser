@@ -21,6 +21,8 @@
   </li>
 </ul>
 
-<p>CPC files contain other information besides points and labels, such as header data and notes codes. When you upload CPC files, CoralNet retains this information on a per-image basis, and you can get this information back by exporting annotations to CPC format. (The Export feature is available at the bottom of the "Images" page.)</p>
+<p><strong>Support CPCe Notes codes using + as a separator</strong>: CPCe's interface has two fields for each point, "ID" and "Notes". Normally, we just take the ID as the label code to save in CoralNet. However, if this checkbox is checked, we instead combine the ID and Notes codes to form the label code for CoralNet. For example, if the ID field has "ROCK" and the Notes field as "TURF", then the CoralNet label code is taken to be "ROCK+TURF". Note that this only works if your source's labelset has an entry with the short code "ROCK+TURF". Also keep in mind that CoralNet short codes can't be more than 10 characters long.</p>
+
+<p>CPC files contain other information besides point locations, ID, and Notes - such as header data. When you upload CPC files, CoralNet retains this information on a per-image basis, and you can get this information back by exporting annotations to CPC format. (The Export feature is available at the bottom of the "Images" page.)</p>
 
 </div>

@@ -30,9 +30,22 @@ class UploadAnnotationsTestMixin(object, metaclass=ABCMeta):
           tuple.
         :param cpc_filename: filename of the .cpc to be created.
         :param image_filepath: image filepath for line 1.
-        :param points: list of (column, row, label code) tuples.
+        :param points: list of (column, row, label code)
+          or (column, row, label code, notes) tuples.
         :param codes_filepath: codes filepath for line 1.
         """
+        # 4-tuples or 3-tuples are accepted for points. 4th element is the
+        # Notes field. If it's not present, add an empty string for it.
+        points_full = []
+        for point in points:
+            if len(point) == 4:
+                points_full.append(point)
+            elif len(point) == 3:
+                points_full.append((point[0], point[1], point[2], ""))
+            else:
+                raise ValueError("Pass points as 3-tuples or 4-tuples.")
+        points = points_full
+
         stream = StringIO()
         # Line 1
         line1_nums = '{},{},9000,4500'.format(
@@ -60,16 +73,15 @@ class UploadAnnotationsTestMixin(object, metaclass=ABCMeta):
 
         # Point positions
         stream.writelines(
-            ['{x},{y}\n'.format(x=x, y=y) for x, y, _ in points]
+            ['{x},{y}\n'.format(x=x, y=y) for x, y, _, _ in points]
         )
 
         # Label codes and notes
         label_code_lines = []
         for point_number, point in enumerate(points):
-            _, _, label_code = point
+            _, _, cpc_id, cpc_notes = point
             label_code_lines.append(
-                '"{point_number}","{label_code}","Notes",""\n'.format(
-                    point_number=point_number, label_code=label_code))
+                f'"{point_number}","{cpc_id}","Notes","{cpc_notes}"\n')
         stream.writelines(label_code_lines)
 
         # Metadata
@@ -85,11 +97,12 @@ class UploadAnnotationsTestMixin(object, metaclass=ABCMeta):
             {'csv_file': csv_file},
         )
 
-    def preview_cpc_annotations(self, user, source, cpc_files):
+    def preview_cpc_annotations(
+            self, user, source, cpc_files, plus_notes=False):
         self.client.force_login(user)
         return self.client.post(
             reverse('upload_annotations_cpc_preview_ajax', args=[source.pk]),
-            {'cpc_files': cpc_files},
+            {'cpc_files': cpc_files, 'plus_notes': plus_notes},
         )
 
     def upload_annotations(self, user, source):

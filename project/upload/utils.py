@@ -473,11 +473,13 @@ def annotations_cpcs_to_dict_read_csv_row(
     return row_tokens
 
 
-def annotations_cpcs_to_dict(cpc_names_and_streams, source):
+def annotations_cpcs_to_dict(cpc_names_and_streams, source, plus_notes):
     """
     :param cpc_names_and_streams: An iterable of Coral Point Count .cpc files
       as (file name, Unicode stream) tuples. One .cpc corresponds to one image.
     :param source: The source these .cpc files correspond to.
+    :param plus_notes: Boolean option on whether to interpret the + char as
+      an ID/Notes separator.
     :return: A dict of relevant info, with the following keys::
       annotations: dict of (image ids -> lists of dicts with keys row,
         column, (opt.) label).
@@ -538,15 +540,21 @@ def annotations_cpcs_to_dict(cpc_names_and_streams, source):
             cpc_dict['points'].append(dict(x_str=x_str, y_str=y_str))
 
         # Next num_points lines: point labels.
-        # Assumption: label code in CoralNet source's labelset == label code
-        # in the .cpc file (case insensitive).
         # We're taking advantage of the fact that the previous section
         # and this section are both in point-number order. As long as we
         # maintain that order, we assign labels to the correct points.
         for point_index in range(num_points):
-            _, label_code, _, _ = read_csv_row_curried(4)
-            if label_code:
-                cpc_dict['points'][point_index]['label'] = label_code
+            _, cpc_id, _, cpc_notes = read_csv_row_curried(4)
+            if cpc_id:
+                if cpc_notes and plus_notes:
+                    # Assumption: label code in CoralNet source's labelset
+                    # == {ID}+{Notes} in the .cpc file (case insensitive).
+                    cpc_dict['points'][point_index]['label'] = \
+                        f'{cpc_id}+{cpc_notes}'
+                else:
+                    # Assumption: label code in CoralNet source's labelset
+                    # == label code in the .cpc file (case insensitive).
+                    cpc_dict['points'][point_index]['label'] = cpc_id
 
         cpc_stream.seek(0)
         cpc_dict['cpc_content'] = cpc_stream.read()

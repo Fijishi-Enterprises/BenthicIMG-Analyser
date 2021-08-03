@@ -76,11 +76,11 @@ class CPCExportBaseTest(ClientTest):
         # Use decode() to get a Unicode string
         return zf.read(cpc_filename).decode()
 
-    def upload_cpcs(self, cpc_files):
+    def upload_cpcs(self, cpc_files, plus_notes=False):
         self.client.force_login(self.user)
         self.client.post(
             resolve_url('upload_annotations_cpc_preview_ajax', self.source.pk),
-            {'cpc_files': cpc_files})
+            {'cpc_files': cpc_files, 'plus_notes': plus_notes})
         self.client.post(
             resolve_url('upload_annotations_ajax', self.source.pk))
 
@@ -925,6 +925,151 @@ class AnnotationStatusTest(CPCExportBaseTest):
         ]
         self.assert_cpc_label_lines_equal(
             actual_cpc_content, expected_point_lines)
+
+
+class PlusNotesTest(CPCExportBaseTest, UploadAnnotationsTestMixin):
+    """
+    Ensure the 'plus notes' preference works.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(
+            cls.user,
+            simple_number_of_points=3,
+        )
+        labels = cls.create_labels(
+            cls.user, ['A', 'B+X', 'C+Y+Z'], 'GroupA')
+        cls.create_labelset(cls.user, cls.source, labels)
+
+        cls.img1 = cls.upload_image(
+            cls.user, cls.source,
+            dict(filename='1.jpg', width=100, height=100))
+
+    def test_option_true(self):
+        self.add_annotations(
+            self.user, self.img1, {1: 'A', 2: 'B+X', 3: 'C+Y+Z'})
+
+        post_data = self.default_search_params.copy()
+        post_data.update(
+            # CPC prefs
+            local_code_filepath=r'C:\CPCe codefiles\My codes.txt',
+            local_image_dir=r'C:\Panama dataset',
+            annotation_filter='confirmed_only',
+            plus_notes=True,
+        )
+        response = self.export_cpcs(post_data)
+        actual_cpc_content = self.export_response_to_cpc(response, '1.cpc')
+
+        expected_point_lines = [
+            '"1","A","Notes",""',
+            '"2","B","Notes","X"',
+            '"3","C","Notes","Y+Z"',
+        ]
+        self.assert_cpc_label_lines_equal(
+            actual_cpc_content, expected_point_lines)
+
+    def test_option_false(self):
+        self.add_annotations(
+            self.user, self.img1, {1: 'A', 2: 'B+X', 3: 'C+Y+Z'})
+
+        post_data = self.default_search_params.copy()
+        post_data.update(
+            # CPC prefs
+            local_code_filepath=r'C:\CPCe codefiles\My codes.txt',
+            local_image_dir=r'C:\Panama dataset',
+            annotation_filter='confirmed_only',
+            plus_notes=False,
+        )
+        response = self.export_cpcs(post_data)
+        actual_cpc_content = self.export_response_to_cpc(response, '1.cpc')
+
+        expected_point_lines = [
+            '"1","A","Notes",""',
+            '"2","B+X","Notes",""',
+            '"3","C+Y+Z","Notes",""',
+        ]
+        self.assert_cpc_label_lines_equal(
+            actual_cpc_content, expected_point_lines)
+
+    def test_upload_and_export_with_option_true(self):
+        point_lines = [
+            '"1","A","Notes",""',
+            '"2","B","Notes","X"',
+            '"3","C","Notes","Y+Z"',
+        ]
+        cpc_lines = [
+            # Different working resolution (last two numbers) from the default
+            (r'"C:\CPCe codefiles\My codes.txt",'
+             r'"C:\Panama dataset\1.jpg",1500,1500,3000,3000'),
+            '0,1485',
+            '1485,1485',
+            '1485,0',
+            '0,0',
+            '3',
+            (str(50*15) + ',' + str(50*15)),
+            (str(60*15) + ',' + str(40*15)),
+            (str(70*15) + ',' + str(30*15)),
+        ]
+        cpc_lines.extend(point_lines)
+        # Write some non-blank header values to ensure those are kept in
+        # the upload -> export process.
+        cpc_lines.extend(['"Header value"']*28)
+        cpc_content = '\r\n'.join(cpc_lines) + '\r\n'
+
+        # Upload
+        f = ContentFile(cpc_content, name='1.cpc')
+        self.upload_cpcs([f], plus_notes=True)
+
+        # Export
+        post_data = self.default_search_params.copy()
+        post_data.update(
+            # CPC prefs
+            local_code_filepath=r'C:\CPCe codefiles\My codes.txt',
+            local_image_dir=r'C:\Panama dataset',
+            annotation_filter='confirmed_only',
+            plus_notes=True,
+        )
+        response = self.export_cpcs(post_data)
+        actual_cpc_content = self.export_response_to_cpc(response, '1.cpc')
+
+        self.assert_cpc_content_equal(actual_cpc_content, cpc_lines)
+
+    def test_form_init_no_plus_code(self):
+        # Ensure the labelset has no label codes with + chars in them.
+        local_bx = self.source.labelset.get_labels().get(code='B+X')
+        local_bx.code = 'B'
+        local_bx.save()
+        local_cyz = self.source.labelset.get_labels().get(code='C+Y+Z')
+        local_cyz.code = 'C'
+        local_cyz.save()
+
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse('browse_images', args=[self.source.pk]))
+
+        response_soup = BeautifulSoup(response.content, 'html.parser')
+        plus_notes_field = response_soup.find(
+            'input', dict(id='id_plus_notes'))
+        self.assertEqual(
+            plus_notes_field.attrs.get('checked'), None,
+            "Plus notes option should be unchecked by default")
+
+    def test_form_init_with_plus_code(self):
+        # Keep the labelset as-is, with label codes with + chars.
+
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse('browse_images', args=[self.source.pk]))
+
+        response_soup = BeautifulSoup(response.content, 'html.parser')
+        plus_notes_field = response_soup.find(
+            'input', dict(id='id_plus_notes'))
+        self.assertEqual(
+            plus_notes_field.attrs.get('checked'), '',
+            "Plus notes option should be checked by default")
 
 
 class CPCDirectoryTreeTest(CPCExportBaseTest):

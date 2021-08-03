@@ -337,7 +337,7 @@ def export_annotations_cpc_create_ajax(request, source_id):
             error=e.message
         ))
 
-    cpc_prefs_form = CpcPrefsForm(request.POST)
+    cpc_prefs_form = CpcPrefsForm(source, request.POST)
     if not cpc_prefs_form.is_valid():
         return JsonResponse(dict(
             error=get_one_form_error(cpc_prefs_form),

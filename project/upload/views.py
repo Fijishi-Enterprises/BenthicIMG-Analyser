@@ -344,7 +344,7 @@ def upload_annotations_csv_preview_ajax(request, source_id):
 def upload_annotations_cpc(request, source_id):
     source = get_object_or_404(Source, id=source_id)
 
-    cpc_import_form = CPCImportForm()
+    cpc_import_form = CPCImportForm(source)
 
     return render(request, 'upload/upload_annotations_cpc.html', {
         'source': source,
@@ -370,7 +370,7 @@ def upload_annotations_cpc_preview_ajax(request, source_id):
 
     source = get_object_or_404(Source, id=source_id)
 
-    cpc_import_form = CPCImportForm(request.POST, request.FILES)
+    cpc_import_form = CPCImportForm(source, request.POST, request.FILES)
     if not cpc_import_form.is_valid():
         return JsonResponse(dict(
             error=cpc_import_form.errors['cpc_files'][0],
@@ -378,7 +378,8 @@ def upload_annotations_cpc_preview_ajax(request, source_id):
 
     try:
         cpc_info = annotations_cpcs_to_dict(
-            cpc_import_form.get_cpc_names_and_streams(), source)
+            cpc_import_form.get_cpc_names_and_streams(), source,
+            cpc_import_form.cleaned_data['plus_notes'])
     except FileProcessError as error:
         return JsonResponse(dict(
             error=str(error),

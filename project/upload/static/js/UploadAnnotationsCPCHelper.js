@@ -272,6 +272,7 @@ var UploadAnnotationsCPCHelper = (function() {
             // Form and field elements.
             $cpcForm = $('#cpc_form');
             cpcFileField = $('#id_cpc_files')[0];
+            plusNotesField = $('#id_plus_notes')[0];
 
             // Button elements.
             $uploadStartButton = $('#id_upload_submit');
@@ -279,6 +280,9 @@ var UploadAnnotationsCPCHelper = (function() {
 
             // Handlers.
             $(cpcFileField).change(function() {
+                updateUploadPreview();
+            });
+            $(plusNotesField).change(function() {
                 updateUploadPreview();
             });
             $uploadStartButton.click(function() {

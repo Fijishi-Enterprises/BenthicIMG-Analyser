@@ -237,6 +237,8 @@
               {% include "form_generic_one_field.html" with field=cpc_prefs_form.local_image_dir %}
             {% endif %}
 
+            {% include "form_generic_one_field.html" with field=cpc_prefs_form.plus_notes checkbox='yes' %}
+
             <button type="button" class="submit">Go</button>
           </form>
 

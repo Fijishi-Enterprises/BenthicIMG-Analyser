@@ -258,13 +258,21 @@ def write_annotations_cpc(cpc_stream, img, cpc_prefs):
 
     # Next num_points lines: point labels.
     # "<point number/letter>","<label code>","Notes","<notes code>"
-    # Assumption: label code in CoralNet source's labelset == label code
-    # in the .cpc file (case insensitive).
     for point in points:
-        row = [point.point_number,
-               point_to_cpc_export_label_code(
-                   point, cpc_prefs['annotation_filter']),
-               'Notes', '']
+        label_code = point_to_cpc_export_label_code(
+            point, cpc_prefs['annotation_filter'])
+
+        if cpc_prefs['plus_notes'] and '+' in label_code:
+            # Assumption: label code in CoralNet source's labelset
+            # == {ID}+{Notes} in the .cpc file (case insensitive),
+            # and {ID} does not have a + character in it.
+            cpc_id, cpc_notes = label_code.split('+', maxsplit=1)
+            row = [point.point_number, cpc_id, 'Notes', cpc_notes]
+        else:
+            # Assumption: label code in CoralNet source's labelset
+            # == label code in the .cpc file (case insensitive).
+            row = [point.point_number, label_code, 'Notes', '']
+
         row = ['"{s}"'.format(s=s) for s in row]
         writer.writerow(row)
 
@@ -290,19 +298,37 @@ def write_annotations_cpc_based_on_prev_cpc(cpc_stream, img, cpc_prefs):
         cpc_stream.write(next(old_cpc))
 
     # Next point_count lines have the labels.
-    # Replace the label codes with the ones in CoralNet's DB.
+    # Replace the label codes (and notes, if applicable) with the data from
+    # CoralNet's DB.
     points = Point.objects.filter(image=img).order_by('point_number')
 
     for point in points:
         old_line = next(old_cpc)
         old_tokens = old_line.split(',')
-        # Just change the label code, and ensure it's in double quotes.
-        # The other tokens on this line stay the same (point number, notes).
+
         label_code = point_to_cpc_export_label_code(
             point, cpc_prefs['annotation_filter'])
-        new_tokens = [
-            old_tokens[0], '"{}"'.format(label_code),
-            old_tokens[2], old_tokens[3]]
+
+        # Change the ID code (and Notes code if applicable), and ensure
+        # they're in double quotes.
+        # The rest of this line stays the same.
+        if cpc_prefs['plus_notes']:
+            # Get Notes from CoralNet's label codes.
+            if '+' in label_code:
+                cpc_id, cpc_notes = label_code.split('+', maxsplit=1)
+            else:
+                cpc_id = label_code
+                cpc_notes = ''
+            # When replacing the last token (notes code), we have to be
+            # careful to preserve the newline.
+            new_tokens = [
+                old_tokens[0], f'"{cpc_id}"',
+                old_tokens[2], f'"{cpc_notes}"\r\n']
+        else:
+            # Do not get Notes from CoralNet's label codes.
+            new_tokens = [
+                old_tokens[0], f'"{label_code}"',
+                old_tokens[2], old_tokens[3]]
         new_line = ','.join(new_tokens)
         cpc_stream.write(new_line)
 

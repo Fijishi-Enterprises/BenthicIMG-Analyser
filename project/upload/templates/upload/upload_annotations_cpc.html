@@ -25,7 +25,10 @@
         {% csrf_token %}
 
         {% with cpc_import_form.cpc_files as field %}
-          {{ field.label }}: {{ field }}
+          <div class="line">{{ field.label }}: {{ field }}</div>
+        {% endwith %}
+        {% with cpc_import_form.plus_notes as field %}
+          <div class="line">{{ field }} {{ field.label }}</div>
         {% endwith %}
 
         <div class="tutorial-message">

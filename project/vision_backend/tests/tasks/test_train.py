@@ -1,15 +1,19 @@
+import csv
 import math
+from io import StringIO
 from unittest import mock
 
 from django.conf import settings
+from django.core.files.base import ContentFile
 from django.core.files.storage import get_storage_class
 from django.test import override_settings
 from django.test.utils import patch_logger
+from django.urls import reverse
 import spacer.config as spacer_config
 from spacer.data_classes import ValResults
 
-from vision_backend.models import Classifier
-from vision_backend.tasks import collect_all_jobs
+from ...models import Classifier
+from ...tasks import collect_all_jobs, reset_features, submit_all_classifiers
 from .utils import BaseTaskTest
 
 
@@ -270,6 +274,118 @@ class AbortCasesTest(BaseTaskTest):
                 self.source.name, self.source.pk)
             self.assertIn(
                 log_message, log_messages,
+                "Should log the appropriate message")
+
+    def do_training_with_features_race_condition(self):
+        # Upload enough images for training, but don't annotate yet.
+        # This should submit feature extract jobs.
+        for i in range(spacer_config.MIN_TRAINIMAGES):
+            self.upload_image(
+                self.user, self.source,
+                image_options=dict(filename=f'train{i}.png'))
+        for i in range(1):
+            self.upload_image(
+                self.user, self.source,
+                image_options=dict(filename=f'val{i}.png'))
+        # Collect the feature extract jobs.
+        collect_all_jobs()
+
+        # Prepare points + annotations.
+        stream = StringIO()
+        writer = csv.writer(stream)
+        writer.writerow(['Name', 'Column', 'Row', 'Label'])
+        for image in self.source.image_set.all():
+            # Training data must have at least 2 distinct labels.
+            writer.writerow([image.metadata.name, 10, 10, 'A'])
+            writer.writerow([image.metadata.name, 20, 20, 'B'])
+        csv_file = ContentFile(stream.getvalue(), name='annotations.csv')
+
+        self.client.force_login(self.user)
+        self.client.post(
+            reverse(
+                'upload_annotations_csv_preview_ajax', args=[self.source.pk]),
+            {'csv_file': csv_file},
+        )
+        # Upload points + annotations for all those images. This should submit
+        # a training job, but not features jobs, because we'll prevent the
+        # reset_features tasks from running to simulate having a delay in those
+        # tasks.
+        def noop_task(*args):
+            pass
+        with mock.patch('vision_backend.tasks.reset_features.run', noop_task):
+            self.client.post(
+                reverse('upload_annotations_ajax', args=[self.source.pk]),
+            )
+
+    def test_point_locations_dont_match(self):
+        """
+        Point locations submitted to training do not match the feature vector's
+        point locations.
+        """
+        self.do_training_with_features_race_condition()
+
+        # Collect training job. Since features weren't reset, training
+        # should've run on the new point locations + old features.
+        # Thus, training should've failed.
+        # Since training failed, that should call for deletion of the
+        # classifier created for the train task.
+        classifier_pk = self.source.get_latest_robot(only_valid=False).pk
+        with patch_logger(
+                'vision_backend.task_helpers', 'info') as log_messages:
+            collect_all_jobs()
+            self.assertIn(
+                f"Training failed. Deleting classifier {classifier_pk}.",
+                log_messages,
+                msg="Should log the appropriate message")
+
+        self.assertRaises(
+            Classifier.DoesNotExist,
+            Classifier.objects.get, pk=classifier_pk)
+
+        # Now we'll ensure that the source can recover and retrain.
+        # First, run the reset-features tasks.
+        for image in self.source.image_set.all():
+            reset_features(image.pk)
+        # Collect feature extract jobs.
+        collect_all_jobs()
+
+        # Try retraining. We'd expect this to happen with the periodic task
+        # which checks all sources to see if they need new classifiers.
+        submit_all_classifiers()
+        # Collect training job.
+        classifier_pk = self.source.get_latest_robot(only_valid=False).pk
+        with patch_logger(
+                'vision_backend.task_helpers', 'info') as log_messages:
+            collect_all_jobs()
+            self.assertIn(
+                f"Classifier {classifier_pk}"
+                f" [Source: {self.source.name} [{self.source.pk}]]"
+                f" collected successfully.",
+                log_messages,
+                msg="Should log the appropriate message")
+        # Training should have succeeded this time.
+        valid_robot = self.source.get_latest_robot(only_valid=True)
+        self.assertIsNotNone(valid_robot)
+
+    def test_points_dont_match_and_clf_already_deleted(self):
+        """
+        Point locations race condition, plus the classifier is somehow already
+        deleted before collecting the train job.
+        """
+        self.do_training_with_features_race_condition()
+
+        classifier = self.source.get_latest_robot(only_valid=False)
+        classifier_pk = classifier.pk
+        classifier.delete()
+
+        with patch_logger(
+                'vision_backend.task_helpers', 'info') as log_messages:
+            collect_all_jobs()
+
+            self.assertIn(
+                f"Training failed. But classifier {classifier_pk} was already"
+                " deleted, so there's nothing to clean up.",
+                log_messages,
                 "Should log the appropriate message")
 
     def test_classifier_deleted_before_collection(self):

@@ -241,6 +241,21 @@ def classifiercollector(task: TrainClassifierMsg,
     return True
 
 
+def train_fail(job_return_msg: JobReturnMsg):
+    job_token = job_return_msg.original_job.tasks[0].job_token
+    pk = decode_spacer_job_token(job_token)[0]
+
+    try:
+        classifier = Classifier.objects.get(pk=pk)
+        classifier.delete()
+        logger.info(
+            "Training failed. Deleting classifier {}.".format(job_token))
+    except Classifier.DoesNotExist:
+        logger.info(
+            "Training failed. But classifier {} was already deleted,"
+            " so there's nothing to clean up.".format(job_token))
+
+
 def deploycollector(task: ClassifyImageMsg, res: ClassifyReturnMsg):
 
     def build_points_dicts(labelset: LabelSet):

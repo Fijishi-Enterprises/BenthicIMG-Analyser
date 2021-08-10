@@ -285,14 +285,18 @@ def collect_all_jobs():
 def _handle_job_result(job_res: JobReturnMsg):
     """Handles the job results found in queue. """
 
+    task_name = job_res.original_job.task_name
+
     if not job_res.ok:
         logger.error("Job failed: {}".format(job_res.error_message))
         mail_admins("Spacer job failed", repr(job_res))
-        if job_res.original_job.task_name == 'classify_image':
-            th.deploy_fail(job_res)
-        return
 
-    task_name = job_res.original_job.task_name
+        if task_name == 'train_classifier':
+            th.train_fail(job_res)
+        elif task_name == 'classify_image':
+            th.deploy_fail(job_res)
+
+        return
 
     for task, res in zip(job_res.original_job.tasks,
                          job_res.results):

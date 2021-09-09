@@ -15,11 +15,6 @@ class Classifier(models.Model):
     # pointer to the source
     source = models.ForeignKey('images.Source', on_delete=models.CASCADE)
 
-    # An instance is valid if
-    # 1) it has been trained and
-    # 2) it performed better than previous models
-    valid = models.BooleanField(default=False)
-
     TRAIN_PENDING = 'PN'
     TRAIN_ERROR = 'ER'
     REJECTED_ACCURACY = 'RJ'

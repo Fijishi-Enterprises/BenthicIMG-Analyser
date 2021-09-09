@@ -148,7 +148,7 @@ class Command(BaseCommand):
             collect_all_jobs()
             print("-> No classifier trained yet.")
             has_classifier = Classifier.objects.filter(
-                source=s.source, valid=True).count() > 0
+                source=s.source, status=Classifier.ACCEPTED).count() > 0
 
             if time.time() - t0 > 90:
                 # Resubmit classifier in case previous training failed due to

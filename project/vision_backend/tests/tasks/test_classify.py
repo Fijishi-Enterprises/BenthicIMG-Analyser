@@ -122,9 +122,9 @@ class ClassifyImageTest(BaseTaskTest):
                 mock_classify_msg_1):
             collect_all_jobs()
 
-        # Create another valid classifier. Override settings so that 1) we
+        # Accept another classifier. Override settings so that 1) we
         # don't need more images to train a new classifier, and 2) we don't
-        # need improvement to mark a new classifier as valid.
+        # need improvement to mark a new classifier as accepted.
         with override_settings(
                 NEW_CLASSIFIER_TRAIN_TH=0.0001,
                 NEW_CLASSIFIER_IMPROVEMENT_TH=0.0001):
@@ -140,18 +140,17 @@ class ClassifyImageTest(BaseTaskTest):
         clf_2 = self.source.get_latest_robot()
         all_classifiers = self.source.classifier_set.all()
         message = (
-            "clf 1 and 2 IDs: {}, {}".format(clf_1.pk, clf_2.pk)
+            f"clf 1 and 2 IDs: {clf_1.pk}, {clf_2.pk}"
             + " | All classifier IDs: {}".format(
                 list(all_classifiers.values_list('pk', flat=True)))
             + "".join([
-                " | pk {} details: valid={}, accuracy={}, images={}".format(
-                    clf.pk, clf.valid, clf.accuracy, clf.nbr_train_images)
+                f" | pk {clf.pk} details: status={clf.status},"
+                f" accuracy={clf.accuracy}, images={clf.nbr_train_images}"
                 for clf in all_classifiers])
         )
         self.assertNotEqual(
             clf_1.pk, clf_2.pk,
-            "Should have a new valid classifier. Debug info: {}".format(
-                message))
+            f"Should have a new accepted classifier. Debug info: {message}")
 
         for point in Point.objects.filter(image=img):
             self.assertTrue(

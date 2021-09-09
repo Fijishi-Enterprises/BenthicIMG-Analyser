@@ -40,10 +40,12 @@ def backend_overview(request):
 
     clf_stats = {
         'nclassifiers': Classifier.objects.filter().count(),
-        'nvalidclassifiers': Classifier.objects.filter(valid=True).count(),
+        'nacceptedclassifiers': Classifier.objects.filter(
+            status=Classifier.ACCEPTED).count(),
         'nsources': Source.objects.filter().count(),
-        'valid_ratio': '{:.1f}'.format(Classifier.objects.filter(
-            valid=True).count() / Source.objects.filter().count())
+        'accepted_ratio': '{:.1f}'.format(
+            Classifier.objects.filter(status=Classifier.ACCEPTED).count()
+            / Source.objects.filter().count())
     }
 
     laundry_list = []

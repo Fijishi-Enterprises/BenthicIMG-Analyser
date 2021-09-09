@@ -10,7 +10,6 @@ from django.urls import reverse
 from accounts.utils import get_robot_user, get_alleviate_user
 from annotations.model_utils import AnnotationAreaUtils
 from annotations.models import Annotation
-from vision_backend.models import Classifier
 from .model_utils import PointGen
 from .models import Source, Point, Image, Metadata
 
@@ -385,13 +384,13 @@ def source_robot_status(source_id):
     several data point regarding the status of the vision backend for this source.
     """
     status = dict()
-    source = Source.objects.get(id = source_id)
+    source = Source.objects.get(id=source_id)
     status['name'] = source.name
     status['name_short'] = source.name[:40]
     status['id'] = source.id
     status['has_robot'] = source.has_robot()
-    status['nbr_robots'] = Classifier.objects.filter(source_id = source_id).count()
-    status['nbr_valid_robots'] = Classifier.objects.filter(source_id = source_id, valid = True).count()
+    status['nbr_robots'] = source.classifier_set.count()
+    status['nbr_accepted_robots'] = source.get_accepted_robots().count()
 
     status['nbr_total_images'] = Image.objects.filter(source=source).count()
     status['nbr_images_needs_features'] = Image.objects.filter(source=source, features__extracted=False).count()

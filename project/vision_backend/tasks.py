@@ -114,8 +114,8 @@ def submit_classifier(source_id, nbr_images=1e5, force=False):
     # Create val-labels
     val_labels = th.make_dataset([image for image in images if image.valset])
 
-    # This will not include the one we just created, b/c it is not valid.
-    prev_classifiers = Classifier.objects.filter(source=source, valid=True)
+    # This will not include the one we just created, b/c status isn't accepted.
+    prev_classifiers = source.get_accepted_robots()
 
     # Primary keys needed for collect task.
     pc_pks = [pc.pk for pc in prev_classifiers]

@@ -219,8 +219,11 @@ def classifiercollector(task: TrainClassifierMsg,
     # improvement, abort without validating the new classifier.
     if len(prev_pks) > 0 and max(res.pc_accs) * \
             settings.NEW_CLASSIFIER_IMPROVEMENT_TH > res.acc:
+
+        classifier.status = Classifier.REJECTED_ACCURACY
+        classifier.save()
         logger.info(
-            "{} worse than previous. Not validated. Max previous: {:.2f}, "
+            "{} worse than previous. Not accepted. Max previous: {:.2f}, "
             "threshold: {:.2f}, this: {:.2f}".format(
                 log_str,
                 max(res.pc_accs),
@@ -234,8 +237,8 @@ def classifiercollector(task: TrainClassifierMsg,
         pc.accuracy = pc_acc
         pc.save()
 
-    # Validate and save the current model
-    classifier.valid = True
+    # Accept and save the current model
+    classifier.status = Classifier.ACCEPTED
     classifier.save()
     logger.info("{} collected successfully.".format(log_str))
     return True
@@ -247,13 +250,14 @@ def train_fail(job_return_msg: JobReturnMsg):
 
     try:
         classifier = Classifier.objects.get(pk=pk)
-        classifier.delete()
+        classifier.status = Classifier.TRAIN_ERROR
+        classifier.save()
         logger.info(
-            "Training failed. Deleting classifier {}.".format(job_token))
+            "Training failed for classifier {}.".format(job_token))
     except Classifier.DoesNotExist:
         logger.info(
-            "Training failed. But classifier {} was already deleted,"
-            " so there's nothing to clean up.".format(job_token))
+            "Training failed for classifier {}, although the classifier"
+            " was already deleted.".format(job_token))
 
 
 def deploycollector(task: ClassifyImageMsg, res: ClassifyReturnMsg):

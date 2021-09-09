@@ -340,8 +340,8 @@ class Source(models.Model):
         return self.get_all_images().count()
 
     @property
-    def nbr_valid_robots(self):
-        return len(self.get_valid_robots())
+    def nbr_accepted_robots(self):
+        return len(self.get_accepted_robots())
 
     @property
     def best_robot_accuracy(self):
@@ -375,13 +375,13 @@ class Source(models.Model):
         return AnnotationAreaUtils.db_format_to_display(
             self.image_annotation_area)
 
-    def get_latest_robot(self, only_valid=True):
+    def get_latest_robot(self, only_accepted=True):
         """
         return the latest robot associated with this source.
         if no robots, return None
         """
-        if only_valid:
-            robots = self.get_valid_robots()
+        if only_accepted:
+            robots = self.get_accepted_robots()
             if robots.count() > 0:
                 return robots[0]
             else:
@@ -393,14 +393,18 @@ class Source(models.Model):
             else:
                 return None
 
-    def get_valid_robots(self):
+    def get_accepted_robots(self):
         """
-        returns a list of all robots that have valid metadata
+        Returns a list of all robots that have been accepted for use in the
+        source
         """
-        return self.classifier_set.filter(valid=True).order_by('-id')
+        # Method-level import to avoid circular module-level imports
+        from vision_backend.models import Classifier
+        return self.classifier_set.filter(
+            status=Classifier.ACCEPTED).order_by('-id')
 
     def nbr_images_in_latest_robot(self):
-        # NOTE: Here we include also those not valid.
+        # NOTE: Here we include also those not accepted.
         robots = self.classifier_set.order_by('-id')
         if robots.count() > 0:
             return robots[0].nbr_train_images
@@ -429,9 +433,9 @@ class Source(models.Model):
 
     def has_robot(self):
         """
-        Returns true if source has a robot.
+        Returns True if source has an accepted robot.
         """
-        return self.get_valid_robots().count() > 0
+        return self.get_accepted_robots().count() > 0
         
     def all_image_names_are_unique(self):
         """
@@ -461,7 +465,8 @@ class Source(models.Model):
         """
         field_names = ['pk', 'name', 'longitude', 'latitude', 'create_date',
                        'nbr_confirmed_images', 'nbr_images', 'description',
-                       'affiliation', 'nbr_valid_robots', 'best_robot_accuracy']
+                       'affiliation', 'nbr_accepted_robots',
+                       'best_robot_accuracy']
 
         return {field: str(getattr(self, field)) for
                 field in field_names}

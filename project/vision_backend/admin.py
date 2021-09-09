@@ -9,4 +9,4 @@ class BatchJobAdmin(admin.ModelAdmin):
 
 @admin.register(Classifier)
 class ClassifierAdmin(admin.ModelAdmin):
-    list_display = ('valid', 'source', 'accuracy', 'create_date')
+    list_display = ('status', 'source', 'accuracy', 'create_date')

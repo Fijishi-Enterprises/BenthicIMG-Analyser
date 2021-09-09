@@ -38,9 +38,9 @@ class TrainClassifierTest(BaseTaskTest):
 
         # Now we should have a trained classifier whose accuracy is the best so
         # far (due to having no previous classifiers), and thus it should have
-        # been marked as valid
+        # been marked as accepted
         latest_classifier = self.source.get_latest_robot()
-        self.assertTrue(latest_classifier.valid)
+        self.assertEqual(latest_classifier.status, Classifier.ACCEPTED)
 
         # Also check that the actual classifier is created in storage.
         storage = get_storage_class()()
@@ -60,7 +60,7 @@ class TrainClassifierTest(BaseTaskTest):
 
     def test_train_second_classifier(self):
         """
-        Train a second valid classifier in a source which already has a valid
+        Accept a second classifier in a source which already has an accepted
         classifier.
         """
         def mock_train_msg_1(
@@ -102,7 +102,7 @@ class TrainClassifierTest(BaseTaskTest):
 
         self.submit_classifier_with_filename_based_valset(self.source.id)
         # Collect classifier. Use mock to ensure a high enough accuracy
-        # improvement to consider the classifier valid.
+        # improvement to consider the classifier accepted.
         with mock.patch(
                 'spacer.messages.TrainClassifierReturnMsg.__init__',
                 mock_train_msg_2):
@@ -182,10 +182,10 @@ class TrainClassifierTest(BaseTaskTest):
             len(self.rowcols_with_dupes_included), len(val_res.gt),
             "Valresults count should include dupe points")
 
-        # Check that there's a valid classifier.
+        # Check that there's an accepted classifier.
 
         latest_classifier = self.source.get_latest_robot()
-        self.assertTrue(latest_classifier.valid)
+        self.assertEqual(latest_classifier.status, Classifier.ACCEPTED)
 
 
 class AbortCasesTest(BaseTaskTest):
@@ -329,18 +329,17 @@ class AbortCasesTest(BaseTaskTest):
         # Thus, training should've failed.
         # Since training failed, that should call for deletion of the
         # classifier created for the train task.
-        classifier_pk = self.source.get_latest_robot(only_valid=False).pk
+        classifier_pk = self.source.get_latest_robot(only_accepted=False).pk
         with patch_logger(
                 'vision_backend.task_helpers', 'info') as log_messages:
             collect_all_jobs()
             self.assertIn(
-                f"Training failed. Deleting classifier {classifier_pk}.",
+                f"Training failed for classifier {classifier_pk}.",
                 log_messages,
                 msg="Should log the appropriate message")
 
-        self.assertRaises(
-            Classifier.DoesNotExist,
-            Classifier.objects.get, pk=classifier_pk)
+        clf = Classifier.objects.get(pk=classifier_pk)
+        self.assertEqual(clf.status, Classifier.TRAIN_ERROR)
 
         # Now we'll ensure that the source can recover and retrain.
         # First, run the reset-features tasks.
@@ -353,7 +352,7 @@ class AbortCasesTest(BaseTaskTest):
         # which checks all sources to see if they need new classifiers.
         submit_all_classifiers()
         # Collect training job.
-        classifier_pk = self.source.get_latest_robot(only_valid=False).pk
+        classifier_pk = self.source.get_latest_robot(only_accepted=False).pk
         with patch_logger(
                 'vision_backend.task_helpers', 'info') as log_messages:
             collect_all_jobs()
@@ -364,8 +363,8 @@ class AbortCasesTest(BaseTaskTest):
                 log_messages,
                 msg="Should log the appropriate message")
         # Training should have succeeded this time.
-        valid_robot = self.source.get_latest_robot(only_valid=True)
-        self.assertIsNotNone(valid_robot)
+        accepted_robot = self.source.get_latest_robot(only_accepted=True)
+        self.assertIsNotNone(accepted_robot)
 
     def test_points_dont_match_and_clf_already_deleted(self):
         """
@@ -374,7 +373,7 @@ class AbortCasesTest(BaseTaskTest):
         """
         self.do_training_with_features_race_condition()
 
-        classifier = self.source.get_latest_robot(only_valid=False)
+        classifier = self.source.get_latest_robot(only_accepted=False)
         classifier_pk = classifier.pk
         classifier.delete()
 
@@ -383,8 +382,8 @@ class AbortCasesTest(BaseTaskTest):
             collect_all_jobs()
 
             self.assertIn(
-                f"Training failed. But classifier {classifier_pk} was already"
-                " deleted, so there's nothing to clean up.",
+                f"Training failed for classifier {classifier_pk}, although the"
+                " classifier was already deleted.",
                 log_messages,
                 "Should log the appropriate message")
 
@@ -398,7 +397,7 @@ class AbortCasesTest(BaseTaskTest):
         collect_all_jobs()
         msg = self.submit_classifier_with_filename_based_valset(self.source.pk)
 
-        clf = self.source.get_latest_robot(only_valid=False)
+        clf = self.source.get_latest_robot(only_accepted=False)
         clf.delete()
 
         with patch_logger(
@@ -411,7 +410,7 @@ class AbortCasesTest(BaseTaskTest):
                 log_message, log_messages,
                 "Should log the appropriate message")
 
-    def test_classifier_not_valid(self):
+    def test_classifier_rejected(self):
         """
         Run the train task, then collect the classifier and find that it's
         not enough of an improvement over the previous.
@@ -450,10 +449,11 @@ class AbortCasesTest(BaseTaskTest):
                         mock_train_msg):
                     collect_all_jobs()
 
-            clf = self.source.get_latest_robot(only_valid=False)
+            clf = self.source.get_latest_robot(only_accepted=False)
+            self.assertEqual(clf.status, Classifier.REJECTED_ACCURACY)
             log_message = (
                 "Classifier {} [Source: {} [{}]] "
-                "worse than previous. Not validated. Max previous: {:.2f}, "
+                "worse than previous. Not accepted. Max previous: {:.2f}, "
                 "threshold: {:.2f}, this: {:.2f}".format(
                     clf.pk, self.source, self.source.pk,
                     0.5, 0.5*1.4, 0.6))

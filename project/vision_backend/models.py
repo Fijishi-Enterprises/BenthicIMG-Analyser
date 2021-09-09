@@ -20,6 +20,20 @@ class Classifier(models.Model):
     # 2) it performed better than previous models
     valid = models.BooleanField(default=False)
 
+    TRAIN_PENDING = 'PN'
+    TRAIN_ERROR = 'ER'
+    REJECTED_ACCURACY = 'RJ'
+    ACCEPTED = 'AC'
+    STATUS_CHOICES = [
+        (TRAIN_PENDING, "Training pending"),
+        (TRAIN_ERROR, "Training got an error"),
+        (REJECTED_ACCURACY, "Rejected because accuracy didn't improve enough"),
+        (ACCEPTED, "Accepted as new classifier"),
+    ]
+    # Training status of the classifier.
+    status = models.CharField(
+        max_length=2, choices=STATUS_CHOICES, default=TRAIN_PENDING)
+
     # Training runtime in seconds.
     runtime_train = models.BigIntegerField(default=0)
 

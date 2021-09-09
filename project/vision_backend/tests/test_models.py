@@ -1,3 +1,4 @@
+from django_migration_testcase import MigrationTest
 import numpy as np
 from spacer.messages import ClassifyReturnMsg
 
@@ -76,3 +77,39 @@ class CascadeDeleteTest(ClientTest):
         # Now all scores for that point should be gone.
         self.assertEqual(Score.objects.filter(image=img).count(),
                          (nbr_points - 1) * expected_nbr_scores)
+
+
+class PopulateClassifierStatusTest(MigrationTest):
+
+    app_name = 'vision_backend'
+    before = '0002_classifier_status'
+    after = '0003_populate_classifier_status'
+
+    def test_migration(self):
+        Source = self.get_model_before('images.Source')
+        Classifier = self.get_model_before('vision_backend.Classifier')
+
+        source = Source(name="Test source")
+        source.save()
+        classifier_accepted = Classifier(
+            source=source, valid=True, accuracy=0.50)
+        classifier_accepted.save()
+        classifier_rejected = Classifier(
+            source=source, valid=False, accuracy=0.50)
+        classifier_rejected.save()
+        classifier_error = Classifier(
+            source=source, valid=False)
+        classifier_error.save()
+
+        self.run_migration()
+
+        # Statuses should be populated based on the other fields
+        classifier_accepted.refresh_from_db()
+        self.assertEqual(
+            classifier_accepted.status, 'AC')
+        classifier_rejected.refresh_from_db()
+        self.assertEqual(
+            classifier_rejected.status, 'RJ')
+        classifier_error.refresh_from_db()
+        self.assertEqual(
+            classifier_error.status, 'ER')

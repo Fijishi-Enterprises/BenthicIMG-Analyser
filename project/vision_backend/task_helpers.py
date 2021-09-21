@@ -18,8 +18,7 @@ from spacer.messages import \
     TrainClassifierMsg, \
     TrainClassifierReturnMsg, \
     ClassifyImageMsg, \
-    ClassifyReturnMsg, \
-    JobReturnMsg
+    ClassifyReturnMsg
 
 
 from annotations.models import Annotation
@@ -244,22 +243,6 @@ def classifiercollector(task: TrainClassifierMsg,
     return True
 
 
-def train_fail(job_return_msg: JobReturnMsg):
-    job_token = job_return_msg.original_job.tasks[0].job_token
-    pk = decode_spacer_job_token(job_token)[0]
-
-    try:
-        classifier = Classifier.objects.get(pk=pk)
-        classifier.status = Classifier.TRAIN_ERROR
-        classifier.save()
-        logger.info(
-            "Training failed for classifier {}.".format(job_token))
-    except Classifier.DoesNotExist:
-        logger.info(
-            "Training failed for classifier {}, although the classifier"
-            " was already deleted.".format(job_token))
-
-
 def deploycollector(task: ClassifyImageMsg, res: ClassifyReturnMsg):
 
     def build_points_dicts(labelset: LabelSet):
@@ -317,22 +300,4 @@ def deploycollector(task: ClassifyImageMsg, res: ClassifyReturnMsg):
         points=build_points_dicts(classifier.source.labelset)
     )
     job_unit.status = ApiJobUnit.SUCCESS
-    job_unit.save()
-
-
-def deploy_fail(job_return_msg: JobReturnMsg):
-
-    pk = decode_spacer_job_token(
-        job_return_msg.original_job.tasks[0].job_token)[0]
-    try:
-        job_unit = ApiJobUnit.objects.get(pk=pk)
-    except ApiJobUnit.DoesNotExist:
-        logger.info("Job unit of id {} does not exist.".format(pk))
-        return
-
-    job_unit.result_json = dict(
-        url=job_unit.request_json['url'],
-        errors=[job_return_msg.error_message],
-    )
-    job_unit.status = ApiJobUnit.FAILURE
     job_unit.save()

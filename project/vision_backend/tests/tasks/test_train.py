@@ -331,7 +331,7 @@ class AbortCasesTest(BaseTaskTest):
         # classifier created for the train task.
         classifier_pk = self.source.get_latest_robot(only_accepted=False).pk
         with patch_logger(
-                'vision_backend.task_helpers', 'info') as log_messages:
+                'vision_backend.tasks', 'info') as log_messages:
             collect_all_jobs()
             self.assertIn(
                 f"Training failed for classifier {classifier_pk}.",
@@ -378,7 +378,7 @@ class AbortCasesTest(BaseTaskTest):
         classifier.delete()
 
         with patch_logger(
-                'vision_backend.task_helpers', 'info') as log_messages:
+                'vision_backend.tasks', 'info') as log_messages:
             collect_all_jobs()
 
             self.assertIn(

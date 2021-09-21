@@ -292,9 +292,9 @@ def _handle_job_result(job_res: JobReturnMsg):
         mail_admins("Spacer job failed", repr(job_res))
 
         if task_name == 'train_classifier':
-            th.train_fail(job_res)
+            train_fail(job_res)
         elif task_name == 'classify_image':
-            th.deploy_fail(job_res)
+            deploy_fail(job_res)
 
         return
 
@@ -325,6 +325,40 @@ def _handle_job_result(job_res: JobReturnMsg):
 
         # Conclude
         logger.info("Collected job: {} with pk: {}".format(task_name, pk))
+
+
+def train_fail(job_return_msg: JobReturnMsg):
+    job_token = job_return_msg.original_job.tasks[0].job_token
+    pk = th.decode_spacer_job_token(job_token)[0]
+
+    try:
+        classifier = Classifier.objects.get(pk=pk)
+        classifier.status = Classifier.TRAIN_ERROR
+        classifier.save()
+        logger.info(
+            "Training failed for classifier {}.".format(job_token))
+    except Classifier.DoesNotExist:
+        logger.info(
+            "Training failed for classifier {}, although the classifier"
+            " was already deleted.".format(job_token))
+
+
+def deploy_fail(job_return_msg: JobReturnMsg):
+
+    pk = th.decode_spacer_job_token(
+        job_return_msg.original_job.tasks[0].job_token)[0]
+    try:
+        job_unit = ApiJobUnit.objects.get(pk=pk)
+    except ApiJobUnit.DoesNotExist:
+        logger.info("Job unit of id {} does not exist.".format(pk))
+        return
+
+    job_unit.result_json = dict(
+        url=job_unit.request_json['url'],
+        errors=[job_return_msg.error_message],
+    )
+    job_unit.status = ApiJobUnit.FAILURE
+    job_unit.save()
 
 
 @task(name="Reset Source")

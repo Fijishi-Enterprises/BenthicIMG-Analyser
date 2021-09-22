@@ -11,7 +11,8 @@ from accounts.utils import get_robot_user, is_robot_user
 from annotations.models import Annotation
 from images.models import Point
 from vision_backend.models import Score
-from vision_backend.tasks import classify_image, collect_all_jobs
+from vision_backend.tasks import (
+    classify_image, collect_all_jobs, submit_classifier)
 from .utils import BaseTaskTest
 
 
@@ -128,7 +129,7 @@ class ClassifyImageTest(BaseTaskTest):
         with override_settings(
                 NEW_CLASSIFIER_TRAIN_TH=0.0001,
                 NEW_CLASSIFIER_IMPROVEMENT_TH=0.0001):
-            self.submit_classifier_with_filename_based_valset(self.source.pk)
+            submit_classifier(self.source.pk)
             # 1) Save classifier. 2) re-classify with a different set of
             # scores so that specific points get their labels changed (and
             # other points don't).
@@ -254,7 +255,7 @@ class ClassifyImageTest(BaseTaskTest):
         collect_all_jobs()
 
         # Train classifier + classify image
-        self.submit_classifier_with_filename_based_valset(self.source.pk)
+        submit_classifier(self.source.pk)
         collect_all_jobs()
 
         self.assertEqual(

@@ -1,4 +1,5 @@
 from abc import ABCMeta
+import math
 
 from django.test import override_settings
 from django.urls import reverse
@@ -9,11 +10,6 @@ from images.model_utils import PointGen
 from images.models import Source
 from lib.tests.utils import create_sample_image
 from vision_backend.tasks import collect_all_jobs, submit_classifier
-
-# Create and annotate sufficient nbr images.
-# Since 1/8 of images go to val, we need to add a few more to
-# make sure there are enough train images.
-MIN_IMAGES = int(MIN_TRAINIMAGES * (1+1/8) + 1)
 
 
 @override_settings(MIN_NBR_ANNOTATED_IMAGES=1)
@@ -48,12 +44,22 @@ class DeployBaseTest(BaseAPITest, metaclass=ABCMeta):
             local_label.save()
 
         # Add enough annotated images to train a classifier.
-        for _ in range(MIN_IMAGES):
-            img = cls.upload_image(cls.user, cls.source)
-            # Must have at least 2 unique labels in training data in order to
-            # be accepted by spacer.
-            cls.add_annotations(
-                cls.user, img, {1: 'A_mycode', 2: 'B_mycode'})
+        #
+        # Must have at least 2 unique labels in training data in order to
+        # be accepted by spacer.
+        annotations = {1: 'A_mycode', 2: 'B_mycode'}
+        num_validation_images = math.ceil(MIN_TRAINIMAGES / 8)
+        for i in range(MIN_TRAINIMAGES):
+            img = cls.upload_image(
+                cls.user, cls.source, dict(filename=f'train{i}.png'))
+            cls.add_annotations(cls.user, img, annotations)
+        for i in range(num_validation_images):
+            # Unit tests use the image filename to designate what goes into
+            # the validation set.
+            img = cls.upload_image(
+                cls.user, cls.source, dict(filename=f'val{i}.png'))
+            cls.add_annotations(cls.user, img, annotations)
+
         # Extract features.
         collect_all_jobs()
         # Train a classifier.

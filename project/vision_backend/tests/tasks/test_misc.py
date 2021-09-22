@@ -1,5 +1,4 @@
 from datetime import timedelta
-from unittest import mock
 
 from django.core import mail
 from django.test import override_settings
@@ -14,7 +13,7 @@ import vision_backend.task_helpers as th
 from vision_backend.tasks import (
     clean_up_old_batch_jobs, collect_all_jobs, reset_backend_for_source,
     reset_classifiers_for_source, warn_about_stuck_jobs)
-from vision_backend.tests.tasks.utils import BaseTaskTest, MockImage
+from vision_backend.tests.tasks.utils import BaseTaskTest
 
 
 class TestJobTokenEncode(BaseTest):
@@ -61,8 +60,7 @@ class ResetTaskTest(BaseTaskTest):
             "img should have annotations")
 
         # Reset classifiers
-        with mock.patch('images.models.Image.valset', MockImage.valset):
-            reset_classifiers_for_source(self.source.pk)
+        reset_classifiers_for_source(self.source.pk)
 
         # Verify that classifier-related objects were cleared, but not features
 
@@ -116,8 +114,7 @@ class ResetTaskTest(BaseTaskTest):
             "img should have annotations")
 
         # Reset backend
-        with mock.patch('images.models.Image.valset', MockImage.valset):
-            reset_backend_for_source(self.source.pk)
+        reset_backend_for_source(self.source.pk)
 
         # Verify that backend objects were cleared
 

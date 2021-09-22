@@ -2,7 +2,7 @@ import posixpath
 
 from django.conf import settings
 from django.contrib.auth.models import User
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ImproperlyConfigured, ObjectDoesNotExist
 from django.core.mail import mail_admins
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
@@ -682,10 +682,30 @@ class Image(models.Model):
 
     @property
     def valset(self):
-        return self.pk % 8 == 0
+        """
+        Returns True if the image is considered part of the validation set
+        (not the training set) when creating a new classifier, else False.
+        """
+        if settings.VALSET_SELECTION_METHOD == 'id':
+            # This is a very simple method, but can make unit tests
+            # unpredictable.
+            return self.pk % 8 == 0
+        if settings.VALSET_SELECTION_METHOD == 'name':
+            # This is unsuitable for production use, since users should be able
+            # to give images any names they want. But this is useful for unit
+            # tests, where we want predictability (and sometimes precise
+            # control) regarding which images are in the validation set.
+            return self.metadata.name.startswith('val')
+        raise ImproperlyConfigured(
+            "Unrecognized VALSET_SELECTION_METHOD: {}".format(
+                settings.VALSET_SELECTION_METHOD))
 
     @property
     def trainset(self):
+        """
+        Returns True if the image is considered part of the training set
+        (not the validation set) when creating a new classifier, else False.
+        """
         return not self.valset
 
     @property

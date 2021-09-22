@@ -91,22 +91,27 @@ class ImageAnnotationInfo(models.Model):
         all_done = image_annotation_all_done(self.image)
 
         # Update confirmed status, if needed.
-        if self.confirmed != all_done:
+        confirmed_status_updated = self.confirmed != all_done
+        if confirmed_status_updated:
             self.confirmed = all_done
 
-            if self.confirmed:
-                # With a new image confirmed, let's try to train a new
-                # robot. The task will simply exit if there are not enough new
-                # images or if a robot is already being trained.
-                #
-                # We have to import the task here, instead of at the top of the
-                # module, to avoid circular import issues.
-                from vision_backend.tasks import submit_classifier
-                submit_classifier.apply_async(
-                    args=[self.image.source.id],
-                    eta=timezone.now()+datetime.timedelta(seconds=10))
-
         self.save()
+
+        if self.confirmed and confirmed_status_updated:
+            # With a new image confirmed, let's try to train a new
+            # robot. The task will simply exit if there are not enough new
+            # images or if a robot is already being trained.
+            #
+            # Note: This task is submitted AFTER the save() call, so
+            # that unit tests (which run tasks immediately) can count the newly
+            # annotated image when submitting the classifier to spacer.
+
+            # We have to import the task here, instead of at the top of the
+            # module, to avoid circular import issues.
+            from vision_backend.tasks import submit_classifier
+            submit_classifier.apply_async(
+                args=[self.image.source.id],
+                eta=timezone.now()+datetime.timedelta(seconds=10))
 
 
 class AnnotationToolAccess(models.Model):

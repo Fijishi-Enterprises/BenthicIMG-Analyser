@@ -289,12 +289,15 @@ def _handle_job_result(job_res: JobReturnMsg):
 
     if not job_res.ok:
         logger.error("Job failed: {}".format(job_res.error_message))
-        mail_admins("Spacer job failed", repr(job_res))
 
         if task_name == 'train_classifier':
+            # train_fail() has its own logic for mailing admins.
             train_fail(job_res)
         elif task_name == 'classify_image':
+            mail_admins("Spacer job failed", repr(job_res))
             deploy_fail(job_res)
+        else:
+            mail_admins("Spacer job failed", repr(job_res))
 
         return
 
@@ -317,7 +320,7 @@ def _handle_job_result(job_res: JobReturnMsg):
                     classify_image.apply_async(
                         args=[image.id],
                         eta=now() + timedelta(seconds=10))
-        elif job_res.original_job.task_name == 'classify_image':
+        elif task_name == 'classify_image':
             th.deploycollector(task, res)
 
         else:
@@ -333,14 +336,57 @@ def train_fail(job_return_msg: JobReturnMsg):
 
     try:
         classifier = Classifier.objects.get(pk=pk)
-        classifier.status = Classifier.TRAIN_ERROR
-        classifier.save()
-        logger.info(
-            "Training failed for classifier {}.".format(job_token))
     except Classifier.DoesNotExist:
+        # This should be an edge case, where the user reset the classifiers or
+        # deleted the source before training could complete.
         logger.info(
             "Training failed for classifier {}, although the classifier"
             " was already deleted.".format(job_token))
+        return
+
+    classifier.status = Classifier.TRAIN_ERROR
+    classifier.save()
+    logger.info(
+        "Training failed for classifier {}.".format(job_token))
+
+    # Sometimes training fails because features were temporarily de-synced
+    # with the points. We'll take different actions depending on the number of
+    # train attempts that failed in a row.
+    source = classifier.source
+    last_classifiers = source.classifier_set.order_by('-pk')[:5]
+    train_fails_in_a_row = 0
+    for clf in last_classifiers:
+        if clf.status == Classifier.TRAIN_ERROR:
+            train_fails_in_a_row += 1
+        else:
+            break
+
+    if train_fails_in_a_row <= 1:
+        # Only 1 fail so far.
+        # Sometimes the features are getting re-extracted, and just didn't
+        # finish yet. We'll hope for that here.
+        submit_classifier.apply_async(
+            args=[source.pk],
+            eta=now() + timedelta(hours=3))
+    elif 2 <= train_fails_in_a_row <= 3:
+        # Go through all the source's images and force-extract features.
+        for image in source.image_set.all():
+            reset_features.apply_async(
+                args=[image.pk],
+                eta=now() + timedelta(seconds=10))
+        # Hopefully this eta is enough time for the features to get extracted,
+        # regardless of image count.
+        # (The "2 or 3" check attempts to cover for the case where train
+        # number 3 happens very soon from submit_all_classifiers(), thus
+        # leaving no time for feature extraction.)
+        submit_classifier.apply_async(
+            args=[source.pk],
+            eta=now() + timedelta(hours=8))
+    else:
+        # 4 or more fails in a row. Notify the admins.
+        mail_admins("Spacer job failed", repr(job_return_msg))
+        # Next retrain happens when submit_all_classifiers() is run
+        # (<= 24 hours).
 
 
 def deploy_fail(job_return_msg: JobReturnMsg):

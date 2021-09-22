@@ -1,9 +1,11 @@
 import csv
 import math
 from io import StringIO
+import re
 from unittest import mock
 
 from django.conf import settings
+from django.core import mail
 from django.core.files.base import ContentFile
 from django.core.files.storage import get_storage_class
 from django.test import override_settings
@@ -13,7 +15,7 @@ import spacer.config as spacer_config
 from spacer.data_classes import ValResults
 
 from ...models import Classifier
-from ...tasks import collect_all_jobs, reset_features, submit_all_classifiers
+from ...tasks import collect_all_jobs, reset_features
 from .utils import BaseTaskTest
 
 
@@ -276,6 +278,28 @@ class AbortCasesTest(BaseTaskTest):
                 log_message, log_messages,
                 "Should log the appropriate message")
 
+    def test_not_enough_train_data_since_last_classifier_submission(self):
+        """
+        Try to train when there haven't been enough training images added
+        since the last training submission (which hasn't completed yet).
+        """
+        # Train one classifier.
+        self.upload_images_for_training(
+            train_image_count=spacer_config.MIN_TRAINIMAGES, val_image_count=1)
+        collect_all_jobs()
+        self.submit_classifier_with_filename_based_valset(self.source.pk)
+        # Don't collect the training job.
+
+        # Attempt to train another classifier without adding more images.
+        with patch_logger('vision_backend.tasks', 'info') as log_messages:
+            self.submit_classifier_with_filename_based_valset(self.source.pk)
+
+            log_message = "Source {} [{}] don't need new classifier.".format(
+                self.source.name, self.source.pk)
+            self.assertIn(
+                log_message, log_messages,
+                "Should log the appropriate message")
+
     def do_training_with_features_race_condition(self):
         # Upload enough images for training, but don't annotate yet.
         # This should submit feature extract jobs.
@@ -317,56 +341,145 @@ class AbortCasesTest(BaseTaskTest):
                 reverse('upload_annotations_ajax', args=[self.source.pk]),
             )
 
-    def test_point_locations_dont_match(self):
+    train_fail_log_regex = re.compile(
+        r'Training failed for classifier \d+\.')
+    train_success_log_regex = re.compile(
+        r'Classifier \d+ \[Source: [\w\s]+ \[\d+]] collected successfully.')
+
+    @override_settings(MIN_NBR_ANNOTATED_IMAGES=spacer_config.MIN_TRAINIMAGES+1)
+    @override_settings(ADMINS=[('Admin', 'admin@example.com')])
+    def test_point_feature_mismatch_mail_admins(self):
         """
         Point locations submitted to training do not match the feature vector's
         point locations.
+        Feature re-extraction does not happen for whatever reason,
+        retraining attempts fail, and admins get mailed.
         """
         self.do_training_with_features_race_condition()
 
-        # Collect training job. Since features weren't reset, training
-        # should've run on the new point locations + old features.
-        # Thus, training should've failed.
-        # Since training failed, that should call for deletion of the
-        # classifier created for the train task.
-        classifier_pk = self.source.get_latest_robot(only_accepted=False).pk
-        with patch_logger(
-                'vision_backend.tasks', 'info') as log_messages:
+        def noop_task(*args):
+            pass
+
+        with \
+                mock.patch(
+                    'vision_backend.tasks.reset_features.run', noop_task), \
+                patch_logger('vision_backend.tasks', 'info') \
+                    as tasks_logs, \
+                patch_logger('vision_backend.task_helpers', 'info') \
+                    as task_helpers_logs:
+
+            # Expected order of events here:
+            # - Collect a single train job, failed because training ran on the
+            #   new point locations + old features
+            # - Since it's the 1st train fail in a row, tries training a 2nd
+            #   time
+            # - Since jobs are synchronous in testing, collects the 2nd train
+            #   job while still in the job-collect loop. 2nd train failed
+            #   for the same reason
+            # - Does not reset features, since we're mocking reset features
+            #   to be a no-op
+            # - Tries training a 3rd time
+            # - Collects since we're still in the job-collect loop, failed
+            #   again for the same reason. Tries training a 4th time
+            # - Same thing, collects and fails. Mails admins
             collect_all_jobs()
-            self.assertIn(
-                f"Training failed for classifier {classifier_pk}.",
-                log_messages,
-                msg="Should log the appropriate message")
 
-        clf = Classifier.objects.get(pk=classifier_pk)
-        self.assertEqual(clf.status, Classifier.TRAIN_ERROR)
+            fail_messages = [
+                m for m in tasks_logs
+                if self.train_fail_log_regex.fullmatch(m)]
+            success_messages = [
+                m for m in task_helpers_logs
+                if self.train_success_log_regex.fullmatch(m)]
+            self.assertEqual(len(fail_messages), 4)
+            self.assertEqual(len(success_messages), 0)
 
-        # Now we'll ensure that the source can recover and retrain.
-        # First, run the reset-features tasks.
-        for image in self.source.image_set.all():
-            reset_features(image.pk)
-        # Collect feature extract jobs.
-        collect_all_jobs()
+        # Classifiers, earliest to latest
+        classifiers = self.source.classifier_set.order_by('pk')
+        classifier_statuses = [clf.status for clf in classifiers]
+        self.assertListEqual(
+            classifier_statuses,
+            [Classifier.TRAIN_ERROR]*4,
+            "Classifier statuses should be as expected")
 
-        # Try retraining. We'd expect this to happen with the periodic task
-        # which checks all sources to see if they need new classifiers.
-        submit_all_classifiers()
-        # Collect training job.
-        classifier_pk = self.source.get_latest_robot(only_accepted=False).pk
-        with patch_logger(
-                'vision_backend.task_helpers', 'info') as log_messages:
+        # Check for admin email
+        self.assertEqual(len(mail.outbox), 1, msg="Should have sent an email")
+        admin_email = mail.outbox[-1]
+        self.assertListEqual(
+            admin_email.to, ['admin@example.com'],
+            msg="Recipients should be correct")
+        self.assertListEqual(admin_email.cc, [], msg="cc should be empty")
+        self.assertListEqual(admin_email.bcc, [], msg="bcc should be empty")
+        self.assertEqual(
+            "[CoralNet] Spacer job failed", admin_email.subject,
+            msg="Subject should be correct")
+        self.assertIn(
+            "Traceback (most recent call last):", admin_email.body,
+            msg="Email body should contain the error")
+
+    @override_settings(MIN_NBR_ANNOTATED_IMAGES=spacer_config.MIN_TRAINIMAGES+1)
+    def test_point_feature_mismatch_retrain_success(self):
+        """
+        Point locations submitted to training do not match the feature vector's
+        point locations.
+        Feature re-extraction happens and retraining succeeds.
+        """
+        self.do_training_with_features_race_condition()
+
+        def mock_task(args, eta):
+            # Reset features and then collect jobs.
+            # Note that we mock apply_async(), not run(), so that we can call
+            # the task function directly here. This should avoid an infinite
+            # loop.
+            image_id = args[0]
+            reset_features(image_id)
             collect_all_jobs()
-            self.assertIn(
-                f"Classifier {classifier_pk}"
-                f" [Source: {self.source.name} [{self.source.pk}]]"
-                f" collected successfully.",
-                log_messages,
-                msg="Should log the appropriate message")
-        # Training should have succeeded this time.
-        accepted_robot = self.source.get_latest_robot(only_accepted=True)
-        self.assertIsNotNone(accepted_robot)
 
-    def test_points_dont_match_and_clf_already_deleted(self):
+        with \
+                mock.patch(
+                    'vision_backend.tasks.reset_features.apply_async',
+                    mock_task), \
+                patch_logger('vision_backend.tasks', 'info') \
+                    as tasks_logs, \
+                patch_logger('vision_backend.task_helpers', 'info') \
+                    as task_helpers_logs:
+
+            # Expected order of events here:
+            # - Collect a single train job, failed because training ran on the
+            #   new point locations + old features
+            # - Since it's the 1st train fail in a row, tries training a 2nd
+            #   time
+            # - Since jobs are synchronous in testing, collects the 2nd train
+            #   job while still in the job-collect loop. 2nd train failed
+            #   for the same reason
+            # - Resets features, and collects those jobs immediately, since
+            #   we're mocking reset features to call job collection right after
+            # - Tries training a 3rd time
+            # - Collects since we're still in the job-collect loop, succeeded
+            #   this time
+            collect_all_jobs()
+
+            fail_messages = [
+                m for m in tasks_logs
+                if self.train_fail_log_regex.fullmatch(m)]
+            success_messages = [
+                m for m in task_helpers_logs
+                if self.train_success_log_regex.fullmatch(m)]
+            self.assertEqual(len(fail_messages), 2)
+            self.assertEqual(len(success_messages), 1)
+
+        # Classifiers, earliest to latest
+        classifiers = self.source.classifier_set.order_by('pk')
+        classifier_statuses = [clf.status for clf in classifiers]
+        self.assertListEqual(
+            classifier_statuses,
+            [Classifier.TRAIN_ERROR]*2 + [Classifier.ACCEPTED],
+            "Classifier statuses should be as expected")
+
+        # Check for lack of admin mail
+        self.assertEqual(
+            len(mail.outbox), 0, msg="Should not have sent an email")
+
+    def test_point_feature_mismatch_and_clf_already_deleted(self):
         """
         Point locations race condition, plus the classifier is somehow already
         deleted before collecting the train job.

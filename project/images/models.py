@@ -403,33 +403,38 @@ class Source(models.Model):
         return self.classifier_set.filter(
             status=Classifier.ACCEPTED).order_by('-id')
 
-    def nbr_images_in_latest_robot(self):
-        # NOTE: Here we include also those not accepted.
-        robots = self.classifier_set.order_by('-id')
-        if robots.count() > 0:
-            return robots[0].nbr_train_images
-        else:
-            return 0
-
     def need_new_robot(self):
         """
-        Check whether there are sufficient number of newly annotated images to
-        train a new robot version.
-        Needs to be settings.NEW_MODEL_THRESHOLD more than used in the previous
-        model and > settings.MIN_NBR_ANNOTATED_IMAGES
+        Return True if the source needs to train a new robot, False otherwise.
         """
-        
-        nbr_verified_images_with_features = Image.objects.filter(
-            source=self, annoinfo__confirmed=True,
-            features__extracted=True).count()
+        if not self.enable_robot_classifier:
+            # This source has classifiers disabled.
+            return False
+
+        nbr_verified_images_with_features = self.image_set.filter(
+            annoinfo__confirmed=True, features__extracted=True).count()
+        if (nbr_verified_images_with_features
+                < settings.MIN_NBR_ANNOTATED_IMAGES):
+            # Not enough annotated images to train an initial classifier.
+            return False
+
+        latest_robot = self.get_latest_robot(only_accepted=False)
+        if not latest_robot:
+            # No classifier yet.
+            return True
+
+        # Method-level import to avoid circular module-level imports.
+        from vision_backend.models import Classifier
+        if latest_robot.status == Classifier.TRAIN_ERROR:
+            # Last training resulted in an error.
+            return True
+
+        # Check whether there are enough newly annotated images
+        # since the time the previous robot was trained.
         return (
             nbr_verified_images_with_features >
-            settings.NEW_CLASSIFIER_TRAIN_TH * self.nbr_images_in_latest_robot()
-            and
-            nbr_verified_images_with_features >=
-            settings.MIN_NBR_ANNOTATED_IMAGES
-            and
-            self.enable_robot_classifier)
+            settings.NEW_CLASSIFIER_TRAIN_TH * latest_robot.nbr_train_images
+        )
 
     def has_robot(self):
         """

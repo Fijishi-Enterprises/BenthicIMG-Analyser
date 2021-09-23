@@ -2,7 +2,7 @@ import posixpath
 
 from django.conf import settings
 from django.contrib.auth.models import User
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ImproperlyConfigured, ObjectDoesNotExist
 from django.core.mail import mail_admins
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
@@ -340,8 +340,8 @@ class Source(models.Model):
         return self.get_all_images().count()
 
     @property
-    def nbr_valid_robots(self):
-        return len(self.get_valid_robots())
+    def nbr_accepted_robots(self):
+        return len(self.get_accepted_robots())
 
     @property
     def best_robot_accuracy(self):
@@ -375,13 +375,13 @@ class Source(models.Model):
         return AnnotationAreaUtils.db_format_to_display(
             self.image_annotation_area)
 
-    def get_latest_robot(self, only_valid=True):
+    def get_latest_robot(self, only_accepted=True):
         """
         return the latest robot associated with this source.
         if no robots, return None
         """
-        if only_valid:
-            robots = self.get_valid_robots()
+        if only_accepted:
+            robots = self.get_accepted_robots()
             if robots.count() > 0:
                 return robots[0]
             else:
@@ -393,45 +393,54 @@ class Source(models.Model):
             else:
                 return None
 
-    def get_valid_robots(self):
+    def get_accepted_robots(self):
         """
-        returns a list of all robots that have valid metadata
+        Returns a list of all robots that have been accepted for use in the
+        source
         """
-        return self.classifier_set.filter(valid=True).order_by('-id')
-
-    def nbr_images_in_latest_robot(self):
-        # NOTE: Here we include also those not valid.
-        robots = self.classifier_set.order_by('-id')
-        if robots.count() > 0:
-            return robots[0].nbr_train_images
-        else:
-            return 0
+        # Method-level import to avoid circular module-level imports
+        from vision_backend.models import Classifier
+        return self.classifier_set.filter(
+            status=Classifier.ACCEPTED).order_by('-id')
 
     def need_new_robot(self):
         """
-        Check whether there are sufficient number of newly annotated images to
-        train a new robot version.
-        Needs to be settings.NEW_MODEL_THRESHOLD more than used in the previous
-        model and > settings.MIN_NBR_ANNOTATED_IMAGES
+        Return True if the source needs to train a new robot, False otherwise.
         """
-        
-        nbr_verified_images_with_features = Image.objects.filter(
-            source=self, annoinfo__confirmed=True,
-            features__extracted=True).count()
+        if not self.enable_robot_classifier:
+            # This source has classifiers disabled.
+            return False
+
+        nbr_verified_images_with_features = self.image_set.filter(
+            annoinfo__confirmed=True, features__extracted=True).count()
+        if (nbr_verified_images_with_features
+                < settings.MIN_NBR_ANNOTATED_IMAGES):
+            # Not enough annotated images to train an initial classifier.
+            return False
+
+        latest_robot = self.get_latest_robot(only_accepted=False)
+        if not latest_robot:
+            # No classifier yet.
+            return True
+
+        # Method-level import to avoid circular module-level imports.
+        from vision_backend.models import Classifier
+        if latest_robot.status == Classifier.TRAIN_ERROR:
+            # Last training resulted in an error.
+            return True
+
+        # Check whether there are enough newly annotated images
+        # since the time the previous robot was trained.
         return (
             nbr_verified_images_with_features >
-            settings.NEW_CLASSIFIER_TRAIN_TH * self.nbr_images_in_latest_robot()
-            and
-            nbr_verified_images_with_features >=
-            settings.MIN_NBR_ANNOTATED_IMAGES
-            and
-            self.enable_robot_classifier)
+            settings.NEW_CLASSIFIER_TRAIN_TH * latest_robot.nbr_train_images
+        )
 
     def has_robot(self):
         """
-        Returns true if source has a robot.
+        Returns True if source has an accepted robot.
         """
-        return self.get_valid_robots().count() > 0
+        return self.get_accepted_robots().count() > 0
         
     def all_image_names_are_unique(self):
         """
@@ -461,7 +470,8 @@ class Source(models.Model):
         """
         field_names = ['pk', 'name', 'longitude', 'latitude', 'create_date',
                        'nbr_confirmed_images', 'nbr_images', 'description',
-                       'affiliation', 'nbr_valid_robots', 'best_robot_accuracy']
+                       'affiliation', 'nbr_accepted_robots',
+                       'best_robot_accuracy']
 
         return {field: str(getattr(self, field)) for
                 field in field_names}
@@ -672,10 +682,30 @@ class Image(models.Model):
 
     @property
     def valset(self):
-        return self.pk % 8 == 0
+        """
+        Returns True if the image is considered part of the validation set
+        (not the training set) when creating a new classifier, else False.
+        """
+        if settings.VALSET_SELECTION_METHOD == 'id':
+            # This is a very simple method, but can make unit tests
+            # unpredictable.
+            return self.pk % 8 == 0
+        if settings.VALSET_SELECTION_METHOD == 'name':
+            # This is unsuitable for production use, since users should be able
+            # to give images any names they want. But this is useful for unit
+            # tests, where we want predictability (and sometimes precise
+            # control) regarding which images are in the validation set.
+            return self.metadata.name.startswith('val')
+        raise ImproperlyConfigured(
+            "Unrecognized VALSET_SELECTION_METHOD: {}".format(
+                settings.VALSET_SELECTION_METHOD))
 
     @property
     def trainset(self):
+        """
+        Returns True if the image is considered part of the training set
+        (not the validation set) when creating a new classifier, else False.
+        """
         return not self.valset
 
     @property

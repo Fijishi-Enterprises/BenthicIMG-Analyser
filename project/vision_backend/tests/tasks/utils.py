@@ -1,5 +1,3 @@
-from unittest import mock
-
 from django.core.files.storage import get_storage_class
 from django.test import override_settings
 import spacer.config as spacer_config
@@ -8,21 +6,6 @@ from images.model_utils import PointGen
 from lib.tests.utils import ClientTest
 from upload.tests.utils import UploadAnnotationsTestMixin
 from vision_backend.tasks import collect_all_jobs, submit_classifier
-
-
-class MockImage:
-    # Prevent IDE warning about unresolved attribute.
-    metadata = None
-
-    @property
-    def valset(self):
-        """
-        It can be tricky to assert on train set / validation set when it's
-        based on image primary key. Make it based on the image name
-        instead. If name starts with 'val', it's in val set. Else, it's in
-        train set.
-        """
-        return self.metadata.name.startswith('val')
 
 
 # Note that spacer also has its own minimum image count for training.
@@ -62,10 +45,6 @@ class BaseTaskTest(ClientTest, UploadAnnotationsTestMixin):
             self.upload_image_with_annotations(
                 'val{}.png'.format(self.image_count))
 
-    def submit_classifier_with_filename_based_valset(self, source_id):
-        with mock.patch('images.models.Image.valset', MockImage.valset):
-            return submit_classifier(source_id)
-
     def upload_data_and_train_classifier(self):
         # Provide enough data for training
         self.upload_images_for_training(
@@ -74,7 +53,7 @@ class BaseTaskTest(ClientTest, UploadAnnotationsTestMixin):
         collect_all_jobs()
 
         # Train classifier
-        self.submit_classifier_with_filename_based_valset(self.source.pk)
+        submit_classifier(self.source.pk)
         collect_all_jobs()
 
     def upload_image_and_machine_classify(self, user, source):

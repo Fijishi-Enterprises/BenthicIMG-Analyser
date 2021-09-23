@@ -78,6 +78,9 @@ test_settings['CELERY_ALWAYS_EAGER'] = True
 # Also force spacer jobs to use the dummy extractor.
 # Otherwise tests will run slow.
 test_settings['FORCE_DUMMY_EXTRACTOR'] = True
+# Validation sets vs. training sets should be completely predictable in
+# unit tests.
+test_settings['VALSET_SELECTION_METHOD'] = 'name'
 
 
 # Abstract class
@@ -1116,7 +1119,7 @@ def create_robot(source):
         nbr_train_images=50,
         runtime_train=100,
         accuracy=0.50,
-        valid=True,
+        status=Classifier.ACCEPTED,
     )
     classifier.save()
     return classifier

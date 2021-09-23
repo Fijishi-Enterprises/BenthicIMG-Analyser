@@ -191,7 +191,7 @@ def source_main(request, source_id):
         ))
 
     # Setup the classifier overview plot
-    clfs = source.get_valid_robots()
+    clfs = source.get_accepted_robots()
     robot_stats = dict()
     if clfs.count() > 0:
         backend_plot_data = []
@@ -207,9 +207,9 @@ def source_main(request, source_id):
         robot_stats['backend_plot_data'] = backend_plot_data
         robot_stats['has_robot'] = True
         robot_stats['create_date_saved'] = source.get_latest_robot(
-            only_valid=True).create_date
+            only_accepted=True).create_date
         robot_stats['create_date_trained'] = source.get_latest_robot(
-            only_valid=False).create_date
+            only_accepted=False).create_date
     else:
         robot_stats['has_robot'] = False
 

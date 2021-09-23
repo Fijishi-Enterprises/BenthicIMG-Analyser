@@ -5,7 +5,7 @@
 
 <p>There are {{img_stats.nimgs}} images on the site out of which {{img_stats.nextracted}} ({{img_stats.fextracted}}%) have features, {{img_stats.nconfirmed}} ({{img_stats.fconfirmed}}%) are confirmed and {{img_stats.nclassified}} ({{img_stats.fclassified}}%) classified. {{img_stats.nnaked}} are neither classified nor confirmed ({{img_stats.fnaked}}%).</p>
 
-<p>There are {{clf_stats.nclassifiers}} trained classifieres out of which {{clf_stats.nvalidclassifiers}} are valid. This means there are on average {{clf_stats.valid_ratio}} valid classifiers per each of the {{clf_stats.nsources}} sources. </p>
+<p>There are {{clf_stats.nclassifiers}} trained classifiers out of which {{clf_stats.nacceptedclassifiers}} are accepted. This means there are on average {{clf_stats.accepted_ratio}} accepted classifiers per each of the {{clf_stats.nsources}} sources. </p>
 
 <table class="detail_table_popup">
     <tr>
@@ -32,7 +32,7 @@
         {% endif %}
         <td> <a href="{% url 'source_main' source.id %}">{{source.id}}</a></td>
         <td> {{source.name_short}} </td>
-        <td> {{source.nbr_valid_robots}} </td>
+        <td> {{source.nbr_accepted_robots}} </td>
         <td> {{source.nbr_robots}} </td>
         <td> {{source.need_robot}} </td>
         <td> {{source.nbr_total_images}} </td>

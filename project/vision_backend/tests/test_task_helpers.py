@@ -3,8 +3,9 @@ from lib.tests.utils import ClientTest
 from annotations.models import Label
 
 from api_core.models import ApiJob, ApiJobUnit
-from vision_backend.task_helpers import deploycollector, deploy_fail, \
-    encode_spacer_job_token
+from vision_backend.task_helpers import (
+    deploycollector, encode_spacer_job_token)
+from vision_backend.tasks import deploy_fail
 
 from spacer.messages import ClassifyImageMsg, JobMsg, JobReturnMsg, \
     ClassifyReturnMsg, DataLocation

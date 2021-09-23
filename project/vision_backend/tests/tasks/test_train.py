@@ -1,15 +1,21 @@
+import csv
 import math
+from io import StringIO
+import re
 from unittest import mock
 
 from django.conf import settings
+from django.core import mail
+from django.core.files.base import ContentFile
 from django.core.files.storage import get_storage_class
 from django.test import override_settings
 from django.test.utils import patch_logger
+from django.urls import reverse
 import spacer.config as spacer_config
 from spacer.data_classes import ValResults
 
-from vision_backend.models import Classifier
-from vision_backend.tasks import collect_all_jobs
+from ...models import Classifier
+from ...tasks import collect_all_jobs, reset_features, submit_classifier
 from .utils import BaseTaskTest
 
 
@@ -22,8 +28,7 @@ class TrainClassifierTest(BaseTaskTest):
         collect_all_jobs()
 
         # Create a classifier
-        job_msg = self.submit_classifier_with_filename_based_valset(
-            self.source.id)
+        job_msg = submit_classifier(self.source.id)
 
         # This source should now have a classifier (though not trained yet)
         self.assertTrue(
@@ -34,9 +39,9 @@ class TrainClassifierTest(BaseTaskTest):
 
         # Now we should have a trained classifier whose accuracy is the best so
         # far (due to having no previous classifiers), and thus it should have
-        # been marked as valid
+        # been marked as accepted
         latest_classifier = self.source.get_latest_robot()
-        self.assertTrue(latest_classifier.valid)
+        self.assertEqual(latest_classifier.status, Classifier.ACCEPTED)
 
         # Also check that the actual classifier is created in storage.
         storage = get_storage_class()()
@@ -56,7 +61,7 @@ class TrainClassifierTest(BaseTaskTest):
 
     def test_train_second_classifier(self):
         """
-        Train a second valid classifier in a source which already has a valid
+        Accept a second classifier in a source which already has an accepted
         classifier.
         """
         def mock_train_msg_1(
@@ -77,7 +82,7 @@ class TrainClassifierTest(BaseTaskTest):
         self.upload_images_for_training(
             train_image_count=spacer_config.MIN_TRAINIMAGES, val_image_count=1)
         collect_all_jobs()
-        self.submit_classifier_with_filename_based_valset(self.source.id)
+        submit_classifier(self.source.id)
         # Collect classifier. Use mock to specify a particular accuracy.
         with mock.patch(
                 'spacer.messages.TrainClassifierReturnMsg.__init__',
@@ -96,9 +101,9 @@ class TrainClassifierTest(BaseTaskTest):
         # Collect extracted features.
         collect_all_jobs()
 
-        self.submit_classifier_with_filename_based_valset(self.source.id)
+        submit_classifier(self.source.id)
         # Collect classifier. Use mock to ensure a high enough accuracy
-        # improvement to consider the classifier valid.
+        # improvement to consider the classifier accepted.
         with mock.patch(
                 'spacer.messages.TrainClassifierReturnMsg.__init__',
                 mock_train_msg_2):
@@ -134,8 +139,7 @@ class TrainClassifierTest(BaseTaskTest):
         collect_all_jobs()
 
         # Train classifier
-        job_msg = self.submit_classifier_with_filename_based_valset(
-            self.source.id)
+        job_msg = submit_classifier(self.source.id)
         collect_all_jobs()
 
         # Check training data
@@ -178,10 +182,10 @@ class TrainClassifierTest(BaseTaskTest):
             len(self.rowcols_with_dupes_included), len(val_res.gt),
             "Valresults count should include dupe points")
 
-        # Check that there's a valid classifier.
+        # Check that there's an accepted classifier.
 
         latest_classifier = self.source.get_latest_robot()
-        self.assertTrue(latest_classifier.valid)
+        self.assertEqual(latest_classifier.status, Classifier.ACCEPTED)
 
 
 class AbortCasesTest(BaseTaskTest):
@@ -199,7 +203,7 @@ class AbortCasesTest(BaseTaskTest):
         source.delete()
 
         with patch_logger('vision_backend.tasks', 'info') as log_messages:
-            self.submit_classifier_with_filename_based_valset(source_id)
+            submit_classifier(source_id)
 
             log_message = "Can't find source [{}]".format(source_id)
             self.assertIn(
@@ -218,7 +222,7 @@ class AbortCasesTest(BaseTaskTest):
         self.source.save()
 
         with patch_logger('vision_backend.tasks', 'info') as log_messages:
-            self.submit_classifier_with_filename_based_valset(self.source.pk)
+            submit_classifier(self.source.pk)
 
             log_message = "Source {} [{}] don't need new classifier.".format(
                 self.source.name, self.source.pk)
@@ -241,8 +245,7 @@ class AbortCasesTest(BaseTaskTest):
 
         with patch_logger('vision_backend.tasks', 'info') as log_messages:
             with override_settings(MIN_NBR_ANNOTATED_IMAGES=min_images):
-                self.submit_classifier_with_filename_based_valset(
-                    self.source.pk)
+                submit_classifier(self.source.pk)
 
             log_message = "Source {} [{}] don't need new classifier.".format(
                 self.source.name, self.source.pk)
@@ -259,17 +262,239 @@ class AbortCasesTest(BaseTaskTest):
         self.upload_images_for_training(
             train_image_count=spacer_config.MIN_TRAINIMAGES, val_image_count=1)
         collect_all_jobs()
-        self.submit_classifier_with_filename_based_valset(self.source.pk)
+        submit_classifier(self.source.pk)
         collect_all_jobs()
 
         # Attempt to train another classifier without adding more images.
         with patch_logger('vision_backend.tasks', 'info') as log_messages:
-            self.submit_classifier_with_filename_based_valset(self.source.pk)
+            submit_classifier(self.source.pk)
 
             log_message = "Source {} [{}] don't need new classifier.".format(
                 self.source.name, self.source.pk)
             self.assertIn(
                 log_message, log_messages,
+                "Should log the appropriate message")
+
+    def test_not_enough_train_data_since_last_classifier_submission(self):
+        """
+        Try to train when there haven't been enough training images added
+        since the last training submission (which hasn't completed yet).
+        """
+        # Train one classifier.
+        self.upload_images_for_training(
+            train_image_count=spacer_config.MIN_TRAINIMAGES, val_image_count=1)
+        collect_all_jobs()
+        submit_classifier(self.source.pk)
+        # Don't collect the training job.
+
+        # Attempt to train another classifier without adding more images.
+        with patch_logger('vision_backend.tasks', 'info') as log_messages:
+            submit_classifier(self.source.pk)
+
+            log_message = "Source {} [{}] don't need new classifier.".format(
+                self.source.name, self.source.pk)
+            self.assertIn(
+                log_message, log_messages,
+                "Should log the appropriate message")
+
+    def do_training_with_features_race_condition(self):
+        # Upload enough images for training, but don't annotate yet.
+        # This should submit feature extract jobs.
+        for i in range(spacer_config.MIN_TRAINIMAGES):
+            self.upload_image(
+                self.user, self.source,
+                image_options=dict(filename=f'train{i}.png'))
+        for i in range(1):
+            self.upload_image(
+                self.user, self.source,
+                image_options=dict(filename=f'val{i}.png'))
+        # Collect the feature extract jobs.
+        collect_all_jobs()
+
+        # Prepare points + annotations.
+        stream = StringIO()
+        writer = csv.writer(stream)
+        writer.writerow(['Name', 'Column', 'Row', 'Label'])
+        for image in self.source.image_set.all():
+            # Training data must have at least 2 distinct labels.
+            writer.writerow([image.metadata.name, 10, 10, 'A'])
+            writer.writerow([image.metadata.name, 20, 20, 'B'])
+        csv_file = ContentFile(stream.getvalue(), name='annotations.csv')
+
+        self.client.force_login(self.user)
+        self.client.post(
+            reverse(
+                'upload_annotations_csv_preview_ajax', args=[self.source.pk]),
+            {'csv_file': csv_file},
+        )
+        # Upload points + annotations for all those images. This should submit
+        # a training job, but not features jobs, because we'll prevent the
+        # reset_features tasks from running to simulate having a delay in those
+        # tasks.
+        def noop_task(*args):
+            pass
+        with mock.patch('vision_backend.tasks.reset_features.run', noop_task):
+            self.client.post(
+                reverse('upload_annotations_ajax', args=[self.source.pk]),
+            )
+
+    train_fail_log_regex = re.compile(
+        r'Training failed for classifier \d+\.')
+    train_success_log_regex = re.compile(
+        r'Classifier \d+ \[Source: [\w\s]+ \[\d+]] collected successfully.')
+
+    @override_settings(MIN_NBR_ANNOTATED_IMAGES=spacer_config.MIN_TRAINIMAGES+1)
+    @override_settings(ADMINS=[('Admin', 'admin@example.com')])
+    def test_point_feature_mismatch_mail_admins(self):
+        """
+        Point locations submitted to training do not match the feature vector's
+        point locations.
+        Feature re-extraction does not happen for whatever reason,
+        retraining attempts fail, and admins get mailed.
+        """
+        self.do_training_with_features_race_condition()
+
+        def noop_task(*args):
+            pass
+
+        with \
+                mock.patch(
+                    'vision_backend.tasks.reset_features.run', noop_task), \
+                patch_logger('vision_backend.tasks', 'info') \
+                    as tasks_logs, \
+                patch_logger('vision_backend.task_helpers', 'info') \
+                    as task_helpers_logs:
+
+            # Expected order of events here:
+            # - Collect a single train job, failed because training ran on the
+            #   new point locations + old features
+            # - Since it's the 1st train fail in a row, tries training a 2nd
+            #   time
+            # - Since jobs are synchronous in testing, collects the 2nd train
+            #   job while still in the job-collect loop. 2nd train failed
+            #   for the same reason
+            # - Does not reset features, since we're mocking reset features
+            #   to be a no-op
+            # - Tries training a 3rd time
+            # - Collects since we're still in the job-collect loop, failed
+            #   again for the same reason. Tries training a 4th time
+            # - Same thing, collects and fails. Mails admins
+            collect_all_jobs()
+
+            fail_messages = [
+                m for m in tasks_logs
+                if self.train_fail_log_regex.fullmatch(m)]
+            success_messages = [
+                m for m in task_helpers_logs
+                if self.train_success_log_regex.fullmatch(m)]
+            self.assertEqual(len(fail_messages), 4)
+            self.assertEqual(len(success_messages), 0)
+
+        # Classifiers, earliest to latest
+        classifiers = self.source.classifier_set.order_by('pk')
+        classifier_statuses = [clf.status for clf in classifiers]
+        self.assertListEqual(
+            classifier_statuses,
+            [Classifier.TRAIN_ERROR]*4,
+            "Classifier statuses should be as expected")
+
+        # Check for admin email
+        self.assertEqual(len(mail.outbox), 1, msg="Should have sent an email")
+        admin_email = mail.outbox[-1]
+        self.assertListEqual(
+            admin_email.to, ['admin@example.com'],
+            msg="Recipients should be correct")
+        self.assertListEqual(admin_email.cc, [], msg="cc should be empty")
+        self.assertListEqual(admin_email.bcc, [], msg="bcc should be empty")
+        self.assertEqual(
+            "[CoralNet] Spacer job failed", admin_email.subject,
+            msg="Subject should be correct")
+        self.assertIn(
+            "Traceback (most recent call last):", admin_email.body,
+            msg="Email body should contain the error")
+
+    @override_settings(MIN_NBR_ANNOTATED_IMAGES=spacer_config.MIN_TRAINIMAGES+1)
+    def test_point_feature_mismatch_retrain_success(self):
+        """
+        Point locations submitted to training do not match the feature vector's
+        point locations.
+        Feature re-extraction happens and retraining succeeds.
+        """
+        self.do_training_with_features_race_condition()
+
+        def mock_task(args, eta):
+            # Reset features and then collect jobs.
+            # Note that we mock apply_async(), not run(), so that we can call
+            # the task function directly here. This should avoid an infinite
+            # loop.
+            image_id = args[0]
+            reset_features(image_id)
+            collect_all_jobs()
+
+        with \
+                mock.patch(
+                    'vision_backend.tasks.reset_features.apply_async',
+                    mock_task), \
+                patch_logger('vision_backend.tasks', 'info') \
+                    as tasks_logs, \
+                patch_logger('vision_backend.task_helpers', 'info') \
+                    as task_helpers_logs:
+
+            # Expected order of events here:
+            # - Collect a single train job, failed because training ran on the
+            #   new point locations + old features
+            # - Since it's the 1st train fail in a row, tries training a 2nd
+            #   time
+            # - Since jobs are synchronous in testing, collects the 2nd train
+            #   job while still in the job-collect loop. 2nd train failed
+            #   for the same reason
+            # - Resets features, and collects those jobs immediately, since
+            #   we're mocking reset features to call job collection right after
+            # - Tries training a 3rd time
+            # - Collects since we're still in the job-collect loop, succeeded
+            #   this time
+            collect_all_jobs()
+
+            fail_messages = [
+                m for m in tasks_logs
+                if self.train_fail_log_regex.fullmatch(m)]
+            success_messages = [
+                m for m in task_helpers_logs
+                if self.train_success_log_regex.fullmatch(m)]
+            self.assertEqual(len(fail_messages), 2)
+            self.assertEqual(len(success_messages), 1)
+
+        # Classifiers, earliest to latest
+        classifiers = self.source.classifier_set.order_by('pk')
+        classifier_statuses = [clf.status for clf in classifiers]
+        self.assertListEqual(
+            classifier_statuses,
+            [Classifier.TRAIN_ERROR]*2 + [Classifier.ACCEPTED],
+            "Classifier statuses should be as expected")
+
+        # Check for lack of admin mail
+        self.assertEqual(
+            len(mail.outbox), 0, msg="Should not have sent an email")
+
+    def test_point_feature_mismatch_and_clf_already_deleted(self):
+        """
+        Point locations race condition, plus the classifier is somehow already
+        deleted before collecting the train job.
+        """
+        self.do_training_with_features_race_condition()
+
+        classifier = self.source.get_latest_robot(only_accepted=False)
+        classifier_pk = classifier.pk
+        classifier.delete()
+
+        with patch_logger(
+                'vision_backend.tasks', 'info') as log_messages:
+            collect_all_jobs()
+
+            self.assertIn(
+                f"Training failed for classifier {classifier_pk}, although the"
+                " classifier was already deleted.",
+                log_messages,
                 "Should log the appropriate message")
 
     def test_classifier_deleted_before_collection(self):
@@ -280,9 +505,9 @@ class AbortCasesTest(BaseTaskTest):
         self.upload_images_for_training(
             train_image_count=spacer_config.MIN_TRAINIMAGES, val_image_count=1)
         collect_all_jobs()
-        msg = self.submit_classifier_with_filename_based_valset(self.source.pk)
+        msg = submit_classifier(self.source.pk)
 
-        clf = self.source.get_latest_robot(only_valid=False)
+        clf = self.source.get_latest_robot(only_accepted=False)
         clf.delete()
 
         with patch_logger(
@@ -295,7 +520,7 @@ class AbortCasesTest(BaseTaskTest):
                 log_message, log_messages,
                 "Should log the appropriate message")
 
-    def test_classifier_not_valid(self):
+    def test_classifier_rejected(self):
         """
         Run the train task, then collect the classifier and find that it's
         not enough of an improvement over the previous.
@@ -311,7 +536,7 @@ class AbortCasesTest(BaseTaskTest):
         self.upload_images_for_training(
             train_image_count=spacer_config.MIN_TRAINIMAGES, val_image_count=1)
         collect_all_jobs()
-        self.submit_classifier_with_filename_based_valset(self.source.pk)
+        submit_classifier(self.source.pk)
         collect_all_jobs()
 
         # Upload enough additional images for the next training to happen.
@@ -322,7 +547,7 @@ class AbortCasesTest(BaseTaskTest):
         self.upload_images_for_training(
             train_image_count=added_image_count, val_image_count=0)
         collect_all_jobs()
-        self.submit_classifier_with_filename_based_valset(self.source.pk)
+        submit_classifier(self.source.pk)
 
         with patch_logger(
                 'vision_backend.task_helpers', 'info') as log_messages:
@@ -334,10 +559,11 @@ class AbortCasesTest(BaseTaskTest):
                         mock_train_msg):
                     collect_all_jobs()
 
-            clf = self.source.get_latest_robot(only_valid=False)
+            clf = self.source.get_latest_robot(only_accepted=False)
+            self.assertEqual(clf.status, Classifier.REJECTED_ACCURACY)
             log_message = (
                 "Classifier {} [Source: {} [{}]] "
-                "worse than previous. Not validated. Max previous: {:.2f}, "
+                "worse than previous. Not accepted. Max previous: {:.2f}, "
                 "threshold: {:.2f}, this: {:.2f}".format(
                     clf.pk, self.source, self.source.pk,
                     0.5, 0.5*1.4, 0.6))

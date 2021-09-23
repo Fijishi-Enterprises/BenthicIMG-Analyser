@@ -18,8 +18,7 @@ from spacer.messages import \
     TrainClassifierMsg, \
     TrainClassifierReturnMsg, \
     ClassifyImageMsg, \
-    ClassifyReturnMsg, \
-    JobReturnMsg
+    ClassifyReturnMsg
 
 
 from annotations.models import Annotation
@@ -219,8 +218,11 @@ def classifiercollector(task: TrainClassifierMsg,
     # improvement, abort without validating the new classifier.
     if len(prev_pks) > 0 and max(res.pc_accs) * \
             settings.NEW_CLASSIFIER_IMPROVEMENT_TH > res.acc:
+
+        classifier.status = Classifier.REJECTED_ACCURACY
+        classifier.save()
         logger.info(
-            "{} worse than previous. Not validated. Max previous: {:.2f}, "
+            "{} worse than previous. Not accepted. Max previous: {:.2f}, "
             "threshold: {:.2f}, this: {:.2f}".format(
                 log_str,
                 max(res.pc_accs),
@@ -234,8 +236,8 @@ def classifiercollector(task: TrainClassifierMsg,
         pc.accuracy = pc_acc
         pc.save()
 
-    # Validate and save the current model
-    classifier.valid = True
+    # Accept and save the current model
+    classifier.status = Classifier.ACCEPTED
     classifier.save()
     logger.info("{} collected successfully.".format(log_str))
     return True
@@ -298,22 +300,4 @@ def deploycollector(task: ClassifyImageMsg, res: ClassifyReturnMsg):
         points=build_points_dicts(classifier.source.labelset)
     )
     job_unit.status = ApiJobUnit.SUCCESS
-    job_unit.save()
-
-
-def deploy_fail(job_return_msg: JobReturnMsg):
-
-    pk = decode_spacer_job_token(
-        job_return_msg.original_job.tasks[0].job_token)[0]
-    try:
-        job_unit = ApiJobUnit.objects.get(pk=pk)
-    except ApiJobUnit.DoesNotExist:
-        logger.info("Job unit of id {} does not exist.".format(pk))
-        return
-
-    job_unit.result_json = dict(
-        url=job_unit.request_json['url'],
-        errors=[job_return_msg.error_message],
-    )
-    job_unit.status = ApiJobUnit.FAILURE
     job_unit.save()

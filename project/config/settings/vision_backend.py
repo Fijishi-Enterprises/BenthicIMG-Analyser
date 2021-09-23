@@ -24,6 +24,11 @@ ROBOT_MODEL_VALRESULT_PATTERN = 'classifiers/{pk}.valresult'
 BATCH_JOB_PATTERN = 'batch_jobs/{pk}_job_msg.json'
 BATCH_RES_PATTERN = 'batch_jobs/{pk}_job_res.json'
 
+# Method of selecting images for the validation set vs. the training set.
+# See Image.valset() definition for the possible choices and how they're
+# implemented.
+VALSET_SELECTION_METHOD = 'id'
+
 # This indicates the max number of scores we store per point.
 NBR_SCORES_PER_ANNOTATION = 5
 

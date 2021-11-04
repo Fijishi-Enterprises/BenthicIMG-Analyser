@@ -16,11 +16,14 @@ class Classifier(models.Model):
     source = models.ForeignKey('images.Source', on_delete=models.CASCADE)
 
     TRAIN_PENDING = 'PN'
+    LACKING_UNIQUE_LABELS = 'UQ'
     TRAIN_ERROR = 'ER'
     REJECTED_ACCURACY = 'RJ'
     ACCEPTED = 'AC'
     STATUS_CHOICES = [
         (TRAIN_PENDING, "Training pending"),
+        (LACKING_UNIQUE_LABELS,
+         "Declined because the training labelset only had one unique label"),
         (TRAIN_ERROR, "Training got an error"),
         (REJECTED_ACCURACY, "Rejected because accuracy didn't improve enough"),
         (ACCEPTED, "Accepted as new classifier"),

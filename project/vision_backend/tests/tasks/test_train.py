@@ -297,6 +297,51 @@ class AbortCasesTest(BaseTaskTest):
                 log_message, log_messages,
                 "Should log the appropriate message")
 
+    def test_one_unique_label(self):
+        """
+        Try to train when the training labelset ends up only having 1 unique
+        label.
+        """
+        # Train data will have 2 unique labels, but val data will only have 1.
+        # The intersection of the train data labelset and the val data labelset
+        # is the training labelset. That labelset will be size 1 (only A),
+        # thus fulfilling our test conditions.
+        for _ in range(spacer_config.MIN_TRAINIMAGES):
+            img = self.upload_image(
+                self.user, self.source, image_options=dict(
+                    filename=f'train{self.image_count}.png'))
+            self.add_annotations(
+                self.user, img, {1: 'A', 2: 'B', 3: 'A', 4: 'A', 5: 'B'})
+        for _ in range(1):
+            img = self.upload_image(
+                self.user, self.source, image_options=dict(
+                    filename=f'val{self.image_count}.png'))
+            self.add_annotations(
+                self.user, img, {1: 'A', 2: 'A', 3: 'A', 4: 'A', 5: 'A'})
+        collect_all_jobs()
+
+        with patch_logger('vision_backend.tasks', 'info') as log_messages:
+            submit_classifier(self.source.pk)
+
+            classifier = self.source.get_latest_robot(only_accepted=False)
+            self.assertEqual(
+                classifier.status, Classifier.LACKING_UNIQUE_LABELS,
+                msg="Classifier status should be correct")
+
+            source = self.source
+            log_message = (
+                f"Classifier {classifier.pk} for source {source.name}"
+                f" [{source.pk}] was declined training, because the training"
+                f" labelset ended up only having one unique label. Training"
+                f" requires at least 2 unique labels.")
+            self.assertIn(
+                log_message, log_messages,
+                msg="Should log the appropriate message")
+
+        self.assertFalse(
+            self.source.need_new_robot(),
+            msg="Source should not immediately be considered for retraining")
+
     def do_training_with_features_race_condition(self):
         # Upload enough images for training, but don't annotate yet.
         # This should submit feature extract jobs.

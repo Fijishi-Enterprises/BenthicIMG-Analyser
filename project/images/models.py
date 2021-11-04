@@ -430,7 +430,7 @@ class Source(models.Model):
             return True
 
         # Check whether there are enough newly annotated images
-        # since the time the previous robot was trained.
+        # since the time the previous classifier was submitted.
         return (
             nbr_verified_images_with_features >
             settings.NEW_CLASSIFIER_TRAIN_TH * latest_robot.nbr_train_images

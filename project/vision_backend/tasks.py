@@ -114,6 +114,24 @@ def submit_classifier(source_id, nbr_images=1e5, force=False):
     # Create val-labels
     val_labels = th.make_dataset([image for image in images if image.valset])
 
+    # Identify classes common to both train and val. This will be our labelset
+    # for the training.
+    # Here we check that there are at least 2 unique labels for training. If
+    # not, we can get stuck in an error loop if we proceed to submit training
+    # (see issue #412), so we don't submit training.
+    train_data_classes = train_labels.unique_classes(train_labels.image_keys)
+    val_data_classes = val_labels.unique_classes(val_labels.image_keys)
+    training_classes = train_data_classes.intersection(val_data_classes)
+    if len(training_classes) <= 1:
+        classifier.status = Classifier.LACKING_UNIQUE_LABELS
+        classifier.save()
+        logger.info(
+            f"Classifier {classifier.pk} for source {source.name}"
+            f" [{source.pk}] was declined training, because the training"
+            f" labelset ended up only having one unique label. Training"
+            f" requires at least 2 unique labels.")
+        return
+
     # This will not include the one we just created, b/c status isn't accepted.
     prev_classifiers = source.get_accepted_robots()
 

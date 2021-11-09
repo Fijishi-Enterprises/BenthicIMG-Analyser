@@ -8,6 +8,8 @@ Website home: https://coralnet.ucsd.edu
 
 Read more about us: https://coralnet.ucsd.edu/about/
 
+CoralNet's machine-learning processes are powered by PySpacer: https://github.com/beijbom/pyspacer
+
 
 ## Building and viewing the documentation
 

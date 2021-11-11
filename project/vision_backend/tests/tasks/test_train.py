@@ -521,6 +521,7 @@ class AbortCasesTest(BaseTaskTest):
         self.assertEqual(
             len(mail.outbox), 0, msg="Should not have sent an email")
 
+    @override_settings(MIN_NBR_ANNOTATED_IMAGES=spacer_config.MIN_TRAINIMAGES+1)
     def test_point_feature_mismatch_and_clf_already_deleted(self):
         """
         Point locations race condition, plus the classifier is somehow already

@@ -44,7 +44,9 @@ class ImageDetailTest(ClientTest):
         super().setUpTestData()
 
         cls.user = cls.create_user()
-        cls.source = cls.create_source(cls.user)
+        cls.source = cls.create_source(cls.user, simple_number_of_points=2)
+        cls.labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
+        cls.create_labelset(cls.user, cls.source, cls.labels)
 
     def test_page_with_small_image(self):
         small_image = self.upload_image(
@@ -101,6 +103,35 @@ class ImageDetailTest(ClientTest):
         self.assertInHTML(
             '<a href="{}" title="2.png"> &lt; Previous</a>'.format(
                 reverse('image_detail', args=[img2.pk])),
+            response.content.decode())
+
+    def test_annotation_status_text(self):
+        """Test all the possible annotation-status displays on this page."""
+        image = self.upload_image(self.user, self.source)
+
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('image_detail', args=[image.pk]))
+        self.assertInHTML(
+            'Annotation status: <b>Not started</b>',
+            response.content.decode())
+
+        robot = self.create_robot(self.source)
+        self.add_robot_annotations(robot, image)
+        response = self.client.get(reverse('image_detail', args=[image.pk]))
+        self.assertInHTML(
+            'Annotation status: <b>Unconfirmed</b>',
+            response.content.decode())
+
+        self.add_annotations(self.user, image, {1: 'A'})
+        response = self.client.get(reverse('image_detail', args=[image.pk]))
+        self.assertInHTML(
+            'Annotation status: <b>Partially confirmed</b>',
+            response.content.decode())
+
+        self.add_annotations(self.user, image, {2: 'B'})
+        response = self.client.get(reverse('image_detail', args=[image.pk]))
+        self.assertInHTML(
+            'Annotation status: <b>Confirmed (completed)</b>',
             response.content.decode())
 
 

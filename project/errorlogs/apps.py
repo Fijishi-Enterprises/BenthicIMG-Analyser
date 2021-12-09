@@ -1,17 +1,14 @@
-# This app is based on this SO answer:
+# This app is roughly based on:
+# https://github.com/mhsiddiqui/django-error-report
+#
+# And originally this SO answer, which used a signal instead of middleware,
+# but saving the logs to the DB ended up not meshing well with the timing of
+# DB transactions:
 # http://stackoverflow.com/a/7579467
 
 from django.apps import AppConfig
-from django.core.signals import got_request_exception
 
 
 class ErrorlogsConfig(AppConfig):
     name = 'errorlogs'
     verbose_name = "Error Logs"
-
-    def ready(self):
-        # Putting this import at the top of the module gets an
-        # AppRegistryNotReady exception, so we put it here instead.
-        from . import signals
-
-        got_request_exception.connect(signals.handle_request_exception)

@@ -217,6 +217,8 @@ INSTALLED_APPS = [
 # https://docs.djangoproject.com/en/dev/topics/http/middleware/
 MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
+    # Save error logs to the database
+    'errorlogs.middleware.SaveLogsToDatabaseMiddleware',
     # Manages sessions across requests; required for auth
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.locale.LocaleMiddleware',

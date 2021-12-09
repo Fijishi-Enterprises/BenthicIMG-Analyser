@@ -73,9 +73,6 @@ def browse_images(request, source_id):
             annotation_tool_page_results=
                 [reverse('annotation_tool', args=[pk])
                  for pk in page_image_ids],
-            delete=reverse('browse_delete_ajax', args=[source.pk]),
-            export_annotations_cpc_create_ajax=
-                reverse('export_annotations_cpc_create_ajax', args=[source.pk]),
         )
         previous_cpcs_status = get_previous_cpcs_status(image_results)
     else:

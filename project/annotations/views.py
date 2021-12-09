@@ -7,6 +7,7 @@ from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import render, get_object_or_404
 from django.urls import reverse
 from django.utils.timezone import now
+from django.views.decorators.http import require_POST
 
 from easy_thumbnails.files import get_thumbnailer
 import reversion
@@ -28,7 +29,7 @@ from images.utils import (
 from labels.models import Label
 from lib.decorators import (
     image_permission_required, image_annotation_area_must_be_editable,
-    image_labelset_required, login_required_ajax)
+    image_labelset_required, login_required_ajax, source_permission_required)
 from lib.forms import get_one_form_error
 from visualization.forms import HiddenForm, create_image_filter_form
 from vision_backend.utils import get_label_scores_for_image
@@ -118,6 +119,28 @@ def annotation_area_edit(request, image_id):
         'thumbnail_dimensions': thumbnail_dimensions,
         'annotationAreaForm': annotation_area_form,
     })
+
+
+@require_POST
+@source_permission_required(
+    'source_id', perm=Source.PermTypes.EDIT.code, ajax=True)
+def batch_delete_annotations_ajax(request, source_id):
+    source = get_object_or_404(Source, id=source_id)
+
+    image_form = create_image_filter_form(request.POST, source)
+    if not image_form.is_valid():
+        return JsonResponse(dict(
+            error=(
+                "There was an error with the form."
+                " Nothing was deleted."
+            )
+        ))
+
+    image_set = image_form.get_images()
+
+    # TODO: Delete annotations and let the user know it worked
+
+    return JsonResponse(dict(success=True))
 
 
 @image_permission_required('image_id', perm=Source.PermTypes.EDIT.code)

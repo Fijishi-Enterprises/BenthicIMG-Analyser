@@ -20,7 +20,14 @@ image_urlpatterns = [
          views.annotation_history, name="annotation_history"),
 ]
 
+source_urlpatterns = [
+    path('batch_delete_ajax/',
+         views.batch_delete_annotations_ajax,
+         name="batch_delete_annotations_ajax"),
+]
+
 urlpatterns = [
     path('annotation/', include(general_urlpatterns)),
     path('image/<int:image_id>/annotation/', include(image_urlpatterns)),
+    path('source/<int:source_id>/annotation/', include(source_urlpatterns)),
 ]

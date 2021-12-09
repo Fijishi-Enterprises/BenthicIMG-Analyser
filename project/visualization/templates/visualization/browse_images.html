@@ -69,35 +69,33 @@
 
         {% get_obj_perms user for source as 'source_perms' %}
 
+        <span>Action:</span>
+
         <select name="browse_action" title="Action">
+          <option value="">(Select an action)</option>
+
           {% if 'source_edit' in source_perms %}
             <option value="annotate">Enter Annotation Tool</option>
           {% endif %}
 
-          <option value="export">Export</option>
+          <optgroup label="Export">
+            <option value="export_metadata">Export Metadata</option>
+            <option value="export_annotations">Export Annotations, CSV</option>
+            {% if 'source_edit' in source_perms %}
+              <option value="export_annotations_cpc">Export Annotations, CPCe</option>
+            {% endif %}
+            <option value="export_image_covers">Export Image Covers</option>
+            <option value="export_calcify_rates">Export Calcification Rates</option>
+          </optgroup>
 
+          <optgroup label="Manage images">
           {% if 'source_edit' in source_perms %}
-            <option value="delete">Delete</option>
+            <option value="delete_images">Delete Images</option>
+            <option value="delete_annotations">Delete Annotations Only</option>
           {% endif %}
         </select>
 
-        <span id="action_box_annotate_specifics">
-          for
-        </span>
-        <span id="action_box_export_specifics">
-          <select name="export_type" title="Export type">
-            <option value="metadata">Metadata</option>
-            <option value="annotations">Annotations, CSV</option>
-            {% if 'source_edit' in source_perms %}
-              <option value="annotations_cpc">Annotations, CPCe</option>
-            {% endif %}
-            <option value="image_covers">Image Covers</option>
-            <option value="calcify_rates">Calcification Rates</option>
-          </select>
-          for
-        </span>
-        <span id="action_box_delete_specifics">
-        </span>
+        <span>for these images:</span>
 
         <select name="image_select_type" title="Image selection">
           <option value="all">
@@ -111,34 +109,31 @@
             images on this page</option>
         </select>
 
-        {# Fields or other content that we may or may not include as part of #}
-        {# the action form, depending on the dropdown values. #}
-        <span style="display:none;">
+        {# Below are the possible action forms. #}
 
-          {# The image-filter parameters that led us to this browse page. #}
+        {# This form allows refreshing the current Browse page #}
+
+        <form hidden action=""
+        method="post" id="refresh-browse-form">
+          {% csrf_token %}
           <span id="previous-image-form-fields">
+            {# The image-filter parameters that led us to this browse page. #}
             {% if hidden_image_form %}
               {% for field in hidden_image_form %}{{ field }}{% endfor %}
             {% endif %}
           </span>
+        </form>
 
-        </span>
-
-        {# Below are the possible action forms. #}
-        {# TODO: Ensure these are all hidden from the get-go without a CSS loading/JS running delay. #}
-
-        <form action="{% url 'export_metadata' source.pk %}" method="post"
+        <form hidden action="{% url 'export_metadata' source.pk %}" method="post"
         id="export-metadata-form">
           {% csrf_token %}
-          <span class="image-select-field-container"></span>
           <button type="button" class="submit">Go</button>
         </form>
 
-        <form action="{% url 'export_annotations' source.pk %}"
+        <form hidden action="{% url 'export_annotations' source.pk %}"
         method="post" id="export-annotations-form">
           <hr/>
           {% csrf_token %}
-          <span class="image-select-field-container"></span>
 
           {% include "form_generic.html" with form=export_annotations_form %}
 
@@ -147,21 +142,19 @@
           <button type="button" class="submit">Go</button>
         </form>
 
-        <form action="{% url 'export_image_covers' source.pk %}" method="post"
+        <form hidden action="{% url 'export_image_covers' source.pk %}" method="post"
         id="export-image-covers-form">
           {% csrf_token %}
-          <span class="image-select-field-container"></span>
 
           {% include "form_generic.html" with form=export_image_covers_form %}
 
           <button type="button" class="submit">Go</button>
         </form>
 
-        <form action="{% url 'calcification:stats_export' source.pk %}"
+        <form hidden action="{% url 'calcification:stats_export' source.pk %}"
         method="post" id="export-calcify-rates-form">
           {% csrf_token %}
           <hr/>
-          <span class="image-select-field-container"></span>
 
           <button type="button" id="manage-calcify-tables-button">
             {% if can_manage_calcification_tables %}
@@ -188,22 +181,22 @@
 
         {% if 'source_edit' in source_perms %}
 
-          <form action="{{ links.annotation_tool_first_result }}"
+          <form hidden action="{{ links.annotation_tool_first_result }}"
           method="post" id="annotate-all-form">
             {% csrf_token %}
-            <span class="image-select-field-container"></span>
             <button type="button" class="submit">Go</button>
           </form>
 
-          <form action="{{ links.annotation_tool_page_results.0 }}"
+          <form hidden action="{{ links.annotation_tool_page_results.0 }}"
           method="post" id="annotate-selected-form">
             {% csrf_token %}
-            <span class="image-select-field-container"></span>
             <button type="button" class="submit">Go</button>
           </form>
 
-          <form action="{% url 'export_annotations_cpc_serve' source.pk %}"
-          method="post" id="export-annotations-cpc-form">
+          {# Export annotations CPC #}
+
+          <form hidden action="{% url 'export_annotations_cpc_create_ajax' source.pk %}"
+          method="post" id="export-annotations-cpc-ajax-form">
             <hr/>
             {% csrf_token %}
 
@@ -242,12 +235,24 @@
             <button type="button" class="submit">Go</button>
           </form>
 
-          {# Deletion itself is done through Ajax; after that's done, we use #}
-          {# this form's action and fields to re-fetch this browse page. #}
-          <form action="{% url 'browse_images' source.pk %}"
-          method="post" id="delete-form">
+          <form hidden action="{% url 'export_annotations_cpc_serve' source.pk %}"
+          method="post" id="export-annotations-cpc-form">
             {% csrf_token %}
-            <span class="image-select-field-container"></span>
+          </form>
+
+          {# Delete images #}
+
+          <form hidden action="{% url 'browse_delete_ajax' source.pk %}"
+          method="post" id="delete-images-ajax-form">
+            {% csrf_token %}
+            <button type="button" class="submit">Go</button>
+          </form>
+
+          {# Delete annotations #}
+
+          <form hidden action="{% url 'batch_delete_annotations_ajax' source.pk %}"
+          method="post" id="delete-annotations-ajax-form">
+            {% csrf_token %}
             <button type="button" class="submit">Go</button>
           </form>
 
@@ -265,12 +270,10 @@
 
     {% if page_results.paginator.count > 0 and user.is_authenticated %}
       {# Action form is present. #}
-      BrowseActionHelper.init({
-          pageImageIds: {{ page_image_ids|jsonify }},
-          links: {{ links|jsonify }}
-      });
-
-      let calcifyTablesHelper = new CalcifyTablesHelper({{ can_manage_calcification_tables|jsonify }});
+      let browseActionHelper = new BrowseActionHelper(
+          {{ page_image_ids|jsonify }});
+      let calcifyTablesHelper = new CalcifyTablesHelper(
+          {{ can_manage_calcification_tables|jsonify }});
     {% endif %}
 
     window.seleniumDebugInitRan = true;

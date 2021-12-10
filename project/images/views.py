@@ -22,7 +22,7 @@ from annotations.model_utils import AnnotationAreaUtils
 from annotations.utils import (
     get_sitewide_annotation_count,
     image_annotation_area_is_editable,
-    image_has_any_human_annotations)
+    image_has_any_confirmed_annotations)
 from labels.models import LabelGroup
 from annotations.models import Annotation
 from newsfeed.models import NewsItem
@@ -480,9 +480,11 @@ def image_detail(request, image_id):
 
     # Annotation status
     if image.annoinfo.confirmed:
-        annotation_status = "Complete"
-    elif image_has_any_human_annotations(image):
-        annotation_status = "Partially annotated"
+        annotation_status = "Confirmed (completed)"
+    elif image_has_any_confirmed_annotations(image):
+        annotation_status = "Partially confirmed"
+    elif image.features.classified:
+        annotation_status = "Unconfirmed"
     else:
         annotation_status = "Not started"
 
@@ -497,10 +499,17 @@ def image_detail(request, image_id):
         'has_thumbnail': bool(thumbnail_dimensions),
         'thumbnail_dimensions': thumbnail_dimensions,
         'annotation_status': annotation_status,
-        'annotation_area_editable': image_annotation_area_is_editable(image), # Should we include a link to the annotation area edit page?
-        'has_any_human_annotations' : image_has_any_human_annotations(image), # Does the image have any human annotation (if so elable them to be deleted)?
-        'point_gen_method_synced' : image.point_generation_method == source.default_point_generation_method,
-        'annotation_area_synced' : image.metadata.annotation_area == source.image_annotation_area,
+        # The boolean flags below determine what actions can be performed
+        # on the image.
+        'annotation_area_editable':
+            image_annotation_area_is_editable(image),
+        'has_any_confirmed_annotations':
+            image_has_any_confirmed_annotations(image),
+        'point_gen_method_synced':
+            image.point_generation_method
+            == source.default_point_generation_method,
+        'annotation_area_synced':
+            image.metadata.annotation_area == source.image_annotation_area,
     })
 
 

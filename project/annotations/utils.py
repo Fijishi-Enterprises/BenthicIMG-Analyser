@@ -26,16 +26,14 @@ def image_annotation_all_done(image):
             and annotations.filter(user=get_robot_user()).count() == 0)
 
 
-def image_has_any_human_annotations(image):
+def image_has_any_confirmed_annotations(image):
     """
-    Return True if the image has at least one human-made Annotation.
+    Return True if the image has at least one confirmed Annotation.
     Return False otherwise.
     """
-    human_annotations = (
-        Annotation.objects.filter(image=image)
-        .exclude(user=get_robot_user())
-        .exclude(user=get_alleviate_user()))
-    return human_annotations.count() > 0
+    confirmed_annotations = (
+        image.annotation_set.exclude(user=get_robot_user()))
+    return confirmed_annotations.count() > 0
 
 
 def image_annotation_area_is_editable(image):
@@ -47,7 +45,7 @@ def image_annotation_area_is_editable(image):
     """
     point_gen_method = PointGen.db_to_args_format(image.point_generation_method)
     return (
-        (not image_has_any_human_annotations(image))
+        (not image_has_any_confirmed_annotations(image))
         and
         (point_gen_method['point_generation_type'] != PointGen.Types.IMPORTED)
     )

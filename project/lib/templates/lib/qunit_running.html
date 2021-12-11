@@ -1,0 +1,29 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>QUnit tests</title>
+  <meta charset="utf-8">
+  <link rel="shortcut icon"
+        href="{% static 'img/favicon.ico' %}">
+
+  {% include "static-local-include.html" with type="css" path="css/qunit.css" %}
+
+  {% for javascript_path in javascript_functionality_modules %}
+    {% include "static-local-include.html" with type="js" path=javascript_path %}
+  {% endfor %}
+</head>
+<body>
+  <div id="qunit"></div>
+  <div id="qunit-fixture"></div>
+
+  {% include template_to_test %}
+
+  {% include "static-local-include.html" with type="js" path="js/qunit.js" %}
+
+  {% for javascript_path in javascript_test_modules %}
+    {% include "static-local-include.html" with type="js" path=javascript_path %}
+  {% endfor %}
+</body>
+</html>

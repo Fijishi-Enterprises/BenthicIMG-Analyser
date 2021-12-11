@@ -82,11 +82,23 @@ def browse_images(request, source_id):
 
     return render(request, 'visualization/browse_images.html', {
         'source': source,
-        'image_search_form': image_search_form,
         'page_results': page_results,
         'page_image_ids': page_image_ids,
         'links': links,
+        'empty_message': empty_message,
+        'image_search_form': image_search_form,
         'hidden_image_form': hidden_image_form,
+
+        'can_annotate': request.user.has_perm(
+            Source.PermTypes.EDIT.code, source),
+        # CPC export's fields can contain PC filepaths recently used
+        # in an uploaded .cpc, which may not be good to reveal publicly
+        # in a public source.
+        'can_export_cpc_annotations': request.user.has_perm(
+            Source.PermTypes.EDIT.code, source),
+        'can_manage_source_data': request.user.has_perm(
+            Source.PermTypes.EDIT.code, source),
+
         'export_annotations_form': ExportAnnotationsForm(),
         'export_image_covers_form': ExportImageCoversForm(),
 
@@ -95,12 +107,9 @@ def browse_images(request, source_id):
         'source_calcification_tables': source.calcifyratetable_set.order_by(
             'name'),
         'default_calcification_tables': get_default_calcify_tables(),
-        'can_manage_calcification_tables': request.user.has_perm(
-            Source.PermTypes.EDIT.code, source),
 
         'cpc_prefs_form': CpcPrefsForm(source=source),
         'previous_cpcs_status': previous_cpcs_status,
-        'empty_message': empty_message,
     })
 
 

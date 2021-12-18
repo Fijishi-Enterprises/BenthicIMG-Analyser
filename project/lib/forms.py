@@ -11,7 +11,7 @@ class DummyForm(forms.Form):
         super().__init__()
 
         if not field_names:
-            field_names = ['field1', 'field2']
+            field_names = ['field1']
         for field_name in field_names:
             self.fields[field_name] = fields.CharField(required=False)
 

@@ -10,20 +10,27 @@
 
   {% include "static-local-include.html" with type="css" path="css/qunit.css" %}
 
+  {# Needs to include with type="module" in order for its import statements to work. #}
+  <script src="{% static 'js/fetch-mock.js' %}" type="module"></script>
+
   {% for javascript_path in javascript_functionality_modules %}
     {% include "static-local-include.html" with type="js" path=javascript_path %}
   {% endfor %}
 </head>
 <body>
+  {# This is required for QUnit to run. #}
   <div id="qunit"></div>
-  <div id="qunit-fixture"></div>
 
-  {% include template_to_test %}
+  {# By putting the HTML test content in the QUnit fixture element, the test content gets reset to its original state before each test runs. #}
+  <div id="qunit-fixture">
+    {% include fixture_template %}
+  </div>
 
   {% include "static-local-include.html" with type="js" path="js/qunit.js" %}
 
   {% for javascript_path in javascript_test_modules %}
-    {% include "static-local-include.html" with type="js" path=javascript_path %}
+    {# Needs to include with type="module" in order to import fetch-mock. #}
+    <script src="{% static javascript_path %}" type="module"></script>
   {% endfor %}
 </body>
 </html>

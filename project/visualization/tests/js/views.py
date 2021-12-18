@@ -11,8 +11,9 @@ def browse_images_actions(request):
     return render(request, 'lib/qunit_running.html', {
         # Context for the QUnit template
 
-        'template_to_test': 'visualization/browse_images_actions.html',
-        'javascript_functionality_modules': ['js/BrowseActionHelper.js'],
+        'fixture_template': 'visualization/browse_images_actions.html',
+        'javascript_functionality_modules': [
+            'js/jquery.min.js', 'js/util.js', 'js/BrowseActionHelper.js'],
         'javascript_test_modules': ['js/tests/BrowseImagesActionsTest.js'],
 
         # Context for the template to test
@@ -21,8 +22,8 @@ def browse_images_actions(request):
         'page_results': paginate(
             results=[1, 2, 3, 4], items_per_page=3, request_args=dict()),
         'links': dict(
-            annotation_tool_first_result='link1',
-            annotation_tool_page_results=['link2']),
+            annotation_tool_first_result='/annotate_all/',
+            annotation_tool_page_results=['/annotate_selected/']),
         'empty_message': "",
         # TODO: Have multiple possibilities for these args: no search (done here), filter search, image-ID search. Perhaps this test view can take GET args to decide test options like this.
         'image_search_form': DummyForm(),

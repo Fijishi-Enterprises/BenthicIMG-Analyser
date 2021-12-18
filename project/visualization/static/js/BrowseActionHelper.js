@@ -16,13 +16,10 @@ class BrowseActionHelper {
         this.imageSelectTypeField.addEventListener(
             'change', this.onActionChange.bind(this));
 
-        // Add submit button handlers.
+        // Add submit handlers.
         this.actionForms.forEach((form) => {
-            let submitButton = form.querySelector('button.submit');
-            if (submitButton) {
-                submitButton.addEventListener(
-                    'click', this.actionSubmit.bind(this));
-            }
+            form.addEventListener(
+                'submit', this.actionSubmit.bind(this));
         });
 
         // Initialize action-related states.
@@ -44,7 +41,6 @@ class BrowseActionHelper {
         this.actionAfterAjax = null;
         this.confirmMessage = null;
         this.confirmInput = null;
-        this.actionSubmitButton = null;
         this.actionSubmitButton = null;
 
         if (action === '') {
@@ -147,7 +143,10 @@ class BrowseActionHelper {
         }
     }
 
-    actionSubmit() {
+    actionSubmit(event) {
+        // We'll decide when and whether to submit the form.
+        event.preventDefault();
+
         if (this.confirmMessage) {
             if (!this.confirmAction(this.confirmMessage, this.confirmInput)) {
                 return;
@@ -165,20 +164,21 @@ class BrowseActionHelper {
             // This action has an ajax submit to the
             // form's URL, and then possibly more steps after that.
 
-            // First we disable the button to prevent double
+            // Disable the button to prevent double
             // submission, and let the user know the ajax request is going.
             // We also disable the action field to prevent confusing behavior.
             this.actionSubmitButton.disabled = true;
             this.actionSubmitButton.textContent = "Working...";
             this.actionSelectField.disabled = true;
 
-            util.fetch(
+            let promise = util.fetch(
                 this.currentActionForm.action,
                 {method: 'POST', body: new FormData(this.currentActionForm)},
                 this.ajaxActionCallback.bind(this));
 
             // TODO: Update this once our Selenium tests are runnable again
             window.seleniumDebugDeleteTriggered = true;
+            return promise;
         }
         else {
             // This action has a non-ajax submit

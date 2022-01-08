@@ -21,9 +21,14 @@
   {# This is required for QUnit to run. #}
   <div id="qunit"></div>
 
-  {# By putting the HTML test content in the QUnit fixture element, the test content gets reset to its original state before each test runs. #}
+  {# By putting HTML test content in the QUnit fixture element, the test content gets reset to its original state before each test runs. #}
   <div id="qunit-fixture">
-    {% include fixture_template %}
+    {# QUnit doesn't have its own way of swapping fixtures in and out of the qunit-fixture element for different test modules. We'll put all the fixture options here, and swap them on our own in our test module code. #}
+    {% for fixture_name, fixture in fixtures.items %}
+      <div class="fixture-option" data-fixture-name="{{ fixture_name }}">
+        {{ fixture }}
+      </div>
+    {% endfor %}
   </div>
 
   {% include "static-local-include.html" with type="js" path="js/qunit.js" %}

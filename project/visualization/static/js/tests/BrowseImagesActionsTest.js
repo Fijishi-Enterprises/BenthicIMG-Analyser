@@ -5,6 +5,17 @@ let originalWindowAlert = window.alert;
 let originalWindowPrompt = window.prompt;
 
 
+function useFixture(fixtureName) {
+    // This assumes the #qunit-fixture element currently contains all the
+    // fixtures we've defined. We'll remove all except the desired fixture.
+    document.querySelectorAll('.fixture-option').forEach((fixtureElement) => {
+        if (fixtureElement.dataset.fixtureName !== fixtureName) {
+            fixtureElement.remove();
+        }
+    });
+}
+
+
 function assertFormDataEqual(assert, actualForm, expectedFormData) {
     let formData = new FormData(actualForm);
     let formDataContents = Object.fromEntries(formData.entries());
@@ -119,49 +130,51 @@ let formLookup = {
         // Not sure how to pass in URLs from Django, so we'll just hardcode
         // here.
         actionPath: '/annotate_all/',
-        hasFormFields: false,
+        // Form field names/values associated with this action. Does not
+        // include field names/values associated with image filtering.
+        formValues: {},
     },
     annotate_selected: {
         actionPath: '/annotate_selected/',
-        hasFormFields: false,
+        formValues: {},
     },
     export_metadata: {
         formId: 'export-metadata-form',
         actionPath: '/source/1/export/metadata/',
-        hasFormFields: false,
+        formValues: {},
     },
     export_annotations: {
         formId: 'export-annotations-form',
         actionPath: '/source/1/export/annotations/',
-        hasFormFields: true,
+        formValues: {field1: 'value1'},
     },
     export_annotations_cpc: {
         formId: 'export-annotations-cpc-ajax-form',
         actionPath: '/source/1/export/annotations_cpc_create_ajax/',
-        hasFormFields: false,
+        formValues: {local_code_filepath: 'C:/codes.txt'},
         syncFormId: 'export-annotations-cpc-form',
     },
     export_image_covers: {
         formId: 'export-image-covers-form',
         actionPath: '/source/1/export/image_covers/',
-        hasFormFields: true,
+        formValues: {field1: 'value1'},
     },
     export_calcify_rates: {
         formId: 'export-calcify-rates-form',
         actionPath: '/source/1/calcification/stats_export/',
-        hasFormFields: true,
+        formValues: {field1: 'value1'},
     },
     delete_images: {
         formId: 'delete-images-ajax-form',
         actionPath: '/source/1/browse/delete_ajax/',
-        hasFormFields: false,
+        formValues: {},
         promptString: 'delete',
         syncFormId: 'refresh-browse-form',
     },
     delete_annotations: {
         formId: 'delete-annotations-ajax-form',
         actionPath: '/source/1/annotation/batch_delete_ajax/',
-        hasFormFields: false,
+        formValues: {},
         promptString: 'delete',
         syncFormId: 'refresh-browse-form',
     },
@@ -171,6 +184,10 @@ let formLookup = {
 // QUnit module syntax: https://api.qunitjs.com/QUnit/module/
 
 QUnit.module("Constructor", (hooks) => {
+    hooks.beforeEach(() => {
+        useFixture('all_images');
+    });
+
     test("Main constructor should succeed", function(assert) {
         browseActionHelper = new BrowseActionHelper([1, 2, 3]);
         assert.ok(browseActionHelper, "Constructor should get initialized");
@@ -182,6 +199,7 @@ QUnit.module("Constructor", (hooks) => {
 action form is shown. */
 QUnit.module("Form visibility", (hooks) => {
     hooks.beforeEach(() => {
+        useFixture('all_images');
         browseActionHelper = new BrowseActionHelper([1, 2, 3]);
     });
 
@@ -232,6 +250,7 @@ QUnit.module("Form visibility", (hooks) => {
 
 QUnit.module("Confirmation prompts", (hooks) => {
     hooks.beforeEach(() => {
+        useFixture('all_images');
         browseActionHelper = new BrowseActionHelper([1, 2, 3]);
     });
     hooks.afterEach(() => {
@@ -311,8 +330,9 @@ QUnit.module("Confirmation prompts", (hooks) => {
 
 /* Test submission of each form, asserting what params were submitted and
  to what URL, and how responses are handled. */
-QUnit.module("Form submission", (hooks) => {
+QUnit.module("Form submission, no image filters", (hooks) => {
     hooks.beforeEach(() => {
+        useFixture('all_images');
         browseActionHelper = new BrowseActionHelper([1, 2, 3]);
     });
     hooks.afterEach(() => {
@@ -357,11 +377,13 @@ QUnit.module("Form submission", (hooks) => {
         assertUrlPathEqual(
             assert, form.action, formLookup[actionValue].actionPath);
 
-        let hasFormFields = formLookup[actionValue].hasFormFields;
-        let expectedFormData = hasFormFields ? {'field1': ""} : {};
+        // {...<obj>} creates a copy.
+        let expectedFormData = {...formLookup[actionValue].formValues};
         if (imageSelectType === 'selected') {
-            expectedFormData['image_form_type'] = "ids";
-            expectedFormData['ids'] = "1,2,3";
+            // This updates the object.
+            Object.assign(
+                expectedFormData,
+                {image_form_type: 'ids', ids: '1,2,3'});
         }
         assertFormDataEqual(assert, form, expectedFormData);
     });
@@ -411,11 +433,11 @@ QUnit.module("Form submission", (hooks) => {
         assertUiStatus(assert, asyncForm, false);
 
         // Test what was submitted for the async request.
-        let hasFormFields = formLookup[actionValue].hasFormFields;
-        let expectedFormData = hasFormFields ? {'field1': ""} : {};
+        let expectedFormData = {...formLookup[actionValue].formValues};
         if (imageSelectType === 'selected') {
-            expectedFormData['image_form_type'] = "ids";
-            expectedFormData['ids'] = "1,2,3";
+            Object.assign(
+                expectedFormData,
+                {image_form_type: 'ids', ids: '1,2,3'});
         }
         assertFormDataEqual(assert, asyncForm, expectedFormData);
 
@@ -548,6 +570,143 @@ QUnit.module("Form submission", (hooks) => {
             done();
         });
     });
+});
 
-    // TODO: Test actions with search-filtered images, not just all images and selected images. This would require loading the test page's Django template with different args.
+
+/* Test submission of each form when arriving at this page with search filters
+applied. Don't need to re-test everything, just the action URLs, params
+submitted, and the fact that it submitted. */
+QUnit.module("Form submission, search filters", (hooks) => {
+    hooks.beforeEach(() => {
+        useFixture('with_search_filters');
+        browseActionHelper = new BrowseActionHelper([1, 2, 3]);
+    });
+    hooks.afterEach(() => {
+        // Restore fetch() to its native implementation
+        fetchMock.reset();
+        // Restore alert() and prompt() to native implementations
+        window.alert = originalWindowAlert;
+        window.prompt = originalWindowPrompt;
+    });
+
+    test.each(
+            "Synchronous actions",
+            [
+                ['annotate_all', 'all'],
+                ['annotate_selected', 'selected'],
+                ['export_metadata', 'all'],
+                ['export_metadata', 'selected'],
+                ['export_annotations', 'all'],
+                ['export_annotations', 'selected'],
+                ['export_image_covers', 'all'],
+                ['export_image_covers', 'selected'],
+                ['export_calcify_rates', 'all'],
+                ['export_calcify_rates', 'selected'],
+            ],
+            (assert, [actionValue, imageSelectType]) => {
+
+        changeAction(actionValue);
+        changeImageSelectType(imageSelectType);
+        let form = getVisibleActionForm();
+
+        // Ensure that using the submit button doesn't actually navigate
+        // to the URL.
+        let submitStatus = {called: false};
+        mockSynchronousFormSubmit(form, submitStatus);
+        // Run the submit handler.
+        browseActionHelper.actionSubmit(new Event('dummyevent'));
+
+        assert.ok(submitStatus.called, "Form should have submitted");
+
+        assertUrlPathEqual(
+            assert, form.action, formLookup[actionValue].actionPath);
+
+        let expectedFormData = {...formLookup[actionValue].formValues};
+        if (imageSelectType === 'all') {
+            Object.assign(
+                expectedFormData,
+                {
+                    aux1: 'Site A', photo_date_0: 'date_range',
+                    photo_date_1: '', photo_date_2: '',
+                    photo_date_3: '2021-01-01', photo_date_4: '2021-06-30',
+                });
+        }
+        else if (imageSelectType === 'selected') {
+            Object.assign(
+                expectedFormData,
+                {image_form_type: 'ids', ids: '1,2,3'});
+        }
+        assertFormDataEqual(assert, form, expectedFormData);
+    });
+
+    test.each(
+            "Async actions: request",
+            [
+                ['export_annotations_cpc', 'all'],
+                ['export_annotations_cpc', 'selected'],
+                ['delete_images', 'all'],
+                ['delete_images', 'selected'],
+                ['delete_annotations', 'all'],
+                ['delete_annotations', 'selected'],
+            ],
+            (assert, [actionValue, imageSelectType]) => {
+
+        changeAction(actionValue);
+        changeImageSelectType(imageSelectType);
+        let asyncForm = getVisibleActionForm();
+
+        assertUrlPathEqual(
+            assert, asyncForm.action,
+            formLookup[actionValue].actionPath);
+
+        if (formLookup[actionValue].promptString) {
+            // Mock window.prompt() so that we don't actually have to interact
+            // with a prompt dialog.
+            window.prompt = () => {
+                return formLookup[actionValue].promptString;
+            };
+        }
+        // Mock window.fetch() so that the request isn't actually made.
+        fetchMock.post(
+            window.location.origin + formLookup[actionValue].actionPath,
+            {'success': true});
+        // Ensure that the subsequent synchronous form submission doesn't
+        // actually navigate to the URL.
+        let syncForm = document.getElementById(
+            formLookup[actionValue].syncFormId);
+        let submitStatus = {called: false};
+        mockSynchronousFormSubmit(syncForm, submitStatus);
+
+        // Submit.
+        let promise = browseActionHelper.actionSubmit(new Event('dummyevent'));
+
+        // Test what was submitted for the async request.
+        let expectedFormData = {...formLookup[actionValue].formValues};
+        if (imageSelectType === 'all') {
+            Object.assign(
+                expectedFormData,
+                {
+                    aux1: 'Site A', photo_date_0: 'date_range',
+                    photo_date_1: '', photo_date_2: '',
+                    photo_date_3: '2021-01-01', photo_date_4: '2021-06-30',
+                });
+        }
+        else if (imageSelectType === 'selected') {
+            Object.assign(
+                expectedFormData,
+                {image_form_type: 'ids', ids: '1,2,3'});
+        }
+        assertFormDataEqual(assert, asyncForm, expectedFormData);
+
+        // Wait for the response.
+        const done = assert.async();
+        promise.then((response) => {
+            assert.ok(
+                submitStatus.called,
+                "Synchronous form should have submitted");
+
+            // Tell QUnit that the test can finish.
+            done();
+        });
+    });
 });

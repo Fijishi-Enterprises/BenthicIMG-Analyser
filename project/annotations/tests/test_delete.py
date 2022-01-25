@@ -258,8 +258,10 @@ class ErrorTest(BaseDeleteTest):
         response = self.client.post(self.url, dict())
         self.assertDictEqual(response.json(), dict(
             error=(
-                "You must first use the search form"
-                " or select images on the page to use the delete function."
+                "You must first use the search form or select images on the"
+                " page to use the delete function. If you really want to"
+                " delete all images' annotations, first click 'Search' without"
+                " changing any of the search fields."
             )
         ))
 

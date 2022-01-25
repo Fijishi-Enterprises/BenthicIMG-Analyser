@@ -129,19 +129,14 @@ def batch_delete_annotations_ajax(request, source_id):
 
     image_form = create_image_filter_form(request.POST, source)
     if not image_form:
-        # There's nothing invalid about a user wanting to delete all annotations
-        # in the source, but it's somewhat plausible that we'd accidentally
-        # reach this case if we screwed something up.
-        #
         # It's not good to accidentally delete everything, and it's uncommon
         # to do it intentionally. So we'll play it safe.
-        # If the user really wants to delete everything, they can simply
-        # click Search with all fields at the defaults ("All" etc.)
-        # and then choose Delete.
         return JsonResponse(dict(
             error=(
-                "You must first use the search form"
-                " or select images on the page to use the delete function."
+                "You must first use the search form or select images on the"
+                " page to use the delete function. If you really want to"
+                " delete all images' annotations, first click 'Search' without"
+                " changing any of the search fields."
             )
         ))
     if not image_form.is_valid():

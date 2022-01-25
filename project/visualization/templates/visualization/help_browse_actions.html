@@ -8,90 +8,95 @@
 
 <p>(Requires source Edit or Admin permissions) This takes you to the annotation tool for the first image in the specified image set. Then, the annotation tool's Prev/Next buttons will only navigate through the specified image set.</p>
 
-<h3>Export</h3>
+<h3>Export Metadata</h3>
 
-<p>Export (download) data about the specified image set from CoralNet to your computer. There are several kinds of export data available, selectable with a dropdown box.</p>
+<p>Export (download) metadata for the specified image set. This includes anything you would see in CoralNet's "Edit Metadata" page: image date, auxiliary metadata, camera, and so on.</p>
 
-<p>Each export type uses CSV format unless explained otherwise. A CSV (comma-separated values) file can be opened in a spreadsheet program like Excel.</p>
+<p>CoralNet will prepare the metadata as a CSV (comma-separated values) file, which can then be downloaded to your computer and opened in a spreadsheet program like Excel.</p>
 
-<p>Note: the export file may take a long time to generate. After you click "Go", CoralNet will start generating the export file, and you must stay on this page until the export file is generated. Once it has finished generating, your browser will start downloading the file (or will prompt you to choose a download location).</p>
+<p><strong>Note about all exports:</strong> the export file may take a long time to generate. After you click "Go", CoralNet will start generating the export file, and you must stay on this page until the export file is generated. Once it has finished generating, your browser will start downloading the file (or will prompt you to choose a download location).</p>
 
-<p>The available types of export data are:</p>
+<h3>Export Annotations, CSV</h3>
+
+<p>Export a CSV file containing one row per annotation in the image set. By default, includes columns for: Image name, Pixel row (Y), Pixel column (X), and Label. There are also optional sets of columns available:</p>
 
 <ul>
-  <li><strong>Metadata:</strong> Spreadsheet containing anything you would see in the "Edit Metadata" page: image date, auxiliary metadata, camera, and so on. One row per image.</li>
+  <li>Annotator info: The username of the user who made the annotation, and the date the annotation was made. Imported annotations show as "Imported" and machine annotations show as "robot".</li>
 
-  <li><strong>Annotations, CSV:</strong> Spreadsheet containing one row per annotation in the image set. By default, includes columns for: Image name, Pixel row (Y), Pixel column (X), and Label. There are also optional sets of columns available:
+  <li>Machine suggestions: Labels and confidence scores for the machine's top 5 suggestions.</li>
 
+  <li>Image metadata - date and auxiliary fields: The image's date field and 5 auxiliary metadata fields.</li>
+
+  <li>Image metadata - other fields: Other image metadata fields such as depth, camera, and white balance.</li>
+</ul>
+
+<p>TIP: If you are only interested in Confirmed annotations, then first do an image search with "Annotation status" set to "Confirmed", and then export annotations.</p>
+
+<h3>Export Annotations, CPCe</h3>
+
+<p>(Requires source Edit permissions) Export annotations as .cpc files which can be opened in Coral Point Count. There will be one .cpc file per image, and the .cpc files will be contained in a .zip archive file. If you're not familiar with opening .zip files, see <a href="https://www.wikihow.com/Open-a-Zip-File" target="_blank">this WikiHow article</a>. Here are the basics:</p>
+
+<ul>
+  <li>We save your previously-uploaded .cpc files for each image, as long as the image's point locations have not been overwritten since the .cpc was uploaded.</li>
+  <li>If we have a saved .cpc file for a particular image, the .cpc you export here will be the same as the original .cpc, except that the point annotations will be updated to match the annotations on CoralNet.</li>
+  <li>If we do not have a saved .cpc file for an image, we create a .cpc file from scratch. Note that there are .cpc file format differences between versions of CPCe, and the .cpc files we create are meant for CPCe 4.1, the latest version. For example, if you try to open one of our .cpc files in CPCe 3.5 with a screen size setting of 120 DPI, then the point locations will be wrong.</li>
+</ul>
+
+<p>The .cpc file format contains several pieces of information besides point positions and labels; here's how we handle each one:</p>
+
+<ul>
+  <li>Notes codes: CPCe's interface has two fields for each point, "ID" and "Notes". Treatment of the Notes field depends on whether the "Support CPCe Notes codes using + as a separator" checkbox is checked.
     <ul>
-      <li>Annotator info: The username of the user who made the annotation, and the date the annotation was made. Imported annotations show as "Imported" and machine annotations show as "robot".</li>
+      <li>If the checkbox is checked, we split up the CoralNet label code on the + symbol to get the ID and Notes codes. For example, if the CoralNet label code is "ROCK+TURF", then the exported .cpc file has ID of "ROCK" and Notes of "TURF" for the corresponding point. If the CoralNet label code is just "ROCK", then the .cpc gets ID of "ROCK" and a blank Notes field.</li>
 
-      <li>Machine suggestions: Labels and confidence scores for the machine's top 5 suggestions.</li>
-
-      <li>Image metadata - date and auxiliary fields: The image's date field and 5 auxiliary metadata fields.</li>
-
-      <li>Image metadata - other fields: Other image metadata fields such as depth, camera, and white balance.</li>
-    </ul>
-
-   TIP: If you are only interested in Confirmed annotations, then first do an image search with "Annotation status" set to "Confirmed", and then export annotations.</li>
-
-  <li>
-    <strong>Annotations, CPCe:</strong> (Requires source Edit permissions) Annotations as .cpc files which can be opened in Coral Point Count. There will be one .cpc file per image, and the .cpc files will be contained in a .zip archive file. If you're not familiar with opening .zip files, see <a href="https://www.wikihow.com/Open-a-Zip-File" target="_blank">this WikiHow article</a>. Here are the basics:
-
-    <ul>
-      <li>We save your previously-uploaded .cpc files for each image, as long as the image's point locations have not been overwritten since the .cpc was uploaded.</li>
-      <li>If we have a saved .cpc file for a particular image, the .cpc you export here will be the same as the original .cpc, except that the point annotations will be updated to match the annotations on CoralNet.</li>
-      <li>If we do not have a saved .cpc file for an image, we create a .cpc file from scratch. Note that there are .cpc file format differences between versions of CPCe, and the .cpc files we create are meant for CPCe 4.1, the latest version. For example, if you try to open one of our .cpc files in CPCe 3.5 with a screen size setting of 120 DPI, then the point locations will be wrong.</li>
-    </ul>
-
-    The .cpc file format contains several pieces of information besides point positions and labels; here's how we handle each one:
-
-    <ul>
-      <li>Notes codes: CPCe's interface has two fields for each point, "ID" and "Notes". Treatment of the Notes field depends on whether the "Support CPCe Notes codes using + as a separator" checkbox is checked.
+      <li>If the checkbox is unchecked, the CoralNet label codes will only be mapped to the .cpc ID fields, and here is what happens with the Notes codes:
         <ul>
-          <li>If the checkbox is checked, we split up the CoralNet label code on the + symbol to get the ID and Notes codes. For example, if the CoralNet label code is "ROCK+TURF", then the exported .cpc file has ID of "ROCK" and Notes of "TURF" for the corresponding point. If the CoralNet label code is just "ROCK", then the .cpc gets ID of "ROCK" and a blank Notes field.</li>
+          <li>If a particular CoralNet image has a .cpc file saved, that .cpc file's Notes codes will be retained.</li>
 
-          <li>If the checkbox is unchecked, the CoralNet label codes will only be mapped to the .cpc ID fields, and here is what happens with the Notes codes:
-            <ul>
-              <li>If a particular CoralNet image has a .cpc file saved, that .cpc file's Notes codes will be retained.</li>
-
-              <li>If the image does not have a .cpc file saved, the Notes codes will be blank.</li>
-            </ul>
-          </li>
+          <li>If the image does not have a .cpc file saved, the Notes codes will be blank.</li>
         </ul>
-      </li>
-
-      <li>Header data: When you create a .cpc file in Coral Point Count (at least in CPCe 4.1), at some point it shows a window with 28 header fields such as Project name, Site name, Latitude, Easting, etc. If a particular CoralNet image has a .cpc file saved, that .cpc file's header values will be retained. Otherwise, we will fill in blank header values. (You might notice that these header fields have some overlap with CoralNet's metadata fields, but CoralNet does not make any connection between these two sets of fields on import/export.)</li>
-
-      <li>
-        Computer environment info: This includes the location of the .txt code file that CPCe uses to match label codes to label names/groups, and the location of the image file that was opened in CPCe. Unlike Notes codes and Header data, this environment info is necessary to make a .cpc work in Coral Point Count. Here's what CoralNet does to make sure this info is filled in:
-
-        <ul>
-          <li>CoralNet first looks for this info in saved .cpc files.</li>
-          <li>If one or more images do not have a saved .cpc, then this action form will show form fields where you can fill in the environment values. These values will be automatically filled in with information from other images' saved .cpc files, if available. If no images have .cpc files saved, then the fields will be blank and you'll have to fill them in.</li>
-        </ul>
-
-        If you have to fill in the environment info yourself, the code file location should look something like <code>C:\CPCe_41_inst\coral_codes.txt</code>, and the image folder location should look something like <code>C:\Image_data\Panama_corals</code> (you may have a slash at the end or not). Note that the image folder is a folder location, not a file location; the actual image file might be at C:\Image_data\Panama_corals\DSC_0048.JPG.
       </li>
     </ul>
   </li>
 
-  <li><strong>Image Covers:</strong> Coverage statistics for each image in the set; for example, image 0001.JPG consists of 5% Acropora, 10% Porites, etc. based on the annotations. The "ALL IMAGES" summary row at the end shows the average stats for the image set, with each image being weighted equally. Unannotated images are excluded from the analysis.</li>
+  <li>Header data: When you create a .cpc file in Coral Point Count (at least in CPCe 4.1), at some point it shows a window with 28 header fields such as Project name, Site name, Latitude, Easting, etc. If a particular CoralNet image has a .cpc file saved, that .cpc file's header values will be retained. Otherwise, we will fill in blank header values. (You might notice that these header fields have some overlap with CoralNet's metadata fields, but CoralNet does not make any connection between these two sets of fields on import/export.)</li>
 
-  <li><strong>Calcification Rates:</strong> Calcification rates for each image in the set. For example, image 0001.JPG's calcification rates are: mean 4.8, lower bound 3.2, upper bound 6.0. The rates are computed based on the image's annotations, and the calcification rates specified for each label (you must pick a label rate table to use). There are optional sets of columns available:
+  <li>
+    Computer environment info: This includes the location of the .txt code file that CPCe uses to match label codes to label names/groups, and the location of the image file that was opened in CPCe. Unlike Notes codes and Header data, this environment info is necessary to make a .cpc work in Coral Point Count. Here's what CoralNet does to make sure this info is filled in:
 
     <ul>
-      <li>Per-label contributions to mean rate: This shows the per-label breakdown for the mean rate calculation. For example, image 0001.JPG has a 4.8 mean rate, and the per-label breakdown is: 4.0 from Acropora, 1.5 from Porites, -0.7 from Hard substrate. These columns will be named like "Acropora M", "Porites M", etc.</li>
-
-      <li>Per-label contributions to confidence bounds: This shows the per-label breakdowns for the lower bound and upper bound rate calculations. These columns will be named like "Acropora LB", "Porites LB", "Acropora UB", "Porites UB", etc.</li>
+      <li>CoralNet first looks for this info in saved .cpc files.</li>
+      <li>If one or more images do not have a saved .cpc, then this action form will show form fields where you can fill in the environment values. These values will be automatically filled in with information from other images' saved .cpc files, if available. If no images have .cpc files saved, then the fields will be blank and you'll have to fill them in.</li>
     </ul>
 
-    The "ALL IMAGES" summary row at the end shows the average stats over all the images, with each image being weighted equally. Unannotated images are excluded from the analysis. If you choose to export an Excel workbook instead of CSV, it will include a sheet with the label rate table you chose.
+    If you have to fill in the environment info yourself, the code file location should look something like <code>C:\CPCe_41_inst\coral_codes.txt</code>, and the image folder location should look something like <code>C:\Image_data\Panama_corals</code> (you may have a slash at the end or not). Note that the image folder is a folder location, not a file location; the actual image file might be at C:\Image_data\Panama_corals\DSC_0048.JPG.
   </li>
 </ul>
 
-<h3>Delete</h3>
+<h3>Export Image Covers</h3>
+
+<p>Coverage statistics for each image in the set; for example, image 0001.JPG consists of 5% Acropora, 10% Porites, etc. based on the annotations. The "ALL IMAGES" summary row at the end shows the average stats for the image set, with each image being weighted equally. Unannotated images are excluded from the analysis.</p>
+
+<h3>Export Calcification Rates</h3>
+
+<p>Calcification rates for each image in the set. For example, image 0001.JPG's calcification rates are: mean 4.8, lower bound 3.2, upper bound 6.0. The rates are computed based on the image's annotations, and the calcification rates specified for each label (you must pick a label rate table to use). There are optional sets of columns available:</p>
+
+<ul>
+  <li>Per-label contributions to mean rate: This shows the per-label breakdown for the mean rate calculation. For example, image 0001.JPG has a 4.8 mean rate, and the per-label breakdown is: 4.0 from Acropora, 1.5 from Porites, -0.7 from Hard substrate. These columns will be named like "Acropora M", "Porites M", etc.</li>
+
+  <li>Per-label contributions to confidence bounds: This shows the per-label breakdowns for the lower bound and upper bound rate calculations. These columns will be named like "Acropora LB", "Porites LB", "Acropora UB", "Porites UB", etc.</li>
+</ul>
+
+<p>The "ALL IMAGES" summary row at the end shows the average stats over all the images, with each image being weighted equally. Unannotated images are excluded from the analysis. If you choose to export an Excel workbook instead of CSV, it will include a sheet with the label rate table you chose.</p>
+
+<h3>Delete Images</h3>
 
 <p>(Requires source Edit or Admin permissions) Permanently delete the images in the specified image set, along with their annotations. When you click "Go", a confirmation dialog will pop up. In the dialog, type "delete" (without the quotes) and hit Enter to proceed with deletion.</p>
+
+<p>To reduce the chance of accidents, CoralNet does not let you delete all images in the source at once, unless you first click Search.</p>
+
+<h3>Delete Annotations Only</h3>
+
+<p>Permanently delete the annotations for the specified image set. The images themselves and their point locations will not be affected.</p>
 
 </div>

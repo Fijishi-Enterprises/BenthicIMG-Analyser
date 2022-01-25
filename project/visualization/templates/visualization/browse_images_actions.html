@@ -196,6 +196,9 @@
     <form hidden action="{% url 'batch_delete_annotations_ajax' source.pk %}"
     method="post" id="delete-annotations-ajax-form">
       {% csrf_token %}
+
+      <div class="line">Deletes the annotations for these images. The images themselves and their point locations will not be affected.</div>
+
       <button class="submit">Go</button>
     </form>
 

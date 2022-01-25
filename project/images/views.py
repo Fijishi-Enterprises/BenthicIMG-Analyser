@@ -578,8 +578,8 @@ def image_delete_annotations(request, image_id):
     Delete an image's annotations.
     """
     image = get_object_or_404(Image, id=image_id)
-    for ann in Annotation.objects.filter(image=image):
-        ann.delete()
+
+    Annotation.objects.filter(image=image).delete()
 
     backend_tasks.classify_image.apply_async(
         args=[image_id], eta=now()+timedelta(seconds=10))

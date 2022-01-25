@@ -5,14 +5,14 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
 
-from .managers import AnnotationManager
+from .managers import AnnotationManager, AnnotationQuerySet
 from images.models import Image, Point, Source
 from labels.models import Label, LocalLabel
 from vision_backend.models import Classifier
 
 
 class Annotation(models.Model):
-    objects = AnnotationManager()
+    objects = AnnotationManager.from_queryset(AnnotationQuerySet)()
 
     annotation_date = models.DateTimeField(
         blank=True, auto_now=True, editable=False)

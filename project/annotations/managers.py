@@ -1,6 +1,27 @@
 from django.db import models
 
 from accounts.utils import get_robot_user, is_robot_user
+from images.models import Image
+
+
+class AnnotationQuerySet(models.QuerySet):
+
+    def delete(self):
+        """
+        Batch-delete Annotations. Note that when this is used,
+        Annotation.delete() will not be called for each individual Annotation,
+        so we make sure to do the equivalent actions here.
+        """
+        # Get all the images corresponding to these annotations.
+        images = Image.objects.filter(annotation__in=self).distinct()
+        # Evaluate the queryset before deleting the annotations.
+        images = list(images)
+        # Delete the annotations.
+        super().delete()
+
+        # The images' annotation progress info may need updating.
+        for image in images:
+            image.annoinfo.update_annotation_progress_fields()
 
 
 class AnnotationManager(models.Manager):

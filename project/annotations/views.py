@@ -128,6 +128,22 @@ def batch_delete_annotations_ajax(request, source_id):
     source = get_object_or_404(Source, id=source_id)
 
     image_form = create_image_filter_form(request.POST, source)
+    if not image_form:
+        # There's nothing invalid about a user wanting to delete all annotations
+        # in the source, but it's somewhat plausible that we'd accidentally
+        # reach this case if we screwed something up.
+        #
+        # It's not good to accidentally delete everything, and it's uncommon
+        # to do it intentionally. So we'll play it safe.
+        # If the user really wants to delete everything, they can simply
+        # click Search with all fields at the defaults ("All" etc.)
+        # and then choose Delete.
+        return JsonResponse(dict(
+            error=(
+                "You must first use the search form"
+                " or select images on the page to use the delete function."
+            )
+        ))
     if not image_form.is_valid():
         return JsonResponse(dict(
             error=(
@@ -137,8 +153,21 @@ def batch_delete_annotations_ajax(request, source_id):
         ))
 
     image_set = image_form.get_images()
+    image_count = image_set.count()
 
-    # TODO: Delete annotations and let the user know it worked
+    # Delete annotations.
+    Annotation.objects.filter(image__in=image_set).delete()
+
+    # Queue classification for the images, now that they don't have annotations.
+    for image in image_set:
+        backend_tasks.classify_image.apply_async(
+            args=[image.id], eta=now()+timedelta(seconds=10))
+
+    # This should appear on the next browse load.
+    messages.success(
+        request,
+        f"The {image_count} selected images"
+        f" have had their annotations deleted.")
 
     return JsonResponse(dict(success=True))
 

@@ -216,6 +216,7 @@ class ClassifyAfterDeleteTest(BaseDeleteTest):
             self.user, self.source,
             image_options=dict(filename='unconfirmed.png'))
         collect_all_jobs()
+        unconfirmed_image.refresh_from_db()
         self.assertEqual(
             unconfirmed_image.annotation_set.unconfirmed().count(), 2,
             f"Image {unconfirmed_image.metadata.name} should have"

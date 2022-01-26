@@ -1,6 +1,8 @@
 from django.urls import reverse
+import spacer.config as spacer_config
 
 from lib.tests.utils import BasePermissionTest, ClientTest
+from vision_backend.tasks import collect_all_jobs, submit_classifier
 
 
 class PermissionTest(BasePermissionTest):
@@ -172,6 +174,70 @@ class NotFullyAnnotatedTest(BaseDeleteTest):
 
         for image in [self.img1, self.img2, self.img3]:
             self.assert_annotations_deleted(image)
+
+
+class ClassifyAfterDeleteTest(BaseDeleteTest):
+    """
+    Should machine-classify the images after annotation deletion,
+    assuming there's a classifier available.
+    """
+    def upload_image_with_annotations(self, filename):
+        img = self.upload_image(
+            self.user, self.source, image_options=dict(filename=filename))
+        self.add_annotations(self.user, img, {1: 'A', 2: 'B'})
+        return img
+
+    def upload_images_for_training(self, train_image_count, val_image_count):
+        for _ in range(train_image_count):
+            self.upload_image_with_annotations(
+                'train{}.png'.format(self.image_count))
+        for _ in range(val_image_count):
+            self.upload_image_with_annotations(
+                'val{}.png'.format(self.image_count))
+
+    def upload_data_and_train_classifier(self):
+        # Provide enough data for training
+        self.upload_images_for_training(
+            train_image_count=spacer_config.MIN_TRAINIMAGES, val_image_count=1)
+        # Process feature extraction results
+        collect_all_jobs()
+
+        # Train classifier
+        submit_classifier(self.source.id)
+        collect_all_jobs()
+
+    def test(self):
+        # Set up confirmed images + classifier
+        self.upload_data_and_train_classifier()
+
+        # Set up one unconfirmed image; we want to check that the unconfirmed
+        # annotations can get re-added after being deleted.
+        unconfirmed_image = self.upload_image(
+            self.user, self.source,
+            image_options=dict(filename='unconfirmed.png'))
+        collect_all_jobs()
+        self.assertEqual(
+            unconfirmed_image.annotation_set.unconfirmed().count(), 2,
+            f"Image {unconfirmed_image.metadata.name} should have"
+            f" unconfirmed annotations")
+
+        # Delete annotations
+        self.client.force_login(self.user)
+        response = self.client.post(self.url, self.default_search_params)
+        self.assertDictEqual(response.json(), dict(success=True))
+
+        for image in self.source.image_set.all():
+            self.assertFalse(
+                image.annotation_set.confirmed().exists(),
+                f"Image {image.metadata.name}'s confirmed annotations"
+                f" should be deleted")
+            self.assertEqual(
+                image.annotation_set.unconfirmed().count(), 2,
+                f"Image {image.metadata.name} should now have"
+                f" unconfirmed annotations")
+            self.assertFalse(
+                image.annoinfo.confirmed,
+                f"Image {image.metadata.name} should not be confirmed anymore")
 
 
 class OtherSourceTest(BaseDeleteTest):

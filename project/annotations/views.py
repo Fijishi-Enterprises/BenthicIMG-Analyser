@@ -153,11 +153,6 @@ def batch_delete_annotations_ajax(request, source_id):
     # Delete annotations.
     Annotation.objects.filter(image__in=image_set).delete()
 
-    # Queue classification for the images, now that they don't have annotations.
-    for image in image_set:
-        backend_tasks.classify_image.apply_async(
-            args=[image.id], eta=now()+timedelta(seconds=10))
-
     # This should appear on the next browse load.
     messages.success(
         request,

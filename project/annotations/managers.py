@@ -6,6 +6,14 @@ from images.models import Image
 
 class AnnotationQuerySet(models.QuerySet):
 
+    def confirmed(self):
+        """Confirmed annotations only."""
+        return self.exclude(user=get_robot_user())
+
+    def unconfirmed(self):
+        """Confirmed annotations only."""
+        return self.filter(user=get_robot_user())
+
     def delete(self):
         """
         Batch-delete Annotations. Note that when this is used,

@@ -98,6 +98,7 @@ class ImageAnnotationInfo(models.Model):
         self.save()
 
         if self.confirmed and confirmed_status_updated:
+
             # With a new image confirmed, let's try to train a new
             # robot. The task will simply exit if there are not enough new
             # images or if a robot is already being trained.
@@ -111,6 +112,15 @@ class ImageAnnotationInfo(models.Model):
             from vision_backend.tasks import submit_classifier
             submit_classifier.apply_async(
                 args=[self.image.source.id],
+                eta=timezone.now()+datetime.timedelta(seconds=10))
+
+        elif last_annotation is None:
+
+            # Image has no annotations now. Add machine annotations if there's
+            # a classifier available.
+            from vision_backend.tasks import classify_image
+            classify_image.apply_async(
+                args=[self.image.id],
                 eta=timezone.now()+datetime.timedelta(seconds=10))
 
 

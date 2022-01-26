@@ -1,0 +1,41 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>QUnit tests</title>
+  <meta charset="utf-8">
+  <link rel="shortcut icon"
+        href="{% static 'img/favicon.ico' %}">
+
+  {% include "static-local-include.html" with type="css" path="css/qunit.css" %}
+
+  {# Needs to include with type="module" in order for its import statements to work. #}
+  <script src="{% static 'js/fetch-mock.js' %}" type="module"></script>
+
+  {% for javascript_path in javascript_functionality_modules %}
+    {% include "static-local-include.html" with type="js" path=javascript_path %}
+  {% endfor %}
+</head>
+<body>
+  {# This is required for QUnit to run. #}
+  <div id="qunit"></div>
+
+  {# By putting HTML test content in the QUnit fixture element, the test content gets reset to its original state before each test runs. #}
+  <div id="qunit-fixture">
+    {# QUnit doesn't have its own way of swapping fixtures in and out of the qunit-fixture element for different test modules. We'll put all the fixture options here, and swap them on our own in our test module code. #}
+    {% for fixture_name, fixture in fixtures.items %}
+      <div class="fixture-option" data-fixture-name="{{ fixture_name }}">
+        {{ fixture }}
+      </div>
+    {% endfor %}
+  </div>
+
+  {% include "static-local-include.html" with type="js" path="js/qunit.js" %}
+
+  {% for javascript_path in javascript_test_modules %}
+    {# Needs to include with type="module" in order to import fetch-mock. #}
+    <script src="{% static javascript_path %}" type="module"></script>
+  {% endfor %}
+</body>
+</html>

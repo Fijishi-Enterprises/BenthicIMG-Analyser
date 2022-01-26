@@ -57,7 +57,7 @@ def get_source_stats():
         funcname[fg.id] = fg.name
     ss = []
     for s in Source.objects.filter():
-        annlist = [a.label_id for a in s.annotation_set.exclude(user=get_robot_user())]
+        annlist = [a.label_id for a in s.annotation_set.confirmed()]
         if not annlist:
             continue
         print(s.name)

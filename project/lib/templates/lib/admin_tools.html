@@ -16,4 +16,17 @@
   <li><a href="{% url 'emailall' %}">Email all</a></li>
 </ul>
 
+{% if debug %}
+  <br>
+  <br>
+  <h2>QUnit test pages</h2>
+  <ul class="detail_list">
+    <li><a href="{% url 'js_tests_browse:images_actions' %}">Browse Images - Actions</a></li>
+  </ul>
+{% else %}
+  <br>
+  <br>
+  <p>For developers: QUnit test pages will be listed here if DEBUG is True.</p>
+{% endif %}
+
 {% endblock %}

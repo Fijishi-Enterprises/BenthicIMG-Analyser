@@ -1,3 +1,22 @@
+from django import forms
+from django.forms import fields
+
+
+class DummyForm(forms.Form):
+    """
+    Dummy form that can be used for Javascript tests
+    in place of any other form, to keep those tests simple.
+    """
+    def __init__(self, **field_values):
+        super().__init__()
+
+        if not field_values:
+            field_values['field1'] = 'value1'
+        for field_name, field_value in field_values.items():
+            self.fields[field_name] = fields.CharField(
+                required=False, initial=field_value)
+
+
 def get_one_form_error(form, include_field_name=True):
     """
     Use this if form validation failed and you just want to get the string for

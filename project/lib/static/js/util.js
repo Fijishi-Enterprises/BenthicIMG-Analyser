@@ -30,9 +30,10 @@ var util = {
     @param resource - url or other resource to fetch (see standard fetch())
     @param init - options (see standard fetch())
     @param callback - function to call when the response status is OK
+    @return - the Promise that fetch() returns.
     */
     fetch: function(resource, init, callback) {
-        fetch(resource, init)
+        return fetch(resource, init)
             .then(response => {
                 if (!response.ok) {
                     // This can be "Internal server error" for example.

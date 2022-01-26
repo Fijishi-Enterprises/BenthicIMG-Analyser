@@ -48,6 +48,9 @@ urlpatterns = [
     path('api_management/',
          include('api_management.urls', namespace='api_management')),
 
+    # Internationalization
+    path('i18n/', include('django.conf.urls.i18n')),
+
     # "Secret" dev views
     path('admin_tools/', lib_views.admin_tools, name='admin_tools'),
     path('error_500_test/', lib_views.error_500_test, name='error_500_test'),
@@ -56,9 +59,10 @@ urlpatterns = [
          backend_views.backend_overview,
          name='backend_overview'),
     path('cm_test/', backend_views.cm_test, name='cm_test'),
-    
-    # Internationalization
-    path('i18n/', include('django.conf.urls.i18n')),
+
+    # Debug-only Javascript test views
+    path('js_tests/browse/',
+         include('visualization.tests.js.urls', namespace='js_tests_browse'))
 ]
 
 # Serving media files in development.

@@ -5,7 +5,7 @@ import pytz
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.utils import timezone
-from accounts.utils import get_robot_user, is_robot_user, get_alleviate_user
+from accounts.utils import is_robot_user, get_alleviate_user
 from .models import Annotation
 from images.model_utils import PointGen
 from images.models import Point
@@ -23,7 +23,7 @@ def image_annotation_all_done(image):
     # If every point has an annotation, and all annotations are by humans,
     # then we're all done
     return (annotations.count() == Point.objects.filter(image=image).count()
-            and annotations.filter(user=get_robot_user()).count() == 0)
+            and annotations.unconfirmed().count() == 0)
 
 
 def image_has_any_confirmed_annotations(image):
@@ -31,9 +31,7 @@ def image_has_any_confirmed_annotations(image):
     Return True if the image has at least one confirmed Annotation.
     Return False otherwise.
     """
-    confirmed_annotations = (
-        image.annotation_set.exclude(user=get_robot_user()))
-    return confirmed_annotations.count() > 0
+    return image.annotation_set.confirmed().count() > 0
 
 
 def image_annotation_area_is_editable(image):
@@ -56,10 +54,7 @@ def label_ids_with_confirmed_annotations_in_source(source):
     Get an iterable of label IDs which have at least one confirmed annotation
     in the given source.
     """
-    robot_user = get_robot_user()
-    confirmed_annotations_in_source = \
-        source.annotation_set.exclude(user=robot_user)
-    values = confirmed_annotations_in_source.values_list(
+    values = source.annotation_set.confirmed().values_list(
         'label_id', flat=True).distinct()
     return list(values)
 
@@ -138,11 +133,10 @@ def apply_alleviate(img, label_scores_all_points):
     
     if source.confidence_threshold > 99:
         return
-    
-    machine_annos = Annotation.objects.filter(image=img, user=get_robot_user())
+
     alleviate_was_applied = False
 
-    for anno in machine_annos:
+    for anno in img.annotation_set.unconfirmed():
         pt_number = anno.point.point_number
         label_scores = label_scores_all_points[pt_number]
         descending_scores = sorted(

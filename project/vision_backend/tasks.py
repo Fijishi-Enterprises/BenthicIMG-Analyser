@@ -19,7 +19,6 @@ from spacer.messages import \
     DataLocation
 from spacer.tasks import classify_features as spacer_classify_features
 
-from accounts.utils import get_robot_user
 from annotations.models import Annotation
 from api_core.models import ApiJobUnit
 from images.models import Source, Image, Point
@@ -449,8 +448,7 @@ def reset_classifiers_for_source(source_id):
     """
     Score.objects.filter(source_id=source_id).delete()
     Classifier.objects.filter(source_id=source_id).delete()
-    Annotation.objects.filter(source_id=source_id,
-                              user=get_robot_user()).delete()
+    Annotation.objects.filter(source_id=source_id).unconfirmed().delete()
     for image in Image.objects.filter(source_id=source_id):
         image.features.classified = False
         image.features.save()

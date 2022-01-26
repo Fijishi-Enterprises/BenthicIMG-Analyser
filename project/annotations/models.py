@@ -5,14 +5,14 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
 
-from .managers import AnnotationManager
+from .managers import AnnotationManager, AnnotationQuerySet
 from images.models import Image, Point, Source
 from labels.models import Label, LocalLabel
 from vision_backend.models import Classifier
 
 
 class Annotation(models.Model):
-    objects = AnnotationManager()
+    objects = AnnotationManager.from_queryset(AnnotationQuerySet)()
 
     annotation_date = models.DateTimeField(
         blank=True, auto_now=True, editable=False)
@@ -98,6 +98,7 @@ class ImageAnnotationInfo(models.Model):
         self.save()
 
         if self.confirmed and confirmed_status_updated:
+
             # With a new image confirmed, let's try to train a new
             # robot. The task will simply exit if there are not enough new
             # images or if a robot is already being trained.
@@ -110,7 +111,16 @@ class ImageAnnotationInfo(models.Model):
             # module, to avoid circular import issues.
             from vision_backend.tasks import submit_classifier
             submit_classifier.apply_async(
-                args=[self.image.source.id],
+                args=[self.image.source.pk],
+                eta=timezone.now()+datetime.timedelta(seconds=10))
+
+        elif last_annotation is None:
+
+            # Image has no annotations now. Add machine annotations if there's
+            # a classifier available.
+            from vision_backend.tasks import classify_image
+            classify_image.apply_async(
+                args=[self.image.pk],
                 eta=timezone.now()+datetime.timedelta(seconds=10))
 
 

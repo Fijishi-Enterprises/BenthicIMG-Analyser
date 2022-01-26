@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils.functional import wraps
@@ -157,6 +158,20 @@ news_item_permission_required = ModelViewDecorator(
     template='permission_denied.html',
     default_message="You don't have permission to view this news item."
 )
+
+# Require DEBUG = True to access the view.
+# @debug_required
+def debug_required(view_func):
+    def wrapper_func(request, *args, **kwargs):
+        if not settings.DEBUG:
+            # Deny access
+            return render(request, 'permission_denied.html', dict(
+                message="This page is inaccessible because DEBUG mode isn't on."
+            ))
+        else:
+            # Serve the view
+            return view_func(request, *args, **kwargs)
+    return wrapper_func
 
 # Version of login_required that can be used on Ajax views.
 # @login_required_ajax

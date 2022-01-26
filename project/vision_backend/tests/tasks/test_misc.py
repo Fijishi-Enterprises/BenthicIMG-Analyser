@@ -93,6 +93,15 @@ class ResetTaskTest(BaseTaskTest):
             Annotation.objects.filter(image=img).count(), 0,
             "img should have annotations")
 
+        # Ensure confirmed annotations weren't deleted
+        for image in self.source.image_set.exclude(pk=img.pk):
+            self.assertTrue(
+                image.annotation_set.confirmed().exists(),
+                "Confirmed annotations should still exist")
+            self.assertTrue(
+                image.annoinfo.confirmed,
+                "Confirmed image should still be confirmed")
+
     def test_reset_backend_for_source(self):
 
         # Classify image and verify that it worked
@@ -146,6 +155,15 @@ class ResetTaskTest(BaseTaskTest):
         self.assertGreater(
             Annotation.objects.filter(image=img).count(), 0,
             "img should have annotations")
+
+        # Ensure confirmed annotations weren't deleted
+        for image in self.source.image_set.exclude(pk=img.pk):
+            self.assertTrue(
+                image.annotation_set.confirmed().exists(),
+                "Confirmed annotations should still exist")
+            self.assertTrue(
+                image.annoinfo.confirmed,
+                "Confirmed image should still be confirmed")
 
     def test_point_change_cleanup(self):
         """

@@ -12,8 +12,7 @@ import re
 from bs4 import UnicodeDammit
 from django.urls import reverse
 
-from accounts.utils import get_robot_user
-from annotations.models import Annotation, ImageAnnotationInfo
+from annotations.models import ImageAnnotationInfo
 from images.forms import MetadataForm
 from images.models import Metadata, Image
 from images.utils import generate_points, aux_label_name_collisions, \
@@ -813,11 +812,7 @@ def annotations_preview(csv_annotations, source):
             "Will create {points} points, {annotations} annotations".format(
                 points=num_csv_points, annotations=num_csv_annotations)
 
-        num_existing_annotations = (
-            Annotation.objects.filter(image=img)
-            .exclude(user=get_robot_user())
-            .count()
-        )
+        num_existing_annotations = img.annotation_set.confirmed().count()
         if num_existing_annotations > 0:
             preview_dict['deleteInfo'] = \
                 "Will delete {annotations} existing annotations".format(

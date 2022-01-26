@@ -10,7 +10,6 @@ from django.views.decorators.http import require_POST
 
 from .forms import CheckboxForm, StatisticsSearchForm, ImageSearchForm, \
     PatchSearchOptionsForm, HiddenForm, create_image_filter_form
-from accounts.utils import get_robot_user
 from annotations.models import Annotation
 from calcification.forms import CalcifyRateTableForm, ExportCalcifyStatsForm
 from calcification.utils import get_default_calcify_tables
@@ -73,9 +72,6 @@ def browse_images(request, source_id):
             annotation_tool_page_results=
                 [reverse('annotation_tool', args=[pk])
                  for pk in page_image_ids],
-            delete=reverse('browse_delete_ajax', args=[source.pk]),
-            export_annotations_cpc_create_ajax=
-                reverse('export_annotations_cpc_create_ajax', args=[source.pk]),
         )
         previous_cpcs_status = get_previous_cpcs_status(image_results)
     else:
@@ -85,11 +81,23 @@ def browse_images(request, source_id):
 
     return render(request, 'visualization/browse_images.html', {
         'source': source,
-        'image_search_form': image_search_form,
         'page_results': page_results,
         'page_image_ids': page_image_ids,
         'links': links,
+        'empty_message': empty_message,
+        'image_search_form': image_search_form,
         'hidden_image_form': hidden_image_form,
+
+        'can_annotate': request.user.has_perm(
+            Source.PermTypes.EDIT.code, source),
+        # CPC export's fields can contain PC filepaths recently used
+        # in an uploaded .cpc, which may not be good to reveal publicly
+        # in a public source.
+        'can_export_cpc_annotations': request.user.has_perm(
+            Source.PermTypes.EDIT.code, source),
+        'can_manage_source_data': request.user.has_perm(
+            Source.PermTypes.EDIT.code, source),
+
         'export_annotations_form': ExportAnnotationsForm(),
         'export_image_covers_form': ExportImageCoversForm(),
 
@@ -98,12 +106,9 @@ def browse_images(request, source_id):
         'source_calcification_tables': source.calcifyratetable_set.order_by(
             'name'),
         'default_calcification_tables': get_default_calcify_tables(),
-        'can_manage_calcification_tables': request.user.has_perm(
-            Source.PermTypes.EDIT.code, source),
 
         'cpc_prefs_form': CpcPrefsForm(source=source),
         'previous_cpcs_status': previous_cpcs_status,
-        'empty_message': empty_message,
     })
 
 
@@ -322,19 +327,14 @@ def browse_delete_ajax(request, source_id):
 
     image_form = create_image_filter_form(request.POST, source)
     if not image_form:
-        # There's nothing invalid about a user wanting to delete all images
-        # in the source, but it's somewhat plausible that we'd accidentally
-        # reach this case if we screwed something up.
-        #
         # It's not good to accidentally delete everything, and it's uncommon
         # to do it intentionally. So we'll play it safe.
-        # If the user really wants to delete everything, they can simply
-        # click Search with all fields at the defaults ("All" etc.)
-        # and then choose Delete.
         return JsonResponse(dict(
             error=(
-                "You must first use the search form"
-                " or select images on the page to use the delete function."
+                "You must first use the search form or select images on the"
+                " page to use the delete function. If you really want to"
+                " delete all images, first click 'Search' without"
+                " changing any of the search fields."
             )
         ))
     if not image_form.is_valid():
@@ -398,7 +398,7 @@ def generate_statistics(request, source_id):
                 if request.GET and request.GET.get('include_robot', ''):
                     all_annotations = Annotation.objects.filter(source=source, **patchArgs)
                 else:
-                    all_annotations = Annotation.objects.filter(source=source, **patchArgs).exclude(user=get_robot_user())
+                    all_annotations = Annotation.objects.filter(source=source, **patchArgs).confirmed()
 
 
                 #check that we found annotations

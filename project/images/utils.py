@@ -7,9 +7,8 @@ from django.conf import settings
 from django.db.models import Count, Q
 from django.urls import reverse
 
-from accounts.utils import get_robot_user, get_alleviate_user
+from accounts.utils import get_alleviate_user
 from annotations.model_utils import AnnotationAreaUtils
-from annotations.models import Annotation
 from .model_utils import PointGen
 from .models import Source, Point, Image, Metadata
 
@@ -329,7 +328,8 @@ def generate_points(img, usesourcemethod=True):
 
     # If there are any human annotations for this image,
     # abort point generation.
-    human_annotations = Annotation.objects.filter(image = img).exclude(user = get_robot_user()).exclude(user = get_alleviate_user())
+    human_annotations = img.annotation_set.confirmed().exclude(
+        user=get_alleviate_user())
     if human_annotations:
         return
 

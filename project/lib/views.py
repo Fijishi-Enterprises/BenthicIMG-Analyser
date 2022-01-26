@@ -39,7 +39,9 @@ def admin_tools(request):
     """
     Admin tools portal page.
     """
-    return render(request, 'lib/admin_tools.html')
+    return render(request, 'lib/admin_tools.html', {
+        'debug': settings.DEBUG,
+    })
 
 
 def handler500(request, template_name='500.html'):

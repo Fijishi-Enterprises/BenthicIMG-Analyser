@@ -7,7 +7,7 @@ from lib.tests.utils import BasePermissionTest, ClientTest
 
 class PermissionTest(BasePermissionTest):
     """
-    Test page permissions.
+    Test view permissions.
     """
     def test_browse_delete_ajax(self):
         url = reverse('browse_delete_ajax', args=[self.source.pk])
@@ -20,16 +20,13 @@ class PermissionTest(BasePermissionTest):
             url, self.SOURCE_EDIT, is_json=True, post_data={})
 
 
-class SuccessTest(ClientTest):
+class BaseDeleteTest(ClientTest):
     @classmethod
     def setUpTestData(cls):
         super().setUpTestData()
 
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
-        cls.img1 = cls.upload_image(cls.user, cls.source)
-        cls.img2 = cls.upload_image(cls.user, cls.source)
-        cls.img3 = cls.upload_image(cls.user, cls.source)
 
         cls.url = reverse('browse_delete_ajax', args=[cls.source.pk])
 
@@ -47,6 +44,39 @@ class SuccessTest(ClientTest):
             sort_method='name', sort_direction='asc',
         )
 
+    def assert_image_deleted(self, image_id, name):
+        msg = f"Image {name} should be deleted"
+        with self.assertRaises(Image.DoesNotExist, msg=msg):
+            Image.objects.get(pk=image_id)
+
+    def assert_image_not_deleted(self, image_id, name):
+        try:
+            Image.objects.get(pk=image_id)
+        except Image.DoesNotExist:
+            raise AssertionError(f"Image {name} should not be deleted")
+
+    def assert_confirmation_message(self, count):
+        """
+        Call this after a successful deletion to check the top-of-page
+        confirmation message.
+        """
+        browse_url = reverse('browse_images', args=[self.source.pk])
+        self.client.force_login(self.user)
+        response = self.client.get(browse_url)
+        self.assertContains(
+            response,
+            f"The {count} selected images have been deleted.")
+
+
+class SuccessTest(BaseDeleteTest):
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+
+        cls.img1 = cls.upload_image(cls.user, cls.source)
+        cls.img2 = cls.upload_image(cls.user, cls.source)
+        cls.img3 = cls.upload_image(cls.user, cls.source)
+
     def test_delete_all_images(self):
         """
         Delete all images in the source.
@@ -55,17 +85,15 @@ class SuccessTest(ClientTest):
         response = self.client.post(self.url, self.default_search_params)
         self.assertDictEqual(response.json(), dict(success=True))
 
-        # Check that the images were deleted.
-        self.assertRaises(
-            Image.DoesNotExist, Image.objects.get, pk=self.img1.pk)
-        self.assertRaises(
-            Image.DoesNotExist, Image.objects.get, pk=self.img2.pk)
-        self.assertRaises(
-            Image.DoesNotExist, Image.objects.get, pk=self.img3.pk)
+        self.assert_image_deleted(self.img1.pk, "img1")
+        self.assert_image_deleted(self.img2.pk, "img2")
+        self.assert_image_deleted(self.img3.pk, "img3")
+
+        self.assert_confirmation_message(count=3)
 
     def test_delete_by_aux_meta(self):
         """
-        Delete images by aux. meta.
+        Delete when filtering images by auxiliary metadata.
         """
         self.img1.metadata.aux1 = 'SiteA'
         self.img1.metadata.save()
@@ -77,12 +105,11 @@ class SuccessTest(ClientTest):
         response = self.client.post(self.url, post_data)
         self.assertDictEqual(response.json(), dict(success=True))
 
-        # Check that we can get image 2 and 3, but not 1,
-        # which we chose to delete.
-        self.assertRaises(
-            Image.DoesNotExist, Image.objects.get, pk=self.img1.pk)
-        Image.objects.get(pk=self.img2.pk)
-        Image.objects.get(pk=self.img3.pk)
+        self.assert_image_deleted(self.img1.pk, "img1")
+        self.assert_image_not_deleted(self.img2.pk, "img2")
+        self.assert_image_not_deleted(self.img3.pk, "img3")
+
+        self.assert_confirmation_message(count=1)
 
     def test_delete_by_image_ids(self):
         """
@@ -97,13 +124,11 @@ class SuccessTest(ClientTest):
         response = self.client.post(self.url, post_data)
         self.assertDictEqual(response.json(), dict(success=True))
 
-        # Check that we can get image 2, but not 1 and 3,
-        # which we chose to delete.
-        self.assertRaises(
-            Image.DoesNotExist, Image.objects.get, pk=self.img1.pk)
-        Image.objects.get(pk=self.img2.pk)
-        self.assertRaises(
-            Image.DoesNotExist, Image.objects.get, pk=self.img3.pk)
+        self.assert_image_deleted(self.img1.pk, "img1")
+        self.assert_image_not_deleted(self.img2.pk, "img2")
+        self.assert_image_deleted(self.img3.pk, "img3")
+
+        self.assert_confirmation_message(count=2)
 
     def test_delete_related_objects(self):
         """
@@ -113,29 +138,37 @@ class SuccessTest(ClientTest):
             image_form_type='ids',
             ids=','.join([str(self.img1.pk), str(self.img3.pk)])
         )
-        metadata_1_pk = self.img1.metadata.pk
-        metadata_2_pk = self.img2.metadata.pk
-        metadata_3_pk = self.img3.metadata.pk
-        features_1_pk = self.img1.features.pk
-        features_2_pk = self.img2.features.pk
-        features_3_pk = self.img3.features.pk
+        metadata_1_id = self.img1.metadata.pk
+        metadata_2_id = self.img2.metadata.pk
+        metadata_3_id = self.img3.metadata.pk
+        features_1_id = self.img1.features.pk
+        features_2_id = self.img2.features.pk
+        features_3_id = self.img3.features.pk
 
         self.client.force_login(self.user)
         response = self.client.post(self.url, post_data)
         self.assertDictEqual(response.json(), dict(success=True))
 
-        self.assertRaises(
-            Metadata.DoesNotExist, Metadata.objects.get, pk=metadata_1_pk)
-        Metadata.objects.get(pk=metadata_2_pk)
-        self.assertRaises(
-            Metadata.DoesNotExist, Metadata.objects.get, pk=metadata_3_pk)    
+        with self.assertRaises(Metadata.DoesNotExist, msg="Should delete"):
+            Metadata.objects.get(pk=metadata_1_id)
+        try:
+            Metadata.objects.get(pk=metadata_2_id)
+        except Metadata.DoesNotExist:
+            raise AssertionError("Should not delete")
+        with self.assertRaises(Metadata.DoesNotExist, msg="Should delete"):
+            Metadata.objects.get(pk=metadata_3_id)
 
-        self.assertRaises(Features.DoesNotExist, Features.objects.get, pk=features_1_pk)
-        Features.objects.get(pk=features_2_pk)
-        self.assertRaises(Features.DoesNotExist, Features.objects.get, pk=features_3_pk)
+        with self.assertRaises(Features.DoesNotExist, msg="Should delete"):
+            Features.objects.get(pk=features_1_id)
+        try:
+            Features.objects.get(pk=features_2_id)
+        except Features.DoesNotExist:
+            raise AssertionError("Should not delete")
+        with self.assertRaises(Features.DoesNotExist, msg="Should delete"):
+            Features.objects.get(pk=features_3_id)
 
 
-class OtherSourceTest(ClientTest):
+class OtherSourceTest(BaseDeleteTest):
     """
     Ensure that the UI doesn't allow deleting other sources' images.
     """
@@ -143,47 +176,26 @@ class OtherSourceTest(ClientTest):
     def setUpTestData(cls):
         super().setUpTestData()
 
-        cls.user = cls.create_user()
-        cls.source = cls.create_source(cls.user)
         cls.img1 = cls.upload_image(cls.user, cls.source)
         cls.img2 = cls.upload_image(cls.user, cls.source)
         source2 = cls.create_source(cls.user)
         cls.img21 = cls.upload_image(cls.user, source2)
         cls.img22 = cls.upload_image(cls.user, source2)
 
-        cls.url = reverse('browse_delete_ajax', args=[cls.source.pk])
-
     def test_dont_delete_other_sources_images_via_search_form(self):
         """
         Sanity check that the search form only picks up images in the current
         source.
         """
-        search_params = dict(
-            image_form_type='search',
-            aux1='', aux2='', aux3='', aux4='', aux5='',
-            height_in_cm='', latitude='', longitude='', depth='',
-            photographer='', framing='', balance='',
-            photo_date_0='', photo_date_1='', photo_date_2='',
-            photo_date_3='', photo_date_4='',
-            image_name='', annotation_status='',
-            last_annotated_0='', last_annotated_1='', last_annotated_2='',
-            last_annotated_3='', last_annotated_4='',
-            last_annotator_0='', last_annotator_1='',
-            sort_method='name', sort_direction='asc',
-        )
         self.client.force_login(self.user)
-        response = self.client.post(self.url, search_params)
+        response = self.client.post(self.url, self.default_search_params)
         self.assertDictEqual(response.json(), dict(success=True))
 
-        # Source 1's images deleted
-        self.assertRaises(
-            Image.DoesNotExist, Image.objects.get, pk=self.img1.pk)
-        self.assertRaises(
-            Image.DoesNotExist, Image.objects.get, pk=self.img2.pk)
+        self.assert_image_deleted(self.img1.pk, "img1")
+        self.assert_image_deleted(self.img2.pk, "img2")
 
-        # Source 2's images not deleted
-        Image.objects.get(pk=self.img21.pk)
-        Image.objects.get(pk=self.img22.pk)
+        self.assert_image_not_deleted(self.img21.pk, "img21")
+        self.assert_image_not_deleted(self.img22.pk, "img22")
 
     def test_dont_delete_other_sources_images_via_ids(self):
         """
@@ -199,57 +211,37 @@ class OtherSourceTest(ClientTest):
         response = self.client.post(self.url, post_data)
         self.assertDictEqual(response.json(), dict(success=True))
 
-        # Check that we can get image 22, but not 1.
-        self.assertRaises(
-            Image.DoesNotExist, Image.objects.get, pk=self.img1.pk)
-        Image.objects.get(pk=self.img22.pk)
+        self.assert_image_deleted(self.img1.pk, "img1")
+        self.assert_image_not_deleted(self.img22.pk, "img22")
 
 
-class ErrorTest(ClientTest):
+class ErrorTest(BaseDeleteTest):
     @classmethod
     def setUpTestData(cls):
         super().setUpTestData()
 
-        cls.user = cls.create_user()
-        cls.source = cls.create_source(cls.user)
         cls.img1 = cls.upload_image(cls.user, cls.source)
         cls.img2 = cls.upload_image(cls.user, cls.source)
         cls.img3 = cls.upload_image(cls.user, cls.source)
-
-        cls.url = reverse('browse_delete_ajax', args=[cls.source.pk])
-
-        cls.default_search_params = dict(
-            image_form_type='search',
-            aux1='', aux2='', aux3='', aux4='', aux5='',
-            height_in_cm='', latitude='', longitude='', depth='',
-            photographer='', framing='', balance='',
-            photo_date_0='', photo_date_1='', photo_date_2='',
-            photo_date_3='', photo_date_4='',
-            image_name='', annotation_status='',
-            last_annotated_0='', last_annotated_1='', last_annotated_2='',
-            last_annotated_3='', last_annotated_4='',
-            last_annotator_0='', last_annotator_1='',
-            sort_method='name', sort_direction='asc',
-        )
 
     def test_no_search_form(self):
         self.client.force_login(self.user)
         response = self.client.post(self.url, dict())
         self.assertDictEqual(response.json(), dict(
             error=(
-                "You must first use the search form"
-                " or select images on the page to use the delete function."
+                "You must first use the search form or select images on the"
+                " page to use the delete function. If you really want to"
+                " delete all images, first click 'Search' without"
+                " changing any of the search fields."
             )
         ))
-        # Since the images weren't deleted,
-        # these image-getting statements should not raise errors.
-        Image.objects.get(pk=self.img1.pk)
-        Image.objects.get(pk=self.img2.pk)
-        Image.objects.get(pk=self.img3.pk)
+
+        self.assert_image_not_deleted(self.img1.pk, "img1")
+        self.assert_image_not_deleted(self.img2.pk, "img2")
+        self.assert_image_not_deleted(self.img3.pk, "img3")
 
     def test_form_error(self):
         post_data = self.default_search_params.copy()
-        # Nonexistent aux1 value in this source.
         post_data['annotation_status'] = 'invalid_value'
 
         self.client.force_login(self.user)
@@ -260,6 +252,7 @@ class ErrorTest(ClientTest):
                 " Nothing was deleted."
             )
         ))
-        Image.objects.get(pk=self.img1.pk)
-        Image.objects.get(pk=self.img2.pk)
-        Image.objects.get(pk=self.img3.pk)
+
+        self.assert_image_not_deleted(self.img1.pk, "img1")
+        self.assert_image_not_deleted(self.img2.pk, "img2")
+        self.assert_image_not_deleted(self.img3.pk, "img3")

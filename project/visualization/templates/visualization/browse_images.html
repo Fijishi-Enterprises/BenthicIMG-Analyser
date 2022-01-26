@@ -65,7 +65,7 @@
       let browseActionHelper = new BrowseActionHelper(
           {{ page_image_ids|jsonify }});
       let calcifyTablesHelper = new CalcifyTablesHelper(
-          {{ can_manage_calcification_tables|jsonify }});
+          {{ can_manage_source_data|jsonify }});
     {% endif %}
 
     window.seleniumDebugInitRan = true;

@@ -252,7 +252,7 @@ def response_after_table_upload_or_delete(request, source):
             source_calcification_tables=source.calcifyratetable_set.order_by(
                 'name'),
             default_calcification_tables=get_default_calcify_tables(),
-            can_manage_calcification_tables=request.user.has_perm(
+            can_manage_source_data=request.user.has_perm(
                 Source.PermTypes.EDIT.code, source),
         ),
         # Passing the request gives us a RequestContext, which allows

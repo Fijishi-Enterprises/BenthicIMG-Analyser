@@ -14,7 +14,7 @@
           <button>Download CSV</button>
         </form>
 
-        {% if can_manage_calcification_tables %}
+        {% if can_manage_source_data %}
           <form action="{% url 'calcification:rate_table_delete_ajax' rate_table.pk %}" method="post" class="rate-table-delete">
             {% csrf_token %}
             <button>Delete</button>

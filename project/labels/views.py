@@ -14,7 +14,6 @@ from django.urls import reverse
 from django.utils.timezone import now
 from django.views.decorators.http import require_POST, require_GET
 
-from accounts.utils import get_robot_user
 from annotations.models import Annotation
 from annotations.utils import label_ids_with_confirmed_annotations_in_source
 from calcification.utils import get_default_calcify_tables
@@ -423,9 +422,8 @@ def label_example_patches_ajax(request, label_id):
     """
     label = get_object_or_404(Label, id=label_id)
 
-    all_annotations = Annotation.objects \
+    all_annotations = Annotation.objects.confirmed() \
         .filter(label=label) \
-        .exclude(user=get_robot_user()) \
         .order_by('?')
 
     ITEMS_PER_PAGE = 50

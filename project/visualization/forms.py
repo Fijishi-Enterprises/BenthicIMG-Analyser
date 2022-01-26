@@ -629,9 +629,9 @@ class PatchSearchOptionsForm(Form):
             results = results.filter(label=data['label'])
 
         if data['annotation_status'] == 'unconfirmed':
-            results = results.filter(user=get_robot_user())
+            results = results.unconfirmed()
         elif data['annotation_status'] == 'confirmed':
-            results = results.exclude(user=get_robot_user())
+            results = results.confirmed()
 
         # For multi-value fields, the search kwargs are the cleaned data.
         for field_name in ['annotation_date', 'annotator']:

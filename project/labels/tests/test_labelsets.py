@@ -2,7 +2,6 @@ from bs4 import BeautifulSoup
 from django.urls import reverse
 from django.utils.html import escape
 
-from accounts.utils import get_robot_user
 from calcification.models import CalcifyRateTable
 from images.model_utils import PointGen
 from lib.tests.utils import BasePermissionTest
@@ -328,9 +327,8 @@ class LabelsetAddRemoveTest(LabelTest):
         self.assertEqual(
             self.source.classifier_set.count(), 0,
             "Classifier should be deleted")
-        robot_user = get_robot_user()
         self.assertEqual(
-            self.source.annotation_set.filter(user=robot_user).count(), 0,
+            self.source.annotation_set.unconfirmed().count(), 0,
             "Unconfirmed annotations should be deleted")
         self.assertEqual(
             self.source.image_set.filter(features__classified=True).count(), 0,

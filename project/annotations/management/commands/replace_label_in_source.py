@@ -6,7 +6,6 @@ from django.utils.timezone import now
 from reversion import revisions
 from tqdm import tqdm
 
-from accounts.utils import get_robot_user
 from annotations.models import Annotation
 from images.models import Source
 from labels.models import Label
@@ -62,11 +61,9 @@ class Command(BaseCommand):
         new_label = Label.objects.get(pk=options['new_label_id'])
 
         user = User.objects.get(pk=options['user_id'])
-        robot_user = get_robot_user()
 
-        annotations = Annotation.objects \
-            .filter(point__image__source=source, label=old_label) \
-            .exclude(user=robot_user)
+        annotations = Annotation.objects.confirmed() \
+            .filter(point__image__source=source, label=old_label)
 
         self.stdout.write(
             "Source: {source_name}".format(source_name=source.name))

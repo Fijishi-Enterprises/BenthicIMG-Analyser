@@ -10,7 +10,6 @@ from django.views.decorators.http import require_POST
 
 from .forms import CheckboxForm, StatisticsSearchForm, ImageSearchForm, \
     PatchSearchOptionsForm, HiddenForm, create_image_filter_form
-from accounts.utils import get_robot_user
 from annotations.models import Annotation
 from calcification.forms import CalcifyRateTableForm, ExportCalcifyStatsForm
 from calcification.utils import get_default_calcify_tables
@@ -399,7 +398,7 @@ def generate_statistics(request, source_id):
                 if request.GET and request.GET.get('include_robot', ''):
                     all_annotations = Annotation.objects.filter(source=source, **patchArgs)
                 else:
-                    all_annotations = Annotation.objects.filter(source=source, **patchArgs).exclude(user=get_robot_user())
+                    all_annotations = Annotation.objects.filter(source=source, **patchArgs).confirmed()
 
 
                 #check that we found annotations

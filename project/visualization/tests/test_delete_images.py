@@ -10,7 +10,7 @@ class PermissionTest(BasePermissionTest):
     Test view permissions.
     """
     def test_browse_delete_ajax(self):
-        url = reverse('browse_delete_ajax', args=[self.source.id])
+        url = reverse('browse_delete_ajax', args=[self.source.pk])
 
         self.source_to_private()
         self.assertPermissionLevel(
@@ -28,7 +28,7 @@ class BaseDeleteTest(ClientTest):
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
 
-        cls.url = reverse('browse_delete_ajax', args=[cls.source.id])
+        cls.url = reverse('browse_delete_ajax', args=[cls.source.pk])
 
         cls.default_search_params = dict(
             image_form_type='search',
@@ -47,11 +47,11 @@ class BaseDeleteTest(ClientTest):
     def assert_image_deleted(self, image_id, name):
         msg = f"Image {name} should be deleted"
         with self.assertRaises(Image.DoesNotExist, msg=msg):
-            Image.objects.get(id=image_id)
+            Image.objects.get(pk=image_id)
 
     def assert_image_not_deleted(self, image_id, name):
         try:
-            Image.objects.get(id=image_id)
+            Image.objects.get(pk=image_id)
         except Image.DoesNotExist:
             raise AssertionError(f"Image {name} should not be deleted")
 
@@ -60,7 +60,7 @@ class BaseDeleteTest(ClientTest):
         Call this after a successful deletion to check the top-of-page
         confirmation message.
         """
-        browse_url = reverse('browse_images', args=[self.source.id])
+        browse_url = reverse('browse_images', args=[self.source.pk])
         self.client.force_login(self.user)
         response = self.client.get(browse_url)
         self.assertContains(
@@ -85,9 +85,9 @@ class SuccessTest(BaseDeleteTest):
         response = self.client.post(self.url, self.default_search_params)
         self.assertDictEqual(response.json(), dict(success=True))
 
-        self.assert_image_deleted(self.img1.id, "img1")
-        self.assert_image_deleted(self.img2.id, "img2")
-        self.assert_image_deleted(self.img3.id, "img3")
+        self.assert_image_deleted(self.img1.pk, "img1")
+        self.assert_image_deleted(self.img2.pk, "img2")
+        self.assert_image_deleted(self.img3.pk, "img3")
 
         self.assert_confirmation_message(count=3)
 
@@ -105,9 +105,9 @@ class SuccessTest(BaseDeleteTest):
         response = self.client.post(self.url, post_data)
         self.assertDictEqual(response.json(), dict(success=True))
 
-        self.assert_image_deleted(self.img1.id, "img1")
-        self.assert_image_not_deleted(self.img2.id, "img2")
-        self.assert_image_not_deleted(self.img3.id, "img3")
+        self.assert_image_deleted(self.img1.pk, "img1")
+        self.assert_image_not_deleted(self.img2.pk, "img2")
+        self.assert_image_not_deleted(self.img3.pk, "img3")
 
         self.assert_confirmation_message(count=1)
 
@@ -117,16 +117,16 @@ class SuccessTest(BaseDeleteTest):
         """
         post_data = dict(
             image_form_type='ids',
-            ids=','.join([str(self.img1.id), str(self.img3.id)])
+            ids=','.join([str(self.img1.pk), str(self.img3.pk)])
         )
 
         self.client.force_login(self.user)
         response = self.client.post(self.url, post_data)
         self.assertDictEqual(response.json(), dict(success=True))
 
-        self.assert_image_deleted(self.img1.id, "img1")
-        self.assert_image_not_deleted(self.img2.id, "img2")
-        self.assert_image_deleted(self.img3.id, "img3")
+        self.assert_image_deleted(self.img1.pk, "img1")
+        self.assert_image_not_deleted(self.img2.pk, "img2")
+        self.assert_image_deleted(self.img3.pk, "img3")
 
         self.assert_confirmation_message(count=2)
 
@@ -136,36 +136,36 @@ class SuccessTest(BaseDeleteTest):
         """
         post_data = dict(
             image_form_type='ids',
-            ids=','.join([str(self.img1.id), str(self.img3.id)])
+            ids=','.join([str(self.img1.pk), str(self.img3.pk)])
         )
-        metadata_1_id = self.img1.metadata.id
-        metadata_2_id = self.img2.metadata.id
-        metadata_3_id = self.img3.metadata.id
-        features_1_id = self.img1.features.id
-        features_2_id = self.img2.features.id
-        features_3_id = self.img3.features.id
+        metadata_1_id = self.img1.metadata.pk
+        metadata_2_id = self.img2.metadata.pk
+        metadata_3_id = self.img3.metadata.pk
+        features_1_id = self.img1.features.pk
+        features_2_id = self.img2.features.pk
+        features_3_id = self.img3.features.pk
 
         self.client.force_login(self.user)
         response = self.client.post(self.url, post_data)
         self.assertDictEqual(response.json(), dict(success=True))
 
         with self.assertRaises(Metadata.DoesNotExist, msg="Should delete"):
-            Metadata.objects.get(id=metadata_1_id)
+            Metadata.objects.get(pk=metadata_1_id)
         try:
-            Metadata.objects.get(id=metadata_2_id)
+            Metadata.objects.get(pk=metadata_2_id)
         except Metadata.DoesNotExist:
             raise AssertionError("Should not delete")
         with self.assertRaises(Metadata.DoesNotExist, msg="Should delete"):
-            Metadata.objects.get(id=metadata_3_id)
+            Metadata.objects.get(pk=metadata_3_id)
 
         with self.assertRaises(Features.DoesNotExist, msg="Should delete"):
-            Features.objects.get(id=features_1_id)
+            Features.objects.get(pk=features_1_id)
         try:
-            Features.objects.get(id=features_2_id)
+            Features.objects.get(pk=features_2_id)
         except Features.DoesNotExist:
             raise AssertionError("Should not delete")
         with self.assertRaises(Features.DoesNotExist, msg="Should delete"):
-            Features.objects.get(id=features_3_id)
+            Features.objects.get(pk=features_3_id)
 
 
 class OtherSourceTest(BaseDeleteTest):
@@ -191,11 +191,11 @@ class OtherSourceTest(BaseDeleteTest):
         response = self.client.post(self.url, self.default_search_params)
         self.assertDictEqual(response.json(), dict(success=True))
 
-        self.assert_image_deleted(self.img1.id, "img1")
-        self.assert_image_deleted(self.img2.id, "img2")
+        self.assert_image_deleted(self.img1.pk, "img1")
+        self.assert_image_deleted(self.img2.pk, "img2")
 
-        self.assert_image_not_deleted(self.img21.id, "img21")
-        self.assert_image_not_deleted(self.img22.id, "img22")
+        self.assert_image_not_deleted(self.img21.pk, "img21")
+        self.assert_image_not_deleted(self.img22.pk, "img22")
 
     def test_dont_delete_other_sources_images_via_ids(self):
         """
@@ -204,15 +204,15 @@ class OtherSourceTest(BaseDeleteTest):
         """
         post_data = dict(
             image_form_type='ids',
-            ids=','.join([str(self.img1.id), str(self.img22.id)])
+            ids=','.join([str(self.img1.pk), str(self.img22.pk)])
         )
 
         self.client.force_login(self.user)
         response = self.client.post(self.url, post_data)
         self.assertDictEqual(response.json(), dict(success=True))
 
-        self.assert_image_deleted(self.img1.id, "img1")
-        self.assert_image_not_deleted(self.img22.id, "img22")
+        self.assert_image_deleted(self.img1.pk, "img1")
+        self.assert_image_not_deleted(self.img22.pk, "img22")
 
 
 class ErrorTest(BaseDeleteTest):
@@ -236,9 +236,9 @@ class ErrorTest(BaseDeleteTest):
             )
         ))
 
-        self.assert_image_not_deleted(self.img1.id, "img1")
-        self.assert_image_not_deleted(self.img2.id, "img2")
-        self.assert_image_not_deleted(self.img3.id, "img3")
+        self.assert_image_not_deleted(self.img1.pk, "img1")
+        self.assert_image_not_deleted(self.img2.pk, "img2")
+        self.assert_image_not_deleted(self.img3.pk, "img3")
 
     def test_form_error(self):
         post_data = self.default_search_params.copy()
@@ -253,6 +253,6 @@ class ErrorTest(BaseDeleteTest):
             )
         ))
 
-        self.assert_image_not_deleted(self.img1.id, "img1")
-        self.assert_image_not_deleted(self.img2.id, "img2")
-        self.assert_image_not_deleted(self.img3.id, "img3")
+        self.assert_image_not_deleted(self.img1.pk, "img1")
+        self.assert_image_not_deleted(self.img2.pk, "img2")
+        self.assert_image_not_deleted(self.img3.pk, "img3")

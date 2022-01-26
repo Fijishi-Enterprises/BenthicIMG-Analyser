@@ -10,7 +10,7 @@ class PermissionTest(BasePermissionTest):
     Test view permissions.
     """
     def test_batch_delete_annotations_ajax(self):
-        url = reverse('batch_delete_annotations_ajax', args=[self.source.id])
+        url = reverse('batch_delete_annotations_ajax', args=[self.source.pk])
 
         self.source_to_private()
         self.assertPermissionLevel(
@@ -31,7 +31,7 @@ class BaseDeleteTest(ClientTest):
         cls.create_labelset(cls.user, cls.source, cls.labels)
 
         cls.url = reverse(
-            'batch_delete_annotations_ajax', args=[cls.source.id])
+            'batch_delete_annotations_ajax', args=[cls.source.pk])
 
         cls.default_search_params = dict(
             image_form_type='search',
@@ -68,7 +68,7 @@ class BaseDeleteTest(ClientTest):
         Call this after a successful deletion to check the top-of-page
         confirmation message.
         """
-        browse_url = reverse('browse_images', args=[self.source.id])
+        browse_url = reverse('browse_images', args=[self.source.pk])
         self.client.force_login(self.user)
         response = self.client.get(browse_url)
         self.assertContains(
@@ -134,7 +134,7 @@ class SuccessTest(BaseDeleteTest):
         """
         post_data = dict(
             image_form_type='ids',
-            ids=','.join([str(self.img1.id), str(self.img3.id)])
+            ids=','.join([str(self.img1.pk), str(self.img3.pk)])
         )
 
         self.client.force_login(self.user)
@@ -203,7 +203,7 @@ class ClassifyAfterDeleteTest(BaseDeleteTest):
         collect_all_jobs()
 
         # Train classifier
-        submit_classifier(self.source.id)
+        submit_classifier(self.source.pk)
         collect_all_jobs()
 
     def test(self):

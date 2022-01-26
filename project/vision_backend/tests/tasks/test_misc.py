@@ -94,7 +94,7 @@ class ResetTaskTest(BaseTaskTest):
             "img should have annotations")
 
         # Ensure confirmed annotations weren't deleted
-        for image in self.source.image_set.exclude(id=img.id):
+        for image in self.source.image_set.exclude(pk=img.pk):
             self.assertTrue(
                 image.annotation_set.confirmed().exists(),
                 "Confirmed annotations should still exist")
@@ -157,7 +157,7 @@ class ResetTaskTest(BaseTaskTest):
             "img should have annotations")
 
         # Ensure confirmed annotations weren't deleted
-        for image in self.source.image_set.exclude(id=img.id):
+        for image in self.source.image_set.exclude(pk=img.pk):
             self.assertTrue(
                 image.annotation_set.confirmed().exists(),
                 "Confirmed annotations should still exist")

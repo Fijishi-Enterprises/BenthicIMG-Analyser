@@ -111,7 +111,7 @@ class ImageAnnotationInfo(models.Model):
             # module, to avoid circular import issues.
             from vision_backend.tasks import submit_classifier
             submit_classifier.apply_async(
-                args=[self.image.source.id],
+                args=[self.image.source.pk],
                 eta=timezone.now()+datetime.timedelta(seconds=10))
 
         elif last_annotation is None:
@@ -120,7 +120,7 @@ class ImageAnnotationInfo(models.Model):
             # a classifier available.
             from vision_backend.tasks import classify_image
             classify_image.apply_async(
-                args=[self.image.id],
+                args=[self.image.pk],
                 eta=timezone.now()+datetime.timedelta(seconds=10))
 
 

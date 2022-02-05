@@ -1,7 +1,6 @@
 import datetime
 
 from django.core.files.base import ContentFile
-from django.shortcuts import resolve_url
 from django.test import override_settings
 from django.urls import reverse
 
@@ -9,7 +8,7 @@ from annotations.models import Annotation
 from export.tests.utils import BaseExportTest
 from images.model_utils import PointGen
 from lib.tests.utils import BasePermissionTest
-from upload.tests.utils import UploadAnnotationsTestMixin
+from upload.tests.utils import UploadAnnotationsCsvTestMixin
 
 
 class PermissionTest(BasePermissionTest):
@@ -287,7 +286,7 @@ class AnnotationStatusTest(BaseExportTest):
         self.assert_csv_content_equal(response.content, expected_lines)
 
 
-class AnnotatorInfoColumnsTest(BaseExportTest, UploadAnnotationsTestMixin):
+class AnnotatorInfoColumnsTest(BaseExportTest, UploadAnnotationsCsvTestMixin):
     """Test the optional annotation info columns."""
 
     @classmethod
@@ -330,8 +329,8 @@ class AnnotatorInfoColumnsTest(BaseExportTest, UploadAnnotationsTestMixin):
             ['Name', 'Row', 'Column', 'Label'],
             ['1.jpg', 50, 70, 'B'],
         ]
-        csv_file = self.make_csv_file('A.csv', rows)
-        self.preview_csv_annotations(
+        csv_file = self.make_annotations_file('A.csv', rows)
+        self.preview_annotations(
             self.user, self.source, csv_file)
         self.upload_annotations(self.user, self.source)
 
@@ -809,11 +808,13 @@ class UploadAndExportSameDataTest(BaseExportTest):
 
         self.client.force_login(self.user)
         self.client.post(
-            resolve_url('upload_annotations_csv_preview_ajax', self.source.pk),
+            reverse('upload_annotations_csv_preview_ajax',
+                    args=[self.source.pk]),
             {'csv_file': csv_file},
         )
         self.client.post(
-            resolve_url('upload_annotations_ajax', self.source.pk),
+            reverse('upload_annotations_csv_confirm_ajax',
+                    args=[self.source.pk]),
         )
 
         # Export annotations

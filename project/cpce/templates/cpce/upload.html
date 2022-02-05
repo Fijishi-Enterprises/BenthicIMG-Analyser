@@ -32,7 +32,7 @@
         {% endwith %}
 
         <div class="tutorial-message">
-          {% include 'upload/upload_annotations_cpc_help.html' %}
+          {% include 'cpce/upload_help.html' %}
         </div>
       </form>
 
@@ -64,8 +64,8 @@
   <!-- Script in the body will run on page load. -->
   <script type="text/javascript">
     UploadAnnotationsCPCHelper.initForm({
-        uploadPreviewUrl: "{% url 'upload_annotations_cpc_preview_ajax' source.id %}",
-        uploadStartUrl: "{% url 'upload_annotations_ajax' source.id %}"
+        uploadPreviewUrl: "{% url 'cpce:upload_preview_ajax' source.id %}",
+        uploadStartUrl: "{% url 'cpce:upload_confirm_ajax' source.id %}"
     });
   </script>
 

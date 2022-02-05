@@ -1,15 +1,16 @@
-# Tests that only apply to CSV annotation uploads.
+# Tests that only really apply to CSV annotation uploads
+# (not other annotation upload formats).
 
 from django.core.files.base import ContentFile
 from django.urls import reverse
 
 from annotations.models import Annotation
 from images.models import Point
-from lib.tests.utils import sample_image_as_file
-from .utils import UploadAnnotationsBaseTest
+from lib.tests.utils import ClientTest, sample_image_as_file
+from .utils import UploadAnnotationsCsvTestMixin
 
 
-class AnnotationsCSVFormatTest(UploadAnnotationsBaseTest):
+class AnnotationsCSVFormatTest(ClientTest, UploadAnnotationsCsvTestMixin):
     """
     Tests (mostly error cases) specific to CSV format.
     """
@@ -77,8 +78,8 @@ class AnnotationsCSVFormatTest(UploadAnnotationsBaseTest):
             ['Name', 'Column', 'Row', 'Annotator', 'Label'],
             ['1.png', 60, 40, 'Jane', 'A'],
         ]
-        csv_file = self.make_csv_file('A.csv', rows)
-        preview_response = self.preview_csv_annotations(
+        csv_file = self.make_annotations_file('A.csv', rows)
+        preview_response = self.preview_annotations(
             self.user, self.source, csv_file)
         upload_response = self.upload_annotations(self.user, self.source)
 
@@ -92,8 +93,8 @@ class AnnotationsCSVFormatTest(UploadAnnotationsBaseTest):
             ['Row', 'Name', 'Label', 'Column'],
             [40, '1.png', 'A', 60],
         ]
-        csv_file = self.make_csv_file('A.csv', rows)
-        preview_response = self.preview_csv_annotations(
+        csv_file = self.make_annotations_file('A.csv', rows)
+        preview_response = self.preview_annotations(
             self.user, self.source, csv_file)
         upload_response = self.upload_annotations(self.user, self.source)
 
@@ -108,8 +109,8 @@ class AnnotationsCSVFormatTest(UploadAnnotationsBaseTest):
             ['name', 'coLUmN', 'ROW', 'Label'],
             ['1.png', 60, 40, 'A'],
         ]
-        csv_file = self.make_csv_file('A.csv', rows)
-        preview_response = self.preview_csv_annotations(
+        csv_file = self.make_annotations_file('A.csv', rows)
+        preview_response = self.preview_annotations(
             self.user, self.source, csv_file)
         upload_response = self.upload_annotations(self.user, self.source)
 
@@ -124,8 +125,8 @@ class AnnotationsCSVFormatTest(UploadAnnotationsBaseTest):
             [50, 50, 'A'],
             [60, 40, 'B'],
         ]
-        csv_file = self.make_csv_file('A.csv', rows)
-        preview_response = self.preview_csv_annotations(
+        csv_file = self.make_annotations_file('A.csv', rows)
+        preview_response = self.preview_annotations(
             self.user, self.source, csv_file)
 
         self.assertDictEqual(
@@ -142,8 +143,8 @@ class AnnotationsCSVFormatTest(UploadAnnotationsBaseTest):
             ['1.png', 50, 'A'],
             ['1.png', 60, 'B'],
         ]
-        csv_file = self.make_csv_file('A.csv', rows)
-        preview_response = self.preview_csv_annotations(
+        csv_file = self.make_annotations_file('A.csv', rows)
+        preview_response = self.preview_annotations(
             self.user, self.source, csv_file)
 
         self.assertDictEqual(
@@ -160,8 +161,8 @@ class AnnotationsCSVFormatTest(UploadAnnotationsBaseTest):
             ['1.png', 50],
             ['1.png', 40],
         ]
-        csv_file = self.make_csv_file('A.csv', rows)
-        preview_response = self.preview_csv_annotations(
+        csv_file = self.make_annotations_file('A.csv', rows)
+        preview_response = self.preview_annotations(
             self.user, self.source, csv_file)
 
         self.assertDictEqual(
@@ -178,8 +179,8 @@ class AnnotationsCSVFormatTest(UploadAnnotationsBaseTest):
             ['1.png', 50, 50],
             ['1.png', 60, ''],
         ]
-        csv_file = self.make_csv_file('A.csv', rows)
-        preview_response = self.preview_csv_annotations(
+        csv_file = self.make_annotations_file('A.csv', rows)
+        preview_response = self.preview_annotations(
             self.user, self.source, csv_file)
 
         self.assertDictEqual(
@@ -196,8 +197,8 @@ class AnnotationsCSVFormatTest(UploadAnnotationsBaseTest):
             ['1.png', '', 50],
             ['1.png', 60, 40],
         ]
-        csv_file = self.make_csv_file('A.csv', rows)
-        preview_response = self.preview_csv_annotations(
+        csv_file = self.make_annotations_file('A.csv', rows)
+        preview_response = self.preview_annotations(
             self.user, self.source, csv_file)
 
         self.assertDictEqual(
@@ -214,7 +215,7 @@ class AnnotationsCSVFormatTest(UploadAnnotationsBaseTest):
             '\n1.png,60,40,"Here are\nsome comments.",A'
         )
         csv_file = ContentFile(content, name='A.csv')
-        preview_response = self.preview_csv_annotations(
+        preview_response = self.preview_annotations(
             self.user, self.source, csv_file)
         upload_response = self.upload_annotations(self.user, self.source)
 
@@ -226,7 +227,7 @@ class AnnotationsCSVFormatTest(UploadAnnotationsBaseTest):
             '\n"1.png","60","40","A"'
         )
         csv_file = ContentFile(content, name='A.csv')
-        preview_response = self.preview_csv_annotations(
+        preview_response = self.preview_annotations(
             self.user, self.source, csv_file)
         upload_response = self.upload_annotations(self.user, self.source)
 
@@ -239,7 +240,7 @@ class AnnotationsCSVFormatTest(UploadAnnotationsBaseTest):
             '\n\t1.png,    60   , 40,A'
         )
         csv_file = ContentFile(content, name='A.csv')
-        preview_response = self.preview_csv_annotations(
+        preview_response = self.preview_annotations(
             self.user, self.source, csv_file)
         upload_response = self.upload_annotations(self.user, self.source)
 
@@ -250,7 +251,7 @@ class AnnotationsCSVFormatTest(UploadAnnotationsBaseTest):
         Do at least basic detection of non-CSV files.
         """
         f = sample_image_as_file('A.jpg')
-        preview_response = self.preview_csv_annotations(
+        preview_response = self.preview_annotations(
             self.user, self.source, f)
 
         self.assertDictEqual(

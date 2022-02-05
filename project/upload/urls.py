@@ -24,13 +24,7 @@ urlpatterns = [
     path('annotations_csv_preview_ajax/',
          views.upload_annotations_csv_preview_ajax,
          name="upload_annotations_csv_preview_ajax"),
-    path('annotations_cpc/',
-         views.upload_annotations_cpc, name="upload_annotations_cpc"),
-    path('annotations_cpc_preview_ajax/',
-         views.upload_annotations_cpc_preview_ajax,
-         name="upload_annotations_cpc_preview_ajax"),
-    # This is the final step for both CSV and CPC.
-    # TODO: This could use a more descriptive name. 'confirm' maybe.
-    path('annotations_ajax/',
-         views.upload_annotations_ajax, name="upload_annotations_ajax"),
+    path('annotations_csv_confirm_ajax/',
+         views.AnnotationsUploadConfirmView.as_view(),
+         name="upload_annotations_csv_confirm_ajax"),
 ]

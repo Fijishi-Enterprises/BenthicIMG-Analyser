@@ -13,9 +13,9 @@ from .forms import CheckboxForm, StatisticsSearchForm, ImageSearchForm, \
 from annotations.models import Annotation
 from calcification.forms import CalcifyRateTableForm, ExportCalcifyStatsForm
 from calcification.utils import get_default_calcify_tables
-from export.forms import (
-    CpcPrefsForm, ExportAnnotationsForm, ExportImageCoversForm)
-from export.utils import get_previous_cpcs_status
+from cpce.forms import CpcPrefsForm
+from cpce.utils import get_previous_cpcs_status
+from export.forms import ExportAnnotationsForm, ExportImageCoversForm
 from images.forms import MetadataFormForGrid, BaseMetadataFormSet
 from images.models import Source, Image, Metadata
 from images.utils import delete_images

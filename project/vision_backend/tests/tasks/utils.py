@@ -4,14 +4,14 @@ import spacer.config as spacer_config
 
 from images.model_utils import PointGen
 from lib.tests.utils import ClientTest
-from upload.tests.utils import UploadAnnotationsTestMixin
+from upload.tests.utils import UploadAnnotationsCsvTestMixin
 from vision_backend.tasks import collect_all_jobs, submit_classifier
 
 
 # Note that spacer also has its own minimum image count for training.
 @override_settings(MIN_NBR_ANNOTATED_IMAGES=1)
 @override_settings(SPACER_QUEUE_CHOICE='vision_backend.queues.LocalQueue')
-class BaseTaskTest(ClientTest, UploadAnnotationsTestMixin):
+class BaseTaskTest(ClientTest, UploadAnnotationsCsvTestMixin):
     """Base test class for testing the backend's 'main' tasks."""
 
     @classmethod
@@ -83,8 +83,8 @@ class BaseTaskTest(ClientTest, UploadAnnotationsTestMixin):
                 [filename, 40, 60],
                 [filename, 50, 50],
             ]
-        csv_file = self.make_csv_file('A.csv', rows)
-        self.preview_csv_annotations(
+        csv_file = self.make_annotations_file('A.csv', rows)
+        self.preview_annotations(
             self.user, self.source, csv_file)
         self.upload_annotations(self.user, self.source)
 

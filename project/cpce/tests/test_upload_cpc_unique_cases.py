@@ -7,10 +7,11 @@ from django.core.files.base import ContentFile
 from django.urls import reverse
 
 from accounts.utils import get_imported_user
-from .utils import UploadAnnotationsBaseTest
+from lib.tests.utils import ClientTest
+from .utils import UploadAnnotationsCpcTestMixin
 
 
-class CPCFormatTest(UploadAnnotationsBaseTest):
+class CPCFormatTest(ClientTest, UploadAnnotationsCpcTestMixin):
     """
     Tests (mostly error cases) specific to CPC format.
     """
@@ -32,7 +33,7 @@ class CPCFormatTest(UploadAnnotationsBaseTest):
         # Line 1
         stream.writelines(['a,b,c,d,e,f\n'])
         cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
-        preview_response = self.preview_cpc_annotations(
+        preview_response = self.preview_annotations(
             self.user, self.source, [cpc_file])
 
         self.assertDictEqual(
@@ -44,7 +45,7 @@ class CPCFormatTest(UploadAnnotationsBaseTest):
         # Line 1
         stream.writelines(['abc\n'])
         cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
-        preview_response = self.preview_cpc_annotations(
+        preview_response = self.preview_annotations(
             self.user, self.source, [cpc_file])
 
         self.assertDictEqual(
@@ -59,7 +60,7 @@ class CPCFormatTest(UploadAnnotationsBaseTest):
         # Line 1
         stream.writelines(['ab,cd,ef,gh,ij,kl,mn\n'])
         cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
-        preview_response = self.preview_cpc_annotations(
+        preview_response = self.preview_annotations(
             self.user, self.source, [cpc_file])
 
         self.assertDictEqual(
@@ -76,7 +77,7 @@ class CPCFormatTest(UploadAnnotationsBaseTest):
         # Line 1
         stream.writelines(['ab,cd,ef,"gh,ij",kl,mn\n'])
         cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
-        preview_response = self.preview_cpc_annotations(
+        preview_response = self.preview_annotations(
             self.user, self.source, [cpc_file])
 
         # Should get past line 1 just fine, and then error due to not
@@ -92,7 +93,7 @@ class CPCFormatTest(UploadAnnotationsBaseTest):
         # Line 2
         stream.writelines(['1,2,3\n'])
         cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
-        preview_response = self.preview_cpc_annotations(
+        preview_response = self.preview_annotations(
             self.user, self.source, [cpc_file])
 
         self.assertDictEqual(
@@ -111,7 +112,7 @@ class CPCFormatTest(UploadAnnotationsBaseTest):
         # Line 6
         stream.writelines(['abc,def\n'])
         cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
-        preview_response = self.preview_cpc_annotations(
+        preview_response = self.preview_annotations(
             self.user, self.source, [cpc_file])
 
         self.assertDictEqual(
@@ -130,7 +131,7 @@ class CPCFormatTest(UploadAnnotationsBaseTest):
         # Line 6
         stream.writelines(['abc\n'])
         cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
-        preview_response = self.preview_cpc_annotations(
+        preview_response = self.preview_annotations(
             self.user, self.source, [cpc_file])
 
         self.assertDictEqual(
@@ -149,7 +150,7 @@ class CPCFormatTest(UploadAnnotationsBaseTest):
         # Line 6
         stream.writelines(['0\n'])
         cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
-        preview_response = self.preview_cpc_annotations(
+        preview_response = self.preview_annotations(
             self.user, self.source, [cpc_file])
 
         self.assertDictEqual(
@@ -173,7 +174,7 @@ class CPCFormatTest(UploadAnnotationsBaseTest):
         # Line 16: labels
         stream.writelines(['a,b,c,d\n'])
         cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
-        preview_response = self.preview_cpc_annotations(
+        preview_response = self.preview_annotations(
             self.user, self.source, [cpc_file])
 
         self.assertDictEqual(
@@ -195,7 +196,7 @@ class CPCFormatTest(UploadAnnotationsBaseTest):
         stream.writelines([
             '{n},{n}\n'.format(n=n*15) for n in range(11)])
         cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
-        preview_response = self.preview_cpc_annotations(
+        preview_response = self.preview_annotations(
             self.user, self.source, [cpc_file])
 
         self.assertDictEqual(
@@ -219,7 +220,7 @@ class CPCFormatTest(UploadAnnotationsBaseTest):
         # Line 17-25: labels (one line too few)
         stream.writelines(['a,b,c,d\n']*9)
         cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
-        preview_response = self.preview_cpc_annotations(
+        preview_response = self.preview_annotations(
             self.user, self.source, [cpc_file])
 
         self.assertDictEqual(
@@ -246,7 +247,7 @@ class CPCFormatTest(UploadAnnotationsBaseTest):
         cpc_file_1 = ContentFile(stream.getvalue(), name='1.cpc')
         # No header lines
 
-        self.preview_cpc_annotations(self.user, self.source, [cpc_file_1])
+        self.preview_annotations(self.user, self.source, [cpc_file_1])
         self.upload_annotations(self.user, self.source)
 
         values_set = set(
@@ -287,7 +288,7 @@ class CPCFormatTest(UploadAnnotationsBaseTest):
         stream.writelines(['" "']*28)
         cpc_file_2 = ContentFile(stream.getvalue(), name='2.cpc')
 
-        preview_response = self.preview_cpc_annotations(
+        preview_response = self.preview_annotations(
             self.user, self.source, [cpc_file_1, cpc_file_2])
 
         self.assertDictEqual(
@@ -298,7 +299,7 @@ class CPCFormatTest(UploadAnnotationsBaseTest):
                 " per image.")))
 
 
-class CPCPixelScaleFactorTest(UploadAnnotationsBaseTest):
+class CPCPixelScaleFactorTest(ClientTest, UploadAnnotationsCpcTestMixin):
     """
     Tests CPC pixel scale factor detection, based on line 1 of the CPC.
     """
@@ -345,7 +346,7 @@ class CPCPixelScaleFactorTest(UploadAnnotationsBaseTest):
 
         cpc_file = ContentFile(stream.getvalue(), name='1.cpc')
         # Return the preview response
-        return self.preview_cpc_annotations(
+        return self.preview_annotations(
             self.user, self.source, [cpc_file])
 
     def test_width_not_integer(self):
@@ -416,7 +417,7 @@ class CPCPixelScaleFactorTest(UploadAnnotationsBaseTest):
         self.assertSetEqual(values_set, {(80, 60, 1)})
 
 
-class PlusNotesTest(UploadAnnotationsBaseTest):
+class PlusNotesTest(ClientTest, UploadAnnotationsCpcTestMixin):
     """
     Ensure the 'plus notes' preference works.
     """
@@ -438,14 +439,14 @@ class PlusNotesTest(UploadAnnotationsBaseTest):
 
     def test_option_true(self):
         cpc_files = [
-            self.make_cpc_file(
+            self.make_annotations_file(
                 self.image_dimensions, '1.cpc',
                 r"C:\My Photos\2017-05-13 GBR\1.png", [
                     (50*15, 50*15, 'A'),
                     (60*15, 40*15, 'B', 'X'),
                     (70*15, 30*15, 'C', 'Y+Z')]),
         ]
-        preview_response = self.preview_cpc_annotations(
+        preview_response = self.preview_annotations(
             self.user, self.source, cpc_files, plus_notes=True)
         upload_response = self.upload_annotations(self.user, self.source)
 
@@ -455,14 +456,14 @@ class PlusNotesTest(UploadAnnotationsBaseTest):
 
     def test_option_false(self):
         cpc_files = [
-            self.make_cpc_file(
+            self.make_annotations_file(
                 self.image_dimensions, '1.cpc',
                 r"C:\My Photos\2017-05-13 GBR\1.png", [
                     (50*15, 50*15, 'A'),
                     (60*15, 40*15, 'B', 'X'),
                     (70*15, 30*15, 'C', 'Y+Z')]),
         ]
-        preview_response = self.preview_cpc_annotations(
+        preview_response = self.preview_annotations(
             self.user, self.source, cpc_files, plus_notes=False)
         upload_response = self.upload_annotations(self.user, self.source)
 
@@ -537,7 +538,7 @@ class PlusNotesTest(UploadAnnotationsBaseTest):
 
         self.client.force_login(self.user)
         response = self.client.get(
-            reverse('upload_annotations_cpc', args=[self.source.pk]))
+            reverse('cpce:upload_page', args=[self.source.pk]))
 
         response_soup = BeautifulSoup(response.content, 'html.parser')
         plus_notes_field = response_soup.find(
@@ -551,7 +552,7 @@ class PlusNotesTest(UploadAnnotationsBaseTest):
 
         self.client.force_login(self.user)
         response = self.client.get(
-            reverse('upload_annotations_cpc', args=[self.source.pk]))
+            reverse('cpce:upload_page', args=[self.source.pk]))
 
         response_soup = BeautifulSoup(response.content, 'html.parser')
         plus_notes_field = response_soup.find(
@@ -561,7 +562,7 @@ class PlusNotesTest(UploadAnnotationsBaseTest):
             "Plus notes option should be checked by default")
 
 
-class SaveCPCInfoTest(UploadAnnotationsBaseTest):
+class SaveCPCInfoTest(ClientTest, UploadAnnotationsCpcTestMixin):
     """
     Tests for saving of CPC file info when uploading CPCs.
     """
@@ -585,7 +586,7 @@ class SaveCPCInfoTest(UploadAnnotationsBaseTest):
 
     def test_cpc_content_one_image(self):
         cpc_files = [
-            self.make_cpc_file(
+            self.make_annotations_file(
                 self.image_dimensions, '1.cpc',
                 r"C:\My Photos\2017-05-13 GBR\1.jpg", [
                     (49*15, 49*15, 'A'),
@@ -596,7 +597,7 @@ class SaveCPCInfoTest(UploadAnnotationsBaseTest):
         # Reset the file pointer so that the views can read from the start.
         cpc_files[0].seek(0)
 
-        self.preview_cpc_annotations(self.user, self.source, cpc_files)
+        self.preview_annotations(self.user, self.source, cpc_files)
         self.upload_annotations(self.user, self.source)
 
         self.img1.refresh_from_db()
@@ -608,12 +609,12 @@ class SaveCPCInfoTest(UploadAnnotationsBaseTest):
 
     def test_cpc_content_multiple_images(self):
         cpc_files = [
-            self.make_cpc_file(
+            self.make_annotations_file(
                 self.image_dimensions, 'GBR_1.cpc',
                 r"C:\My Photos\2017-05-13 GBR\1.jpg", [
                     (49*15, 49*15, 'A'),
                     (59*15, 39*15, 'B')]),
-            self.make_cpc_file(
+            self.make_annotations_file(
                 self.image_dimensions, 'GBR_2.cpc',
                 r"C:\My Photos\2017-05-13 GBR\2.jpg", [
                     (69*15, 29*15, 'A'),
@@ -626,7 +627,7 @@ class SaveCPCInfoTest(UploadAnnotationsBaseTest):
         cpc_files[0].seek(0)
         cpc_files[1].seek(0)
 
-        self.preview_cpc_annotations(self.user, self.source, cpc_files)
+        self.preview_annotations(self.user, self.source, cpc_files)
         self.upload_annotations(self.user, self.source)
 
         self.img1.refresh_from_db()
@@ -638,20 +639,20 @@ class SaveCPCInfoTest(UploadAnnotationsBaseTest):
 
     def test_source_fields(self):
         cpc_files = [
-            self.make_cpc_file(
+            self.make_annotations_file(
                 self.image_dimensions, '1.cpc',
                 r"C:\My Photos\2017-05-13 GBR\1.jpg", [
                     (49*15, 49*15, 'A'),
                     (59*15, 39*15, 'B')],
                 codes_filepath=r'C:\PROGRA~4\CPCE_4~1\SHALLO~1.TXT'),
-            self.make_cpc_file(
+            self.make_annotations_file(
                 self.image_dimensions, '2.cpc',
                 r"C:\My Photos\2017-05-13 GBR\2.jpg", [
                     (69*15, 29*15, 'A'),
                     (79*15, 19*15, 'A')],
                 codes_filepath=r'C:\My Photos\CPCe codefiles\GBR codes.txt'),
         ]
-        self.preview_cpc_annotations(self.user, self.source, cpc_files)
+        self.preview_annotations(self.user, self.source, cpc_files)
         self.upload_annotations(self.user, self.source)
 
         self.source.refresh_from_db()
@@ -665,7 +666,7 @@ class SaveCPCInfoTest(UploadAnnotationsBaseTest):
             self.source.cpce_image_dir, r'C:\My Photos\2017-05-13 GBR')
 
 
-class CPCImageMatchingTest(UploadAnnotationsBaseTest):
+class CPCImageMatchingTest(ClientTest, UploadAnnotationsCpcTestMixin):
     """
     Tests for matching uploaded CPCs to images in the source.
     """
@@ -687,14 +688,14 @@ class CPCImageMatchingTest(UploadAnnotationsBaseTest):
 
     def upload_preview_for_image_name(self, image_name):
         cpc_files = [
-            self.make_cpc_file(
+            self.make_annotations_file(
                 dimensions=(100, 100),
                 cpc_filename='1.cpc',
                 image_filepath=image_name,
                 points=[(9*15, 9*15, 'A')],
                 codes_filepath=r'C:\PROGRA~4\CPCE_4~1\SHALLO~1.TXT'),
         ]
-        return self.preview_cpc_annotations(self.user, self.source, cpc_files)
+        return self.preview_annotations(self.user, self.source, cpc_files)
 
     def assertImageInPreview(self, img, preview_response):
         self.assertDictEqual(

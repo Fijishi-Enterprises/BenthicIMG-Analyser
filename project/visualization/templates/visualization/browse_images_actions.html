@@ -134,7 +134,7 @@
 
     {# Export annotations CPC #}
 
-    <form hidden action="{% url 'export_annotations_cpc_create_ajax' source.pk %}"
+    <form hidden action="{% url 'cpce:export_prepare_ajax' source.pk %}"
     method="post" id="export-annotations-cpc-ajax-form">
       <hr/>
       {% csrf_token %}
@@ -174,7 +174,7 @@
       <button class="submit">Go</button>
     </form>
 
-    <form hidden action="{% url 'export_annotations_cpc_serve' source.pk %}"
+    <form hidden action="{% url 'cpce:export_serve' source.pk %}"
     method="post" id="export-annotations-cpc-form">
       {% csrf_token %}
     </form>

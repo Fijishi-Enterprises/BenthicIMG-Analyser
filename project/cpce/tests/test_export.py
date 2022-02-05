@@ -6,18 +6,19 @@ from django.core.files.base import ContentFile
 from django.shortcuts import resolve_url
 from django.urls import reverse
 
-from export.utils import get_previous_cpcs_status, write_zip
+from export.utils import write_zip
 from images.model_utils import PointGen
 from images.models import Image
 from lib.tests.utils import BasePermissionTest, ClientTest
-from upload.tests.utils import UploadAnnotationsTestMixin
+from upload.tests.utils import UploadAnnotationsCsvTestMixin
+from ..utils import get_previous_cpcs_status
 
 
 class PermissionTest(BasePermissionTest):
 
     def test_cpc_create_ajax(self):
         url = reverse(
-            'export_annotations_cpc_create_ajax', args=[self.source.pk])
+            'cpce:export_prepare_ajax', args=[self.source.pk])
 
         self.source_to_private()
         self.assertPermissionLevel(url, self.SOURCE_EDIT, is_json=True)
@@ -25,9 +26,9 @@ class PermissionTest(BasePermissionTest):
         self.assertPermissionLevel(url, self.SOURCE_EDIT, is_json=True)
 
     def test_cpc_serve(self):
-        # Without session variables from cpc_create_ajax, this should redirect
+        # Without session variables from export-prepare, this should redirect
         # to browse images.
-        url = reverse('export_annotations_cpc_serve', args=[self.source.pk])
+        url = reverse('cpce:export_serve', args=[self.source.pk])
         template = 'visualization/browse_images.html'
 
         self.source_to_private()
@@ -65,10 +66,10 @@ class CPCExportBaseTest(ClientTest):
         """
         self.client.force_login(self.user)
         self.client.post(
-            resolve_url('export_annotations_cpc_create_ajax', self.source.pk),
+            reverse('cpce:export_prepare_ajax', args=[self.source.pk]),
             post_data)
         return self.client.post(
-            resolve_url('export_annotations_cpc_serve', self.source.pk))
+            reverse('cpce:export_serve', args=[self.source.pk]))
 
     @staticmethod
     def export_response_to_cpc(response, cpc_filename):
@@ -79,10 +80,10 @@ class CPCExportBaseTest(ClientTest):
     def upload_cpcs(self, cpc_files, plus_notes=False):
         self.client.force_login(self.user)
         self.client.post(
-            resolve_url('upload_annotations_cpc_preview_ajax', self.source.pk),
+            reverse('cpce:upload_preview_ajax', args=[self.source.pk]),
             {'cpc_files': cpc_files, 'plus_notes': plus_notes})
         self.client.post(
-            resolve_url('upload_annotations_ajax', self.source.pk))
+            reverse('cpce:upload_confirm_ajax', args=[self.source.pk]))
 
     def assert_cpc_content_equal(self, actual_cpc_content, expected_lines):
         """
@@ -342,7 +343,7 @@ class CodeFileAndImageDirFieldsTest(CPCExportBaseTest):
         )
         self.client.force_login(self.user)
         response = self.client.post(
-            resolve_url('export_annotations_cpc_create_ajax', self.source.pk),
+            reverse('cpce:export_prepare_ajax', args=[self.source.pk]),
             post_data)
 
         self.assertEqual(
@@ -357,7 +358,7 @@ class CodeFileAndImageDirFieldsTest(CPCExportBaseTest):
         )
         self.client.force_login(self.user)
         response = self.client.post(
-            resolve_url('export_annotations_cpc_create_ajax', self.source.pk),
+            reverse('cpce:export_prepare_ajax', args=[self.source.pk]),
             post_data)
 
         self.assertEqual(
@@ -375,7 +376,7 @@ class CodeFileAndImageDirFieldsTest(CPCExportBaseTest):
         )
         self.client.force_login(self.user)
         response = self.client.post(
-            resolve_url('export_annotations_cpc_create_ajax', self.source.pk),
+            reverse('cpce:export_prepare_ajax', args=[self.source.pk]),
             post_data)
 
         self.assertEqual(
@@ -410,7 +411,7 @@ class CodeFileAndImageDirFieldsTest(CPCExportBaseTest):
 
 
 class AnnotationAreaTest(
-        CPCExportBaseTest, UploadAnnotationsTestMixin):
+        CPCExportBaseTest, UploadAnnotationsCsvTestMixin):
     """
     Test the annotation area values of the exported CPCs, using various ways
     of setting the annotation area.
@@ -491,8 +492,8 @@ class AnnotationAreaTest(
             ['1.jpg', 50, 50],
             ['1.jpg', 60, 40],
         ]
-        csv_file = self.make_csv_file('A.csv', rows)
-        self.preview_csv_annotations(
+        csv_file = self.make_annotations_file('A.csv', rows)
+        self.preview_annotations(
             self.user, self.source, csv_file)
         self.upload_annotations(self.user, self.source)
 
@@ -554,7 +555,7 @@ class AnnotationAreaTest(
             actual_area_lines, expected_area_lines)
 
 
-class PointLocationsTest(CPCExportBaseTest, UploadAnnotationsTestMixin):
+class PointLocationsTest(CPCExportBaseTest, UploadAnnotationsCsvTestMixin):
     """
     Test the point location values of the exported CPCs.
     """
@@ -606,8 +607,8 @@ class PointLocationsTest(CPCExportBaseTest, UploadAnnotationsTestMixin):
             ['1.jpg', 50, 50],
             ['1.jpg', 60, 40],
         ]
-        csv_file = self.make_csv_file('A.csv', rows)
-        self.preview_csv_annotations(
+        csv_file = self.make_annotations_file('A.csv', rows)
+        self.preview_annotations(
             self.user, self.source, csv_file)
         self.upload_annotations(self.user, self.source)
 
@@ -629,7 +630,7 @@ class PointLocationsTest(CPCExportBaseTest, UploadAnnotationsTestMixin):
     # export, get same CPC back.
 
 
-class CPCFullContentsTest(CPCExportBaseTest, UploadAnnotationsTestMixin):
+class CPCFullContentsTest(CPCExportBaseTest, UploadAnnotationsCsvTestMixin):
     """
     Test the full contents of the exported CPCs.
     """
@@ -659,8 +660,8 @@ class CPCFullContentsTest(CPCExportBaseTest, UploadAnnotationsTestMixin):
             ['1.jpg', 50, 50],
             ['1.jpg', 60, 40],
         ]
-        csv_file = self.make_csv_file('A.csv', rows)
-        self.preview_csv_annotations(
+        csv_file = self.make_annotations_file('A.csv', rows)
+        self.preview_annotations(
             self.user, self.source, csv_file)
         self.upload_annotations(self.user, self.source)
 
@@ -927,7 +928,7 @@ class AnnotationStatusTest(CPCExportBaseTest):
             actual_cpc_content, expected_point_lines)
 
 
-class PlusNotesTest(CPCExportBaseTest, UploadAnnotationsTestMixin):
+class PlusNotesTest(CPCExportBaseTest):
     """
     Ensure the 'plus notes' preference works.
     """
@@ -1188,7 +1189,7 @@ class UnicodeTest(CPCExportBaseTest):
 
 
 class DiscardCPCAfterPointsChangeTest(
-        CPCExportBaseTest, UploadAnnotationsTestMixin):
+        CPCExportBaseTest, UploadAnnotationsCsvTestMixin):
     """
     Test discarding of previously-saved CPC content after changing points
     for an image.
@@ -1248,8 +1249,8 @@ class DiscardCPCAfterPointsChangeTest(
             ['1.jpg', 50, 50],
             ['1.jpg', 60, 40],
         ]
-        csv_file = self.make_csv_file('A.csv', rows)
-        self.preview_csv_annotations(
+        csv_file = self.make_annotations_file('A.csv', rows)
+        self.preview_annotations(
             self.user, self.source, csv_file)
         self.upload_annotations(self.user, self.source)
 

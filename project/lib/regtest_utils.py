@@ -244,7 +244,8 @@ class VisionBackendRegressionTest(ClientTest):
 
         def upload_anns():
             return self.client.post(
-                reverse('upload_annotations_ajax', args=[self.source.pk]),
+                reverse('upload_annotations_csv_confirm_ajax',
+                        args=[self.source.pk]),
             )
 
         self.client.force_login(self.user)

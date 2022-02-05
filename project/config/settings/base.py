@@ -163,6 +163,8 @@ INSTALLED_APPS = [
     'async_media',
     'blog',
     'calcification',
+    # Uploading from and exporting to Coral Point Count file formats
+    'cpce',
     # Saves internal server error messages for viewing in the admin site
     'errorlogs.apps.ErrorlogsConfig',
     'export',
@@ -172,10 +174,11 @@ INSTALLED_APPS = [
     'labels',
     # Miscellaneous stuff
     'lib',
+    # Logs of site events/actions
+    'newsfeed',
     'upload',
     'visualization',
     'vision_backend',
-    'newsfeed',
 
     # Admin site (<domain>/admin)
     'django.contrib.admin',

@@ -150,7 +150,7 @@ let formLookup = {
     },
     export_annotations_cpc: {
         formId: 'export-annotations-cpc-ajax-form',
-        actionPath: '/source/1/export/annotations_cpc_create_ajax/',
+        actionPath: '/source/1/cpce/export_prepare_ajax/',
         formValues: {local_code_filepath: 'C:/codes.txt'},
         syncFormId: 'export-annotations-cpc-form',
     },

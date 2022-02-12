@@ -1,0 +1,59 @@
+{% comment %}
+TODO: Once we are on Django 4.0:
+- Don't include this template explicitly; write {{ my_form }} to automatically use this template, utilizing Django 4.0's template-based form rendering.
+- Use `errors` instead of form.non_field_errors.
+- Use `fields` and `hidden_fields`, instead of {% for field in form %}. For an example, see the built-in template of this same name.
+{% endcomment %}
+
+{{ form.non_field_errors }}
+
+
+<div class="form-fields-grid">
+
+  {# Elements here should be defined in pairs, in order to make the grid layout work. First element goes on the left column, second element goes on the right column. Alternatively, an element can have the CSS rule `grid-column: span 2;` to take up an entire row. #}
+
+  {% for field in form %}
+
+    <div class="field-errors">
+      {{ field.errors|safe }}
+    </div>
+
+    {% if field.field.widget.input_type == 'checkbox' %}
+
+      <div></div>
+
+      <div>
+        {{ field }}
+        <label for="{{ field.id_for_label }}">
+          {{ field.label }}
+        </label>
+        {% include "form_generic_one_field_help_text.html" with field=field %}
+      </div>
+
+    {% elif field.field.widget.input_type == 'hidden' %}
+
+      <div></div>
+
+      <div>{{ field }}</div>
+
+    {% else %}
+
+      {# Text input, number input, select dropdown, radio buttons, etc. #}
+
+      {% with input_type=field.field.widget.input_type %}
+        <label for="{{ field.id_for_label }}"
+               class="left-col-label {{ input_type }}">
+          {{ field.label }}:
+        </label>
+      {% endwith %}
+
+      <div>
+        {{ field }}
+        {% include "form_generic_one_field_help_text.html" with field=field %}
+      </div>
+
+    {% endif %}
+
+  {% endfor %}
+
+</div>

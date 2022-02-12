@@ -139,37 +139,11 @@
       <hr/>
       {% csrf_token %}
 
-      {% if source.confidence_threshold == 100 %}
-        {# Not using Alleviate; this choice doesn't make a difference #}
-        <span style="display:none;">
-          {% include "form_generic_one_field.html" with field=cpc_prefs_form.annotation_filter field_type='radio' %}
-        </span>
-      {% else %}
-        {% include "form_generic_one_field.html" with field=cpc_prefs_form.annotation_filter field_type='radio' %}
-      {% endif %}
-
       <div class="line">
-        {% if previous_cpcs_status == 'all' %}
-          All of the images in this search have previously-uploaded CPC files available. Their environment info, notes, and header values will be preserved when exporting to CPC.
-        {% elif previous_cpcs_status == 'some' %}
-          Some of the images in this search have previously-uploaded CPC files available. Their environment info, notes, and header values will be preserved when exporting to CPC. The rest of the images will use the environment info in the text fields below, and will not have notes or header values. Click the "?" help button for more information.
-        {% elif previous_cpcs_status == 'none' %}
-          None of the images in this search have previously-uploaded CPC files available. They will use the environment info in the text fields below, and will not have notes or header values. Click the "?" help button for more information.
-        {% endif %}
+        {{ cpc_export_form.previous_cpcs_help_text }}
       </div>
 
-      {% if previous_cpcs_status == 'all' %}
-        {# All images have CPC environment info; no need to provide that info #}
-        <span style="display:none;">
-          {% include "form_generic_one_field.html" with field=cpc_prefs_form.local_code_filepath %}
-          {% include "form_generic_one_field.html" with field=cpc_prefs_form.local_image_dir %}
-        </span>
-      {% else %}
-        {% include "form_generic_one_field.html" with field=cpc_prefs_form.local_code_filepath %}
-        {% include "form_generic_one_field.html" with field=cpc_prefs_form.local_image_dir %}
-      {% endif %}
-
-      {% include "form_generic_one_field.html" with field=cpc_prefs_form.plus_notes checkbox='yes' %}
+      {% include 'django/forms/default.html' with form=cpc_export_form %}
 
       <button class="submit">Go</button>
     </form>

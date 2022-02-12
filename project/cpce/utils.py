@@ -429,7 +429,7 @@ def image_filename_to_cpc_filename(image_filename):
     return cpc_filename
 
 
-def point_to_cpc_export_label_code(point, annotation_filter=None):
+def point_to_cpc_export_label_code(point, annotation_filter):
     """
     Normally, annotation export will export ALL annotations, including machine
     annotations of low confidence. This is usually okay because, if users want
@@ -454,9 +454,6 @@ def point_to_cpc_export_label_code(point, annotation_filter=None):
     :return: Label short code string of the point's annotation, if there is
       an annotation which is accepted by the annotation_filter. Otherwise, ''.
     """
-    if annotation_filter is None:
-        return point.label_code
-
     if point.annotation_status_property == 'confirmed':
         # Confirmed annotations are always included
         return point.label_code
@@ -564,7 +561,7 @@ def write_annotations_cpc(cpc_stream, img, cpc_prefs):
         label_code = point_to_cpc_export_label_code(
             point, cpc_prefs['annotation_filter'])
 
-        if cpc_prefs['plus_notes'] and '+' in label_code:
+        if cpc_prefs['label_mapping'] == 'id_and_notes' and '+' in label_code:
             # Assumption: label code in CoralNet source's labelset
             # == {ID}+{Notes} in the .cpc file (case insensitive),
             # and {ID} does not have a + character in it.
@@ -586,8 +583,23 @@ def write_annotations_cpc(cpc_stream, img, cpc_prefs):
 def write_annotations_cpc_based_on_prev_cpc(cpc_stream, img, cpc_prefs):
     old_cpc = StringIO(img.cpc_content)
 
-    # Copy first 5 lines
-    for _ in range(5):
+    # Line 1: Environment info and image dimensions
+    if cpc_prefs['override_filepaths'] == 'yes':
+        # Environment info from cpc prefs, and image dimensions from old file.
+        old_line = next(old_cpc)
+        local_image_path = PureWindowsPath(
+            cpc_prefs['local_image_dir'], img.metadata.name)
+        tokens = old_line.split(',')
+        tokens[0] = '"' + cpc_prefs['local_code_filepath'] + '"'
+        tokens[1] = '"' + str(local_image_path) + '"'
+        new_line = ','.join(tokens)
+        cpc_stream.write(new_line)
+    else:
+        # Copy from the previously-uploaded cpc.
+        cpc_stream.write(next(old_cpc))
+
+    # Lines 2-5: Annotation area bounds. Just copy these.
+    for _ in range(4):
         cpc_stream.write(next(old_cpc))
 
     # 6th line has the point count
@@ -614,7 +626,7 @@ def write_annotations_cpc_based_on_prev_cpc(cpc_stream, img, cpc_prefs):
         # Change the ID code (and Notes code if applicable), and ensure
         # they're in double quotes.
         # The rest of this line stays the same.
-        if cpc_prefs['plus_notes']:
+        if cpc_prefs['label_mapping'] == 'id_and_notes':
             # Get Notes from CoralNet's label codes.
             if '+' in label_code:
                 cpc_id, cpc_notes = label_code.split('+', maxsplit=1)

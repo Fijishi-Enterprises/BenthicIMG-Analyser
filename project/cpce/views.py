@@ -12,7 +12,7 @@ from lib.exceptions import FileProcessError
 from lib.forms import get_one_form_error
 from upload.utils import annotations_preview
 from upload.views import AnnotationsUploadConfirmView
-from .forms import CpcImportForm, CpcPrefsForm
+from .forms import CpcImportForm, CpcExportForm
 from .utils import (
     annotations_cpcs_to_dict, create_cpc_strings,
     create_zipped_cpcs_stream_response)
@@ -123,13 +123,13 @@ def export_prepare_ajax(request, source_id):
             error=e.message
         ))
 
-    cpc_prefs_form = CpcPrefsForm(source, request.POST)
-    if not cpc_prefs_form.is_valid():
+    cpc_export_form = CpcExportForm(source, image_set, request.POST)
+    if not cpc_export_form.is_valid():
         return JsonResponse(dict(
-            error=get_one_form_error(cpc_prefs_form),
+            error=get_one_form_error(cpc_export_form),
         ))
 
-    cpc_prefs = cpc_prefs_form.cleaned_data
+    cpc_prefs = cpc_export_form.cleaned_data
     # Create a dict of filenames to CPC-file-content strings
     cpc_strings = create_cpc_strings(image_set, cpc_prefs)
     # Save CPC strings to the session

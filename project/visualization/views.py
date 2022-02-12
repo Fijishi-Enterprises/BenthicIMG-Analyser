@@ -13,8 +13,7 @@ from .forms import CheckboxForm, StatisticsSearchForm, ImageSearchForm, \
 from annotations.models import Annotation
 from calcification.forms import CalcifyRateTableForm, ExportCalcifyStatsForm
 from calcification.utils import get_default_calcify_tables
-from cpce.forms import CpcPrefsForm
-from cpce.utils import get_previous_cpcs_status
+from cpce.forms import CpcExportForm
 from export.forms import ExportAnnotationsForm, ExportImageCoversForm
 from images.forms import MetadataFormForGrid, BaseMetadataFormSet
 from images.models import Source, Image, Metadata
@@ -73,11 +72,9 @@ def browse_images(request, source_id):
                 [reverse('annotation_tool', args=[pk])
                  for pk in page_image_ids],
         )
-        previous_cpcs_status = get_previous_cpcs_status(image_results)
     else:
         page_image_ids = None
         links = None
-        previous_cpcs_status = None
 
     return render(request, 'visualization/browse_images.html', {
         'source': source,
@@ -107,8 +104,8 @@ def browse_images(request, source_id):
             'name'),
         'default_calcification_tables': get_default_calcify_tables(),
 
-        'cpc_prefs_form': CpcPrefsForm(source=source),
-        'previous_cpcs_status': previous_cpcs_status,
+        'cpc_export_form': CpcExportForm(
+            source=source, image_results=image_results),
     })
 
 

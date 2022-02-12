@@ -151,7 +151,7 @@ let formLookup = {
     export_annotations_cpc: {
         formId: 'export-annotations-cpc-ajax-form',
         actionPath: '/source/1/cpce/export_prepare_ajax/',
-        formValues: {local_code_filepath: 'C:/codes.txt'},
+        formValues: {field1: 'value1'},
         syncFormId: 'export-annotations-cpc-form',
     },
     export_image_covers: {

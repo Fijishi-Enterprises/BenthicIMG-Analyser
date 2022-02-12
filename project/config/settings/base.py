@@ -204,6 +204,9 @@ INSTALLED_APPS = [
     # https://docs.djangoproject.com/en/dev/ref/contrib/sites/#how-django-uses-the-sites-framework
     'django.contrib.sites',
     'django.contrib.staticfiles',
+    # Required for overriding built-in widget templates
+    # https://docs.djangoproject.com/en/dev/ref/forms/renderers/#templatessetting
+    'django.forms',
 
     'easy_thumbnails',
     'guardian',
@@ -396,6 +399,10 @@ PASSWORD_HASHERS = [
     'django.contrib.auth.hashers.Argon2PasswordHasher',
     'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',
 ]
+
+# Required for overriding built-in widget templates
+# https://docs.djangoproject.com/en/dev/ref/forms/renderers/#templatessetting
+FORM_RENDERER = 'django.forms.renderers.TemplatesSetting'
 
 # The maximum size (in bytes) that an upload will be before it
 # gets streamed to the file system.

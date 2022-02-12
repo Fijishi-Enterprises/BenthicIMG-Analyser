@@ -40,12 +40,7 @@ def browse_images_actions(request):
                 name="Table name", pk=2, description="Table description")],
             'default_calcification_tables': [dict(
                 name="Default table", pk=1, description="Table description")],
-
-            # For this particular form, the template only includes
-            # specific fields. We'll pick a text field, since that's more
-            # straightforward to include than a radio button field.
-            'cpc_prefs_form': DummyForm(local_code_filepath='C:/codes.txt'),
-            'previous_cpcs_status': 'none',
+            'cpc_export_form': DummyForm(),
         }
         context.update(**kwargs)
         return context

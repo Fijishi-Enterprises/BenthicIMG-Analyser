@@ -84,11 +84,11 @@ class CPCExportBaseTest(ClientTest):
         # Use decode() to get a Unicode string
         return zf.read(cpc_filename).decode()
 
-    def upload_cpcs(self, cpc_files, plus_notes=False):
+    def upload_cpcs(self, cpc_files, label_mapping='id_only'):
         self.client.force_login(self.user)
         self.client.post(
             reverse('cpce:upload_preview_ajax', args=[self.source.pk]),
-            {'cpc_files': cpc_files, 'plus_notes': plus_notes})
+            {'cpc_files': cpc_files, 'label_mapping': label_mapping})
         self.client.post(
             reverse('cpce:upload_confirm_ajax', args=[self.source.pk]))
 
@@ -997,7 +997,7 @@ class LabelMappingTest(CPCExportBaseTest):
 
         # Upload
         f = ContentFile(cpc_content, name='1.cpc')
-        self.upload_cpcs([f], plus_notes=True)
+        self.upload_cpcs([f], label_mapping='id_and_notes')
 
         # Export
         post_data = self.default_export_params.copy()

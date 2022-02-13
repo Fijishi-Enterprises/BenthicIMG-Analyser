@@ -417,9 +417,9 @@ class CPCPixelScaleFactorTest(ClientTest, UploadAnnotationsCpcTestMixin):
         self.assertSetEqual(values_set, {(80, 60, 1)})
 
 
-class PlusNotesTest(ClientTest, UploadAnnotationsCpcTestMixin):
+class LabelMappingTest(ClientTest, UploadAnnotationsCpcTestMixin):
     """
-    Ensure the 'plus notes' preference works.
+    Ensure the label_mapping preference works.
     """
     @classmethod
     def setUpTestData(cls):
@@ -437,7 +437,7 @@ class PlusNotesTest(ClientTest, UploadAnnotationsCpcTestMixin):
 
         cls.image_dimensions = (100, 100)
 
-    def test_option_true(self):
+    def test_id_and_notes(self):
         cpc_files = [
             self.make_annotations_file(
                 self.image_dimensions, '1.cpc',
@@ -447,14 +447,14 @@ class PlusNotesTest(ClientTest, UploadAnnotationsCpcTestMixin):
                     (70*15, 30*15, 'C', 'Y+Z')]),
         ]
         preview_response = self.preview_annotations(
-            self.user, self.source, cpc_files, plus_notes=True)
+            self.user, self.source, cpc_files, label_mapping='id_and_notes')
         upload_response = self.upload_annotations(self.user, self.source)
 
         self.check_annotations(
             preview_response, upload_response,
             expected_label_codes=['A', 'B+X', 'C+Y+Z'])
 
-    def test_option_false(self):
+    def test_id_only(self):
         cpc_files = [
             self.make_annotations_file(
                 self.image_dimensions, '1.cpc',
@@ -464,7 +464,7 @@ class PlusNotesTest(ClientTest, UploadAnnotationsCpcTestMixin):
                     (70*15, 30*15, 'C', 'Y+Z')]),
         ]
         preview_response = self.preview_annotations(
-            self.user, self.source, cpc_files, plus_notes=False)
+            self.user, self.source, cpc_files, label_mapping='id_only')
         upload_response = self.upload_annotations(self.user, self.source)
 
         self.check_annotations(
@@ -541,11 +541,11 @@ class PlusNotesTest(ClientTest, UploadAnnotationsCpcTestMixin):
             reverse('cpce:upload_page', args=[self.source.pk]))
 
         response_soup = BeautifulSoup(response.content, 'html.parser')
-        plus_notes_field = response_soup.find(
-            'input', dict(id='id_plus_notes'))
+        label_mapping_selected_radio = response_soup.find(
+            'input', dict(name='label_mapping'), checked=True)
         self.assertEqual(
-            plus_notes_field.attrs.get('checked'), None,
-            "Plus notes option should be unchecked by default")
+            label_mapping_selected_radio.attrs.get('value'), 'id_only',
+            "Should select ID only by default")
 
     def test_form_init_with_plus_code(self):
         # Keep the labelset as-is, with label codes with + chars.
@@ -555,11 +555,11 @@ class PlusNotesTest(ClientTest, UploadAnnotationsCpcTestMixin):
             reverse('cpce:upload_page', args=[self.source.pk]))
 
         response_soup = BeautifulSoup(response.content, 'html.parser')
-        plus_notes_field = response_soup.find(
-            'input', dict(id='id_plus_notes'))
+        label_mapping_selected_radio = response_soup.find(
+            'input', dict(name='label_mapping'), checked=True)
         self.assertEqual(
-            plus_notes_field.attrs.get('checked'), '',
-            "Plus notes option should be checked by default")
+            label_mapping_selected_radio.attrs.get('value'), 'id_and_notes',
+            "Should select ID and notes by default")
 
 
 class SaveCPCInfoTest(ClientTest, UploadAnnotationsCpcTestMixin):

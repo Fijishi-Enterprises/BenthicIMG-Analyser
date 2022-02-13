@@ -1,6 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.forms import Form
-from django.forms.fields import BooleanField, CharField, ChoiceField
+from django.forms.fields import CharField, ChoiceField
 from django.forms.widgets import HiddenInput, RadioSelect, TextInput
 from django.utils.safestring import mark_safe
 
@@ -17,19 +17,26 @@ class CpcImportForm(Form):
         widget=MultipleFileInput(attrs=dict(accept='.cpc')),
         error_messages=dict(required="Please select one or more CPC files."),
     )
-    plus_notes = BooleanField(
-        label="Support CPCe Notes codes using + as a separator",
-        required=False,
+    label_mapping = ChoiceField(
+        label="Determine CoralNet label codes from",
+        choices=(
+            ('id_only',
+             "ID field only"),
+            ('id_and_notes',
+             "ID and Notes fields (using + character as a separator)"),
+        ),
+        widget=RadioSelect,
     )
 
     def __init__(self, source, *args, **kwargs):
+        has_plus_code = (
+            source.labelset and labelset_has_plus_code(source.labelset))
         kwargs['initial'] = dict(
-            # Only check the plus notes option by default if the labelset
-            # has codes with + in them. Otherwise, the uploader probably
-            # didn't intend to use plus codes, and any Notes present in the
+            # Only use Notes by default if the labelset has codes with + in
+            # them. Otherwise, the uploader probably didn't intend to use
+            # the ID+Notes concat feature, and any Notes present in the
             # CPC files would make the upload fail.
-            plus_notes=(
-                source.labelset and labelset_has_plus_code(source.labelset)),
+            label_mapping='id_and_notes' if has_plus_code else 'id_only',
         )
         super().__init__(*args, **kwargs)
 

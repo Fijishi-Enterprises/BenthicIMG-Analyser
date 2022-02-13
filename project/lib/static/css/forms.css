@@ -22,6 +22,11 @@ div.form-fields-grid .left-col-label.text {
        corresponding text-input fields. */
     line-height: 1.5em;
 }
+div.form-fields-grid .left-col-label.file {
+    /* This improves the vertical alignment of field labels with
+       corresponding file-input fields. */
+    line-height: 1.8em;
+}
 
 div.form-fields-grid .radio-option-label {
     /* Lay out the radio button and its label with flexbox, so that even if

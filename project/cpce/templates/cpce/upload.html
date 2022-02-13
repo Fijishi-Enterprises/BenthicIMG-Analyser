@@ -15,7 +15,12 @@
 
 {% block content %}
 
-  <legend>Upload Points and Annotations (CPC)</legend>
+  <legend>
+    Upload Points and Annotations (CPC)
+    <span class="tutorial-message">
+      {% include 'cpce/upload_help.html' %}
+    </span>
+  </legend>
 
   <div class="narrow_column">
 
@@ -23,17 +28,7 @@
 
       <form id="cpc_form" action="" method="post" enctype="multipart/form-data">
         {% csrf_token %}
-
-        {% with cpc_import_form.cpc_files as field %}
-          <div class="line">{{ field.label }}: {{ field }}</div>
-        {% endwith %}
-        {% with cpc_import_form.plus_notes as field %}
-          <div class="line">{{ field }} {{ field.label }}</div>
-        {% endwith %}
-
-        <div class="tutorial-message">
-          {% include 'cpce/upload_help.html' %}
-        </div>
+        {% include 'django/forms/default.html' with form=cpc_import_form %}
       </form>
 
     </div>

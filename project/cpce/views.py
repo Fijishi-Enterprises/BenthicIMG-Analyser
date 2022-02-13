@@ -59,7 +59,7 @@ def upload_preview_ajax(request, source_id):
     try:
         cpc_info = annotations_cpcs_to_dict(
             cpc_import_form.get_cpc_names_and_streams(), source,
-            cpc_import_form.cleaned_data['plus_notes'])
+            cpc_import_form.cleaned_data['label_mapping'])
     except FileProcessError as error:
         return JsonResponse(dict(
             error=str(error),

@@ -4,10 +4,12 @@ import functools
 from io import StringIO
 from pathlib import PureWindowsPath
 import re
+# Can use built-in tuple instead of this Tuple starting from Python 3.9
+from typing import Iterable, TextIO, Tuple
 
 from annotations.model_utils import AnnotationAreaUtils
 from export.utils import create_zip_stream_response, write_zip
-from images.models import Point
+from images.models import Point, Source
 from lib.exceptions import FileProcessError
 
 
@@ -44,14 +46,16 @@ def annotations_cpcs_to_dict_read_csv_row(
     return row_tokens
 
 
-def annotations_cpcs_to_dict(cpc_names_and_streams, source, plus_notes):
+def annotations_cpcs_to_dict(
+        cpc_names_and_streams: Iterable[Tuple[str, TextIO]],
+        source: Source, label_mapping: str) -> dict:
     """
-    :param cpc_names_and_streams: An iterable of Coral Point Count .cpc files
-      as (file name, Unicode stream) tuples. One .cpc corresponds to one image.
+    :param cpc_names_and_streams: Coral Point Count .cpc files as
+      (file name, Unicode stream) tuples. One .cpc corresponds to one image.
     :param source: The source these .cpc files correspond to.
-    :param plus_notes: Boolean option on whether to interpret the + char as
-      an ID/Notes separator.
-    :return: A dict of relevant info, with the following keys::
+    :param label_mapping: CpcExportForm option of the same name. Determines
+      whether CoralNet label codes are derived from ID or ID+Notes.
+    :return: A dict of relevant info, with the following keys:
       annotations: dict of (image ids -> lists of dicts with keys row,
         column, (opt.) label).
       cpc_contents: dict of image ids -> .cpc's full contents as a string
@@ -117,7 +121,7 @@ def annotations_cpcs_to_dict(cpc_names_and_streams, source, plus_notes):
         for point_index in range(num_points):
             _, cpc_id, _, cpc_notes = read_csv_row_curried(4)
             if cpc_id:
-                if cpc_notes and plus_notes:
+                if cpc_notes and label_mapping == 'id_and_notes':
                     # Assumption: label code in CoralNet source's labelset
                     # == {ID}+{Notes} in the .cpc file (case insensitive).
                     cpc_dict['points'][point_index]['label'] = \

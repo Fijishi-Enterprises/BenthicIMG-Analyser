@@ -79,11 +79,11 @@ class UploadAnnotationsCpcTestMixin(UploadAnnotationsTestMixin, ABC):
         return f
 
     def preview_annotations(
-            self, user, source, cpc_files, plus_notes=False):
+            self, user, source, cpc_files, label_mapping='id_only'):
         self.client.force_login(user)
         return self.client.post(
             reverse('cpce:upload_preview_ajax', args=[source.pk]),
-            {'cpc_files': cpc_files, 'plus_notes': plus_notes},
+            {'cpc_files': cpc_files, 'label_mapping': label_mapping},
         )
 
     def upload_annotations(self, user, source):

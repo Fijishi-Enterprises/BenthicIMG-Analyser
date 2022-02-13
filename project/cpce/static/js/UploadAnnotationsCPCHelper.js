@@ -272,7 +272,8 @@ var UploadAnnotationsCPCHelper = (function() {
             // Form and field elements.
             $cpcForm = $('#cpc_form');
             cpcFileField = $('#id_cpc_files')[0];
-            plusNotesField = $('#id_plus_notes')[0];
+            let $labelMappingRadioChoices = $(
+                'input[type=radio][name=label_mapping]');
 
             // Button elements.
             $uploadStartButton = $('#id_upload_submit');
@@ -282,7 +283,7 @@ var UploadAnnotationsCPCHelper = (function() {
             $(cpcFileField).change(function() {
                 updateUploadPreview();
             });
-            $(plusNotesField).change(function() {
+            $labelMappingRadioChoices.change(function() {
                 updateUploadPreview();
             });
             $uploadStartButton.click(function() {

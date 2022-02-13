@@ -64,7 +64,7 @@
     <span id="previous-image-form-fields">
       {# The image-filter parameters that led us to this browse page. #}
       {% if hidden_image_form %}
-        {% for field in hidden_image_form %}{{ field }}{% endfor %}
+        {% include 'django/forms/default.html' with form=hidden_image_form %}
       {% endif %}
     </span>
   </form>
@@ -80,7 +80,7 @@
     <hr/>
     {% csrf_token %}
 
-    {% include "form_generic.html" with form=export_annotations_form %}
+    {% include 'django/forms/default.html' with form=export_annotations_form %}
 
     <div class="line">Note: This can take a long time, potentially 1 minute per 5000 annotations. If your source has thousands of images, please consider filtering your search to a smaller number of images before exporting.</div>
 
@@ -91,7 +91,7 @@
   id="export-image-covers-form">
     {% csrf_token %}
 
-    {% include "form_generic.html" with form=export_image_covers_form %}
+    {% include 'django/forms/default.html' with form=export_image_covers_form %}
 
     <button class="submit">Go</button>
   </form>
@@ -109,7 +109,7 @@
       {% endif %}
     </button>
 
-    {% include "form_generic.html" with form=export_calcify_rates_form %}
+    {% include 'django/forms/default.html' with form=export_calcify_rates_form %}
 
     <button class="submit">Go</button>
   </form>

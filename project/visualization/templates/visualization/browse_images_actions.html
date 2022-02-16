@@ -206,24 +206,44 @@
 
     <form hidden action="{% url 'browse_delete_ajax' source.pk %}"
     method="post" id="delete-images-ajax-form">
-      {% csrf_token %}
-      <div class="line">
-        Permanently deletes the images in this image set, along with their annotations. When you click "Go", a confirmation dialog will pop up.
-      </div>
+      {% if hidden_image_form %}
 
-      <button class="submit">Go</button>
+        {% csrf_token %}
+        <div class="line">
+          Permanently deletes the images in this image set, along with their annotations. When you click "Go", a confirmation dialog will pop up.
+        </div>
+
+        <button class="submit">Go</button>
+
+      {% else %}
+
+        <div class="line">
+          You must first submit the Search form before you can batch-delete images. (This is a safety check to reduce the chances of accidentally deleting all your images. If you really want to delete all images, just click Search without changing any of the search fields.)
+        </div>
+
+      {% endif %}
     </form>
 
     {# Delete annotations #}
 
     <form hidden action="{% url 'batch_delete_annotations_ajax' source.pk %}"
     method="post" id="delete-annotations-ajax-form">
-      {% csrf_token %}
-      <div class="line">
-        Permanently deletes any existing annotations for these images. The images themselves and their point locations will not be affected. When you click "Go", a confirmation dialog will pop up.
-      </div>
+      {% if hidden_image_form %}
 
-      <button class="submit">Go</button>
+        {% csrf_token %}
+        <div class="line">
+          Permanently deletes any existing annotations for these images. The images themselves and their point locations will not be affected. When you click "Go", a confirmation dialog will pop up.
+        </div>
+
+        <button class="submit">Go</button>
+
+      {% else %}
+
+        <div class="line">
+          You must first submit the Search form before you can batch-delete annotations. (This is a safety check to reduce the chances of accidentally deleting all your annotations. If you really want to delete all annotations, just click Search without changing any of the search fields.)
+        </div>
+
+      {% endif %}
     </form>
 
   {% endif %}

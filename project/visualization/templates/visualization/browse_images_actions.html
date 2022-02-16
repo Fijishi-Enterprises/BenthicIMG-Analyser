@@ -10,10 +10,6 @@
 
   <legend>Image Actions</legend>
 
-  <div class="tutorial-message">
-    {% include "visualization/help_browse_actions.html" %}
-  </div>
-
   <span>Action:</span>
 
   <select name="browse_action" title="Action">
@@ -72,6 +68,15 @@
   <form hidden action="{% url 'export_metadata' source.pk %}" method="post"
   id="export-metadata-form">
     {% csrf_token %}
+
+    <div class="line">
+      Export metadata for these images in CSV format - one row per image. This includes anything you would see in CoralNet's "Edit Metadata" page: image date, auxiliary metadata, camera, and so on.
+
+      <div class="tutorial-message">
+        {% include "export/help_metadata.html" %}
+      </div>
+    </div>
+
     <button class="submit">Go</button>
   </form>
 
@@ -80,16 +85,35 @@
     <hr/>
     {% csrf_token %}
 
+    <div class="line">
+      Export annotations for these images in CSV format - one row per annotation.
+
+      <div class="tutorial-message">
+        {% include "export/help_annotations_csv.html" %}
+      </div>
+    </div>
+
     {% include 'django/forms/default.html' with form=export_annotations_form %}
 
-    <div class="line">Note: This can take a long time, potentially 1 minute per 5000 annotations. If your source has thousands of images, please consider filtering your search to a smaller number of images before exporting.</div>
+    <div class="line">
+      Note: This can take a very long time, potentially 1 minute per 5000 annotations. If your source has thousands of images, please consider filtering your search to a smaller number of images before exporting.
+    </div>
 
     <button class="submit">Go</button>
   </form>
 
   <form hidden action="{% url 'export_image_covers' source.pk %}" method="post"
   id="export-image-covers-form">
+    <hr/>
     {% csrf_token %}
+
+    <div class="line">
+      Export per-image coverage statistics for each of these images. For example, image 0001.JPG consists of 5% Acropora, 10% Porites, etc. based on the annotations.
+
+      <div class="tutorial-message">
+        {% include "export/help_image_covers.html" %}
+      </div>
+    </div>
 
     {% include 'django/forms/default.html' with form=export_image_covers_form %}
 
@@ -98,9 +122,18 @@
 
   <form hidden action="{% url 'calcification:stats_export' source.pk %}"
   method="post" id="export-calcify-rates-form">
-    {% csrf_token %}
     <hr/>
+    {% csrf_token %}
 
+    <div class="line">
+      Export per-image calcification rates for each of these images.
+
+      <div class="tutorial-message">
+        {% include "calcification/help_export.html" %}
+      </div>
+    </div>
+
+    {# TODO: Make this button a bit more easily distinguishable if possible #}
     <button type="button" id="manage-calcify-tables-button">
       {% if can_manage_source_data %}
         Click here to manage label-rate tables
@@ -119,12 +152,20 @@
     <form hidden action="{{ links.annotation_tool_first_result }}"
     method="post" id="annotate-all-form">
       {% csrf_token %}
+      <div class="line">
+        This takes you to the annotation tool for the first image in this image set. Then, the annotation tool's Prev/Next buttons will only navigate through this image set.
+      </div>
+
       <button class="submit">Go</button>
     </form>
 
     <form hidden action="{{ links.annotation_tool_page_results.0 }}"
     method="post" id="annotate-selected-form">
       {% csrf_token %}
+      <div class="line">
+        This takes you to the annotation tool for the first image in this image set. Then, the annotation tool's Prev/Next buttons will only navigate through this image set.
+      </div>
+
       <button class="submit">Go</button>
     </form>
 
@@ -141,6 +182,10 @@
 
       <div class="line">
         {{ cpc_export_form.previous_cpcs_help_text }}
+
+        <div class="tutorial-message">
+          {% include "cpce/help_export.html" %}
+        </div>
       </div>
 
       {% include 'django/forms/default.html' with form=cpc_export_form %}
@@ -162,6 +207,10 @@
     <form hidden action="{% url 'browse_delete_ajax' source.pk %}"
     method="post" id="delete-images-ajax-form">
       {% csrf_token %}
+      <div class="line">
+        Permanently deletes the images in this image set, along with their annotations. When you click "Go", a confirmation dialog will pop up.
+      </div>
+
       <button class="submit">Go</button>
     </form>
 
@@ -170,8 +219,9 @@
     <form hidden action="{% url 'batch_delete_annotations_ajax' source.pk %}"
     method="post" id="delete-annotations-ajax-form">
       {% csrf_token %}
-
-      <div class="line">Deletes the annotations for these images. The images themselves and their point locations will not be affected.</div>
+      <div class="line">
+        Permanently deletes any existing annotations for these images. The images themselves and their point locations will not be affected. When you click "Go", a confirmation dialog will pop up.
+      </div>
 
       <button class="submit">Go</button>
     </form>

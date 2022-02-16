@@ -147,11 +147,7 @@ class CpcExportForm(Form):
                 **override_filepaths_kwargs)
             self.previous_cpcs_help_text = mark_safe(
                "<strong>All of the images</strong> in this search"
-               " have previously-uploaded CPC files available."
-               " When exporting to CPC, the previous notes and header values"
-               " will be preserved."
-               " You may decide what to do with the CPCe environment info"
-               " below. Click the '?' help button for more information.")
+               " have previously-uploaded CPC files available.")
 
         elif previous_cpcs_status == 'some':
 
@@ -164,11 +160,7 @@ class CpcExportForm(Form):
                 **override_filepaths_kwargs)
             self.previous_cpcs_help_text = mark_safe(
                 "<strong>Some of the images</strong> in this search"
-                " have previously-uploaded CPC files available."
-                " When exporting to CPC, the previous notes and header values"
-                " will be preserved."
-                " You may decide what to do with the CPCe environment info"
-                " below. Click the '?' help button for more information.")
+                " have previously-uploaded CPC files available.")
 
         else:
 
@@ -181,8 +173,7 @@ class CpcExportForm(Form):
                 "<strong>None of the images</strong> in this search"
                 " have previously-uploaded CPC files available."
                 " They will use the CPCe environment info in the text fields"
-                " below, and will not have notes or header values."
-                " Click the '?' help button for more information.")
+                " below.")
 
         self.order_fields([
             'override_filepaths', 'local_code_filepath', 'local_image_dir',

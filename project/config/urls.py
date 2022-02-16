@@ -21,10 +21,12 @@ urlpatterns = [
     path('async_media/',
          include('async_media.urls', namespace='async_media')),
     path('blog/', include('blog.urls', namespace='blog')),
+    path('source/<int:source_id>/backend/', include('vision_backend.urls')),
     path('source/<int:source_id>/browse/', include('visualization.urls')),
+    path('source/<int:source_id>/cpce/',
+         include('cpce.urls', namespace='cpce')),
     path('source/<int:source_id>/export/', include('export.urls')),
     path('source/<int:source_id>/upload/', include('upload.urls')),
-    path('source/<int:source_id>/backend/', include('vision_backend.urls')),
 
     path('admin/doc/', include('django.contrib.admindocs.urls')),
     path('admin/', admin.site.urls),

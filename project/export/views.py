@@ -8,7 +8,7 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Count
-from django.http import HttpResponseRedirect, JsonResponse
+from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
@@ -16,15 +16,13 @@ from django.utils.decorators import method_decorator
 from django.views import View
 import pyexcel
 
-from .forms import CpcPrefsForm, ExportAnnotationsForm, ExportImageCoversForm
+from .forms import ExportAnnotationsForm, ExportImageCoversForm
 from .utils import (
-    create_cpc_strings, create_csv_stream_response, create_stream_response,
-    create_zipped_cpcs_stream_response, get_request_images,
+    create_csv_stream_response, create_stream_response, get_request_images,
     write_annotations_csv, write_labelset_csv)
 from images.models import Source
 from images.utils import metadata_field_names_to_labels
-from lib.decorators import source_permission_required, \
-    source_visibility_required
+from lib.decorators import source_visibility_required
 from lib.forms import get_one_form_error
 
 
@@ -311,80 +309,6 @@ def export_annotations(request, source_id):
     write_annotations_csv(
         response, source, image_set,
         export_annotations_form.cleaned_data['optional_columns'])
-
-    return response
-
-
-@source_permission_required(
-    'source_id', perm=Source.PermTypes.EDIT.code, ajax=True)
-def export_annotations_cpc_create_ajax(request, source_id):
-    """
-    This is the first view after requesting a CPC export.
-    Process the request fields, create the requested CPCs, and save them
-    to the session. If there are any errors, report them with JSON.
-    """
-    if request.method != 'POST':
-        return JsonResponse(dict(
-            error="Not a POST request",
-        ))
-
-    source = get_object_or_404(Source, id=source_id)
-
-    try:
-        image_set, _ = get_request_images(request, source)
-    except ValidationError as e:
-        return JsonResponse(dict(
-            error=e.message
-        ))
-
-    cpc_prefs_form = CpcPrefsForm(source, request.POST)
-    if not cpc_prefs_form.is_valid():
-        return JsonResponse(dict(
-            error=get_one_form_error(cpc_prefs_form),
-        ))
-
-    cpc_prefs = cpc_prefs_form.cleaned_data
-    # Create a dict of filenames to CPC-file-content strings
-    cpc_strings = create_cpc_strings(image_set, cpc_prefs)
-    # Save CPC strings to the session
-    request.session['cpc_strings'] = cpc_strings
-    # Save CPC prefs to the database for use next time
-    source.cpce_code_filepath = cpc_prefs['local_code_filepath']
-    source.cpce_image_dir = cpc_prefs['local_image_dir']
-    source.save()
-
-    return JsonResponse(dict(
-        success=True,
-    ))
-
-
-@source_permission_required('source_id', perm=Source.PermTypes.EDIT.code)
-@transaction.non_atomic_requests
-def export_annotations_cpc_serve(request, source_id):
-    """
-    This is the second view after requesting a CPC export.
-    Grab the previously crafted CPCs from the session, and serve them in a
-    zip file.
-    The only reason this view really exists (instead of being merged with the
-    other CPC export view) is that a file download seemingly needs to be
-    non-Ajax.
-    """
-    cpc_strings = request.session.pop('cpc_strings', None)
-    if not cpc_strings:
-        messages.error(
-            request,
-            (
-                "Export failed; we couldn't find the expected data in"
-                " your session."
-                " Please try the export again. If the problem persists,"
-                " let us know on the forum."
-            ),
-        )
-        return HttpResponseRedirect(
-            reverse('browse_images', args=[source_id]))
-
-    response = create_zipped_cpcs_stream_response(
-        cpc_strings, 'annotations_cpc.zip')
 
     return response
 

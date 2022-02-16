@@ -1,10 +1,11 @@
 from bs4 import BeautifulSoup
 from django.urls import reverse
 
+from cpce.tests.utils import UploadAnnotationsCpcTestMixin
 from images.model_utils import PointGen
 from images.models import Source
 from lib.tests.utils import BasePermissionTest, ClientTest
-from upload.tests.utils import UploadAnnotationsTestMixin
+from upload.tests.utils import UploadAnnotationsCsvTestMixin
 
 
 class PermissionTest(BasePermissionTest):
@@ -29,7 +30,7 @@ class PermissionTest(BasePermissionTest):
         self.assertPermissionLevel(url, self.SOURCE_EDIT, template=template)
 
 
-class AnnotationHistoryTest(ClientTest, UploadAnnotationsTestMixin):
+class AnnotationHistoryBaseTest(ClientTest):
     """
     Test the annotation history page.
     """
@@ -110,6 +111,9 @@ class AnnotationHistoryTest(ClientTest, UploadAnnotationsTestMixin):
                     expected_cell, str(cell_soups[2]),
                     msg="Date mismatch in row {n}".format(n=row_num),
                 )
+
+
+class AnnotationHistoryTest(AnnotationHistoryBaseTest):
 
     def test_access_event(self):
         # Access the annotation tool
@@ -217,6 +221,10 @@ class AnnotationHistoryTest(ClientTest, UploadAnnotationsTestMixin):
             ]
         )
 
+
+class AnnotationHistoryCsvUploadTest(
+        AnnotationHistoryBaseTest, UploadAnnotationsCsvTestMixin):
+
     def test_csv_import(self):
         rows = [
             ['Name', 'Column', 'Row', 'Label'],
@@ -224,8 +232,8 @@ class AnnotationHistoryTest(ClientTest, UploadAnnotationsTestMixin):
             ['1.png', 20, 20, ''],
             ['1.png', 30, 30, 'B'],
         ]
-        csv_file = self.make_csv_file('A.csv', rows)
-        self.preview_csv_annotations(self.user, self.source, csv_file)
+        csv_file = self.make_annotations_file('A.csv', rows)
+        self.preview_annotations(self.user, self.source, csv_file)
         self.upload_annotations(self.user, self.source)
 
         response = self.view_history(self.user)
@@ -236,16 +244,20 @@ class AnnotationHistoryTest(ClientTest, UploadAnnotationsTestMixin):
             ]
         )
 
+
+class AnnotationHistoryCpcUploadTest(
+        AnnotationHistoryBaseTest, UploadAnnotationsCpcTestMixin):
+
     def test_cpc_import(self):
         cpc_files = [
-            self.make_cpc_file(
+            self.make_annotations_file(
                 self.image_dimensions, '1.cpc',
                 r"C:\My Photos\2017-05-13 GBR\1.png", [
                     (9*15, 9*15, 'A'),
                     (19*15, 19*15, ''),
                     (29*15, 29*15, 'B')]),
         ]
-        self.preview_cpc_annotations(self.user, self.source, cpc_files)
+        self.preview_annotations(self.user, self.source, cpc_files)
         self.upload_annotations(self.user, self.source)
 
         response = self.view_history(self.user)

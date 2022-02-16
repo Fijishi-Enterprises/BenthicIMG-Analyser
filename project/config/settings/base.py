@@ -163,6 +163,8 @@ INSTALLED_APPS = [
     'async_media',
     'blog',
     'calcification',
+    # Uploading from and exporting to Coral Point Count file formats
+    'cpce',
     # Saves internal server error messages for viewing in the admin site
     'errorlogs.apps.ErrorlogsConfig',
     'export',
@@ -172,10 +174,11 @@ INSTALLED_APPS = [
     'labels',
     # Miscellaneous stuff
     'lib',
+    # Logs of site events/actions
+    'newsfeed',
     'upload',
     'visualization',
     'vision_backend',
-    'newsfeed',
 
     # Admin site (<domain>/admin)
     'django.contrib.admin',
@@ -201,6 +204,9 @@ INSTALLED_APPS = [
     # https://docs.djangoproject.com/en/dev/ref/contrib/sites/#how-django-uses-the-sites-framework
     'django.contrib.sites',
     'django.contrib.staticfiles',
+    # Required for overriding built-in widget templates
+    # https://docs.djangoproject.com/en/dev/ref/forms/renderers/#templatessetting
+    'django.forms',
 
     'easy_thumbnails',
     'guardian',
@@ -393,6 +399,10 @@ PASSWORD_HASHERS = [
     'django.contrib.auth.hashers.Argon2PasswordHasher',
     'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',
 ]
+
+# Required for overriding built-in widget templates
+# https://docs.djangoproject.com/en/dev/ref/forms/renderers/#templatessetting
+FORM_RENDERER = 'django.forms.renderers.TemplatesSetting'
 
 # The maximum size (in bytes) that an upload will be before it
 # gets streamed to the file system.

@@ -15,7 +15,12 @@
 
 {% block content %}
 
-  <legend>Upload Points and Annotations (CPC)</legend>
+  <legend>
+    Upload Points and Annotations (CPC)
+    <div class="tutorial-message">
+      {% include 'cpce/upload_help.html' %}
+    </div>
+  </legend>
 
   <div class="narrow_column">
 
@@ -23,17 +28,7 @@
 
       <form id="cpc_form" action="" method="post" enctype="multipart/form-data">
         {% csrf_token %}
-
-        {% with cpc_import_form.cpc_files as field %}
-          <div class="line">{{ field.label }}: {{ field }}</div>
-        {% endwith %}
-        {% with cpc_import_form.plus_notes as field %}
-          <div class="line">{{ field }} {{ field.label }}</div>
-        {% endwith %}
-
-        <div class="tutorial-message">
-          {% include 'upload/upload_annotations_cpc_help.html' %}
-        </div>
+        {% include 'django/forms/default.html' with form=cpc_import_form %}
       </form>
 
     </div>
@@ -64,8 +59,8 @@
   <!-- Script in the body will run on page load. -->
   <script type="text/javascript">
     UploadAnnotationsCPCHelper.initForm({
-        uploadPreviewUrl: "{% url 'upload_annotations_cpc_preview_ajax' source.id %}",
-        uploadStartUrl: "{% url 'upload_annotations_ajax' source.id %}"
+        uploadPreviewUrl: "{% url 'cpce:upload_preview_ajax' source.id %}",
+        uploadStartUrl: "{% url 'cpce:upload_confirm_ajax' source.id %}"
     });
   </script>
 

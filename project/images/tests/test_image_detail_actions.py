@@ -1,6 +1,6 @@
 # Test the action buttons available from the image detail page.
 
-from abc import ABCMeta
+from abc import ABC
 
 from django.urls import reverse
 
@@ -8,12 +8,13 @@ from annotations.model_utils import AnnotationAreaUtils
 from images.model_utils import PointGen
 from images.models import Image, Metadata
 from lib.tests.utils import BasePermissionTest
-from upload.tests.utils import UploadAnnotationsTestMixin
+from upload.tests.utils import UploadAnnotationsCsvTestMixin
 from vision_backend.models import Features
 
 
 # Abstract class
-class ImageDetailActionBaseTest(BasePermissionTest, metaclass=ABCMeta):
+class ImageDetailActionBaseTest(
+        BasePermissionTest, UploadAnnotationsCsvTestMixin, ABC):
 
     # Subclasses should fill this in.
     action_url_name = None
@@ -109,8 +110,8 @@ class ImageDetailActionBaseTest(BasePermissionTest, metaclass=ABCMeta):
             [img.metadata.name, 50, 50],
             [img.metadata.name, 60, 40],
         ]
-        csv_file = self.make_csv_file('A.csv', rows)
-        self.preview_csv_annotations(self.user, self.source, csv_file)
+        csv_file = self.make_annotations_file('A.csv', rows)
+        self.preview_annotations(self.user, self.source, csv_file)
         self.upload_annotations(self.user, self.source)
 
     def action_url(self, img):
@@ -301,8 +302,7 @@ class DeleteAnnotationsTest(ImageDetailActionBaseTest):
         self.assertLinkAbsent(self.user, self.img)
 
 
-class RegeneratePointsTest(
-        ImageDetailActionBaseTest, UploadAnnotationsTestMixin):
+class RegeneratePointsTest(ImageDetailActionBaseTest):
     action_url_name = 'image_regenerate_points'
 
     def test_permission_private_source(self):
@@ -387,7 +387,7 @@ class RegeneratePointsTest(
         self.assertLinkPresent(self.user, self.img)
 
 
-class ResetPointGenTest(ImageDetailActionBaseTest, UploadAnnotationsTestMixin):
+class ResetPointGenTest(ImageDetailActionBaseTest):
     action_url_name = 'image_reset_point_generation_method'
 
     def test_permission_private_source(self):
@@ -487,8 +487,7 @@ class ResetPointGenTest(ImageDetailActionBaseTest, UploadAnnotationsTestMixin):
         self.assertLinkPresent(self.user, self.img)
 
 
-class ResetAnnotationAreaTest(
-        ImageDetailActionBaseTest, UploadAnnotationsTestMixin):
+class ResetAnnotationAreaTest(ImageDetailActionBaseTest):
     action_url_name = 'image_reset_annotation_area'
 
     def test_permission_private_source(self):

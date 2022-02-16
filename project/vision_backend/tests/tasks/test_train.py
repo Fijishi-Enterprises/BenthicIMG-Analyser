@@ -380,7 +380,8 @@ class AbortCasesTest(BaseTaskTest):
             pass
         with mock.patch('vision_backend.tasks.reset_features.run', noop_task):
             self.client.post(
-                reverse('upload_annotations_ajax', args=[self.source.pk]),
+                reverse('upload_annotations_csv_confirm_ajax',
+                        args=[self.source.pk]),
             )
 
     train_fail_log_regex = re.compile(

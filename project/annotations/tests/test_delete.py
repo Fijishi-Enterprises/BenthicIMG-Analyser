@@ -1,5 +1,6 @@
 from unittest import skip
 
+from bs4 import BeautifulSoup
 from django.urls import reverse
 import spacer.config as spacer_config
 
@@ -76,6 +77,40 @@ class BaseDeleteTest(ClientTest):
         self.assertContains(
             response,
             f"The {count} selected images have had their annotations deleted.")
+
+
+class FormAvailabilityTest(BaseDeleteTest):
+    """
+    This form's submit button shouldn't be available in Browse if no search
+    was submitted.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+
+        cls.img1 = cls.upload_image(
+            cls.user, cls.source, dict(filename='1.png'))
+        cls.browse_url = reverse('browse_images', args=[cls.source.pk])
+
+    def assert_form_availability(self, response, expected_available):
+        response_soup = BeautifulSoup(response.content, 'html.parser')
+        form_soup = response_soup.find(
+            'form', id='delete-annotations-ajax-form')
+        submit_button_soup = form_soup.find('button', class_='submit')
+        if expected_available:
+            self.assertIsNotNone(submit_button_soup)
+        else:
+            self.assertIsNone(submit_button_soup)
+
+    def test_no_search(self):
+        self.client.force_login(self.user)
+        response = self.client.post(self.browse_url, dict())
+        self.assert_form_availability(response, False)
+
+    def test_after_search(self):
+        self.client.force_login(self.user)
+        response = self.client.post(self.browse_url, self.default_search_params)
+        self.assert_form_availability(response, True)
 
 
 class SuccessTest(BaseDeleteTest):

@@ -1,0 +1,9 @@
+{# This template override is to specify a CSS class for the label. #}
+
+{% if widget.wrap_label %}
+  <label for="{{ widget.attrs.id }}" class="radio-option-label">
+{% endif %}
+{% include "django/forms/widgets/input.html" %}
+{% if widget.wrap_label %}
+  {{ widget.label }} </label>
+{% endif %}

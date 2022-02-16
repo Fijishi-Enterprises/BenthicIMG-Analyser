@@ -1,0 +1,58 @@
+<div class="article-body">
+
+<h3>Export Annotations, CPCe</h3>
+
+<p>Export annotations as .cpc files which can be opened in Coral Point Count. There will be one .cpc file per image, and the .cpc files will be contained in a .zip archive file. If you're not familiar with opening .zip files, see <a href="https://www.wikihow.com/Open-a-Zip-File" target="_blank">this WikiHow article</a>. Here are the basics:</p>
+
+<ul>
+  <li>We save your previously-uploaded .cpc files for each image, as long as the image's point locations have not been overwritten since the .cpc was uploaded.</li>
+  <li>If we have a saved .cpc file for a particular image, the .cpc you export here will be based on the original .cpc, except that:
+    <ul>
+      <li>The point annotations will be updated to match the annotations on CoralNet.</li>
+      <li>The CPCe environment info may be updated, depending on the "Use CPCe environment info from" option (see "Computer environment info" below).</li>
+    </ul>
+  </li>
+  <li>If we do not have a saved .cpc file for an image, we create a .cpc file from scratch. Note that there are .cpc file format differences between versions of CPCe, and the .cpc files we create are meant for CPCe 4.1, the latest version. For example, if you try to open one of our .cpc files in CPCe 3.5 with a screen size setting of 120 DPI, then the point locations will be wrong.</li>
+</ul>
+
+<p>The .cpc file format contains several pieces of information besides point positions and labels; here's how we handle each one:</p>
+
+<ul>
+  <li>Notes codes: CPCe's interface has two fields for each point, "ID" and "Notes". Treatment of the Notes field depends on the "Determine CoralNet label codes from" option.
+    <ul>
+      <li>If the option is "ID and Notes fields", we split up the CoralNet label code on the + symbol to get the ID and Notes codes. For example, if the CoralNet label code is "ROCK+TURF", then the exported .cpc file has ID of "ROCK" and Notes of "TURF" for the corresponding point. If the CoralNet label code is just "ROCK", then the .cpc gets ID of "ROCK" and a blank Notes field.</li>
+
+      <li>If the option is "ID only", the CoralNet label codes will only be mapped to the .cpc ID fields, and here is what happens with the Notes codes:
+        <ul>
+          <li>If a particular CoralNet image has a .cpc file saved, that .cpc file's Notes codes will be retained.</li>
+
+          <li>If the image does not have a .cpc file saved, the Notes codes will be blank.</li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+
+  <li>Header data: When you create a .cpc file in Coral Point Count (at least in CPCe 4.1), at some point it shows a window with 28 header fields such as Project name, Site name, Latitude, Easting, etc. If a particular CoralNet image has a .cpc file saved, that .cpc file's header values will be retained. Otherwise, we will fill in blank header values. (You might notice that these header fields have some overlap with CoralNet's metadata fields, but CoralNet does not make any connection between these two sets of fields on import/export.)</li>
+
+  <li>
+    Computer environment info, which includes:
+
+    <ul>
+      <li>The location (file path) of the .txt code file that CPCe uses to match label codes to label names/groups</li>
+      <li>The location (folder path) of the image file that was opened in CPCe</li>
+    </ul>
+
+    This environment info is necessary to make a .cpc work in Coral Point Count, and the info has to come from somewhere:
+
+    <ul>
+      <li>For any images without a saved .cpc, CoralNet will use the contents of this form's "Code file" and "Folder with images" fields as the environment info for those images.</li>
+      <li>For any images with a saved .cpc, the "Use CPCe environment info from" option determines whether to use the previously-saved info, or the form fields. (This option won't be present if none of the images have a saved .cpc.)</li>
+    </ul>
+
+    The environment fields (Code file, Folder with images) should already be filled in if you've done CPC uploads/exports for this source before, although you're free to edit these field values. The code file location should look something like <code>C:\CPCe_41_inst\coral_codes.txt</code>, and the image folder location should look something like <code>C:\Image_data\Panama_corals</code> (you may have a slash at the end or not). Note that the image folder is a folder location, not a file location; the actual image file might be at C:\Image_data\Panama_corals\DSC_0048.JPG.
+  </li>
+</ul>
+
+{% include 'export/help_wait_times.html' %}
+
+</div>

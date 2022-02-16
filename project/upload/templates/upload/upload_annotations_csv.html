@@ -62,7 +62,7 @@
   <script type="text/javascript">
     UploadAnnotationsHelper.initForm({
         uploadPreviewUrl: "{% url 'upload_annotations_csv_preview_ajax' source.id %}",
-        uploadStartUrl: "{% url 'upload_annotations_ajax' source.id %}"
+        uploadStartUrl: "{% url 'upload_annotations_csv_confirm_ajax' source.id %}"
     });
   </script>
 

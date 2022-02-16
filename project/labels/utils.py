@@ -54,12 +54,3 @@ def is_label_editable_by_user(label, user):
     # The user is admin of all 1+ sources using this label, and the label
     # isn't verified; OK to edit
     return True
-
-
-def labelset_has_plus_code(labelset):
-    """
-    Returns True if the labelset has at least one label code with the
-    + character, False otherwise. This is for CPCe upload/export.
-    (TODO: It'd be better to create a 'cpce' app and move this function there.)
-    """
-    return labelset.get_labels().filter(code__contains='+').exists()

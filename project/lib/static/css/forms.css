@@ -1,0 +1,46 @@
+div.form-fields-grid {
+    display: grid;
+    grid-template-columns: minmax(200px, 1fr) 3fr;
+
+    row-gap: 0.4em;
+    column-gap: 6px;
+    /* This attempts to get a decent balance of vertical alignment for
+       various types of fields. */
+    line-height: 1.2em;
+}
+
+div.form-fields-grid .field-errors {
+    /* Take up an entire row of the grid. */
+    grid-column: span 2;
+}
+
+div.form-fields-grid .left-col-label {
+    text-align: right;
+}
+
+/* Improve the vertical alignment of field labels with
+   certain types of fields. */
+div.form-fields-grid .left-col-label.file {
+    line-height: 1.9em;
+}
+div.form-fields-grid .left-col-label.select {
+    line-height: 1.9em;
+}
+div.form-fields-grid .left-col-label.text {
+    line-height: 1.5em;
+}
+
+div.form-fields-grid .radio-option-label {
+    /* Lay out the radio button and its label with flexbox, so that even if
+       the label is multiline, it'll stay to the right of the radio button. */
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+}
+
+
+/* Sizing specific fields */
+
+#export-annotations-cpc-ajax-form input.cpc-filepath {
+    width: 25em;
+}

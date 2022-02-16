@@ -1,11 +1,13 @@
-import json
 from datetime import timedelta
+import json
 
 from django.conf import settings
 from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
+from django.utils.decorators import method_decorator
 from django.utils.timezone import now
+from django.views import View
 
 from accounts.utils import get_imported_user
 from annotations.model_utils import AnnotationAreaUtils
@@ -21,9 +23,9 @@ from lib.forms import get_one_form_error
 from lib.utils import filesize_display
 from visualization.forms import ImageSpecifyByIdForm
 from .forms import (
-    CPCImportForm, CSVImportForm, ImageUploadForm, ImageUploadFrontendForm)
+    CSVImportForm, ImageUploadForm, ImageUploadFrontendForm)
 from .utils import (
-    annotations_cpcs_to_dict, annotations_csv_to_dict,
+    annotations_csv_to_dict,
     annotations_preview, find_dupe_image, metadata_csv_to_dict,
     metadata_preview, upload_image_process)
 import vision_backend.tasks as backend_tasks
@@ -43,7 +45,7 @@ def upload_portal(request, source_id):
                 reverse('upload_metadata', args=[source_id]))
         if request.POST.get('annotations_cpc'):
             return HttpResponseRedirect(
-                reverse('upload_annotations_cpc', args=[source_id]))
+                reverse('cpce:upload_page', args=[source_id]))
         if request.POST.get('annotations_csv'):
             return HttpResponseRedirect(
                 reverse('upload_annotations_csv', args=[source_id]))
@@ -338,171 +340,103 @@ def upload_annotations_csv_preview_ajax(request, source_id):
     ))
 
 
-@source_permission_required('source_id', perm=Source.PermTypes.EDIT.code)
-@source_labelset_required('source_id', message=(
-    "You must create a labelset before uploading annotations."))
-def upload_annotations_cpc(request, source_id):
-    source = get_object_or_404(Source, id=source_id)
-
-    cpc_import_form = CPCImportForm(source)
-
-    return render(request, 'upload/upload_annotations_cpc.html', {
-        'source': source,
-        'cpc_import_form': cpc_import_form,
-    })
-
-
-@source_permission_required(
-    'source_id', perm=Source.PermTypes.EDIT.code, ajax=True)
-@source_labelset_required('source_id', message=(
-    "You must create a labelset before uploading annotations."))
-def upload_annotations_cpc_preview_ajax(request, source_id):
-    """
-    Add points/annotations to images by uploading Coral Point Count files.
-
-    This view takes multiple .cpc files, processes them, saves the processed
-    data to the session, and returns a preview table of the data to be saved.
-    """
-    if request.method != 'POST':
-        return JsonResponse(dict(
-            error="Not a POST request",
-        ))
-
-    source = get_object_or_404(Source, id=source_id)
-
-    cpc_import_form = CPCImportForm(source, request.POST, request.FILES)
-    if not cpc_import_form.is_valid():
-        return JsonResponse(dict(
-            error=cpc_import_form.errors['cpc_files'][0],
-        ))
-
-    try:
-        cpc_info = annotations_cpcs_to_dict(
-            cpc_import_form.get_cpc_names_and_streams(), source,
-            cpc_import_form.cleaned_data['plus_notes'])
-    except FileProcessError as error:
-        return JsonResponse(dict(
-            error=str(error),
-        ))
-
-    preview_table, preview_details = \
-        annotations_preview(cpc_info['annotations'], source)
-
-    request.session['uploaded_annotations'] = cpc_info['annotations']
-    request.session['cpc_info'] = cpc_info
-
-    return JsonResponse(dict(
-        success=True,
-        previewTable=preview_table,
-        previewDetails=preview_details,
-    ))
-
-
-@source_permission_required(
-    'source_id', perm=Source.PermTypes.EDIT.code, ajax=True)
-@source_labelset_required('source_id', message=(
-    "You must create a labelset before uploading annotations."))
-def upload_annotations_ajax(request, source_id):
+@method_decorator(
+    [
+        # Access control.
+        source_permission_required(
+            'source_id', perm=Source.PermTypes.EDIT.code, ajax=True),
+        source_labelset_required('source_id', message=(
+            "You must create a labelset before uploading annotations."))
+    ],
+    name='dispatch')
+class AnnotationsUploadConfirmView(View):
     """
     This view gets the annotation data that was previously saved to the
-    session by upload-preview-csv or upload-preview-cpc.
-    Then it saves the data to the database,
-    while deleting all previous points/annotations for the images involved.
+    session by an upload-annotations-preview view. Then it saves the data
+    to the database, while deleting all previous points/annotations for the
+    images involved.
     """
-    if request.method != 'POST':
+    def post(self, request, source_id):
+        source = get_object_or_404(Source, id=source_id)
+
+        uploaded_annotations = request.session.pop('uploaded_annotations', None)
+        if not uploaded_annotations:
+            return JsonResponse(dict(
+                error=(
+                    "We couldn't find the expected data in your session."
+                    " Please try loading this page again. If the problem"
+                    " persists, let us know on the forum."
+                ),
+            ))
+
+        self.extra_source_level_actions(request, source)
+
+        for image_id, annotations_for_image in uploaded_annotations.items():
+
+            img = Image.objects.get(pk=image_id, source=source)
+
+            # Delete previous annotations and points for this image.
+            # Calling delete() on these querysets is more efficient
+            # than calling delete() on each of the individual objects.
+            Annotation.objects.filter(image=img).delete()
+            Point.objects.filter(image=img).delete()
+
+            # Create new points and annotations.
+            new_points = []
+            new_annotations = []
+
+            for num, point_dict in enumerate(annotations_for_image, 1):
+                # Create a Point.
+                point = Point(
+                    row=point_dict['row'], column=point_dict['column'],
+                    point_number=num, image=img)
+                new_points.append(point)
+            # Save to DB with an efficient bulk operation.
+            Point.objects.bulk_create(new_points)
+
+            for num, point_dict in enumerate(annotations_for_image, 1):
+                # Create an Annotation if a label is specified.
+                if 'label' in point_dict:
+                    label_obj = source.labelset.get_global_by_code(
+                        point_dict['label'])
+                    # TODO: Django 1.10 can set database IDs on newly created
+                    # objects, so re-fetching the points may not be needed:
+                    # https://docs.djangoproject.com/en/dev/releases/1.10/#database-backends
+                    new_annotations.append(Annotation(
+                        point=Point.objects.get(point_number=num, image=img),
+                        image=img, source=source,
+                        label=label_obj, user=get_imported_user()))
+            # Do NOT bulk-create the annotations so that the versioning signals
+            # (for annotation history) do not get bypassed.
+            # Create them one by one.
+            for annotation in new_annotations:
+                annotation.save()
+
+            # Update relevant image/metadata fields.
+            self.update_image_and_metadata_fields(img, new_points)
+
+            # Submit job with 1 hour delay to allow the view and thus DB
+            # transaction to conclude before jobs are submitted.
+            # Details: https://github.com/beijbom/coralnet-system/issues/31.
+            backend_tasks.reset_features.apply_async(
+                args=[img.id], eta=now() + timedelta(hours=1))
+
         return JsonResponse(dict(
-            error="Not a POST request",
+            success=True,
         ))
 
-    source = get_object_or_404(Source, id=source_id)
+    def extra_source_level_actions(self, request, source):
+        pass
 
-    uploaded_annotations = request.session.pop('uploaded_annotations', None)
-    if not uploaded_annotations:
-        return JsonResponse(dict(
-            error=(
-                "We couldn't find the expected data in your session."
-                " Please try loading this page again. If the problem persists,"
-                " let us know on the forum."
-            ),
-        ))
-
-    cpc_info = request.session.pop('cpc_info', None)
-
-    for image_id, annotations_for_image in uploaded_annotations.items():
-
-        img = Image.objects.get(pk=image_id, source=source)
-
-        # Delete previous annotations and points for this image.
-        # Calling delete() on these querysets is more efficient
-        # than calling delete() on each of the individual objects.
-        Annotation.objects.filter(image=img).delete()
-        Point.objects.filter(image=img).delete()
-
-        # Create new points and annotations.
-        new_points = []
-        new_annotations = []
-
-        for num, point_dict in enumerate(annotations_for_image, 1):
-            # Create a Point.
-            point = Point(
-                row=point_dict['row'], column=point_dict['column'],
-                point_number=num, image=img)
-            new_points.append(point)
-        # Save to DB with an efficient bulk operation.
-        Point.objects.bulk_create(new_points)
-
-        for num, point_dict in enumerate(annotations_for_image, 1):
-            # Create an Annotation if a label is specified.
-            if 'label' in point_dict:
-                label_obj = source.labelset.get_global_by_code(
-                    point_dict['label'])
-                # TODO: Django 1.10 can set database IDs on newly created
-                # objects, so re-fetching the points may not be needed:
-                # https://docs.djangoproject.com/en/dev/releases/1.10/#database-backends
-                new_annotations.append(Annotation(
-                    point=Point.objects.get(point_number=num, image=img),
-                    image=img, source=source,
-                    label=label_obj, user=get_imported_user()))
-        # Do NOT bulk-create the annotations so that the versioning signals
-        # (for annotation history) do not get bypassed. Create them one by one.
-        for annotation in new_annotations:
-            annotation.save()
-
-        # Update relevant image/metadata fields.
-        img.point_generation_method = PointGen.args_to_db_format(
+    def update_image_and_metadata_fields(self, image, new_points):
+        image.point_generation_method = PointGen.args_to_db_format(
             point_generation_type=PointGen.Types.IMPORTED,
             imported_number_of_points=len(new_points)
         )
-        if cpc_info:
-            # We uploaded annotations as CPC. Save contents for future CPC
-            # exports.
-            # Note: Since cpc_info went through session serialization,
-            # dicts with integer keys have had their keys stringified.
-            img.cpc_content = cpc_info['cpc_contents'][str(img.pk)]
-            img.cpc_filename = cpc_info['cpc_filenames'][str(img.pk)]
-        else:
-            # We uploaded CSV. Any CPC we had saved previously no longer has
-            # the correct point positions, so we'll just discard the CPC.
-            img.cpc_content = ''
-            img.cpc_filename = ''
-        img.save()
+        # Clear previously-uploaded CPC info.
+        image.cpc_content = ''
+        image.cpc_filename = ''
+        image.save()
 
-        img.metadata.annotation_area = AnnotationAreaUtils.IMPORTED_STR
-        img.metadata.save()
-
-        # Submit job with 1 hour delay to allow the view and thus DB transaction 
-        # to conclude before jobs are submitted.
-        # Details: https://github.com/beijbom/coralnet-system/issues/31.
-        backend_tasks.reset_features.apply_async(
-            args=[img.id], eta=now() + timedelta(hours=1))
-
-    if cpc_info:
-        # We uploaded annotations as CPC. Save some info for future CPC
-        # exports.
-        source.cpce_code_filepath = cpc_info['code_filepath']
-        source.cpce_image_dir = cpc_info['image_dir']
-        source.save()
-
-    return JsonResponse(dict(
-        success=True,
-    ))
+        image.metadata.annotation_area = AnnotationAreaUtils.IMPORTED_STR
+        image.metadata.save()

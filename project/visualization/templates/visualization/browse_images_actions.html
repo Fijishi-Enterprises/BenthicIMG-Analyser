@@ -10,10 +10,6 @@
 
   <legend>Image Actions</legend>
 
-  <div class="tutorial-message">
-    {% include "visualization/help_browse_actions.html" %}
-  </div>
-
   <span>Action:</span>
 
   <select name="browse_action" title="Action">
@@ -64,7 +60,7 @@
     <span id="previous-image-form-fields">
       {# The image-filter parameters that led us to this browse page. #}
       {% if hidden_image_form %}
-        {% for field in hidden_image_form %}{{ field }}{% endfor %}
+        {% include 'django/forms/default.html' with form=hidden_image_form %}
       {% endif %}
     </span>
   </form>
@@ -72,6 +68,15 @@
   <form hidden action="{% url 'export_metadata' source.pk %}" method="post"
   id="export-metadata-form">
     {% csrf_token %}
+
+    <div class="line">
+      Export metadata for these images in CSV format - one row per image. This includes anything you would see in CoralNet's "Edit Metadata" page: image date, auxiliary metadata, camera, and so on.
+
+      <div class="tutorial-message">
+        {% include "export/help_metadata.html" %}
+      </div>
+    </div>
+
     <button class="submit">Go</button>
   </form>
 
@@ -80,27 +85,55 @@
     <hr/>
     {% csrf_token %}
 
-    {% include "form_generic.html" with form=export_annotations_form %}
+    <div class="line">
+      Export annotations for these images in CSV format - one row per annotation.
 
-    <div class="line">Note: This can take a long time, potentially 1 minute per 5000 annotations. If your source has thousands of images, please consider filtering your search to a smaller number of images before exporting.</div>
+      <div class="tutorial-message">
+        {% include "export/help_annotations_csv.html" %}
+      </div>
+    </div>
+
+    {% include 'django/forms/default.html' with form=export_annotations_form %}
+
+    <div class="line">
+      Note: This can take a very long time, potentially 1 minute per 5000 annotations. If your source has thousands of images, please consider filtering your search to a smaller number of images before exporting.
+    </div>
 
     <button class="submit">Go</button>
   </form>
 
   <form hidden action="{% url 'export_image_covers' source.pk %}" method="post"
   id="export-image-covers-form">
+    <hr/>
     {% csrf_token %}
 
-    {% include "form_generic.html" with form=export_image_covers_form %}
+    <div class="line">
+      Export per-image coverage statistics for each of these images. For example, image 0001.JPG consists of 5% Acropora, 10% Porites, etc. based on the annotations.
+
+      <div class="tutorial-message">
+        {% include "export/help_image_covers.html" %}
+      </div>
+    </div>
+
+    {% include 'django/forms/default.html' with form=export_image_covers_form %}
 
     <button class="submit">Go</button>
   </form>
 
   <form hidden action="{% url 'calcification:stats_export' source.pk %}"
   method="post" id="export-calcify-rates-form">
-    {% csrf_token %}
     <hr/>
+    {% csrf_token %}
 
+    <div class="line">
+      Export per-image calcification rates for each of these images.
+
+      <div class="tutorial-message">
+        {% include "calcification/help_export.html" %}
+      </div>
+    </div>
+
+    {# TODO: Make this button a bit more easily distinguishable if possible #}
     <button type="button" id="manage-calcify-tables-button">
       {% if can_manage_source_data %}
         Click here to manage label-rate tables
@@ -109,7 +142,7 @@
       {% endif %}
     </button>
 
-    {% include "form_generic.html" with form=export_calcify_rates_form %}
+    {% include 'django/forms/default.html' with form=export_calcify_rates_form %}
 
     <button class="submit">Go</button>
   </form>
@@ -119,12 +152,20 @@
     <form hidden action="{{ links.annotation_tool_first_result }}"
     method="post" id="annotate-all-form">
       {% csrf_token %}
+      <div class="line">
+        This takes you to the annotation tool for the first image in this image set. Then, the annotation tool's Prev/Next buttons will only navigate through this image set.
+      </div>
+
       <button class="submit">Go</button>
     </form>
 
     <form hidden action="{{ links.annotation_tool_page_results.0 }}"
     method="post" id="annotate-selected-form">
       {% csrf_token %}
+      <div class="line">
+        This takes you to the annotation tool for the first image in this image set. Then, the annotation tool's Prev/Next buttons will only navigate through this image set.
+      </div>
+
       <button class="submit">Go</button>
     </form>
 
@@ -134,47 +175,25 @@
 
     {# Export annotations CPC #}
 
-    <form hidden action="{% url 'export_annotations_cpc_create_ajax' source.pk %}"
+    <form hidden action="{% url 'cpce:export_prepare_ajax' source.pk %}"
     method="post" id="export-annotations-cpc-ajax-form">
       <hr/>
       {% csrf_token %}
 
-      {% if source.confidence_threshold == 100 %}
-        {# Not using Alleviate; this choice doesn't make a difference #}
-        <span style="display:none;">
-          {% include "form_generic_one_field.html" with field=cpc_prefs_form.annotation_filter field_type='radio' %}
-        </span>
-      {% else %}
-        {% include "form_generic_one_field.html" with field=cpc_prefs_form.annotation_filter field_type='radio' %}
-      {% endif %}
-
       <div class="line">
-        {% if previous_cpcs_status == 'all' %}
-          All of the images in this search have previously-uploaded CPC files available. Their environment info, notes, and header values will be preserved when exporting to CPC.
-        {% elif previous_cpcs_status == 'some' %}
-          Some of the images in this search have previously-uploaded CPC files available. Their environment info, notes, and header values will be preserved when exporting to CPC. The rest of the images will use the environment info in the text fields below, and will not have notes or header values. Click the "?" help button for more information.
-        {% elif previous_cpcs_status == 'none' %}
-          None of the images in this search have previously-uploaded CPC files available. They will use the environment info in the text fields below, and will not have notes or header values. Click the "?" help button for more information.
-        {% endif %}
+        {{ cpc_export_form.previous_cpcs_help_text }}
+
+        <div class="tutorial-message">
+          {% include "cpce/help_export.html" %}
+        </div>
       </div>
 
-      {% if previous_cpcs_status == 'all' %}
-        {# All images have CPC environment info; no need to provide that info #}
-        <span style="display:none;">
-          {% include "form_generic_one_field.html" with field=cpc_prefs_form.local_code_filepath %}
-          {% include "form_generic_one_field.html" with field=cpc_prefs_form.local_image_dir %}
-        </span>
-      {% else %}
-        {% include "form_generic_one_field.html" with field=cpc_prefs_form.local_code_filepath %}
-        {% include "form_generic_one_field.html" with field=cpc_prefs_form.local_image_dir %}
-      {% endif %}
-
-      {% include "form_generic_one_field.html" with field=cpc_prefs_form.plus_notes checkbox='yes' %}
+      {% include 'django/forms/default.html' with form=cpc_export_form %}
 
       <button class="submit">Go</button>
     </form>
 
-    <form hidden action="{% url 'export_annotations_cpc_serve' source.pk %}"
+    <form hidden action="{% url 'cpce:export_serve' source.pk %}"
     method="post" id="export-annotations-cpc-form">
       {% csrf_token %}
     </form>
@@ -187,19 +206,44 @@
 
     <form hidden action="{% url 'browse_delete_ajax' source.pk %}"
     method="post" id="delete-images-ajax-form">
-      {% csrf_token %}
-      <button class="submit">Go</button>
+      {% if hidden_image_form %}
+
+        {% csrf_token %}
+        <div class="line">
+          Permanently deletes the images in this image set, along with their annotations. When you click "Go", a confirmation dialog will pop up.
+        </div>
+
+        <button class="submit">Go</button>
+
+      {% else %}
+
+        <div class="line">
+          You must first submit the Search form before you can batch-delete images. (This is a safety check to reduce the chances of accidentally deleting all your images. If you really want to delete all images, just click Search without changing any of the search fields.)
+        </div>
+
+      {% endif %}
     </form>
 
     {# Delete annotations #}
 
     <form hidden action="{% url 'batch_delete_annotations_ajax' source.pk %}"
     method="post" id="delete-annotations-ajax-form">
-      {% csrf_token %}
+      {% if hidden_image_form %}
 
-      <div class="line">Deletes the annotations for these images. The images themselves and their point locations will not be affected.</div>
+        {% csrf_token %}
+        <div class="line">
+          Permanently deletes any existing annotations for these images. The images themselves and their point locations will not be affected. When you click "Go", a confirmation dialog will pop up.
+        </div>
 
-      <button class="submit">Go</button>
+        <button class="submit">Go</button>
+
+      {% else %}
+
+        <div class="line">
+          You must first submit the Search form before you can batch-delete annotations. (This is a safety check to reduce the chances of accidentally deleting all your annotations. If you really want to delete all annotations, just click Search without changing any of the search fields.)
+        </div>
+
+      {% endif %}
     </form>
 
   {% endif %}

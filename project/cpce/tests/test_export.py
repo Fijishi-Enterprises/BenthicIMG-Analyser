@@ -3,21 +3,21 @@ from zipfile import ZipFile
 
 from bs4 import BeautifulSoup
 from django.core.files.base import ContentFile
-from django.shortcuts import resolve_url
 from django.urls import reverse
 
-from export.utils import get_previous_cpcs_status, write_zip
+from export.utils import write_zip
 from images.model_utils import PointGen
 from images.models import Image
 from lib.tests.utils import BasePermissionTest, ClientTest
-from upload.tests.utils import UploadAnnotationsTestMixin
+from upload.tests.utils import UploadAnnotationsCsvTestMixin
+from ..utils import get_previous_cpcs_status
 
 
 class PermissionTest(BasePermissionTest):
 
     def test_cpc_create_ajax(self):
         url = reverse(
-            'export_annotations_cpc_create_ajax', args=[self.source.pk])
+            'cpce:export_prepare_ajax', args=[self.source.pk])
 
         self.source_to_private()
         self.assertPermissionLevel(url, self.SOURCE_EDIT, is_json=True)
@@ -25,9 +25,9 @@ class PermissionTest(BasePermissionTest):
         self.assertPermissionLevel(url, self.SOURCE_EDIT, is_json=True)
 
     def test_cpc_serve(self):
-        # Without session variables from cpc_create_ajax, this should redirect
+        # Without session variables from export-prepare, this should redirect
         # to browse images.
-        url = reverse('export_annotations_cpc_serve', args=[self.source.pk])
+        url = reverse('cpce:export_serve', args=[self.source.pk])
         template = 'visualization/browse_images.html'
 
         self.source_to_private()
@@ -56,6 +56,14 @@ class CPCExportBaseTest(ClientTest):
             last_annotator_0='', last_annotator_1='',
             sort_method='name', sort_direction='asc',
         )
+        cls.default_export_params = cls.default_search_params.copy()
+        cls.default_export_params.update(
+            override_filepaths='no',
+            local_code_filepath='D:/Surveys/Codefile.txt',
+            local_image_dir='D:/Surveys/Images',
+            annotation_filter='confirmed_only',
+            label_mapping='id_only',
+        )
 
     def export_cpcs(self, post_data):
         """
@@ -65,10 +73,10 @@ class CPCExportBaseTest(ClientTest):
         """
         self.client.force_login(self.user)
         self.client.post(
-            resolve_url('export_annotations_cpc_create_ajax', self.source.pk),
+            reverse('cpce:export_prepare_ajax', args=[self.source.pk]),
             post_data)
         return self.client.post(
-            resolve_url('export_annotations_cpc_serve', self.source.pk))
+            reverse('cpce:export_serve', args=[self.source.pk]))
 
     @staticmethod
     def export_response_to_cpc(response, cpc_filename):
@@ -76,13 +84,13 @@ class CPCExportBaseTest(ClientTest):
         # Use decode() to get a Unicode string
         return zf.read(cpc_filename).decode()
 
-    def upload_cpcs(self, cpc_files, plus_notes=False):
+    def upload_cpcs(self, cpc_files, label_mapping='id_only'):
         self.client.force_login(self.user)
         self.client.post(
-            resolve_url('upload_annotations_cpc_preview_ajax', self.source.pk),
-            {'cpc_files': cpc_files, 'plus_notes': plus_notes})
+            reverse('cpce:upload_preview_ajax', args=[self.source.pk]),
+            {'cpc_files': cpc_files, 'label_mapping': label_mapping})
         self.client.post(
-            resolve_url('upload_annotations_ajax', self.source.pk))
+            reverse('cpce:upload_confirm_ajax', args=[self.source.pk]))
 
     def assert_cpc_content_equal(self, actual_cpc_content, expected_lines):
         """
@@ -137,13 +145,27 @@ class CPCExportBaseTest(ClientTest):
                 expected_line=expected_line,
             ))
 
+    @staticmethod
+    def get_form_soup(response):
+        response_soup = BeautifulSoup(response.content, 'html.parser')
+        return response_soup.find(
+            'form', dict(id='export-annotations-cpc-ajax-form'))
 
-class CodeFileAndImageDirFieldsTest(CPCExportBaseTest):
+    def assert_field_hidden(self, response, field_name):
+        field = self.get_form_soup(response).find(
+            'input', dict(name=field_name))
+        self.assertEqual(field.attrs.get('type'), 'hidden')
+
+    def assert_field_not_hidden(self, response, field_name):
+        field = self.get_form_soup(response).find(
+            'input', dict(name=field_name))
+        self.assertNotEqual(field.attrs.get('type'), 'hidden')
+
+
+class FilepathFieldsTest(CPCExportBaseTest):
     """
-    Ensure the code filepath and image directory form fields work as intended
-    in terms of interactivity.
-    Their application to the actual export content is pretty trivial, so we
-    leave testing that to the CPCFullContentsTest.
+    Ensure the code filepath, image directory, and override filepaths form
+    fields work as intended.
     """
     @classmethod
     def setUpTestData(cls):
@@ -190,40 +212,16 @@ class CodeFileAndImageDirFieldsTest(CPCExportBaseTest):
         f = ContentFile(cpc_content, name=cpc_filename)
         self.upload_cpcs([f])
 
-    def assert_cpc_prefs_in_browse(
-            self, response, code_filepath, image_dir, hidden=False):
+    def assert_form_filepaths_equal(
+            self, response, code_filepath, image_dir):
 
-        response_soup = BeautifulSoup(response.content, 'html.parser')
-
-        code_filepath_field = response_soup.find(
+        code_filepath_field = self.get_form_soup(response).find(
             'input', dict(id='id_local_code_filepath'))
         self.assertEqual(code_filepath_field.attrs.get('value'), code_filepath)
 
-        image_dir_field = response_soup.find(
+        image_dir_field = self.get_form_soup(response).find(
             'input', dict(id='id_local_image_dir'))
         self.assertEqual(image_dir_field.attrs.get('value'), image_dir)
-
-        # These are text fields. The field element is inside a
-        # div.field_wrapper, which in turn is in a div.form_item_wrapper,
-        # which in turn may be inside a
-        # <span style="display:none;"> if status logic dictates that the
-        # user doesn't need to use these fields.
-        # Not the cleanest way to test that these fields are invisible, but
-        # it's something.
-        code_filepath_item_wrapper = code_filepath_field.parent.parent
-        image_dir_item_wrapper = image_dir_field.parent.parent
-        if hidden:
-            self.assertEqual(
-                code_filepath_item_wrapper.parent.attrs.get('style'),
-                'display:none;')
-            self.assertEqual(
-                image_dir_item_wrapper.parent.attrs.get('style'),
-                'display:none;')
-        else:
-            self.assertEqual(
-                code_filepath_item_wrapper.parent.attrs.get('style'), None)
-            self.assertEqual(
-                image_dir_item_wrapper.parent.attrs.get('style'), None)
 
     def test_form_init_when_all_images_in_search_have_cpcs(self):
         # Upload CPC for images 1 and 2
@@ -235,16 +233,16 @@ class CodeFileAndImageDirFieldsTest(CPCExportBaseTest):
         post_data = self.default_search_params.copy()
         post_data.update(image_name='X')
         response = self.client.post(
-            resolve_url('browse_images', self.source.pk),
+            reverse('browse_images', args=[self.source.pk]),
             data=post_data, follow=True)
 
-        self.assert_cpc_prefs_in_browse(
-            response, r'C:\codefile.txt', r'C:\Reef data',
-            hidden=True)
+        self.assert_form_filepaths_equal(
+            response, r'C:\codefile.txt', r'C:\Reef data')
+        self.assert_field_not_hidden(response, 'override_filepaths')
         self.assertContains(
             response,
-            "All of the images in this search have previously-uploaded"
-            " CPC files available.")
+            "<strong>All of the images</strong> in this search"
+            " have previously-uploaded CPC files available.")
 
     def test_form_init_when_some_images_in_search_have_cpcs(self):
         # Upload CPC for images 1 and 2
@@ -254,14 +252,15 @@ class CodeFileAndImageDirFieldsTest(CPCExportBaseTest):
         # Search includes all images (1, 2, and 3)
         self.client.force_login(self.user)
         response = self.client.get(
-            resolve_url('browse_images', self.source.pk))
+            reverse('browse_images', args=[self.source.pk]))
 
-        self.assert_cpc_prefs_in_browse(
+        self.assert_form_filepaths_equal(
             response, r'C:\codefile.txt', r'C:\Reef data')
+        self.assert_field_not_hidden(response, 'override_filepaths')
         self.assertContains(
             response,
-            "Some of the images in this search have previously-uploaded"
-            " CPC files available.")
+            "<strong>Some of the images</strong> in this search"
+            " have previously-uploaded CPC files available.")
 
     def test_form_init_when_no_images_in_search_have_cpcs(self):
         # Upload CPC for images 1 and 2
@@ -273,29 +272,30 @@ class CodeFileAndImageDirFieldsTest(CPCExportBaseTest):
         post_data = self.default_search_params.copy()
         post_data.update(image_name='Y')
         response = self.client.post(
-            resolve_url('browse_images', self.source.pk),
+            reverse('browse_images', args=[self.source.pk]),
             data=post_data, follow=True)
 
-        self.assert_cpc_prefs_in_browse(
+        self.assert_form_filepaths_equal(
             response, r'C:\codefile.txt', r'C:\Reef data')
+        self.assert_field_hidden(response, 'override_filepaths')
         self.assertContains(
             response,
-            "None of the images in this search have previously-uploaded"
-            " CPC files available.")
+            "<strong>None of the images</strong> in this search"
+            " have previously-uploaded CPC files available.")
 
     def test_form_init_when_no_cpcs_ever_uploaded(self):
         # All images
         self.client.force_login(self.user)
         response = self.client.get(
-            resolve_url('browse_images', self.source.pk))
+            reverse('browse_images', args=[self.source.pk]))
 
         # Blank fields
-        self.assert_cpc_prefs_in_browse(
+        self.assert_form_filepaths_equal(
             response, None, None)
         self.assertContains(
             response,
-            "None of the images in this search have previously-uploaded"
-            " CPC files available.")
+            "<strong>None of the images</strong> in this search"
+            " have previously-uploaded CPC files available.")
 
     def test_form_init_uses_values_from_latest_cpc_upload(self):
         # Upload CPC for images 1 and 2. Use different codefile and image dir
@@ -306,10 +306,10 @@ class CodeFileAndImageDirFieldsTest(CPCExportBaseTest):
         # All images
         self.client.force_login(self.user)
         response = self.client.get(
-            resolve_url('browse_images', self.source.pk))
+            reverse('browse_images', args=[self.source.pk]))
 
         # The later upload's data should be used, not the earlier upload's data
-        self.assert_cpc_prefs_in_browse(
+        self.assert_form_filepaths_equal(
             response, r'C:\codefile_2.txt', r'C:\Reef 2')
 
     def test_form_init_uses_values_from_latest_cpc_export(self):
@@ -317,47 +317,44 @@ class CodeFileAndImageDirFieldsTest(CPCExportBaseTest):
         self.upload_cpc(r'C:\codefile_2.txt', r'C:\Reef 2\2_X.jpg', '2_X.cpc')
 
         # Do a CPC export
-        post_data = self.default_search_params.copy()
+        post_data = self.default_export_params.copy()
         post_data.update(
             # CPC prefs
             local_code_filepath=r'C:\codefile_1.txt',
             local_image_dir=r'C:\Reef 1',
-            annotation_filter='confirmed_only',
         )
         self.export_cpcs(post_data)
 
         response = self.client.get(
-            resolve_url('browse_images', self.source.pk))
+            reverse('browse_images', args=[self.source.pk]))
 
         # The export's data should be used, not the earlier upload's data
-        self.assert_cpc_prefs_in_browse(
+        self.assert_form_filepaths_equal(
             response, r'C:\codefile_1.txt', r'C:\Reef 1')
 
     def test_code_filepath_required(self):
-        post_data = self.default_search_params.copy()
+        post_data = self.default_export_params.copy()
         post_data.update(
             local_code_filepath=r'',
             local_image_dir=r'C:\Reef 1',
-            annotation_filter='confirmed_only',
         )
         self.client.force_login(self.user)
         response = self.client.post(
-            resolve_url('export_annotations_cpc_create_ajax', self.source.pk),
+            reverse('cpce:export_prepare_ajax', args=[self.source.pk]),
             post_data)
 
         self.assertEqual(
             response.json()['error'], "Code file: This field is required.")
 
     def test_image_dir_required(self):
-        post_data = self.default_search_params.copy()
+        post_data = self.default_export_params.copy()
         post_data.update(
             local_code_filepath=r'C:\codefile_1.txt',
             local_image_dir='',
-            annotation_filter='confirmed_only',
         )
         self.client.force_login(self.user)
         response = self.client.post(
-            resolve_url('export_annotations_cpc_create_ajax', self.source.pk),
+            reverse('cpce:export_prepare_ajax', args=[self.source.pk]),
             post_data)
 
         self.assertEqual(
@@ -365,52 +362,77 @@ class CodeFileAndImageDirFieldsTest(CPCExportBaseTest):
             "Folder with images: This field is required.")
 
     def test_image_search_params_must_be_valid(self):
-        post_data = self.default_search_params.copy()
+        post_data = self.default_export_params.copy()
         post_data.update(
             local_code_filepath=r'C:\codefile_1.txt',
             local_image_dir=r'C:\Reef 1',
-            annotation_filter='confirmed_only',
             photo_date_0='date',
             photo_date_2='not a date',
         )
         self.client.force_login(self.user)
         response = self.client.post(
-            resolve_url('export_annotations_cpc_create_ajax', self.source.pk),
+            reverse('cpce:export_prepare_ajax', args=[self.source.pk]),
             post_data)
 
         self.assertEqual(
             response.json()['error'],
             "Image-search parameters were invalid.")
 
-    def test_form_values_used_only_when_image_has_no_previous_cpc(self):
+    def test_override_filepaths_no(self):
         # Upload a CPC
-        self.upload_cpc(r'C:\codefile_2.txt', r'C:\Reef 2\2_X.jpg', '2_X.cpc')
+        self.upload_cpc(r'C:\uploaded.txt', r'C:\Uploaded\2_X.jpg', '2_X.cpc')
 
-        # Export CPCs for all images, with different codefile and image dir
-        post_data = self.default_search_params.copy()
+        # Export CPCs for all images, with fields specifying a different
+        # codefile and image dir
+        post_data = self.default_export_params.copy()
         post_data.update(
-            # CPC prefs
-            local_code_filepath=r'C:\codefile_1.txt',
-            local_image_dir=r'C:\Reef 1',
-            annotation_filter='confirmed_only',
+            local_code_filepath=r'C:\fields.txt',
+            local_image_dir=r'C:\Fields',
+            override_filepaths='no',
         )
         response = self.export_cpcs(post_data)
 
-        # CPC for image 1 should use the form's values
         cpc_1_content = self.export_response_to_cpc(response, '1_X.cpc')
         first_line = cpc_1_content.splitlines()[0]
         self.assertTrue(
-            first_line.startswith(r'"C:\codefile_1.txt","C:\Reef 1\1_X.jpg",'))
+            first_line.startswith(r'"C:\fields.txt","C:\Fields\1_X.jpg",'),
+            msg="CPC for image 1 should use the form's values")
 
-        # CPC for image 2 should use the values from the previous image-2 CPC
         cpc_2_content = self.export_response_to_cpc(response, '2_X.cpc')
         first_line = cpc_2_content.splitlines()[0]
         self.assertTrue(
-            first_line.startswith(r'"C:\codefile_2.txt","C:\Reef 2\2_X.jpg",'))
+            first_line.startswith(r'"C:\uploaded.txt","C:\Uploaded\2_X.jpg",'),
+            msg="CPC for image 2 should use the previously-uploaded values")
+
+    def test_override_filepaths_yes(self):
+        # Upload a CPC
+        self.upload_cpc(r'C:\uploaded.txt', r'C:\Uploaded\2_X.jpg', '2_X.cpc')
+
+        # Export CPCs for all images, with fields specifying a different
+        # codefile and image dir
+        post_data = self.default_export_params.copy()
+        post_data.update(
+            local_code_filepath=r'C:\fields.txt',
+            local_image_dir=r'C:\Fields',
+            override_filepaths='yes',
+        )
+        response = self.export_cpcs(post_data)
+
+        cpc_1_content = self.export_response_to_cpc(response, '1_X.cpc')
+        first_line = cpc_1_content.splitlines()[0]
+        self.assertTrue(
+            first_line.startswith(r'"C:\fields.txt","C:\Fields\1_X.jpg",'),
+            msg="CPC for image 1 should use the form's values")
+
+        cpc_2_content = self.export_response_to_cpc(response, '2_X.cpc')
+        first_line = cpc_2_content.splitlines()[0]
+        self.assertTrue(
+            first_line.startswith(r'"C:\fields.txt","C:\Fields\2_X.jpg",'),
+            msg="CPC for image 2 should use the form's values")
 
 
 class AnnotationAreaTest(
-        CPCExportBaseTest, UploadAnnotationsTestMixin):
+        CPCExportBaseTest, UploadAnnotationsCsvTestMixin):
     """
     Test the annotation area values of the exported CPCs, using various ways
     of setting the annotation area.
@@ -429,17 +451,9 @@ class AnnotationAreaTest(
             cls.user, cls.source,
             dict(filename='1.jpg', width=400, height=300))
 
-        cls.export_cpcs_params = cls.default_search_params.copy()
-        cls.export_cpcs_params.update(
-            # CPC prefs
-            local_code_filepath=r'C:\codefile_1.txt',
-            local_image_dir=r'C:\Reef 1',
-            annotation_filter='confirmed_only',
-        )
-
     def test_percentages(self):
         """Test using source-default annotation area."""
-        response = self.export_cpcs(self.export_cpcs_params)
+        response = self.export_cpcs(self.default_export_params)
 
         cpc_content = self.export_response_to_cpc(response, '1.cpc')
         actual_area_lines = cpc_content.splitlines()[1:5]
@@ -465,7 +479,7 @@ class AnnotationAreaTest(
             data=dict(min_x=50, max_x=200, min_y=100, max_y=290),
         )
 
-        response = self.export_cpcs(self.export_cpcs_params)
+        response = self.export_cpcs(self.default_export_params)
 
         cpc_content = self.export_response_to_cpc(response, '1.cpc')
         actual_area_lines = cpc_content.splitlines()[1:5]
@@ -491,12 +505,12 @@ class AnnotationAreaTest(
             ['1.jpg', 50, 50],
             ['1.jpg', 60, 40],
         ]
-        csv_file = self.make_csv_file('A.csv', rows)
-        self.preview_csv_annotations(
+        csv_file = self.make_annotations_file('A.csv', rows)
+        self.preview_annotations(
             self.user, self.source, csv_file)
         self.upload_annotations(self.user, self.source)
 
-        response = self.export_cpcs(self.export_cpcs_params)
+        response = self.export_cpcs(self.default_export_params)
 
         cpc_content = self.export_response_to_cpc(response, '1.cpc')
         actual_area_lines = cpc_content.splitlines()[1:5]
@@ -538,7 +552,7 @@ class AnnotationAreaTest(
         f = ContentFile(cpc_content, name='1.cpc')
         self.upload_cpcs([f])
 
-        response = self.export_cpcs(self.export_cpcs_params)
+        response = self.export_cpcs(self.default_export_params)
 
         cpc_content = self.export_response_to_cpc(response, '1.cpc')
         actual_area_lines = cpc_content.splitlines()[1:5]
@@ -554,7 +568,7 @@ class AnnotationAreaTest(
             actual_area_lines, expected_area_lines)
 
 
-class PointLocationsTest(CPCExportBaseTest, UploadAnnotationsTestMixin):
+class PointLocationsTest(CPCExportBaseTest, UploadAnnotationsCsvTestMixin):
     """
     Test the point location values of the exported CPCs.
     """
@@ -575,17 +589,9 @@ class PointLocationsTest(CPCExportBaseTest, UploadAnnotationsTestMixin):
             cls.user, cls.source,
             dict(filename='1.jpg', width=400, height=300))
 
-        cls.export_cpcs_params = cls.default_search_params.copy()
-        cls.export_cpcs_params.update(
-            # CPC prefs
-            local_code_filepath=r'C:\codefile_1.txt',
-            local_image_dir=r'C:\Reef 1',
-            annotation_filter='confirmed_only',
-        )
-
     def test_generated_points(self):
         """Test using points generated on image-upload time."""
-        response = self.export_cpcs(self.export_cpcs_params)
+        response = self.export_cpcs(self.default_export_params)
 
         cpc_content = self.export_response_to_cpc(response, '1.cpc')
         actual_point_lines = cpc_content.splitlines()[6:8]
@@ -606,12 +612,12 @@ class PointLocationsTest(CPCExportBaseTest, UploadAnnotationsTestMixin):
             ['1.jpg', 50, 50],
             ['1.jpg', 60, 40],
         ]
-        csv_file = self.make_csv_file('A.csv', rows)
-        self.preview_csv_annotations(
+        csv_file = self.make_annotations_file('A.csv', rows)
+        self.preview_annotations(
             self.user, self.source, csv_file)
         self.upload_annotations(self.user, self.source)
 
-        response = self.export_cpcs(self.export_cpcs_params)
+        response = self.export_cpcs(self.default_export_params)
 
         cpc_content = self.export_response_to_cpc(response, '1.cpc')
         actual_point_lines = cpc_content.splitlines()[6:8]
@@ -629,7 +635,7 @@ class PointLocationsTest(CPCExportBaseTest, UploadAnnotationsTestMixin):
     # export, get same CPC back.
 
 
-class CPCFullContentsTest(CPCExportBaseTest, UploadAnnotationsTestMixin):
+class CPCFullContentsTest(CPCExportBaseTest, UploadAnnotationsCsvTestMixin):
     """
     Test the full contents of the exported CPCs.
     """
@@ -659,8 +665,8 @@ class CPCFullContentsTest(CPCExportBaseTest, UploadAnnotationsTestMixin):
             ['1.jpg', 50, 50],
             ['1.jpg', 60, 40],
         ]
-        csv_file = self.make_csv_file('A.csv', rows)
-        self.preview_csv_annotations(
+        csv_file = self.make_annotations_file('A.csv', rows)
+        self.preview_annotations(
             self.user, self.source, csv_file)
         self.upload_annotations(self.user, self.source)
 
@@ -670,12 +676,11 @@ class CPCFullContentsTest(CPCExportBaseTest, UploadAnnotationsTestMixin):
             self.user, self.img1, {1: 'A'})
 
         # Export, and get exported CPC content
-        post_data = self.default_search_params.copy()
+        post_data = self.default_export_params.copy()
         post_data.update(
             # CPC prefs
             local_code_filepath=r'C:\CPCe codefiles\My codes.txt',
             local_image_dir=r'C:\Panama dataset',
-            annotation_filter='confirmed_only',
         )
         response = self.export_cpcs(post_data)
         actual_cpc_content = self.export_response_to_cpc(response, '1.cpc')
@@ -741,12 +746,11 @@ class CPCFullContentsTest(CPCExportBaseTest, UploadAnnotationsTestMixin):
         self.upload_cpcs([f])
 
         # Export, and get exported CPC content
-        post_data = self.default_search_params.copy()
+        post_data = self.default_export_params.copy()
         post_data.update(
             # CPC prefs
             local_code_filepath=r'C:\CPCe codefiles\My codes.txt',
             local_image_dir=r'C:\Panama dataset',
-            annotation_filter='confirmed_only',
         )
         response = self.export_cpcs(post_data)
         actual_cpc_content = self.export_response_to_cpc(
@@ -797,12 +801,11 @@ class CPCFullContentsTest(CPCExportBaseTest, UploadAnnotationsTestMixin):
         expected_lines[11] = '"3","B","Notes","AC"'
 
         # Export, and get exported CPC content
-        post_data = self.default_search_params.copy()
+        post_data = self.default_export_params.copy()
         post_data.update(
             # CPC prefs
             local_code_filepath=r'C:\CPCe codefiles\My codes.txt',
             local_image_dir=r'C:\Panama dataset',
-            annotation_filter='confirmed_only',
         )
         response = self.export_cpcs(post_data)
         actual_cpc_content = self.export_response_to_cpc(
@@ -811,9 +814,9 @@ class CPCFullContentsTest(CPCExportBaseTest, UploadAnnotationsTestMixin):
         self.assert_cpc_content_equal(actual_cpc_content, expected_lines)
 
 
-class AnnotationStatusTest(CPCExportBaseTest):
+class AnnotationFilterTest(CPCExportBaseTest):
     """
-    Ensure the annotation status preference of the CPC prefs form works.
+    Ensure the annotation filter preference of the CPC prefs form works.
     """
     @classmethod
     def setUpTestData(cls):
@@ -852,45 +855,29 @@ class AnnotationStatusTest(CPCExportBaseTest):
         self.source.confidence_threshold = 0
         self.source.save()
         response = self.client.get(
-            resolve_url('browse_images', self.source.pk))
-        response_soup = BeautifulSoup(response.content, 'html.parser')
-        annotation_filter_wrapper = response_soup.find(
-            'div', dict(id='id_annotation_filter_wrapper'))
-        self.assertEqual(
-            annotation_filter_wrapper.parent.attrs.get('style'), None)
+            reverse('browse_images', args=[self.source.pk]))
+        self.assert_field_not_hidden(response, 'annotation_filter')
 
         # 99 confidence: the field is shown, no special styling
         self.source.confidence_threshold = 99
         self.source.save()
         response = self.client.get(
-            resolve_url('browse_images', self.source.pk))
-        response_soup = BeautifulSoup(response.content, 'html.parser')
-        annotation_filter_wrapper = response_soup.find(
-            'div', dict(id='id_annotation_filter_wrapper'))
-        self.assertEqual(
-            annotation_filter_wrapper.parent.attrs.get('style'), None)
+            reverse('browse_images', args=[self.source.pk]))
+        self.assert_field_not_hidden(response, 'annotation_filter')
 
         # 100 confidence: the field is hidden via inline style
         self.source.confidence_threshold = 100
         self.source.save()
         response = self.client.get(
-            resolve_url('browse_images', self.source.pk))
-        response_soup = BeautifulSoup(response.content, 'html.parser')
-        annotation_filter_wrapper = response_soup.find(
-            'div', dict(id='id_annotation_filter_wrapper'))
-        self.assertEqual(
-            annotation_filter_wrapper.parent.attrs.get('style'),
-            'display:none;')
+            reverse('browse_images', args=[self.source.pk]))
+        self.assert_field_hidden(response, 'annotation_filter')
 
     def test_confirmed_only(self):
         """
         Requesting confirmed annotations only.
         """
-        post_data = self.default_search_params.copy()
+        post_data = self.default_export_params.copy()
         post_data.update(
-            # CPC prefs
-            local_code_filepath=r'C:\CPCe codefiles\My codes.txt',
-            local_image_dir=r'C:\Panama dataset',
             annotation_filter='confirmed_only',
         )
         response = self.export_cpcs(post_data)
@@ -908,11 +895,8 @@ class AnnotationStatusTest(CPCExportBaseTest):
         """
         Including unconfirmed confident annotations.
         """
-        post_data = self.default_search_params.copy()
+        post_data = self.default_export_params.copy()
         post_data.update(
-            # CPC prefs
-            local_code_filepath=r'C:\CPCe codefiles\My codes.txt',
-            local_image_dir=r'C:\Panama dataset',
             annotation_filter='confirmed_and_confident',
         )
         response = self.export_cpcs(post_data)
@@ -927,9 +911,9 @@ class AnnotationStatusTest(CPCExportBaseTest):
             actual_cpc_content, expected_point_lines)
 
 
-class PlusNotesTest(CPCExportBaseTest, UploadAnnotationsTestMixin):
+class LabelMappingTest(CPCExportBaseTest):
     """
-    Ensure the 'plus notes' preference works.
+    Ensure the label mapping option works.
     """
     @classmethod
     def setUpTestData(cls):
@@ -948,17 +932,13 @@ class PlusNotesTest(CPCExportBaseTest, UploadAnnotationsTestMixin):
             cls.user, cls.source,
             dict(filename='1.jpg', width=100, height=100))
 
-    def test_option_true(self):
+    def test_id_and_notes(self):
         self.add_annotations(
             self.user, self.img1, {1: 'A', 2: 'B+X', 3: 'C+Y+Z'})
 
-        post_data = self.default_search_params.copy()
+        post_data = self.default_export_params.copy()
         post_data.update(
-            # CPC prefs
-            local_code_filepath=r'C:\CPCe codefiles\My codes.txt',
-            local_image_dir=r'C:\Panama dataset',
-            annotation_filter='confirmed_only',
-            plus_notes=True,
+            label_mapping='id_and_notes',
         )
         response = self.export_cpcs(post_data)
         actual_cpc_content = self.export_response_to_cpc(response, '1.cpc')
@@ -971,17 +951,13 @@ class PlusNotesTest(CPCExportBaseTest, UploadAnnotationsTestMixin):
         self.assert_cpc_label_lines_equal(
             actual_cpc_content, expected_point_lines)
 
-    def test_option_false(self):
+    def test_id_only(self):
         self.add_annotations(
             self.user, self.img1, {1: 'A', 2: 'B+X', 3: 'C+Y+Z'})
 
-        post_data = self.default_search_params.copy()
+        post_data = self.default_export_params.copy()
         post_data.update(
-            # CPC prefs
-            local_code_filepath=r'C:\CPCe codefiles\My codes.txt',
-            local_image_dir=r'C:\Panama dataset',
-            annotation_filter='confirmed_only',
-            plus_notes=False,
+            label_mapping='id_only',
         )
         response = self.export_cpcs(post_data)
         actual_cpc_content = self.export_response_to_cpc(response, '1.cpc')
@@ -994,7 +970,7 @@ class PlusNotesTest(CPCExportBaseTest, UploadAnnotationsTestMixin):
         self.assert_cpc_label_lines_equal(
             actual_cpc_content, expected_point_lines)
 
-    def test_upload_and_export_with_option_true(self):
+    def test_upload_and_export_with_notes(self):
         point_lines = [
             '"1","A","Notes",""',
             '"2","B","Notes","X"',
@@ -1021,16 +997,12 @@ class PlusNotesTest(CPCExportBaseTest, UploadAnnotationsTestMixin):
 
         # Upload
         f = ContentFile(cpc_content, name='1.cpc')
-        self.upload_cpcs([f], plus_notes=True)
+        self.upload_cpcs([f], label_mapping='id_and_notes')
 
         # Export
-        post_data = self.default_search_params.copy()
+        post_data = self.default_export_params.copy()
         post_data.update(
-            # CPC prefs
-            local_code_filepath=r'C:\CPCe codefiles\My codes.txt',
-            local_image_dir=r'C:\Panama dataset',
-            annotation_filter='confirmed_only',
-            plus_notes=True,
+            label_mapping='id_and_notes',
         )
         response = self.export_cpcs(post_data)
         actual_cpc_content = self.export_response_to_cpc(response, '1.cpc')
@@ -1051,11 +1023,11 @@ class PlusNotesTest(CPCExportBaseTest, UploadAnnotationsTestMixin):
             reverse('browse_images', args=[self.source.pk]))
 
         response_soup = BeautifulSoup(response.content, 'html.parser')
-        plus_notes_field = response_soup.find(
-            'input', dict(id='id_plus_notes'))
+        label_mapping_selected_radio = response_soup.find(
+            'input', dict(name='label_mapping'), checked=True)
         self.assertEqual(
-            plus_notes_field.attrs.get('checked'), None,
-            "Plus notes option should be unchecked by default")
+            label_mapping_selected_radio.attrs.get('value'), 'id_only',
+            "Should select ID only by default")
 
     def test_form_init_with_plus_code(self):
         # Keep the labelset as-is, with label codes with + chars.
@@ -1065,11 +1037,11 @@ class PlusNotesTest(CPCExportBaseTest, UploadAnnotationsTestMixin):
             reverse('browse_images', args=[self.source.pk]))
 
         response_soup = BeautifulSoup(response.content, 'html.parser')
-        plus_notes_field = response_soup.find(
-            'input', dict(id='id_plus_notes'))
+        label_mapping_selected_radio = response_soup.find(
+            'input', dict(name='label_mapping'), checked=True)
         self.assertEqual(
-            plus_notes_field.attrs.get('checked'), '',
-            "Plus notes option should be checked by default")
+            label_mapping_selected_radio.attrs.get('value'), 'id_and_notes',
+            "Should select ID and notes by default")
 
 
 class CPCDirectoryTreeTest(CPCExportBaseTest):
@@ -1096,12 +1068,11 @@ class CPCDirectoryTreeTest(CPCExportBaseTest):
             cls.user, cls.source, dict(filename='Site B/Transect III/4.jpg'))
 
     def test_export_directory_tree_of_cpcs(self):
-        post_data = self.default_search_params.copy()
+        post_data = self.default_export_params.copy()
         post_data.update(
             # CPC prefs
             local_code_filepath=r'D:\codefile_1.txt',
             local_image_dir=r'D:\GBR',
-            annotation_filter='confirmed_only',
         )
         response = self.export_cpcs(post_data)
 
@@ -1161,12 +1132,11 @@ class UnicodeTest(CPCExportBaseTest):
         self.add_annotations(
             self.user, self.img1, {1: 'い'})
 
-        post_data = self.default_search_params.copy()
+        post_data = self.default_export_params.copy()
         post_data.update(
             # CPC prefs
             local_code_filepath=r'C:\CPCe codefiles\コード.txt',
             local_image_dir=r'C:\パナマ',
-            annotation_filter='confirmed_only',
         )
         response = self.export_cpcs(post_data)
         actual_cpc_content = self.export_response_to_cpc(response, 'あ.cpc')
@@ -1188,7 +1158,7 @@ class UnicodeTest(CPCExportBaseTest):
 
 
 class DiscardCPCAfterPointsChangeTest(
-        CPCExportBaseTest, UploadAnnotationsTestMixin):
+        CPCExportBaseTest, UploadAnnotationsCsvTestMixin):
     """
     Test discarding of previously-saved CPC content after changing points
     for an image.
@@ -1248,8 +1218,8 @@ class DiscardCPCAfterPointsChangeTest(
             ['1.jpg', 50, 50],
             ['1.jpg', 60, 40],
         ]
-        csv_file = self.make_csv_file('A.csv', rows)
-        self.preview_csv_annotations(
+        csv_file = self.make_annotations_file('A.csv', rows)
+        self.preview_annotations(
             self.user, self.source, csv_file)
         self.upload_annotations(self.user, self.source)
 

@@ -3,10 +3,9 @@ import mimetypes
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.files.images import get_image_dimensions
-from django.forms import BooleanField, CharField, ImageField, Form, FileField
+from django.forms import CharField, ImageField, Form, FileField
 from django.forms.widgets import FileInput
 
-from labels.utils import labelset_has_plus_code
 from .utils import text_file_to_unicode_stream
 
 
@@ -197,48 +196,3 @@ class CSVImportForm(Form):
     def get_csv_stream(self):
         """Get CSV contents as a Unicode stream. Call this after validation."""
         return text_file_to_unicode_stream(self.cleaned_data['csv_file'])
-
-
-class CPCImportForm(Form):
-    cpc_files = MultipleFileField(
-        label='CPC files',
-        # Multi-file input whose dialog only allows selecting .cpc
-        widget=MultipleFileInput(attrs=dict(accept='.cpc')),
-        error_messages=dict(required="Please select one or more CPC files."),
-    )
-    plus_notes = BooleanField(
-        label="Support CPCe Notes codes using + as a separator",
-        required=False,
-    )
-
-    def __init__(self, source, *args, **kwargs):
-        kwargs['initial'] = dict(
-            # Only check the plus notes option by default if the labelset
-            # has codes with + in them. Otherwise, the uploader probably
-            # didn't intend to use plus codes, and any Notes present in the
-            # CPC files would make the upload fail.
-            plus_notes=(
-                source.labelset and labelset_has_plus_code(source.labelset)),
-        )
-        super().__init__(*args, **kwargs)
-
-    def clean_cpc_files(self):
-        """
-        Check for extensions of .cpc. This isn't foolproof, but it can
-        catch simple file selection mistakes.
-        """
-        cpc_files = self.cleaned_data['cpc_files']
-
-        for cpc_file in cpc_files:
-            if not cpc_file.name.endswith('.cpc'):
-                raise ValidationError(
-                    "This is not a CPC file: {fn}".format(fn=cpc_file.name))
-
-        return self.cleaned_data['cpc_files']
-
-    def get_cpc_names_and_streams(self):
-        cpc_names_and_streams = []
-        for cpc_file in self.cleaned_data['cpc_files']:
-            cpc_unicode_stream = text_file_to_unicode_stream(cpc_file)
-            cpc_names_and_streams.append((cpc_file.name, cpc_unicode_stream))
-        return cpc_names_and_streams

@@ -44,7 +44,8 @@ class ImageSourceForm(ModelForm):
             'longitude', 'latitude',
         ]
         widgets = {
-            'confidence_threshold': NumberInput(attrs={'size': 2}),
+            'confidence_threshold': NumberInput(
+                attrs={'min': 0, 'max': 100, 'size': 3}),
             'longitude': TextInput(attrs={'size': 10}),
             'latitude': TextInput(attrs={'size': 10}),
         }

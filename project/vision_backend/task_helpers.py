@@ -1,15 +1,18 @@
 """
 This file contains helper functions to vision_backend.tasks.
 """
+from abc import ABC
+from datetime import timedelta
 import logging
 from typing import List
 
 import numpy as np
 from django.conf import settings
 from django.core.files.storage import get_storage_class
+from django.core.mail import mail_admins
 from django.db import transaction
 from django.db.models import F
-from django.utils import timezone
+from django.utils.timezone import now
 from reversion import revisions
 from spacer.data_classes import ImageLabels
 from spacer.messages import \
@@ -18,8 +21,8 @@ from spacer.messages import \
     TrainClassifierMsg, \
     TrainClassifierReturnMsg, \
     ClassifyImageMsg, \
-    ClassifyReturnMsg
-
+    ClassifyReturnMsg, \
+    JobReturnMsg
 
 from annotations.models import Annotation
 from api_core.models import ApiJobUnit
@@ -150,102 +153,253 @@ def make_dataset(images: List[Image]) -> ImageLabels:
     return labels
 
 
-def featurecollector(task: ExtractFeaturesMsg, res: ExtractFeaturesReturnMsg):
+class JobResultHandler(ABC):
     """
-    collects feature_extract jobs.
+    Each type of collectable vision-backend job should define a subclass
+    of this base class.
     """
-    image_id = decode_spacer_job_token(task.job_token)[0]
-    try:
-        img = Image.objects.get(pk=image_id)
-    except Image.DoesNotExist:
-        logger.info("Image {} not found. Aborting".format(image_id))
-        return 0
-    log_str = "Image {} [Source: {} [{}]]".format(image_id, img.source,
-                                                  img.source_id)
-        
-    # Double-check that the row-col information is still correct.
-    rowcols = [(p.row, p.column) for p in Point.objects.filter(image=img)]
+    task_name = None
 
-    if not set(rowcols) == set(task.rowcols):
-        logger.info("Row-col for {} have changed. Aborting.".format(log_str))
-        return 0
-    
-    # If all is ok store meta-data.
-    img.features.extracted = True
-    img.features.runtime_total = res.runtime
+    @classmethod
+    def handle(cls, job_res: JobReturnMsg):
+        if not job_res.ok:
+            logger.error(f"Job failed: {job_res.error_message}")
+            cls.handle_job_error(job_res)
+            return
 
-    # TODO: remove runtime_core from DB
-    img.features.runtime_core = 0
-    img.features.model_was_cashed = res.model_was_cashed
-    img.features.extracted_date = timezone.now()
-    img.features.save()
-    return True
+        for task, task_res in zip(job_res.original_job.tasks, job_res.results):
+            pk = decode_spacer_job_token(task.job_token)[0]
+            cls.handle_task_result(task, task_res)
+            logger.info(f"Collected job: {cls.task_name} with pk: {pk}")
+
+    @staticmethod
+    def handle_job_error(job_res: JobReturnMsg):
+        mail_admins("Spacer job failed", repr(job_res))
+
+    @staticmethod
+    def handle_task_result(task, task_res):
+        raise NotImplementedError
 
 
-def classifiercollector(task: TrainClassifierMsg,
-                        res: TrainClassifierReturnMsg):
-    """
-    collects train_classifier jobs.
-    """
-    # Parse out pk for current and previous classifiers.
-    pks = decode_spacer_job_token(task.job_token)
-    pk = pks[0]
-    prev_pks = pks[1:]
+class FeatureJobResultHandler(JobResultHandler):
+    task_name = 'extract_features'
 
-    assert len(prev_pks) == len(res.pc_accs), \
-        "Number of previous classifiers doesn't match between job ({}) and " \
-        "results ({}).".format(len(prev_pks), len(res.pc_accs))
+    @staticmethod
+    def handle_task_result(
+            task: ExtractFeaturesMsg, res: ExtractFeaturesReturnMsg):
+        image_id = decode_spacer_job_token(task.job_token)[0]
+        try:
+            img = Image.objects.get(pk=image_id)
+        except Image.DoesNotExist:
+            logger.info("Image {} not found. Aborting".format(image_id))
+            return 0
+        log_str = "Image {} [Source: {} [{}]]".format(image_id, img.source,
+                                                      img.source_id)
 
-    # Check that Classifier still exists. 
-    try:
-        classifier = Classifier.objects.get(pk=pk)
-    except Classifier.DoesNotExist:
-        logger.info("Classifier {} was deleted. Aborting".
-                    format(task.job_token))
-        return False
-    log_str = 'Classifier {} [Source: {} [{}]]'.format(classifier.pk,
-                                                       classifier.source,
-                                                       classifier.source.id)
+        # Double-check that the row-col information is still correct.
+        rowcols = [(p.row, p.column) for p in Point.objects.filter(image=img)]
 
-    # Store generic stats
-    classifier.runtime_train = res.runtime
-    classifier.accuracy = res.acc
-    classifier.epoch_ref_accuracy = str([int(round(10000 * ra)) for
-                                         ra in res.ref_accs])
-    classifier.save()
+        if not set(rowcols) == set(task.rowcols):
+            logger.info(f"Row-col for {log_str} have changed. Aborting.")
+            return 0
 
-    # If there are previous classifiers and the new one is not a large enough
-    # improvement, abort without validating the new classifier.
-    if len(prev_pks) > 0 and max(res.pc_accs) * \
-            settings.NEW_CLASSIFIER_IMPROVEMENT_TH > res.acc:
+        # If all is ok store meta-data.
+        img.features.extracted = True
+        img.features.runtime_total = res.runtime
 
-        classifier.status = Classifier.REJECTED_ACCURACY
+        # TODO: remove runtime_core from DB
+        img.features.runtime_core = 0
+        img.features.model_was_cashed = res.model_was_cashed
+        img.features.extracted_date = now()
+        img.features.save()
+
+        # Submit a classify job.
+        from .tasks import classify_image
+        classify_image.apply_async(args=[image_id],
+                                   eta=now() + timedelta(seconds=10))
+
+
+class TrainJobResultHandler(JobResultHandler):
+    task_name = 'train_classifier'
+
+    @staticmethod
+    def handle_job_error(job_res: JobReturnMsg):
+        job_token = job_res.original_job.tasks[0].job_token
+        pk = decode_spacer_job_token(job_token)[0]
+
+        try:
+            classifier = Classifier.objects.get(pk=pk)
+        except Classifier.DoesNotExist:
+            # This should be an edge case, where the user reset the classifiers
+            # or deleted the source before training could complete.
+            logger.info(
+                "Training failed for classifier {}, although the classifier"
+                " was already deleted.".format(job_token))
+            return
+
+        classifier.status = Classifier.TRAIN_ERROR
         classifier.save()
         logger.info(
-            "{} worse than previous. Not accepted. Max previous: {:.2f}, "
-            "threshold: {:.2f}, this: {:.2f}".format(
-                log_str,
-                max(res.pc_accs),
-                max(res.pc_accs) * settings.NEW_CLASSIFIER_IMPROVEMENT_TH,
-                res.acc))
-        return False
+            "Training failed for classifier {}.".format(job_token))
 
-    # Update accuracy for previous models.
-    for pc_pk, pc_acc in zip(prev_pks, res.pc_accs):
-        pc = Classifier.objects.get(pk=pc_pk)
-        pc.accuracy = pc_acc
-        pc.save()
+        # Sometimes training fails because features were temporarily de-synced
+        # with the points. We'll take different actions depending on the number
+        # of train attempts that failed in a row.
+        source = classifier.source
+        last_classifiers = source.classifier_set.order_by('-pk')[:5]
+        train_fails_in_a_row = 0
+        for clf in last_classifiers:
+            if clf.status == Classifier.TRAIN_ERROR:
+                train_fails_in_a_row += 1
+            else:
+                break
 
-    # Accept and save the current model
-    classifier.status = Classifier.ACCEPTED
-    classifier.save()
-    logger.info("{} collected successfully.".format(log_str))
-    return True
+        from .tasks import reset_features, submit_classifier
+
+        if train_fails_in_a_row <= 1:
+            # Only 1 fail so far.
+            # Sometimes the features are getting re-extracted, and just didn't
+            # finish yet. We'll hope for that here.
+            submit_classifier.apply_async(
+                args=[source.pk],
+                eta=now() + timedelta(hours=3))
+        elif 2 <= train_fails_in_a_row <= 3:
+            # Go through all the source's images and force-extract features.
+            for image in source.image_set.all():
+                reset_features.apply_async(
+                    args=[image.pk],
+                    eta=now() + timedelta(seconds=10))
+            # Hopefully this eta is enough time for the features to get
+            # extracted, regardless of image count.
+            # (The "2 or 3" check attempts to cover for the case where train
+            # number 3 happens very soon from submit_all_classifiers(), thus
+            # leaving no time for feature extraction.)
+            submit_classifier.apply_async(
+                args=[source.pk],
+                eta=now() + timedelta(hours=8))
+        else:
+            # 4 or more fails in a row. Notify the admins.
+            mail_admins("Spacer job failed", repr(job_res))
+            # Next retrain happens when submit_all_classifiers() is run
+            # (<= 24 hours).
+
+    @staticmethod
+    def handle_task_result(
+            task: TrainClassifierMsg, res: TrainClassifierReturnMsg):
+        # Parse out pk for current and previous classifiers.
+        pks = decode_spacer_job_token(task.job_token)
+        pk = pks[0]
+        prev_pks = pks[1:]
+
+        assert len(prev_pks) == len(res.pc_accs), \
+            f"Number of previous classifiers doesn't match between" \
+            f" job ({len(prev_pks)}) and results ({len(res.pc_accs)})."
+
+        # Check that Classifier still exists.
+        try:
+            classifier = Classifier.objects.get(pk=pk)
+        except Classifier.DoesNotExist:
+            logger.info("Classifier {} was deleted. Aborting".
+                        format(task.job_token))
+            return False
+        log_str = 'Classifier {} [Source: {} [{}]]'.format(classifier.pk,
+                                                           classifier.source,
+                                                           classifier.source.id)
+
+        # Store generic stats
+        classifier.runtime_train = res.runtime
+        classifier.accuracy = res.acc
+        classifier.epoch_ref_accuracy = str([int(round(10000 * ra)) for
+                                             ra in res.ref_accs])
+        classifier.save()
+
+        # If there are previous classifiers and the new one is not a large
+        # enough improvement, abort without validating the new classifier.
+        if len(prev_pks) > 0 and max(res.pc_accs) * \
+                settings.NEW_CLASSIFIER_IMPROVEMENT_TH > res.acc:
+
+            classifier.status = Classifier.REJECTED_ACCURACY
+            classifier.save()
+            logger.info(
+                "{} worse than previous. Not accepted. Max previous: {:.2f}, "
+                "threshold: {:.2f}, this: {:.2f}".format(
+                    log_str,
+                    max(res.pc_accs),
+                    max(res.pc_accs) * settings.NEW_CLASSIFIER_IMPROVEMENT_TH,
+                    res.acc))
+            return False
+
+        # Update accuracy for previous models.
+        for pc_pk, pc_acc in zip(prev_pks, res.pc_accs):
+            pc = Classifier.objects.get(pk=pc_pk)
+            pc.accuracy = pc_acc
+            pc.save()
+
+        # Accept and save the current model
+        classifier.status = Classifier.ACCEPTED
+        classifier.save()
+        logger.info("{} collected successfully.".format(log_str))
+
+        # If successful, submit a classify job for all imgs in source.
+        from .tasks import classify_image
+        classifier = Classifier.objects.get(pk=pk)
+        for image in Image.objects.filter(source=classifier.source,
+                                          features__extracted=True,
+                                          annoinfo__confirmed=False):
+            classify_image.apply_async(
+                args=[image.id],
+                eta=now() + timedelta(seconds=10))
 
 
-def deploycollector(task: ClassifyImageMsg, res: ClassifyReturnMsg):
+class ClassifyJobResultHandler(JobResultHandler):
+    task_name = 'classify_image'
 
-    def build_points_dicts(labelset: LabelSet):
+    @staticmethod
+    def handle_job_error(job_res: JobReturnMsg):
+        mail_admins("Spacer job failed", repr(job_res))
+
+        pk = decode_spacer_job_token(
+            job_res.original_job.tasks[0].job_token)[0]
+        try:
+            job_unit = ApiJobUnit.objects.get(pk=pk)
+        except ApiJobUnit.DoesNotExist:
+            logger.info("Job unit of id {} does not exist.".format(pk))
+            return
+
+        job_unit.result_json = dict(
+            url=job_unit.request_json['url'],
+            errors=[job_res.error_message],
+        )
+        job_unit.status = ApiJobUnit.FAILURE
+        job_unit.save()
+
+    @classmethod
+    def handle_task_result(
+            cls, task: ClassifyImageMsg, res: ClassifyReturnMsg):
+
+        pk = decode_spacer_job_token(task.job_token)[0]
+        try:
+            job_unit = ApiJobUnit.objects.get(pk=pk)
+        except ApiJobUnit.DoesNotExist:
+            logger.info("Job unit of id {} does not exist.".format(pk))
+            return
+
+        try:
+            classifier = Classifier.objects.get(
+                pk=job_unit.request_json['classifier_id'])
+        except Classifier.DoesNotExist:
+            logger.info("Classifier of id {} does not exist.".format(pk))
+            return
+
+        job_unit.result_json = dict(
+            url=job_unit.request_json['url'],
+            points=cls.build_points_dicts(res, classifier.source.labelset)
+        )
+        job_unit.status = ApiJobUnit.SUCCESS
+        job_unit.save()
+
+    @staticmethod
+    def build_points_dicts(res: ClassifyReturnMsg, labelset: LabelSet):
         """
         Converts scores from the deploy call to the dictionary returned
         by the API
@@ -281,23 +435,20 @@ def deploycollector(task: ClassifyImageMsg, res: ClassifyReturnMsg):
                         )
         return data
 
-    pk = decode_spacer_job_token(task.job_token)[0]
-    try:
-        job_unit = ApiJobUnit.objects.get(pk=pk)
-    except ApiJobUnit.DoesNotExist:
-        logger.info("Job unit of id {} does not exist.".format(pk))
-        return
 
-    try:
-        classifier = Classifier.objects.get(
-            pk=job_unit.request_json['classifier_id'])
-    except Classifier.DoesNotExist:
-        logger.info("Classifier of id {} does not exist.".format(pk))
-        return
+handler_classes = [
+    FeatureJobResultHandler,
+    TrainJobResultHandler,
+    ClassifyJobResultHandler,
+]
 
-    job_unit.result_json = dict(
-        url=job_unit.request_json['url'],
-        points=build_points_dicts(classifier.source.labelset)
-    )
-    job_unit.status = ApiJobUnit.SUCCESS
-    job_unit.save()
+
+def handle_job_result(job_res: JobReturnMsg):
+    """Handles the job results found in queue. """
+
+    task_name = job_res.original_job.task_name
+    for HandlerClass in handler_classes:
+        if task_name == HandlerClass.task_name:
+            HandlerClass.handle(job_res)
+            return
+    logger.error(f"Job task type {task_name} not recognized")

@@ -356,7 +356,14 @@ class ClassifyJobResultHandler(JobResultHandler):
 
     @staticmethod
     def handle_job_error(job_res: JobReturnMsg):
-        mail_admins("Spacer job failed", repr(job_res))
+        # Mail admins, unless the error was a spacer input error.
+        # error_message should be an error traceback, so we extract the error
+        # class from the traceback text. Not too pretty, but should work.
+        # The last line should be like `somemodule.SomeError: some message`.
+        error_text_last_line = job_res.error_message.splitlines()[-1]
+        error_class = error_text_last_line.split(':')[0]
+        if error_class != 'spacer.exceptions.SpacerInputError':
+            mail_admins("Spacer job failed", repr(job_res))
 
         pk = decode_spacer_job_token(
             job_res.original_job.tasks[0].job_token)[0]

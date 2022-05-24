@@ -1,7 +1,15 @@
-from django.urls import path
+from django.urls import include, path
 from . import views
+from .tests.js import views as js_test_views
 
-urlpatterns = [
+
+general_urlpatterns = [
+    path('js_test_browse_images_actions/',
+         js_test_views.browse_images_actions,
+         name="js_test_browse_images_actions"),
+]
+
+source_urlpatterns = [
     path('images/',
          views.browse_images, name="browse_images"),
     path('metadata/',
@@ -16,4 +24,9 @@ urlpatterns = [
 
     path('statistics/',
          views.generate_statistics, name="statistics"),
+]
+
+urlpatterns = [
+    path('', include(general_urlpatterns)),
+    path('source/<int:source_id>/browse/', include(source_urlpatterns)),
 ]

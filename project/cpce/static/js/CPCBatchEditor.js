@@ -41,20 +41,18 @@ class CPCBatchEditor {
         this.submitButton.disabled = this.files.length === 0;
     }
 
-    submitFiles(event) {
+    async submitFiles(event) {
         // Don't let the form do a non-Ajax submit
         // (browsers' default submit behavior).
         event.preventDefault();
 
         this.submitButton.disabled = true;
 
-        let formData = new FormData(this.form);
+        // Create a zip of the selected CPC files.
+        let zipFile = await this.createZip();
 
-        // To add a multi-file field to FormData, call append() multiple
-        // times on the same field name.
-        for (let file of this.files) {
-            formData.append('cpc_files', file, file.filepath);
-        }
+        let formData = new FormData(this.form);
+        formData.append('cpc_zip', zipFile);
 
         util.fetch(
             this.form.action,
@@ -69,6 +67,20 @@ class CPCBatchEditor {
                 this.downloadForm.submit();
             }
         );
+    }
+
+    async createZip() {
+        // zip is from zipjs module (@zip.js/zip.js on npm).
+        const blobWriter = new zip.BlobWriter("application/zip");
+        const writer = new zip.ZipWriter(blobWriter);
+
+        for (let file of this.files) {
+            await writer.add(file.filepath, new zip.BlobReader(file));
+        }
+        await writer.close();
+
+        // Return the zip file as a Blob
+        return blobWriter.getData();
     }
 }
 

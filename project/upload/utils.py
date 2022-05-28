@@ -3,10 +3,7 @@ from collections import OrderedDict
 import csv
 from io import StringIO
 
-# PyCharm may warn that this isn't declared in __all__, but this import
-# simply matches BS4's docs as of 2018/12:
-# https://www.crummy.com/software/BeautifulSoup/bs4/doc/#unicode-dammit
-from bs4 import UnicodeDammit
+from bs4.dammit import UnicodeDammit
 from django.urls import reverse
 
 from annotations.models import ImageAnnotationInfo

@@ -1,6 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.forms import Form
-from django.forms.fields import CharField, ChoiceField
+from django.forms.fields import CharField, ChoiceField, FileField
 from django.forms.widgets import FileInput, HiddenInput, RadioSelect, TextInput
 from django.utils.safestring import mark_safe
 
@@ -186,5 +186,5 @@ class CpcExportForm(Form):
 
 
 class CpcBatchEditForm(Form):
-    cpc_files = CpcFilesField(label='CPC files')
+    cpc_zip = FileField()  # TODO: Do some validation
     #edit_spec_csv = CsvFileField(label="CSV file")  # TODO

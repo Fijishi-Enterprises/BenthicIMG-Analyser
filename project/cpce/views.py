@@ -1,5 +1,7 @@
 import uuid
+from zipfile import ZipFile
 
+from bs4.dammit import UnicodeDammit
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
@@ -19,7 +21,7 @@ from lib.decorators import (
 )
 from lib.exceptions import FileProcessError
 from lib.forms import get_one_form_error
-from upload.utils import annotations_preview, text_file_to_unicode_stream
+from upload.utils import annotations_preview
 from upload.views import AnnotationsUploadConfirmView
 from .forms import CpcBatchEditForm, CpcImportForm, CpcExportForm
 from .utils import (
@@ -202,12 +204,13 @@ def cpc_batch_editor_process_ajax(request):
             error=get_one_form_error(form),
         ))
 
-    # TODO: Actually edit the CPC contents
-
-    cpc_strings = {
-        cpc_file.name: text_file_to_unicode_stream(cpc_file).getvalue()
-        for cpc_file in form.cleaned_data['cpc_files']
-    }
+    zip_file = ZipFile(form.cleaned_data['cpc_zip'])
+    cpc_strings = {}
+    for filepath in zip_file.namelist():
+        cpc_raw = zip_file.read(filepath)
+        cpc_string = UnicodeDammit(cpc_raw).unicode_markup
+        # TODO: Actually edit the CPC content
+        cpc_strings[filepath] = cpc_string
 
     # Save data to session, then return the session key so that a subsequent
     # request can retrieve the data.

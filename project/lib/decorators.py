@@ -1,7 +1,10 @@
+from functools import wraps
+
 from django.conf import settings
-from django.http import JsonResponse
+from django.contrib import messages
+from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, render
-from django.utils.functional import wraps
+from django.urls import reverse
 
 from annotations.utils import image_annotation_area_is_editable
 from images.models import Source, Image
@@ -185,3 +188,34 @@ def login_required_ajax(view_func):
             # Else, same behavior as calling the view directly
             return view_func(request, *args, **kwargs)
     return wrapper_func
+
+
+def session_key_required(error_redirect_url_name, error_prefix):
+    def decorator(view_func):
+        def _wrapped_view(request, *args, **kwargs):
+            error_redirect_url = reverse(error_redirect_url_name)
+
+            try:
+                session_key = request.GET['session_key']
+            except KeyError:
+                messages.error(
+                    request,
+                    f"{error_prefix}: Request data doesn't have a session_key."
+                    " If the problem persists, let us know on the forum."
+                )
+                return HttpResponseRedirect(error_redirect_url)
+
+            data = request.session.pop(session_key, None)
+            if not data:
+                messages.error(
+                    request,
+                    f"{error_prefix}: We couldn't find the expected data in"
+                    " your session. Please try again."
+                    " If the problem persists, let us know on the forum."
+                )
+                return HttpResponseRedirect(error_redirect_url)
+
+            # The view function must expect a session_data arg.
+            return view_func(request, *args, session_data=data, **kwargs)
+        return wraps(view_func)(_wrapped_view)
+    return decorator

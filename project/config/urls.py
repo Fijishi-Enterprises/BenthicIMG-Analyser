@@ -21,7 +21,7 @@ urlpatterns = [
     path('async_media/', include('async_media.urls')),
     path('blog/', include('blog.urls')),
     path('', include('calcification.urls')),
-    path(SOURCE_ID + 'cpce/', include('cpce.urls')),
+    path('', include('cpce.urls')),
     path(SOURCE_ID + 'export/', include('export.urls')),
     # Flatpages, such as the help page
     path('pages/', include('flatpages_custom.urls', namespace='pages')),

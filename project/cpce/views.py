@@ -1,21 +1,32 @@
+import uuid
+
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
+from django.views.decorators.http import require_GET, require_POST
 
 from export.utils import get_request_images
 from images.models import Source
-from lib.decorators import source_permission_required, source_labelset_required
+from lib.decorators import (
+    login_required_ajax,
+    session_key_required,
+    source_permission_required,
+    source_labelset_required,
+)
 from lib.exceptions import FileProcessError
 from lib.forms import get_one_form_error
-from upload.utils import annotations_preview
+from upload.utils import annotations_preview, text_file_to_unicode_stream
 from upload.views import AnnotationsUploadConfirmView
-from .forms import CpcImportForm, CpcExportForm
+from .forms import CpcBatchEditForm, CpcImportForm, CpcExportForm
 from .utils import (
-    annotations_cpcs_to_dict, create_cpc_strings,
-    create_zipped_cpcs_stream_response)
+    annotations_cpcs_to_dict,
+    create_cpc_strings,
+    create_zipped_cpcs_stream_response,
+)
 
 
 @source_permission_required('source_id', perm=Source.PermTypes.EDIT.code)
@@ -173,3 +184,47 @@ def export_serve(request, source_id):
         cpc_strings, 'annotations_cpc.zip')
 
     return response
+
+
+@login_required
+def cpc_batch_editor(request):
+    return render(request, 'cpce/cpc_batch_editor.html', {
+        'form': CpcBatchEditForm(),
+    })
+
+
+@login_required_ajax
+@require_POST
+def cpc_batch_editor_process_ajax(request):
+    form = CpcBatchEditForm(request.POST, request.FILES)
+    if not form.is_valid():
+        return JsonResponse(dict(
+            error=get_one_form_error(form),
+        ))
+
+    # TODO: Actually edit the CPC contents
+
+    cpc_strings = {
+        cpc_file.name: text_file_to_unicode_stream(cpc_file).getvalue()
+        for cpc_file in form.cleaned_data['cpc_files']
+    }
+
+    # Save data to session, then return the session key so that a subsequent
+    # request can retrieve the data.
+    session_key = f'cpc_batch_editor_{uuid.uuid4().hex}'
+    request.session[session_key] = cpc_strings
+
+    return JsonResponse(dict(
+        session_key=session_key,
+        success=True,
+    ))
+
+
+@login_required
+@require_GET
+@session_key_required(
+    error_redirect_url_name='cpce:cpc_batch_editor',
+    error_prefix="Batch edit failed")
+def cpc_batch_editor_file_serve(request, session_data):
+    return create_zipped_cpcs_stream_response(
+        session_data, 'edited_cpcs.zip')

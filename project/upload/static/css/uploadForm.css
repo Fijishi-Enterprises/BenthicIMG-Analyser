@@ -106,6 +106,13 @@ span.annotation-delete-info {
 }
 
 
+#file-drop-zone {
+    background-color: lavender;
+    padding: 50px;
+    text-align: center;
+}
+
+
 /* Some form/field rules to make styling a bit cleaner compared to
  using master.css. */
 /* TODO: Merge some of these rules into master.css? */

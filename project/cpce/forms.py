@@ -1,22 +1,41 @@
 from django.core.exceptions import ValidationError
 from django.forms import Form
 from django.forms.fields import CharField, ChoiceField
-from django.forms.widgets import HiddenInput, RadioSelect, TextInput
+from django.forms.widgets import FileInput, HiddenInput, RadioSelect, TextInput
 from django.utils.safestring import mark_safe
 
 from images.models import Source
-from upload.forms import MultipleFileField, MultipleFileInput
+from upload.forms import CsvFileField, MultipleFileField
 from upload.utils import text_file_to_unicode_stream
 from .utils import get_previous_cpcs_status, labelset_has_plus_code
 
 
+class CpcFilesField(MultipleFileField):
+    default_error_messages = {
+        'required': "Please select one or more CPC files.",
+    }
+
+    def clean(self, data, initial=None):
+        """
+        Check for extensions of .cpc. This isn't foolproof, but it can
+        catch simple file selection mistakes.
+        """
+        for cpc_file in data:
+            if not cpc_file.name.endswith('.cpc'):
+                raise ValidationError(
+                    "This is not a CPC file: {fn}".format(fn=cpc_file.name))
+
+        return super().clean(data, initial)
+
+    def widget_attrs(self, widget):
+        attrs = super().widget_attrs(widget)
+        if isinstance(widget, FileInput) and 'accept' not in widget.attrs:
+            attrs.setdefault('accept', '.cpc')
+        return attrs
+
+
 class CpcImportForm(Form):
-    cpc_files = MultipleFileField(
-        label='CPC files',
-        # Multi-file input whose dialog only allows selecting .cpc
-        widget=MultipleFileInput(attrs=dict(accept='.cpc')),
-        error_messages=dict(required="Please select one or more CPC files."),
-    )
+    cpc_files = CpcFilesField(label='CPC files')
     label_mapping = ChoiceField(
         label="Determine CoralNet label codes from",
         choices=(
@@ -39,20 +58,6 @@ class CpcImportForm(Form):
             label_mapping='id_and_notes' if has_plus_code else 'id_only',
         )
         super().__init__(*args, **kwargs)
-
-    def clean_cpc_files(self):
-        """
-        Check for extensions of .cpc. This isn't foolproof, but it can
-        catch simple file selection mistakes.
-        """
-        cpc_files = self.cleaned_data['cpc_files']
-
-        for cpc_file in cpc_files:
-            if not cpc_file.name.endswith('.cpc'):
-                raise ValidationError(
-                    "This is not a CPC file: {fn}".format(fn=cpc_file.name))
-
-        return self.cleaned_data['cpc_files']
 
     def get_cpc_names_and_streams(self):
         cpc_names_and_streams = []
@@ -178,3 +183,8 @@ class CpcExportForm(Form):
         self.order_fields([
             'override_filepaths', 'local_code_filepath', 'local_image_dir',
             'annotation_filter', 'label_mapping'])
+
+
+class CpcBatchEditForm(Form):
+    cpc_files = CpcFilesField(label='CPC files')
+    #edit_spec_csv = CsvFileField(label="CSV file")  # TODO

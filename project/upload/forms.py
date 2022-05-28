@@ -45,9 +45,11 @@ class MultipleFileField(FileField):
     """
     Modifies the built-in FileField by allowing validation of multi-file input.
     (When FileField takes multiple files, it only validates the last one.)
-
-    Must be used with the MultipleFileInput widget.
     """
+
+    # This widget isn't just for displaying the field on a webpage.
+    # It also determines how the field value is retrieved from the request.
+    widget = MultipleFileInput
 
     def to_python(self, data):
         data_out = []
@@ -66,9 +68,8 @@ class MultipleImageField(ImageField):
     """
     Modifies the built-in ImageField by allowing validation of multi-file input.
     (When ImageField takes multiple files, it only validates the last one.)
-
-    Must be used with the MultipleFileInput widget.
     """
+    widget = MultipleFileInput
 
     def to_python(self, data):
         """
@@ -98,7 +99,6 @@ class ImageUploadFrontendForm(Form):
     """
     files = MultipleImageField(
         label="Image files",
-        widget=MultipleFileInput(),
     )
     name_prefix = CharField(
         label="Name prefix (optional)",

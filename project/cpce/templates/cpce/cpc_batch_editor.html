@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}CPC batch editor - CoralNet{% endblock %}
+
+{% block page-specific-includes %}
+    {% include "static-local-include.html" with type="css" path="css/uploadForm.css" %}
+    {% include "static-local-include.html" with type="js" path="js/CPCBatchEditor.js" %}
+{% endblock %}
+
+{% block content %}
+
+  <h2>CPC-file batch editor</h2>
+
+  <p>
+    This tool allows you to edit many .cpc files (created by CPCe) in a single operation.
+  </p>
+
+  <p>
+    Step 1: Drag and drop .cpc files, or folder(s) containing .cpc files, into the area below.
+  </p>
+
+  <div id="file-drop-zone">
+    <div>Drag and drop files/folders here</div>
+    <div id="file-preview"></div>
+  </div>
+
+  <p>
+    Step 2: Provide a CSV file which specifies how to transform existing labels.
+  </p>
+
+  <p>
+    Step 3: Click the button below, and CoralNet will start processing the batch-edit. When it's done, you'll get a .zip file download containing the edited .cpc files.
+  </p>
+
+  <form id="form" enctype="multipart/form-data" method="post"
+    action="{% url 'cpce:cpc_batch_editor_process_ajax' %}"
+  >
+    {% csrf_token %}
+
+    <input type="submit" value="Go" disabled />
+  </form>
+
+  <form id="download-form" hidden
+    action="{% url 'cpce:cpc_batch_editor_file_serve' %}"
+  >
+    <input type="hidden" name="session_key" />
+  </form>
+
+  <p>
+    Step 4: Extract the .zip file's contents to your preferred folder location on your computer. If you want to overwrite your original .cpc files with the edited ones, you can extract to the same location that you chose in Step 1.
+  </p>
+
+  {# Script in the body will run on page load. #}
+  <script type="text/javascript">
+    let cpcBatchEditor = new CPCBatchEditor();
+  </script>
+
+{% endblock %}

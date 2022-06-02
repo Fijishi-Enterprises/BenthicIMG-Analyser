@@ -194,8 +194,8 @@
     </form>
 
     <form hidden action="{% url 'cpce:export_serve' source.pk %}"
-    method="post" id="export-annotations-cpc-form">
-      {% csrf_token %}
+    method="get" id="export-annotations-cpc-serve-form">
+      <input type="hidden" name="session_key" />
     </form>
 
   {% endif %}

@@ -2,6 +2,7 @@
 
 import random
 import string
+import uuid
 
 from django.core.paginator import Paginator, EmptyPage, InvalidPage
 
@@ -61,3 +62,17 @@ def rand_string(num_of_chars):
     return ''.join(
         random.choice(string.ascii_lowercase + string.digits)
         for _ in range(num_of_chars))
+
+
+def save_session_data(session, key_prefix, data):
+    """
+    Save data to session, then return the session key so that a subsequent
+    request can retrieve the data.
+
+    A common use of sessions in CoralNet is to do a GET non-Ajax file-serve
+    after a POST Ajax processing step. Lengthy processing is better as Ajax
+    for browser responsiveness, and file serving is more natural as non-Ajax.
+    """
+    session_key = f'{key_prefix}_{uuid.uuid4().hex}'
+    session[session_key] = data
+    return session_key

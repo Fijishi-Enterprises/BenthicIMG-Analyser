@@ -1,4 +1,5 @@
 from functools import wraps
+from typing import Union
 
 from django.conf import settings
 from django.contrib import messages
@@ -190,14 +191,26 @@ def login_required_ajax(view_func):
     return wrapper_func
 
 
-def session_key_required(error_redirect_url_name, error_prefix):
+def session_key_required(error_redirect: Union[str, list], error_prefix: str):
+    """
+    Require a session_key to be passed in with the request, to indicate
+    that there is session data to retrieve and use from a previous request.
+    """
     def decorator(view_func):
         def _wrapped_view(request, *args, **kwargs):
-            error_redirect_url = reverse(error_redirect_url_name)
+            if isinstance(error_redirect, str):
+                error_url_name = error_redirect
+                url_args = []
+            else:
+                # list
+                error_url_name, object_id_view_arg = error_redirect
+                url_args = [kwargs[object_id_view_arg]]
+            error_redirect_url = reverse(error_url_name, args=url_args)
 
-            try:
-                session_key = request.GET['session_key']
-            except KeyError:
+            session_key = request.GET.get('session_key', None)
+            # Can be None, or can be '' if it's from a form field that
+            # didn't get filled in.
+            if not session_key:
                 messages.error(
                     request,
                     f"{error_prefix}: Request data doesn't have a session_key."

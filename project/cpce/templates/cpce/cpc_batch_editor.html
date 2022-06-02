@@ -41,7 +41,7 @@
     <input type="submit" value="Go" disabled />
   </form>
 
-  <form id="download-form" hidden
+  <form id="download-form" method="get" hidden
     action="{% url 'cpce:cpc_batch_editor_file_serve' %}"
   >
     <input type="hidden" name="session_key" />

@@ -61,8 +61,15 @@ class BrowseActionHelper {
         else if (action === 'export_annotations_cpc') {
             formId = 'export-annotations-cpc-ajax-form';
             this.isAjax = true;
-            this.actionAfterAjax = () => {
-                document.getElementById('export-annotations-cpc-form').submit();
+            this.actionAfterAjax = (response) => {
+                // Submit the download form, passing in the session key
+                // from the Ajax response.
+                let downloadForm = document.getElementById(
+                    'export-annotations-cpc-serve-form');
+                let sessionKeyField = downloadForm.querySelector(
+                    'input[name="session_key"]');
+                sessionKeyField.value = response.session_key;
+                downloadForm.submit();
             };
         }
         else if (action === 'export_image_covers') {
@@ -208,7 +215,7 @@ class BrowseActionHelper {
             alert("Error: " + response['error']);
         }
         else if (this.actionAfterAjax) {
-            this.actionAfterAjax();
+            this.actionAfterAjax(response);
         }
 
         this.actionSubmitButton.disabled = false;

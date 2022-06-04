@@ -185,7 +185,7 @@ class AnnotationsCSVFormatTest(ClientTest, UploadAnnotationsCsvTestMixin):
 
         self.assertDictEqual(
             preview_response.json(),
-            dict(error="CSV row 3 is missing a Row value"),
+            dict(error="CSV row 3: Must have a value for Row"),
         )
 
     def test_missing_column(self):
@@ -203,7 +203,7 @@ class AnnotationsCSVFormatTest(ClientTest, UploadAnnotationsCsvTestMixin):
 
         self.assertDictEqual(
             preview_response.json(),
-            dict(error="CSV row 2 is missing a Column value"),
+            dict(error="CSV row 2: Must have a value for Column"),
         )
 
     def test_field_with_newline(self):

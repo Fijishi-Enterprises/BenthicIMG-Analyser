@@ -3,7 +3,7 @@ from collections import defaultdict
 from django.core.management.base import BaseCommand, CommandError
 
 from labels.models import Label
-from upload.utils import csv_to_dict, text_file_to_unicode_stream
+from upload.utils import csv_to_dicts, text_file_to_unicode_stream
 from ...models import CalcifyRateTable
 
 
@@ -32,18 +32,17 @@ class Command(BaseCommand):
         with open(options['csv_path']) as csv_file:
             csv_unicode_stream = text_file_to_unicode_stream(csv_file)
 
-        csv_data = csv_to_dict(
+        csv_data = csv_to_dicts(
             csv_stream=csv_unicode_stream,
-            required_columns=[
-                ('label_name', "Name"),
-                ('region', "Region"),
-                ('mean', "Mean"),
-                ('lower_bound', "Lower bound"),
-                ('upper_bound', "Upper bound"),
-            ],
-            optional_columns=[],
-            key_columns=['label_name', 'region'],
-            multiple_rows_per_key=False,
+            required_columns=dict(
+                label_name="Name",
+                region="Region",
+                mean="Mean",
+                lower_bound="Lower bound",
+                upper_bound="Upper bound",
+            ),
+            optional_columns=dict(),
+            unique_keys=['label_name', 'region'],
         )
 
         # Convert to JSON:
@@ -51,15 +50,15 @@ class Command(BaseCommand):
 
         data_by_region = defaultdict(dict)
 
-        for key, data in csv_data.items():
-            label_name, region = key
+        for data in csv_data:
             try:
                 # Case insensitive name search
-                label_id = Label.objects.get(name__iexact=label_name).pk
+                label_id = Label.objects.get(
+                    name__iexact=data['label_name']).pk
             except Label.DoesNotExist:
                 raise CommandError(
-                    "Label name not found: {}".format(label_name))
-            data_by_region[region][label_id] = dict(
+                    f"Label name not found: {data['label_name']}")
+            data_by_region[data['region']][label_id] = dict(
                 mean=data['mean'],
                 lower_bound=data['lower_bound'],
                 upper_bound=data['upper_bound'],

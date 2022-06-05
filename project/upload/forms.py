@@ -165,6 +165,12 @@ class CsvFileField(FileField):
 
         return data
 
+    def widget_attrs(self, widget):
+        attrs = super().widget_attrs(widget)
+        if isinstance(widget, FileInput) and 'accept' not in widget.attrs:
+            attrs.setdefault('accept', '.csv')
+        return attrs
+
 
 # TODO: Consider porting usages to the newer CsvFileField instead.
 class CSVImportForm(Form):

@@ -187,4 +187,4 @@ class CpcExportForm(Form):
 
 class CpcBatchEditForm(Form):
     cpc_zip = FileField()  # TODO: Do some validation
-    #edit_spec_csv = CsvFileField(label="CSV file")  # TODO
+    label_spec_csv = CsvFileField(label="CSV file")

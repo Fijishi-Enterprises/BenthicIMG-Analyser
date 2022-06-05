@@ -38,7 +38,7 @@ class CPCFormatTest(ClientTest, UploadAnnotationsCpcTestMixin):
 
         self.assertDictEqual(
             preview_response.json(),
-            dict(error="File 1.cpc seems to have too few lines."))
+            dict(error="From file 1.cpc: File seems to have too few lines."))
 
     def test_line_1_not_enough_tokens(self):
         stream = StringIO()
@@ -51,7 +51,7 @@ class CPCFormatTest(ClientTest, UploadAnnotationsCpcTestMixin):
         self.assertDictEqual(
             preview_response.json(),
             dict(error=(
-                "File 1.cpc, line 1 has"
+                "From file 1.cpc: Line 1 has"
                 " 1 comma-separated tokens, but"
                 " 6 were expected.")))
 
@@ -66,7 +66,7 @@ class CPCFormatTest(ClientTest, UploadAnnotationsCpcTestMixin):
         self.assertDictEqual(
             preview_response.json(),
             dict(error=(
-                "File 1.cpc, line 1 has"
+                "From file 1.cpc: Line 1 has"
                 " 7 comma-separated tokens, but"
                 " 6 were expected.")))
 
@@ -84,7 +84,7 @@ class CPCFormatTest(ClientTest, UploadAnnotationsCpcTestMixin):
         # having more lines.
         self.assertDictEqual(
             preview_response.json(),
-            dict(error="File 1.cpc seems to have too few lines."))
+            dict(error="From file 1.cpc: File seems to have too few lines."))
 
     def test_line_2_wrong_number_of_tokens(self):
         stream = StringIO()
@@ -99,7 +99,7 @@ class CPCFormatTest(ClientTest, UploadAnnotationsCpcTestMixin):
         self.assertDictEqual(
             preview_response.json(),
             dict(error=(
-                "File 1.cpc, line 2 has"
+                "From file 1.cpc: Line 2 has"
                 " 3 comma-separated tokens, but"
                 " 2 were expected.")))
 
@@ -118,7 +118,7 @@ class CPCFormatTest(ClientTest, UploadAnnotationsCpcTestMixin):
         self.assertDictEqual(
             preview_response.json(),
             dict(error=(
-                "File 1.cpc, line 6 has"
+                "From file 1.cpc: Line 6 has"
                 " 2 comma-separated tokens, but"
                 " 1 were expected.")))
 
@@ -137,7 +137,7 @@ class CPCFormatTest(ClientTest, UploadAnnotationsCpcTestMixin):
         self.assertDictEqual(
             preview_response.json(),
             dict(error=(
-                "File 1.cpc, line 6 is supposed to have"
+                "From file 1.cpc: Line 6 is supposed to have"
                 " the number of points, but this line isn't a"
                 " positive integer: abc")))
 
@@ -156,7 +156,7 @@ class CPCFormatTest(ClientTest, UploadAnnotationsCpcTestMixin):
         self.assertDictEqual(
             preview_response.json(),
             dict(error=(
-                "File 1.cpc, line 6 is supposed to have"
+                "From file 1.cpc: Line 6 is supposed to have"
                 " the number of points, but this line isn't a"
                 " positive integer: 0")))
 
@@ -180,7 +180,7 @@ class CPCFormatTest(ClientTest, UploadAnnotationsCpcTestMixin):
         self.assertDictEqual(
             preview_response.json(),
             dict(error=(
-                "File 1.cpc, line 16 has"
+                "From file 1.cpc: Line 16 has"
                 " 4 comma-separated tokens, but"
                 " 2 were expected.")))
 
@@ -202,7 +202,7 @@ class CPCFormatTest(ClientTest, UploadAnnotationsCpcTestMixin):
         self.assertDictEqual(
             preview_response.json(),
             dict(error=(
-                "File 1.cpc, line 17 has"
+                "From file 1.cpc: Line 17 has"
                 " 2 comma-separated tokens, but"
                 " 4 were expected.")))
 
@@ -225,7 +225,7 @@ class CPCFormatTest(ClientTest, UploadAnnotationsCpcTestMixin):
 
         self.assertDictEqual(
             preview_response.json(),
-            dict(error="File 1.cpc seems to have too few lines."))
+            dict(error="From file 1.cpc: File seems to have too few lines."))
 
     def test_no_header_lines(self):
         """
@@ -355,7 +355,7 @@ class CPCPixelScaleFactorTest(ClientTest, UploadAnnotationsCpcTestMixin):
         self.assertDictEqual(
             preview_response.json(),
             dict(error=(
-                "File 1.cpc: The image width and height on line 1"
+                "From file 1.cpc: The image width and height on line 1"
                 " must be integers.")))
 
     def test_height_not_integer(self):
@@ -364,7 +364,7 @@ class CPCPixelScaleFactorTest(ClientTest, UploadAnnotationsCpcTestMixin):
         self.assertDictEqual(
             preview_response.json(),
             dict(error=(
-                "File 1.cpc: The image width and height on line 1"
+                "From file 1.cpc: The image width and height on line 1"
                 " must be integers.")))
 
     def test_x_scale_not_integer(self):
@@ -373,7 +373,7 @@ class CPCPixelScaleFactorTest(ClientTest, UploadAnnotationsCpcTestMixin):
         self.assertDictEqual(
             preview_response.json(),
             dict(error=(
-                "File 1.cpc: Could not establish an integer scale"
+                "From file 1.cpc: Could not establish an integer scale"
                 " factor from line 1.")))
 
     def test_y_scale_not_integer(self):
@@ -382,7 +382,7 @@ class CPCPixelScaleFactorTest(ClientTest, UploadAnnotationsCpcTestMixin):
         self.assertDictEqual(
             preview_response.json(),
             dict(error=(
-                "File 1.cpc: Could not establish an integer scale"
+                "From file 1.cpc: Could not establish an integer scale"
                 " factor from line 1.")))
 
     def test_xy_scales_not_equal(self):
@@ -391,7 +391,7 @@ class CPCPixelScaleFactorTest(ClientTest, UploadAnnotationsCpcTestMixin):
         self.assertDictEqual(
             preview_response.json(),
             dict(error=(
-                "File 1.cpc: Could not establish an integer scale"
+                "From file 1.cpc: Could not establish an integer scale"
                 " factor from line 1.")))
 
     def test_scale_of_15(self):
@@ -637,7 +637,7 @@ class SaveCPCInfoTest(ClientTest, UploadAnnotationsCpcTestMixin):
         self.assertEqual(self.img2.cpc_content, img2_expected_cpc_content)
         self.assertEqual(self.img2.cpc_filename, 'GBR_2.cpc')
 
-    def test_source_fields(self):
+    def test_codes_filepath(self):
         cpc_files = [
             self.make_annotations_file(
                 self.image_dimensions, '1.cpc',
@@ -657,13 +657,48 @@ class SaveCPCInfoTest(ClientTest, UploadAnnotationsCpcTestMixin):
 
         self.source.refresh_from_db()
         # Although it's an implementation detail and not part of spec,
-        # the last uploaded CPC should have its values used in a multi-CPC
+        # the first uploaded CPC should have its values used in a multi-CPC
         # upload.
         self.assertEqual(
             self.source.cpce_code_filepath,
-            r'C:\My Photos\CPCe codefiles\GBR codes.txt')
+            r'C:\PROGRA~4\CPCE_4~1\SHALLO~1.TXT')
+
+    def test_image_dir(self):
+        self.upload_image(
+            self.user, self.source,
+            image_options=dict(filename='3.jpg', width=100, height=100))
+        self.upload_image(
+            self.user, self.source,
+            image_options=dict(
+                filename=r'GBR\2017\4.jpg', width=100, height=100))
+
+        # Filename match
+        cpc_files = [
+            self.make_annotations_file(
+                self.image_dimensions, '3.cpc',
+                r"C:\Reef Surveys\GBR\2017\3.jpg", [
+                    (49*15, 49*15, 'A'),
+                    (59*15, 39*15, 'B')]),
+        ]
+        self.preview_annotations(self.user, self.source, cpc_files)
+        self.upload_annotations(self.user, self.source)
+        self.source.refresh_from_db()
         self.assertEqual(
-            self.source.cpce_image_dir, r'C:\My Photos\2017-05-13 GBR')
+            self.source.cpce_image_dir, r'C:\Reef Surveys\GBR\2017')
+
+        # Subdir match
+        cpc_files = [
+            self.make_annotations_file(
+                self.image_dimensions, '4.cpc',
+                r"C:\Reef Surveys\GBR\2017\4.jpg", [
+                    (49*15, 49*15, 'A'),
+                    (59*15, 39*15, 'B')]),
+        ]
+        self.preview_annotations(self.user, self.source, cpc_files)
+        self.upload_annotations(self.user, self.source)
+        self.source.refresh_from_db()
+        self.assertEqual(
+            self.source.cpce_image_dir, r'C:\Reef Surveys')
 
 
 class CPCImageMatchingTest(ClientTest, UploadAnnotationsCpcTestMixin):
@@ -746,6 +781,23 @@ class CPCImageMatchingTest(ClientTest, UploadAnnotationsCpcTestMixin):
             preview_response.json(),
             dict(error="No matching image names found in the source"))
 
+    def test_do_not_partial_match_subdirs(self):
+        self.upload_image_with_name(r'Transect 1\IMG_0001.JPG')
+
+        # 'Superstring'
+        preview_response = self.upload_preview_for_image_name(
+            r'D:\Site A Transect 1\IMG_0001.JPG')
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(error="No matching image names found in the source"))
+
+        # Substring
+        preview_response = self.upload_preview_for_image_name(
+            r'D:\Site A\sect 1\IMG_0001.JPG')
+        self.assertDictEqual(
+            preview_response.json(),
+            dict(error="No matching image names found in the source"))
+
     def test_slash_direction_does_not_matter(self):
         self.upload_image_with_name(r'01.jpg')
 
@@ -760,3 +812,19 @@ class CPCImageMatchingTest(ClientTest, UploadAnnotationsCpcTestMixin):
         preview_response = self.upload_preview_for_image_name(
             r'D:/Site A/Quadrat 3/01.jpg')
         self.assertImageInPreview(quadrat_img, preview_response)
+
+    def test_leading_slash_ignored(self):
+        """
+        Leading slashes may seem innocuous to Windows / non-technical users,
+        and it's unlikely to indicate anything significant in a CPCe context.
+        So ignore such a slash (i.e. don't interpret it as root).
+        """
+        img1 = self.upload_image_with_name(r'/01.jpg')
+        preview_response = self.upload_preview_for_image_name(
+            r'D:\Site A\Transect 1\01.jpg')
+        self.assertImageInPreview(img1, preview_response)
+
+        img2 = self.upload_image_with_name(r'\Transect 1\02.jpg')
+        preview_response = self.upload_preview_for_image_name(
+            r'D:\Site A\Transect 1\02.jpg')
+        self.assertImageInPreview(img2, preview_response)

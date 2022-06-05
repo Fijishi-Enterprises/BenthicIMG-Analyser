@@ -1,3 +1,4 @@
+from io import StringIO
 from zipfile import ZipFile
 
 from bs4.dammit import UnicodeDammit
@@ -19,11 +20,14 @@ from lib.decorators import (
 from lib.exceptions import FileProcessError
 from lib.forms import get_one_form_error
 from lib.utils import save_session_data
-from upload.utils import annotations_preview
+from upload.utils import annotations_preview, text_file_to_unicode_stream
 from upload.views import AnnotationsUploadConfirmView
 from .forms import CpcBatchEditForm, CpcImportForm, CpcExportForm
 from .utils import (
     annotations_cpcs_to_dict,
+    CpcFileContent,
+    cpc_editor_csv_to_dicts,
+    cpc_edit_labels,
     create_cpc_strings,
     create_zipped_cpcs_stream_response,
 )
@@ -47,6 +51,7 @@ def upload_page(request, source_id):
     'source_id', perm=Source.PermTypes.EDIT.code, ajax=True)
 @source_labelset_required('source_id', message=(
     "You must create a labelset before uploading annotations."))
+@require_POST
 def upload_preview_ajax(request, source_id):
     """
     Add points/annotations to images by uploading Coral Point Count files.
@@ -54,11 +59,6 @@ def upload_preview_ajax(request, source_id):
     This view takes multiple .cpc files, processes them, saves the processed
     data to the session, and returns a preview table of the data to be saved.
     """
-    if request.method != 'POST':
-        return JsonResponse(dict(
-            error="Not a POST request",
-        ))
-
     source = get_object_or_404(Source, id=source_id)
 
     cpc_import_form = CpcImportForm(source, request.POST, request.FILES)
@@ -69,18 +69,26 @@ def upload_preview_ajax(request, source_id):
 
     try:
         cpc_info = annotations_cpcs_to_dict(
-            cpc_import_form.get_cpc_names_and_streams(), source,
-            cpc_import_form.cleaned_data['label_mapping'])
+            cpc_import_form.get_cpc_names_and_streams(),
+            source,
+            cpc_import_form.cleaned_data['label_mapping'],
+        )
     except FileProcessError as error:
         return JsonResponse(dict(
             error=str(error),
         ))
 
+    annotations = dict((c['image_id'], c['annotations']) for c in cpc_info)
     preview_table, preview_details = \
-        annotations_preview(cpc_info['annotations'], source)
+        annotations_preview(annotations, source)
 
-    request.session['uploaded_annotations'] = cpc_info['annotations']
-    request.session['cpc_info'] = cpc_info
+    cpc_files = dict(
+        (c['image_id'],
+         dict(filename=c['filename'], cpc_content=c['cpc_content']))
+        for c in cpc_info
+    )
+    request.session['uploaded_annotations'] = annotations
+    request.session['cpc_files'] = cpc_files
 
     return JsonResponse(dict(
         success=True,
@@ -93,22 +101,30 @@ class CpcAnnotationsUploadConfirmView(AnnotationsUploadConfirmView):
     cpc_info = None
 
     def extra_source_level_actions(self, request, source):
-        self.cpc_info = request.session.pop('cpc_info', None)
+        self.cpc_files = request.session.pop('cpc_files', None)
 
-        # We uploaded annotations as CPC. Save some info for future CPC
-        # exports.
-        source.cpce_code_filepath = self.cpc_info['code_filepath']
-        source.cpce_image_dir = self.cpc_info['image_dir']
+        # Save some defaults for future CPC exports. Here we get the code
+        # filepath and image dir from any one of the uploaded CPCs.
+        # Chances are they'll be the same for all uploaded CPCs, or they
+        # might not - either way, this is just a default and doesn't have
+        # to be perfect.
+        image_id, cpc_file_dict = next(iter(self.cpc_files.items()))
+
+        cpc = CpcFileContent.from_stream(
+            StringIO(cpc_file_dict['cpc_content'], newline=''))
+
+        source.cpce_code_filepath = cpc.code_filepath
+        source.cpce_image_dir = cpc.get_image_dir(image_id)
         source.save()
 
     def update_image_and_metadata_fields(self, image, new_points):
         super().update_image_and_metadata_fields(image, new_points)
 
         # Save uploaded CPC contents for future CPC exports.
-        # Note: Since cpc_info went through session serialization,
-        # dicts with integer keys have had their keys stringified.
-        image.cpc_content = self.cpc_info['cpc_contents'][str(image.pk)]
-        image.cpc_filename = self.cpc_info['cpc_filenames'][str(image.pk)]
+        # Note: Since cpc_files went through session serialization,
+        # the integer dict keys became stringified.
+        image.cpc_content = self.cpc_files[str(image.pk)]['cpc_content']
+        image.cpc_filename = self.cpc_files[str(image.pk)]['filename']
         image.save()
 
 
@@ -185,13 +201,22 @@ def cpc_batch_editor_process_ajax(request):
             error=get_one_form_error(form),
         ))
 
+    try:
+        label_spec = cpc_editor_csv_to_dicts(
+            text_file_to_unicode_stream(form.cleaned_data['label_spec_csv']))
+    except FileProcessError as error:
+        return JsonResponse(dict(
+            error=str(error),
+        ))
+
     zip_file = ZipFile(form.cleaned_data['cpc_zip'])
     cpc_strings = {}
     for filepath in zip_file.namelist():
+        # Read in a cpc file
         cpc_raw = zip_file.read(filepath)
         cpc_string = UnicodeDammit(cpc_raw).unicode_markup
-        # TODO: Actually edit the CPC content
-        cpc_strings[filepath] = cpc_string
+        # Edit the cpc file
+        cpc_strings[filepath] = cpc_edit_labels(cpc_string, label_spec)
 
     session_key = save_session_data(
         request.session, 'cpc_batch_editor', cpc_strings)

@@ -29,14 +29,16 @@
     Step 2: Provide a CSV file which specifies how to transform existing labels.
   </p>
 
-  <p>
-    Step 3: Click the button below, and CoralNet will start processing the batch-edit. When it's done, you'll get a .zip file download containing the edited .cpc files.
-  </p>
-
   <form id="form" enctype="multipart/form-data" method="post"
     action="{% url 'cpce:cpc_batch_editor_process_ajax' %}"
   >
     {% csrf_token %}
+
+    {{ form.label_spec_csv }}
+
+    <p>
+      Step 3: Click the button below, and CoralNet will start processing the batch-edit. When it's done, you'll get a .zip file download containing the edited .cpc files.
+    </p>
 
     <input type="submit" value="Go" disabled />
   </form>

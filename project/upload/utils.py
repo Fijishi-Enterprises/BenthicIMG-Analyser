@@ -2,7 +2,7 @@ import codecs
 from collections import defaultdict, OrderedDict
 import csv
 from io import StringIO
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional, Tuple
 
 from bs4.dammit import UnicodeDammit
 from django.urls import reverse
@@ -360,7 +360,11 @@ def annotations_csv_verify_contents(csv_annotations, source):
     return annotations
 
 
-def annotations_preview(csv_annotations, source):
+def annotations_preview(
+        csv_annotations: Dict[int, list],
+        source: Source,
+) -> Tuple[list, dict]:
+
     table = []
     details = dict()
     total_csv_points = 0

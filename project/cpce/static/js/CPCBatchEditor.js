@@ -217,9 +217,9 @@ class CPCBatchEditor {
 
                 // Give the session key from the POST response to the
                 // download form.
-                let sessionKeyField = this.downloadForm.querySelector(
-                    'input[name="session_key"]');
-                sessionKeyField.value = response.session_key;
+                let sessionDataTimeField = this.downloadForm.querySelector(
+                    'input[name="session_data_timestamp"]');
+                sessionDataTimeField.value = response.session_data_timestamp;
 
                 this.previewDetails = response.preview_details;
                 this.updateStatus(this.statuses.READY);

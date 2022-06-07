@@ -66,9 +66,9 @@ class BrowseActionHelper {
                 // from the Ajax response.
                 let downloadForm = document.getElementById(
                     'export-annotations-cpc-serve-form');
-                let sessionKeyField = downloadForm.querySelector(
-                    'input[name="session_key"]');
-                sessionKeyField.value = response.session_key;
+                let sessionDataTimeField = downloadForm.querySelector(
+                    'input[name="session_data_timestamp"]');
+                sessionDataTimeField.value = response.session_data_timestamp;
                 downloadForm.submit();
             };
         }

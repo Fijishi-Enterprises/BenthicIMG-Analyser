@@ -191,10 +191,11 @@ def login_required_ajax(view_func):
     return wrapper_func
 
 
-def session_key_required(error_redirect: Union[str, list], error_prefix: str):
+def session_key_required(
+        key: str, error_redirect: Union[str, list], error_prefix: str):
     """
-    Require a session_key to be passed in with the request, to indicate
-    that there is session data to retrieve and use from a previous request.
+    Require session data to exist at `key`, and require the timestamp stored
+    there to match with the timestamp request arg.
     """
     def decorator(view_func):
         def _wrapped_view(request, *args, **kwargs):
@@ -207,28 +208,39 @@ def session_key_required(error_redirect: Union[str, list], error_prefix: str):
                 url_args = [kwargs[object_id_view_arg]]
             error_redirect_url = reverse(error_url_name, args=url_args)
 
-            session_key = request.GET.get('session_key', None)
+            timestamp = request.GET.get('session_data_timestamp', None)
             # Can be None, or can be '' if it's from a form field that
             # didn't get filled in.
-            if not session_key:
+            if not timestamp:
                 messages.error(
                     request,
-                    f"{error_prefix}: Request data doesn't have a session_key."
-                    " If the problem persists, let us know on the forum."
+                    f"{error_prefix}: Request data doesn't have a"
+                    f" session_data_timestamp. This might be a bug."
+                    f" If the problem persists, let us know on the forum."
                 )
                 return HttpResponseRedirect(error_redirect_url)
 
-            data = request.session.pop(session_key, None)
-            if not data:
+            session_value = request.session.pop(key, None)
+            if not session_value:
                 messages.error(
                     request,
                     f"{error_prefix}: We couldn't find the expected data in"
-                    " your session. Please try again."
-                    " If the problem persists, let us know on the forum."
+                    f" your session. Please try again."
+                    f" If the problem persists, let us know on the forum."
+                )
+                return HttpResponseRedirect(error_redirect_url)
+
+            if session_value['timestamp'] != timestamp:
+                messages.error(
+                    request,
+                    f"{error_prefix}: Session data timestamp didn't match."
+                    f" Please try again."
+                    f" If the problem persists, let us know on the forum."
                 )
                 return HttpResponseRedirect(error_redirect_url)
 
             # The view function must expect a session_data arg.
+            data = session_value['data']
             return view_func(request, *args, session_data=data, **kwargs)
         return wraps(view_func)(_wrapped_view)
     return decorator

@@ -1,8 +1,8 @@
 # General utility functions and classes can go here.
 
+import datetime
 import random
 import string
-import uuid
 
 from django.core.paginator import Paginator, EmptyPage, InvalidPage
 
@@ -64,15 +64,19 @@ def rand_string(num_of_chars):
         for _ in range(num_of_chars))
 
 
-def save_session_data(session, key_prefix, data):
+def save_session_data(session, key, data):
     """
-    Save data to session, then return the session key so that a subsequent
-    request can retrieve the data.
+    Save data to session, then return a timestamp. This timestamp should be
+    sent to the server by any subsequent request which wants to get this
+    session data. Generally, the key verifies which page the session data is
+    for, and the timestamp verifies that it's for a particular visit/request
+    on that page. This ensures that nothing chaotic happens if a single user
+    opens multiple browser tabs on session-using pages.
 
-    A common use of sessions in CoralNet is to do a GET non-Ajax file-serve
+    An example use of sessions in CoralNet is to do a GET non-Ajax file-serve
     after a POST Ajax processing step. Lengthy processing is better as Ajax
     for browser responsiveness, and file serving is more natural as non-Ajax.
     """
-    session_key = f'{key_prefix}_{uuid.uuid4().hex}'
-    session[session_key] = data
-    return session_key
+    timestamp = str(datetime.datetime.now().timestamp())
+    session[key] = dict(data=data, timestamp=timestamp)
+    return timestamp

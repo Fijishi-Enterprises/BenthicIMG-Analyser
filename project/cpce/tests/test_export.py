@@ -78,9 +78,10 @@ class CPCExportBaseTest(ClientTest):
             reverse('cpce:export_prepare_ajax', args=[self.source.pk]),
             post_data,
         )
+        timestamp = prepare_response.json()['session_data_timestamp']
         return self.client.get(
             reverse('cpce:export_serve', args=[self.source.pk]),
-            dict(session_key=prepare_response.json()['session_key']),
+            dict(session_data_timestamp=timestamp),
         )
 
     @staticmethod
@@ -1260,11 +1261,11 @@ class SessionErrorTest(ClientTest):
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
 
-    def test_no_session_key(self):
+    def test_no_session_data_timestamp(self):
         self.client.force_login(self.user)
         response = self.client.get(
             reverse('cpce:export_serve', args=[self.source.pk]),
-            dict(session_key=''),
+            dict(session_data_timestamp=''),
             follow=True,
         )
 
@@ -1273,14 +1274,15 @@ class SessionErrorTest(ClientTest):
         self.assertContains(
             response,
             html_escape(
-                "Export failed: Request data doesn't have a session_key."),
+                "Export failed: Request data doesn't have a"
+                " session_data_timestamp."),
         )
 
     def test_no_session_data(self):
         self.client.force_login(self.user)
         response = self.client.get(
             reverse('cpce:export_serve', args=[self.source.pk]),
-            dict(session_key='nonexistent_key'),
+            dict(session_data_timestamp='123'),
             follow=True,
         )
 
@@ -1291,6 +1293,31 @@ class SessionErrorTest(ClientTest):
             html_escape(
                 "Export failed: We couldn't find the expected data"
                 " in your session."),
+        )
+
+    def test_mismatched_timestamp(self):
+        self.client.force_login(self.user)
+
+        # To modify the session and then save it, it must be stored in a
+        # variable first.
+        # https://docs.djangoproject.com/en/dev/topics/testing/tools/#django.test.Client.session
+        session = self.client.session
+        session['cpc_export'] = dict(
+            timestamp='123', data=dict())
+        session.save()
+
+        response = self.client.get(
+            reverse('cpce:export_serve', args=[self.source.pk]),
+            dict(session_data_timestamp='456'),
+            follow=True,
+        )
+
+        self.assertRedirects(
+            response, reverse('browse_images', args=[self.source.pk]))
+        self.assertContains(
+            response,
+            html_escape(
+                "Export failed: Session data timestamp didn't match."),
         )
 
 

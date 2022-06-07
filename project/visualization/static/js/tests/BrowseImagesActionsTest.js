@@ -22,22 +22,22 @@ class Form {
         actionPath,
         {
             actionFormParams = {},
-            expectsSessionKey = false,
+            expectsSessionDataTimestamp = false,
             hasCsrf = true,
             imageFilters = 'depends on select type',
             promptString = null,
-            returnsSessionKey = false,
+            returnsSessionDataTimestamp = false,
         } = {}) {
         this.formId = formId;
         // Not sure how to pass in URLs from Django, so actionPath is just
         // a hardcoded Django URL.
         this.actionPath = actionPath;
         this.actionFormParams = actionFormParams;
-        this.expectsSessionKey = expectsSessionKey;
+        this.expectsSessionDataTimestamp = expectsSessionDataTimestamp;
         this.hasCsrf = hasCsrf;
         this.imageFilters = imageFilters;
         this.promptString = promptString;
-        this.returnsSessionKey = returnsSessionKey;
+        this.returnsSessionDataTimestamp = returnsSessionDataTimestamp;
     }
 
     get form() {
@@ -85,8 +85,8 @@ class Form {
             }
         }
 
-        if (this.expectsSessionKey) {
-            expectedFormContents.session_key = 'a_session_key';
+        if (this.expectsSessionDataTimestamp) {
+            expectedFormContents.session_data_timestamp = 'a_timestamp';
         }
 
         if (this.hasCsrf) {
@@ -149,8 +149,8 @@ class Form {
     mockAsyncFormSubmit() {
         // Mock window.fetch() so that the request isn't actually made.
         let returnObj = {'success': true};
-        if (this.returnsSessionKey) {
-            returnObj.session_key = 'a_session_key';
+        if (this.returnsSessionDataTimestamp) {
+            returnObj.session_data_timestamp = 'a_timestamp';
         }
         fetchMock.post(
             window.location.origin + this.actionPath,
@@ -232,7 +232,8 @@ let formLookup = {
     export_annotations_cpc: new Form(
         'export-annotations-cpc-ajax-form',
         '/source/1/cpce/export_prepare_ajax/',
-        {returnsSessionKey: true, actionFormParams: {field1: 'value1'}},
+        {returnsSessionDataTimestamp: true,
+         actionFormParams: {field1: 'value1'}},
     ),
     export_image_covers: new Form(
         'export-image-covers-form',
@@ -259,7 +260,8 @@ let secondFormLookup = {
     export_annotations_cpc: new Form(
         'export-annotations-cpc-serve-form',
         '/source/1/cpce/export_serve/',
-        {expectsSessionKey: true, hasCsrf: false, imageFilters: 'none'},
+        {expectsSessionDataTimestamp: true,
+         hasCsrf: false, imageFilters: 'none'},
     ),
     delete_images: new Form(
         'refresh-browse-form', '',

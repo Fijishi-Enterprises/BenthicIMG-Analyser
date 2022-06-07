@@ -159,11 +159,11 @@ def export_prepare_ajax(request, source_id):
     source.cpce_image_dir = cpc_prefs['local_image_dir']
     source.save()
 
-    session_key = save_session_data(
+    session_data_timestamp = save_session_data(
         request.session, 'cpc_export', cpc_strings)
 
     return JsonResponse(dict(
-        session_key=session_key,
+        session_data_timestamp=session_data_timestamp,
         success=True,
     ))
 
@@ -171,6 +171,7 @@ def export_prepare_ajax(request, source_id):
 @source_permission_required('source_id', perm=Source.PermTypes.EDIT.code)
 @require_GET
 @session_key_required(
+    key='cpc_export',
     error_redirect=['browse_images', 'source_id'],
     error_prefix="Export failed")
 @transaction.non_atomic_requests
@@ -230,11 +231,11 @@ def cpc_batch_editor_process_ajax(request):
         cpc_strings[filepath] = cpc_edit_labels(
             cpc_stream, label_spec, form.cleaned_data['label_spec_fields'])
 
-    session_key = save_session_data(
+    session_data_timestamp = save_session_data(
         request.session, 'cpc_batch_editor', cpc_strings)
 
     return JsonResponse(dict(
-        session_key=session_key,
+        session_data_timestamp=session_data_timestamp,
         preview_details=preview_details,
         success=True,
     ))
@@ -243,6 +244,7 @@ def cpc_batch_editor_process_ajax(request):
 @login_required
 @require_GET
 @session_key_required(
+    key='cpc_batch_editor',
     error_redirect='cpce:cpc_batch_editor',
     error_prefix="Batch edit failed")
 def cpc_batch_editor_file_serve(request, session_data):

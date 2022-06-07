@@ -186,5 +186,16 @@ class CpcExportForm(Form):
 
 
 class CpcBatchEditForm(Form):
-    cpc_zip = FileField()  # TODO: Do some validation
+    cpc_zip = FileField()
     label_spec_csv = CsvFileField(label="CSV file")
+    label_spec_fields = ChoiceField(
+        label="Fields to process",
+        choices=(
+            ('id_only',
+             "ID field only"),
+            ('id_and_notes',
+             "ID and Notes fields"),
+        ),
+        initial='id_only',
+        widget=RadioSelect,
+    )

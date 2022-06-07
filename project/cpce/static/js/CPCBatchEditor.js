@@ -1,70 +1,228 @@
 class CPCBatchEditor {
 
+    cpcs = [];
+
     constructor() {
-        this.fileDropZone.addEventListener('dragover', e => {
+        this.cpcDropZone.addEventListener('dragover', (event) => {
             // Prevent navigation.
-            e.preventDefault();
+            event.preventDefault();
         });
-        this.fileDropZone.addEventListener('drop', this.onFilesDrop.bind(this));
+        this.cpcDropZone.addEventListener('drop', this.onCpcsDrop.bind(this));
 
-        this.form.onsubmit = this.submitFiles.bind(this);
+        this.csvFileField.addEventListener('change', async () => {
+            if (this.readyToProcess) {
+                await this.submitProcessForm();
+            }
+        });
+
+        for (let radioInput of this.specOptionRadioInputs) {
+            radioInput.addEventListener('change', async () => {
+                if (this.readyToProcess) {
+                    await this.submitProcessForm();
+                }
+            });
+        }
+
+        this.downloadForm.addEventListener('submit', () => {
+            // Let the submit go through, and additionally update status
+            this.updateStatus(this.statuses.DOWNLOAD_STARTED);
+        });
     }
 
-    get fileDropZone() {
-        return document.getElementById('file-drop-zone');
+    get cpcDropZone() {
+        return document.getElementById('cpc-drop-zone');
     }
-    get filePreview() {
-        return document.getElementById('file-preview');
+    get dropZonePreview() {
+        return document.getElementById('drop-zone-preview');
     }
-    get form() {
-        return document.getElementById('form');
+    get csvFileField() {
+        return document.getElementById('id_label_spec_csv');
     }
-    get submitButton() {
-        return this.form.querySelector('input[type="submit"]');
+    get specOptionRadioInputs() {
+        return Array.from(
+            this.processForm.querySelectorAll(
+                'input[name="label_spec_fields"]'));
+    }
+    get specOptionValue() {
+        for (let radioInput of this.specOptionRadioInputs) {
+            if (radioInput.checked) {
+                return radioInput.value;
+            }
+        }
+        return null;
+    }
+    get processForm() {
+        return document.getElementById('process-form');
+    }
+    get statusDisplay() {
+        return document.getElementById('status_display');
+    }
+    get statusDetail() {
+        return document.getElementById('status_detail');
+    }
+    get previewTable() {
+        return document.getElementById('preview_table');
     }
     get downloadForm() {
         return document.getElementById('download-form');
     }
+    get downloadSubmitButton() {
+        return this.downloadForm.querySelector('input[type="submit"]');
+    }
 
-    async onFilesDrop(event) {
+    get readyToProcess() {
+        return this.cpcs.length > 0 && this.csvFileField.files.length > 0;
+    }
+
+    setStatusDetailLines(lines) {
+        // Clear contents
+        this.statusDetail.replaceChildren();
+
+        for (let line of lines) {
+            if (this.statusDetail.childNodes.length > 0) {
+                this.statusDetail.append(document.createElement('br'));
+            }
+            this.statusDetail.append(document.createTextNode(line));
+        }
+    }
+
+    statuses = {
+        PROCESSING: 1,
+        PROCESS_ERROR: 2,
+        READY: 3,
+        DOWNLOAD_STARTED: 4,
+    }
+    updateStatus(newStatus) {
+        if (newStatus === this.statuses.PROCESSING) {
+            this.downloadSubmitButton.disabled = true;
+            this.statusDisplay.textContent = "Processing...";
+            this.setStatusDetailLines([]);
+            this.previewTable.replaceChildren();
+        }
+        else if (newStatus === this.statuses.PROCESS_ERROR) {
+            this.downloadSubmitButton.disabled = true;
+            this.statusDisplay.textContent
+                = "Error encountered when processing";
+            this.setStatusDetailLines(this.processError.split('\n'));
+        }
+        else if (newStatus === this.statuses.READY) {
+            this.downloadSubmitButton.disabled = false;
+            this.statusDisplay.textContent
+                = "Processing OK; ready for download";
+
+            let d = this.previewDetails;
+            this.setStatusDetailLines([
+                `${d.num_files} CPC file(s) processed`,
+            ]);
+
+            // Clear contents of preview table
+            this.previewTable.replaceChildren();
+
+            // Table header
+            let thead = document.createElement('thead');
+            this.previewTable.appendChild(thead);
+            let headerRow = document.createElement('tr');
+            let headers;
+            if (this.specOptionValue === 'id_and_notes') {
+                headers = [
+                    'Old ID', 'Old Notes',
+                    'New ID', 'New Notes', 'Applicable Points',
+                ];
+            }
+            else {
+                // 'id_only'
+                headers = ['Old ID', 'New ID', 'Applicable Points'];
+            }
+            for (let header of headers) {
+                let cell = document.createElement('th');
+                cell.textContent = header;
+                headerRow.appendChild(cell);
+            }
+            thead.appendChild(headerRow);
+
+            // Table body
+            let tbody = document.createElement('tbody');
+            this.previewTable.appendChild(tbody);
+            let cellValues;
+            for (let specItem of d.label_spec) {
+                let row = document.createElement('tr');
+                if (this.specOptionValue === 'id_and_notes') {
+                    cellValues = [
+                        specItem.old_id, specItem.old_notes,
+                        specItem.new_id, specItem.new_notes,
+                        specItem.point_count,
+                    ];
+                }
+                else {
+                    // 'id_only'
+                    cellValues = [
+                        specItem.old_id,
+                        specItem.new_id,
+                        specItem.point_count,
+                    ];
+                }
+                for (let cellValue of cellValues) {
+                    let cell = document.createElement('td');
+                    cell.textContent = cellValue;
+                    row.appendChild(cell);
+                }
+                tbody.appendChild(row);
+            }
+        }
+        else if (newStatus === this.statuses.DOWNLOAD_STARTED) {
+            this.downloadSubmitButton.disabled = true;
+            // Note that since the download is synchronous, not async, we
+            // can't define a callback to run when it finishes.
+        }
+    }
+
+    async onCpcsDrop(event) {
         // Prevent navigation.
         event.preventDefault();
+
+        this.dropZonePreview.textContent = "";
 
         let reader = new DataTransferReader(
             {acceptedExtensions: ['cpc']}
         );
-        this.files = await reader.getFiles(event.dataTransfer.items);
+        this.cpcs = await reader.getFiles(event.dataTransfer.items);
 
-        this.filePreview.textContent =
-            `Detected ${this.files.length} .cpc file(s).`;
+        this.dropZonePreview.textContent =
+            `Detected ${this.cpcs.length} .cpc file(s).`;
 
-        this.submitButton.disabled = this.files.length === 0;
+        if (this.readyToProcess) {
+            await this.submitProcessForm();
+        }
     }
 
-    async submitFiles(event) {
-        // Don't let the form do a non-Ajax submit
-        // (browsers' default submit behavior).
-        event.preventDefault();
-
-        this.submitButton.disabled = true;
+    async submitProcessForm() {
+        this.updateStatus(this.statuses.PROCESSING);
 
         // Create a zip of the selected CPC files.
         let zipFile = await this.createZip();
 
-        let formData = new FormData(this.form);
+        let formData = new FormData(this.processForm);
         formData.append('cpc_zip', zipFile);
 
         util.fetch(
-            this.form.action,
+            this.processForm.action,
             {method: 'POST', body: formData},
             (response) => {
-                // Submit the download form, passing in the session key
-                // from the POST response.
-                // The download response will contain the edited .cpc files.
+
+                if (response.error) {
+                    this.processError = response.error;
+                    this.updateStatus(this.statuses.PROCESS_ERROR);
+                    return;
+                }
+
+                // Give the session key from the POST response to the
+                // download form.
                 let sessionKeyField = this.downloadForm.querySelector(
                     'input[name="session_key"]');
                 sessionKeyField.value = response.session_key;
-                this.downloadForm.submit();
+
+                this.previewDetails = response.preview_details;
+                this.updateStatus(this.statuses.READY);
             }
         );
     }
@@ -74,8 +232,8 @@ class CPCBatchEditor {
         const blobWriter = new zip.BlobWriter("application/zip");
         const writer = new zip.ZipWriter(blobWriter);
 
-        for (let file of this.files) {
-            await writer.add(file.filepath, new zip.BlobReader(file));
+        for (let cpc of this.cpcs) {
+            await writer.add(cpc.filepath, new zip.BlobReader(cpc));
         }
         await writer.close();
 
@@ -90,6 +248,8 @@ Adapted from:
 https://github.com/anatol-grabowski/datatransfer-files-promise
  */
 class DataTransferReader {
+
+    FILES_READ_WARNING_THRESHOLD = 5000;
 
     constructor({acceptedExtensions = null} = {}) {
         this.acceptedExtensions = acceptedExtensions;
@@ -108,16 +268,19 @@ class DataTransferReader {
 
     incrementFilesReadCount() {
         if (this.warnedAboutFileCount) {
+            // If the user decides to keep going, we don't want to repeatedly
+            // warn on <threshold> files, <threshold+1> files, etc.
             return;
         }
 
         this.totalFilesRead++;
-        if (this.totalFilesRead > 5000) {
-            let keepGoing = window.confirm("You've dragged in a lot of files (over 5000, including non-cpc). Is this what you wanted to do? Select OK to keep scanning, or select Cancel to abort.");
+        if (this.totalFilesRead > this.FILES_READ_WARNING_THRESHOLD) {
+            let keepGoing = window.confirm(`You've dragged in a lot of files (over ${this.FILES_READ_WARNING_THRESHOLD}, including non-cpc). Is this what you wanted to do? Select OK to keep scanning, or select Cancel to abort.`);
             this.warnedAboutFileCount = true;
 
             if (!keepGoing) {
-                // TODO: Where to catch this?
+                // We just let this error cancel the rest of the drop
+                // handler and propagate to the JS console.
                 throw new Error("Aborted after high file count check.");
             }
         }
@@ -130,7 +293,8 @@ class DataTransferReader {
                 file.filepath = path + file.name;
                 resolve(file);
             }, (err) => {
-                checkErr(err);  // TODO
+                // Don't really know when this happens yet.
+                window.alert(`Error while setting up File: ${err}`);
                 reject(err);
             })
         })
@@ -146,7 +310,8 @@ class DataTransferReader {
                 }
                 resolve(files);
             }, (err) => {
-                checkErr(err);
+                // Don't really know when this happens yet.
+                window.alert(`Error while reading directory: ${err}`);
                 reject(err);
             })
         })
@@ -198,6 +363,10 @@ class DataTransferReader {
 
         // Recursively read through all entries
         for (let entry of entries) {
+            if (!entry) {
+                // Perhaps something other than a file/folder was dropped
+                continue;
+            }
             const newFiles = await this.getFilesFromEntry(entry);
             files = files.concat(newFiles);
         }

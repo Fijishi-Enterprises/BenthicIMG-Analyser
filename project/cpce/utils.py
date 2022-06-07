@@ -337,25 +337,32 @@ def labelset_has_plus_code(labelset):
     return labelset.get_labels().filter(code__contains='+').exists()
 
 
-def cpc_editor_csv_to_dicts(csv_stream: StringIO) -> List[dict]:
+def cpc_editor_csv_to_dicts(
+        csv_stream: StringIO, fields_option: str) -> List[dict]:
+
     # Two acceptable formats, with notes and without notes.
-    # Depending on which it is, we'll want different unique_keys,
-    # so we use two csv_to_dicts() calls.
-    try:
-        csv_data = csv_to_dicts(
+    if fields_option == 'id_and_notes':
+        label_spec = csv_to_dicts(
             csv_stream=csv_stream,
             required_columns=dict(
                 old_id="Old ID",
                 new_id="New ID",
+            ),
+            optional_columns=dict(
                 old_notes="Old Notes",
                 new_notes="New Notes",
             ),
-            optional_columns=dict(),
             unique_keys=['old_id', 'old_notes'],
         )
-    except FileProcessError:
-        csv_stream.seek(0)
-        csv_data = csv_to_dicts(
+        for spec_item in label_spec:
+            # If one of the Notes columns isn't present, fill in '' values.
+            if 'old_notes' not in spec_item:
+                spec_item['old_notes'] = ''
+            if 'new_notes' not in spec_item:
+                spec_item['new_notes'] = ''
+    else:
+        # 'id_only'
+        label_spec = csv_to_dicts(
             csv_stream=csv_stream,
             required_columns=dict(
                 old_id="Old ID",
@@ -365,24 +372,37 @@ def cpc_editor_csv_to_dicts(csv_stream: StringIO) -> List[dict]:
             unique_keys=['old_id'],
         )
 
-    return csv_data
-
-
-def cpc_edit_labels(cpc_string: str, label_spec: list) -> str:
-    cpc = CpcFileContent.from_stream(StringIO(cpc_string, newline=''))
-
     for spec_item in label_spec:
-        for point in cpc.points:
-            if 'old_notes' in spec_item:
-                # Look at ID and Notes
+        # We'll use these dicts to build up preview info as well.
+        spec_item['point_count'] = 0
+
+    return label_spec
+
+
+def cpc_edit_labels(
+        cpc_stream: StringIO,
+        label_spec: List[dict],
+        fields_option: str,
+) -> str:
+
+    cpc = CpcFileContent.from_stream(cpc_stream)
+
+    for point in cpc.points:
+        for spec_item in label_spec:
+            if fields_option == 'id_and_notes':
                 if (point['id'] == spec_item['old_id']
                         and point['notes'] == spec_item['old_notes']):
                     point['id'] = spec_item['new_id']
                     point['notes'] = spec_item['new_notes']
+                    spec_item['point_count'] += 1
+                    # Don't allow multiple transformations on a single point
+                    break
             else:
                 # Look at ID only
                 if point['id'] == spec_item['old_id']:
                     point['id'] = spec_item['new_id']
+                    spec_item['point_count'] += 1
+                    break
 
     out_stream = StringIO()
     cpc.write_cpc(out_stream)

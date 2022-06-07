@@ -20,37 +20,55 @@
     Step 1: Drag and drop .cpc files, or folder(s) containing .cpc files, into the area below.
   </p>
 
-  <div id="file-drop-zone">
+  <div id="cpc-drop-zone">
     <div>Drag and drop files/folders here</div>
-    <div id="file-preview"></div>
+    <div id="drop-zone-preview"></div>
   </div>
 
   <p>
-    Step 2: Provide a CSV file which specifies how to transform existing labels.
+    Step 2: Provide a CSV file which specifies how to transform existing labels. There are two accepted formats. This example specifies that ...:
+  </p>
+  <table></table>
+  <p>
+    And this example specifies that ...:
+  </p>
+  <table></table>
+  <p>
+    Be sure to select the appropriate "Fields to process" option to indicate which format you're using.
   </p>
 
-  <form id="form" enctype="multipart/form-data" method="post"
+  <form id="process-form" enctype="multipart/form-data" method="post"
     action="{% url 'cpce:cpc_batch_editor_process_ajax' %}"
   >
     {% csrf_token %}
 
-    {{ form.label_spec_csv }}
-
-    <p>
-      Step 3: Click the button below, and CoralNet will start processing the batch-edit. When it's done, you'll get a .zip file download containing the edited .cpc files.
-    </p>
-
-    <input type="submit" value="Go" disabled />
-  </form>
-
-  <form id="download-form" method="get" hidden
-    action="{% url 'cpce:cpc_batch_editor_file_serve' %}"
-  >
-    <input type="hidden" name="session_key" />
+    {{ form.label_spec_fields.label }}: {{ form.label_spec_fields }}
+    {{ form.label_spec_csv.label }}: {{ form.label_spec_csv }}
   </form>
 
   <p>
-    Step 4: Extract the .zip file's contents to your preferred folder location on your computer. If you want to overwrite your original .cpc files with the edited ones, you can extract to the same location that you chose in Step 1.
+    Step 3: After providing the above files, CoralNet will start processing them. When it's done, you should see a preview of the batch-edit below. Click the "Download edited CPCs" button to get a .zip file download containing the edited .cpc files.
+  </p>
+
+  <div id="upload_summary_section">
+    <span id="status_display">Info will show up here once files are selected</span>
+    <hr>
+    <span id="status_detail"></span>
+
+    <div id="preview_table_container">
+      <table id="preview_table"></table>
+    </div>
+  </div>
+
+  <form id="download-form" method="get"
+    action="{% url 'cpce:cpc_batch_editor_file_serve' %}"
+  >
+    <input type="hidden" name="session_key" />
+    <input type="submit" value="Download edited CPCs" disabled />
+  </form>
+
+  <p>
+    Step 4: Extract the .zip file's contents to your preferred folder location on your computer. If you want to overwrite your original .cpc files with the edited ones, you can extract to the same location that you chose in Step 1. Don't forget to double-check the .cpc files before overwriting anything.
   </p>
 
   {# Script in the body will run on page load. #}

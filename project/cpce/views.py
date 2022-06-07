@@ -1,7 +1,6 @@
 from io import StringIO
-from zipfile import ZipFile
+from zipfile import BadZipFile, ZipFile
 
-from bs4.dammit import UnicodeDammit
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -203,26 +202,40 @@ def cpc_batch_editor_process_ajax(request):
 
     try:
         label_spec = cpc_editor_csv_to_dicts(
-            text_file_to_unicode_stream(form.cleaned_data['label_spec_csv']))
+            text_file_to_unicode_stream(form.cleaned_data['label_spec_csv']),
+            form.cleaned_data['label_spec_fields'],
+        )
     except FileProcessError as error:
         return JsonResponse(dict(
             error=str(error),
         ))
 
-    zip_file = ZipFile(form.cleaned_data['cpc_zip'])
+    try:
+        zip_file = ZipFile(form.cleaned_data['cpc_zip'])
+    except BadZipFile as error:
+        return JsonResponse(dict(
+            error=str(error),
+        ))
+
     cpc_strings = {}
+    preview_details = dict(
+        num_files=len(zip_file.namelist()),
+        label_spec=label_spec,
+    )
     for filepath in zip_file.namelist():
         # Read in a cpc file
-        cpc_raw = zip_file.read(filepath)
-        cpc_string = UnicodeDammit(cpc_raw).unicode_markup
+        with zip_file.open(filepath, 'r') as cpc_file:
+            cpc_stream = text_file_to_unicode_stream(cpc_file)
         # Edit the cpc file
-        cpc_strings[filepath] = cpc_edit_labels(cpc_string, label_spec)
+        cpc_strings[filepath] = cpc_edit_labels(
+            cpc_stream, label_spec, form.cleaned_data['label_spec_fields'])
 
     session_key = save_session_data(
         request.session, 'cpc_batch_editor', cpc_strings)
 
     return JsonResponse(dict(
         session_key=session_key,
+        preview_details=preview_details,
         success=True,
     ))
 

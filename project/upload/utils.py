@@ -33,6 +33,11 @@ def csv_to_dicts(
         unique_keys: List[str],
         more_column_checks: Optional[Callable[[List[str]], None]] = None,
 ) -> List[dict]:
+    """
+    required_columns must be filled in for every row.
+    optional_columns may have blank cells and may not be included in the
+    CSV at all.
+    """
     # DictReader is not used here, because the fact that column names need
     # to be transformed to get the dict keys makes usage a bit clunky.
     reader = csv.reader(csv_stream, dialect='excel')

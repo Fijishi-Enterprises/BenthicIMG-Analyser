@@ -1,5 +1,5 @@
 from io import StringIO
-from zipfile import BadZipFile, ZipFile
+import json
 
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
@@ -21,7 +21,12 @@ from lib.forms import get_one_form_error
 from lib.utils import save_session_data
 from upload.utils import annotations_preview, text_file_to_unicode_stream
 from upload.views import AnnotationsUploadConfirmView
-from .forms import CpcBatchEditForm, CpcImportForm, CpcExportForm
+from .forms import (
+    CpcBatchEditCpcsForm,
+    CpcBatchEditSpecForm,
+    CpcExportForm,
+    CpcImportForm,
+)
 from .utils import (
     annotations_cpcs_to_dict,
     CpcFileContent,
@@ -188,48 +193,51 @@ def export_serve(request, source_id, session_data):
 @login_required
 def cpc_batch_editor(request):
     return render(request, 'cpce/cpc_batch_editor.html', {
-        'form': CpcBatchEditForm(),
+        'process_form': CpcBatchEditSpecForm(),
     })
 
 
 @login_required_ajax
 @require_POST
 def cpc_batch_editor_process_ajax(request):
-    form = CpcBatchEditForm(request.POST, request.FILES)
-    if not form.is_valid():
+    cpcs_form = CpcBatchEditCpcsForm(request.POST, request.FILES)
+    spec_form = CpcBatchEditSpecForm(request.POST, request.FILES)
+
+    if not cpcs_form.is_valid():
         return JsonResponse(dict(
-            error=get_one_form_error(form),
+            error=get_one_form_error(cpcs_form),
+        ))
+    if not spec_form.is_valid():
+        return JsonResponse(dict(
+            error=get_one_form_error(spec_form),
         ))
 
+    spec_fields_option = spec_form.cleaned_data['label_spec_fields']
     try:
         label_spec = cpc_editor_csv_to_dicts(
-            text_file_to_unicode_stream(form.cleaned_data['label_spec_csv']),
-            form.cleaned_data['label_spec_fields'],
+            text_file_to_unicode_stream(
+                spec_form.cleaned_data['label_spec_csv']),
+            spec_fields_option,
         )
     except FileProcessError as error:
         return JsonResponse(dict(
             error=str(error),
         ))
 
-    try:
-        zip_file = ZipFile(form.cleaned_data['cpc_zip'])
-    except BadZipFile as error:
-        return JsonResponse(dict(
-            error=str(error),
-        ))
-
-    cpc_strings = {}
+    cpc_files = cpcs_form.cleaned_data['cpc_files']
+    filepath_lookup = json.loads(cpcs_form.cleaned_data['cpc_filepaths'])
+    cpc_strings = dict()
     preview_details = dict(
-        num_files=len(zip_file.namelist()),
+        num_files=len(cpc_files),
         label_spec=label_spec,
     )
-    for filepath in zip_file.namelist():
+    for cpc_file in cpc_files:
         # Read in a cpc file
-        with zip_file.open(filepath, 'r') as cpc_file:
-            cpc_stream = text_file_to_unicode_stream(cpc_file)
+        cpc_stream = text_file_to_unicode_stream(cpc_file)
         # Edit the cpc file
+        filepath = filepath_lookup[cpc_file.name]
         cpc_strings[filepath] = cpc_edit_labels(
-            cpc_stream, label_spec, form.cleaned_data['label_spec_fields'])
+            cpc_stream, label_spec, spec_fields_option)
 
     session_data_timestamp = save_session_data(
         request.session, 'cpc_batch_editor', cpc_strings)

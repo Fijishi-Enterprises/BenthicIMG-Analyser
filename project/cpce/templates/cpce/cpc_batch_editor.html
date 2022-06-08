@@ -4,7 +4,6 @@
 
 {% block page-specific-includes %}
     {% include "static-local-include.html" with type="css" path="css/uploadForm.css" %}
-    {% include "static-local-include.html" with type="js" path="js/zipjs-no-worker-deflate.min.js" %}
     {% include "static-local-include.html" with type="js" path="js/CPCBatchEditor.js" %}
 {% endblock %}
 
@@ -84,8 +83,7 @@
   >
     {% csrf_token %}
 
-    {{ form.label_spec_fields.label }}: {{ form.label_spec_fields }}
-    {{ form.label_spec_csv.label }}: {{ form.label_spec_csv }}
+    {% include 'django/forms/default.html' with form=process_form %}
   </form>
 
   <p>
@@ -115,10 +113,6 @@
 
   {# Script in the body will run on page load. #}
   <script type="text/javascript">
-    // Tell zip.js to not use web workers.
-    // (We use a zip.js build without web workers support.)
-    zip.configure({useWebWorkers: false});
-
     let cpcBatchEditor = new CPCBatchEditor();
   </script>
 

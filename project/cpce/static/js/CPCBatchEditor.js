@@ -198,11 +198,22 @@ class CPCBatchEditor {
     async submitProcessForm() {
         this.updateStatus(this.statuses.PROCESSING);
 
-        // Create a zip of the selected CPC files.
-        let zipFile = await this.createZip();
-
+        // To start, get values from the form element.
         let formData = new FormData(this.processForm);
-        formData.append('cpc_zip', zipFile);
+
+        // Add CPC files and their filepaths.
+        //
+        // Django doesn't readily support filepaths of file uploads, only
+        // filenames. So we'll send the files with placeholder filenames,
+        // and use a separate field to define the mapping from placeholders
+        // to actual filepaths.
+        let cpcFilepaths = {};
+        for (let [index, cpc] of this.cpcs.entries()) {
+            let placeholderFilename = `${index}.cpc`;
+            formData.append('cpc_files', cpc, placeholderFilename);
+            cpcFilepaths[placeholderFilename] = cpc.filepath;
+        }
+        formData.append('cpc_filepaths', JSON.stringify(cpcFilepaths));
 
         util.fetch(
             this.processForm.action,
@@ -225,20 +236,6 @@ class CPCBatchEditor {
                 this.updateStatus(this.statuses.READY);
             }
         );
-    }
-
-    async createZip() {
-        // zip is from zipjs module (@zip.js/zip.js on npm).
-        const blobWriter = new zip.BlobWriter("application/zip");
-        const writer = new zip.ZipWriter(blobWriter);
-
-        for (let cpc of this.cpcs) {
-            await writer.add(cpc.filepath, new zip.BlobReader(cpc));
-        }
-        await writer.close();
-
-        // Return the zip file as a Blob
-        return blobWriter.getData();
     }
 }
 

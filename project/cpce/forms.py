@@ -1,6 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.forms import Form
-from django.forms.fields import CharField, ChoiceField, FileField
+from django.forms.fields import CharField, ChoiceField
 from django.forms.widgets import FileInput, HiddenInput, RadioSelect, TextInput
 from django.utils.safestring import mark_safe
 
@@ -185,9 +185,14 @@ class CpcExportForm(Form):
             'annotation_filter', 'label_mapping'])
 
 
-class CpcBatchEditForm(Form):
-    cpc_zip = FileField()
-    label_spec_csv = CsvFileField(label="CSV file")
+class CpcBatchEditCpcsForm(Form):
+    cpc_files = CpcFilesField()
+    # Django doesn't readily support filepaths of file uploads, only
+    # filenames. So we'll use this field to pass in filepaths of the CPCs.
+    cpc_filepaths = CharField()
+
+
+class CpcBatchEditSpecForm(Form):
     label_spec_fields = ChoiceField(
         label="Fields to process",
         choices=(
@@ -199,3 +204,4 @@ class CpcBatchEditForm(Form):
         initial='id_only',
         widget=RadioSelect,
     )
+    label_spec_csv = CsvFileField(label="CSV file")

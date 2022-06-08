@@ -17,7 +17,7 @@
   </p>
 
   <p>
-    Step 1: Drag and drop .cpc files, or folder(s) containing .cpc files, into the area below.
+    <strong>Step 1:</strong> Drag and drop .cpc files, or folder(s) containing .cpc files, into the area below.
   </p>
 
   <div id="cpc-drop-zone">
@@ -26,13 +26,55 @@
   </div>
 
   <p>
-    Step 2: Provide a CSV file which specifies how to transform existing labels. There are two accepted formats. This example specifies that ...:
+    <strong>Step 2:</strong> Provide a CSV file which specifies how to transform existing labels. There are two accepted formats:
   </p>
-  <table></table>
-  <p>
-    And this example specifies that ...:
-  </p>
-  <table></table>
+  <table>
+    <tr><th>CSV example</th><th>What it does</th></tr>
+    <tr>
+      <td>
+        <table class="generic">
+          <tr>
+            <th>Old ID</th><th>New ID</th>
+          </tr>
+          <tr>
+            <td>PORIT</td><td>HARDCORAL</td>
+          </tr>
+          <tr>
+            <td>PAVEMENT</td><td>ROCK</td>
+          </tr>
+        </table>
+      </td>
+      <td>
+        <ul>
+          <li>Points with ID of PORIT will have their ID changed to HARDCORAL</li>
+          <li>Points with ID of PAVEMENT will have their ID changed to ROCK</li>
+          <li>All other points will be unchanged</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <table class="generic">
+          <tr>
+            <th>Old ID</th><th>Old Notes</th><th>New ID</th><th>New Notes</th>
+          </tr>
+          <tr>
+            <td>ACROP</td><td>LAMINAR</td><td>ACROP</td><td>PLATING</td>
+          </tr>
+          <tr>
+            <td>TURF</td><td>ROCK</td><td>NONCORAL</td><td></td>
+          </tr>
+        </table>
+      </td>
+      <td>
+        <ul>
+          <li>Points with ID = ACROP and Notes = LAMINAR will be changed to have ID = ACROP and Notes = PLATING. This does not affect points which have ACROP but not LAMINAR</li>
+          <li>Points with ID = TURF and Notes = ROCK will be changed to have ID = NONCORAL and blank Notes</li>
+          <li>All other points will be unchanged</li>
+        </ul>
+      </td>
+    </tr>
+  </table>
   <p>
     Be sure to select the appropriate "Fields to process" option to indicate which format you're using.
   </p>
@@ -47,7 +89,7 @@
   </form>
 
   <p>
-    Step 3: After providing the above files, CoralNet will start processing them. When it's done, you should see a preview of the batch-edit below. Click the "Download edited CPCs" button to get a .zip file download containing the edited .cpc files.
+    <strong>Step 3:</strong> After providing the above files, CoralNet will start processing them. When it's done, you should see a preview of the batch-edit below. Click the "Download edited CPCs" button to get a .zip file download containing the edited .cpc files.
   </p>
 
   <div id="upload_summary_section">
@@ -68,7 +110,7 @@
   </form>
 
   <p>
-    Step 4: Extract the .zip file's contents to your preferred folder location on your computer. If you want to overwrite your original .cpc files with the edited ones, you can extract to the same location that you chose in Step 1. Don't forget to double-check the .cpc files before overwriting anything.
+    <strong>Step 4:</strong> Extract the .zip file's contents to your preferred folder location on your computer. If you want to overwrite your original .cpc files with the edited ones, you can extract to the same location that you chose in Step 1. Don't forget to double-check the .cpc files before overwriting anything.
   </p>
 
   {# Script in the body will run on page load. #}

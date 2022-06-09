@@ -538,8 +538,8 @@ class FormatTest(UploadAnnotationsFormatTest, UploadAnnotationsCpcTestMixin):
         self.check(preview_response, upload_response, self.img1, 'い')
 
     def test_crlf(self):
-        """Don't know if CPC with crlf newlines is possible in practice, but
-        might as well test that it works."""
+        """Most of the CPC tests use linefeed only, but CPCe is Windows
+        software, so it'll use carriage return + linefeed."""
         cpc_file_lf = self.make_annotations_file(
             self.image_dimensions,
             '1.cpc', r"C:\My Photos\2017-05-13 GBR\1.png",

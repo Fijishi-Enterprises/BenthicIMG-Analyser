@@ -211,10 +211,10 @@ def write_annotations_cpc(cpc_stream: StringIO, img: Image, cpc_prefs: dict):
             min_x=0, max_x=img.max_column,
             min_y=0, max_y=img.max_row)
 
-    bound_left = anno_area['min_x'] * 15
-    bound_right = anno_area['max_x'] * 15
-    bound_top = anno_area['min_y'] * 15
-    bound_bottom = anno_area['max_y'] * 15
+    bound_left = str(anno_area['min_x'] * 15)
+    bound_right = str(anno_area['max_x'] * 15)
+    bound_top = str(anno_area['min_y'] * 15)
+    bound_bottom = str(anno_area['max_y'] * 15)
     annotation_area = dict(
         bottom_left=[bound_left, bound_bottom],
         bottom_right=[bound_right, bound_bottom],
@@ -229,7 +229,7 @@ def write_annotations_cpc(cpc_stream: StringIO, img: Image, cpc_prefs: dict):
 
     for point_obj in point_objs:
 
-        # Point positions.
+        # Point positions, as ints.
         # <x from left, y from top> of each point in numerical order,
         # seemingly using the x15 scaling.
         # CPCe point positions are on a scale of 15 units = 1 pixel, and
@@ -257,14 +257,15 @@ def write_annotations_cpc(cpc_stream: StringIO, img: Image, cpc_prefs: dict):
         points.append(dict(
             x=point_left,
             y=point_top,
-            number_label=point_obj.point_number,
+            number_label=str(point_obj.point_number),
             id=cpc_id,
             notes=cpc_notes,
         ))
 
-    # Header fields.
-    # They're ' ' when not specified.
-    headers = [' ']*28
+    # Header fields. CPCe 4.1 has empty strings by default. Other versions
+    # have ' ' by default. Still other versions, like 3.5, have no header
+    # lines at all. We'll go with CPCe 4.1 (latest) behavior.
+    headers = ['']*28
 
     cpc = CpcFileContent(
         code_filepath,
@@ -448,6 +449,11 @@ class CpcFileContent:
             = read_line(6)
 
         # Lines 2-5: annotation area bounds
+        # CPCe saves these numbers anywhere from 0 to 4 decimal places.
+        # We'll store these numbers as strings, since 1) storing exact
+        # float values takes a bit more care compared to ints, and
+        # 2) CoralNet doesn't have any reason to read/manipulate
+        # these numeric values later on.
         annotation_area = dict(
             bottom_left=read_line(2),
             bottom_right=read_line(2),
@@ -528,19 +534,32 @@ class CpcFileContent:
         return line_tokens
 
     def write_cpc(self, cpc_stream: StringIO) -> None:
-        # Each line is a series of comma-separated tokens,
-        # so the CSV module works well enough.
-        # Some tokens are quoted and some aren't, seemingly without checking
-        # for presence of spaces, etc. We'll handle quotes on our own to
-        # ensure we match this behavior.
-        writer = csv.writer(
-            cpc_stream, quotechar=None, quoting=csv.QUOTE_NONE)
+        # Each line is a series of comma-separated tokens. However, the
+        # CSV module isn't quite able to imitate CPCe's behavior, because
+        # CPCe unconditionally quotes some tokens and not others, even
+        # varying the rule on the same line for line 1's case.
+        # Also, the way CPCe does quoting is different from the CSV module.
+        # So we'll manually write to the stream.
 
+        def writerow(tokens):
+            tokens = [str(t) for t in tokens]
+            # CPCe is Windows software, so it's going to use Windows
+            # newlines.
+            newline = '\r\n'
+            cpc_stream.write(','.join(tokens) + newline)
         def quoted(s):
+            # CPCe does not seem to have a way of escaping quote chars.
+            # If there are any quote chars within a value, CPCe likely
+            # won't read the file properly.
+            # To minimize the potential for server errors and multi-field
+            # data corruption (in the event these CPC files keep getting
+            # passed between CPCe/CoralNet), we'll remove any quote chars
+            # from the value.
+            s = s.replace('"', '')
             return f'"{s}"'
 
         # Line 1: environment info and image dimensions
-        writer.writerow([
+        writerow([
             quoted(self.code_filepath),
             quoted(self.image_filepath),
             self.image_width,
@@ -550,21 +569,21 @@ class CpcFileContent:
         ])
 
         # Lines 2-5: annotation area bounds
-        writer.writerow(self.annotation_area['bottom_left'])
-        writer.writerow(self.annotation_area['bottom_right'])
-        writer.writerow(self.annotation_area['top_right'])
-        writer.writerow(self.annotation_area['top_left'])
+        writerow(self.annotation_area['bottom_left'])
+        writerow(self.annotation_area['bottom_right'])
+        writerow(self.annotation_area['top_right'])
+        writerow(self.annotation_area['top_left'])
 
         # Line 6: number of points
-        writer.writerow([len(self.points)])
+        writerow([len(self.points)])
 
         # Next num_points lines: point positions
         for point in self.points:
-            writer.writerow([point['x'], point['y']])
+            writerow([point['x'], point['y']])
 
         # Next num_points lines: point ID/Notes data
         for point in self.points:
-            writer.writerow([
+            writerow([
                 quoted(point['number_label']),
                 quoted(point['id']),
                 quoted('Notes'),
@@ -573,7 +592,7 @@ class CpcFileContent:
 
         # Header fields
         for header in self.headers:
-            writer.writerow([quoted(header)])
+            writerow([quoted(header)])
 
     def find_matching_image(self, source):
 

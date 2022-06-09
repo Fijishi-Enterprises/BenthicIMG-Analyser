@@ -212,7 +212,7 @@ class FilepathFieldsTest(CPCExportBaseTest):
             '1000,1000',
             '"1","A","Notes","AC"',
         ]
-        cpc_lines.extend(['" "']*28)
+        cpc_lines.extend(['""']*28)
         cpc_content = '\r\n'.join(cpc_lines) + '\r\n'
 
         f = ContentFile(cpc_content, name=cpc_filename)
@@ -714,7 +714,7 @@ class CPCFullContentsTest(CPCExportBaseTest, UploadAnnotationsCsvTestMixin):
             '"2","","Notes",""',
         ]
         # Blank header fields
-        expected_lines.extend(['" "']*28)
+        expected_lines.extend(['""']*28)
 
         self.assert_cpc_content_equal(actual_cpc_content, expected_lines)
 

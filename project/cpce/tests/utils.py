@@ -72,8 +72,8 @@ class UploadAnnotationsCpcTestMixin(UploadAnnotationsTestMixin, ABC):
                 f'"{point_number}","{cpc_id}","Notes","{cpc_notes}"\n')
         stream.writelines(label_code_lines)
 
-        # Metadata
-        stream.writelines(['" "\n']*28)
+        # Headers
+        stream.writelines(['""\n']*28)
 
         f = ContentFile(stream.getvalue(), name=cpc_filename)
         return f

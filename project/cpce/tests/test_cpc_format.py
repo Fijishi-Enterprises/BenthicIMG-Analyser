@@ -4,25 +4,32 @@
 
 from io import StringIO
 
-from django.core.files.base import ContentFile
-
 from lib.exceptions import FileProcessError
-from lib.tests.utils import ClientTest
+from lib.tests.utils import BaseTest
 from ..utils import CpcFileContent
 
 
-class CPCFormatTest(ClientTest):
+class CpcFormatTest(BaseTest):
 
     @classmethod
     def read_cpc_as_lines(
         cls,
         line1='"a","b",0,0,0,0',
-        area_lines=['0,0']*4,
+        area_lines=None,
         point_count_line='1',
-        point_position_lines=['0,0'],
-        point_label_lines=['"1","A","Notes",""'],
-        header_lines=['""']*28,
+        point_position_lines=None,
+        point_label_lines=None,
+        header_lines=None,
     ):
+        if area_lines is None:
+            area_lines = ['0,0']*4
+        if point_position_lines is None:
+            point_position_lines = ['0,0']
+        if point_label_lines is None:
+            point_label_lines = ['"1","A","Notes",""']
+        if header_lines is None:
+            header_lines = ['""']*28
+
         lines = (
             [line1] + area_lines + [point_count_line]
             + point_position_lines + point_label_lines + header_lines

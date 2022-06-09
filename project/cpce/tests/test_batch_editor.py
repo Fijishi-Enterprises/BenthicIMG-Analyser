@@ -47,12 +47,21 @@ class MainTest(ClientTest):
     @staticmethod
     def make_cpc_lines(
         line1='"a","b",0,0,0,0',
-        area_lines=['0,0']*4,
+        area_lines=None,
         point_count_line='1',
-        point_position_lines=['0,0'],
-        point_label_lines=['"1","","Notes",""'],
-        header_lines=['""']*28,
+        point_position_lines=None,
+        point_label_lines=None,
+        header_lines=None,
     ):
+        if area_lines is None:
+            area_lines = ['0,0']*4
+        if point_position_lines is None:
+            point_position_lines = ['0,0']
+        if point_label_lines is None:
+            point_label_lines = ['"1","","Notes",""']
+        if header_lines is None:
+            header_lines = ['""']*28
+
         return (
             [line1] + area_lines + [point_count_line]
             + point_position_lines + point_label_lines + header_lines

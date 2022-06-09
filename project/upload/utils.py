@@ -85,6 +85,9 @@ def csv_to_dicts(
 
     # Read the data rows.
     for row in reader:
+        # Pad the row to the same number of columns as the column headers.
+        row = row + ['']*(len(csv_headers) - len(row))
+
         row_data = dict()
         for h, cell_value in zip(csv_headers_standard_case, row):
             if not h:
@@ -387,7 +390,7 @@ def annotations_preview(
         num_csv_points = len(points_list)
         total_csv_points += num_csv_points
         num_csv_annotations = \
-            sum(1 for point_dict in points_list if 'label' in point_dict)
+            sum(1 for point_dict in points_list if point_dict.get('label'))
         total_csv_annotations += num_csv_annotations
         preview_dict['createInfo'] = \
             "Will create {points} points, {annotations} annotations".format(

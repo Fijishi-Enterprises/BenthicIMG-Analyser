@@ -399,25 +399,25 @@ class ContentsEdgeAndErrorCasesTest(ClientTest, UploadAnnotationsCpcTestMixin):
     def test_row_not_number(self):
         self.do_error(
             [(50*15, '?.;')],
-            "From file 1.cpc, point 1:"
+            "From file 1.cpc: Point 1:"
             " Row should be a non-negative integer, not ?.;")
 
     def test_column_not_number(self):
         self.do_error(
             [('abc2', 50*15)],
-            "From file 1.cpc, point 1:"
+            "From file 1.cpc: Point 1:"
             " Column should be a non-negative integer, not abc2")
 
     def test_row_is_float(self):
         self.do_error(
             [(50*15, 40*15+0.8)],
-            "From file 1.cpc, point 1:"
+            "From file 1.cpc: Point 1:"
             " Row should be a non-negative integer, not 600.8")
 
     def test_column_is_float(self):
         self.do_error(
             [(50*15+0.88, 40*15)],
-            "From file 1.cpc, point 1:"
+            "From file 1.cpc: Point 1:"
             " Column should be a non-negative integer, not 750.88")
 
     def test_row_minimum_value(self):
@@ -433,13 +433,13 @@ class ContentsEdgeAndErrorCasesTest(ClientTest, UploadAnnotationsCpcTestMixin):
     def test_row_too_small(self):
         self.do_error(
             [(50*15, -1)],
-            "From file 1.cpc, point 1:"
+            "From file 1.cpc: Point 1:"
             " Row should be a non-negative integer, not -1")
 
     def test_column_too_small(self):
         self.do_error(
             [(-1, 50*15)],
-            "From file 1.cpc, point 1:"
+            "From file 1.cpc: Point 1:"
             " Column should be a non-negative integer, not -1")
 
     def test_row_maximum_value(self):
@@ -455,7 +455,7 @@ class ContentsEdgeAndErrorCasesTest(ClientTest, UploadAnnotationsCpcTestMixin):
     def test_row_too_large(self):
         self.do_error(
             [(50*15, 100*15)],
-            "From file 1.cpc, point 1:"
+            "From file 1.cpc: Point 1:"
             " Row value of 1500 corresponds to pixel 100,"
             " but image 1.png is only 100 pixels high"
             " (accepted values are 0~99)")
@@ -463,7 +463,7 @@ class ContentsEdgeAndErrorCasesTest(ClientTest, UploadAnnotationsCpcTestMixin):
     def test_column_too_large(self):
         self.do_error(
             [(200*15, 50*15)],
-            "From file 1.cpc, point 1:"
+            "From file 1.cpc: Point 1:"
             " Column value of 3000 corresponds to pixel 200,"
             " but image 1.png is only 200 pixels wide"
             " (accepted values are 0~199)")
@@ -482,7 +482,7 @@ class ContentsEdgeAndErrorCasesTest(ClientTest, UploadAnnotationsCpcTestMixin):
     def test_label_not_in_labelset(self):
         self.do_error(
             [(150*15, 90*15, 'B'), (20*15, 20*15, 'C')],
-            "From file 1.cpc, point 2:"
+            "From file 1.cpc: Point 2:"
             " No label of code C found in this source's labelset")
 
     def test_no_specified_images_found_in_source(self):
@@ -538,8 +538,8 @@ class FormatTest(UploadAnnotationsFormatTest, UploadAnnotationsCpcTestMixin):
         self.check(preview_response, upload_response, self.img1, 'い')
 
     def test_crlf(self):
-        """Don't know if CPC with crlf newlines is possible in practice, but
-        might as well test that it works."""
+        """Most of the CPC tests use linefeed only, but CPCe is Windows
+        software, so it'll use carriage return + linefeed."""
         cpc_file_lf = self.make_annotations_file(
             self.image_dimensions,
             '1.cpc', r"C:\My Photos\2017-05-13 GBR\1.png",

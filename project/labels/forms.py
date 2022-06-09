@@ -16,21 +16,20 @@ from django.utils.safestring import mark_safe
 from annotations.utils import label_ids_with_confirmed_annotations_in_source
 from lib.exceptions import FileProcessError
 from lib.forms import get_one_form_error
-from upload.utils import csv_to_dict
+from upload.utils import csv_to_dicts
 from .models import Label, LabelGroup, LabelSet, LocalLabel
 from .utils import search_labels_by_text
 
 
 def labels_csv_process(csv_stream, source):
-    csv_data = csv_to_dict(
+    csv_data = csv_to_dicts(
         csv_stream=csv_stream,
-        required_columns=[
-            ('global_label_id', "Label ID"),
-            ('code', "Short code"),
-        ],
-        optional_columns=[],
-        key_columns=['global_label_id'],
-        multiple_rows_per_key=False,
+        required_columns=dict(
+            global_pk_str="Label ID",
+            code="Short code",
+        ),
+        optional_columns=dict(),
+        unique_keys=['global_pk_str'],
     )
 
     local_labels = OrderedDict()
@@ -40,21 +39,21 @@ def labels_csv_process(csv_stream, source):
         for local_label in source.labelset.get_labels():
             local_labels[local_label.global_label.pk] = local_label
 
-    for global_pk_str, label_data in csv_data.items():
+    for label_d in csv_data:
         try:
-            global_pk = int(global_pk_str)
+            global_pk = int(label_d['global_pk_str'])
             Label.objects.get(pk=global_pk)
         except (ValueError, Label.DoesNotExist):
             raise FileProcessError(
-                "CSV has non-existent label id: {pk}".format(pk=global_pk_str))
+                f"CSV has non-existent label id: {label_d['global_pk_str']}")
 
         if global_pk in local_labels:
             # Exists in labelset; we'll use the same local label object
             # but update the fields
-            form = LocalLabelForm(label_data, instance=local_labels[global_pk])
+            form = LocalLabelForm(label_d, instance=local_labels[global_pk])
         else:
             # New to labelset
-            form = LocalLabelForm(label_data)
+            form = LocalLabelForm(label_d)
 
         if not form.is_valid():
             raise FileProcessError("Row with id {pk} - {error}".format(
@@ -65,7 +64,7 @@ def labels_csv_process(csv_stream, source):
         # save the user's input.
         local_labels[global_pk] = form.instance
         # The form doesn't have the global label info, so set that.
-        local_labels[global_pk].global_label_id = label_data['global_label_id']
+        local_labels[global_pk].global_label_id = global_pk
 
     # Dict -> flat iterable.
     local_labels = list(local_labels.values())

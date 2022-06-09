@@ -4,7 +4,7 @@ from django.core.cache import cache
 
 from labels.models import Label
 from lib.exceptions import FileProcessError
-from upload.utils import csv_to_dict
+from upload.utils import csv_to_dicts
 from .models import CalcifyRateTable
 
 
@@ -42,43 +42,42 @@ def label_has_calcify_rates(label):
 
 
 def rate_table_csv_to_json(csv_stream):
-    csv_data = csv_to_dict(
+    csv_data = csv_to_dicts(
         csv_stream=csv_stream,
-        required_columns=[
-            ('label_name', "Name"),
-            ('mean', "Mean"),
-            ('lower_bound', "Lower bound"),
-            ('upper_bound', "Upper bound"),
-        ],
-        optional_columns=[],
-        key_columns=['label_name'],
-        multiple_rows_per_key=False,
+        required_columns=dict(
+            label_name="Name",
+            mean="Mean",
+            lower_bound="Lower bound",
+            upper_bound="Upper bound",
+        ),
+        optional_columns=dict(),
+        unique_keys=['label_name'],
     )
 
     rates_json = dict()
 
-    for label_name, label_rate_data in csv_data.items():
+    for row_d in csv_data:
 
         try:
             # Case insensitive name search
-            label_id = Label.objects.get(name__iexact=label_name).pk
+            label_id = Label.objects.get(name__iexact=row_d['label_name']).pk
         except Label.DoesNotExist:
             raise FileProcessError(
-                "Label name not found: {}".format(label_name))
+                f"Label name not found: {row_d['label_name']}")
 
         # Ensure rates are numbers
         for key in ['mean', 'lower_bound', 'upper_bound']:
             try:
-                float(label_rate_data[key])
+                float(row_d[key])
             except ValueError:
                 raise FileProcessError(
-                    f"{key} value '{label_rate_data[key]}'"
+                    f"{key} value '{row_d[key]}'"
                     " couldn't be converted to a number.")
 
         rates_json[label_id] = dict(
-            mean=label_rate_data['mean'],
-            lower_bound=label_rate_data['lower_bound'],
-            upper_bound=label_rate_data['upper_bound'],
+            mean=row_d['mean'],
+            lower_bound=row_d['lower_bound'],
+            upper_bound=row_d['upper_bound'],
         )
 
     return rates_json

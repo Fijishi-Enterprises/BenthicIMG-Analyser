@@ -1,21 +1,22 @@
 import codecs
-from collections import OrderedDict
+from collections import defaultdict, OrderedDict
 import csv
 from io import StringIO
+from typing import Callable, Dict, List, Optional, Tuple
 
-# PyCharm may warn that this isn't declared in __all__, but this import
-# simply matches BS4's docs as of 2018/12:
-# https://www.crummy.com/software/BeautifulSoup/bs4/doc/#unicode-dammit
-from bs4 import UnicodeDammit
+from bs4.dammit import UnicodeDammit
 from django.urls import reverse
 
 from annotations.models import ImageAnnotationInfo
 from images.forms import MetadataForm
-from images.models import Metadata, Image
-from images.utils import generate_points, aux_label_name_collisions, \
-    metadata_field_names_to_labels
-from vision_backend.models import Features
+from images.models import Image, Metadata, Source
+from images.utils import (
+    aux_label_name_collisions,
+    generate_points,
+    metadata_field_names_to_labels,
+)
 from lib.exceptions import FileProcessError
+from vision_backend.models import Features
 
 
 def text_file_to_unicode_stream(text_file):
@@ -25,192 +26,157 @@ def text_file_to_unicode_stream(text_file):
     return StringIO(unicode_text, newline='')
 
 
-# TODO: See if this function can be re-used for metadata and annotation upload.
-def csv_to_dict(
-        csv_stream, required_columns, optional_columns,
-        key_columns, multiple_rows_per_key):
+def csv_to_dicts(
+        csv_stream: StringIO,
+        required_columns: Dict[str, str],
+        optional_columns: Dict[str, str],
+        unique_keys: List[str],
+        more_column_checks: Optional[Callable[[List[str]], None]] = None,
+) -> List[dict]:
+    """
+    required_columns must be filled in for every row.
+    optional_columns may have blank cells and may not be included in the
+    CSV at all.
+    """
+    # DictReader is not used here, because the fact that column names need
+    # to be transformed to get the dict keys makes usage a bit clunky.
     reader = csv.reader(csv_stream, dialect='excel')
 
     # Read the first row, which should have column headers.
-    column_headers = next(reader)
+    csv_headers = next(reader)
     # There could be a UTF-8 BOM character at the start of the file.
     # Strip it in that case.
-    column_headers[0] = column_headers[0].lstrip(
-        codecs.BOM_UTF8.decode())
+    csv_headers[0] = csv_headers[0].lstrip(codecs.BOM_UTF8.decode())
     # Strip whitespace in general.
-    column_headers = [h.strip() for h in column_headers]
+    csv_headers = [h.strip() for h in csv_headers]
 
-    # Ensure column header recognition is case insensitive.
-    column_headers = [h.lower() for h in column_headers]
+    # Combine required and optional.
+    known_columns = dict(**required_columns, **optional_columns)
+    # Make a reverse lookup.
+    known_headers_to_keys = dict(
+        (h, k) for k, h in known_columns.items())
 
-    # Enforce required column headers.
-    required_column_headers = [h for key, h in required_columns]
-    for h in required_column_headers:
-        if h.lower() not in column_headers:
-            raise FileProcessError(
-                "CSV must have a column called {h}".format(h=h))
+    # To facilitate header matching, use the same case as what's used in
+    # known_columns.
+    csv_headers_standard_case = []
+    for csv_h in csv_headers:
+        standard_case = None
+        for known_h in known_columns.values():
+            if csv_h.lower() == known_h.lower():
+                standard_case = known_h
+                break
+        if standard_case:
+            csv_headers_standard_case.append(standard_case)
+        else:
+            csv_headers_standard_case.append(None)
+    accepted_headers = [
+        h for h in csv_headers_standard_case if h is not None]
 
-    # Map column text headers to string keys we want in the result dict.
-    # Ignore columns we don't recognize. We'll indicate this by making the
-    # column key None.
-    recognized_columns = required_columns + optional_columns
-    column_headers_to_keys = dict(
-        (h.lower(), key) for key, h in recognized_columns)
-    column_keys = [
-        column_headers_to_keys.get(h, None)
-        for h in column_headers
-    ]
+    # Enforce required columns.
+    for h in required_columns.values():
+        if h not in accepted_headers:
+            raise FileProcessError(f"CSV must have a column called {h}")
+    # Enforce any other column constraints.
+    if more_column_checks:
+        more_column_checks(accepted_headers)
 
-    # Use these later.
-    required_column_keys = [key for key, header in required_columns]
-    column_keys_to_headers = dict(
-        (k, h) for k, h in recognized_columns)
-
-    csv_data = OrderedDict()
+    row_dicts = []
+    unique_values = set()
 
     # Read the data rows.
-    for row_number, row in enumerate(reader, start=2):
-        # strip() removes leading/trailing whitespace from the CSV value.
-        # A column key of None indicates that we're ignoring that column.
-        row_data = OrderedDict(
-            (k, value.strip())
-            for (k, value) in zip(column_keys, row)
-            if k is not None
-        )
+    for row in reader:
+        # Pad the row to the same number of columns as the column headers.
+        row = row + ['']*(len(csv_headers) - len(row))
+
+        row_data = dict()
+        for h, cell_value in zip(csv_headers_standard_case, row):
+            if not h:
+                # Not a known column header
+                continue
+            key = known_headers_to_keys[h]
+            row_data[key] = cell_value.strip()
 
         # Enforce presence of a value for each required column.
-        for k in required_column_keys:
+        for k in required_columns.keys():
             if row_data[k] == '':
                 raise FileProcessError(
-                    "CSV row {n}: Must have a value for {h}".format(
-                        n=row_number, h=column_keys_to_headers[k]))
+                    f"CSV row {reader.line_num}:"
+                    f" Must have a value for {known_columns[k]}")
 
-        # "Key columns" are the columns that 'identify' each row. There must be
-        # at least one key column name given. More than one can be given.
-        if len(key_columns) > 1:
-            data_key = tuple([row_data[col] for col in key_columns])
-        else:
-            data_key = row_data[key_columns[0]]
-
-        if multiple_rows_per_key:
-            # A defaultdict could make this a bit cleaner, but there's no
-            # ordered AND default dict built into Python.
-            if data_key not in csv_data:
-                csv_data[data_key] = []
-            csv_data[data_key].append(row_data)
-        else:
-            # Only one data value allowed per key.
-            if data_key in csv_data:
-                key_headers = " + ".join(
-                    [column_keys_to_headers[col] for col in key_columns])
+        # Check for uniqueness of values under the unique_keys.
+        # If unique_keys has more than one key, it specifies
+        # columns that are unique *together*.
+        if unique_keys:
+            if len(unique_keys) > 1:
+                unique_value = tuple(row_data[key] for key in unique_keys)
+            else:
+                unique_value = row_data[unique_keys[0]]
+            if unique_value in unique_values:
+                unique_headers_str = ' + '.join(
+                    known_columns[k] for k in unique_keys)
                 raise FileProcessError(
-                    "More than one row with the same {key_headers}:"
-                    " {data_key}".format(
-                        key_headers=key_headers,
-                        data_key=data_key))
-            csv_data[data_key] = row_data
+                    f"More than one row with the same"
+                    f" {unique_headers_str}: {unique_value}")
+            unique_values.add(unique_value)
 
-    if len(csv_data) == 0:
+        row_dicts.append(row_data)
+
+    if len(row_dicts) == 0:
         raise FileProcessError("No data rows found in the CSV.")
 
-    return csv_data
+    return row_dicts
 
 
-def metadata_csv_to_dict(csv_stream, source):
+def metadata_csv_to_dict(
+        csv_stream: StringIO, source: Source) -> Dict[int, Dict]:
     """
     Go from metadata CSV file stream to a dict of metadata dicts.
-    The first CSV row is assumed to have metadata field labels like
+    Valid column headers are metadata field labels like
     "Date", "Aux3", and "White balance card".
-
-    DictReader is not used here because (1) it can't return an OrderedDict,
-    and (2) the fact that column names need to be transformed to get the
-    dict keys makes usage a bit clunky.
     """
-    reader = csv.reader(csv_stream, dialect='excel')
-
-    # Read the first row, which should have column names.
-    column_names = next(reader)
-    # There could be a UTF-8 BOM character at the start of the file.
-    # Strip it in that case.
-    column_names[0] = column_names[0].lstrip(codecs.BOM_UTF8.decode())
-    column_names = [n.lower().strip() for n in column_names]
-
-    # The column names are field labels (e.g. Date) while we want
-    # dicts of the metadata model fields' names (e.g. photo_date).
-    #
-    # lower() is used to tolerate the CSV column names being in a different
-    # case from the model fields' names.
-    #
-    # If a column name doesn't match any metadata field, we'll use
-    # a field name of None to indicate that we're ignoring that column.
-    field_names_to_labels = metadata_field_names_to_labels(source)
-    field_labels_to_names = dict(
-        (v.lower(), k)
-        for k, v in field_names_to_labels.items()
-    )
-    fields_of_columns = [
-        field_labels_to_names.get(label, None)
-        for label in column_names
-    ]
-
     dupe_labels = aux_label_name_collisions(source)
     if dupe_labels:
         raise FileProcessError(
-            "More than one metadata field uses the label '{}'."
+            f"More than one metadata field uses the label '{dupe_labels[0]}'."
             " Your auxiliary fields' names must be unique"
-            " and different from the default metadata fields.".format(
-                dupe_labels[0]))
+            " and different from the default metadata fields.")
 
-    if 'name' not in column_names:
-        raise FileProcessError("CSV must have a column called Name")
-
-    if len(set(fields_of_columns) - {None}) <= 1:
-        # If we subtract the ignored columns,
-        # all we are left with is the name column
-        raise FileProcessError(
-            "CSV must have at least one metadata column other than Name")
-
-    csv_metadata = OrderedDict()
-    image_names_seen = set()
-
-    # Read the rest of the rows, which have metadata for one image per row.
-    for row in reader:
-        # Make a metadata dict for one image,
-        # e.g. {photo_date='2016-06-12', camera='Nikon', ...}
-        # A field name of None indicates that we're ignoring that column.
-        # strip() removes leading/trailing whitespace from the CSV value.
-        metadata_for_image = OrderedDict(
-            (k, v.strip())
-            for (k, v) in zip(fields_of_columns, row)
-            if k is not None
-        )
-
-        image_name = metadata_for_image['name']
-        if image_name in image_names_seen:
+    def exists_non_name_column(accepted_columns):
+        if len(accepted_columns) <= 1:
             raise FileProcessError(
-                "More than one row with the same image name: {}".format(
-                    image_name))
-        image_names_seen.add(image_name)
+                "CSV must have at least one metadata column other than Name")
 
-        csv_metadata[image_name] = metadata_for_image
+    metadata_fields_dict = metadata_field_names_to_labels(source)
+    csv_metadata = csv_to_dicts(
+        csv_stream,
+        required_columns=dict(name=metadata_fields_dict['name']),
+        optional_columns=dict(
+            (k, v)
+            for k, v in metadata_fields_dict.items()
+            if k != 'name'
+        ),
+        unique_keys=['name'],
+        more_column_checks=exists_non_name_column,
+    )
 
     verified_csv_metadata = metadata_csv_verify_contents(csv_metadata, source)
 
     return verified_csv_metadata
 
 
-def metadata_csv_verify_contents(csv_metadata_by_image_name, source):
+def metadata_csv_verify_contents(
+        row_dicts: List[Dict], source: Source) -> Dict[int, Dict]:
     """
-    Argument dict is indexed by image name. We'll create a new dict indexed
-    by metadata id, while verifying image existence and metadata validity.
+    Return dict has keys = metadata id, value = input dict.
+    Meanwhile, this verifies image existence and metadata validity.
     """
     csv_metadata = OrderedDict()
 
-    for image_name, metadata_for_image in csv_metadata_by_image_name.items():
+    for metadata_for_image in row_dicts:
 
         try:
-            metadata = \
-                Metadata.objects.get(name=image_name, image__source=source)
+            metadata = Metadata.objects.get(
+                name=metadata_for_image['name'], image__source=source)
         except Metadata.DoesNotExist:
             # This filename isn't in the source. Just skip this CSV row
             # without raising an error. It could be an image the user is
@@ -292,58 +258,32 @@ def metadata_preview(csv_metadata, source):
     return table, details
 
 
-def annotations_csv_to_dict(csv_stream, source):
+def annotations_csv_to_dict(
+        csv_stream: StringIO, source: Source) -> Dict[int, List[Dict]]:
     """
-    Go from annotations CSV file stream to
-    dict of (image ids -> lists of dicts with keys row, column, (opt.) label).
+    Returned dict has keys = image ids, and
+    values = lists of dicts with keys row, column, (opt.) label).
 
-    The first CSV row is assumed to have column headers.
-    Valid headers: Name, Row, Column, Label (not case sensitive)
+    Valid CSV headers: Name, Row, Column, Label (not case sensitive)
     Label is optional.
     """
-    reader = csv.reader(csv_stream, dialect='excel')
+    row_dicts = csv_to_dicts(
+        csv_stream,
+        required_columns=dict(
+            name="Name",
+            row="Row",
+            column="Column",
+        ),
+        optional_columns=dict(
+            label="Label",
+        ),
+        unique_keys=[],
+    )
 
-    # Read the first row, which should have column names.
-    column_names = next(reader)
-    # There could be a UTF-8 BOM character at the start of the file.
-    # Strip it in that case.
-    column_names[0] = column_names[0].lstrip(codecs.BOM_UTF8.decode())
-    column_names = [name.lower().strip() for name in column_names]
-
-    required_field_names = ['name', 'row', 'column']
-    field_names = required_field_names + ['label']
-    fields_of_columns = [
-        name if name in field_names else None
-        for name in column_names
-    ]
-
-    for name in required_field_names:
-        if name not in column_names:
-            raise FileProcessError(
-                "CSV must have a column called {name}".format(
-                    name=name.title()))
-
-    csv_annotations = OrderedDict()
-
-    # Read the rest of the rows. Each row has data for one point.
-    for row in reader:
-        csv_point_dict = OrderedDict(
-            (k, v.strip())
-            for (k, v) in zip(fields_of_columns, row)
-            if k is not None and v != ''
-        )
-
-        for name in required_field_names:
-            if name not in csv_point_dict:
-                raise FileProcessError(
-                    "CSV row {line_num} is missing a {name} value".format(
-                        line_num=reader.line_num, name=name.title()))
-
-        image_name = csv_point_dict.pop('name')
-        if image_name not in csv_annotations:
-            csv_annotations[image_name] = []
-
-        csv_annotations[image_name].append(csv_point_dict)
+    csv_annotations = defaultdict(list)
+    for row_dict in row_dicts:
+        image_name = row_dict.pop('name')
+        csv_annotations[image_name].append(row_dict)
 
     # So far we've checked the CSV formatting. Now check the validity
     # of the contents.
@@ -374,8 +314,7 @@ def annotations_csv_verify_contents(csv_annotations, source):
             # Check that row/column are integers within the image dimensions.
 
             point_error_prefix = \
-                "For image {image_name}, point {point_number}:".format(
-                    image_name=image_name, point_number=point_number)
+                f"For image {image_name}, point {point_number}:"
 
             row_str = point_dict['row']
             try:
@@ -385,8 +324,7 @@ def annotations_csv_verify_contents(csv_annotations, source):
             except ValueError:
                 raise FileProcessError(
                     point_error_prefix +
-                    " Row should be a non-negative integer, not {row}".format(
-                        row=row_str))
+                    f" Row should be a non-negative integer, not {row_str}")
 
             column_str = point_dict['column']
             try:
@@ -396,37 +334,31 @@ def annotations_csv_verify_contents(csv_annotations, source):
             except ValueError:
                 raise FileProcessError(
                     point_error_prefix +
-                    " Column should be a non-negative integer,"
-                    " not {column}".format(
-                        column=column_str))
+                    f" Column should be a non-negative integer,"
+                    f" not {column_str}")
 
             if row > img.max_row:
                 raise FileProcessError(
                     point_error_prefix +
-                    " Row value is {row},"
-                    " but the image is only {height} pixels high"
-                    " (accepted values are 0~{max_row})".format(
-                        row=row, height=img.original_height,
-                        max_row=img.max_row))
+                    f" Row value is {row}, but"
+                    f" the image is only {img.original_height} pixels high"
+                    f" (accepted values are 0~{img.max_row})")
 
             if column > img.max_column:
                 raise FileProcessError(
                     point_error_prefix +
-                    " Column value is {column},"
-                    " but the image is only {width} pixels wide"
-                    " (accepted values are 0~{max_column})".format(
-                        column=column, width=img.original_width,
-                        max_column=img.max_column))
+                    f" Column value is {column}, but"
+                    f" the image is only {img.original_width} pixels wide"
+                    f" (accepted values are 0~{img.max_column})")
 
-            if 'label' in point_dict:
+            label_code = point_dict.get('label')
+            if label_code:
                 # Check that the label is in the labelset
-                label_code = point_dict['label']
                 if not source.labelset.get_global_by_code(label_code):
                     raise FileProcessError(
                         point_error_prefix +
-                        " No label of code {code} found"
-                        " in this source's labelset".format(
-                            code=label_code))
+                        f" No label of code {label_code} found"
+                        f" in this source's labelset")
 
         annotations[img.pk] = annotations_for_image
 
@@ -436,7 +368,11 @@ def annotations_csv_verify_contents(csv_annotations, source):
     return annotations
 
 
-def annotations_preview(csv_annotations, source):
+def annotations_preview(
+        csv_annotations: Dict[int, list],
+        source: Source,
+) -> Tuple[list, dict]:
+
     table = []
     details = dict()
     total_csv_points = 0
@@ -454,7 +390,7 @@ def annotations_preview(csv_annotations, source):
         num_csv_points = len(points_list)
         total_csv_points += num_csv_points
         num_csv_annotations = \
-            sum(1 for point_dict in points_list if 'label' in point_dict)
+            sum(1 for point_dict in points_list if point_dict.get('label'))
         total_csv_annotations += num_csv_annotations
         preview_dict['createInfo'] = \
             "Will create {points} points, {annotations} annotations".format(

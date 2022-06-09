@@ -1056,7 +1056,7 @@ class UploadMetadataPreviewErrorTest(ClientTest):
             preview_response.json(),
             dict(
                 error=(
-                    "More than one row with the same image name: 1.png"
+                    "More than one row with the same Name: 1.png"
                 ),
             ),
         )

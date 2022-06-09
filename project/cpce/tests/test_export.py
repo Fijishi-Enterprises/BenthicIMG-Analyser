@@ -4,8 +4,8 @@ from zipfile import ZipFile
 from bs4 import BeautifulSoup
 from django.core.files.base import ContentFile
 from django.urls import reverse
+from django.utils.html import escape as html_escape
 
-from export.utils import write_zip
 from images.model_utils import PointGen
 from images.models import Image
 from lib.tests.utils import BasePermissionTest, ClientTest
@@ -20,9 +20,11 @@ class PermissionTest(BasePermissionTest):
             'cpce:export_prepare_ajax', args=[self.source.pk])
 
         self.source_to_private()
-        self.assertPermissionLevel(url, self.SOURCE_EDIT, is_json=True)
+        self.assertPermissionLevel(
+            url, self.SOURCE_EDIT, is_json=True, post_data={})
         self.source_to_public()
-        self.assertPermissionLevel(url, self.SOURCE_EDIT, is_json=True)
+        self.assertPermissionLevel(
+            url, self.SOURCE_EDIT, is_json=True, post_data={})
 
     def test_cpc_serve(self):
         # Without session variables from export-prepare, this should redirect
@@ -72,11 +74,15 @@ class CPCExportBaseTest(ClientTest):
           zip file raw string if the view ran without errors.
         """
         self.client.force_login(self.user)
-        self.client.post(
+        prepare_response = self.client.post(
             reverse('cpce:export_prepare_ajax', args=[self.source.pk]),
-            post_data)
-        return self.client.post(
-            reverse('cpce:export_serve', args=[self.source.pk]))
+            post_data,
+        )
+        timestamp = prepare_response.json()['session_data_timestamp']
+        return self.client.get(
+            reverse('cpce:export_serve', args=[self.source.pk]),
+            dict(session_data_timestamp=timestamp),
+        )
 
     @staticmethod
     def export_response_to_cpc(response, cpc_filename):
@@ -206,7 +212,7 @@ class FilepathFieldsTest(CPCExportBaseTest):
             '1000,1000',
             '"1","A","Notes","AC"',
         ]
-        cpc_lines.extend(['" "']*28)
+        cpc_lines.extend(['""']*28)
         cpc_content = '\r\n'.join(cpc_lines) + '\r\n'
 
         f = ContentFile(cpc_content, name=cpc_filename)
@@ -708,7 +714,7 @@ class CPCFullContentsTest(CPCExportBaseTest, UploadAnnotationsCsvTestMixin):
             '"2","","Notes",""',
         ]
         # Blank header fields
-        expected_lines.extend(['" "']*28)
+        expected_lines.extend(['""']*28)
 
         self.assert_cpc_content_equal(actual_cpc_content, expected_lines)
 
@@ -1114,7 +1120,6 @@ class UnicodeTest(CPCExportBaseTest):
         cls.source = cls.create_source(
             cls.user,
             simple_number_of_points=3,
-            confidence_threshold=80,
         )
 
         labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
@@ -1247,6 +1252,75 @@ class DiscardCPCAfterPointsChangeTest(
             msg="img2's CPC content should be unchanged")
 
 
+class SessionErrorTest(ClientTest):
+    """Test session-related error cases on the serve view."""
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(cls.user)
+
+    def test_no_session_data_timestamp(self):
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse('cpce:export_serve', args=[self.source.pk]),
+            dict(session_data_timestamp=''),
+            follow=True,
+        )
+
+        self.assertRedirects(
+            response, reverse('browse_images', args=[self.source.pk]))
+        self.assertContains(
+            response,
+            html_escape(
+                "Export failed: Request data doesn't have a"
+                " session_data_timestamp."),
+        )
+
+    def test_no_session_data(self):
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse('cpce:export_serve', args=[self.source.pk]),
+            dict(session_data_timestamp='123'),
+            follow=True,
+        )
+
+        self.assertRedirects(
+            response, reverse('browse_images', args=[self.source.pk]))
+        self.assertContains(
+            response,
+            html_escape(
+                "Export failed: We couldn't find the expected data"
+                " in your session."),
+        )
+
+    def test_mismatched_timestamp(self):
+        self.client.force_login(self.user)
+
+        # To modify the session and then save it, it must be stored in a
+        # variable first.
+        # https://docs.djangoproject.com/en/dev/topics/testing/tools/#django.test.Client.session
+        session = self.client.session
+        session['cpc_export'] = dict(
+            timestamp='123', data=dict())
+        session.save()
+
+        response = self.client.get(
+            reverse('cpce:export_serve', args=[self.source.pk]),
+            dict(session_data_timestamp='456'),
+            follow=True,
+        )
+
+        self.assertRedirects(
+            response, reverse('browse_images', args=[self.source.pk]))
+        self.assertContains(
+            response,
+            html_escape(
+                "Export failed: Session data timestamp didn't match."),
+        )
+
+
 class UtilsTest(ClientTest):
 
     @classmethod
@@ -1275,23 +1349,3 @@ class UtilsTest(ClientTest):
         self.img2.save()
         image_set = Image.objects.filter(source=self.source)
         self.assertEqual(get_previous_cpcs_status(image_set), 'all')
-
-
-class ZipTest(ClientTest):
-
-    def test_write_zip(self):
-        zip_stream = BytesIO()
-        f1 = b'This is\r\na test file.'
-        f2 = b'This is another test file.\r\n'
-        names_and_streams = {
-            'f1.txt': f1,
-            'f2.txt': f2,
-        }
-        write_zip(zip_stream, names_and_streams)
-
-        zip_file = ZipFile(zip_stream)
-        zip_file.testzip()
-        f1_read = zip_file.read('f1.txt')
-        f2_read = zip_file.read('f2.txt')
-        self.assertEqual(f1_read, b'This is\r\na test file.')
-        self.assertEqual(f2_read, b'This is another test file.\r\n')

@@ -37,6 +37,7 @@ def csv_to_dicts(
     required_columns must be filled in for every row.
     optional_columns may have blank cells and may not be included in the
     CSV at all.
+    unique_keys aren't necessarily required columns.
     """
     # DictReader is not used here, because the fact that column names need
     # to be transformed to get the dict keys makes usage a bit clunky.
@@ -108,9 +109,9 @@ def csv_to_dicts(
         # columns that are unique *together*.
         if unique_keys:
             if len(unique_keys) > 1:
-                unique_value = tuple(row_data[key] for key in unique_keys)
+                unique_value = tuple(row_data.get(key) for key in unique_keys)
             else:
-                unique_value = row_data[unique_keys[0]]
+                unique_value = row_data.get(unique_keys[0])
             if unique_value in unique_values:
                 unique_headers_str = ' + '.join(
                     known_columns[k] for k in unique_keys)

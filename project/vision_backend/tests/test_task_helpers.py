@@ -4,8 +4,7 @@ from annotations.models import Label
 
 from api_core.models import ApiJob, ApiJobUnit
 from vision_backend.task_helpers import (
-    deploycollector, encode_spacer_job_token)
-from vision_backend.tasks import deploy_fail
+    ClassifyJobResultHandler, encode_spacer_job_token)
 
 from spacer.messages import ClassifyImageMsg, JobMsg, JobReturnMsg, \
     ClassifyReturnMsg, DataLocation
@@ -63,10 +62,10 @@ class TestDeployCollector(ClientTest):
 
     def test_nominal(self):
 
-        deploycollector(self.task, self.res)
+        ClassifyJobResultHandler.handle_task_result(self.task, self.res)
 
         api_job_unit = ApiJobUnit.objects.get(pk=self.api_job_unit_pk)
-        self.assertEqual(api_job_unit.status, 'SC')
+        self.assertEqual(api_job_unit.status, ApiJobUnit.SUCCESS)
 
         api_res = api_job_unit.result_json
 
@@ -101,10 +100,10 @@ class TestDeployCollector(ClientTest):
             error_message='File not found'
         )
 
-        deploy_fail(job_res)
+        ClassifyJobResultHandler.handle_job_error(job_res)
 
         api_job_unit = ApiJobUnit.objects.get(pk=self.api_job_unit_pk)
-        self.assertEqual(api_job_unit.status, 'FL')
+        self.assertEqual(api_job_unit.status, ApiJobUnit.FAILURE)
         self.assertEqual(len(api_job_unit.result_json['errors']), 1)
         self.assertEqual(
             api_job_unit.result_json['errors'][0], 'File not found')

@@ -4,10 +4,12 @@ import operator
 from unittest import mock
 
 from django.conf import settings
+from django.core import mail
 from django.test import override_settings
 from django.test.utils import patch_logger
 from django.urls import reverse
 from rest_framework import status
+from spacer.exceptions import SpacerInputError
 
 from api_core.models import ApiJob, ApiJobUnit
 from api_core.tests.utils import BaseAPIPermissionTest
@@ -671,8 +673,54 @@ class TaskErrorsTest(DeployBaseTest):
         self.assertEqual(
             job_unit.status, ApiJobUnit.FAILURE,
             "Unit should have failed")
-        self.assertEqual('URL 1', job_unit.result_json['url'])
+        self.assertEqual(
+            'URL 1', job_unit.result_json['url'],
+            "Result JSON should have the URL")
         error_traceback = job_unit.result_json['errors'][0]
         error_traceback_last_line = error_traceback.splitlines()[-1]
         self.assertEqual(
-            "ValueError: A spacer error", error_traceback_last_line)
+            "ValueError: A spacer error", error_traceback_last_line,
+            "Result JSON should have the error info")
+
+        self.assertEqual(
+            len(mail.outbox), 1, "Should have sent email to admins")
+        error_email = mail.outbox[-1]
+        self.assertEqual(
+            "[CoralNet] Spacer job failed", error_email.subject,
+            "Subject should be as expected")
+        self.assertIn(
+            "ValueError: A spacer error", error_email.body,
+            "Email body should have the error info")
+
+    def test_spacer_input_error(self):
+        """spacer raising a SpacerInputError."""
+        images = [
+            dict(type='image', attributes=dict(
+                url='URL 1', points=[dict(row=10, column=10)]))]
+        data = json.dumps(dict(data=images))
+
+        # Deploy, while mocking the spacer task call.
+        def raise_error(*args):
+            raise SpacerInputError("Couldn't access URL")
+        with mock.patch('spacer.tasks.classify_image', raise_error):
+            self.client.post(self.deploy_url, data, **self.request_kwargs)
+        collect_all_jobs()
+
+        job_unit = ApiJobUnit.objects.filter(
+            type='deploy').latest('pk')
+
+        self.assertEqual(
+            job_unit.status, ApiJobUnit.FAILURE,
+            "Unit should have failed")
+        self.assertEqual(
+            'URL 1', job_unit.result_json['url'],
+            "Result JSON should have the URL")
+        error_traceback = job_unit.result_json['errors'][0]
+        error_traceback_last_line = error_traceback.splitlines()[-1]
+        self.assertEqual(
+            "spacer.exceptions.SpacerInputError: Couldn't access URL",
+            error_traceback_last_line,
+            "Result JSON should have the error info")
+
+        self.assertEqual(
+            len(mail.outbox), 0, "Should not have sent email to admins")

@@ -406,8 +406,6 @@ class AbortCasesTest(BaseTaskTest):
         with \
                 mock.patch(
                     'vision_backend.tasks.reset_features.run', noop_task), \
-                patch_logger('vision_backend.tasks', 'info') \
-                    as tasks_logs, \
                 patch_logger('vision_backend.task_helpers', 'info') \
                     as task_helpers_logs:
 
@@ -428,7 +426,7 @@ class AbortCasesTest(BaseTaskTest):
             collect_all_jobs()
 
             fail_messages = [
-                m for m in tasks_logs
+                m for m in task_helpers_logs
                 if self.train_fail_log_regex.fullmatch(m)]
             success_messages = [
                 m for m in task_helpers_logs
@@ -481,8 +479,6 @@ class AbortCasesTest(BaseTaskTest):
                 mock.patch(
                     'vision_backend.tasks.reset_features.apply_async',
                     mock_task), \
-                patch_logger('vision_backend.tasks', 'info') \
-                    as tasks_logs, \
                 patch_logger('vision_backend.task_helpers', 'info') \
                     as task_helpers_logs:
 
@@ -502,7 +498,7 @@ class AbortCasesTest(BaseTaskTest):
             collect_all_jobs()
 
             fail_messages = [
-                m for m in tasks_logs
+                m for m in task_helpers_logs
                 if self.train_fail_log_regex.fullmatch(m)]
             success_messages = [
                 m for m in task_helpers_logs
@@ -535,7 +531,7 @@ class AbortCasesTest(BaseTaskTest):
         classifier.delete()
 
         with patch_logger(
-                'vision_backend.tasks', 'info') as log_messages:
+                'vision_backend.task_helpers', 'info') as log_messages:
             collect_all_jobs()
 
             self.assertIn(

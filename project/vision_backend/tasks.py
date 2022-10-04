@@ -386,6 +386,15 @@ def warn_about_stuck_jobs():
         .filter(create_date__lt=five_days_ago, create_date__gt=six_days_ago) \
         .exclude(status='SUCCEEDED') \
         .exclude(status='FAILED')
+
+    if not stuck_jobs_between_5_and_6_days_old.exists():
+        return
+
+    stuck_job_count = stuck_jobs_between_5_and_6_days_old.count()
+    subject = f"{stuck_job_count} AWS Batch job(s) not completed after 5 days"
+
+    message = "The following AWS Batch jobs were not completed after 5 days:\n"
     for job in stuck_jobs_between_5_and_6_days_old:
-        mail_admins("Job {} not completed after 5 days.".format(
-            job.batch_token), str(job))
+        message += f"\n{job}"
+
+    mail_admins(subject, message)

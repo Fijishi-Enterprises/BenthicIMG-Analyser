@@ -148,7 +148,7 @@ class JobDetailTest(ClientTest):
             points=[dict(row=20, column=30), dict(row=40, column=50)],
         )
         cls.sample_result_json_with_error = dict(
-            error="Error goes here",
+            errors=["Error goes here"],
         )
 
     def test_all_table_columns(self):

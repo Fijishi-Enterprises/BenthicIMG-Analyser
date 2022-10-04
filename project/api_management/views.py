@@ -55,10 +55,11 @@ def job_detail(request, job_id):
         # job types later, then this code has to become more flexible.
         request_json_strings = deploy_request_json_as_strings(unit_obj)
 
+        error_display = ''
         if unit_obj.result_json:
-            error_display = unit_obj.result_json.get('error', '')
-        else:
-            error_display = ''
+            errors = unit_obj.result_json.get('errors')
+            if errors:
+                error_display = errors[0]
 
         units.append(dict(
             id=unit_obj.pk,

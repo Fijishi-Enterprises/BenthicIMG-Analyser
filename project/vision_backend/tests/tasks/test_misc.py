@@ -253,60 +253,72 @@ class WarnAboutStuckJobsTest(ClientTest):
         """
         Only warn about jobs between 5 and 6 days old, and warn once per job.
         """
-        job = BatchJob.objects.create(job_token='1', batch_token='4d 23h ago')
-        job.create_date = timezone.now() - timedelta(days=4, hours=23)
-        job.save()
+        job1 = BatchJob.objects.create(job_token='1', batch_token='4d 23h ago')
+        job1.create_date = timezone.now() - timedelta(days=4, hours=23)
+        job1.save()
 
-        job = BatchJob.objects.create(job_token='2', batch_token='5d 1h ago')
-        job.create_date = timezone.now() - timedelta(days=5, hours=1)
-        job.save()
+        job2 = BatchJob.objects.create(job_token='2', batch_token='5d 1h ago')
+        job2.create_date = timezone.now() - timedelta(days=5, hours=1)
+        job2.save()
 
-        job = BatchJob.objects.create(job_token='3', batch_token='5d 23h ago')
-        job.create_date = timezone.now() - timedelta(days=5, hours=23)
-        job.save()
+        job3 = BatchJob.objects.create(job_token='3', batch_token='5d 23h ago')
+        job3.create_date = timezone.now() - timedelta(days=5, hours=23)
+        job3.save()
 
-        job = BatchJob.objects.create(job_token='4', batch_token='6d 1h ago')
-        job.create_date = timezone.now() - timedelta(days=6, hours=1)
-        job.save()
+        job4 = BatchJob.objects.create(job_token='4', batch_token='6d 1h ago')
+        job4.create_date = timezone.now() - timedelta(days=6, hours=1)
+        job4.save()
 
         warn_about_stuck_jobs()
 
-        self.assertEqual(len(mail.outbox), 2)
-        subjects = [sent_email.subject for sent_email in mail.outbox]
-        self.assertIn(
-            "[CoralNet] Job 5d 1h ago not completed after 5 days.", subjects)
-        self.assertIn(
-            "[CoralNet] Job 5d 23h ago not completed after 5 days.", subjects)
+        self.assertEqual(len(mail.outbox), 1)
+        sent_email = mail.outbox[0]
+
+        self.assertEqual(
+            "[CoralNet] 2 AWS Batch job(s) not completed after 5 days",
+            sent_email.subject)
+        self.assertEqual(
+            "The following AWS Batch jobs were not completed after 5 days:"
+            "\n"
+            f"\nBatch token: 5d 1h ago, job token: 2 job id: {job2.pk}"
+            f"\nBatch token: 5d 23h ago, job token: 3 job id: {job3.pk}",
+            sent_email.body)
 
     def test_job_selection_by_status(self):
         """
         Only warn about non-completed jobs.
         """
-        job = BatchJob.objects.create(
+        job1 = BatchJob.objects.create(
             job_token='1', batch_token='PENDING', status='PENDING')
-        job.create_date = timezone.now() - timedelta(days=5, hours=1)
-        job.save()
+        job1.create_date = timezone.now() - timedelta(days=5, hours=1)
+        job1.save()
 
-        job = BatchJob.objects.create(
+        job2 = BatchJob.objects.create(
             job_token='2', batch_token='SUCCEEDED', status='SUCCEEDED')
-        job.create_date = timezone.now() - timedelta(days=5, hours=1)
-        job.save()
+        job2.create_date = timezone.now() - timedelta(days=5, hours=1)
+        job2.save()
 
-        job = BatchJob.objects.create(
+        job3 = BatchJob.objects.create(
             job_token='3', batch_token='RUNNING', status='RUNNING')
-        job.create_date = timezone.now() - timedelta(days=5, hours=1)
-        job.save()
+        job3.create_date = timezone.now() - timedelta(days=5, hours=1)
+        job3.save()
 
-        job = BatchJob.objects.create(
+        job4 = BatchJob.objects.create(
             job_token='4', batch_token='FAILED', status='FAILED')
-        job.create_date = timezone.now() - timedelta(days=5, hours=1)
-        job.save()
+        job4.create_date = timezone.now() - timedelta(days=5, hours=1)
+        job4.save()
 
         warn_about_stuck_jobs()
 
-        self.assertEqual(len(mail.outbox), 2)
-        subjects = [sent_email.subject for sent_email in mail.outbox]
-        self.assertIn(
-            "[CoralNet] Job PENDING not completed after 5 days.", subjects)
-        self.assertIn(
-            "[CoralNet] Job RUNNING not completed after 5 days.", subjects)
+        self.assertEqual(len(mail.outbox), 1)
+        sent_email = mail.outbox[0]
+
+        self.assertEqual(
+            "[CoralNet] 2 AWS Batch job(s) not completed after 5 days",
+            sent_email.subject)
+        self.assertEqual(
+            "The following AWS Batch jobs were not completed after 5 days:"
+            "\n"
+            f"\nBatch token: PENDING, job token: 1 job id: {job1.pk}"
+            f"\nBatch token: RUNNING, job token: 3 job id: {job3.pk}",
+            sent_email.body)

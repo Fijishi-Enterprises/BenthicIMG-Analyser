@@ -4,18 +4,20 @@ import operator
 from unittest import mock
 
 from django.conf import settings
-from django.core import mail
 from django.test import override_settings
-from django.test.utils import patch_logger
 from django.urls import reverse
 from rest_framework import status
 from spacer.exceptions import SpacerInputError
 
 from api_core.models import ApiJob, ApiJobUnit
 from api_core.tests.utils import BaseAPIPermissionTest
+from errorlogs.tests.utils import ErrorReportTestMixin
+from jobs.models import Job
+from jobs.tasks import run_scheduled_jobs, run_scheduled_jobs_until_empty
+from jobs.utils import queue_job
 from vision_backend.models import Classifier
-from vision_backend.tasks import collect_all_jobs, deploy
-from .utils import DeployBaseTest, mocked_load_image, noop_task
+from vision_backend.tasks import collect_spacer_jobs
+from .utils import DeployBaseTest, mocked_load_image
 
 
 class DeployAccessTest(BaseAPIPermissionTest):
@@ -101,7 +103,6 @@ class DeployAccessTest(BaseAPIPermissionTest):
         self.assertThrottleResponse(
             response, msg="4th request should be denied by throttling")
 
-    @mock.patch('vision_backend_api.views.deploy.run', noop_task)
     @override_settings(MAX_CONCURRENT_API_JOBS_PER_USER=3)
     def test_active_job_throttling(self):
         classifier = self.create_robot(self.public_source)
@@ -466,15 +467,15 @@ class SuccessTest(DeployBaseTest):
             reverse('api:deploy_status', args=[deploy_job.pk]),
             "Response should contain status endpoint URL")
 
-    @mock.patch('vision_backend_api.views.deploy.run', noop_task)
     def test_pre_deploy(self):
         """
-        Test pre-deploy state. To do this, we disable the task by patching it.
+        Test pre-deploy state.
         """
         images = [
             dict(type='image', attributes=dict(
                 url='URL 1', points=[dict(row=10, column=10)]))]
         data = json.dumps(dict(data=images))
+        # This should queue a deploy job without running it yet.
         self.client.post(self.deploy_url, data, **self.request_kwargs)
 
         try:
@@ -512,18 +513,18 @@ class SuccessTest(DeployBaseTest):
 
     def test_done(self):
         """
-        Test state after deploy is done. To do this, just don't replace
-        anything and let the tasks run synchronously.
+        Test state after deploy is done.
         """
         images = [
             dict(type='image', attributes=dict(
                 url='URL 1', points=[dict(row=10, column=10)]))]
         data = json.dumps(dict(data=images))
 
-        # Deploy
+        # Queue deploy
         self.client.post(self.deploy_url, data, **self.request_kwargs)
-        # Process result
-        collect_all_jobs()
+        # Deploy
+        run_scheduled_jobs_until_empty()
+        collect_spacer_jobs()
 
         deploy_job = ApiJob.objects.latest('pk')
 
@@ -588,7 +589,7 @@ class SuccessTest(DeployBaseTest):
             "Classifications JSON besides scores should be as expected")
 
 
-class TaskErrorsTest(DeployBaseTest):
+class TaskErrorsTest(DeployBaseTest, ErrorReportTestMixin):
     """
     Test error cases of the deploy task.
     """
@@ -602,16 +603,13 @@ class TaskErrorsTest(DeployBaseTest):
         unit_id = ApiJobUnit.objects.get(type='test').pk
         unit.delete()
 
-        # patch_logger is an undocumented Django test utility. It lets us check
-        # logged messages.
-        # https://stackoverflow.com/a/54055056
-        with patch_logger('vision_backend.tasks', 'info') as log_messages:
-            deploy.delay(unit_id)
-
-            error_message = \
-                "Job unit of id {pk} does not exist.".format(pk=unit_id)
-
-            self.assertIn(error_message, log_messages)
+        queue_job('classify_image', unit_id)
+        run_scheduled_jobs()
+        deploy_job = Job.objects.get(job_name='classify_image')
+        self.assertEqual(
+            f"Job unit {unit_id} does not exist.",
+            deploy_job.error_message,
+            "Job should have the expected error")
 
     def test_classifier_deleted(self):
         """
@@ -623,10 +621,8 @@ class TaskErrorsTest(DeployBaseTest):
                 url='URL 1', points=[dict(row=10, column=10)]))]
         data = json.dumps(dict(data=images))
 
-        with mock.patch('vision_backend_api.views.deploy.run', noop_task):
-            # Since the task is a no-op, this'll just create the job unit,
-            # without actually deploying yet.
-            self.client.post(self.deploy_url, data, **self.request_kwargs)
+        # Queue deploy job
+        self.client.post(self.deploy_url, data, **self.request_kwargs)
 
         job_unit = ApiJobUnit.objects.filter(
             type='deploy').latest('pk')
@@ -636,8 +632,8 @@ class TaskErrorsTest(DeployBaseTest):
         classifier = Classifier.objects.get(pk=classifier_id)
         classifier.delete()
 
-        # Run the task. It should fail since the classifier was deleted.
-        deploy.delay(job_unit.pk)
+        # Deploy. It should fail since the classifier was deleted.
+        run_scheduled_jobs()
 
         job_unit.refresh_from_db()
 
@@ -658,14 +654,17 @@ class TaskErrorsTest(DeployBaseTest):
                 url='URL 1', points=[dict(row=10, column=10)]))]
         data = json.dumps(dict(data=images))
 
+        # Queue deploy
+        self.client.post(self.deploy_url, data, **self.request_kwargs)
+
         # Deploy, while mocking the spacer task call. Thus, we don't test
         # spacer behavior itself. We just test that we appropriately handle any
         # errors coming from the spacer call.
         def raise_error(*args):
             raise ValueError("A spacer error")
         with mock.patch('spacer.tasks.classify_image', raise_error):
-            self.client.post(self.deploy_url, data, **self.request_kwargs)
-        collect_all_jobs()
+            run_scheduled_jobs()
+        collect_spacer_jobs()
 
         job_unit = ApiJobUnit.objects.filter(
             type='deploy').latest('pk')
@@ -682,15 +681,14 @@ class TaskErrorsTest(DeployBaseTest):
             "ValueError: A spacer error", error_traceback_last_line,
             "Result JSON should have the error info")
 
-        self.assertEqual(
-            len(mail.outbox), 1, "Should have sent email to admins")
-        error_email = mail.outbox[-1]
-        self.assertEqual(
-            "[CoralNet] Spacer job failed", error_email.subject,
-            "Subject should be as expected")
-        self.assertIn(
-            "ValueError: A spacer error", error_email.body,
-            "Email body should have the error info")
+        self.assert_error_log_saved(
+            "ValueError",
+            "A spacer error",
+        )
+        self.assert_error_email(
+            "Spacer job failed: classify_image",
+            ["ValueError: A spacer error"],
+        )
 
     def test_spacer_input_error(self):
         """spacer raising a SpacerInputError."""
@@ -699,12 +697,15 @@ class TaskErrorsTest(DeployBaseTest):
                 url='URL 1', points=[dict(row=10, column=10)]))]
         data = json.dumps(dict(data=images))
 
+        # Queue deploy
+        self.client.post(self.deploy_url, data, **self.request_kwargs)
+
         # Deploy, while mocking the spacer task call.
         def raise_error(*args):
             raise SpacerInputError("Couldn't access URL")
         with mock.patch('spacer.tasks.classify_image', raise_error):
-            self.client.post(self.deploy_url, data, **self.request_kwargs)
-        collect_all_jobs()
+            run_scheduled_jobs()
+        collect_spacer_jobs()
 
         job_unit = ApiJobUnit.objects.filter(
             type='deploy').latest('pk')
@@ -722,5 +723,5 @@ class TaskErrorsTest(DeployBaseTest):
             error_traceback_last_line,
             "Result JSON should have the error info")
 
-        self.assertEqual(
-            len(mail.outbox), 0, "Should not have sent email to admins")
+        self.assert_no_error_log_saved()
+        self.assert_no_email()

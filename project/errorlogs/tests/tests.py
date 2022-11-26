@@ -3,7 +3,7 @@ from unittest import mock
 from django.urls import reverse
 
 from lib.tests.utils import ClientTest
-from .models import ErrorLog
+from ..models import ErrorLog
 
 
 class ErrorLogTest(ClientTest):

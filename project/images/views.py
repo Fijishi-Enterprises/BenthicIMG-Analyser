@@ -32,6 +32,7 @@ from lib.decorators import (
     source_visibility_required)
 from visualization.utils import image_search_kwargs_to_queryset
 import vision_backend.tasks as backend_tasks
+from vision_backend.utils import reset_features
 
 
 def source_list(request):
@@ -597,8 +598,8 @@ def image_regenerate_points(request, image_id):
     image = get_object_or_404(Image, id=image_id)
 
     utils.generate_points(image, usesourcemethod=False)
-    backend_tasks.reset_features.apply_async(
-        args=[image_id], eta=now()+timedelta(seconds=10))
+
+    reset_features(image)
 
     messages.success(request, 'Successfully regenerated point locations.')
     return HttpResponseRedirect(reverse('image_detail', args=[image_id]))
@@ -618,8 +619,8 @@ def image_reset_point_generation_method(request, image_id):
         image.source.default_point_generation_method
     image.save()
     utils.generate_points(image, usesourcemethod=False)
-    backend_tasks.reset_features.apply_async(
-        args=[image_id], eta=now()+timedelta(seconds=10))
+
+    reset_features(image)
 
     messages.success(
         request, 'Reset image point generation method to source default.')
@@ -639,8 +640,8 @@ def image_reset_annotation_area(request, image_id):
     image.metadata.annotation_area = image.source.image_annotation_area
     image.metadata.save()
     utils.generate_points(image, usesourcemethod=False)
-    backend_tasks.reset_features.apply_async(
-        args=[image_id], eta=now()+timedelta(seconds=10))
+
+    reset_features(image)
 
     messages.success(request, 'Reset annotation area to source default.')
     return HttpResponseRedirect(reverse('image_detail', args=[image_id]))

@@ -71,7 +71,9 @@ class Classifier(models.Model):
         """
         To-string method.
         """
-        return "Version %s for source %s" % (self.id, self.source.name)
+        return (
+            f"Classifier {self.pk}"
+            f" [Source: {self.source} [{self.source.pk}]]")
 
 
 class Features(models.Model):

@@ -1,4 +1,5 @@
 import posixpath
+from typing import Tuple
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -403,38 +404,39 @@ class Source(models.Model):
         return self.classifier_set.filter(
             status=Classifier.ACCEPTED).order_by('-id')
 
-    def need_new_robot(self):
+    def need_new_robot(self) -> Tuple[bool, str]:
         """
-        Return True if the source needs to train a new robot, False otherwise.
+        Returns:
+        1) True if the source needs to train a new robot, False otherwise.
+        2) The reason why it needs a new robot or not.
         """
         if not self.enable_robot_classifier:
-            # This source has classifiers disabled.
-            return False
+            return False, "Source has classifier disabled"
 
         nbr_verified_images_with_features = self.image_set.filter(
             annoinfo__confirmed=True, features__extracted=True).count()
         if (nbr_verified_images_with_features
                 < settings.MIN_NBR_ANNOTATED_IMAGES):
-            # Not enough annotated images to train an initial classifier.
-            return False
+            return False, "Not enough annotated images for initial training"
 
         latest_robot = self.get_latest_robot(only_accepted=False)
         if not latest_robot:
-            # No classifier yet.
-            return True
+            return True, "No classifier yet"
 
         # Method-level import to avoid circular module-level imports.
         from vision_backend.models import Classifier
         if latest_robot.status == Classifier.TRAIN_ERROR:
-            # Last training resulted in an error.
-            return True
+            return True, "Last training resulted in an error"
 
         # Check whether there are enough newly annotated images
         # since the time the previous classifier was submitted.
-        return (
-            nbr_verified_images_with_features >
-            settings.NEW_CLASSIFIER_TRAIN_TH * latest_robot.nbr_train_images
-        )
+        threshold_for_new = settings.NEW_CLASSIFIER_TRAIN_TH * latest_robot.nbr_train_images
+        has_enough = nbr_verified_images_with_features > threshold_for_new
+        message = (
+            f"Based on previous training, need more than"
+            f" {threshold_for_new} annotated images for next training,"
+            f" and currently have {nbr_verified_images_with_features}")
+        return has_enough, message
 
     def has_robot(self):
         """
@@ -719,7 +721,9 @@ class Image(models.Model):
         return self.original_height - 1
 
     def __str__(self):
-        return self.metadata.name
+        return (
+            f"Image {self.pk}"
+            f" [Source: {self.source} [{self.source.pk}]]")
 
     def get_image_element_title(self):
         """

@@ -1,5 +1,6 @@
-import logging
 from datetime import timedelta
+import logging
+import random
 
 from celery.decorators import task, periodic_task
 from django.conf import settings
@@ -21,29 +22,143 @@ from spacer.tasks import classify_features as spacer_classify_features
 from annotations.models import Annotation
 from api_core.models import ApiJobUnit
 from images.models import Source, Image, Point
+from jobs.exceptions import JobError
+from jobs.models import Job
+from jobs.utils import full_job, job_runner, job_starter, queue_job
 from labels.models import Label
 from . import task_helpers as th
 from .models import Classifier, Score, BatchJob
 from .queues import get_queue_class
+from .utils import queue_source_check, reset_features
 
 logger = logging.getLogger(__name__)
 
 
-@task(name="Submit Features")
-def submit_features(image_id, force=False):
-    """ Submits a feature extraction job. """
+@periodic_task(
+    run_every=timedelta(hours=24),
+    name="Check All Sources",
+    ignore_result=True,
+)
+@full_job()
+def check_all_sources():
+    for source in Source.objects.filter():
+        # Queue a check of this source at a random time in the next 4 hours.
+        delay_in_seconds = random.randrange(1, 60*60*4)
+        queue_source_check(
+            source.pk, delay=timedelta(seconds=delay_in_seconds))
 
+
+@task(name="Check Source")
+@job_runner()
+def check_source(source_id):
+    """
+    Check a source for appropriate vision-backend tasks to run,
+    and run those tasks.
+    """
+    log_prefix = f"check_source ({source_id})"
+
+    try:
+        source = Source.objects.get(pk=source_id)
+    except Source.DoesNotExist:
+        raise JobError(f"Can't find source {source_id}")
+
+    # Feature extraction
+
+    not_extracted = source.image_set.filter(features__extracted=False)
+    if not_extracted.exists():
+        active_training_jobs = Job.objects.filter(
+            job_name='train_classifier',
+            source_id=source_id,
+            status__in=[Job.PENDING, Job.IN_PROGRESS]
+        )
+        if active_training_jobs.exists():
+            # If we submit, rowcols that were submitted to training may get
+            # out of sync with features in S3.
+            # The potentially dangerous sequence is like:
+            #
+            # 1) submit training to spacer with old point set
+            # 2) upload new point set for training images
+            # 3) as a result of the upload, submit associated feature
+            # extractions to spacer
+            # 4) spacer runs feature extractions, replacing old feature
+            # files with new feature files
+            # 5) spacer runs training with old point set + new feature files.
+            #
+            # So, we prevent 3) from being able to happen.
+            logger.info(
+                f"{log_prefix}: Feature extraction(s) ready, but not"
+                f" submitted due to training in progress")
+            return
+
+        # Try to queue extractions (will not be queued if an extraction for
+        # the same image is already active)
+        for image in not_extracted:
+            queue_job('extract_features', image.pk, source_id=source_id)
+        # If there are extractions to be done, then having that overlap with
+        # training can lead to desynced rowcols, so we worry about training
+        # later.
+        return
+
+    # Classifier training
+
+    need_new_robot, reason = source.need_new_robot()
+    if need_new_robot:
+        # Try to queue training
+        queue_job('train_classifier', source_id, source_id=source_id)
+        # Don't worry about classification until the classifier is
+        # up to date.
+        return
+    else:
+        logger.info(
+            f"{log_prefix}: Not training new classifier: {reason}")
+
+    # Image classification
+
+    if not source.has_robot():
+        return
+    extracted_not_confirmed = source.image_set.filter(
+        features__extracted=True,
+        annoinfo__confirmed=False,
+    )
+    extracted_not_classified = extracted_not_confirmed.filter(
+        features__classified=False,
+    )
+    latest_classifier_annotations = source.annotation_set \
+        .filter(robot_version=source.get_latest_robot())
+
+    if latest_classifier_annotations.exists():
+        # The classifier version of an annotation only gets updated if the
+        # new classifier disagrees with the old classifier. So we can't
+        # tell what's outdated by only looking at a single annotation's
+        # classifier version.
+        # But in general, we are never in a state where some classifications
+        # have been last checked by the latest classifier, and others have
+        # been last checked by an old classifier. It's either all latest,
+        # or all old.
+        # So if the latest classifier has ANY annotations attributed to it,
+        # we only worry about unclassified images.
+        images_to_classify = extracted_not_classified
+    else:
+        # If there's no trace of the latest classifier, then we go through
+        # all non-confirmed images.
+        images_to_classify = extracted_not_confirmed
+
+    # Try to queue classifications
+    for image in images_to_classify:
+        queue_job('classify_features', image.pk, source_id=source_id)
+
+    # If we got here, then the source should be all caught up, and there's
+    # no need to queue another check for now.
+
+
+@task(name="Submit Features")
+@job_starter(job_name='extract_features')
+def submit_features(image_id):
+    """ Submits a feature extraction job. """
     try:
         img = Image.objects.get(pk=image_id)
     except Image.DoesNotExist:
-        logger.info("Image {} does not exist.".format(image_id))
-        return
-    log_str = "Image {} [Source: {} [{}]]".format(image_id, img.source,
-                                                   img.source_id)
-
-    if img.features.extracted and not force:
-        logger.info("{} already has features".format(log_str))
-        return
+        raise JobError(f"Image {image_id} does not exist.")
 
     # Setup the job payload.
     storage = get_storage_class()()
@@ -68,46 +183,32 @@ def submit_features(image_id, force=False):
     queue = get_queue_class()()
     queue.submit_job(msg)
 
-    logger.info("Submitted feature extraction for {}".format(log_str))
+    logger.info(f"Submitted feature extraction for {img}")
     return msg
 
 
-@periodic_task(run_every=timedelta(hours=24),
-               name='Periodic Classifiers Submit',
-               ignore_result=True)
-def submit_all_classifiers():
-    for source in Source.objects.filter():
-        if source.need_new_robot():
-            submit_classifier.delay(source.id)
-
-
 @task(name="Submit Classifier")
-def submit_classifier(source_id, nbr_images=1e5, force=False):
+@job_starter(job_name='train_classifier')
+def submit_classifier(source_id, image_limit=1e5):
     """ Submits a classifier training job. """
-    try:
-        source = Source.objects.get(pk=source_id)
-    except Source.DoesNotExist:
-        logger.info("Can't find source [{}]".format(source_id))
-        return
 
-    if not source.need_new_robot() and not force:
-        logger.info("Source {} [{}] don't need new classifier.".format(
-            source.name, source.pk))
-        return
+    # We know the Source exists since we got past the job_starter decorator,
+    # and deleting the Source would've cascade-deleted the Job.
+    source = Source.objects.get(pk=source_id)
 
     # Create new classifier model
     images = Image.objects.filter(source=source,
                                   annoinfo__confirmed=True,
-                                  features__extracted=True)[:nbr_images]
+                                  features__extracted=True)[:image_limit]
     classifier = Classifier(source=source, nbr_train_images=len(images))
     classifier.save()
 
-    logger.info("Preparing new classifier ({}) for {} [{}].".format(
-        classifier.pk, source.name, source.pk))
+    logger.info(f"Preparing: {classifier}")
 
     # Create train-labels
     storage = get_storage_class()()
-    train_labels = th.make_dataset([image for image in images if image.trainset])
+    train_labels = th.make_dataset(
+        [image for image in images if image.trainset])
 
     # Create val-labels
     val_labels = th.make_dataset([image for image in images if image.valset])
@@ -123,12 +224,10 @@ def submit_classifier(source_id, nbr_images=1e5, force=False):
     if len(training_classes) <= 1:
         classifier.status = Classifier.LACKING_UNIQUE_LABELS
         classifier.save()
-        logger.info(
-            f"Classifier {classifier.pk} for source {source.name}"
-            f" [{source.pk}] was declined training, because the training"
+        raise JobError(
+            f"{classifier} was declined training, because the training"
             f" labelset ended up only having one unique label. Training"
             f" requires at least 2 unique labels.")
-        return
 
     # This will not include the one we just created, b/c status isn't accepted.
     prev_classifiers = source.get_accepted_robots()
@@ -138,7 +237,8 @@ def submit_classifier(source_id, nbr_images=1e5, force=False):
 
     # Create TrainClassifierMsg
     task = TrainClassifierMsg(
-        job_token=th.encode_spacer_job_token([classifier.pk] + pc_pks),
+        job_token=th.encode_spacer_job_token(
+            [source.pk, classifier.pk] + pc_pks),
         trainer_name='minibatch',
         nbr_epochs=settings.NBR_TRAINING_EPOCHS,
         clf_type=settings.CLASSIFIER_MAPPINGS[source.feature_extractor],
@@ -161,19 +261,19 @@ def submit_classifier(source_id, nbr_images=1e5, force=False):
     queue = get_queue_class()()
     queue.submit_job(msg)
 
-    logger.info("Submitted classifier {} for source {} [{}] with {} images.".
-                format(classifier.pk, source.name, source.id, len(images)))
+    logger.info(
+        f"Submitted {classifier} with {classifier.nbr_train_images} images.")
     return msg
 
 
 @task(name="Deploy")
+@job_starter(job_name='classify_image')
 def deploy(job_unit_id):
     """ Submits a deploy job. """
     try:
         job_unit = ApiJobUnit.objects.get(pk=job_unit_id)
     except ApiJobUnit.DoesNotExist:
-        logger.info("Job unit of id {} does not exist.".format(job_unit_id))
-        return
+        raise JobError(f"Job unit {job_unit_id} does not exist.")
 
     job_unit.status = ApiJobUnit.IN_PROGRESS
     job_unit.save()
@@ -183,16 +283,15 @@ def deploy(job_unit_id):
         classifier = Classifier.objects.get(pk=classifier_id)
     except Classifier.DoesNotExist:
         error_message = (
-            "Classifier of id {} does not exist. Maybe it was deleted."
-            .format(classifier_id))
+            f"Classifier of id {classifier_id} does not exist."
+            f" Maybe it was deleted.")
         job_unit.result_json = dict(
             url=job_unit.request_json['url'],
             errors=[error_message],
         )
         job_unit.status = ApiJobUnit.FAILURE
         job_unit.save()
-        logger.error(error_message)
-        return
+        raise JobError(error_message)
 
     storage = get_storage_class()()
 
@@ -222,20 +321,24 @@ def deploy(job_unit_id):
 
 
 @task(name="Classify Image")
+@job_runner(job_name='classify_features')
 def classify_image(image_id):
     """ Executes a classify_image job. """
     try:
         img = Image.objects.get(pk=image_id)
     except Image.DoesNotExist:
-        logger.info("Image {} does not exist.".format(image_id))
-        return
+        raise JobError(f"Image {image_id} does not exist.")
 
     if not img.features.extracted:
-        return
+        raise JobError(
+            f"Image {image_id} needs to have features extracted"
+            f" before being classified.")
 
     classifier = img.source.get_latest_robot()
     if not classifier:
-        return
+        raise JobError(
+            f"Image {image_id} can't be classified;"
+            f" its source doesn't have a classifier.")
 
     # Create task message
     storage = get_storage_class()()
@@ -262,15 +365,11 @@ def classify_image(image_id):
         try:
             th.add_annotations(image_id, res, label_objs, classifier)
         except IntegrityError:
-            logger_message = \
-                "Failed to classify Image {} [Source: {} [{}] with " \
-                "classifier {}. There might have been a race condition " \
-                "when trying to save annotations. Will try again later."
-            logger.info(logger_message.format(img.id, img.source,
-                                              img.source_id, classifier.id))
-            classify_image.apply_async(args=[image_id],
-                                       eta=now() + timedelta(seconds=10))
-            return
+            raise JobError(
+                f"Failed to classify {img} with classifier {classifier.pk}."
+                f" There might have been a race condition when trying"
+                f" to save annotations."
+            )
 
     # Always add scores
     th.add_scores(image_id, res, label_objs)
@@ -278,24 +377,27 @@ def classify_image(image_id):
     img.features.classified = True
     img.features.save()
 
-    logger.info("Classified Image {} [Source: {} [{}]] with classifier {}".
-                format(img.id, img.source, img.source_id, classifier.id))
+    logger.info(f"Classified {img} with classifier {classifier.pk}")
 
 
-@periodic_task(run_every=timedelta(seconds=60), name='Collect all jobs',
-               ignore_result=True)
-def collect_all_jobs():
-    """Collects and handles job results until the job result queue is empty."""
-
-    logger.info('Collecting all jobs in result queue.')
+@periodic_task(
+    run_every=timedelta(seconds=60),
+    name='collect_spacer_jobs',
+    ignore_result=True,
+)
+def collect_spacer_jobs():
+    """
+    Collects and handles spacer job results until the result queue is empty.
+    """
+    logger.info('Collecting all spacer jobs in result queue.')
     queue = get_queue_class()()
     while True:
         job_res = queue.collect_job()
         if job_res:
-            th.handle_job_result(job_res)
+            th.handle_spacer_result(job_res)
         else:
             break
-    logger.info('Done collecting all jobs in result queue.')
+    logger.info('Done collecting all spacer jobs in result queue.')
 
 
 @task(name="Reset Source")
@@ -308,8 +410,7 @@ def reset_backend_for_source(source_id):
         args=[source_id], eta=now() + timedelta(seconds=10))
 
     for image in Image.objects.filter(source_id=source_id):
-        reset_features.apply_async(
-            args=[image.pk], eta=now() + timedelta(seconds=10))
+        reset_features(image)
 
 
 @task(name="Reset Classifiers")
@@ -327,35 +428,8 @@ def reset_classifiers_for_source(source_id):
         image.features.classified = False
         image.features.save()
 
-    # Finally, let's train a new classifier.
-    submit_classifier.apply_async(args=[source_id],
-                                  eta=now() + timedelta(seconds=10))
-
-
-@task(name="Reset Features")
-def reset_features(image_id):
-    """
-    Resets features for image. Call this after any change that affects
-    the image point locations. E.g:
-    Re-generate point locations.
-    Change annotation area.
-    Add new points.
-    """
-
-    try:
-        img = Image.objects.get(pk=image_id)
-    except Image.DoesNotExist:
-        logger.info("Image {} deleted. Nothing to reset.".format(image_id))
-        return
-
-    features = img.features
-    features.extracted = False
-    features.classified = False
-    features.save()
-
-    # Re-submit feature extraction.
-    submit_features.apply_async(args=[img.id],
-                                eta=now() + timedelta(seconds=10))
+    # Can probably train a new classifier.
+    queue_source_check(source_id)
 
 
 @periodic_task(

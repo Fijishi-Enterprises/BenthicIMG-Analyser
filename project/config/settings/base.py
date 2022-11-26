@@ -171,8 +171,10 @@ INSTALLED_APPS = [
     # Flatpages-related customizations
     'flatpages_custom',
     'images',
+    # Asynchronous job/task management
+    'jobs',
     'labels',
-    # Miscellaneous stuff
+    # Miscellaneous / not specific to any other app
     'lib',
     # Logs of site events/actions
     'newsfeed',

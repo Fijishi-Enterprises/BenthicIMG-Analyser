@@ -7,11 +7,12 @@ from django.utils import timezone
 
 from annotations.models import Annotation
 from images.models import Image
+from jobs.tasks import run_scheduled_jobs_until_empty
 from lib.tests.utils import BaseTest, ClientTest
 from vision_backend.models import BatchJob, Score, Classifier
 import vision_backend.task_helpers as th
 from vision_backend.tasks import (
-    clean_up_old_batch_jobs, collect_all_jobs, reset_backend_for_source,
+    clean_up_old_batch_jobs, collect_spacer_jobs, reset_backend_for_source,
     reset_classifiers_for_source, warn_about_stuck_jobs)
 from vision_backend.tests.tasks.utils import BaseTaskTest
 
@@ -79,10 +80,11 @@ class ResetTaskTest(BaseTaskTest):
             Annotation.objects.filter(image=img).count(), 0,
             "img shouldn't have annotations")
 
-        # Classification should be re-done after collecting jobs (note that
-        # this single call can set off a chain of jobs and collections)
-
-        collect_all_jobs()
+        # Train
+        run_scheduled_jobs_until_empty()
+        collect_spacer_jobs()
+        # Classify
+        run_scheduled_jobs_until_empty()
 
         img.features.refresh_from_db()
         self.assertTrue(img.features.classified, "img should be classified")
@@ -142,9 +144,14 @@ class ResetTaskTest(BaseTaskTest):
             Annotation.objects.filter(image=img).count(), 0,
             "img shouldn't have annotations")
 
-        # Backend objects should be re-created after collecting jobs
-
-        collect_all_jobs()
+        # Extract features
+        run_scheduled_jobs_until_empty()
+        collect_spacer_jobs()
+        # Train
+        run_scheduled_jobs_until_empty()
+        collect_spacer_jobs()
+        # Classify
+        run_scheduled_jobs_until_empty()
 
         img.features.refresh_from_db()
         self.assertTrue(img.features.extracted, "img should have features")
@@ -232,10 +239,10 @@ class BatchJobCleanupTest(ClientTest):
             "Shouldn't clean up 29 day old job")
         self.assertFalse(
             BatchJob.objects.filter(job_token='31 days ago').exists(),
-            "Shouldn't clean up 31 day old job")
+            "Should clean up 31 day old job")
         self.assertFalse(
             BatchJob.objects.filter(job_token='32 days ago').exists(),
-            "Shouldn't clean up 32 day old job")
+            "Should clean up 32 day old job")
 
 
 class WarnAboutStuckJobsTest(ClientTest):

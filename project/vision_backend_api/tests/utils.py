@@ -8,8 +8,9 @@ from spacer.config import MIN_TRAINIMAGES
 from api_core.tests.utils import BaseAPITest
 from images.model_utils import PointGen
 from images.models import Source
+from jobs.tasks import run_scheduled_jobs_until_empty
 from lib.tests.utils import create_sample_image
-from vision_backend.tasks import collect_all_jobs, submit_classifier
+from vision_backend.tasks import collect_spacer_jobs
 
 
 @override_settings(MIN_NBR_ANNOTATED_IMAGES=1)
@@ -61,10 +62,11 @@ class DeployBaseTest(BaseAPITest, metaclass=ABCMeta):
             cls.add_annotations(cls.user, img, annotations)
 
         # Extract features.
-        collect_all_jobs()
+        run_scheduled_jobs_until_empty()
+        collect_spacer_jobs()
         # Train a classifier.
-        submit_classifier(cls.source.id)
-        collect_all_jobs()
+        run_scheduled_jobs_until_empty()
+        collect_spacer_jobs()
         cls.classifier = cls.source.get_latest_robot()
 
         cls.deploy_url = reverse('api:deploy', args=[cls.classifier.pk])

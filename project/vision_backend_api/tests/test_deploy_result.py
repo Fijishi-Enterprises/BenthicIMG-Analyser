@@ -10,8 +10,9 @@ from rest_framework import status
 
 from api_core.models import ApiJob, ApiJobUnit
 from api_core.tests.utils import BaseAPIPermissionTest
-from vision_backend.tasks import collect_all_jobs
-from .utils import DeployBaseTest, mocked_load_image, noop_task
+from jobs.tasks import run_scheduled_jobs
+from vision_backend.tasks import collect_spacer_jobs
+from .utils import DeployBaseTest, mocked_load_image
 
 
 class DeployResultAccessTest(BaseAPIPermissionTest):
@@ -118,7 +119,7 @@ class DeployResultEndpointTest(DeployBaseTest):
         ]
         self.data = json.dumps(dict(data=images))
 
-    def deploy(self):
+    def queue_deploy(self):
         self.client.post(self.deploy_url, self.data, **self.request_kwargs)
         job = ApiJob.objects.latest('pk')
         return job
@@ -139,16 +140,14 @@ class DeployResultEndpointTest(DeployBaseTest):
                 dict(detail="This job isn't finished yet")]),
             "Response JSON should be as expected")
 
-    @mock.patch('vision_backend.tasks.deploy.run', noop_task)
     def test_no_progress_yet(self):
-        job = self.deploy()
+        job = self.queue_deploy()
         response = self.get_job_result(job)
 
         self.assert_result_response_not_finished(response)
 
-    @mock.patch('vision_backend.tasks.deploy.run', noop_task)
     def test_some_images_in_progress(self):
-        job = self.deploy()
+        job = self.queue_deploy()
 
         # Mark one unit's status as in progress
         job_unit = ApiJobUnit.objects.filter(
@@ -160,9 +159,8 @@ class DeployResultEndpointTest(DeployBaseTest):
 
         self.assert_result_response_not_finished(response)
 
-    @mock.patch('vision_backend.tasks.deploy.run', noop_task)
     def test_all_images_in_progress(self):
-        job = self.deploy()
+        job = self.queue_deploy()
 
         job_units = ApiJobUnit.objects.filter(job=job, type='deploy')
         for job_unit in job_units:
@@ -173,9 +171,8 @@ class DeployResultEndpointTest(DeployBaseTest):
 
         self.assert_result_response_not_finished(response)
 
-    @mock.patch('vision_backend.tasks.deploy.run', noop_task)
     def test_some_images_success(self):
-        job = self.deploy()
+        job = self.queue_deploy()
 
         # Mark one unit's status as success
         job_unit = ApiJobUnit.objects.filter(
@@ -187,9 +184,8 @@ class DeployResultEndpointTest(DeployBaseTest):
 
         self.assert_result_response_not_finished(response)
 
-    @mock.patch('vision_backend.tasks.deploy.run', noop_task)
     def test_some_images_failure(self):
-        job = self.deploy()
+        job = self.queue_deploy()
 
         # Mark one unit's status as failure
         job_unit = ApiJobUnit.objects.filter(
@@ -202,8 +198,9 @@ class DeployResultEndpointTest(DeployBaseTest):
         self.assert_result_response_not_finished(response)
 
     def test_success(self):
-        job = self.deploy()
-        collect_all_jobs()
+        job = self.queue_deploy()
+        run_scheduled_jobs()
+        collect_spacer_jobs()
 
         response = self.get_job_result(job)
 
@@ -287,9 +284,8 @@ class DeployResultEndpointTest(DeployBaseTest):
                 point_classification_without_scores,
                 "Classifications JSON besides scores should be as expected")
 
-    @mock.patch('vision_backend.tasks.deploy.run', noop_task)
     def test_failure(self):
-        job = self.deploy()
+        job = self.queue_deploy()
 
         # Mark both units' status as done: one success, one failure.
         unit_1, unit_2 = ApiJobUnit.objects.filter(

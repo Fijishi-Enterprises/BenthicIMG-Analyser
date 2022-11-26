@@ -1,11 +1,10 @@
-from unittest import skip
-
 from bs4 import BeautifulSoup
 from django.urls import reverse
-import spacer.config as spacer_config
 
+from jobs.tasks import run_scheduled_jobs_until_empty
 from lib.tests.utils import BasePermissionTest, ClientTest
-from vision_backend.tasks import collect_all_jobs, submit_classifier
+from vision_backend.tasks import collect_spacer_jobs
+from vision_backend.tests.tasks.utils import BaseTaskTest
 
 
 class PermissionTest(BasePermissionTest):
@@ -23,6 +22,21 @@ class PermissionTest(BasePermissionTest):
             url, self.SOURCE_EDIT, is_json=True, post_data={})
 
 
+default_search_params = dict(
+    image_form_type='search',
+    aux1='', aux2='', aux3='', aux4='', aux5='',
+    height_in_cm='', latitude='', longitude='', depth='',
+    photographer='', framing='', balance='',
+    photo_date_0='', photo_date_1='', photo_date_2='',
+    photo_date_3='', photo_date_4='',
+    image_name='', annotation_status='',
+    last_annotated_0='', last_annotated_1='', last_annotated_2='',
+    last_annotated_3='', last_annotated_4='',
+    last_annotator_0='', last_annotator_1='',
+    sort_method='name', sort_direction='asc',
+)
+
+
 class BaseDeleteTest(ClientTest):
     @classmethod
     def setUpTestData(cls):
@@ -35,20 +49,6 @@ class BaseDeleteTest(ClientTest):
 
         cls.url = reverse(
             'batch_delete_annotations_ajax', args=[cls.source.pk])
-
-        cls.default_search_params = dict(
-            image_form_type='search',
-            aux1='', aux2='', aux3='', aux4='', aux5='',
-            height_in_cm='', latitude='', longitude='', depth='',
-            photographer='', framing='', balance='',
-            photo_date_0='', photo_date_1='', photo_date_2='',
-            photo_date_3='', photo_date_4='',
-            image_name='', annotation_status='',
-            last_annotated_0='', last_annotated_1='', last_annotated_2='',
-            last_annotated_3='', last_annotated_4='',
-            last_annotator_0='', last_annotator_1='',
-            sort_method='name', sort_direction='asc',
-        )
 
     def assert_annotations_deleted(self, image):
         self.assertFalse(
@@ -109,7 +109,7 @@ class FormAvailabilityTest(BaseDeleteTest):
 
     def test_after_search(self):
         self.client.force_login(self.user)
-        response = self.client.post(self.browse_url, self.default_search_params)
+        response = self.client.post(self.browse_url, default_search_params)
         self.assert_form_availability(response, True)
 
 
@@ -137,7 +137,7 @@ class SuccessTest(BaseDeleteTest):
         Delete annotations for all images in the source.
         """
         self.client.force_login(self.user)
-        response = self.client.post(self.url, self.default_search_params)
+        response = self.client.post(self.url, default_search_params)
         self.assertDictEqual(response.json(), dict(success=True))
 
         for image in [self.img1, self.img2, self.img3]:
@@ -152,7 +152,7 @@ class SuccessTest(BaseDeleteTest):
         self.img1.metadata.aux1 = 'SiteA'
         self.img1.metadata.save()
 
-        post_data = self.default_search_params.copy()
+        post_data = default_search_params.copy()
         post_data['aux1'] = 'SiteA'
 
         self.client.force_login(self.user)
@@ -206,44 +206,18 @@ class NotFullyAnnotatedTest(BaseDeleteTest):
 
     def test(self):
         self.client.force_login(self.user)
-        response = self.client.post(self.url, self.default_search_params)
+        response = self.client.post(self.url, default_search_params)
         self.assertDictEqual(response.json(), dict(success=True))
 
         for image in [self.img1, self.img2, self.img3]:
             self.assert_annotations_deleted(image)
 
 
-@skip("This test fails intermittently (at least in CI) for some reason.")
-class ClassifyAfterDeleteTest(BaseDeleteTest):
+class ClassifyAfterDeleteTest(BaseTaskTest):
     """
     Should machine-classify the images after annotation deletion,
     assuming there's a classifier available.
     """
-    def upload_image_with_annotations(self, filename):
-        img = self.upload_image(
-            self.user, self.source, image_options=dict(filename=filename))
-        self.add_annotations(self.user, img, {1: 'A', 2: 'B'})
-        return img
-
-    def upload_images_for_training(self, train_image_count, val_image_count):
-        for _ in range(train_image_count):
-            self.upload_image_with_annotations(
-                'train{}.png'.format(self.image_count))
-        for _ in range(val_image_count):
-            self.upload_image_with_annotations(
-                'val{}.png'.format(self.image_count))
-
-    def upload_data_and_train_classifier(self):
-        # Provide enough data for training
-        self.upload_images_for_training(
-            train_image_count=spacer_config.MIN_TRAINIMAGES, val_image_count=1)
-        # Process feature extraction results
-        collect_all_jobs()
-
-        # Train classifier
-        submit_classifier(self.source.pk)
-        collect_all_jobs()
-
     def test(self):
         # Set up confirmed images + classifier
         self.upload_data_and_train_classifier()
@@ -253,17 +227,25 @@ class ClassifyAfterDeleteTest(BaseDeleteTest):
         unconfirmed_image = self.upload_image(
             self.user, self.source,
             image_options=dict(filename='unconfirmed.png'))
-        collect_all_jobs()
+        # Extract features
+        run_scheduled_jobs_until_empty()
+        collect_spacer_jobs()
+        # Classify
+        run_scheduled_jobs_until_empty()
+
         unconfirmed_image.refresh_from_db()
         self.assertEqual(
-            unconfirmed_image.annotation_set.unconfirmed().count(), 2,
+            unconfirmed_image.annotation_set.unconfirmed().count(), 5,
             f"Image {unconfirmed_image.metadata.name} should have"
             f" unconfirmed annotations")
 
         # Delete annotations
         self.client.force_login(self.user)
-        response = self.client.post(self.url, self.default_search_params)
+        url = reverse('batch_delete_annotations_ajax', args=[self.source.pk])
+        response = self.client.post(url, default_search_params)
         self.assertDictEqual(response.json(), dict(success=True))
+        # Classify
+        run_scheduled_jobs_until_empty()
 
         for image in self.source.image_set.all():
             self.assertFalse(
@@ -271,7 +253,7 @@ class ClassifyAfterDeleteTest(BaseDeleteTest):
                 f"Image {image.metadata.name}'s confirmed annotations"
                 f" should be deleted")
             self.assertEqual(
-                image.annotation_set.unconfirmed().count(), 2,
+                image.annotation_set.unconfirmed().count(), 5,
                 f"Image {image.metadata.name} should now have"
                 f" unconfirmed annotations")
             self.assertFalse(
@@ -312,7 +294,7 @@ class OtherSourceTest(BaseDeleteTest):
         source.
         """
         self.client.force_login(self.user)
-        response = self.client.post(self.url, self.default_search_params)
+        response = self.client.post(self.url, default_search_params)
         self.assertDictEqual(response.json(), dict(success=True))
 
         self.assert_annotations_deleted(self.img1)
@@ -374,7 +356,7 @@ class ErrorTest(BaseDeleteTest):
             self.assert_annotations_not_deleted(image)
 
     def test_form_error(self):
-        post_data = self.default_search_params.copy()
+        post_data = default_search_params.copy()
         post_data['annotation_status'] = 'invalid_value'
 
         self.client.force_login(self.user)

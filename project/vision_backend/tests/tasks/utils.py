@@ -3,9 +3,10 @@ from django.test import override_settings
 import spacer.config as spacer_config
 
 from images.model_utils import PointGen
+from jobs.tasks import run_scheduled_jobs_until_empty
 from lib.tests.utils import ClientTest
 from upload.tests.utils import UploadAnnotationsCsvTestMixin
-from vision_backend.tasks import collect_all_jobs, submit_classifier
+from vision_backend.tasks import collect_spacer_jobs
 
 
 # Note that spacer also has its own minimum image count for training.
@@ -49,18 +50,21 @@ class BaseTaskTest(ClientTest, UploadAnnotationsCsvTestMixin):
         # Provide enough data for training
         self.upload_images_for_training(
             train_image_count=spacer_config.MIN_TRAINIMAGES, val_image_count=1)
-        # Process feature extraction results
-        collect_all_jobs()
-
+        # Extract features
+        run_scheduled_jobs_until_empty()
+        collect_spacer_jobs()
         # Train classifier
-        submit_classifier(self.source.pk)
-        collect_all_jobs()
+        run_scheduled_jobs_until_empty()
+        collect_spacer_jobs()
 
     def upload_image_and_machine_classify(self, user, source):
         # Image without annotations
         img = self.upload_image(user, source)
-        # Process feature extraction results + classify image
-        collect_all_jobs()
+        # Extract features
+        run_scheduled_jobs_until_empty()
+        collect_spacer_jobs()
+        # Classify image
+        run_scheduled_jobs_until_empty()
 
         return img
 

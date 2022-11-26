@@ -2,9 +2,8 @@
 This file contains helper functions to vision_backend.tasks.
 """
 from abc import ABC
-from datetime import timedelta
 import logging
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 from django.conf import settings
@@ -17,18 +16,21 @@ from reversion import revisions
 from spacer.data_classes import ImageLabels
 from spacer.messages import \
     ExtractFeaturesMsg, \
-    ExtractFeaturesReturnMsg, \
     TrainClassifierMsg, \
-    TrainClassifierReturnMsg, \
     ClassifyImageMsg, \
     ClassifyReturnMsg, \
     JobReturnMsg
 
 from annotations.models import Annotation
 from api_core.models import ApiJobUnit
+from errorlogs.utils import instantiate_error_log
 from images.models import Image, Point
+from jobs.exceptions import JobError
+from jobs.models import Job
+from jobs.utils import finish_job
 from labels.models import Label, LabelSet
 from .models import Classifier, Score
+from .utils import queue_source_check
 
 logger = logging.getLogger(__name__)
 
@@ -153,184 +155,226 @@ def make_dataset(images: List[Image]) -> ImageLabels:
     return labels
 
 
-class JobResultHandler(ABC):
+class SpacerResultHandler(ABC):
     """
-    Each type of collectable vision-backend job should define a subclass
+    Each type of collectable spacer job should define a subclass
     of this base class.
     """
-    task_name = None
+    # This must match the corresponding Job's job_name AND the
+    # spacer JobMsg's task_name (which are assumed to be the same).
+    job_name = None
 
     @classmethod
     def handle(cls, job_res: JobReturnMsg):
         if not job_res.ok:
-            logger.error(f"Job failed: {job_res.error_message}")
-            cls.handle_job_error(job_res)
-            return
+            # Spacer got an uncaught error.
+            error_traceback = job_res.error_message
+            # Last line of the traceback should serve as a decent
+            # one-line summary. Has the error class and message.
+            error_message = error_traceback.splitlines()[-1]
+            # The error message should be like
+            # `somemodule.SomeError: some error info`.
+            # We extract the error class/info as the part before/after
+            # the first colon.
+            error_class, error_info = error_message.split(':', maxsplit=1)
+            error_info = error_info.strip()
 
-        for task, task_res in zip(job_res.original_job.tasks, job_res.results):
-            pk = decode_spacer_job_token(task.job_token)[0]
-            cls.handle_task_result(task, task_res)
-            logger.info(f"Collected job: {cls.task_name} with pk: {pk}")
+            if error_class != 'spacer.exceptions.SpacerInputError':
+                # Not a SpacerInputError, so we should treat it like
+                # a server error.
+                mail_admins(
+                    f"Spacer job failed: {cls.job_name}",
+                    repr(job_res),
+                )
 
-    @staticmethod
-    def handle_job_error(job_res: JobReturnMsg):
-        mail_admins("Spacer job failed", repr(job_res))
+                error_class_name = error_class.split('.')[-1]
+                error_html = f'<pre>{error_traceback}</pre>'
+                error_log = instantiate_error_log(
+                    kind=error_class_name,
+                    html=error_html,
+                    path=f"Spacer - {cls.job_name}",
+                    info=error_info,
+                    data=repr(job_res),
+                )
+                error_log.save()
 
-    @staticmethod
-    def handle_task_result(task, task_res):
+            spacer_error_for_task = error_message
+            # If there are multiple tasks in this job, spacer doesn't say
+            # which task the error pertains to. So we add an appropriate
+            # clarification to the task-level error message.
+            if len(job_res.original_job.tasks) > 1:
+                spacer_error_for_task += (
+                    f" (This error occurred in one of the tasks within"
+                    f" the spacer job that this task belongs to)"
+                )
+        else:
+            spacer_error_for_task = None
+
+        for task_index, task in enumerate(job_res.original_job.tasks):
+            task_object_id = cls.get_task_object_ids(task)[0]
+
+            task_error_message = None
+            try:
+                cls.handle_spacer_task_result(
+                    task, task_index, job_res, spacer_error_for_task)
+            except JobError as e:
+                task_error_message = str(e)
+                logger.info(task_error_message)
+            finally:
+                logger.info(
+                    f"Collected spacer task {cls.job_name},"
+                    f" with pk {task_object_id}")
+
+                job = Job.objects.get(
+                    job_name=cls.job_name,
+                    arg_identifier=Job.args_to_identifier(
+                        cls.get_task_args(task)),
+                    status=Job.IN_PROGRESS,
+                )
+                finish_job(job, error_message=task_error_message)
+
+                if job.source:
+                    # If this is a source's job, chances are there might
+                    # be another job to do for the source.
+                    queue_source_check(job.source_id)
+
+    @classmethod
+    def get_task_args(cls, task):
         raise NotImplementedError
 
-
-class FeatureJobResultHandler(JobResultHandler):
-    task_name = 'extract_features'
+    @classmethod
+    def handle_spacer_task_result(
+            cls, task, task_index, job_res, spacer_error):
+        """
+        Handles the result of a spacer task (a sub-unit within a spacer job)
+        and returns an error message if an issue is found (None otherwise).
+        """
+        raise NotImplementedError
 
     @staticmethod
-    def handle_task_result(
-            task: ExtractFeaturesMsg, res: ExtractFeaturesReturnMsg):
-        image_id = decode_spacer_job_token(task.job_token)[0]
+    def get_task_object_ids(task):
+        return decode_spacer_job_token(task.job_token)
+
+
+class SpacerFeatureResultHandler(SpacerResultHandler):
+    job_name = 'extract_features'
+
+    @classmethod
+    def handle_spacer_task_result(
+            cls,
+            task: ExtractFeaturesMsg,
+            task_index: int,
+            job_res: JobReturnMsg,
+            spacer_error: Optional[str]) -> None:
+
+        image_id = cls.get_task_object_ids(task)[0]
         try:
             img = Image.objects.get(pk=image_id)
         except Image.DoesNotExist:
-            logger.info("Image {} not found. Aborting".format(image_id))
-            return 0
-        log_str = "Image {} [Source: {} [{}]]".format(image_id, img.source,
-                                                      img.source_id)
+            raise JobError(f"Image {image_id} doesn't exist anymore.")
+
+        if spacer_error:
+            # Error from spacer when running the spacer job.
+            raise JobError(spacer_error)
+
+        # If there was no spacer error, then a task result is available.
+        task_res = job_res.results[task_index]
 
         # Double-check that the row-col information is still correct.
         rowcols = [(p.row, p.column) for p in Point.objects.filter(image=img)]
-
         if not set(rowcols) == set(task.rowcols):
-            logger.info(f"Row-col for {log_str} have changed. Aborting.")
-            return 0
+            raise JobError(
+                f"Row-col data for {img} has changed"
+                f" since this task was submitted.")
 
         # If all is ok store meta-data.
         img.features.extracted = True
-        img.features.runtime_total = res.runtime
+        img.features.runtime_total = task_res.runtime
 
         # TODO: remove runtime_core from DB
         img.features.runtime_core = 0
-        img.features.model_was_cashed = res.model_was_cashed
+        img.features.model_was_cashed = task_res.model_was_cashed
         img.features.extracted_date = now()
         img.features.save()
 
-        # Submit a classify job.
-        from .tasks import classify_image
-        classify_image.apply_async(args=[image_id],
-                                   eta=now() + timedelta(seconds=10))
+    @classmethod
+    def get_task_args(cls, task):
+        return [cls.get_task_object_ids(task)[0]]
 
 
-class TrainJobResultHandler(JobResultHandler):
-    task_name = 'train_classifier'
+class SpacerTrainResultHandler(SpacerResultHandler):
+    job_name = 'train_classifier'
 
-    @staticmethod
-    def handle_job_error(job_res: JobReturnMsg):
-        job_token = job_res.original_job.tasks[0].job_token
-        pk = decode_spacer_job_token(job_token)[0]
+    @classmethod
+    def handle_spacer_task_result(
+            cls,
+            task: TrainClassifierMsg,
+            task_index: int,
+            job_res: JobReturnMsg,
+            spacer_error: Optional[str]) -> None:
 
-        try:
-            classifier = Classifier.objects.get(pk=pk)
-        except Classifier.DoesNotExist:
-            # This should be an edge case, where the user reset the classifiers
-            # or deleted the source before training could complete.
-            logger.info(
-                "Training failed for classifier {}, although the classifier"
-                " was already deleted.".format(job_token))
-            return
-
-        classifier.status = Classifier.TRAIN_ERROR
-        classifier.save()
-        logger.info(
-            "Training failed for classifier {}.".format(job_token))
-
-        # Sometimes training fails because features were temporarily de-synced
-        # with the points. We'll take different actions depending on the number
-        # of train attempts that failed in a row.
-        source = classifier.source
-        last_classifiers = source.classifier_set.order_by('-pk')[:5]
-        train_fails_in_a_row = 0
-        for clf in last_classifiers:
-            if clf.status == Classifier.TRAIN_ERROR:
-                train_fails_in_a_row += 1
-            else:
-                break
-
-        from .tasks import reset_features, submit_classifier
-
-        if train_fails_in_a_row <= 1:
-            # Only 1 fail so far.
-            # Sometimes the features are getting re-extracted, and just didn't
-            # finish yet. We'll hope for that here.
-            submit_classifier.apply_async(
-                args=[source.pk],
-                eta=now() + timedelta(hours=3))
-        elif 2 <= train_fails_in_a_row <= 3:
-            # Go through all the source's images and force-extract features.
-            for image in source.image_set.all():
-                reset_features.apply_async(
-                    args=[image.pk],
-                    eta=now() + timedelta(seconds=10))
-            # Hopefully this eta is enough time for the features to get
-            # extracted, regardless of image count.
-            # (The "2 or 3" check attempts to cover for the case where train
-            # number 3 happens very soon from submit_all_classifiers(), thus
-            # leaving no time for feature extraction.)
-            submit_classifier.apply_async(
-                args=[source.pk],
-                eta=now() + timedelta(hours=8))
-        else:
-            # 4 or more fails in a row. Notify the admins.
-            mail_admins("Spacer job failed", repr(job_res))
-            # Next retrain happens when submit_all_classifiers() is run
-            # (<= 24 hours).
-
-    @staticmethod
-    def handle_task_result(
-            task: TrainClassifierMsg, res: TrainClassifierReturnMsg):
         # Parse out pk for current and previous classifiers.
-        pks = decode_spacer_job_token(task.job_token)
-        pk = pks[0]
-        prev_pks = pks[1:]
-
-        assert len(prev_pks) == len(res.pc_accs), \
-            f"Number of previous classifiers doesn't match between" \
-            f" job ({len(prev_pks)}) and results ({len(res.pc_accs)})."
+        object_ids = cls.get_task_object_ids(task)
+        classifier_id = object_ids[1]
+        prev_classifier_ids = object_ids[2:]
 
         # Check that Classifier still exists.
         try:
-            classifier = Classifier.objects.get(pk=pk)
+            classifier = Classifier.objects.get(pk=classifier_id)
         except Classifier.DoesNotExist:
-            logger.info("Classifier {} was deleted. Aborting".
-                        format(task.job_token))
-            return False
-        log_str = 'Classifier {} [Source: {} [{}]]'.format(classifier.pk,
-                                                           classifier.source,
-                                                           classifier.source.id)
+            raise JobError(
+                f"Classifier {classifier_id} doesn't exist anymore.")
+
+        if spacer_error:
+            # Error from spacer when running the spacer job.
+            classifier.status = Classifier.TRAIN_ERROR
+            classifier.save()
+            raise JobError(spacer_error)
+
+        # If there was no spacer error, then a task result is available.
+        task_res = job_res.results[task_index]
+
+        if len(prev_classifier_ids) != len(task_res.pc_accs):
+            raise JobError(
+                f"Number of previous classifiers doesn't match between"
+                f" job ({len(prev_classifier_ids)})"
+                f" and results ({len(task_res.pc_accs)}).")
 
         # Store generic stats
-        classifier.runtime_train = res.runtime
-        classifier.accuracy = res.acc
+        classifier.runtime_train = task_res.runtime
+        classifier.accuracy = task_res.acc
         classifier.epoch_ref_accuracy = str([int(round(10000 * ra)) for
-                                             ra in res.ref_accs])
+                                             ra in task_res.ref_accs])
         classifier.save()
 
-        # If there are previous classifiers and the new one is not a large
-        # enough improvement, abort without validating the new classifier.
-        if len(prev_pks) > 0 and max(res.pc_accs) * \
-                settings.NEW_CLASSIFIER_IMPROVEMENT_TH > res.acc:
+        # See whether we're accepting or rejecting the new classifier.
+        if len(prev_classifier_ids) > 0:
 
-            classifier.status = Classifier.REJECTED_ACCURACY
-            classifier.save()
-            logger.info(
-                "{} worse than previous. Not accepted. Max previous: {:.2f}, "
-                "threshold: {:.2f}, this: {:.2f}".format(
-                    log_str,
-                    max(res.pc_accs),
-                    max(res.pc_accs) * settings.NEW_CLASSIFIER_IMPROVEMENT_TH,
-                    res.acc))
-            return False
+            max_previous_acc = max(task_res.pc_accs)
+            acc_threshold = \
+                max_previous_acc * settings.NEW_CLASSIFIER_IMPROVEMENT_TH
 
+            if acc_threshold > task_res.acc:
+                # There are previous classifiers and the new one is not a
+                # large enough improvement.
+                # Abort without accepting the new classifier.
+                #
+                # This isn't really an error case; it just means we tried to
+                # improve on the last classifier and we couldn't improve.
+
+                classifier.status = Classifier.REJECTED_ACCURACY
+                classifier.save()
+
+                logger.info(
+                    f"{classifier} worse than previous. Not accepted."
+                    f" Max previous: {max_previous_acc:.2f},"
+                    f" threshold: {acc_threshold:.2f},"
+                    f" this: {task_res.acc:.2f}")
+                return
+
+        # We're accepting the new classifier.
         # Update accuracy for previous models.
-        for pc_pk, pc_acc in zip(prev_pks, res.pc_accs):
+        for pc_pk, pc_acc in zip(prev_classifier_ids, task_res.pc_accs):
             pc = Classifier.objects.get(pk=pc_pk)
             pc.accuracy = pc_acc
             pc.save()
@@ -338,69 +382,52 @@ class TrainJobResultHandler(JobResultHandler):
         # Accept and save the current model
         classifier.status = Classifier.ACCEPTED
         classifier.save()
-        logger.info("{} collected successfully.".format(log_str))
-
-        # If successful, submit a classify job for all imgs in source.
-        from .tasks import classify_image
-        classifier = Classifier.objects.get(pk=pk)
-        for image in Image.objects.filter(source=classifier.source,
-                                          features__extracted=True,
-                                          annoinfo__confirmed=False):
-            classify_image.apply_async(
-                args=[image.id],
-                eta=now() + timedelta(seconds=10))
-
-
-class ClassifyJobResultHandler(JobResultHandler):
-    task_name = 'classify_image'
-
-    @staticmethod
-    def handle_job_error(job_res: JobReturnMsg):
-        # Mail admins, unless the error was a spacer input error.
-        # error_message should be an error traceback, so we extract the error
-        # class from the traceback text. Not too pretty, but should work.
-        # The last line should be like `somemodule.SomeError: some message`.
-        error_text_last_line = job_res.error_message.splitlines()[-1]
-        error_class = error_text_last_line.split(':')[0]
-        if error_class != 'spacer.exceptions.SpacerInputError':
-            mail_admins("Spacer job failed", repr(job_res))
-
-        pk = decode_spacer_job_token(
-            job_res.original_job.tasks[0].job_token)[0]
-        try:
-            job_unit = ApiJobUnit.objects.get(pk=pk)
-        except ApiJobUnit.DoesNotExist:
-            logger.info("Job unit of id {} does not exist.".format(pk))
-            return
-
-        job_unit.result_json = dict(
-            url=job_unit.request_json['url'],
-            errors=[job_res.error_message],
-        )
-        job_unit.status = ApiJobUnit.FAILURE
-        job_unit.save()
 
     @classmethod
-    def handle_task_result(
-            cls, task: ClassifyImageMsg, res: ClassifyReturnMsg):
+    def get_task_args(cls, task):
+        source_id = cls.get_task_object_ids(task)[0]
+        return [source_id]
 
-        pk = decode_spacer_job_token(task.job_token)[0]
+
+class SpacerClassifyResultHandler(SpacerResultHandler):
+    job_name = 'classify_image'
+
+    @classmethod
+    def handle_spacer_task_result(
+            cls,
+            task: ClassifyImageMsg,
+            task_index: int,
+            job_res: JobReturnMsg,
+            spacer_error: Optional[str]) -> None:
+
+        job_unit_id = cls.get_task_object_ids(task)[0]
         try:
-            job_unit = ApiJobUnit.objects.get(pk=pk)
+            job_unit = ApiJobUnit.objects.get(pk=job_unit_id)
         except ApiJobUnit.DoesNotExist:
-            logger.info("Job unit of id {} does not exist.".format(pk))
-            return
+            raise JobError(f"Job unit of id {job_unit_id} does not exist.")
 
+        if spacer_error:
+            # Error from spacer when running the spacer job.
+            job_unit.result_json = dict(
+                url=job_unit.request_json['url'],
+                errors=[job_res.error_message],
+            )
+            job_unit.status = ApiJobUnit.FAILURE
+            job_unit.save()
+            raise JobError(spacer_error)
+
+        # If there was no spacer error, then a task result is available.
+        task_res = job_res.results[task_index]
+
+        classifier_id = job_unit.request_json['classifier_id']
         try:
-            classifier = Classifier.objects.get(
-                pk=job_unit.request_json['classifier_id'])
+            classifier = Classifier.objects.get(pk=classifier_id)
         except Classifier.DoesNotExist:
-            logger.info("Classifier of id {} does not exist.".format(pk))
-            return
+            raise JobError(f"Classifier of id {classifier_id} does not exist.")
 
         job_unit.result_json = dict(
             url=job_unit.request_json['url'],
-            points=cls.build_points_dicts(res, classifier.source.labelset)
+            points=cls.build_points_dicts(task_res, classifier.source.labelset)
         )
         job_unit.status = ApiJobUnit.SUCCESS
         job_unit.save()
@@ -442,20 +469,24 @@ class ClassifyJobResultHandler(JobResultHandler):
                         )
         return data
 
+    @classmethod
+    def get_task_args(cls, task):
+        return [cls.get_task_object_ids(task)[0]]
+
 
 handler_classes = [
-    FeatureJobResultHandler,
-    TrainJobResultHandler,
-    ClassifyJobResultHandler,
+    SpacerFeatureResultHandler,
+    SpacerTrainResultHandler,
+    SpacerClassifyResultHandler,
 ]
 
 
-def handle_job_result(job_res: JobReturnMsg):
+def handle_spacer_result(job_res: JobReturnMsg):
     """Handles the job results found in queue. """
 
     task_name = job_res.original_job.task_name
     for HandlerClass in handler_classes:
-        if task_name == HandlerClass.task_name:
+        if task_name == HandlerClass.job_name:
             HandlerClass.handle(job_res)
             return
-    logger.error(f"Job task type {task_name} not recognized")
+    logger.error(f"Spacer task name [{task_name}] not recognized")

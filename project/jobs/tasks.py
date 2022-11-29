@@ -32,7 +32,7 @@ def get_scheduled_jobs():
     # pending jobs immediately. (It's similar to celery's semantics for
     # this setting.)
     if not settings.CELERY_ALWAYS_EAGER:
-        jobs = jobs.filter(scheduled_start_time__lt=timezone.now())
+        jobs = jobs.filter(scheduled_start_date__lt=timezone.now())
     return jobs
 
 
@@ -64,5 +64,12 @@ def clean_up_old_jobs():
     current_time = timezone.now()
     thirty_days_ago = current_time - timedelta(days=30)
 
-    old_jobs = Job.objects.filter(scheduled_start_time__lt=thirty_days_ago)
-    old_jobs.delete()
+    # Clean up Jobs which are old enough since last modification,
+    # and which are not tied to an ApiJobUnit.
+    # The API-related Jobs should get cleaned up some time after
+    # their ApiJobUnits get cleaned up.
+    jobs_to_clean_up = Job.objects.filter(
+        modify_date__lt=thirty_days_ago,
+        apijobunit__isnull=True,
+    )
+    jobs_to_clean_up.delete()

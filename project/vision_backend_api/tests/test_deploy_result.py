@@ -10,6 +10,7 @@ from rest_framework import status
 
 from api_core.models import ApiJob, ApiJobUnit
 from api_core.tests.utils import BaseAPIPermissionTest
+from jobs.models import Job
 from jobs.tasks import run_scheduled_jobs
 from vision_backend.tasks import collect_spacer_jobs
 from .utils import DeployBaseTest, mocked_load_image
@@ -150,10 +151,9 @@ class DeployResultEndpointTest(DeployBaseTest):
         job = self.queue_deploy()
 
         # Mark one unit's status as in progress
-        job_unit = ApiJobUnit.objects.filter(
-            job=job, type='deploy').latest('pk')
-        job_unit.status = ApiJobUnit.IN_PROGRESS
-        job_unit.save()
+        job_unit = ApiJobUnit.objects.filter(parent=job).latest('pk')
+        job_unit.internal_job.status = Job.IN_PROGRESS
+        job_unit.internal_job.save()
 
         response = self.get_job_result(job)
 
@@ -162,10 +162,10 @@ class DeployResultEndpointTest(DeployBaseTest):
     def test_all_images_in_progress(self):
         job = self.queue_deploy()
 
-        job_units = ApiJobUnit.objects.filter(job=job, type='deploy')
+        job_units = ApiJobUnit.objects.filter(parent=job)
         for job_unit in job_units:
-            job_unit.status = ApiJobUnit.IN_PROGRESS
-            job_unit.save()
+            job_unit.internal_job.status = Job.IN_PROGRESS
+            job_unit.internal_job.save()
 
         response = self.get_job_result(job)
 
@@ -175,10 +175,9 @@ class DeployResultEndpointTest(DeployBaseTest):
         job = self.queue_deploy()
 
         # Mark one unit's status as success
-        job_unit = ApiJobUnit.objects.filter(
-            job=job, type='deploy').latest('pk')
-        job_unit.status = ApiJobUnit.SUCCESS
-        job_unit.save()
+        job_unit = ApiJobUnit.objects.filter(parent=job).latest('pk')
+        job_unit.internal_job.status = Job.SUCCESS
+        job_unit.internal_job.save()
 
         response = self.get_job_result(job)
 
@@ -188,10 +187,9 @@ class DeployResultEndpointTest(DeployBaseTest):
         job = self.queue_deploy()
 
         # Mark one unit's status as failure
-        job_unit = ApiJobUnit.objects.filter(
-            job=job, type='deploy').latest('pk')
-        job_unit.status = ApiJobUnit.FAILURE
-        job_unit.save()
+        job_unit = ApiJobUnit.objects.filter(parent=job).latest('pk')
+        job_unit.internal_job.status = Job.FAILURE
+        job_unit.internal_job.save()
 
         response = self.get_job_result(job)
 
@@ -289,9 +287,10 @@ class DeployResultEndpointTest(DeployBaseTest):
 
         # Mark both units' status as done: one success, one failure.
         unit_1, unit_2 = ApiJobUnit.objects.filter(
-            job=job, type='deploy').order_by('pk')
+            parent=job).order_by('order_in_parent')
 
-        unit_1.status = ApiJobUnit.SUCCESS
+        unit_1.internal_job.status = Job.SUCCESS
+        unit_1.internal_job.save()
         classifications = [dict(
             label_id=self.labels_by_name['A'].pk, label_name='A',
             label_code='A_mycode', score=1.0)]
@@ -309,11 +308,10 @@ class DeployResultEndpointTest(DeployBaseTest):
             url='URL 1', points=points_1)
         unit_1.save()
 
-        unit_2.status = ApiJobUnit.FAILURE
-        url_2_errors = ["Classifier of id 33 does not exist."]
-        unit_2.result_json = dict(
-            url='URL 2', errors=url_2_errors)
-        unit_2.save()
+        unit_2.internal_job.status = Job.FAILURE
+        unit_2.internal_job.error_message = (
+            "Classifier of id 33 does not exist.")
+        unit_2.internal_job.save()
 
         response = self.get_job_result(job)
 
@@ -331,7 +329,10 @@ class DeployResultEndpointTest(DeployBaseTest):
                     dict(
                         type='image',
                         id='URL 2',
-                        attributes=dict(url='URL 2', errors=url_2_errors),
+                        attributes=dict(
+                            url='URL 2',
+                            errors=[
+                                "Classifier of id 33 does not exist."]),
                     ),
                 ]),
             "Response JSON should be as expected")

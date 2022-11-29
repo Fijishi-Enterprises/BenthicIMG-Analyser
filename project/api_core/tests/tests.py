@@ -1,13 +1,16 @@
 import copy
-from datetime import timedelta
+from datetime import datetime, timedelta
 import json
+import pytz
 
 from django.conf import settings
 from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
+from django_migration_testcase import MigrationTest
 from rest_framework import status
 
+from jobs.models import Job
 from lib.tests.utils import ClientTest
 from ..models import ApiJob, ApiJobUnit
 from ..tasks import clean_up_old_api_jobs
@@ -289,6 +292,15 @@ class JobCleanupTest(ClientTest):
 
         cls.user = cls.create_user()
 
+    def create_unit(self, api_job, order):
+        internal_job = Job(job_name='')
+        internal_job.save()
+        unit = ApiJobUnit(
+            parent=api_job, internal_job=internal_job, order_in_parent=order, request_json=[],
+        )
+        unit.save()
+        return unit
+
     def test_job_selection(self):
         """
         Only jobs eligible for cleanup should be cleaned up.
@@ -305,32 +317,26 @@ class JobCleanupTest(ClientTest):
 
         job = ApiJob(type='new job, recent unit work', user=self.user)
         job.save()
-        unit_1 = ApiJobUnit(job=job, type='', request_json=[])
-        unit_1.save()
-        unit_2 = ApiJobUnit(job=job, type='', request_json=[])
-        unit_2.save()
+        self.create_unit(job, 1)
+        self.create_unit(job, 2)
 
         job = ApiJob(type='old job, recent unit work', user=self.user)
         job.save()
         job.create_date = thirty_one_days_ago
         job.save()
-        unit_1 = ApiJobUnit(job=job, type='', request_json=[])
-        unit_1.save()
-        unit_2 = ApiJobUnit(job=job, type='', request_json=[])
-        unit_2.save()
+        self.create_unit(job, 1)
+        self.create_unit(job, 2)
 
         job = ApiJob(
             type='old job, mixed units', user=self.user)
         job.save()
         job.create_date = thirty_one_days_ago
         job.save()
-        unit_1 = ApiJobUnit(job=job, type='', request_json=[])
-        unit_1.save()
-        unit_2 = ApiJobUnit(job=job, type='', request_json=[])
-        unit_2.save()
+        unit_1 = self.create_unit(job, 1)
+        self.create_unit(job, 2)
         # Use QuerySet.update() instead of Model.save() so that the modify
-        # date doesn't get auto-updated to the current date.
-        ApiJobUnit.objects.filter(pk=unit_1.pk).update(
+        # date doesn't get auto-updated to the current time.
+        Job.objects.filter(pk=unit_1.internal_job.pk).update(
             modify_date=thirty_one_days_ago)
 
         job = ApiJob(
@@ -338,13 +344,11 @@ class JobCleanupTest(ClientTest):
         job.save()
         job.create_date = thirty_one_days_ago
         job.save()
-        unit_1 = ApiJobUnit(job=job, type='', request_json=[])
-        unit_1.save()
-        unit_2 = ApiJobUnit(job=job, type='', request_json=[])
-        unit_2.save()
-        ApiJobUnit.objects.filter(pk=unit_1.pk).update(
+        unit_1 = self.create_unit(job, 1)
+        unit_2 = self.create_unit(job, 2)
+        Job.objects.filter(pk=unit_1.internal_job.pk).update(
             modify_date=thirty_one_days_ago)
-        ApiJobUnit.objects.filter(pk=unit_2.pk).update(
+        Job.objects.filter(pk=unit_2.internal_job.pk).update(
             modify_date=thirty_one_days_ago)
 
         clean_up_old_api_jobs()
@@ -380,27 +384,221 @@ class JobCleanupTest(ClientTest):
 
         job = ApiJob(type='new', user=self.user)
         job.save()
-        for _ in range(5):
-            unit = ApiJobUnit(job=job, type='new_unit', request_json=[])
-            unit.save()
+        for n in range(1, 5+1):
+            self.create_unit(job, n)
 
         job = ApiJob(type='old', user=self.user)
         job.save()
         job.create_date = thirty_one_days_ago
         job.save()
-        for _ in range(5):
-            unit = ApiJobUnit(job=job, type='old_unit', request_json=[])
-            unit.save()
+        for n in range(1, 5+1):
+            unit = self.create_unit(job, n)
             # Use QuerySet.update() instead of Model.save() so that the modify
             # date doesn't get auto-updated to the current date.
-            ApiJobUnit.objects.filter(pk=unit.pk).update(
+            Job.objects.filter(pk=unit.internal_job.pk).update(
                 modify_date=thirty_one_days_ago)
 
         clean_up_old_api_jobs()
 
         self.assertTrue(
-            ApiJobUnit.objects.filter(type='new_unit').exists(),
+            ApiJobUnit.objects.filter(parent__type='new').exists(),
             "Shouldn't clean up the new job's units")
         self.assertFalse(
-            ApiJobUnit.objects.filter(type='old_unit').exists(),
+            ApiJobUnit.objects.filter(parent__type='old').exists(),
             "Should clean up the old job's units")
+
+
+class UnitAndJobForwardMigrationTest(MigrationTest):
+
+    app_name = 'api_core'
+    before = '0001_initial'
+    after = '0008_unit_order_required_and_unique'
+
+    def test(self):
+        ApiJobBefore = self.get_model_before('api_core.ApiJob')
+        UserBefore = self.get_model_before('auth.User')
+        ApiJobUnitBefore = self.get_model_before('api_core.ApiJobUnit')
+
+        user = UserBefore(username='user1')
+        user.save()
+        api_job = ApiJobBefore(type='deploy', user=user)
+        api_job.save()
+
+        # In progress
+        unit_1 = ApiJobUnitBefore(
+            job=api_job, type='some_type', status=Job.IN_PROGRESS,
+            request_json=dict(
+                url='URL 1', image_order=10,
+            ),
+        )
+        unit_1.save()
+
+        # Success + test specific dates
+        unit_2 = ApiJobUnitBefore(
+            job=api_job, type='some_type', status=Job.SUCCESS,
+            request_json=dict(
+                url='URL 2', image_order=11,
+            ),
+            result_json=dict(
+                url='URL 2', points=[],
+            ),
+        )
+        unit_2.save()
+        ApiJobUnitBefore.objects.filter(pk=unit_2.pk).update(
+            create_date=timezone.make_aware(
+                datetime(2022, 11, 19), pytz.timezone("UTC")),
+            modify_date=timezone.make_aware(
+                datetime(2022, 11, 21), pytz.timezone("UTC")))
+
+        # Failure
+        unit_3 = ApiJobUnitBefore(
+            job=api_job, type='some_type', status=Job.FAILURE,
+            request_json=dict(
+                url='URL 3', image_order=12,
+            ),
+            result_json=dict(
+                url='URL 3', errors=["Some error"],
+            ),
+        )
+        unit_3.save()
+
+        self.run_migration()
+
+        ApiJobUnitAfter = self.get_model_after('api_core.ApiJobUnit')
+
+        unit_1 = ApiJobUnitAfter.objects.get(pk=unit_1.pk)
+        self.assertEqual(unit_1.parent_id, api_job.pk)
+        self.assertEqual(unit_1.order_in_parent, 11)
+        self.assertEqual(unit_1.internal_job.job_name, 'some_type')
+        self.assertEqual(
+            unit_1.internal_job.arg_identifier, f'{api_job.pk},11')
+        self.assertEqual(unit_1.internal_job.status, Job.IN_PROGRESS)
+
+        unit_2 = ApiJobUnitAfter.objects.get(pk=unit_2.pk)
+        self.assertEqual(unit_2.parent_id, api_job.pk)
+        self.assertEqual(unit_2.order_in_parent, 12)
+        self.assertEqual(unit_2.internal_job.job_name, 'some_type')
+        self.assertEqual(
+            unit_2.internal_job.arg_identifier, f'{api_job.pk},12')
+        self.assertEqual(unit_2.internal_job.status, Job.SUCCESS)
+        self.assertEqual(unit_2.internal_job.create_date.day, 19)
+        self.assertEqual(unit_2.internal_job.scheduled_start_date.day, 19)
+        self.assertEqual(unit_2.internal_job.modify_date.day, 21)
+
+        unit_3 = ApiJobUnitAfter.objects.get(pk=unit_3.pk)
+        self.assertEqual(unit_3.parent_id, api_job.pk)
+        self.assertEqual(unit_3.order_in_parent, 13)
+        self.assertEqual(unit_3.internal_job.job_name, 'some_type')
+        self.assertEqual(
+            unit_3.internal_job.arg_identifier, f'{api_job.pk},13')
+        self.assertEqual(unit_3.internal_job.status, Job.FAILURE)
+        self.assertEqual(unit_3.internal_job.error_message, "Some error")
+
+
+class UnitAndJobBackwardMigrationTest(MigrationTest):
+
+    before = [
+        ('api_core', '0008_unit_order_required_and_unique'),
+        ('jobs', '0005_dates_verbose_names')]
+    after = [
+        ('api_core', '0001_initial'),
+        ('jobs', '0005_dates_verbose_names')]
+
+    def test(self):
+        ApiJobBefore = self.get_model_before('api_core.ApiJob')
+        JobBefore = self.get_model_before('jobs.Job')
+        UserBefore = self.get_model_before('auth.User')
+        ApiJobUnitBefore = self.get_model_before('api_core.ApiJobUnit')
+
+        user = UserBefore(username='user1')
+        user.save()
+        api_job = ApiJobBefore(type='deploy', user=user)
+        api_job.save()
+
+        # In progress
+        job_1 = JobBefore(
+            job_name='some_type',
+            arg_identifier=f'{api_job.pk},11',
+            status=Job.IN_PROGRESS,
+        )
+        job_1.save()
+        unit_1 = ApiJobUnitBefore(
+            parent=api_job, order_in_parent=11,
+            internal_job=job_1,
+            request_json=dict(url='URL 1'),
+        )
+        unit_1.save()
+
+        # Success + test specific dates
+        job_2 = JobBefore(
+            job_name='some_type',
+            arg_identifier=f'{api_job.pk},12',
+            status=Job.SUCCESS,
+        )
+        job_2.save()
+        JobBefore.objects.filter(pk=job_2.pk).update(
+            create_date=timezone.make_aware(
+                datetime(2022, 11, 19), pytz.timezone("UTC")),
+            scheduled_start_date=timezone.make_aware(
+                datetime(2022, 11, 20), pytz.timezone("UTC")),
+            modify_date=timezone.make_aware(
+                datetime(2022, 11, 21), pytz.timezone("UTC")))
+        unit_2 = ApiJobUnitBefore(
+            parent=api_job, order_in_parent=12,
+            internal_job=job_2,
+            request_json=dict(url='URL 2'),
+            result_json=dict(url='URL 2', points=[]),
+        )
+        unit_2.save()
+
+        # Failure
+        job_3 = JobBefore(
+            job_name='some_type',
+            arg_identifier=f'{api_job.pk},13',
+            status=Job.FAILURE,
+            error_message="Some error",
+        )
+        job_3.save()
+        unit_3 = ApiJobUnitBefore(
+            parent=api_job, order_in_parent=13,
+            internal_job=job_3,
+            request_json=dict(url='URL 3'),
+        )
+        unit_3.save()
+
+        self.run_migration()
+
+        ApiJobUnitAfter = self.get_model_after('api_core.ApiJobUnit')
+        JobAfter = self.get_model_after('jobs.Job')
+
+        unit_1 = ApiJobUnitAfter.objects.get(pk=unit_1.pk)
+        self.assertEqual(unit_1.job_id, api_job.pk)
+        self.assertEqual(unit_1.type, 'some_type')
+        self.assertEqual(unit_1.status, Job.IN_PROGRESS)
+        self.assertDictEqual(
+            unit_1.request_json,
+            dict(url='URL 1', image_order=10),
+        )
+        self.assertFalse(JobAfter.objects.filter(pk=job_1.pk).exists())
+
+        unit_2 = ApiJobUnitAfter.objects.get(pk=unit_2.pk)
+        self.assertEqual(unit_2.job_id, api_job.pk)
+        self.assertEqual(unit_2.type, 'some_type')
+        self.assertEqual(unit_2.status, Job.SUCCESS)
+        self.assertDictEqual(
+            unit_2.request_json,
+            dict(url='URL 2', image_order=11),
+        )
+        self.assertEqual(unit_2.create_date.day, 19)
+        self.assertEqual(unit_2.modify_date.day, 21)
+        self.assertFalse(JobAfter.objects.filter(pk=job_2.pk).exists())
+
+        unit_3 = ApiJobUnitAfter.objects.get(pk=unit_3.pk)
+        self.assertEqual(unit_3.job_id, api_job.pk)
+        self.assertEqual(unit_3.type, 'some_type')
+        self.assertEqual(unit_3.status, Job.FAILURE)
+        self.assertDictEqual(
+            unit_3.request_json,
+            dict(url='URL 3', image_order=12),
+        )
+        self.assertFalse(JobAfter.objects.filter(pk=job_3.pk).exists())

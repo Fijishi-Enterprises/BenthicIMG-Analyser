@@ -299,7 +299,7 @@ class SpacerFeatureResultHandler(SpacerResultHandler):
 
     @classmethod
     def get_task_args(cls, task):
-        return [cls.get_task_object_ids(task)[0]]
+        return cls.get_task_object_ids(task)
 
 
 class SpacerTrainResultHandler(SpacerResultHandler):
@@ -400,20 +400,16 @@ class SpacerClassifyResultHandler(SpacerResultHandler):
             job_res: JobReturnMsg,
             spacer_error: Optional[str]) -> None:
 
-        job_unit_id = cls.get_task_object_ids(task)[0]
+        api_job_id, job_unit_order = cls.get_task_object_ids(task)
         try:
-            job_unit = ApiJobUnit.objects.get(pk=job_unit_id)
+            job_unit = ApiJobUnit.objects.get(
+                parent_id=api_job_id, order_in_parent=job_unit_order)
         except ApiJobUnit.DoesNotExist:
-            raise JobError(f"Job unit of id {job_unit_id} does not exist.")
+            raise JobError(
+                f"Job unit [{api_job_id} / {job_unit_order}] does not exist.")
 
         if spacer_error:
             # Error from spacer when running the spacer job.
-            job_unit.result_json = dict(
-                url=job_unit.request_json['url'],
-                errors=[job_res.error_message],
-            )
-            job_unit.status = ApiJobUnit.FAILURE
-            job_unit.save()
             raise JobError(spacer_error)
 
         # If there was no spacer error, then a task result is available.
@@ -429,7 +425,6 @@ class SpacerClassifyResultHandler(SpacerResultHandler):
             url=job_unit.request_json['url'],
             points=cls.build_points_dicts(task_res, classifier.source.labelset)
         )
-        job_unit.status = ApiJobUnit.SUCCESS
         job_unit.save()
 
     @staticmethod
@@ -471,7 +466,7 @@ class SpacerClassifyResultHandler(SpacerResultHandler):
 
     @classmethod
     def get_task_args(cls, task):
-        return [cls.get_task_object_ids(task)[0]]
+        return cls.get_task_object_ids(task)
 
 
 handler_classes = [

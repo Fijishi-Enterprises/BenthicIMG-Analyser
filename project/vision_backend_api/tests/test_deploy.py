@@ -142,12 +142,13 @@ class DeployAccessTest(BaseAPIPermissionTest):
             response.status_code, status.HTTP_429_TOO_MANY_REQUESTS,
             "Other users should not be throttled")
 
-        # Finish one job, then submit another job
+        # Finish one of the original user's jobs
         job = ApiJob.objects.get(pk=job_ids[0])
         for unit in job.apijobunit_set.all():
-            unit.status = ApiJobUnit.SUCCESS
-            unit.save()
+            unit.internal_job.status = Job.SUCCESS
+            unit.internal_job.save()
 
+        # Try submitting again as the original user
         response = self.client.post(
             url, data, **self.user_request_kwargs)
         self.assertNotEqual(
@@ -496,11 +497,11 @@ class SuccessTest(DeployBaseTest):
             self.fail("Job unit should be created")
 
         self.assertEqual(
-            job_unit.job.pk, deploy_job.pk, "Unit job should be correct")
+            job_unit.parent.pk, deploy_job.pk, "Unit parent should be correct")
         self.assertEqual(
-            job_unit.type, 'deploy', "Unit type should be deploy")
+            job_unit.order_in_parent, 1, "Unit order should be correct")
         self.assertEqual(
-            job_unit.status, ApiJobUnit.PENDING,
+            job_unit.status, Job.PENDING,
             "Unit status should be pending")
         self.assertDictEqual(
             job_unit.request_json,
@@ -508,7 +509,7 @@ class SuccessTest(DeployBaseTest):
                 classifier_id=self.classifier.pk,
                 url='URL 1',
                 points=[dict(row=10, column=10)],
-                image_order=0),
+            ),
             "Unit's request_json should be correct")
 
     def test_done(self):
@@ -530,12 +531,12 @@ class SuccessTest(DeployBaseTest):
 
         try:
             deploy_unit = ApiJobUnit.objects.filter(
-                type='deploy', job=deploy_job).latest('pk')
+                parent=deploy_job).latest('pk')
         except ApiJobUnit.DoesNotExist:
             self.fail("Deploy job unit should be created")
 
         self.assertEqual(
-            ApiJobUnit.SUCCESS, deploy_unit.status,
+            Job.SUCCESS, deploy_unit.status,
             "Unit should be done")
 
         # Verify result. The classifications can vary, so we can't just verify
@@ -595,19 +596,15 @@ class TaskErrorsTest(DeployBaseTest, ErrorReportTestMixin):
     """
 
     def test_nonexistent_job_unit(self):
-        # Create and delete a unit to secure a nonexistent ID.
+        # Create a job but don't create the unit.
         job = ApiJob(type='', user=self.user)
         job.save()
-        unit = ApiJobUnit(job=job, type='test', request_json=dict())
-        unit.save()
-        unit_id = ApiJobUnit.objects.get(type='test').pk
-        unit.delete()
+        queue_job('classify_image', job.pk, 1)
 
-        queue_job('classify_image', unit_id)
         run_scheduled_jobs()
         deploy_job = Job.objects.get(job_name='classify_image')
         self.assertEqual(
-            f"Job unit {unit_id} does not exist.",
+            f"Job unit [{job.pk} / 1] does not exist.",
             deploy_job.error_message,
             "Job should have the expected error")
 
@@ -624,8 +621,7 @@ class TaskErrorsTest(DeployBaseTest, ErrorReportTestMixin):
         # Queue deploy job
         self.client.post(self.deploy_url, data, **self.request_kwargs)
 
-        job_unit = ApiJobUnit.objects.filter(
-            type='deploy').latest('pk')
+        job_unit = ApiJobUnit.objects.latest('pk')
 
         # Delete the classifier.
         classifier_id = job_unit.request_json['classifier_id']
@@ -638,14 +634,12 @@ class TaskErrorsTest(DeployBaseTest, ErrorReportTestMixin):
         job_unit.refresh_from_db()
 
         self.assertEqual(
-            job_unit.status, ApiJobUnit.FAILURE,
+            job_unit.status, Job.FAILURE,
             "Unit should have failed")
-        message = (
-            "Classifier of id {pk} does not exist. Maybe it was deleted."
-            .format(pk=classifier_id))
-        self.assertDictEqual(
-            job_unit.result_json,
-            dict(url='URL 1', errors=[message]))
+        self.assertEqual(
+            job_unit.internal_job.error_message,
+            f"Classifier of id {classifier_id} does not exist."
+            f" Maybe it was deleted.")
 
     def test_spacer_error(self):
         """Error from the spacer side."""
@@ -666,16 +660,12 @@ class TaskErrorsTest(DeployBaseTest, ErrorReportTestMixin):
             run_scheduled_jobs()
         collect_spacer_jobs()
 
-        job_unit = ApiJobUnit.objects.filter(
-            type='deploy').latest('pk')
+        job_unit = ApiJobUnit.objects.latest('pk')
 
         self.assertEqual(
-            job_unit.status, ApiJobUnit.FAILURE,
+            job_unit.status, Job.FAILURE,
             "Unit should have failed")
-        self.assertEqual(
-            'URL 1', job_unit.result_json['url'],
-            "Result JSON should have the URL")
-        error_traceback = job_unit.result_json['errors'][0]
+        error_traceback = job_unit.error_message
         error_traceback_last_line = error_traceback.splitlines()[-1]
         self.assertEqual(
             "ValueError: A spacer error", error_traceback_last_line,
@@ -707,16 +697,12 @@ class TaskErrorsTest(DeployBaseTest, ErrorReportTestMixin):
             run_scheduled_jobs()
         collect_spacer_jobs()
 
-        job_unit = ApiJobUnit.objects.filter(
-            type='deploy').latest('pk')
+        job_unit = ApiJobUnit.objects.latest('pk')
 
         self.assertEqual(
-            job_unit.status, ApiJobUnit.FAILURE,
+            job_unit.status, Job.FAILURE,
             "Unit should have failed")
-        self.assertEqual(
-            'URL 1', job_unit.result_json['url'],
-            "Result JSON should have the URL")
-        error_traceback = job_unit.result_json['errors'][0]
+        error_traceback = job_unit.error_message
         error_traceback_last_line = error_traceback.splitlines()[-1]
         self.assertEqual(
             "spacer.exceptions.SpacerInputError: Couldn't access URL",

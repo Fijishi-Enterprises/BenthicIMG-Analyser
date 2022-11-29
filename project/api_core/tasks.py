@@ -24,7 +24,7 @@ def clean_up_old_api_jobs():
 
     for job in ApiJob.objects.filter(create_date__lt=thirty_days_ago):
         units_were_modified_in_last_30_days = job.apijobunit_set.filter(
-            modify_date__gt=thirty_days_ago).exists()
+            internal_job__modify_date__gt=thirty_days_ago).exists()
         if not units_were_modified_in_last_30_days:
             # Delete the job, and its job units should cascade-delete with it.
             job.delete()

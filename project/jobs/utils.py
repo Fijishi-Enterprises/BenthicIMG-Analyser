@@ -54,13 +54,13 @@ def queue_job(
     except Job.DoesNotExist:
         pass
     else:
-        if last_job.error_message:
+        if last_job.status == Job.FAILURE:
             attempt_number = last_job.attempt_number + 1
 
     # Create a new job and proceed
-    scheduled_start_time = timezone.now() + delay
+    scheduled_start_date = timezone.now() + delay
     job = Job(
-        scheduled_start_time=scheduled_start_time,
+        scheduled_start_date=scheduled_start_date,
         attempt_number=attempt_number,
         source_id=source_id,
         status=initial_status,
@@ -131,15 +131,15 @@ def start_pending_job(job_name: str, arg_identifier: str) -> Optional[Job]:
 
 def finish_job(job, error_message=None):
     """
-    Update Job status from IN_PROGRESS to DONE, and do associated bookkeeping.
+    Update Job status from IN_PROGRESS to SUCCESS/FAILURE,
+    and do associated bookkeeping.
     """
     # This field doesn't take None; non-errors are set as an empty string.
     job.error_message = error_message or ""
-    job.status = Job.DONE
-    job.finish_time = timezone.now()
+    job.status = Job.FAILURE if error_message else Job.SUCCESS
     job.save()
 
-    if error_message and job.attempt_number % 5 == 0:
+    if job.status == Job.FAILURE and job.attempt_number % 5 == 0:
         mail_admins(
             f"Job is failing repeatedly:"
             f" {job.job_name} / {job.arg_identifier}",
@@ -182,8 +182,8 @@ class JobDecorator:
 
 class FullJobDecorator(JobDecorator):
     """
-    Job is created as IN_PROGRESS at the start of the
-    decorated task, and goes IN_PROGRESS -> DONE at the end of it.
+    Job is created as IN_PROGRESS at the start of the decorated task,
+    and goes IN_PROGRESS -> SUCCESS/FAILURE at the end of it.
     """
     def __call__(self, task_func):
         def task_wrapper(*task_args):
@@ -224,7 +224,7 @@ full_job = FullJobDecorator
 class JobRunnerDecorator(JobDecorator):
     """
     Job status goes PENDING -> IN_PROGRESS at the start of the
-    decorated task, and IN_PROGRESS -> DONE at the end of it.
+    decorated task, and IN_PROGRESS -> SUCCESS/FAILURE at the end of it.
     """
     def __call__(self, task_func):
         def task_wrapper(*task_args):

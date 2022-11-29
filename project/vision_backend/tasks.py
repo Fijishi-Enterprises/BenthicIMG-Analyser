@@ -268,15 +268,14 @@ def submit_classifier(source_id, image_limit=1e5):
 
 @task(name="Deploy")
 @job_starter(job_name='classify_image')
-def deploy(job_unit_id):
+def deploy(api_job_id, job_unit_order):
     """ Submits a deploy job. """
     try:
-        job_unit = ApiJobUnit.objects.get(pk=job_unit_id)
+        job_unit = ApiJobUnit.objects.get(
+            parent_id=api_job_id, order_in_parent=job_unit_order)
     except ApiJobUnit.DoesNotExist:
-        raise JobError(f"Job unit {job_unit_id} does not exist.")
-
-    job_unit.status = ApiJobUnit.IN_PROGRESS
-    job_unit.save()
+        raise JobError(
+            f"Job unit [{api_job_id} / {job_unit_order}] does not exist.")
 
     classifier_id = job_unit.request_json['classifier_id']
     try:
@@ -285,18 +284,12 @@ def deploy(job_unit_id):
         error_message = (
             f"Classifier of id {classifier_id} does not exist."
             f" Maybe it was deleted.")
-        job_unit.result_json = dict(
-            url=job_unit.request_json['url'],
-            errors=[error_message],
-        )
-        job_unit.status = ApiJobUnit.FAILURE
-        job_unit.save()
         raise JobError(error_message)
 
     storage = get_storage_class()()
 
     task = ClassifyImageMsg(
-        job_token=th.encode_spacer_job_token([job_unit_id]),
+        job_token=th.encode_spacer_job_token([api_job_id, job_unit_order]),
         image_loc=DataLocation(
             storage_type='url',
             key=job_unit.request_json['url']

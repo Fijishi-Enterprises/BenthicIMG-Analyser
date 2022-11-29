@@ -9,6 +9,7 @@ from rest_framework import status
 
 from api_core.models import ApiJob, ApiJobUnit
 from api_core.tests.utils import BaseAPIPermissionTest
+from jobs.models import Job
 from jobs.tasks import run_scheduled_jobs
 from vision_backend.tasks import collect_spacer_jobs
 from .utils import DeployBaseTest, mocked_load_image
@@ -158,10 +159,9 @@ class DeployStatusEndpointTest(DeployBaseTest):
         job = self.queue_deploy()
 
         # Mark one unit's status as in progress
-        job_unit = ApiJobUnit.objects.filter(
-            job=job, type='deploy').latest('pk')
-        job_unit.status = ApiJobUnit.IN_PROGRESS
-        job_unit.save()
+        job_unit = ApiJobUnit.objects.filter(parent=job).latest('pk')
+        job_unit.internal_job.status = Job.IN_PROGRESS
+        job_unit.internal_job.save()
 
         response = self.get_job_status(job)
 
@@ -184,10 +184,10 @@ class DeployStatusEndpointTest(DeployBaseTest):
     def test_all_images_in_progress(self):
         job = self.queue_deploy()
 
-        job_units = ApiJobUnit.objects.filter(job=job, type='deploy')
+        job_units = ApiJobUnit.objects.filter(parent=job)
         for job_unit in job_units:
-            job_unit.status = ApiJobUnit.IN_PROGRESS
-            job_unit.save()
+            job_unit.internal_job.status = Job.IN_PROGRESS
+            job_unit.internal_job.save()
 
         response = self.get_job_status(job)
 
@@ -211,13 +211,13 @@ class DeployStatusEndpointTest(DeployBaseTest):
         job = self.queue_deploy()
 
         # Mark one unit's status as success
-        job_units = ApiJobUnit.objects.filter(job=job, type='deploy')
+        job_units = ApiJobUnit.objects.filter(parent=job)
 
         self.assertEqual(job_units.count(), 2)
 
-        ju = job_units[0]
-        ju.status = ApiJobUnit.SUCCESS
-        ju.save()
+        unit = job_units[0]
+        unit.internal_job.status = Job.SUCCESS
+        unit.internal_job.save()
 
         response = self.get_job_status(job)
 
@@ -241,10 +241,9 @@ class DeployStatusEndpointTest(DeployBaseTest):
         job = self.queue_deploy()
 
         # Mark one unit's status as failure
-        job_unit = ApiJobUnit.objects.filter(
-            job=job, type='deploy').latest('pk')
-        job_unit.status = ApiJobUnit.FAILURE
-        job_unit.save()
+        job_unit = ApiJobUnit.objects.filter(parent=job).latest('pk')
+        job_unit.internal_job.status = Job.FAILURE
+        job_unit.internal_job.save()
 
         response = self.get_job_status(job)
 
@@ -292,12 +291,11 @@ class DeployStatusEndpointTest(DeployBaseTest):
         # Note: We must bind the units to separate names, since assigning an
         # attribute using an index access (like units[0].status = 'SC')
         # doesn't seem to work as desired (the attribute doesn't change).
-        unit_1, unit_2 = ApiJobUnit.objects.filter(
-            job=job, type='deploy')
-        unit_1.status = ApiJobUnit.SUCCESS
-        unit_1.save()
-        unit_2.status = ApiJobUnit.FAILURE
-        unit_2.save()
+        unit_1, unit_2 = ApiJobUnit.objects.filter(parent=job)
+        unit_1.internal_job.status = Job.SUCCESS
+        unit_1.internal_job.save()
+        unit_2.internal_job.status = Job.FAILURE
+        unit_2.internal_job.save()
 
         response = self.get_job_status(job)
 

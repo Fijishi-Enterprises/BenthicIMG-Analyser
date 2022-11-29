@@ -1,12 +1,14 @@
 from datetime import timedelta
 from unittest import mock
 
+from django.contrib.auth.models import User
 from django.db import connections, transaction
 from django.db.utils import DEFAULT_DB_ALIAS, load_backend
 from django.test.testcases import TransactionTestCase
 from django.test.utils import patch_logger
 from django.utils import timezone
 
+from api_core.models import ApiJob, ApiJobUnit
 from errorlogs.tests.utils import ErrorReportTestMixin
 from lib.tests.utils import BaseTest
 from .exceptions import JobError
@@ -56,7 +58,7 @@ class QueueJobTest(BaseTest):
             "Should not have queued the second job")
 
     def test_queue_job_when_previously_done(self):
-        queue_job('name', 'arg', initial_status=Job.DONE)
+        queue_job('name', 'arg', initial_status=Job.SUCCESS)
         queue_job('name', 'arg')
 
         self.assertEqual(
@@ -65,7 +67,7 @@ class QueueJobTest(BaseTest):
             "Should have queued the second job")
 
     def test_attempt_number_increment(self):
-        job = queue_job('name', 'arg', initial_status=Job.DONE)
+        job = queue_job('name', 'arg', initial_status=Job.FAILURE)
         job.error_message = "An error"
         job.save()
 
@@ -77,7 +79,7 @@ class QueueJobTest(BaseTest):
             "Should have attempt number of 2")
 
     def test_attempt_number_non_increment(self):
-        queue_job('name', 'arg', initial_status=Job.DONE)
+        queue_job('name', 'arg', initial_status=Job.SUCCESS)
         job_2 = queue_job('name', 'arg')
 
         self.assertEqual(
@@ -118,7 +120,7 @@ class StartPendingJobTest(BaseTest):
             Job(
                 job_name='name',
                 arg_identifier='arg',
-                scheduled_start_time=timezone.now()).save()
+            ).save()
         self.assertEqual(Job.objects.count(), 6)
 
         start_pending_job('name', 'arg')
@@ -177,14 +179,14 @@ class JobDecoratorTest(BaseTest, ErrorReportTestMixin):
 
         self.assertEqual(job.job_name, 'full_job_example')
         self.assertEqual(job.arg_identifier, 'some_arg')
-        self.assertEqual(job.status, Job.DONE)
+        self.assertEqual(job.status, Job.SUCCESS)
         self.assertEqual(job.error_message, "")
 
     def test_full_job_error(self):
         full_job_example('job_error')
         job = Job.objects.latest('pk')
 
-        self.assertEqual(job.status, Job.DONE)
+        self.assertEqual(job.status, Job.FAILURE)
         self.assertEqual(job.error_message, "A JobError")
         self.assert_no_error_log_saved()
         self.assert_no_email()
@@ -193,7 +195,7 @@ class JobDecoratorTest(BaseTest, ErrorReportTestMixin):
         full_job_example('other_error')
         job = Job.objects.latest('pk')
 
-        self.assertEqual(job.status, Job.DONE)
+        self.assertEqual(job.status, Job.FAILURE)
         self.assertEqual(job.error_message, "A ValueError")
 
         self.assert_error_log_saved(
@@ -213,7 +215,7 @@ class JobDecoratorTest(BaseTest, ErrorReportTestMixin):
 
         self.assertEqual(job.job_name, 'job_runner_example')
         self.assertEqual(job.arg_identifier, 'some_arg')
-        self.assertEqual(job.status, Job.DONE)
+        self.assertEqual(job.status, Job.SUCCESS)
         self.assertEqual(job.error_message, "")
 
     def test_runner_job_error(self):
@@ -222,7 +224,7 @@ class JobDecoratorTest(BaseTest, ErrorReportTestMixin):
         job_runner_example('job_error')
         job.refresh_from_db()
 
-        self.assertEqual(job.status, Job.DONE)
+        self.assertEqual(job.status, Job.FAILURE)
         self.assertEqual(job.error_message, "A JobError")
         self.assert_no_error_log_saved()
         self.assert_no_email()
@@ -233,7 +235,7 @@ class JobDecoratorTest(BaseTest, ErrorReportTestMixin):
         job_runner_example('other_error')
         job.refresh_from_db()
 
-        self.assertEqual(job.status, Job.DONE)
+        self.assertEqual(job.status, Job.FAILURE)
         self.assertEqual(job.error_message, "A ValueError")
 
         self.assert_error_log_saved(
@@ -262,7 +264,7 @@ class JobDecoratorTest(BaseTest, ErrorReportTestMixin):
         job_starter_example('job_error')
         job.refresh_from_db()
 
-        self.assertEqual(job.status, Job.DONE)
+        self.assertEqual(job.status, Job.FAILURE)
         self.assertEqual(job.error_message, "A JobError")
         self.assert_no_error_log_saved()
         self.assert_no_email()
@@ -273,7 +275,7 @@ class JobDecoratorTest(BaseTest, ErrorReportTestMixin):
         job_starter_example('other_error')
         job.refresh_from_db()
 
-        self.assertEqual(job.status, Job.DONE)
+        self.assertEqual(job.status, Job.FAILURE)
         self.assertEqual(job.error_message, "A ValueError")
 
         self.assert_error_log_saved(
@@ -380,27 +382,29 @@ class JobStartRaceConditionTest(TransactionTestCase):
 
 class CleanupTaskTest(BaseTest):
 
-    def test_job_selection(self):
+    def test_date_based_selection(self):
         """
-        Only jobs eligible for cleanup should be cleaned up.
+        Jobs should be selected for cleanup based on date.
         """
         # More than one job too new to be cleaned up.
 
         queue_job('new')
 
         job = queue_job('29 days ago')
-        job.scheduled_start_time = timezone.now() - timedelta(days=29)
-        job.save()
+        # Use QuerySet.update() instead of Model.save() so that the modify
+        # date doesn't get auto-updated to the current date.
+        Job.objects.filter(pk=job.pk).update(
+            modify_date=timezone.now() - timedelta(days=29))
 
         # More than one job old enough to be cleaned up.
 
         job = queue_job('31 days ago')
-        job.scheduled_start_time = timezone.now() - timedelta(days=31)
-        job.save()
+        Job.objects.filter(pk=job.pk).update(
+            modify_date=timezone.now() - timedelta(days=31))
 
         job = queue_job('32 days ago')
-        job.scheduled_start_time = timezone.now() - timedelta(days=32)
-        job.save()
+        Job.objects.filter(pk=job.pk).update(
+            modify_date=timezone.now() - timedelta(days=32))
 
         clean_up_old_jobs()
 
@@ -416,3 +420,41 @@ class CleanupTaskTest(BaseTest):
         self.assertFalse(
             Job.objects.filter(job_name='32 days ago').exists(),
             "Should clean up 32 day old job")
+
+    def test_unit_presence_based_selection(self):
+        """
+        Jobs associated with an existing ApiJobUnit should not be
+        cleaned up.
+        """
+        user = User(username='some_user')
+        user.save()
+        api_job = ApiJob(type='', user=user)
+        api_job.save()
+
+        job = queue_job('unit 1')
+        ApiJobUnit(
+            parent=api_job, internal_job=job,
+            order_in_parent=1, request_json=[]).save()
+
+        queue_job('no unit')
+
+        job = queue_job('unit 2')
+        ApiJobUnit(
+            parent=api_job, internal_job=job,
+            order_in_parent=2, request_json=[]).save()
+
+        # Make all jobs old enough to be cleaned up
+        Job.objects.update(
+            modify_date=timezone.now() - timedelta(days=32))
+
+        clean_up_old_jobs()
+
+        self.assertTrue(
+            Job.objects.filter(job_name='unit 1').exists(),
+            "Shouldn't clean up unit 1's job")
+        self.assertTrue(
+            Job.objects.filter(job_name='unit 2').exists(),
+            "Shouldn't clean up unit 2's job")
+        self.assertFalse(
+            Job.objects.filter(job_name='no unit').exists(),
+            "Should clean up no-unit job")

@@ -1,5 +1,6 @@
 from django.db import models
 from django.db.models import Q
+from django.utils import timezone
 
 from images.models import Source
 
@@ -22,12 +23,14 @@ class Job(models.Model):
 
     PENDING = 'PN'
     IN_PROGRESS = 'IP'
-    DONE = 'DN'
+    SUCCESS = 'SC'
+    FAILURE = 'FL'
 
     STATUS_CHOICES = [
         (PENDING, "Pending"),
         (IN_PROGRESS, "In Progress"),
-        (DONE, "Done"),
+        (SUCCESS, "Success"),
+        (FAILURE, "Failure"),
     ]
     status = models.CharField(
         max_length=2, choices=STATUS_CHOICES, default=PENDING)
@@ -40,14 +43,16 @@ class Job(models.Model):
     # repeat failures.
     attempt_number = models.IntegerField(default=1)
 
-    # Time the Job was queued (pending).
-    create_time = models.DateTimeField("Time created", auto_now_add=True)
-    # Time the Job is scheduled to start, assuming server resources are
+    # Date/time the Job was queued (pending).
+    create_date = models.DateTimeField("Date created", auto_now_add=True)
+    # Date/time the Job is scheduled to start, assuming server resources are
     # available then.
-    scheduled_start_time = models.DateTimeField("Scheduled start time")
-    # Time the Job was marked as done, thus letting us know how long the job
-    # took. This is useful info for tuning task delays / periodic runs.
-    finish_time = models.DateTimeField("Finish time", null=True)
+    scheduled_start_date = models.DateTimeField(
+        "Scheduled start date", default=timezone.now)
+    # Date/time the Job was modified. If the Job is done, this should tell us
+    # how long the Job took. This is useful info for tuning
+    # task delays / periodic runs.
+    modify_date = models.DateTimeField("Date modified", auto_now=True)
 
     class Meta:
         constraints = [

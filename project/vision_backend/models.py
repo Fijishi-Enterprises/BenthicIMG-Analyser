@@ -146,8 +146,10 @@ class BatchJob(models.Model):
     ]
 
     def __str__(self):
-        return "Batch token: {}, job token: {} job id: {}".format(
-            self.batch_token, self.job_token, self.pk)
+        return (
+            f"Batch token: {self.batch_token},"
+            f" job token: {self.job_token},"
+            f" job id: {self.pk}")
 
     # The status taxonomy is from AWS Batch.
     status = models.CharField(

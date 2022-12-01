@@ -13,11 +13,11 @@ from api_core.models import ApiJob, ApiJobUnit
 from api_core.tests.utils import BaseAPIPermissionTest
 from errorlogs.tests.utils import ErrorReportTestMixin
 from jobs.models import Job
-from jobs.tasks import run_scheduled_jobs, run_scheduled_jobs_until_empty
+from jobs.tasks import run_scheduled_jobs
 from jobs.utils import queue_job
 from vision_backend.models import Classifier
 from vision_backend.tasks import collect_spacer_jobs
-from .utils import DeployBaseTest, mocked_load_image
+from .utils import DeployBaseTest
 
 
 class DeployAccessTest(BaseAPIPermissionTest):
@@ -157,6 +157,11 @@ class DeployAccessTest(BaseAPIPermissionTest):
 
 
 class DeployImagesParamErrorTest(DeployBaseTest):
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.train_classifier()
 
     def assert_expected_400_error(self, response, error_dict):
         self.assertEqual(
@@ -438,11 +443,14 @@ class DeployImagesParamErrorTest(DeployBaseTest):
                 source=dict(pointer='/data/0/attributes/points/1')))
 
 
-@mock.patch('spacer.tasks.load_image', mocked_load_image)
 class SuccessTest(DeployBaseTest):
     """
     Test the deploy process's success case from start to finish.
     """
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.train_classifier()
 
     def test_deploy_response(self):
         """Test the response of a valid deploy request."""
@@ -524,7 +532,7 @@ class SuccessTest(DeployBaseTest):
         # Queue deploy
         self.client.post(self.deploy_url, data, **self.request_kwargs)
         # Deploy
-        run_scheduled_jobs_until_empty()
+        self.run_scheduled_jobs_including_deploy()
         collect_spacer_jobs()
 
         deploy_job = ApiJob.objects.latest('pk')
@@ -594,6 +602,10 @@ class TaskErrorsTest(DeployBaseTest, ErrorReportTestMixin):
     """
     Test error cases of the deploy task.
     """
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.train_classifier()
 
     def test_nonexistent_job_unit(self):
         # Create a job but don't create the unit.

@@ -1,7 +1,6 @@
 from datetime import timedelta
 
 from django.core import mail
-from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -37,7 +36,6 @@ class TestJobTokenEncode(BaseTest):
         self.assertEqual(pks_in, pks_out)
 
 
-@override_settings(SPACER_QUEUE_CHOICE='vision_backend.queues.LocalQueue')
 class ResetTaskTest(BaseTaskTest):
 
     def test_reset_classifiers_for_source(self):
@@ -287,8 +285,8 @@ class WarnAboutStuckJobsTest(ClientTest):
         self.assertEqual(
             "The following AWS Batch jobs were not completed after 5 days:"
             "\n"
-            f"\nBatch token: 5d 1h ago, job token: 2 job id: {job2.pk}"
-            f"\nBatch token: 5d 23h ago, job token: 3 job id: {job3.pk}",
+            f"\nBatch token: 5d 1h ago, job token: 2, job id: {job2.pk}"
+            f"\nBatch token: 5d 23h ago, job token: 3, job id: {job3.pk}",
             sent_email.body)
 
     def test_job_selection_by_status(self):
@@ -326,6 +324,6 @@ class WarnAboutStuckJobsTest(ClientTest):
         self.assertEqual(
             "The following AWS Batch jobs were not completed after 5 days:"
             "\n"
-            f"\nBatch token: PENDING, job token: 1 job id: {job1.pk}"
-            f"\nBatch token: RUNNING, job token: 3 job id: {job3.pk}",
+            f"\nBatch token: PENDING, job token: 1, job id: {job1.pk}"
+            f"\nBatch token: RUNNING, job token: 3, job id: {job3.pk}",
             sent_email.body)

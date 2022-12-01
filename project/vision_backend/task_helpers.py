@@ -46,6 +46,15 @@ def decode_spacer_job_token(job_token: str):
     return pks
 
 
+def job_token_to_task_args(job_name: str, job_token: str):
+    token_parts = decode_spacer_job_token(job_token)
+    if job_name == 'train_classifier':
+        # First part is source ID, after that are classifier IDs
+        return [token_parts[0]]
+    else:
+        return token_parts
+
+
 # Must explicitly turn on history creation when RevisionMiddleware is
 # not in effect. (It's only in effect within views.)
 @revisions.create_revision()
@@ -211,7 +220,7 @@ class SpacerResultHandler(ABC):
             spacer_error_for_task = None
 
         for task_index, task in enumerate(job_res.original_job.tasks):
-            task_object_id = cls.get_task_object_ids(task)[0]
+            task_args = cls.get_task_args(task)
 
             task_error_message = None
             try:
@@ -223,12 +232,11 @@ class SpacerResultHandler(ABC):
             finally:
                 logger.info(
                     f"Collected spacer task {cls.job_name},"
-                    f" with pk {task_object_id}")
+                    f" with args {task_args}")
 
                 job = Job.objects.get(
                     job_name=cls.job_name,
-                    arg_identifier=Job.args_to_identifier(
-                        cls.get_task_args(task)),
+                    arg_identifier=Job.args_to_identifier(task_args),
                     status=Job.IN_PROGRESS,
                 )
                 finish_job(job, error_message=task_error_message)
@@ -240,7 +248,7 @@ class SpacerResultHandler(ABC):
 
     @classmethod
     def get_task_args(cls, task):
-        raise NotImplementedError
+        return job_token_to_task_args(cls.job_name, task.job_token)
 
     @classmethod
     def handle_spacer_task_result(
@@ -250,10 +258,6 @@ class SpacerResultHandler(ABC):
         and returns an error message if an issue is found (None otherwise).
         """
         raise NotImplementedError
-
-    @staticmethod
-    def get_task_object_ids(task):
-        return decode_spacer_job_token(task.job_token)
 
 
 class SpacerFeatureResultHandler(SpacerResultHandler):
@@ -267,7 +271,7 @@ class SpacerFeatureResultHandler(SpacerResultHandler):
             job_res: JobReturnMsg,
             spacer_error: Optional[str]) -> None:
 
-        image_id = cls.get_task_object_ids(task)[0]
+        image_id = cls.get_task_args(task)[0]
         try:
             img = Image.objects.get(pk=image_id)
         except Image.DoesNotExist:
@@ -297,10 +301,6 @@ class SpacerFeatureResultHandler(SpacerResultHandler):
         img.features.extracted_date = now()
         img.features.save()
 
-    @classmethod
-    def get_task_args(cls, task):
-        return cls.get_task_object_ids(task)
-
 
 class SpacerTrainResultHandler(SpacerResultHandler):
     job_name = 'train_classifier'
@@ -314,7 +314,7 @@ class SpacerTrainResultHandler(SpacerResultHandler):
             spacer_error: Optional[str]) -> None:
 
         # Parse out pk for current and previous classifiers.
-        object_ids = cls.get_task_object_ids(task)
+        object_ids = decode_spacer_job_token(task.job_token)
         classifier_id = object_ids[1]
         prev_classifier_ids = object_ids[2:]
 
@@ -383,11 +383,6 @@ class SpacerTrainResultHandler(SpacerResultHandler):
         classifier.status = Classifier.ACCEPTED
         classifier.save()
 
-    @classmethod
-    def get_task_args(cls, task):
-        source_id = cls.get_task_object_ids(task)[0]
-        return [source_id]
-
 
 class SpacerClassifyResultHandler(SpacerResultHandler):
     job_name = 'classify_image'
@@ -400,7 +395,7 @@ class SpacerClassifyResultHandler(SpacerResultHandler):
             job_res: JobReturnMsg,
             spacer_error: Optional[str]) -> None:
 
-        api_job_id, job_unit_order = cls.get_task_object_ids(task)
+        api_job_id, job_unit_order = cls.get_task_args(task)
         try:
             job_unit = ApiJobUnit.objects.get(
                 parent_id=api_job_id, order_in_parent=job_unit_order)
@@ -463,10 +458,6 @@ class SpacerClassifyResultHandler(SpacerResultHandler):
                              )
                         )
         return data
-
-    @classmethod
-    def get_task_args(cls, task):
-        return cls.get_task_object_ids(task)
 
 
 handler_classes = [

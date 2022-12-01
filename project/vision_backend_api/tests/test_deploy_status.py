@@ -1,6 +1,5 @@
 import copy
 import json
-from unittest import mock
 
 from django.conf import settings
 from django.test import override_settings
@@ -10,9 +9,8 @@ from rest_framework import status
 from api_core.models import ApiJob, ApiJobUnit
 from api_core.tests.utils import BaseAPIPermissionTest
 from jobs.models import Job
-from jobs.tasks import run_scheduled_jobs
 from vision_backend.tasks import collect_spacer_jobs
-from .utils import DeployBaseTest, mocked_load_image
+from .utils import DeployBaseTest
 
 
 class DeployStatusAccessTest(BaseAPIPermissionTest):
@@ -94,12 +92,16 @@ class DeployStatusAccessTest(BaseAPIPermissionTest):
             response, msg="4th request should be denied by throttling")
 
 
-@mock.patch('spacer.tasks.load_image', mocked_load_image)
 class DeployStatusEndpointTest(DeployBaseTest):
     """
     Test the deploy status endpoint.
     """
-    def setUp(self):
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+
+        cls.train_classifier()
+
         images = [
             dict(
                 type='image',
@@ -117,7 +119,7 @@ class DeployStatusEndpointTest(DeployBaseTest):
                         dict(row=10, column=10),
                     ])),
         ]
-        self.data = json.dumps(dict(data=images))
+        cls.data = json.dumps(dict(data=images))
 
     def queue_deploy(self):
         self.client.post(
@@ -265,7 +267,7 @@ class DeployStatusEndpointTest(DeployBaseTest):
 
     def test_success(self):
         job = self.queue_deploy()
-        run_scheduled_jobs()
+        self.run_scheduled_jobs_including_deploy()
         collect_spacer_jobs()
 
         response = self.get_job_status(job)

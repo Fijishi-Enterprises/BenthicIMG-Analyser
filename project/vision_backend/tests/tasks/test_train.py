@@ -155,7 +155,7 @@ class TrainClassifierTest(BaseTaskTest):
         # get access to the job return msg.
         run_scheduled_jobs_until_empty()
         queue = get_queue_class()()
-        job_return_msg = queue.collect_job()
+        job_return_msg = next(queue.collect_jobs())
         handle_spacer_result(job_return_msg)
         spacer_task = job_return_msg.original_job.tasks[0]
 

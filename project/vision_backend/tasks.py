@@ -382,15 +382,19 @@ def collect_spacer_jobs():
     """
     Collects and handles spacer job results until the result queue is empty.
     """
-    logger.info('Collecting all spacer jobs in result queue.')
+    logger.info("Going through spacer queue to collect job results.")
     queue = get_queue_class()()
-    while True:
-        job_res = queue.collect_job()
-        if job_res:
-            th.handle_spacer_result(job_res)
-        else:
-            break
-    logger.info('Done collecting all spacer jobs in result queue.')
+    for job_res in queue.collect_jobs():
+        th.handle_spacer_result(job_res)
+
+    # sorted() sorts statuses alphabetically.
+    counts_str = ', '.join([
+        f'{count} {status}'
+        for status, count in sorted(queue.status_counts.items())
+    ])
+    logger.info(
+        f"Done going through spacer queue."
+        f" Job count: {counts_str or '0'}")
 
 
 @task(name="Reset Source")

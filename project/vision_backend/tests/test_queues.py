@@ -107,10 +107,11 @@ def mock_boto_client(response_type='succeeded'):
     """
     client = MockBotoClient(response_type)
 
-    def get_client(*args, **kwargs):
+    def get_mock_client():
         return client
 
-    return mock.patch('boto3.client', get_client)
+    return mock.patch(
+        'vision_backend.queues.get_batch_client', get_mock_client)
 
 
 class LogMixin(TestCase):

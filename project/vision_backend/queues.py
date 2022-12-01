@@ -63,6 +63,15 @@ class BaseQueue(abc.ABC):
         raise NotImplementedError
 
 
+def get_batch_client():
+    return boto3.client(
+        'batch',
+        region_name="us-west-2",
+        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
+    )
+
+
 class BatchQueue(BaseQueue):
     """
     Manages AWS Batch jobs.
@@ -79,13 +88,7 @@ class BatchQueue(BaseQueue):
 
     def submit_job(self, job_msg: JobMsg):
 
-        batch_client = boto3.client(
-            'batch',
-            region_name="us-west-2",
-            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
-        )
-
+        batch_client = get_batch_client()
         storage = get_storage_class()()
 
         batch_job = BatchJob(job_token=self.get_job_name(job_msg))
@@ -138,12 +141,7 @@ class BatchQueue(BaseQueue):
     def collect_jobs(self):
         job_statuses = []
 
-        batch_client = boto3.client(
-            'batch',
-            region_name="us-west-2",
-            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
-        )
+        batch_client = get_batch_client()
         storage = get_storage_class()()
 
         # Iterate over not-yet-collected BatchJobs.

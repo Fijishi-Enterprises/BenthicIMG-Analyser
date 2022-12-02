@@ -1,3 +1,4 @@
+from datetime import timedelta
 import json
 from unittest import mock
 from unittest.case import TestCase
@@ -422,7 +423,31 @@ class BatchQueueSpecificsTest(BaseTaskTest, LogMixin):
         self.upload_image(self.user, self.source)
 
         with mock_boto_client('no_batch_token'):
-            self.extract_and_assert_collect_count("1 DROPPED")
+            run_scheduled_jobs_until_empty()
+
+            # Try to collect
+            with patch_logger('vision_backend.tasks', 'info') as log_messages:
+                collect_spacer_jobs()
+                self.assert_log_message(
+                    f"Done going through spacer queue."
+                    f" Job count: 1 NOT SUBMITTED",
+                    log_messages)
+
+            # Make the BatchJob old enough to be considered a victim of
+            # an AWS service error.
+            batch_job = BatchJob.objects.latest('pk')
+            batch_job.create_date = \
+                batch_job.create_date - timedelta(minutes=60)
+            batch_job.save()
+
+            # Then try to collect again.
+            with patch_logger('vision_backend.tasks', 'info') as log_messages:
+                collect_spacer_jobs()
+                self.assert_log_message(
+                    f"Done going through spacer queue."
+                    f" Job count: 1 DROPPED",
+                    log_messages)
+
         self.assert_job_error("Failed to get AWS Batch token.")
 
     def test_batch_job_not_in_aws(self):

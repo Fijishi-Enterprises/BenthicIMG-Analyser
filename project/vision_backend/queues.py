@@ -1,5 +1,6 @@
 import abc
 from collections import Counter
+from datetime import timedelta
 from io import StringIO
 import json
 import logging
@@ -11,6 +12,7 @@ import boto3
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.core.files.storage import get_storage_class
+from django.utils import timezone
 from django.utils.module_loading import import_string
 from spacer.messages import JobMsg, JobReturnMsg
 from spacer.tasks import process_job
@@ -151,10 +153,18 @@ class BatchQueue(BaseQueue):
 
             if job.batch_token is None:
                 # Didn't get a batch token from AWS Batch. May indicate AWS
-                # service problems (see coralnet issue 458).
-                self.handle_job_failure(
-                    job, "Failed to get AWS Batch token.")
-                job_statuses.append('DROPPED')
+                # service problems (see coralnet issue 458) or it may just be
+                # unlucky timing between submit and collect. Check the
+                # create_date to be sure.
+                if timezone.now() - job.create_date > timedelta(minutes=30):
+                    # Likely an AWS service problem.
+                    self.handle_job_failure(
+                        job, "Failed to get AWS Batch token.")
+                    job_statuses.append('DROPPED')
+                else:
+                    # Let's wait a bit longer.
+                    job_statuses.append('NOT SUBMITTED')
+                # In either case, continue to next job.
                 continue
 
             resp = batch_client.describe_jobs(jobs=[job.batch_token])

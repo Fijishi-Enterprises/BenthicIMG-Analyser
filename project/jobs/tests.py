@@ -2,6 +2,7 @@ from datetime import timedelta
 from unittest import mock
 
 from django.contrib.auth.models import User
+from django.core import mail
 from django.db import connections, transaction
 from django.db.utils import DEFAULT_DB_ALIAS, load_backend
 from django.test.testcases import TransactionTestCase
@@ -13,7 +14,7 @@ from errorlogs.tests.utils import ErrorReportTestMixin
 from lib.tests.utils import BaseTest
 from .exceptions import JobError
 from .models import Job
-from .tasks import clean_up_old_jobs
+from .tasks import clean_up_old_jobs, report_stuck_jobs
 from .utils import (
     finish_job, full_job, job_runner,
     job_starter, queue_job, start_pending_job)
@@ -458,3 +459,77 @@ class CleanupTaskTest(BaseTest):
         self.assertFalse(
             Job.objects.filter(job_name='no unit').exists(),
             "Should clean up no-unit job")
+
+
+class ReportStuckJobsTest(BaseTest):
+    """
+    Test the report_stuck_jobs task.
+    """
+    @staticmethod
+    def create_job(name, arg, modify_date, status=Job.PENDING):
+        job = Job.objects.create(
+            job_name=name, arg_identifier=arg, status=status)
+        job.save()
+        Job.objects.filter(pk=job.pk).update(modify_date=modify_date)
+        return job.pk
+
+    def test_job_selection_by_date(self):
+        """
+        Only warn about jobs between 3 and 4 days old, and warn once per job.
+        """
+        self.create_job(
+            '1', '2d 23h ago',
+            timezone.now() - timedelta(days=2, hours=23))
+
+        self.create_job(
+            '2', '3d 1h ago',
+            timezone.now() - timedelta(days=3, hours=1))
+
+        self.create_job(
+            '3', '3d 23h ago',
+            timezone.now() - timedelta(days=3, hours=23))
+
+        self.create_job(
+            '4', '4d 1h ago',
+            timezone.now() - timedelta(days=4, hours=1))
+
+        report_stuck_jobs()
+
+        self.assertEqual(len(mail.outbox), 1)
+        sent_email = mail.outbox[0]
+
+        self.assertEqual(
+            "[CoralNet] 2 job(s) haven't progressed in 3 days",
+            sent_email.subject)
+        self.assertEqual(
+            "The following job(s) haven't progressed in 3 days:"
+            "\n"
+            f"\n2 / 3d 1h ago"
+            f"\n3 / 3d 23h ago",
+            sent_email.body)
+
+    def test_job_selection_by_status(self):
+        """
+        Only warn about non-completed jobs.
+        """
+        d3h1 = timezone.now() - timedelta(days=3, hours=1)
+
+        self.create_job('1', 'PENDING', d3h1, status=Job.PENDING)
+        self.create_job('2', 'SUCCESS', d3h1, status=Job.SUCCESS)
+        self.create_job('3', 'IN_PROGRESS', d3h1, status=Job.IN_PROGRESS)
+        self.create_job('4', 'FAILURE', d3h1, status=Job.FAILURE)
+
+        report_stuck_jobs()
+
+        self.assertEqual(len(mail.outbox), 1)
+        sent_email = mail.outbox[0]
+
+        self.assertEqual(
+            "[CoralNet] 2 job(s) haven't progressed in 3 days",
+            sent_email.subject)
+        self.assertEqual(
+            "The following job(s) haven't progressed in 3 days:"
+            "\n"
+            f"\n1 / PENDING"
+            f"\n3 / IN_PROGRESS",
+            sent_email.body)

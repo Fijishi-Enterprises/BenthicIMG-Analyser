@@ -3,6 +3,7 @@ import logging
 
 from celery.decorators import periodic_task
 from django.conf import settings
+from django.core.mail import mail_admins
 from django.utils import timezone
 
 from vision_backend.tasks import (
@@ -73,3 +74,40 @@ def clean_up_old_jobs():
         apijobunit__isnull=True,
     )
     jobs_to_clean_up.delete()
+
+
+@periodic_task(
+    run_every=timedelta(days=1),
+    ignore_result=True)
+def report_stuck_jobs():
+    """
+    Report non-completed Jobs that haven't progressed since a certain
+    number of days.
+    """
+    # When a non-completed Job hasn't been modified in this many days,
+    # we'll consider it to be stuck.
+    STUCK = 3
+
+    # This task runs every day, and we don't issue repeat warnings for
+    # the same jobs on subsequent days. So, only grab jobs whose last
+    # progression was between STUCK days and STUCK+1 days ago.
+    stuck_days_ago = timezone.now() - timedelta(days=STUCK)
+    stuck_plus_one_days_ago = stuck_days_ago - timedelta(days=1)
+    stuck_jobs_to_report = Job.objects \
+        .filter(
+            modify_date__lt=stuck_days_ago,
+            modify_date__gt=stuck_plus_one_days_ago,
+        ) \
+        .exclude(status__in=[Job.SUCCESS, Job.FAILURE])
+
+    if not stuck_jobs_to_report.exists():
+        return
+
+    stuck_job_count = stuck_jobs_to_report.count()
+    subject = f"{stuck_job_count} job(s) haven't progressed in {STUCK} days"
+
+    message = f"The following job(s) haven't progressed in {STUCK} days:\n"
+    for job in stuck_jobs_to_report:
+        message += f"\n{job}"
+
+    mail_admins(subject, message)

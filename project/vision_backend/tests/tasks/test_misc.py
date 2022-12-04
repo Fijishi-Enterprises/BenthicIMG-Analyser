@@ -1,6 +1,5 @@
 from datetime import timedelta
 
-from django.core import mail
 from django.urls import reverse
 from django.utils import timezone
 
@@ -11,8 +10,11 @@ from lib.tests.utils import BaseTest, ClientTest
 from vision_backend.models import BatchJob, Score, Classifier
 import vision_backend.task_helpers as th
 from vision_backend.tasks import (
-    clean_up_old_batch_jobs, collect_spacer_jobs, reset_backend_for_source,
-    reset_classifiers_for_source, warn_about_stuck_jobs)
+    clean_up_old_batch_jobs,
+    collect_spacer_jobs,
+    reset_backend_for_source,
+    reset_classifiers_for_source,
+)
 from vision_backend.tests.tasks.utils import BaseTaskTest
 
 
@@ -241,89 +243,3 @@ class BatchJobCleanupTest(ClientTest):
         self.assertFalse(
             BatchJob.objects.filter(job_token='32 days ago').exists(),
             "Should clean up 32 day old job")
-
-
-class WarnAboutStuckJobsTest(ClientTest):
-    """
-    Test warning about AWS Batch jobs that haven't completed in a timely
-    fashion.
-    """
-    @classmethod
-    def setUpTestData(cls):
-        super().setUpTestData()
-
-        cls.user = cls.create_user()
-
-    def test_job_selection_by_date(self):
-        """
-        Only warn about jobs between 5 and 6 days old, and warn once per job.
-        """
-        job1 = BatchJob.objects.create(job_token='1', batch_token='4d 23h ago')
-        job1.create_date = timezone.now() - timedelta(days=4, hours=23)
-        job1.save()
-
-        job2 = BatchJob.objects.create(job_token='2', batch_token='5d 1h ago')
-        job2.create_date = timezone.now() - timedelta(days=5, hours=1)
-        job2.save()
-
-        job3 = BatchJob.objects.create(job_token='3', batch_token='5d 23h ago')
-        job3.create_date = timezone.now() - timedelta(days=5, hours=23)
-        job3.save()
-
-        job4 = BatchJob.objects.create(job_token='4', batch_token='6d 1h ago')
-        job4.create_date = timezone.now() - timedelta(days=6, hours=1)
-        job4.save()
-
-        warn_about_stuck_jobs()
-
-        self.assertEqual(len(mail.outbox), 1)
-        sent_email = mail.outbox[0]
-
-        self.assertEqual(
-            "[CoralNet] 2 AWS Batch job(s) not completed after 5 days",
-            sent_email.subject)
-        self.assertEqual(
-            "The following AWS Batch jobs were not completed after 5 days:"
-            "\n"
-            f"\nBatch token: 5d 1h ago, job token: 2, job id: {job2.pk}"
-            f"\nBatch token: 5d 23h ago, job token: 3, job id: {job3.pk}",
-            sent_email.body)
-
-    def test_job_selection_by_status(self):
-        """
-        Only warn about non-completed jobs.
-        """
-        job1 = BatchJob.objects.create(
-            job_token='1', batch_token='PENDING', status='PENDING')
-        job1.create_date = timezone.now() - timedelta(days=5, hours=1)
-        job1.save()
-
-        job2 = BatchJob.objects.create(
-            job_token='2', batch_token='SUCCEEDED', status='SUCCEEDED')
-        job2.create_date = timezone.now() - timedelta(days=5, hours=1)
-        job2.save()
-
-        job3 = BatchJob.objects.create(
-            job_token='3', batch_token='RUNNING', status='RUNNING')
-        job3.create_date = timezone.now() - timedelta(days=5, hours=1)
-        job3.save()
-
-        job4 = BatchJob.objects.create(
-            job_token='4', batch_token='FAILED', status='FAILED')
-        job4.create_date = timezone.now() - timedelta(days=5, hours=1)
-        job4.save()
-
-        warn_about_stuck_jobs()
-
-        self.assertEqual(len(mail.outbox), 1)
-        sent_email = mail.outbox[0]
-
-        self.assertEqual(
-            "[CoralNet] 2 AWS Batch job(s) not completed after 5 days",
-            sent_email.subject)
-        self.assertEqual(
-            "The following AWS Batch jobs were not completed after 5 days:"
-            "\n"
-            f"\nBatch token: PENDING, job token: 1, job id: {job1.pk}"
-            f"\nBatch token: RUNNING, job token: 3, job id: {job3.pk}",
-            sent_email.body)

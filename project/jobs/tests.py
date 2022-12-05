@@ -165,11 +165,11 @@ def job_runner_example(arg1):
 
 
 @job_starter()
-def job_starter_example(arg1):
+def job_starter_example(arg1, job_id):
     if arg1 == 'job_error':
-        raise JobError("A JobError")
+        raise JobError(f"A JobError (ID: {job_id})")
     if arg1 == 'other_error':
-        raise ValueError("A ValueError")
+        raise ValueError(f"A ValueError (ID: {job_id})")
 
 
 class JobDecoratorTest(BaseTest, ErrorReportTestMixin):
@@ -266,7 +266,7 @@ class JobDecoratorTest(BaseTest, ErrorReportTestMixin):
         job.refresh_from_db()
 
         self.assertEqual(job.status, Job.FAILURE)
-        self.assertEqual(job.error_message, "A JobError")
+        self.assertEqual(job.error_message, f"A JobError (ID: {job.pk})")
         self.assert_no_error_log_saved()
         self.assert_no_email()
 
@@ -277,15 +277,15 @@ class JobDecoratorTest(BaseTest, ErrorReportTestMixin):
         job.refresh_from_db()
 
         self.assertEqual(job.status, Job.FAILURE)
-        self.assertEqual(job.error_message, "A ValueError")
+        self.assertEqual(job.error_message, f"A ValueError (ID: {job.pk})")
 
         self.assert_error_log_saved(
             "ValueError",
-            "A ValueError",
+            f"A ValueError (ID: {job.pk})",
         )
         self.assert_error_email(
             "Error in task: job_starter_example",
-            ["ValueError: A ValueError"],
+            [f"ValueError: A ValueError (ID: {job.pk})"],
         )
 
 

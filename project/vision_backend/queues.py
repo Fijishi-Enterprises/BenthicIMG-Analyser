@@ -5,7 +5,6 @@ from io import StringIO
 import json
 import logging
 import sys
-import time
 from typing import Generator
 
 import boto3
@@ -17,10 +16,8 @@ from django.utils.module_loading import import_string
 from spacer.messages import JobMsg, JobReturnMsg
 from spacer.tasks import process_job
 
-from jobs.models import Job
 from jobs.utils import finish_job
 from .models import BatchJob
-from .task_helpers import job_token_to_task_args
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +50,7 @@ class BaseQueue(abc.ABC):
     status_counts = None
 
     @abc.abstractmethod
-    def submit_job(self, job: JobMsg):
+    def submit_job(self, job: JobMsg, job_id: int):
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -78,22 +75,12 @@ class BatchQueue(BaseQueue):
     """
     Manages AWS Batch jobs.
     """
-
-    @staticmethod
-    def get_job_name(job_msg: JobMsg):
-        """ This gives the job a unique name. It can be useful when browsing
-        the AWS Batch console. However, it's only for humans. The actual
-        mapping is encoded in the BatchJobs table."""
-        return settings.SPACER_JOB_HASH + '-' + \
-            job_msg.task_name + '-' + \
-            '-'.join([t.job_token for t in job_msg.tasks])
-
-    def submit_job(self, job_msg: JobMsg):
+    def submit_job(self, job_msg: JobMsg, internal_job_id: int):
 
         batch_client = get_batch_client()
         storage = get_storage_class()()
 
-        batch_job = BatchJob(job_token=self.get_job_name(job_msg))
+        batch_job = BatchJob(internal_job_id=internal_job_id)
         batch_job.save()
 
         job_msg_loc = storage.spacer_data_loc(batch_job.job_key)
@@ -103,7 +90,7 @@ class BatchQueue(BaseQueue):
 
         resp = batch_client.submit_job(
             jobQueue=settings.BATCH_QUEUE,
-            jobName=str(batch_job.pk),
+            jobName=batch_job.make_batch_job_name(),
             jobDefinition=settings.BATCH_JOB_DEFINITION,
             containerOverrides={
                 'environment': [
@@ -126,19 +113,7 @@ class BatchQueue(BaseQueue):
         batch_job.status = 'FAILED'
         batch_job.save()
 
-        storage = get_storage_class()()
-        job_msg_loc = storage.spacer_data_loc(batch_job.job_key)
-        job_msg = JobMsg.load(job_msg_loc)
-
-        for task in job_msg.tasks:
-            # Get the associated Job instances and update them.
-            job_args = job_token_to_task_args(
-                job_msg.task_name, task.job_token)
-            job = Job.objects.get(
-                job_name=job_msg.task_name,
-                arg_identifier=Job.args_to_identifier(job_args))
-            # Mark it as failed.
-            finish_job(job, error_message=error_message)
+        finish_job(batch_job.internal_job, error_message=error_message)
 
     def collect_jobs(self):
         job_statuses = []
@@ -211,15 +186,14 @@ class LocalQueue(BaseQueue):
     Uses a local filesystem queue and calls spacer directly.
     """
 
-    def submit_job(self, job: JobMsg):
+    def submit_job(self, job: JobMsg, job_id: int):
 
         # Process the job right away.
         return_msg = process_job(job)
 
         storage = get_storage_class()()
 
-        # Save as seconds.microseconds to avoid collisions.
-        filepath = storage.path_join('backend_job_res', f'{time.time()}.json')
+        filepath = storage.path_join('backend_job_res', f'{job_id}.json')
         storage.save(
             filepath,
             StringIO(json.dumps(return_msg.serialize())))
@@ -236,7 +210,6 @@ class LocalQueue(BaseQueue):
             filenames = []
 
         # Sort by filename, which should also put them in job order
-        # because the filenames have timestamps (to microsecond precision)
         filenames.sort()
 
         for filename in filenames:

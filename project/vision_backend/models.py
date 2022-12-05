@@ -4,6 +4,7 @@ from django.db import models
 from spacer.data_classes import ValResults
 from spacer.messages import DataLocation
 
+from jobs.models import Job
 from labels.models import Label, LocalLabel
 
 
@@ -147,9 +148,7 @@ class BatchJob(models.Model):
 
     def __str__(self):
         return (
-            f"Batch token: {self.batch_token},"
-            f" job token: {self.job_token},"
-            f" job id: {self.pk}")
+            f"BatchJob {self.pk}, for Job {self.internal_job}")
 
     # The status taxonomy is from AWS Batch.
     status = models.CharField(
@@ -158,10 +157,12 @@ class BatchJob(models.Model):
     # Unique job identifier returned by Batch.
     batch_token = models.CharField(max_length=128, null=True)
 
-    # Internal job token that identifies the job.
-    job_token = models.CharField(max_length=256, null=False)
+    # Job instance that this BatchJob is associated with.
+    # When the Job is cleaned up, this BatchJob also gets cleaned up via
+    # cascade-delete.
+    internal_job = models.OneToOneField(Job, on_delete=models.CASCADE)
 
-    # This can be used to report how long the job unit took.
+    # This can be used to see long the BatchJob is taking.
     create_date = models.DateTimeField("Date created", auto_now_add=True)
 
     @property
@@ -171,3 +172,17 @@ class BatchJob(models.Model):
     @property
     def res_key(self):
         return settings.BATCH_RES_PATTERN.format(pk=self.id)
+
+    def make_batch_job_name(self):
+        """
+        This is just a name that can be useful for identifying Batch jobs
+        when browsing the AWS Batch console.
+        However, the Batch token is what's actually used to retrieve
+        previously-submitted Batch jobs.
+        """
+        # Using the SPACER_JOB_HASH allows us to differentiate between
+        # submissions from production, staging, and different dev setups.
+        return (
+            f'{settings.SPACER_JOB_HASH}'
+            f'-{self.internal_job.job_name}'
+            f'-{self.internal_job.pk}')

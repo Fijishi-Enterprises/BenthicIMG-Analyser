@@ -6,7 +6,6 @@ from celery.decorators import task, periodic_task
 from django.conf import settings
 from django.core.files.storage import get_storage_class
 from django.db import IntegrityError
-from django.utils import timezone
 from django.utils.timezone import now
 from spacer.messages import \
     ExtractFeaturesMsg, \
@@ -26,7 +25,7 @@ from jobs.models import Job
 from jobs.utils import full_job, job_runner, job_starter, queue_job
 from labels.models import Label
 from . import task_helpers as th
-from .models import Classifier, Score, BatchJob
+from .models import Classifier, Score
 from .queues import get_queue_class
 from .utils import queue_source_check, reset_features
 
@@ -152,7 +151,7 @@ def check_source(source_id):
 
 @task(name="Submit Features")
 @job_starter(job_name='extract_features')
-def submit_features(image_id):
+def submit_features(image_id, job_id):
     """ Submits a feature extraction job. """
     try:
         img = Image.objects.get(pk=image_id)
@@ -167,7 +166,7 @@ def submit_features(image_id):
 
     # Assemble task.
     task = ExtractFeaturesMsg(
-        job_token=th.encode_spacer_job_token([image_id]),
+        job_token=str(job_id),
         feature_extractor_name=img.source.feature_extractor,
         rowcols=rowcols,
         image_loc=storage.spacer_data_loc(img.original_file.name),
@@ -180,7 +179,7 @@ def submit_features(image_id):
 
     # Submit.
     queue = get_queue_class()()
-    queue.submit_job(msg)
+    queue.submit_job(msg, job_id)
 
     logger.info(f"Submitted feature extraction for {img}")
     return msg
@@ -188,7 +187,7 @@ def submit_features(image_id):
 
 @task(name="Submit Classifier")
 @job_starter(job_name='train_classifier')
-def submit_classifier(source_id, image_limit=1e5):
+def submit_classifier(source_id, job_id):
     """ Submits a classifier training job. """
 
     # We know the Source exists since we got past the job_starter decorator,
@@ -196,9 +195,10 @@ def submit_classifier(source_id, image_limit=1e5):
     source = Source.objects.get(pk=source_id)
 
     # Create new classifier model
+    IMAGE_LIMIT = 1e5
     images = Image.objects.filter(source=source,
                                   annoinfo__confirmed=True,
-                                  features__extracted=True)[:image_limit]
+                                  features__extracted=True)[:IMAGE_LIMIT]
     classifier = Classifier(source=source, nbr_train_images=len(images))
     classifier.save()
 
@@ -231,13 +231,9 @@ def submit_classifier(source_id, image_limit=1e5):
     # This will not include the one we just created, b/c status isn't accepted.
     prev_classifiers = source.get_accepted_robots()
 
-    # Primary keys needed for collect task.
-    pc_pks = [pc.pk for pc in prev_classifiers]
-
     # Create TrainClassifierMsg
     task = TrainClassifierMsg(
-        job_token=th.encode_spacer_job_token(
-            [source.pk, classifier.pk] + pc_pks),
+        job_token=str(job_id),
         trainer_name='minibatch',
         nbr_epochs=settings.NBR_TRAINING_EPOCHS,
         clf_type=settings.CLASSIFIER_MAPPINGS[source.feature_extractor],
@@ -258,7 +254,7 @@ def submit_classifier(source_id, image_limit=1e5):
 
     # Submit.
     queue = get_queue_class()()
-    queue.submit_job(msg)
+    queue.submit_job(msg, job_id)
 
     logger.info(
         f"Submitted {classifier} with {classifier.nbr_train_images} images.")
@@ -267,16 +263,16 @@ def submit_classifier(source_id, image_limit=1e5):
 
 @task(name="Deploy")
 @job_starter(job_name='classify_image')
-def deploy(api_job_id, job_unit_order):
+def deploy(api_job_id, api_unit_order, job_id):
     """ Submits a deploy job. """
     try:
-        job_unit = ApiJobUnit.objects.get(
-            parent_id=api_job_id, order_in_parent=job_unit_order)
+        api_job_unit = ApiJobUnit.objects.get(
+            parent_id=api_job_id, order_in_parent=api_unit_order)
     except ApiJobUnit.DoesNotExist:
         raise JobError(
-            f"Job unit [{api_job_id} / {job_unit_order}] does not exist.")
+            f"Job unit [{api_job_id} / {api_unit_order}] does not exist.")
 
-    classifier_id = job_unit.request_json['classifier_id']
+    classifier_id = api_job_unit.request_json['classifier_id']
     try:
         classifier = Classifier.objects.get(pk=classifier_id)
     except Classifier.DoesNotExist:
@@ -288,14 +284,14 @@ def deploy(api_job_id, job_unit_order):
     storage = get_storage_class()()
 
     task = ClassifyImageMsg(
-        job_token=th.encode_spacer_job_token([api_job_id, job_unit_order]),
+        job_token=str(job_id),
         image_loc=DataLocation(
             storage_type='url',
-            key=job_unit.request_json['url']
+            key=api_job_unit.request_json['url']
         ),
         feature_extractor_name=classifier.source.feature_extractor,
         rowcols=[(point['row'], point['column']) for point in
-                 job_unit.request_json['points']],
+                 api_job_unit.request_json['points']],
         classifier_loc=storage.spacer_data_loc(
             settings.ROBOT_MODEL_FILE_PATTERN.format(pk=classifier.pk))
     )
@@ -304,10 +300,11 @@ def deploy(api_job_id, job_unit_order):
 
     # Submit.
     queue = get_queue_class()()
-    queue.submit_job(msg)
+    queue.submit_job(msg, job_id)
 
-    logger.info("Submitted image at url: {} for deploy with job unit {}.".
-                format(job_unit.request_json['url'], job_unit.pk))
+    logger.info(
+        f"Deploy submission made: ApiJobUnit {api_job_unit.pk},"
+        f" Image URL [{api_job_unit.request_json['url']}]")
 
     return msg
 
@@ -335,7 +332,7 @@ def classify_image(image_id):
     # Create task message
     storage = get_storage_class()()
     msg = ClassifyFeaturesMsg(
-        job_token=th.encode_spacer_job_token([image_id]),
+        job_token=str(image_id),
         feature_loc=storage.spacer_data_loc(
             settings.FEATURE_VECTOR_FILE_PATTERN.format(
                 full_image_path=img.original_file.name)),
@@ -426,14 +423,3 @@ def reset_classifiers_for_source(source_id):
 
     # Can probably train a new classifier.
     queue_source_check(source_id)
-
-
-@periodic_task(
-    run_every=timedelta(days=1),
-    name="Purge old batch jobs.",
-    ignore_result=True,
-)
-def clean_up_old_batch_jobs():
-    thirty_days_ago = timezone.now() - timedelta(days=30)
-    for job in BatchJob.objects.filter(create_date__lt=thirty_days_ago):
-        job.delete()

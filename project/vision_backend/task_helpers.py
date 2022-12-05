@@ -3,6 +3,7 @@ This file contains helper functions to vision_backend.tasks.
 """
 from abc import ABC
 import logging
+import re
 from typing import List, Optional
 
 import numpy as np
@@ -33,26 +34,6 @@ from .models import Classifier, Score
 from .utils import queue_source_check
 
 logger = logging.getLogger(__name__)
-
-
-def encode_spacer_job_token(pks: List[int]):
-    """ Encodes a list of primary keys into a spacer job_token string """
-    return '_'.join([str(pk) for pk in pks])
-
-
-def decode_spacer_job_token(job_token: str):
-    """ Decodes spacer job token """
-    pks = [int(pk) for pk in job_token.split('_')]
-    return pks
-
-
-def job_token_to_task_args(job_name: str, job_token: str):
-    token_parts = decode_spacer_job_token(job_token)
-    if job_name == 'train_classifier':
-        # First part is source ID, after that are classifier IDs
-        return [token_parts[0]]
-    else:
-        return token_parts
 
 
 # Must explicitly turn on history creation when RevisionMiddleware is
@@ -207,55 +188,48 @@ class SpacerResultHandler(ABC):
                 )
                 error_log.save()
 
-            spacer_error_for_task = error_message
-            # If there are multiple tasks in this job, spacer doesn't say
-            # which task the error pertains to. So we add an appropriate
-            # clarification to the task-level error message.
-            if len(job_res.original_job.tasks) > 1:
-                spacer_error_for_task += (
-                    f" (This error occurred in one of the tasks within"
-                    f" the spacer job that this task belongs to)"
-                )
+            spacer_error = error_message
         else:
-            spacer_error_for_task = None
+            spacer_error = None
 
-        for task_index, task in enumerate(job_res.original_job.tasks):
-            task_args = cls.get_task_args(task)
+        # CoralNet currently only submits spacer jobs containing a single
+        # task.
+        task = job_res.original_job.tasks[0]
 
-            task_error_message = None
-            try:
-                cls.handle_spacer_task_result(
-                    task, task_index, job_res, spacer_error_for_task)
-            except JobError as e:
-                task_error_message = str(e)
-                logger.info(task_error_message)
-            finally:
-                logger.info(
-                    f"Collected spacer task {cls.job_name},"
-                    f" with args {task_args}")
+        task_error_message = None
+        try:
+            cls.handle_spacer_task_result(
+                task, job_res, spacer_error)
+        except JobError as e:
+            task_error_message = str(e)
+            logger.info(task_error_message)
+        finally:
+            internal_job_id = task.job_token
+            logger.info(
+                f"Collected spacer task {cls.job_name},"
+                f" for internal job {internal_job_id}")
 
-                job = Job.objects.get(
-                    job_name=cls.job_name,
-                    arg_identifier=Job.args_to_identifier(task_args),
-                    status=Job.IN_PROGRESS,
-                )
-                finish_job(job, error_message=task_error_message)
+            job = Job.objects.get(pk=internal_job_id)
+            finish_job(job, error_message=task_error_message)
 
-                if job.source:
-                    # If this is a source's job, chances are there might
-                    # be another job to do for the source.
-                    queue_source_check(job.source_id)
+            if job.source:
+                # If this is a source's job, chances are there might
+                # be another job to do for the source.
+                queue_source_check(job.source_id)
 
     @classmethod
-    def get_task_args(cls, task):
-        return job_token_to_task_args(cls.job_name, task.job_token)
+    def get_internal_job(cls, task):
+        internal_job_id = task.job_token
+        try:
+            return Job.objects.get(pk=internal_job_id)
+        except Job.DoesNotExist:
+            raise JobError(f"Job {internal_job_id} doesn't exist anymore.")
 
     @classmethod
-    def handle_spacer_task_result(
-            cls, task, task_index, job_res, spacer_error):
+    def handle_spacer_task_result(cls, task, job_res, spacer_error):
         """
         Handles the result of a spacer task (a sub-unit within a spacer job)
-        and returns an error message if an issue is found (None otherwise).
+        and raises a JobError if an error is found.
         """
         raise NotImplementedError
 
@@ -267,11 +241,11 @@ class SpacerFeatureResultHandler(SpacerResultHandler):
     def handle_spacer_task_result(
             cls,
             task: ExtractFeaturesMsg,
-            task_index: int,
             job_res: JobReturnMsg,
             spacer_error: Optional[str]) -> None:
 
-        image_id = cls.get_task_args(task)[0]
+        internal_job = cls.get_internal_job(task)
+        image_id = internal_job.arg_identifier
         try:
             img = Image.objects.get(pk=image_id)
         except Image.DoesNotExist:
@@ -282,7 +256,7 @@ class SpacerFeatureResultHandler(SpacerResultHandler):
             raise JobError(spacer_error)
 
         # If there was no spacer error, then a task result is available.
-        task_res = job_res.results[task_index]
+        task_res = job_res.results[0]
 
         # Double-check that the row-col information is still correct.
         rowcols = [(p.row, p.column) for p in Point.objects.filter(image=img)]
@@ -309,14 +283,31 @@ class SpacerTrainResultHandler(SpacerResultHandler):
     def handle_spacer_task_result(
             cls,
             task: TrainClassifierMsg,
-            task_index: int,
             job_res: JobReturnMsg,
             spacer_error: Optional[str]) -> None:
 
         # Parse out pk for current and previous classifiers.
-        object_ids = decode_spacer_job_token(task.job_token)
-        classifier_id = object_ids[1]
-        prev_classifier_ids = object_ids[2:]
+        regex_pattern = (
+            settings.ROBOT_MODEL_FILE_PATTERN
+            # Replace the format placeholder with a number matcher
+            .replace('{pk}', r'(\d+)')
+            # Accept either forward or back slashes
+            .replace('/', r'[/\\]')
+            # Escape periods
+            .replace('.', r'\.')
+            # Only match at the end of the input string. The input will be
+            # an absolute path, and the pattern will be a relative path.
+            + '$'
+        )
+        model_filepath_regex = re.compile(regex_pattern)
+
+        match = model_filepath_regex.search(task.model_loc.key)
+        classifier_id = int(match.groups()[0])
+
+        prev_classifier_ids = []
+        for model_loc in task.previous_model_locs:
+            match = model_filepath_regex.search(model_loc.key)
+            prev_classifier_ids.append(int(match.groups()[0]))
 
         # Check that Classifier still exists.
         try:
@@ -332,7 +323,7 @@ class SpacerTrainResultHandler(SpacerResultHandler):
             raise JobError(spacer_error)
 
         # If there was no spacer error, then a task result is available.
-        task_res = job_res.results[task_index]
+        task_res = job_res.results[0]
 
         if len(prev_classifier_ids) != len(task_res.pc_accs):
             raise JobError(
@@ -391,24 +382,23 @@ class SpacerClassifyResultHandler(SpacerResultHandler):
     def handle_spacer_task_result(
             cls,
             task: ClassifyImageMsg,
-            task_index: int,
             job_res: JobReturnMsg,
             spacer_error: Optional[str]) -> None:
 
-        api_job_id, job_unit_order = cls.get_task_args(task)
+        internal_job = cls.get_internal_job(task)
         try:
-            job_unit = ApiJobUnit.objects.get(
-                parent_id=api_job_id, order_in_parent=job_unit_order)
+            job_unit = ApiJobUnit.objects.get(internal_job=internal_job)
         except ApiJobUnit.DoesNotExist:
             raise JobError(
-                f"Job unit [{api_job_id} / {job_unit_order}] does not exist.")
+                f"API job unit for internal-job {internal_job.pk}"
+                f" does not exist.")
 
         if spacer_error:
             # Error from spacer when running the spacer job.
             raise JobError(spacer_error)
 
         # If there was no spacer error, then a task result is available.
-        task_res = job_res.results[task_index]
+        task_res = job_res.results[0]
 
         classifier_id = job_unit.request_json['classifier_id']
         try:

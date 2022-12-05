@@ -270,7 +270,7 @@ class JobStarterDecorator(JobDecorator):
                 return
 
             try:
-                task_func(*task_args)
+                task_func(*task_args, job_id=job.pk)
             except JobError as e:
                 # JobError: job is considered done
                 finish_job(job, error_message=str(e))

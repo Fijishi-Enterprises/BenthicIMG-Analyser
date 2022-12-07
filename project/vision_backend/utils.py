@@ -164,12 +164,11 @@ def queue_source_check(source_id, delay=None):
     any feature extraction, training, or classification.
     They should not call those three tasks directly. Let check_source()
     decide what needs to be run in what order.
+
+    Site views generally shouldn't worry about specifying a delay, since this
+    check_source Job only becomes visible to celery tasks when the view
+    finishes its transaction. However, if desired, they can specify a delay.
     """
-    if delay is None:
-        # 1 minute later should allow most views to finish (and thus allow
-        # their DB transactions to close), so that the check_source() run sees
-        # the view's DB changes.
-        delay = timedelta(minutes=1)
     queue_job(
         'check_source',
         source_id,

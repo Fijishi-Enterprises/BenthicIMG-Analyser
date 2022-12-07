@@ -25,7 +25,10 @@ def queue_job(
         initial_status: str = Job.PENDING) -> Optional[Job]:
 
     if delay is None:
+        # Use a random amount of jitter to slightly space out jobs that are
+        # being submitted in quick succession.
         delay = timedelta(seconds=random.randrange(5, 30))
+
     arg_identifier = Job.args_to_identifier(task_args)
     job_kwargs = dict(
         job_name=name,
@@ -43,7 +46,7 @@ def queue_job(
     except Job.DoesNotExist:
         pass
     else:
-        logger.info(f"Job [{job}] is already pending or in progress.")
+        logger.debug(f"Job [{job}] is already pending or in progress.")
         return None
 
     # See if the same job failed last time (if there was a last time).

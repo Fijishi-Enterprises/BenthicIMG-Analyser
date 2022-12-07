@@ -1,6 +1,5 @@
 import csv
 import json
-import time
 import os.path as osp
 import pickle
 import sys
@@ -9,7 +8,6 @@ from io import StringIO
 import boto
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.core import management
 from django.core.files.base import ContentFile
 from django.test.client import Client
 from django.urls import reverse
@@ -30,21 +28,11 @@ class VisionBackendRegressionTest(ClientTest):
     def __init__(self, source_id, name_suffix):
 
         self.client = Client()
-        # Create a superuser.
-        if not User.objects.filter(username='superuser').exists():
-            management.call_command(
-                'createsuperuser',
-                '--noinput', username='superuser',
-                email='superuser@example.com', verbosity=0)
-        self.user = User.objects.get(username='superuser')
 
-        # Create other users.
-        for username in [settings.IMPORTED_USERNAME,
-                         settings.ROBOT_USERNAME,
-                         settings.ALLEVIATE_USERNAME]:
-            if not User.objects.filter(username=username).exists():
-                user = User(username=username)
-                user.save()
+        # Get any superuser. We'll assume one exists (if it doesn't, this'll
+        # get an error).
+        superusers = User.objects.filter(is_superuser=True).order_by('pk')
+        self.user = superusers.first()
 
         # Setup path to source_id fixtures.
         self.ann_file = 'sources/s{}/imdict.p'.format(source_id)
@@ -112,11 +100,18 @@ class VisionBackendRegressionTest(ClientTest):
         """
         Creates source and labelset. Also creates global labels if needed.
         """
-        print("-> Setting up: {}".format(self.source_name))
-        if Source.objects.filter(name=self.source_name).exists():
+        print(f"-> Setting up: {self.source_name}")
+        try:
+            source = Source.objects.get(name=self.source_name)
+        except Source.DoesNotExist:
+            pass
+        else:
             print("-> Found previous source, deleting that one.")
-            Source.objects.filter(name=self.source_name).delete()
-            time.sleep(10)
+            self.client.force_login(self.user)
+            self.client.post(
+                reverse('source_admin', args=[source.pk]),
+                dict(Delete='Delete'))
+            self.client.logout()
 
         # Create new source.
         self.source = self.create_source()

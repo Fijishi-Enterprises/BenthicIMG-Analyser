@@ -430,11 +430,12 @@ class Source(models.Model):
 
         # Check whether there are enough newly annotated images
         # since the time the previous classifier was submitted.
-        threshold_for_new = settings.NEW_CLASSIFIER_TRAIN_TH * latest_robot.nbr_train_images
+        threshold_for_new = (
+            settings.NEW_CLASSIFIER_TRAIN_TH * latest_robot.nbr_train_images)
         has_enough = nbr_verified_images_with_features > threshold_for_new
         message = (
             f"Based on previous training, need more than"
-            f" {threshold_for_new} annotated images for next training,"
+            f" {threshold_for_new:.2f} annotated images for next training,"
             f" and currently have {nbr_verified_images_with_features}")
         return has_enough, message
 

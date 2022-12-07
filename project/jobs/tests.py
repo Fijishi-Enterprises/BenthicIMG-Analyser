@@ -25,7 +25,7 @@ class QueueJobTest(BaseTest):
     def test_queue_job_when_already_pending(self):
         queue_job('name', 'arg')
 
-        with patch_logger('jobs.utils', 'info') as log_messages:
+        with patch_logger('jobs.utils', 'debug') as log_messages:
             queue_job('name', 'arg')
 
             log_message = (
@@ -43,7 +43,7 @@ class QueueJobTest(BaseTest):
     def test_queue_job_when_already_in_progress(self):
         queue_job('name', 'arg', initial_status=Job.IN_PROGRESS)
 
-        with patch_logger('jobs.utils', 'info') as log_messages:
+        with patch_logger('jobs.utils', 'debug') as log_messages:
             queue_job('name', 'arg')
 
             log_message = (

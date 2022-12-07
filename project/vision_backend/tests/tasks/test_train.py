@@ -288,7 +288,7 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin):
                 f"check_source ({self.source.pk}):"
                 f" Not training new classifier:"
                 f" Based on previous training, need more than"
-                f" {threshold} annotated images for next training,"
+                f" {threshold:.2f} annotated images for next training,"
                 f" and currently have {image_count}"
             )
             self.assertIn(

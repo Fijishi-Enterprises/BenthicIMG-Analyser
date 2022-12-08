@@ -1,15 +1,20 @@
+from unittest import mock
+
+from django.test.utils import patch_logger
 from django.urls import reverse
 
 from annotations.models import Annotation
 from images.models import Image
+from jobs.models import Job
 from jobs.tasks import run_scheduled_jobs_until_empty
-from vision_backend.models import Score, Classifier
-from vision_backend.tasks import (
+from lib.tests.utils import BaseTest
+from ...models import Score, Classifier
+from ...tasks import (
     collect_spacer_jobs,
     reset_backend_for_source,
     reset_classifiers_for_source,
 )
-from vision_backend.tests.tasks.utils import BaseTaskTest
+from .utils import BaseTaskTest
 
 
 class ResetTaskTest(BaseTaskTest):
@@ -165,3 +170,42 @@ class ResetTaskTest(BaseTaskTest):
         # Now features should be reset
         self.assertFalse(Image.objects.get(id=img.id).features.extracted)
         self.assertFalse(Image.objects.get(id=img.id).features.classified)
+
+
+def call_collect_spacer_jobs():
+    collect_spacer_jobs()
+
+    class Queue:
+        status_counts = dict()
+        def collect_jobs(self):
+            return []
+    return Queue
+
+
+class CollectSpacerJobsTest(BaseTest):
+
+    def test_no_multiple_runs(self):
+        """
+        Should block multiple existing runs of this task. That way, no spacer
+        job can get collected multiple times.
+        """
+        with patch_logger('jobs.utils', 'debug') as log_messages:
+
+            # Mock a function called by the task, and make that function
+            # attempt to run the task recursively.
+            with mock.patch(
+                'vision_backend.tasks.get_queue_class', call_collect_spacer_jobs
+            ):
+                collect_spacer_jobs()
+
+            log_message = (
+                "Job [collect_spacer_jobs / ]"
+                " is already pending or in progress."
+            )
+            self.assertIn(
+                log_message, log_messages,
+                "Should log the appropriate message")
+
+        self.assertEqual(
+            Job.objects.filter(job_name='collect_spacer_jobs').count(), 1,
+            "Should not have accepted the second run")

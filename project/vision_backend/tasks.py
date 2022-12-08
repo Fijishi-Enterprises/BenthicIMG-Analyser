@@ -370,13 +370,17 @@ def classify_image(image_id):
 
 
 @periodic_task(
-    run_every=timedelta(seconds=60),
+    run_every=timedelta(minutes=3),
     name='collect_spacer_jobs',
     ignore_result=True,
 )
+@full_job()
 def collect_spacer_jobs():
     """
     Collects and handles spacer job results until the result queue is empty.
+
+    This task gets job-tracking to enforce that only one thread runs this
+    task at a time. That way, no spacer job can get collected multiple times.
     """
     logger.info("Going through spacer queue to collect job results.")
     queue = get_queue_class()()

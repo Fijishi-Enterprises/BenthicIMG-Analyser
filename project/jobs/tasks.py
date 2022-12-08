@@ -38,11 +38,24 @@ def get_scheduled_jobs():
 
 
 @periodic_task(
-    run_every=timedelta(minutes=5),
+    run_every=timedelta(minutes=3),
     ignore_result=True,
 )
 @full_job()
 def run_scheduled_jobs():
+    """
+    Add scheduled jobs to the celery queue.
+
+    This task itself gets job-tracking as well, to enforce that only one
+    thread runs this task at a time. That way, no job looped through in this
+    task can get started in celery multiple times.
+
+    For reference:
+    https://docs.celeryq.dev/en/v5.2.7/userguide/periodic-tasks.html
+    "Like with cron, the tasks may overlap if the first task doesn’t complete
+    before the next. If that’s a concern you should use a locking strategy
+    to ensure only one instance can run at a time"
+    """
     for job in get_scheduled_jobs():
         starter_task = job_starter_tasks[job.job_name]
         starter_task.delay(*Job.identifier_to_args(job.arg_identifier))

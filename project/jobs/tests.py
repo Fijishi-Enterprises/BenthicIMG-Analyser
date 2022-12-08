@@ -14,7 +14,7 @@ from errorlogs.tests.utils import ErrorReportTestMixin
 from lib.tests.utils import BaseTest
 from .exceptions import JobError
 from .models import Job
-from .tasks import clean_up_old_jobs, report_stuck_jobs
+from .tasks import clean_up_old_jobs, report_stuck_jobs, run_scheduled_jobs
 from .utils import (
     finish_job, full_job, job_runner,
     job_starter, queue_job, start_pending_job)
@@ -380,6 +380,39 @@ class JobStartRaceConditionTest(TransactionTestCase):
                     log_message, log_messages,
                     "Should log the appropriate message")
 
+
+def call_run_scheduled_jobs():
+    run_scheduled_jobs()
+    return []
+
+
+class RunScheduledJobsTest(BaseTest):
+
+    def test_no_multiple_runs(self):
+        """
+        Should block multiple existing runs of this task. That way, no job
+        looped through in this task can get started in celery multiple times.
+        """
+        with patch_logger('jobs.utils', 'debug') as log_messages:
+
+            # Mock a function called by the task, and make that function
+            # attempt to run the task recursively.
+            with mock.patch(
+                'jobs.tasks.get_scheduled_jobs', call_run_scheduled_jobs
+            ):
+                run_scheduled_jobs()
+
+            log_message = (
+                "Job [run_scheduled_jobs / ]"
+                " is already pending or in progress."
+            )
+            self.assertIn(
+                log_message, log_messages,
+                "Should log the appropriate message")
+
+        self.assertEqual(
+            Job.objects.filter(job_name='run_scheduled_jobs').count(), 1,
+            "Should not have accepted the second run")
 
 class CleanupTaskTest(BaseTest):
 

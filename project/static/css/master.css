@@ -781,6 +781,10 @@ div.maintenance_message {
 ul.detail_list li {
     line-height: 1.8em;
 }
+ul.detail_list li ul{
+    list-style: disc;
+    padding-left: 2em;
+}
 /* Multiple lists of details in succession */
 div.details ul {
     margin: 25px 0;    /* top/bottom left/right */

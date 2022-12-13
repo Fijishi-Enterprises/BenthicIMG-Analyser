@@ -42,7 +42,12 @@
         {% endif %}
 
         <li><a href="{% url 'backend_main' source.id %}">
-          <span>Backend</span></a></li>  
+          <span>Backend</span></a></li>
+
+        {% if "source_edit" in source_perms %}
+          <li><a href="{% url 'jobs:source_dashboard' source.id %}">
+            <span>Jobs</span></a></li>
+        {% endif %}
       </ul>
     </div>
 {% endblock %}

@@ -25,7 +25,8 @@ from django.core import mail, management
 from django.core.cache import cache
 from django.core.files.base import ContentFile
 from django.conf import settings
-from django.test import override_settings, skipIfDBFeature, tag, TestCase
+from django.test import (
+    override_settings, skipIfDBFeature, SimpleTestCase, tag, TestCase)
 from django.test.client import Client
 from django.test.runner import DiscoverRunner
 from django.urls import reverse
@@ -975,6 +976,32 @@ class BasePermissionTest(ClientTest):
 
                     raise ValueError(
                         "Unsupported deny_type: {}".format(deny_type))
+
+
+class HtmlTestMixin(SimpleTestCase):
+
+    def assert_soup_tr_contents_equal(self, soup_tr, expected_cell_contents):
+        """
+        An element of expected_cell_contents can be None to skip checking
+        the content of that cell.
+        """
+        cells = soup_tr.find_all('td')
+        self.assertEqual(len(cells), len(expected_cell_contents))
+
+        for cell_number, (cell, expected_content) \
+                in enumerate(zip(cells, expected_cell_contents), 1):
+
+            if expected_content is None:
+                # Not checking this cell's content
+                continue
+
+            actual_content = ''.join(
+                [str(item) for item in cell.contents])
+            self.assertHTMLEqual(
+                actual_content,
+                # Tolerate integers as expected content
+                str(expected_content),
+                msg=f"Cell {cell_number} not equal")
 
 
 class ManagementCommandTest(ClientTest):

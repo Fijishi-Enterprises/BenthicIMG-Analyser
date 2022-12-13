@@ -1,5 +1,6 @@
 import html
 import re
+from unittest import skip
 
 from bs4 import BeautifulSoup
 from django.test import override_settings
@@ -540,7 +541,7 @@ class SourceMainTest(ClientTest):
         self.assertContains(
             response,
             "This source does not have a classifier yet."
-            " 3 images required to trigger training the first one.")
+            " Need a minimum of 3 Confirmed images to train a classifier.")
         self.assertNotContains(response, '<div id="acc_overview"')
 
         self.create_robot(source)
@@ -548,9 +549,10 @@ class SourceMainTest(ClientTest):
         self.assertNotContains(
             response,
             "This source does not have a classifier yet."
-            " 3 images required to trigger training the first one.")
+            " Need a minimum of 3 Confirmed images to train a classifier.")
         self.assertContains(response, '<div id="acc_overview"')
 
+    @skip("Removed newsfeed box until we're actually using newsitems.")
     def test_newsfeed_box(self):
         source = self.create_source(self.user)
         news_item = NewsItem(

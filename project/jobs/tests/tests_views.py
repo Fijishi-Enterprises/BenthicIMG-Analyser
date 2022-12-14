@@ -5,6 +5,7 @@ from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
+from api_core.models import ApiJob, ApiJobUnit
 from lib.tests.utils import BasePermissionTest, ClientTest, HtmlTestMixin
 from ..models import Job
 from ..utils import queue_job
@@ -402,3 +403,42 @@ class SourceDashboardTest(ClientTest, HtmlTestMixin):
         self.assert_soup_tr_contents_equal(
             rows[0],
             [None, "Classify", None, None, None, None])
+
+
+class NonSourceDashboardTest(ClientTest, HtmlTestMixin):
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(cls.user)
+        cls.url = reverse('jobs:non_source_dashboard')
+
+    def test_api_job_unit_column(self):
+        queue_job('Some job', '1', '2')
+
+        job = queue_job('classify_image', '3', '4')
+        api_job = ApiJob(type='deploy', user=self.user)
+        api_job.save()
+        api_job_unit = ApiJobUnit(
+            parent=api_job, order_in_parent=1, internal_job=job,
+            request_json={})
+        api_job_unit.save()
+
+        self.client.force_login(self.superuser)
+        response = self.client.get(self.url)
+        response_soup = BeautifulSoup(response.content, 'html.parser')
+
+        api_job_url = reverse('api_management:job_detail', args=[api_job.pk])
+
+        # Should only fill the API job unit cell for deploy
+        rows = response_soup.select(
+            'table#jobs-table > tbody > tr')
+        self.assert_soup_tr_contents_equal(
+            rows[0],
+            [None, "Deploy", f'<a href="{api_job_url}">{api_job_unit.pk}</a>',
+             None, None, None])
+        self.assert_soup_tr_contents_equal(
+            rows[1],
+            [None, 'Some job', '', None, None, None])

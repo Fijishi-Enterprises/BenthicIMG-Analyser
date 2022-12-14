@@ -48,7 +48,7 @@ td.recently_completed {
 </table>
 
 <p id="non-source-summary">
-  Non-source jobs:
+  <a href="{% url 'jobs:non_source_dashboard' %}">Non-source jobs</a>:
   {{ non_source_job_counts.in_progress|default:0 }} in progress,
   {{ non_source_job_counts.pending|default:0 }} pending,
   {{ non_source_job_counts.recently_completed|default:0 }} completed in last {{ completed_days_shown }} days

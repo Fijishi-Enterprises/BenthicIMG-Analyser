@@ -70,8 +70,15 @@ def overall_dashboard(request):
     })
 
 
+def tag_to_readable(tag):
+    return tag.capitalize().replace('_', ' ')
+
+
 @source_permission_required('source_id', perm=Source.PermTypes.EDIT.code)
 def source_dashboard(request, source_id):
+    """
+    Job dashboard for a specific source.
+    """
     source = get_object_or_404(Source, id=source_id)
 
     jobs = (
@@ -91,9 +98,6 @@ def source_dashboard(request, source_id):
         )
         .order_by('status_score', '-modify_date')
     )
-
-    def tag_to_readable(tag):
-        return tag.capitalize().replace('_', ' ')
 
     page_jobs = paginate(
         results=jobs,
@@ -138,6 +142,73 @@ def source_dashboard(request, source_id):
 
     return render(request, 'jobs/source_dashboard.html', {
         'source': source,
+        'job_table': job_table,
+        'page_results': page_jobs,
+        'job_max_days': settings.JOB_MAX_DAYS,
+    })
+
+
+@permission_required('is_superuser')
+def non_source_dashboard(request):
+    """
+    Dashboard for jobs not belonging to a specific source.
+    """
+    jobs = (
+        Job.objects.filter(source__isnull=True)
+        # In-progress jobs first, then pending, then completed.
+        # Tiebreak by modify date.
+        .annotate(
+            status_score=Case(
+                When(status=Job.IN_PROGRESS, then=Value(1)),
+                When(status=Job.PENDING, then=Value(2)),
+                default=Value(3),
+                output_field=IntegerField(),
+            )
+        )
+        .order_by('status_score', '-modify_date')
+    )
+
+    page_jobs = paginate(
+        results=jobs,
+        items_per_page=settings.JOBS_PER_PAGE,
+        request_args=request.GET,
+    )
+
+    job_table = []
+    for values in page_jobs.object_list.values(
+        'pk', 'create_date', 'modify_date', 'job_name',
+        'apijobunit', 'apijobunit__parent', 'status',
+    ):
+        if values['status'] == Job.IN_PROGRESS:
+            status_tag = 'in_progress'
+        elif values['status'] == Job.PENDING:
+            status_tag = 'pending'
+        elif values['status'] == Job.SUCCESS:
+            status_tag = 'success'
+        else:
+            # Job.FAILURE
+            status_tag = 'failure'
+
+        table_entry = dict(
+            status_tag=status_tag,
+            status=tag_to_readable(status_tag),
+            id=values['pk'],
+            modify_date=values['modify_date'],
+            create_date=values['create_date'],
+        )
+
+        if values['job_name'] == 'classify_image':
+            table_entry['job_type'] = "Deploy"
+        else:
+            table_entry['job_type'] = tag_to_readable(values['job_name'])
+
+        if values['job_name'] == 'classify_image':
+            table_entry['api_job_unit_id'] = values['apijobunit']
+            table_entry['api_job_id'] = values['apijobunit__parent']
+
+        job_table.append(table_entry)
+
+    return render(request, 'jobs/non_source_dashboard.html', {
         'job_table': job_table,
         'page_results': page_jobs,
         'job_max_days': settings.JOB_MAX_DAYS,

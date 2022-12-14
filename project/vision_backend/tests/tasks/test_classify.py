@@ -372,7 +372,7 @@ class AbortCasesTest(BaseTaskTest):
         classify_job = Job.objects.get(job_name='classify_features')
         self.assertEqual(
             f"Image {image_id} does not exist.",
-            classify_job.error_message,
+            classify_job.result_message,
             "Job should have the expected error")
 
     def test_classify_without_features(self):
@@ -396,7 +396,7 @@ class AbortCasesTest(BaseTaskTest):
         self.assertEqual(
             f"Image {img.pk} needs to have features extracted"
             f" before being classified.",
-            classify_job.error_message,
+            classify_job.result_message,
             "Job should have the expected error")
 
     def test_classify_without_classifier(self):
@@ -420,7 +420,7 @@ class AbortCasesTest(BaseTaskTest):
         self.assertEqual(
             f"Image {img.pk} can't be classified;"
             f" its source doesn't have a classifier.",
-            classify_job.error_message,
+            classify_job.result_message,
             "Job should have the expected error")
 
     def test_integrity_error_when_saving_annotations(self):
@@ -465,5 +465,5 @@ class AbortCasesTest(BaseTaskTest):
             f"Failed to classify {img} with classifier {classifier.pk}."
             f" There might have been a race condition when trying"
             f" to save annotations.",
-            classify_job.error_message,
+            classify_job.result_message,
             "Job should have the expected error")

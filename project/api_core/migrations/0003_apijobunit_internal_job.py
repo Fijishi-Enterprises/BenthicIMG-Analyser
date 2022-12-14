@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('api_core', '0002_unit_rename_job_to_parent'),
-        ('jobs', '0005_dates_verbose_names'),
+        ('jobs', '0006_rename_to_result_message'),
     ]
 
     operations = [

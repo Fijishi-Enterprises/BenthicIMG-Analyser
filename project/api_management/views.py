@@ -62,7 +62,7 @@ def job_detail(request, job_id):
             status=unit_obj.status,
             status_display=unit_obj.get_status_display(),
             request_json_strings=request_json_strings,
-            error_display=unit_obj.internal_job.error_message,
+            result_message=unit_obj.internal_job.result_message,
         ))
 
     return render(request, 'api_management/job_detail.html', {

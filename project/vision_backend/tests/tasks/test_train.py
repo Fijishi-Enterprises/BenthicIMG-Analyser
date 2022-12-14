@@ -4,15 +4,14 @@ from unittest import mock
 from django.conf import settings
 from django.core.files.storage import get_storage_class
 from django.test import override_settings
-from django.test.utils import patch_logger
 import spacer.config as spacer_config
 from spacer.data_classes import ValResults
 from spacer.exceptions import SpacerInputError
 
 from errorlogs.tests.utils import ErrorReportTestMixin
 from images.model_utils import PointGen
-from jobs.models import Job
 from jobs.tasks import run_scheduled_jobs_until_empty
+from jobs.tests.utils import JobUtilsMixin
 from ...models import Classifier
 from ...queues import get_queue_class
 from ...tasks import collect_spacer_jobs
@@ -205,7 +204,7 @@ class TrainClassifierTest(BaseTaskTest):
         self.assertEqual(latest_classifier.status, Classifier.ACCEPTED)
 
 
-class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin):
+class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin, JobUtilsMixin):
     """
     Test cases where the task or collection would abort before reaching the
     end.
@@ -223,18 +222,14 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin):
         self.source.enable_robot_classifier = False
         self.source.save()
 
-        with patch_logger('vision_backend.tasks', 'info') as log_messages:
-            # Check source
-            run_scheduled_jobs_until_empty()
+        # Check source
+        run_scheduled_jobs_until_empty()
 
-            log_message = (
-                f"check_source ({self.source.pk}):"
-                f" Not training new classifier:"
-                f" Source has classifier disabled"
-            )
-            self.assertIn(
-                log_message, log_messages,
-                "Should log the appropriate message")
+        self.assert_job_result_message(
+            'check_source',
+            f"Can't train first classifier:"
+            f" Source has classifier disabled"
+        )
 
     def test_below_minimum_images(self):
         """
@@ -250,19 +245,15 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin):
         # But set CoralNet's requirement 1 higher than that image count.
         min_images = spacer_config.MIN_TRAINIMAGES + 2
 
-        with patch_logger('vision_backend.tasks', 'info') as log_messages:
-            with override_settings(MIN_NBR_ANNOTATED_IMAGES=min_images):
-                # Check source
-                run_scheduled_jobs_until_empty()
+        with override_settings(MIN_NBR_ANNOTATED_IMAGES=min_images):
+            # Check source
+            run_scheduled_jobs_until_empty()
 
-            log_message = (
-                f"check_source ({self.source.pk}):"
-                f" Not training new classifier:"
-                f" Not enough annotated images for initial training"
-            )
-            self.assertIn(
-                log_message, log_messages,
-                "Should log the appropriate message")
+        self.assert_job_result_message(
+            'check_source',
+            f"Can't train first classifier:"
+            f" Not enough annotated images for initial training"
+        )
 
     def test_not_enough_train_data_since_last_classifier(self):
         """
@@ -278,22 +269,16 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin):
         collect_spacer_jobs()
 
         # Attempt to train another classifier without adding more images.
-        with patch_logger('vision_backend.tasks', 'info') as log_messages:
-            # Check source
-            run_scheduled_jobs_until_empty()
+        run_scheduled_jobs_until_empty()
 
-            image_count = spacer_config.MIN_TRAINIMAGES + 1
-            threshold = image_count * settings.NEW_CLASSIFIER_TRAIN_TH
-            log_message = (
-                f"check_source ({self.source.pk}):"
-                f" Not training new classifier:"
-                f" Based on previous training, need more than"
-                f" {threshold:.2f} annotated images for next training,"
-                f" and currently have {image_count}"
-            )
-            self.assertIn(
-                log_message, log_messages,
-                "Should log the appropriate message")
+        image_count = spacer_config.MIN_TRAINIMAGES + 1
+        threshold = math.ceil(image_count * settings.NEW_CLASSIFIER_TRAIN_TH)
+        self.assert_job_result_message(
+            'check_source',
+            f"Source seems to be all caught up."
+            f" Need {threshold} annotated images for next training,"
+            f" and currently have {image_count}"
+        )
 
     def test_one_unique_label(self):
         """
@@ -328,16 +313,12 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin):
             classifier.status, Classifier.LACKING_UNIQUE_LABELS,
             msg="Classifier status should be correct")
 
-        train_job = Job.objects.get(job_name='train_classifier')
-        job_error = (
+        self.assert_job_result_message(
+            'train_classifier',
             f"Classifier {classifier.pk} [Source: {self.source.name}"
             f" [{self.source.pk}]] was declined training, because the"
             f" training labelset ended up only having one unique label."
             f" Training requires at least 2 unique labels.")
-        self.assertEqual(
-            job_error,
-            train_job.error_message,
-            "Job should have the expected error")
 
         self.assertFalse(
             self.source.need_new_robot()[0],
@@ -360,11 +341,9 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin):
         # Collect training.
         collect_spacer_jobs()
 
-        train_job = Job.objects.get(job_name='train_classifier')
-        self.assertEqual(
-            "ValueError: A spacer error",
-            train_job.error_message,
-            "Job should have the expected error")
+        self.assert_job_result_message(
+            'train_classifier',
+            "ValueError: A spacer error")
 
         self.assert_error_log_saved(
             "ValueError",
@@ -391,11 +370,9 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin):
             run_scheduled_jobs_until_empty()
         collect_spacer_jobs()
 
-        train_job = Job.objects.get(job_name='train_classifier')
-        self.assertEqual(
-            "spacer.exceptions.SpacerInputError: A spacer input error",
-            train_job.error_message,
-            "Job should have the expected error")
+        self.assert_job_result_message(
+            'train_classifier',
+            "spacer.exceptions.SpacerInputError: A spacer input error")
 
         self.assert_no_error_log_saved()
         self.assert_no_email()
@@ -421,11 +398,9 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin):
         # Collect training.
         collect_spacer_jobs()
 
-        train_job = Job.objects.get(job_name='train_classifier')
-        self.assertEqual(
-            f"Classifier {classifier_id} doesn't exist anymore.",
-            train_job.error_message,
-            "Job should have the expected error")
+        self.assert_job_result_message(
+            'train_classifier',
+            f"Classifier {classifier_id} doesn't exist anymore.")
 
     def test_classifier_rejected(self):
         """
@@ -458,23 +433,21 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin):
         collect_spacer_jobs()
         run_scheduled_jobs_until_empty()
 
-        with patch_logger(
-                'vision_backend.task_helpers', 'info') as log_messages:
-            with override_settings(NEW_CLASSIFIER_IMPROVEMENT_TH=1.4):
-                # Collect classifier. Use mock to specify current and previous
-                # classifiers' accuracy.
-                with mock.patch(
-                        'spacer.messages.TrainClassifierReturnMsg.__init__',
-                        mock_train_msg):
-                    collect_spacer_jobs()
+        with override_settings(NEW_CLASSIFIER_IMPROVEMENT_TH=1.4):
+            # Collect classifier. Use mock to specify current and previous
+            # classifiers' accuracy.
+            with mock.patch(
+                    'spacer.messages.TrainClassifierReturnMsg.__init__',
+                    mock_train_msg):
+                collect_spacer_jobs()
 
-            classifier = self.source.get_latest_robot(only_accepted=False)
-            self.assertEqual(classifier.status, Classifier.REJECTED_ACCURACY)
-            log_message = (
-                f"{classifier} worse than previous. Not accepted."
-                f" Max previous: {0.5:.2f},"
-                f" threshold: {0.5*1.4:.2f},"
-                f" this: {0.6:.2f}")
-            self.assertIn(
-                log_message, log_messages,
-                "Should log the appropriate message")
+        classifier = self.source.get_latest_robot(only_accepted=False)
+        self.assertEqual(classifier.status, Classifier.REJECTED_ACCURACY)
+
+        self.assert_job_result_message(
+            'train_classifier',
+            f"Not accepted as the source's new classifier."
+            f" Highest accuracy among previous classifiers"
+            f" on the latest dataset: {0.5:.2f},"
+            f" threshold to accept new: {0.5*1.4:.2f},"
+            f" accuracy from this training: {0.6:.2f}")

@@ -63,7 +63,7 @@ class QueueJobTest(BaseTest):
 
     def test_attempt_number_increment(self):
         job = queue_job('name', 'arg', initial_status=Job.FAILURE)
-        job.error_message = "An error"
+        job.result_message = "An error"
         job.save()
 
         job_2 = queue_job('name', 'arg')
@@ -130,12 +130,12 @@ class FinishJobTest(BaseTest, ErrorReportTestMixin):
         # 4 fails in a row
         for _ in range(4):
             job = queue_job('name', 'arg', initial_status=Job.IN_PROGRESS)
-            finish_job(job, error_message="An error")
+            finish_job(job, success=False, result_message="An error")
             self.assert_no_email()
 
         # 5th fail in a row
         job = queue_job('name', 'arg', initial_status=Job.IN_PROGRESS)
-        finish_job(job, error_message="An error")
+        finish_job(job, success=False, result_message="An error")
         self.assert_error_email(
             "Job is failing repeatedly: name / arg",
             ["Currently on attempt number 5. Error:\n\nAn error"],
@@ -148,6 +148,7 @@ def full_job_example(arg1):
         raise JobError("A JobError")
     if arg1 == 'other_error':
         raise ValueError("A ValueError")
+    return "Comment about result"
 
 
 @job_runner()
@@ -156,6 +157,7 @@ def job_runner_example(arg1):
         raise JobError("A JobError")
     if arg1 == 'other_error':
         raise ValueError("A ValueError")
+    return "Comment about result"
 
 
 @job_starter()
@@ -175,14 +177,14 @@ class JobDecoratorTest(BaseTest, ErrorReportTestMixin):
         self.assertEqual(job.job_name, 'full_job_example')
         self.assertEqual(job.arg_identifier, 'some_arg')
         self.assertEqual(job.status, Job.SUCCESS)
-        self.assertEqual(job.error_message, "")
+        self.assertEqual(job.result_message, "Comment about result")
 
     def test_full_job_error(self):
         full_job_example('job_error')
         job = Job.objects.latest('pk')
 
         self.assertEqual(job.status, Job.FAILURE)
-        self.assertEqual(job.error_message, "A JobError")
+        self.assertEqual(job.result_message, "A JobError")
         self.assert_no_error_log_saved()
         self.assert_no_email()
 
@@ -191,7 +193,7 @@ class JobDecoratorTest(BaseTest, ErrorReportTestMixin):
         job = Job.objects.latest('pk')
 
         self.assertEqual(job.status, Job.FAILURE)
-        self.assertEqual(job.error_message, "A ValueError")
+        self.assertEqual(job.result_message, "A ValueError")
 
         self.assert_error_log_saved(
             "ValueError",
@@ -211,7 +213,7 @@ class JobDecoratorTest(BaseTest, ErrorReportTestMixin):
         self.assertEqual(job.job_name, 'job_runner_example')
         self.assertEqual(job.arg_identifier, 'some_arg')
         self.assertEqual(job.status, Job.SUCCESS)
-        self.assertEqual(job.error_message, "")
+        self.assertEqual(job.result_message, "Comment about result")
 
     def test_runner_job_error(self):
         job = queue_job('job_runner_example', 'job_error')
@@ -220,7 +222,7 @@ class JobDecoratorTest(BaseTest, ErrorReportTestMixin):
         job.refresh_from_db()
 
         self.assertEqual(job.status, Job.FAILURE)
-        self.assertEqual(job.error_message, "A JobError")
+        self.assertEqual(job.result_message, "A JobError")
         self.assert_no_error_log_saved()
         self.assert_no_email()
 
@@ -231,7 +233,7 @@ class JobDecoratorTest(BaseTest, ErrorReportTestMixin):
         job.refresh_from_db()
 
         self.assertEqual(job.status, Job.FAILURE)
-        self.assertEqual(job.error_message, "A ValueError")
+        self.assertEqual(job.result_message, "A ValueError")
 
         self.assert_error_log_saved(
             "ValueError",
@@ -251,7 +253,7 @@ class JobDecoratorTest(BaseTest, ErrorReportTestMixin):
         self.assertEqual(job.job_name, 'job_starter_example')
         self.assertEqual(job.arg_identifier, 'some_arg')
         self.assertEqual(job.status, Job.IN_PROGRESS)
-        self.assertEqual(job.error_message, "")
+        self.assertEqual(job.result_message, "")
 
     def test_starter_job_error(self):
         job = queue_job('job_starter_example', 'job_error')
@@ -260,7 +262,7 @@ class JobDecoratorTest(BaseTest, ErrorReportTestMixin):
         job.refresh_from_db()
 
         self.assertEqual(job.status, Job.FAILURE)
-        self.assertEqual(job.error_message, f"A JobError (ID: {job.pk})")
+        self.assertEqual(job.result_message, f"A JobError (ID: {job.pk})")
         self.assert_no_error_log_saved()
         self.assert_no_email()
 
@@ -271,7 +273,7 @@ class JobDecoratorTest(BaseTest, ErrorReportTestMixin):
         job.refresh_from_db()
 
         self.assertEqual(job.status, Job.FAILURE)
-        self.assertEqual(job.error_message, f"A ValueError (ID: {job.pk})")
+        self.assertEqual(job.result_message, f"A ValueError (ID: {job.pk})")
 
         self.assert_error_log_saved(
             "ValueError",

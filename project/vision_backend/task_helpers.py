@@ -196,13 +196,15 @@ class SpacerResultHandler(ABC):
         # task.
         task = job_res.original_job.tasks[0]
 
-        task_error_message = None
+        success = False
+        result_message = None
         try:
-            cls.handle_spacer_task_result(
+            result_message = cls.handle_spacer_task_result(
                 task, job_res, spacer_error)
+            success = True
         except JobError as e:
-            task_error_message = str(e)
-            logger.info(task_error_message)
+            result_message = str(e)
+            logger.info(result_message)
         finally:
             internal_job_id = task.job_token
             logger.info(
@@ -210,7 +212,7 @@ class SpacerResultHandler(ABC):
                 f" for internal job {internal_job_id}")
 
             job = Job.objects.get(pk=internal_job_id)
-            finish_job(job, error_message=task_error_message)
+            finish_job(job, success=success, result_message=result_message)
 
             if job.source:
                 # If this is a source's job, chances are there might
@@ -284,7 +286,7 @@ class SpacerTrainResultHandler(SpacerResultHandler):
             cls,
             task: TrainClassifierMsg,
             job_res: JobReturnMsg,
-            spacer_error: Optional[str]) -> None:
+            spacer_error: Optional[str]) -> Optional[str]:
 
         # Parse out pk for current and previous classifiers.
         regex_pattern = (
@@ -356,12 +358,12 @@ class SpacerTrainResultHandler(SpacerResultHandler):
                 classifier.status = Classifier.REJECTED_ACCURACY
                 classifier.save()
 
-                logger.info(
-                    f"{classifier} worse than previous. Not accepted."
-                    f" Max previous: {max_previous_acc:.2f},"
-                    f" threshold: {acc_threshold:.2f},"
-                    f" this: {task_res.acc:.2f}")
-                return
+                return (
+                    f"Not accepted as the source's new classifier."
+                    f" Highest accuracy among previous classifiers"
+                    f" on the latest dataset: {max_previous_acc:.2f},"
+                    f" threshold to accept new: {acc_threshold:.2f},"
+                    f" accuracy from this training: {task_res.acc:.2f}")
 
         # We're accepting the new classifier.
         # Update accuracy for previous models.
@@ -373,6 +375,8 @@ class SpacerTrainResultHandler(SpacerResultHandler):
         # Accept and save the current model
         classifier.status = Classifier.ACCEPTED
         classifier.save()
+
+        return f"New classifier accepted: {classifier.pk}"
 
 
 class SpacerClassifyResultHandler(SpacerResultHandler):

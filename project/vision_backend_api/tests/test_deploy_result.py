@@ -311,7 +311,7 @@ class DeployResultEndpointTest(DeployBaseTest):
         unit_1.save()
 
         unit_2.internal_job.status = Job.FAILURE
-        unit_2.internal_job.error_message = (
+        unit_2.internal_job.result_message = (
             "Classifier of id 33 does not exist.")
         unit_2.internal_job.save()
 

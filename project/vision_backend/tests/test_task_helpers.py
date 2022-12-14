@@ -124,5 +124,5 @@ class TestDeployCollector(ClientTest):
         api_job_unit = ApiJobUnit.objects.get(pk=self.api_job_unit_pk)
         self.assertEqual(api_job_unit.status, Job.FAILURE)
         self.assertEqual(
-            api_job_unit.error_message,
+            api_job_unit.result_message,
             'SomeError: File not found')

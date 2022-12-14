@@ -132,14 +132,14 @@ def start_pending_job(job_name: str, arg_identifier: str) -> Optional[Job]:
     return job
 
 
-def finish_job(job, error_message=None):
+def finish_job(job, success=False, result_message=None):
     """
     Update Job status from IN_PROGRESS to SUCCESS/FAILURE,
     and do associated bookkeeping.
     """
-    # This field doesn't take None; non-errors are set as an empty string.
-    job.error_message = error_message or ""
-    job.status = Job.FAILURE if error_message else Job.SUCCESS
+    # This field doesn't take None; no message is set as an empty string.
+    job.result_message = result_message or ""
+    job.status = Job.SUCCESS if success else Job.FAILURE
     job.save()
 
     if job.status == Job.FAILURE and job.attempt_number % 5 == 0:
@@ -147,7 +147,7 @@ def finish_job(job, error_message=None):
             f"Job is failing repeatedly:"
             f" {job.job_name} / {job.arg_identifier}",
             f"Currently on attempt number {job.attempt_number}. Error:"
-            f"\n\n{error_message}",
+            f"\n\n{result_message}",
         )
 
 
@@ -201,22 +201,24 @@ class FullJobDecorator(JobDecorator):
             if not job:
                 return
 
-            error_message = None
+            success = False
+            result_message = None
             try:
                 # Run the task function (which isn't a celery task itself;
                 # the result of this wrapper should be registered as a
                 # celery task).
-                task_func(*task_args)
+                result_message = task_func(*task_args)
+                success = True
             except JobError as e:
-                error_message = str(e)
+                result_message = str(e)
             except Exception as e:
                 # Non-JobError, likely needs fixing:
                 # report it like a server error
-                error_message = str(e)
+                result_message = str(e)
                 self.report_task_error(task_func)
             finally:
                 # Regardless of error or not, mark job as done
-                finish_job(job, error_message=error_message)
+                finish_job(job, success=success, result_message=result_message)
 
         return task_wrapper
 
@@ -238,19 +240,21 @@ class JobRunnerDecorator(JobDecorator):
             if not job:
                 return
 
-            error_message = None
+            success = False
+            result_message = None
             try:
-                task_func(*task_args)
+                result_message = task_func(*task_args)
+                success = True
             except JobError as e:
-                error_message = str(e)
+                result_message = str(e)
             except Exception as e:
                 # Non-JobError, likely needs fixing:
                 # report it like a server error
-                error_message = str(e)
+                result_message = str(e)
                 self.report_task_error(task_func)
             finally:
                 # Regardless of error or not, mark job as done
-                finish_job(job, error_message=error_message)
+                finish_job(job, success=success, result_message=result_message)
 
         return task_wrapper
 
@@ -261,7 +265,8 @@ job_runner = JobRunnerDecorator
 class JobStarterDecorator(JobDecorator):
     """
     Job status goes PENDING -> IN_PROGRESS at the start of the
-    decorated task. No update is made at the end of the task.
+    decorated task. No update is made at the end of the task
+    (unless there's an error).
     """
     def __call__(self, task_func):
         def task_wrapper(*task_args):
@@ -276,12 +281,12 @@ class JobStarterDecorator(JobDecorator):
                 task_func(*task_args, job_id=job.pk)
             except JobError as e:
                 # JobError: job is considered done
-                finish_job(job, error_message=str(e))
+                finish_job(job, success=False, result_message=str(e))
             except Exception as e:
                 # Non-JobError, likely needs fixing:
                 # job is considered done, and report it like a server error
                 self.report_task_error(task_func)
-                finish_job(job, error_message=str(e))
+                finish_job(job, success=False, result_message=str(e))
 
         return task_wrapper
 

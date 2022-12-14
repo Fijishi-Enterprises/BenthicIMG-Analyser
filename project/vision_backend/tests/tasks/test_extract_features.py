@@ -2,14 +2,13 @@ from unittest import mock
 
 from django.conf import settings
 from django.core.files.storage import get_storage_class
-from django.test.utils import patch_logger
 import spacer.config as spacer_config
 from spacer.data_classes import ImageFeatures
 from spacer.exceptions import SpacerInputError
 
 from errorlogs.tests.utils import ErrorReportTestMixin
-from jobs.models import Job
 from jobs.tasks import run_scheduled_jobs, run_scheduled_jobs_until_empty
+from jobs.tests.utils import JobUtilsMixin
 from ...tasks import collect_spacer_jobs
 from .utils import BaseTaskTest
 
@@ -73,7 +72,7 @@ class ExtractFeaturesTest(BaseTaskTest):
             "Feature rowcols should match the actual points including dupes")
 
 
-class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin):
+class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin, JobUtilsMixin):
     """
     Test cases where the task or collection would abort before reaching the
     end.
@@ -96,18 +95,13 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin):
         # Upload another image.
         self.upload_image(self.user, self.source)
 
-        with patch_logger('vision_backend.tasks', 'info') as log_messages:
-            # Try to submit feature extraction.
-            run_scheduled_jobs_until_empty()
+        # Try to submit feature extraction.
+        run_scheduled_jobs_until_empty()
 
-            log_message = (
-                f"check_source ({self.source.pk}):"
-                f" Feature extraction(s) ready, but not"
-                f" submitted due to training in progress"
-            )
-            self.assertIn(
-                log_message, log_messages,
-                "Should log the appropriate message")
+        self.assert_job_result_message(
+            'check_source',
+            f"Feature extraction(s) ready, but not"
+            f" submitted due to training in progress")
 
     def test_nonexistent_image(self):
         """Try to extract features for a nonexistent image ID."""
@@ -124,11 +118,9 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin):
         # Try to extract features.
         run_scheduled_jobs()
 
-        extract_job = Job.objects.get(job_name='extract_features')
-        self.assertEqual(
-            f"Image {image_id} does not exist.",
-            extract_job.error_message,
-            "Job should have the expected error")
+        self.assert_job_result_message(
+            'extract_features',
+            f"Image {image_id} does not exist.")
 
     def test_image_deleted_during_extract(self):
         # Upload image.
@@ -143,11 +135,9 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin):
         # Collect feature extraction.
         collect_spacer_jobs()
 
-        extract_job = Job.objects.get(job_name='extract_features')
-        self.assertEqual(
-            f"Image {image_id} doesn't exist anymore.",
-            extract_job.error_message,
-            "Job should have the expected error")
+        self.assert_job_result_message(
+            'extract_features',
+            f"Image {image_id} doesn't exist anymore.")
 
     def test_spacer_error(self):
         # Upload image.
@@ -165,11 +155,9 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin):
         # Collect feature extraction.
         collect_spacer_jobs()
 
-        extract_job = Job.objects.get(job_name='extract_features')
-        self.assertEqual(
-            "ValueError: A spacer error",
-            extract_job.error_message,
-            "Job should have the expected error")
+        self.assert_job_result_message(
+            'extract_features',
+            "ValueError: A spacer error")
 
         self.assert_error_log_saved(
             "ValueError",
@@ -195,11 +183,9 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin):
             run_scheduled_jobs()
         collect_spacer_jobs()
 
-        extract_job = Job.objects.get(job_name='extract_features')
-        self.assertEqual(
-            "spacer.exceptions.SpacerInputError: A spacer input error",
-            extract_job.error_message,
-            "Job should have the expected error")
+        self.assert_job_result_message(
+            'extract_features',
+            "spacer.exceptions.SpacerInputError: A spacer input error")
 
         self.assert_no_error_log_saved()
         self.assert_no_email()
@@ -223,9 +209,7 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin):
         # Collect feature extraction.
         collect_spacer_jobs()
 
-        extract_job = Job.objects.get(job_name='extract_features')
-        self.assertEqual(
+        self.assert_job_result_message(
+            'extract_features',
             f"Row-col data for {img} has changed"
-            f" since this task was submitted.",
-            extract_job.error_message,
-            "Job should have the expected error")
+            f" since this task was submitted.")

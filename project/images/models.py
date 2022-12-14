@@ -1,3 +1,4 @@
+import math
 import posixpath
 from typing import Tuple
 
@@ -430,12 +431,18 @@ class Source(models.Model):
 
         # Check whether there are enough newly annotated images
         # since the time the previous classifier was submitted.
-        threshold_for_new = (
-            settings.NEW_CLASSIFIER_TRAIN_TH * latest_robot.nbr_train_images)
-        has_enough = nbr_verified_images_with_features > threshold_for_new
+        #
+        # The threshold should be calculated in such a way that, as long as
+        # the threshold multiplier > 1, the threshold is strictly greater
+        # than the latest robot's image count. This way we don't infinitely
+        # retrain when there are no new images.
+        threshold_for_new = math.ceil(
+            settings.NEW_CLASSIFIER_TRAIN_TH
+            * latest_robot.nbr_train_images
+        )
+        has_enough = nbr_verified_images_with_features >= threshold_for_new
         message = (
-            f"Based on previous training, need more than"
-            f" {threshold_for_new:.2f} annotated images for next training,"
+            f"Need {threshold_for_new} annotated images for next training,"
             f" and currently have {nbr_verified_images_with_features}")
         return has_enough, message
 

@@ -1,9 +1,8 @@
 from datetime import timedelta
 import json
 from unittest import mock
-from unittest.case import TestCase
 
-from django.test.utils import override_settings, patch_logger
+from django.test.utils import override_settings
 import spacer.config as spacer_config
 from spacer.messages import DataLocation, JobMsg
 from spacer.tasks import process_job
@@ -11,6 +10,7 @@ from spacer.tasks import process_job
 from api_core.models import ApiJob, ApiJobUnit
 from jobs.models import Job
 from jobs.tasks import run_scheduled_jobs_until_empty
+from jobs.tests.utils import JobUtilsMixin
 from vision_backend_api.tests.utils import DeployBaseTest
 from ..models import BatchJob, Classifier
 from ..tasks import collect_spacer_jobs
@@ -115,36 +115,24 @@ def mock_boto_client(response_type='succeeded'):
         'vision_backend.queues.get_batch_client', get_mock_client)
 
 
-class LogMixin(TestCase):
-
-    def assert_log_message(self, expected_message, log_messages):
-        self.assertIn(
-            expected_message, log_messages,
-            "Should log the appropriate message")
-
-
-class QueueBasicTest(BaseTaskTest, LogMixin):
+class QueueBasicTest(BaseTaskTest, JobUtilsMixin):
     """
     We subclass this for each queue type. Maybe there's a better way
     to 'parameterize' these tests.
     """
     def do_test_no_jobs(self):
-        with patch_logger('vision_backend.tasks', 'info') as log_messages:
-            collect_spacer_jobs()
-            self.assert_log_message(
-                "Done going through spacer queue. Job count: 0",
-                log_messages)
+        collect_spacer_jobs()
+        self.assert_job_result_message(
+            'collect_spacer_jobs', "Job count: 0")
 
     def do_test_collect_feature_extraction(self):
         img = self.upload_image(self.user, self.source)
         # Submit feature extraction
         run_scheduled_jobs_until_empty()
         # Collect
-        with patch_logger('vision_backend.tasks', 'info') as log_messages:
-            collect_spacer_jobs()
-            self.assert_log_message(
-                "Done going through spacer queue. Job count: 1 SUCCEEDED",
-                log_messages)
+        collect_spacer_jobs()
+        self.assert_job_result_message(
+            'collect_spacer_jobs', "Job count: 1 SUCCEEDED")
         # Check for successful result handling
         self.assertTrue(img.features.extracted)
 
@@ -158,11 +146,9 @@ class QueueBasicTest(BaseTaskTest, LogMixin):
         # Submit training
         run_scheduled_jobs_until_empty()
         # Collect
-        with patch_logger('vision_backend.tasks', 'info') as log_messages:
-            collect_spacer_jobs()
-            self.assert_log_message(
-                "Done going through spacer queue. Job count: 1 SUCCEEDED",
-                log_messages)
+        collect_spacer_jobs()
+        self.assert_job_result_message(
+            'collect_spacer_jobs', "Job count: 1 SUCCEEDED")
         # Check for successful result handling
         latest_classifier = self.source.get_latest_robot()
         self.assertEqual(latest_classifier.status, Classifier.ACCEPTED)
@@ -176,17 +162,13 @@ class QueueBasicTest(BaseTaskTest, LogMixin):
         # Submit feature extraction
         run_scheduled_jobs_until_empty()
         # Collect
-        with patch_logger('vision_backend.tasks', 'info') as log_messages:
-            collect_spacer_jobs()
-            self.assert_log_message(
-                "Done going through spacer queue. Job count: 1 SUCCEEDED",
-                log_messages)
+        collect_spacer_jobs()
+        self.assert_job_result_message(
+            'collect_spacer_jobs', "Job count: 1 SUCCEEDED")
         # Collect again; job should already be consumed
-        with patch_logger('vision_backend.tasks', 'info') as log_messages:
-            collect_spacer_jobs()
-            self.assert_log_message(
-                "Done going through spacer queue. Job count: 0",
-                log_messages)
+        collect_spacer_jobs()
+        self.assert_job_result_message(
+            'collect_spacer_jobs', "Job count: 0")
 
 
 @local_queue_decorator
@@ -232,11 +214,9 @@ class BatchQueueBasicTest(QueueBasicTest):
             # Submit feature extraction
             run_scheduled_jobs_until_empty()
             # Collect
-            with patch_logger('vision_backend.tasks', 'info') as log_messages:
-                collect_spacer_jobs()
-                self.assert_log_message(
-                    "Done going through spacer queue. Job count: 1 FAILED",
-                    log_messages)
+            collect_spacer_jobs()
+            self.assert_job_result_message(
+                'collect_spacer_jobs', "Job count: 1 FAILED")
 
         # Check for error status
         job = Job.objects.get(job_name='extract_features')
@@ -257,18 +237,16 @@ class BatchQueueBasicTest(QueueBasicTest):
             # Submit training
             run_scheduled_jobs_until_empty()
             # Collect
-            with patch_logger('vision_backend.tasks', 'info') as log_messages:
-                collect_spacer_jobs()
-                self.assert_log_message(
-                    "Done going through spacer queue. Job count: 1 FAILED",
-                    log_messages)
+            collect_spacer_jobs()
+            self.assert_job_result_message(
+                'collect_spacer_jobs', "Job count: 1 FAILED")
 
         # Check for error status
         job = Job.objects.get(job_name='train_classifier')
         self.assertEqual(job.status, Job.FAILURE)
 
 
-class QueueClassificationTest(DeployBaseTest, LogMixin):
+class QueueClassificationTest(DeployBaseTest, JobUtilsMixin):
 
     def do_test_collect_classification(self):
         self.train_classifier()
@@ -281,11 +259,9 @@ class QueueClassificationTest(DeployBaseTest, LogMixin):
         # Submit classification
         self.run_scheduled_jobs_including_deploy()
         # Collect
-        with patch_logger('vision_backend.tasks', 'info') as log_messages:
-            collect_spacer_jobs()
-            self.assert_log_message(
-                "Done going through spacer queue. Job count: 1 SUCCEEDED",
-                log_messages)
+        collect_spacer_jobs()
+        self.assert_job_result_message(
+            'collect_spacer_jobs', "Job count: 1 SUCCEEDED")
         # Check for successful result handling
         unit = ApiJobUnit.objects.latest('pk')
         self.assertEqual(unit.status, Job.SUCCESS)
@@ -324,11 +300,9 @@ class QueueClassificationTest(DeployBaseTest, LogMixin):
         self.run_scheduled_jobs_including_deploy()
 
         # Collect
-        with patch_logger('vision_backend.tasks', 'info') as log_messages:
-            collect_spacer_jobs()
-            self.assert_log_message(
-                "Done going through spacer queue. Job count: 8 SUCCEEDED",
-                log_messages)
+        collect_spacer_jobs()
+        self.assert_job_result_message(
+            'collect_spacer_jobs', "Job count: 8 SUCCEEDED")
 
         # Check for successful result handling
         api_jobs = list(ApiJob.objects.all())
@@ -373,11 +347,9 @@ class BatchQueueClassificationTest(QueueClassificationTest):
             # Submit classification
             self.run_scheduled_jobs_including_deploy()
             # Collect
-            with patch_logger('vision_backend.tasks', 'info') as log_messages:
-                collect_spacer_jobs()
-                self.assert_log_message(
-                    "Done going through spacer queue. Job count: 1 FAILED",
-                    log_messages)
+            collect_spacer_jobs()
+            self.assert_job_result_message(
+                'collect_spacer_jobs', "Job count: 1 FAILED")
 
         # Check for error status
         job = Job.objects.get(job_name='classify_image')
@@ -385,18 +357,15 @@ class BatchQueueClassificationTest(QueueClassificationTest):
 
 
 @batch_queue_decorator
-class BatchQueueSpecificsTest(BaseTaskTest, LogMixin):
+class BatchQueueSpecificsTest(BaseTaskTest, JobUtilsMixin):
 
     def extract_and_assert_collect_count(self, expected_counts_str):
         # Submit feature extraction
         run_scheduled_jobs_until_empty()
         # Collect
-        with patch_logger('vision_backend.tasks', 'info') as log_messages:
-            collect_spacer_jobs()
-            self.assert_log_message(
-                f"Done going through spacer queue."
-                f" Job count: {expected_counts_str}",
-                log_messages)
+        collect_spacer_jobs()
+        self.assert_job_result_message(
+            'collect_spacer_jobs', f"Job count: {expected_counts_str}")
 
     def assert_job_error(self, expected_error_template):
         # Check for error status
@@ -409,7 +378,7 @@ class BatchQueueSpecificsTest(BaseTaskTest, LogMixin):
         else:
             expected_error = expected_error_template
 
-        self.assertEqual(job.error_message, expected_error)
+        self.assertEqual(job.result_message, expected_error)
 
     def test_job_in_progress(self):
         """BatchJob has not succeeded or failed yet; still in progress."""
@@ -426,12 +395,9 @@ class BatchQueueSpecificsTest(BaseTaskTest, LogMixin):
             run_scheduled_jobs_until_empty()
 
             # Try to collect
-            with patch_logger('vision_backend.tasks', 'info') as log_messages:
-                collect_spacer_jobs()
-                self.assert_log_message(
-                    f"Done going through spacer queue."
-                    f" Job count: 1 NOT SUBMITTED",
-                    log_messages)
+            collect_spacer_jobs()
+            self.assert_job_result_message(
+                'collect_spacer_jobs', "Job count: 1 NOT SUBMITTED")
 
             # Make the BatchJob old enough to be considered a victim of
             # an AWS service error.
@@ -441,12 +407,9 @@ class BatchQueueSpecificsTest(BaseTaskTest, LogMixin):
             batch_job.save()
 
             # Then try to collect again.
-            with patch_logger('vision_backend.tasks', 'info') as log_messages:
-                collect_spacer_jobs()
-                self.assert_log_message(
-                    f"Done going through spacer queue."
-                    f" Job count: 1 DROPPED",
-                    log_messages)
+            collect_spacer_jobs()
+            self.assert_job_result_message(
+                'collect_spacer_jobs', "Job count: 1 DROPPED")
 
         self.assert_job_error("Failed to get AWS Batch token.")
 
@@ -486,7 +449,7 @@ class BatchQueueSpecificsTest(BaseTaskTest, LogMixin):
             f" but couldn't get output at the expected location."
         )
         self.assertIn(
-            expected_error_beginning, job.error_message)
+            expected_error_beginning, job.result_message)
 
     def test_statuses_summary(self):
         for _ in range(6):

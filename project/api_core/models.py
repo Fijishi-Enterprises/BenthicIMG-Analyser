@@ -80,8 +80,8 @@ class ApiJobUnit(models.Model):
         return self.internal_job.get_status_display()
 
     @property
-    def error_message(self):
-        return self.internal_job.error_message
+    def result_message(self):
+        return self.internal_job.result_message
 
     @property
     def create_date(self):

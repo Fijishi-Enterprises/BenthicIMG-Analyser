@@ -493,17 +493,17 @@ class UnitAndJobForwardMigrationTest(MigrationTest):
         self.assertEqual(
             unit_3.internal_job.arg_identifier, f'{api_job.pk},13')
         self.assertEqual(unit_3.internal_job.status, Job.FAILURE)
-        self.assertEqual(unit_3.internal_job.error_message, "Some error")
+        self.assertEqual(unit_3.internal_job.result_message, "Some error")
 
 
 class UnitAndJobBackwardMigrationTest(MigrationTest):
 
     before = [
         ('api_core', '0008_unit_order_required_and_unique'),
-        ('jobs', '0005_dates_verbose_names')]
+        ('jobs', '0006_rename_to_result_message')]
     after = [
         ('api_core', '0001_initial'),
-        ('jobs', '0005_dates_verbose_names')]
+        ('jobs', '0006_rename_to_result_message')]
 
     def test(self):
         ApiJobBefore = self.get_model_before('api_core.ApiJob')
@@ -557,7 +557,7 @@ class UnitAndJobBackwardMigrationTest(MigrationTest):
             job_name='some_type',
             arg_identifier=f'{api_job.pk},13',
             status=Job.FAILURE,
-            error_message="Some error",
+            result_message="Some error",
         )
         job_3.save()
         unit_3 = ApiJobUnitBefore(

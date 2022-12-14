@@ -8,9 +8,9 @@ def data_from_units_to_internal_jobs(apps, schema_editor):
     Job = apps.get_model('jobs', 'Job')
 
     for unit in ApiJobUnit.objects.all():
-        error_message = ''
+        result_message = ''
         if unit.result_json and unit.result_json.get('errors'):
-            error_message = unit.result_json['errors'][0]
+            result_message = unit.result_json['errors'][0]
 
         arg_identifier = (
             f"{unit.parent.pk},{unit.request_json['image_order'] + 1}")
@@ -18,7 +18,7 @@ def data_from_units_to_internal_jobs(apps, schema_editor):
             job_name=unit.type,
             arg_identifier=arg_identifier,
             status=unit.status,
-            error_message=error_message,
+            result_message=result_message,
             scheduled_start_date=unit.create_date,
         )
         job.save()

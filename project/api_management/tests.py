@@ -174,7 +174,7 @@ class JobDetailTest(ClientTest):
         internal_job = Job(
             job_name='test_unit_type',
             status=Job.FAILURE,
-            error_message="Error goes here",
+            result_message="Error goes here",
         )
         internal_job.save()
         unit = ApiJobUnit(
@@ -220,7 +220,7 @@ class JobDetailTest(ClientTest):
         internal_job = Job(
             job_name='test',
             status=Job.FAILURE,
-            error_message="Error goes here",
+            result_message="Error goes here",
         )
         internal_job.save()
         unit = ApiJobUnit(

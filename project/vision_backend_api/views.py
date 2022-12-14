@@ -167,7 +167,7 @@ class DeployResult(APIView):
                     # Error
                     attributes = dict(
                         url=unit.request_json['url'],
-                        errors=[unit.error_message],
+                        errors=[unit.result_message],
                     )
 
                 images_json.append(dict(

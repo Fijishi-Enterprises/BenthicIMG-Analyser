@@ -113,7 +113,8 @@ class BatchQueue(BaseQueue):
         batch_job.status = 'FAILED'
         batch_job.save()
 
-        finish_job(batch_job.internal_job, error_message=error_message)
+        finish_job(
+            batch_job.internal_job, success=False, result_message=error_message)
 
     def collect_jobs(self):
         job_statuses = []

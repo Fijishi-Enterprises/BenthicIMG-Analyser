@@ -14,6 +14,7 @@ from api_core.tests.utils import BaseAPIPermissionTest
 from errorlogs.tests.utils import ErrorReportTestMixin
 from jobs.models import Job
 from jobs.tasks import run_scheduled_jobs
+from jobs.tests.utils import JobUtilsMixin
 from jobs.utils import queue_job
 from vision_backend.models import Classifier
 from vision_backend.tasks import collect_spacer_jobs
@@ -598,7 +599,7 @@ class SuccessTest(DeployBaseTest):
             "Classifications JSON besides scores should be as expected")
 
 
-class TaskErrorsTest(DeployBaseTest, ErrorReportTestMixin):
+class TaskErrorsTest(DeployBaseTest, ErrorReportTestMixin, JobUtilsMixin):
     """
     Test error cases of the deploy task.
     """
@@ -614,11 +615,9 @@ class TaskErrorsTest(DeployBaseTest, ErrorReportTestMixin):
         queue_job('classify_image', job.pk, 1)
 
         run_scheduled_jobs()
-        deploy_job = Job.objects.get(job_name='classify_image')
-        self.assertEqual(
-            f"Job unit [{job.pk} / 1] does not exist.",
-            deploy_job.error_message,
-            "Job should have the expected error")
+        self.assert_job_result_message(
+            'classify_image',
+            f"Job unit [{job.pk} / 1] does not exist.")
 
     def test_classifier_deleted(self):
         """
@@ -649,7 +648,7 @@ class TaskErrorsTest(DeployBaseTest, ErrorReportTestMixin):
             job_unit.status, Job.FAILURE,
             "Unit should have failed")
         self.assertEqual(
-            job_unit.internal_job.error_message,
+            job_unit.internal_job.result_message,
             f"Classifier of id {classifier_id} does not exist."
             f" Maybe it was deleted.")
 
@@ -677,7 +676,7 @@ class TaskErrorsTest(DeployBaseTest, ErrorReportTestMixin):
         self.assertEqual(
             job_unit.status, Job.FAILURE,
             "Unit should have failed")
-        error_traceback = job_unit.error_message
+        error_traceback = job_unit.result_message
         error_traceback_last_line = error_traceback.splitlines()[-1]
         self.assertEqual(
             "ValueError: A spacer error", error_traceback_last_line,
@@ -714,7 +713,7 @@ class TaskErrorsTest(DeployBaseTest, ErrorReportTestMixin):
         self.assertEqual(
             job_unit.status, Job.FAILURE,
             "Unit should have failed")
-        error_traceback = job_unit.error_message
+        error_traceback = job_unit.result_message
         error_traceback_last_line = error_traceback.splitlines()[-1]
         self.assertEqual(
             "spacer.exceptions.SpacerInputError: Couldn't access URL",

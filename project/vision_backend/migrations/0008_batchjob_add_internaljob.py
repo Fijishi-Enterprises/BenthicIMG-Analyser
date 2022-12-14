@@ -7,7 +7,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('jobs', '0005_dates_verbose_names'),
+        ('jobs', '0006_rename_to_result_message'),
         ('vision_backend', '0007_batchjob_jobtoken_nullable'),
     ]
 

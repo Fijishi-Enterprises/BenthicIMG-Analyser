@@ -53,8 +53,6 @@ def check_source(source_id):
     Check a source for appropriate vision-backend tasks to run,
     and run those tasks.
     """
-    log_prefix = f"check_source ({source_id})"
-
     try:
         source = Source.objects.get(pk=source_id)
     except Source.DoesNotExist:
@@ -83,10 +81,9 @@ def check_source(source_id):
             # 5) spacer runs training with old point set + new feature files.
             #
             # So, we prevent 3) from being able to happen.
-            logger.info(
-                f"{log_prefix}: Feature extraction(s) ready, but not"
+            return (
+                f"Feature extraction(s) ready, but not"
                 f" submitted due to training in progress")
-            return
 
         # Try to queue extractions (will not be queued if an extraction for
         # the same image is already active)
@@ -95,7 +92,7 @@ def check_source(source_id):
         # If there are extractions to be done, then having that overlap with
         # training can lead to desynced rowcols, so we worry about training
         # later.
-        return
+        return "Tried to queue feature extraction(s)"
 
     # Classifier training
 
@@ -105,15 +102,12 @@ def check_source(source_id):
         queue_job('train_classifier', source_id, source_id=source_id)
         # Don't worry about classification until the classifier is
         # up to date.
-        return
-    else:
-        logger.info(
-            f"{log_prefix}: Not training new classifier: {reason}")
+        return "Tried to queue training"
 
     # Image classification
 
     if not source.has_robot():
-        return
+        return f"Can't train first classifier: {reason}"
     extracted_not_confirmed = source.image_set.filter(
         features__extracted=True,
         annoinfo__confirmed=False,
@@ -147,6 +141,7 @@ def check_source(source_id):
 
     # If we got here, then the source should be all caught up, and there's
     # no need to queue another check for now.
+    return f"Source seems to be all caught up. {reason}"
 
 
 @task(name="Submit Features")
@@ -366,7 +361,7 @@ def classify_image(image_id):
     img.features.classified = True
     img.features.save()
 
-    logger.info(f"Classified {img} with classifier {classifier.pk}")
+    return f"Used classifier {classifier.pk}"
 
 
 @periodic_task(
@@ -382,7 +377,6 @@ def collect_spacer_jobs():
     This task gets job-tracking to enforce that only one thread runs this
     task at a time. That way, no spacer job can get collected multiple times.
     """
-    logger.info("Going through spacer queue to collect job results.")
     queue = get_queue_class()()
     for job_res in queue.collect_jobs():
         th.handle_spacer_result(job_res)
@@ -392,9 +386,7 @@ def collect_spacer_jobs():
         f'{count} {status}'
         for status, count in sorted(queue.status_counts.items())
     ])
-    logger.info(
-        f"Done going through spacer queue."
-        f" Job count: {counts_str or '0'}")
+    return f"Job count: {counts_str or '0'}"
 
 
 @task(name="Reset Source")

@@ -76,14 +76,14 @@ def run_scheduled_jobs_until_empty():
     ignore_result=True)
 def clean_up_old_jobs():
     current_time = timezone.now()
-    thirty_days_ago = current_time - timedelta(days=30)
+    x_days_ago = current_time - timedelta(days=settings.JOB_MAX_DAYS)
 
     # Clean up Jobs which are old enough since last modification,
     # and which are not tied to an ApiJobUnit.
     # The API-related Jobs should get cleaned up some time after
     # their ApiJobUnits get cleaned up.
     jobs_to_clean_up = Job.objects.filter(
-        modify_date__lt=thirty_days_ago,
+        modify_date__lt=x_days_ago,
         apijobunit__isnull=True,
     )
     jobs_to_clean_up.delete()

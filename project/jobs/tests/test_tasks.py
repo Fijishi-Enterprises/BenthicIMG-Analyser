@@ -3,7 +3,7 @@ from unittest import mock
 
 from django.contrib.auth.models import User
 from django.core import mail
-from django.test.utils import patch_logger
+from django.test.utils import override_settings, patch_logger
 from django.utils import timezone
 
 from api_core.models import ApiJob, ApiJobUnit
@@ -11,6 +11,7 @@ from lib.tests.utils import BaseTest
 from ..models import Job
 from ..tasks import clean_up_old_jobs, report_stuck_jobs, run_scheduled_jobs
 from ..utils import queue_job
+from .utils import queue_job_with_modify_date
 
 
 def call_run_scheduled_jobs():
@@ -47,6 +48,7 @@ class RunScheduledJobsTest(BaseTest):
             "Should not have accepted the second run")
 
 
+@override_settings(JOB_MAX_DAYS=30)
 class CleanupTaskTest(BaseTest):
 
     def test_date_based_selection(self):
@@ -54,23 +56,17 @@ class CleanupTaskTest(BaseTest):
         Jobs should be selected for cleanup based on date.
         """
         # More than one job too new to be cleaned up.
-
         queue_job('new')
-
-        job = queue_job('29 days ago')
-        # Use QuerySet.update() instead of Model.save() so that the modify
-        # date doesn't get auto-updated to the current date.
-        Job.objects.filter(pk=job.pk).update(
+        queue_job_with_modify_date(
+            '29 days ago',
             modify_date=timezone.now() - timedelta(days=29))
 
         # More than one job old enough to be cleaned up.
-
-        job = queue_job('31 days ago')
-        Job.objects.filter(pk=job.pk).update(
+        queue_job_with_modify_date(
+            '31 days ago',
             modify_date=timezone.now() - timedelta(days=31))
-
-        job = queue_job('32 days ago')
-        Job.objects.filter(pk=job.pk).update(
+        queue_job_with_modify_date(
+            '32 days ago',
             modify_date=timezone.now() - timedelta(days=32))
 
         clean_up_old_jobs()

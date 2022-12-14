@@ -58,12 +58,14 @@ tr.failure {
     </tbody>
   </table>
 
+  {% include 'pagination_links.html' with page_results=page_results %}
+
 {% else %}
 
   <p>(No jobs found)</p>
 
 {% endif %}
 
-<p>Completed jobs (Success or Failure) from only the last {{ completed_days_shown }} days are shown.</p>
+<p>Only jobs from the last {{ job_max_days }} days are shown.</p>
 
 {% endblock %}

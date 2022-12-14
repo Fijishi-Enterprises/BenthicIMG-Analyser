@@ -282,6 +282,7 @@ class ThrottleTest(BaseAPITest):
                 " first anon IP's requests")
 
 
+@override_settings(JOB_MAX_DAYS=30)
 class JobCleanupTest(ClientTest):
     """
     Test cleanup of old API jobs.

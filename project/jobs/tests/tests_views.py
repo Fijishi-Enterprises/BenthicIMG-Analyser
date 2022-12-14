@@ -1,12 +1,14 @@
 from datetime import timedelta
 
 from bs4 import BeautifulSoup
+from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from jobs.models import Job
-from jobs.utils import queue_job
 from lib.tests.utils import BasePermissionTest, ClientTest, HtmlTestMixin
+from ..models import Job
+from ..utils import queue_job
+from .utils import queue_job_with_modify_date
 
 
 class PermissionTest(BasePermissionTest):
@@ -33,12 +35,6 @@ class PermissionTest(BasePermissionTest):
         self.assertPermissionLevel(url, self.SOURCE_EDIT, template=template)
         self.source_to_public()
         self.assertPermissionLevel(url, self.SOURCE_EDIT, template=template)
-
-
-def queue_job_with_modify_date(*args, modify_date=None, **kwargs):
-    job = queue_job(*args, **kwargs)
-    Job.objects.filter(pk=job.pk).update(modify_date=modify_date)
-    return job
 
 
 class AdminDashboardTest(ClientTest, HtmlTestMixin):
@@ -277,14 +273,14 @@ class SourceDashboardTest(ClientTest, HtmlTestMixin):
         cls.source_url = reverse(
             'jobs:source_dashboard', args=[cls.source.pk])
 
+    @override_settings(JOB_MAX_DAYS=30)
     def test_no_jobs(self):
         self.client.force_login(self.user)
         response = self.client.get(self.source_url)
         self.assertContains(response, "(No jobs found)")
         self.assertContains(
             response,
-            "Completed jobs (Success or Failure)"
-            " from only the last 3 days are shown.")
+            "Only jobs from the last 30 days are shown.")
 
     def test_job_ordering(self):
         # 3rd: pending, modified later
@@ -343,45 +339,6 @@ class SourceDashboardTest(ClientTest, HtmlTestMixin):
             rows[6],
             [job_6.pk, '6', '', "Success", None, None])
 
-    def test_job_age_cutoff(self):
-        # Not old enough to clean up
-        queue_job_with_modify_date(
-            '1', source_id=self.source.pk, initial_status=Job.SUCCESS,
-            modify_date=timezone.now() - timedelta(days=2, hours=23))
-
-        # Old enough to clean up
-        queue_job_with_modify_date(
-            '2', source_id=self.source.pk, initial_status=Job.SUCCESS,
-            modify_date=timezone.now() - timedelta(days=3, hours=1))
-
-        # Old enough to clean up, but pending
-        queue_job_with_modify_date(
-            '3', source_id=self.source.pk, initial_status=Job.PENDING,
-            modify_date=timezone.now() - timedelta(days=3, hours=1))
-
-        # Old enough to clean up, but in progress
-        queue_job_with_modify_date(
-            '4', source_id=self.source.pk, initial_status=Job.IN_PROGRESS,
-            modify_date=timezone.now() - timedelta(days=3, hours=1))
-
-        self.client.force_login(self.user)
-        response = self.client.get(self.source_url)
-        response_soup = BeautifulSoup(response.content, 'html.parser')
-
-        # Should be missing job 2
-        rows = response_soup.select(
-            'table#jobs-table > tbody > tr')
-        self.assertEqual(len(rows), 3)
-        self.assert_soup_tr_contents_equal(
-            rows[0],
-            [None, '4', '', "In progress", None, None])
-        self.assert_soup_tr_contents_equal(
-            rows[1],
-            [None, '3', '', "Pending", None, None])
-        self.assert_soup_tr_contents_equal(
-            rows[2],
-            [None, '1', '', "Success", None, None])
-
     def test_image_id_column(self):
         queue_job('extract_features', '1', source_id=self.source.pk)
         queue_job('train_classifier', '2', source_id=self.source.pk)
@@ -408,3 +365,40 @@ class SourceDashboardTest(ClientTest, HtmlTestMixin):
             rows[2],
             [None, "Extract features", f'<a href="{image_1_url}">1</a>',
              "Pending", None, None])
+
+    @override_settings(JOBS_PER_PAGE=2)
+    def test_multiple_pages(self):
+        queue_job('1', source_id=self.source.pk)
+        queue_job('2', source_id=self.source.pk)
+        queue_job('3', source_id=self.source.pk)
+        queue_job('4', source_id=self.source.pk)
+        queue_job('5', source_id=self.source.pk)
+        queue_job('6', source_id=self.source.pk)
+        queue_job('7', source_id=self.source.pk)
+
+        self.client.force_login(self.user)
+
+        for page, expected_row_count in [(1, 2), (2, 2), (3, 2), (4, 1)]:
+            response = self.client.get(
+                self.source_url, data=dict(page=page))
+            response_soup = BeautifulSoup(response.content, 'html.parser')
+
+            rows = response_soup.select(
+                'table#jobs-table > tbody > tr')
+            self.assertEqual(len(rows), expected_row_count)
+
+    def test_exclude_check_source(self):
+        queue_job('check_source', '1', source_id=self.source.pk)
+        queue_job('classify_features', '2', source_id=self.source.pk)
+
+        self.client.force_login(self.user)
+        response = self.client.get(self.source_url)
+        response_soup = BeautifulSoup(response.content, 'html.parser')
+
+        # Should only show the classify_features job
+        rows = response_soup.select(
+            'table#jobs-table > tbody > tr')
+        self.assertEqual(len(rows), 1)
+        self.assert_soup_tr_contents_equal(
+            rows[0],
+            [None, "Classify", None, None, None, None])

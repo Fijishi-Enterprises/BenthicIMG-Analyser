@@ -11,9 +11,9 @@ from .models import Job
 
 
 @permission_required('is_superuser')
-def admin_dashboard(request):
+def overall_dashboard(request):
     """
-    Admin dashboard for monitoring jobs.
+    Top-level dashboard for monitoring jobs.
     """
     now = timezone.now()
 
@@ -59,7 +59,7 @@ def admin_dashboard(request):
         table_entry['source_name'] = source_names[source_id]
         source_table.append(table_entry)
 
-    return render(request, 'jobs/admin_dashboard.html', {
+    return render(request, 'jobs/overall_dashboard.html', {
         'source_table': source_table,
         'non_source_job_counts': non_source_job_counts,
         'completed_days_shown': COMPLETED_DAYS_SHOWN,

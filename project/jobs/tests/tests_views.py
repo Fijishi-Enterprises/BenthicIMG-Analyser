@@ -17,9 +17,9 @@ class PermissionTest(BasePermissionTest):
 
         cls.img = cls.upload_image(cls.user, cls.source)
 
-    def test_admin_dashboard(self):
-        url = reverse('jobs:admin_dashboard')
-        template = 'jobs/admin_dashboard.html'
+    def test_overall_dashboard(self):
+        url = reverse('jobs:overall_dashboard')
+        template = 'jobs/overall_dashboard.html'
 
         self.assertPermissionLevel(
             url, self.SUPERUSER, template=template,
@@ -58,7 +58,7 @@ class AdminDashboardTest(ClientTest, HtmlTestMixin):
             cls.create_source(cls.user, name="Source 6"),
         ]
 
-        cls.url = reverse('jobs:admin_dashboard')
+        cls.url = reverse('jobs:overall_dashboard')
         cls.source_url = reverse(
             'jobs:source_dashboard', args=[cls.source.pk])
         cls.source_urls = [

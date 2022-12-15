@@ -93,7 +93,7 @@ class ClassifyImageTest(BaseTaskTest, JobUtilsMixin):
                 point.score_set.exists(),
                 "Each point should have scores")
             self.assertLessEqual(
-                5, point.score_set.count(),
+                point.score_set.count(), 5,
                 "Each point should have <= 5 scores")
 
     def test_classify_unconfirmed_image(self):

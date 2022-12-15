@@ -155,6 +155,9 @@ def finish_job(job, success=False, result_message=None):
             f"\n\n{result_message}",
         )
 
+    if job.result_message:
+        logger.info(f"Job [{job}]: {job.result_message}")
+
 
 class JobDecorator:
     def __init__(self, job_name=None):

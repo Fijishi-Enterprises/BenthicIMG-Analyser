@@ -204,12 +204,8 @@ class SpacerResultHandler(ABC):
             success = True
         except JobError as e:
             result_message = str(e)
-            logger.info(result_message)
         finally:
             internal_job_id = task.job_token
-            logger.info(
-                f"Collected spacer task {cls.job_name},"
-                f" for internal job {internal_job_id}")
 
             job = Job.objects.get(pk=internal_job_id)
             finish_job(job, success=success, result_message=result_message)

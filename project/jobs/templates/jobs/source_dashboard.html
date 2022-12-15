@@ -41,7 +41,7 @@ tr.failure {
         <th title="Image ID the job is for, if applicable">Image ID</th>
         <th title="Progress status">Status</th>
         <th title="Error message or other note about the result">Detail</th>
-        <th title="Time the job's status was last updated">Last updated</th>
+        <th title="Time the job's status was last updated; * means the record will stay after {{ job_max_days }} days">Last updated</th>
       </tr>
     </thead>
     <tbody>
@@ -58,7 +58,10 @@ tr.failure {
           </td>
           <td>{{ table_entry.status }}</td>
           <td>{{ table_entry.result_message }}</td>
-          <td>{{ table_entry.modify_date }}</td>
+          <td>
+            {{ table_entry.modify_date }}
+            {% if table_entry.persist %} * {% endif %}
+          </td>
         </tr>
       {% endfor %}
     </tbody>
@@ -72,6 +75,6 @@ tr.failure {
 
 {% endif %}
 
-<p>Only jobs from the last {{ job_max_days }} days are shown.</p>
+<p>Most job records are cleaned up after {{ job_max_days }} days, except for jobs with * in Last updated.</p>
 
 {% endblock %}

@@ -84,6 +84,28 @@ class CleanupTaskTest(BaseTest):
             Job.objects.filter(job_name='32 days ago').exists(),
             "Should clean up 32 day old job")
 
+    def test_persist_based_selection(self):
+        """
+        Jobs with the persist flag set should not be cleaned up.
+        """
+        job = queue_job('Persist True')
+        Job.objects.filter(pk=job.pk).update(
+            persist=True,
+            modify_date=timezone.now() - timedelta(days=31))
+        job = queue_job('Persist False')
+        Job.objects.filter(pk=job.pk).update(
+            persist=False,
+            modify_date=timezone.now() - timedelta(days=31))
+
+        clean_up_old_jobs()
+
+        self.assertTrue(
+            Job.objects.filter(job_name='Persist True').exists(),
+            "Shouldn't clean up Persist True")
+        self.assertFalse(
+            Job.objects.filter(job_name='Persist False').exists(),
+            "Should clean up Persist False")
+
     def test_unit_presence_based_selection(self):
         """
         Jobs associated with an existing ApiJobUnit should not be

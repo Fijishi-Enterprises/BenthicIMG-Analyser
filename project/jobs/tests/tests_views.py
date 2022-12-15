@@ -281,7 +281,8 @@ class SourceDashboardTest(ClientTest, HtmlTestMixin):
         self.assertContains(response, "(No jobs found)")
         self.assertContains(
             response,
-            "Only jobs from the last 30 days are shown.")
+            "Most job records are cleaned up after 30 days,"
+            " except for jobs with * in Last updated.")
 
     def test_job_ordering(self):
         # 3rd: pending, modified later
@@ -399,6 +400,22 @@ class SourceDashboardTest(ClientTest, HtmlTestMixin):
             rows[2],
             [None, '1', None,
              None, "", None])
+
+    def test_persist_marker(self):
+        job = queue_job('1', source_id=self.source.pk)
+        job.persist = True
+        job.save()
+        queue_job('2', source_id=self.source.pk)
+
+        self.client.force_login(self.user)
+        response = self.client.get(self.source_url)
+        response_soup = BeautifulSoup(response.content, 'html.parser')
+
+        # First row ('2') should not have *, second row ('1') should
+        rows = response_soup.select(
+            'table#jobs-table > tbody > tr')
+        self.assertNotIn('*', str(rows[0]))
+        self.assertIn('*', str(rows[1]))
 
     @override_settings(JOBS_PER_PAGE=2)
     def test_multiple_pages(self):

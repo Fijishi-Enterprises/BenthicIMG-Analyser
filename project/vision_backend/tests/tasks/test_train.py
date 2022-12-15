@@ -19,7 +19,7 @@ from ...task_helpers import handle_spacer_result
 from .utils import BaseTaskTest
 
 
-class TrainClassifierTest(BaseTaskTest):
+class TrainClassifierTest(BaseTaskTest, JobUtilsMixin):
 
     def test_success(self):
         # Provide enough data for training. Extract features.
@@ -65,6 +65,12 @@ class TrainClassifierTest(BaseTaskTest):
         self.assertEqual(
             len(val_res.gt),
             val_image_count * points_per_image)
+
+        self.assert_job_result_message(
+            'train_classifier',
+            f"New classifier accepted: {latest_classifier.pk}")
+
+        self.assert_job_persist_value('train_classifier', True)
 
     def test_train_second_classifier(self):
         """
@@ -345,6 +351,8 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin, JobUtilsMixin):
             'train_classifier',
             "ValueError: A spacer error")
 
+        self.assert_job_persist_value('train_classifier', False)
+
         self.assert_error_log_saved(
             "ValueError",
             "A spacer error",
@@ -451,3 +459,5 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin, JobUtilsMixin):
             f" on the latest dataset: {0.5:.2f},"
             f" threshold to accept new: {0.5*1.4:.2f},"
             f" accuracy from this training: {0.6:.2f}")
+
+        self.assert_job_persist_value('train_classifier', True)

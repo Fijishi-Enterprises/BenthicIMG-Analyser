@@ -79,11 +79,13 @@ def clean_up_old_jobs():
     x_days_ago = current_time - timedelta(days=settings.JOB_MAX_DAYS)
 
     # Clean up Jobs which are old enough since last modification,
-    # and which are not tied to an ApiJobUnit.
+    # don't have the persist flag set,
+    # and are not tied to an ApiJobUnit.
     # The API-related Jobs should get cleaned up some time after
     # their ApiJobUnits get cleaned up.
     jobs_to_clean_up = Job.objects.filter(
         modify_date__lt=x_days_ago,
+        persist=False,
         apijobunit__isnull=True,
     )
     jobs_to_clean_up.delete()

@@ -140,6 +140,11 @@ def finish_job(job, success=False, result_message=None):
     # This field doesn't take None; no message is set as an empty string.
     job.result_message = result_message or ""
     job.status = Job.SUCCESS if success else Job.FAILURE
+
+    # Successful training jobs should persist in the DB.
+    if job.job_name == 'train_classifier' and success:
+        job.persist = True
+
     job.save()
 
     if job.status == Job.FAILURE and job.attempt_number % 5 == 0:

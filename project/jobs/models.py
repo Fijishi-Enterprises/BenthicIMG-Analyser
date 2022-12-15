@@ -43,6 +43,10 @@ class Job(models.Model):
     # repeat failures.
     attempt_number = models.IntegerField(default=1)
 
+    # Set this flag to prevent the Job from being purged from the DB
+    # when it gets old enough.
+    persist = models.BooleanField(default=False)
+
     # Date/time the Job was queued (pending).
     create_date = models.DateTimeField("Date created", auto_now_add=True)
     # Date/time the Job is scheduled to start, assuming server resources are

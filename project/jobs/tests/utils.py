@@ -16,6 +16,13 @@ def queue_job_with_modify_date(*args, modify_date=None, **kwargs):
 
 class JobUtilsMixin(TestCase):
 
+    def assert_job_persist_value(self, job_name, expected_value):
+        job = Job.objects.filter(job_name=job_name).latest('pk')
+        self.assertEqual(
+            job.persist, expected_value,
+            "Job persist value should be as expected"
+        )
+
     def assert_job_result_message(self, job_name, expected_message):
         job = Job.objects.filter(job_name=job_name).latest('pk')
         self.assertEqual(

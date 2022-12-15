@@ -108,7 +108,7 @@ def source_dashboard(request, source_id):
     job_table = []
     for values in page_jobs.object_list.values(
         'pk', 'job_name', 'arg_identifier',
-        'status', 'result_message', 'modify_date'
+        'status', 'result_message', 'persist', 'modify_date'
     ):
         if values['status'] == Job.IN_PROGRESS:
             status_tag = 'in_progress'
@@ -125,6 +125,7 @@ def source_dashboard(request, source_id):
             status_tag=status_tag,
             status=tag_to_readable(status_tag),
             result_message=values['result_message'],
+            persist=values['persist'],
             modify_date=values['modify_date'],
         )
 

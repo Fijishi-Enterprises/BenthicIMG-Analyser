@@ -138,6 +138,7 @@ def check_source(source_id):
     # Try to queue classifications
     for image in images_to_classify:
         queue_job('classify_features', image.pk, source_id=source_id)
+        return "Tried to queue classification(s)"
 
     # If we got here, then the source should be all caught up, and there's
     # no need to queue another check for now.

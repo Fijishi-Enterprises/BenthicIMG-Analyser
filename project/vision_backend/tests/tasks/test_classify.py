@@ -11,6 +11,7 @@ from annotations.models import Annotation
 from images.models import Point
 from jobs.models import Job
 from jobs.tasks import run_scheduled_jobs, run_scheduled_jobs_until_empty
+from jobs.tests.utils import JobUtilsMixin
 from vision_backend.models import Score
 from vision_backend.tasks import (
     collect_spacer_jobs, reset_classifiers_for_source)
@@ -18,7 +19,7 @@ from vision_backend.utils import clear_features, queue_source_check
 from .utils import BaseTaskTest
 
 
-class ClassifyImageTest(BaseTaskTest):
+class ClassifyImageTest(BaseTaskTest, JobUtilsMixin):
 
     def test_classify_unannotated_image(self):
         """Classify an image where all points are unannotated."""
@@ -31,6 +32,10 @@ class ClassifyImageTest(BaseTaskTest):
         collect_spacer_jobs()
         # Classify image
         run_scheduled_jobs_until_empty()
+
+        self.assert_job_result_message(
+            'check_source',
+            "Tried to queue classification(s)")
 
         for point in Point.objects.filter(image__id=img.id):
             try:

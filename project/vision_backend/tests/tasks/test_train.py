@@ -33,6 +33,10 @@ class TrainClassifierTest(BaseTaskTest, JobUtilsMixin):
         # Train a classifier
         run_scheduled_jobs_until_empty()
 
+        self.assert_job_result_message(
+            'check_source',
+            "Tried to queue training")
+
         # This source should now have a classifier (though training hasn't
         # been collected yet)
         self.assertTrue(

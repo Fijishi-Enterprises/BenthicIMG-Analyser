@@ -13,7 +13,7 @@ from ...tasks import collect_spacer_jobs
 from .utils import BaseTaskTest
 
 
-class ExtractFeaturesTest(BaseTaskTest):
+class ExtractFeaturesTest(BaseTaskTest, JobUtilsMixin):
 
     def test_success(self):
         # After an image upload, features are ready to be submitted.
@@ -21,6 +21,10 @@ class ExtractFeaturesTest(BaseTaskTest):
 
         # Extract features.
         run_scheduled_jobs_until_empty()
+
+        self.assert_job_result_message(
+            'check_source',
+            "Tried to queue feature extraction(s)")
 
         self.assertExistsInStorage(
             settings.FEATURE_VECTOR_FILE_PATTERN.format(

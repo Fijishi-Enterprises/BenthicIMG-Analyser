@@ -84,7 +84,7 @@ def source_dashboard(request, source_id):
     jobs = (
         source.job_set
         # check_source jobs generally clutter the dashboard more than they
-        # provide useful info.
+        # provide useful info. So they won't be in the main table at least.
         .exclude(job_name='check_source')
         # In-progress jobs first, then pending, then completed.
         # Tiebreak by modify date.
@@ -140,11 +140,20 @@ def source_dashboard(request, source_id):
 
         job_table.append(table_entry)
 
+    try:
+        latest_completed_check = source.job_set.filter(
+            job_name='check_source',
+            status__in=[Job.SUCCESS, Job.FAILURE]).latest('pk')
+        latest_source_check_message = latest_completed_check.result_message
+    except Job.DoesNotExist:
+        latest_source_check_message = None
+
     return render(request, 'jobs/source_dashboard.html', {
         'source': source,
         'job_table': job_table,
         'page_results': page_jobs,
         'job_max_days': settings.JOB_MAX_DAYS,
+        'latest_source_check_message': latest_source_check_message,
     })
 
 

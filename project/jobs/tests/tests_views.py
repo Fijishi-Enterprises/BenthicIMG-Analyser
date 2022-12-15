@@ -421,7 +421,7 @@ class SourceDashboardTest(ClientTest, HtmlTestMixin):
                 'table#jobs-table > tbody > tr')
             self.assertEqual(len(rows), expected_row_count)
 
-    def test_exclude_check_source(self):
+    def test_exclude_check_source_from_table(self):
         queue_job('check_source', '1', source_id=self.source.pk)
         queue_job('classify_features', '2', source_id=self.source.pk)
 
@@ -436,6 +436,34 @@ class SourceDashboardTest(ClientTest, HtmlTestMixin):
         self.assert_soup_tr_contents_equal(
             rows[0],
             [None, "Classify", None, None, None, None])
+
+    def test_check_source_message(self):
+        # No recent source check
+        self.client.force_login(self.user)
+        response = self.client.get(self.source_url)
+        self.assertContains(
+            response, "This source hasn't been status-checked recently.")
+
+        # Add source check jobs for the source
+        job = queue_job(
+            'check_source', self.source.pk, source_id=self.source.pk,
+            initial_status=Job.SUCCESS)
+        job.result_message = "Message 1"
+        job.save()
+        job = queue_job(
+            'check_source', self.source.pk, source_id=self.source.pk,
+            initial_status=Job.SUCCESS)
+        job.result_message = "Message 2"
+        job.save()
+        job = queue_job(
+            'check_source', self.source.pk, source_id=self.source.pk,
+            initial_status=Job.IN_PROGRESS)
+        job.save()
+
+        # Most recent completed source check
+        response = self.client.get(self.source_url)
+        self.assertContains(
+            response, '<em>Latest source check result:</em> Message 2')
 
 
 class NonSourceDashboardTest(ClientTest, HtmlTestMixin):

@@ -135,9 +135,10 @@ def check_source(source_id):
         # all non-confirmed images.
         images_to_classify = extracted_not_confirmed
 
-    # Try to queue classifications
-    for image in images_to_classify:
-        queue_job('classify_features', image.pk, source_id=source_id)
+    if images_to_classify.exists():
+        # Try to queue classifications
+        for image in images_to_classify:
+            queue_job('classify_features', image.pk, source_id=source_id)
         return "Tried to queue classification(s)"
 
     # If we got here, then the source should be all caught up, and there's

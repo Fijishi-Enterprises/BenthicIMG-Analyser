@@ -367,6 +367,39 @@ class SourceDashboardTest(ClientTest, HtmlTestMixin):
             [None, "Extract features", f'<a href="{image_1_url}">1</a>',
              "Pending", None, None])
 
+    def test_result_message_column(self):
+        queue_job(
+            '1', source_id=self.source.pk, initial_status=Job.SUCCESS)
+
+        job = queue_job(
+            '2', source_id=self.source.pk, initial_status=Job.FAILURE)
+        job.result_message = "Error message goes here"
+        job.save()
+
+        job = queue_job(
+            '3', source_id=self.source.pk, initial_status=Job.SUCCESS)
+        job.result_message = "Comment about the result goes here"
+        job.save()
+
+        self.client.force_login(self.user)
+        response = self.client.get(self.source_url)
+        response_soup = BeautifulSoup(response.content, 'html.parser')
+
+        rows = response_soup.select(
+            'table#jobs-table > tbody > tr')
+        self.assert_soup_tr_contents_equal(
+            rows[0],
+            [None, '3', None,
+             None, "Comment about the result goes here", None])
+        self.assert_soup_tr_contents_equal(
+            rows[1],
+            [None, '2', None,
+             None, "Error message goes here", None])
+        self.assert_soup_tr_contents_equal(
+            rows[2],
+            [None, '1', None,
+             None, "", None])
+
     @override_settings(JOBS_PER_PAGE=2)
     def test_multiple_pages(self):
         queue_job('1', source_id=self.source.pk)

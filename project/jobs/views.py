@@ -107,8 +107,8 @@ def source_dashboard(request, source_id):
 
     job_table = []
     for values in page_jobs.object_list.values(
-        'pk', 'create_date', 'modify_date', 'job_name',
-        'arg_identifier', 'status',
+        'pk', 'job_name', 'arg_identifier',
+        'status', 'result_message', 'modify_date'
     ):
         if values['status'] == Job.IN_PROGRESS:
             status_tag = 'in_progress'
@@ -121,11 +121,11 @@ def source_dashboard(request, source_id):
             status_tag = 'failure'
 
         table_entry = dict(
+            id=values['pk'],
             status_tag=status_tag,
             status=tag_to_readable(status_tag),
-            id=values['pk'],
+            result_message=values['result_message'],
             modify_date=values['modify_date'],
-            create_date=values['create_date'],
         )
 
         if values['job_name'] == 'classify_features':
@@ -176,8 +176,8 @@ def non_source_dashboard(request):
 
     job_table = []
     for values in page_jobs.object_list.values(
-        'pk', 'create_date', 'modify_date', 'job_name',
-        'apijobunit', 'apijobunit__parent', 'status',
+        'pk', 'job_name', 'apijobunit', 'apijobunit__parent',
+        'status', 'result_message', 'modify_date'
     ):
         if values['status'] == Job.IN_PROGRESS:
             status_tag = 'in_progress'
@@ -190,11 +190,11 @@ def non_source_dashboard(request):
             status_tag = 'failure'
 
         table_entry = dict(
+            id=values['pk'],
             status_tag=status_tag,
             status=tag_to_readable(status_tag),
-            id=values['pk'],
+            result_message=values['result_message'],
             modify_date=values['modify_date'],
-            create_date=values['create_date'],
         )
 
         if values['job_name'] == 'classify_image':

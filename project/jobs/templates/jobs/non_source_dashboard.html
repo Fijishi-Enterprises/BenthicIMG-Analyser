@@ -34,8 +34,8 @@ tr.failure {
         <th title="Job type">Type</th>
         <th title="API job unit ID, if applicable">API job unit</th>
         <th title="Progress status">Status</th>
+        <th title="Error message or other note about the result">Detail</th>
         <th title="Time the job's status was last updated">Last updated</th>
-        <th title="Time the job was created (but not necessarily started)">Created</th>
       </tr>
     </thead>
     <tbody>
@@ -51,8 +51,8 @@ tr.failure {
             {% endif %}
           </td>
           <td>{{ table_entry.status }}</td>
+          <td>{{ table_entry.result_message }}</td>
           <td>{{ table_entry.modify_date }}</td>
-          <td>{{ table_entry.create_date }}</td>
         </tr>
       {% endfor %}
     </tbody>

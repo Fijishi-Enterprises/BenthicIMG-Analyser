@@ -17,3 +17,6 @@ SITE_DOMAIN = 'ec2-35-162-62-60.us-west-2.compute.amazonaws.com'
 # Hosts/domain names that are valid for this site.
 # "*" matches anything, ".example.com" matches example.com and all subdomains
 ALLOWED_HOSTS = [SITE_DOMAIN]
+
+# Configure the AWS Batch queue name to use
+BATCH_QUEUE = 'staging'

@@ -1,13 +1,13 @@
-import time
-
 from argparse import RawTextHelpFormatter
+import time
 
 from django.core.management.base import BaseCommand
 
 from images.models import Image
+from jobs.tasks import run_scheduled_jobs
 from lib.regtest_utils import VisionBackendRegressionTest
-from vision_backend.models import Classifier
-from vision_backend.tasks import collect_all_jobs, submit_classifier
+from ...models import Classifier
+from ...tasks import collect_spacer_jobs
 
 reg_test_config = {
     372: {'small': (25, 5),
@@ -109,61 +109,46 @@ class Command(BaseCommand):
 
         s = VisionBackendRegressionTest(fixture_source_id, size.upper())
 
-        print("\n-> Uploading annotated images...")
+        print("\n-> Uploading images which have manual annotations...")
         imgs_w_anns = s.upload_images(n_with)
-        collect_all_jobs()
-
-        print("\n-> Uploading un-annotated images...")
-        _ = s.upload_images(n_without)
-        collect_all_jobs()
-
-        print("\n-> Adding anns to the annotated images...")
-        # We add anns in the end to make sure there are no race conditions
-        # as jobs are processed. Let's also sleep a bit to further make sure.
-        time.sleep(5)
+        print("\n-> Adding manual annotations...")
         for img in imgs_w_anns:
             s.upload_anns(img)
-        collect_all_jobs()
+
+        print("\n-> Uploading images which don't have manual annotations...")
+        _ = s.upload_images(n_without)
 
         print("-> Waiting until feature extraction is done...")
-        all_has_features = False
-        while not all_has_features:
-            time.sleep(3)
-            collect_all_jobs()
-            n_has_feats = Image.objects.filter(
+        all_have_features = False
+        while not all_have_features:
+            time.sleep(5)
+            run_scheduled_jobs()
+            collect_spacer_jobs()
+            n_with_feats = Image.objects.filter(
                 source=s.source, features__extracted=True).count()
             n_imgs = Image.objects.filter(source=s.source).count()
-            print("-> {} out of {} images has features.".format(n_has_feats,
-                                                                n_imgs))
-            all_has_features = n_has_feats == n_imgs
+            print(f"-> {n_with_feats} out of {n_imgs} images have features.")
+            all_have_features = n_with_feats == n_imgs
 
-        print("-> All images has features!")
+        print("-> All images have features!")
 
-        print("-> Submitting classifier for training.")
+        print("-> Waiting until classifier training is done...")
         has_classifier = False
-        submit_classifier.delay(s.source.id, force=True)
-        t0 = time.time()
         while not has_classifier:
-            time.sleep(3)
-            collect_all_jobs()
+            time.sleep(5)
+            run_scheduled_jobs()
+            collect_spacer_jobs()
             print("-> No classifier trained yet.")
             has_classifier = Classifier.objects.filter(
                 source=s.source, status=Classifier.ACCEPTED).count() > 0
-
-            if time.time() - t0 > 90:
-                # Resubmit classifier in case previous training failed due to
-                # concurrency issues.
-                print("-> Waited 90 seconds. Resubmitting the classifier.")
-                submit_classifier.delay(s.source.id, force=True)
-                t0 += 90
 
         print("-> Classifier trained!")
 
         print("-> Waiting for unconfirmed images to be classified.")
         all_imgs_classified = False
         while not all_imgs_classified:
-            time.sleep(3)
-            collect_all_jobs()
+            time.sleep(5)
+            run_scheduled_jobs()
             n_classified = Image.objects.filter(
                 source=s.source,
                 annoinfo__confirmed=False,
@@ -172,8 +157,9 @@ class Command(BaseCommand):
                 source=s.source,
                 annoinfo__confirmed=False).count()
 
-            print("-> {} out of images {} are classified.".format(
-                n_classified, n_imgs))
+            print(
+                f"-> {n_classified} out of {n_imgs} unconfirmed images"
+                f" are classified.")
             all_imgs_classified = n_classified == n_imgs
 
         print("-> All Done!")

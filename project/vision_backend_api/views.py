@@ -7,15 +7,12 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
 
-from vision_backend.models import Classifier
-from vision_backend.tasks import deploy
 from api_core.exceptions import ApiRequestDataError
 from api_core.models import ApiJob, ApiJobUnit
+from jobs.models import Job
+from jobs.utils import queue_job
+from vision_backend.models import Classifier
 from .forms import validate_deploy
-
-from django.utils.timezone import now
-
-from datetime import timedelta
 
 
 class Deploy(APIView):
@@ -77,21 +74,21 @@ class Deploy(APIView):
 
         # Create job units to make it easier to track all the separate deploy
         # operations (one per image).
-        for image_index, image_json in enumerate(images_data):
+        for image_number, image_json in enumerate(images_data, 1):
 
+            internal_job = queue_job(
+                'classify_image', deploy_job.pk, image_number)
             job_unit = ApiJobUnit(
-                job=deploy_job,
-                type='deploy',
+                parent=deploy_job,
+                order_in_parent=image_number,
+                internal_job=internal_job,
                 request_json=dict(
                     classifier_id=int(classifier_id),
                     url=image_json['url'],
                     points=image_json['points'],
-                    image_order=image_index
                 )
             )
             job_unit.save()
-            deploy.apply_async(args=[job_unit.pk],
-                               eta=now() + timedelta(seconds=10))
 
         # Respond with the status endpoint's URL.
         return Response(
@@ -161,15 +158,22 @@ class DeployResult(APIView):
 
             # Report images in the same order that they were originally given
             # in the deploy request.
-            def sort_key(unit_):
-                return unit_.request_json['image_order']
+            for unit in deploy_job.apijobunit_set.order_by('order_in_parent'):
 
-            for unit in sorted(deploy_job.apijobunit_set.all(), key=sort_key):
+                if unit.status == Job.SUCCESS:
+                    # This has 'url' and 'points'
+                    attributes = unit.result_json
+                else:
+                    # Error
+                    attributes = dict(
+                        url=unit.request_json['url'],
+                        errors=[unit.result_message],
+                    )
+
                 images_json.append(dict(
                     type='image',
-                    id=unit.result_json['url'],
-                    # This has 'url', and either 'points' or 'errors'
-                    attributes=unit.result_json,
+                    id=unit.request_json['url'],
+                    attributes=attributes,
                 ))
 
             data = dict(data=images_json)

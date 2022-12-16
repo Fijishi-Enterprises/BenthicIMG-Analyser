@@ -1,4 +1,3 @@
-from datetime import timedelta
 import json
 
 from django.contrib import messages
@@ -6,7 +5,6 @@ from django.db import IntegrityError, transaction
 from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import render, get_object_or_404
 from django.urls import reverse
-from django.utils.timezone import now
 from django.views.decorators.http import require_POST
 
 from easy_thumbnails.files import get_thumbnailer
@@ -32,8 +30,7 @@ from lib.decorators import (
     image_labelset_required, login_required_ajax, source_permission_required)
 from lib.forms import get_one_form_error
 from visualization.forms import HiddenForm, create_image_filter_form
-from vision_backend.utils import get_label_scores_for_image
-import vision_backend.tasks as backend_tasks
+from vision_backend.utils import get_label_scores_for_image, reset_features
 
 
 @image_permission_required('image_id', perm=Source.PermTypes.EDIT.code)
@@ -69,9 +66,7 @@ def annotation_area_edit(request, image_id):
 
             if metadata.annotation_area != old_annotation_area:
                 generate_points(image, usesourcemethod=False)
-                backend_tasks.reset_features.apply_async(
-                    args=[image_id],
-                    eta=now()+timedelta(seconds=10))
+                reset_features(image)
 
             messages.success(request, 'Annotation area successfully edited.')
             return HttpResponseRedirect(

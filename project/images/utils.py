@@ -404,7 +404,7 @@ def source_robot_status(source_id):
         status['nbr_images_until_next_robot'] = settings.MIN_NBR_ANNOTATED_IMAGES - status['nbr_human_annotated_images']
     status['nbr_images_until_next_robot'] = int(math.ceil(status['nbr_images_until_next_robot']))
 
-    status['need_robot'] = source.need_new_robot()
+    status['need_robot'], _ = source.need_new_robot()
     status['need_features'] = status['nbr_images_needs_features'] > 0
     status['need_classification'] = status['has_robot'] and status['nbr_unclassified_images'] > 0
 

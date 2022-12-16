@@ -3,8 +3,9 @@ from lib.tests.utils import ClientTest
 from annotations.models import Label
 
 from api_core.models import ApiJob, ApiJobUnit
-from vision_backend.task_helpers import (
-    ClassifyJobResultHandler, encode_spacer_job_token)
+from jobs.models import Job
+from jobs.utils import queue_job
+from ..task_helpers import SpacerClassifyResultHandler
 
 from spacer.messages import ClassifyImageMsg, JobMsg, JobReturnMsg, \
     ClassifyReturnMsg, DataLocation
@@ -36,36 +37,55 @@ class TestDeployCollector(ClientTest):
 
         api_job = ApiJob(type='deploy', user=cls.user)
         api_job.save()
-        api_job_unit = ApiJobUnit(job=api_job,
-                                  type='deploy',
-                                  request_json={'url': 'URL 1',
-                                                'points': 'abc',
-                                                'classifier_id': classifier.pk})
+
+        internal_job = queue_job(
+            'classify_image',
+            api_job.pk, 1,
+            initial_status=Job.IN_PROGRESS,
+        )
+        api_job_unit = ApiJobUnit(
+            parent=api_job, order_in_parent=1,
+            internal_job=internal_job,
+            request_json={
+                'url': 'URL 1',
+                'points': 'abc',
+                'classifier_id': classifier.pk,
+            },
+        )
         api_job_unit.save()
         cls.api_job_unit_pk = api_job_unit.pk
 
         cls.task = ClassifyImageMsg(
-            job_token=encode_spacer_job_token([api_job_unit.pk]),
+            job_token=str(internal_job.pk),
             image_loc=DataLocation(storage_type='url', key=''),
             feature_extractor_name='dummy',
             rowcols=[(100, 100), (200, 200)],
-            classifier_loc=DataLocation(storage_type='memory', key='')
+            classifier_loc=DataLocation(storage_type='memory', key=''),
         )
-        cls.res = ClassifyReturnMsg(
+        cls.task_res = ClassifyReturnMsg(
             runtime=1.0,
             scores=[(100, 100, [.3, .2, .1]), (200, 200, [.2, .1, .3])],
             classes=[Label.objects.get(name='D').pk,
                      Label.objects.get(name='A').pk,
                      Label.objects.get(name='B').pk],
-            valid_rowcol=True
+            valid_rowcol=True,
         )
 
     def test_nominal(self):
+        job_res = JobReturnMsg(
+            original_job=JobMsg(
+                task_name='classify_image',
+                tasks=[self.task],
+            ),
+            ok=True,
+            results=[self.task_res],
+            error_message=None,
+        )
 
-        ClassifyJobResultHandler.handle_task_result(self.task, self.res)
+        SpacerClassifyResultHandler.handle(job_res)
 
         api_job_unit = ApiJobUnit.objects.get(pk=self.api_job_unit_pk)
-        self.assertEqual(api_job_unit.status, ApiJobUnit.SUCCESS)
+        self.assertEqual(api_job_unit.status, Job.SUCCESS)
 
         api_res = api_job_unit.result_json
 
@@ -89,21 +109,20 @@ class TestDeployCollector(ClientTest):
         self.assertEqual(point['classifications'][2]['label_code'], 'A_mycode')
 
     def test_error(self):
-
         job_res = JobReturnMsg(
             original_job=JobMsg(
                 task_name='classify_image',
                 tasks=[self.task]
             ),
-            results=[self.res],
+            results=[self.task_res],
             ok=False,
-            error_message='File not found'
+            error_message='SomeError: File not found'
         )
 
-        ClassifyJobResultHandler.handle_job_error(job_res)
+        SpacerClassifyResultHandler.handle(job_res)
 
         api_job_unit = ApiJobUnit.objects.get(pk=self.api_job_unit_pk)
-        self.assertEqual(api_job_unit.status, ApiJobUnit.FAILURE)
-        self.assertEqual(len(api_job_unit.result_json['errors']), 1)
+        self.assertEqual(api_job_unit.status, Job.FAILURE)
         self.assertEqual(
-            api_job_unit.result_json['errors'][0], 'File not found')
+            api_job_unit.result_message,
+            'SomeError: File not found')

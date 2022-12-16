@@ -2,6 +2,7 @@ from bs4 import BeautifulSoup
 from django.urls import reverse
 
 from api_core.models import ApiJob, ApiJobUnit
+from jobs.models import Job
 from lib.tests.utils import BasePermissionTest, ClientTest
 
 
@@ -50,11 +51,16 @@ class JobListTest(ClientTest):
 
         # Create job units of various statuses
         unit_statuses = (
-            [ApiJobUnit.PENDING]*4 + [ApiJobUnit.IN_PROGRESS]*3
-            + [ApiJobUnit.FAILURE]*2 + [ApiJobUnit.SUCCESS])
-        for status in unit_statuses:
+            [Job.PENDING]*4 + [Job.IN_PROGRESS]*3
+            + [Job.FAILURE]*2 + [Job.SUCCESS])
+        for order, status in enumerate(unit_statuses, 1):
+            internal_job = Job(
+                job_name='', arg_identifier=order, status=status)
+            internal_job.save()
             unit = ApiJobUnit(
-                job=job, type='test_unit_type', status=status, request_json={})
+                parent=job, order_in_parent=order,
+                internal_job=internal_job, request_json={},
+            )
             unit.save()
 
         self.client.force_login(self.superuser)
@@ -81,34 +87,47 @@ class JobListTest(ClientTest):
     def test_all_job_statuses(self):
         pending_job = ApiJob(type='test', user=self.user)
         pending_job.save()
+        internal_job = Job(job_name='test', status=Job.PENDING)
+        internal_job.save()
         unit = ApiJobUnit(
-            job=pending_job, type='test', status=ApiJobUnit.PENDING,
-            request_json={})
+            parent=pending_job, order_in_parent=1,
+            internal_job=internal_job, request_json={},
+        )
         unit.save()
 
         in_progress_job = ApiJob(type='test', user=self.user)
         in_progress_job.save()
+        internal_job = Job(job_name='test', status=Job.IN_PROGRESS)
+        internal_job.save()
         unit = ApiJobUnit(
-            job=in_progress_job, type='test', status=ApiJobUnit.IN_PROGRESS,
-            request_json={})
+            parent=in_progress_job, order_in_parent=1,
+            internal_job=internal_job, request_json={},
+        )
         unit.save()
 
         done_with_fails_job = ApiJob(type='test', user=self.user)
         done_with_fails_job.save()
+        internal_job = Job(job_name='test', status=Job.SUCCESS)
+        internal_job.save()
         unit = ApiJobUnit(
-            job=done_with_fails_job, type='test', status=ApiJobUnit.SUCCESS,
-            request_json={})
+            parent=done_with_fails_job, order_in_parent=1,
+            internal_job=internal_job, request_json={})
         unit.save()
+        internal_job = Job(job_name='test', status=Job.FAILURE)
+        internal_job.save()
         unit = ApiJobUnit(
-            job=done_with_fails_job, type='test', status=ApiJobUnit.FAILURE,
-            request_json={})
+            parent=done_with_fails_job, order_in_parent=2,
+            internal_job=internal_job, request_json={})
+        unit.save()
         unit.save()
 
         done_success_job = ApiJob(type='test', user=self.user)
         done_success_job.save()
+        internal_job = Job(job_name='test', status=Job.SUCCESS)
+        internal_job.save()
         unit = ApiJobUnit(
-            job=done_success_job, type='test', status=ApiJobUnit.SUCCESS,
-            request_json={})
+            parent=done_success_job, order_in_parent=1,
+            internal_job=internal_job, request_json={})
         unit.save()
 
         self.client.force_login(self.superuser)
@@ -147,18 +166,22 @@ class JobDetailTest(ClientTest):
             url='my/url',
             points=[dict(row=20, column=30), dict(row=40, column=50)],
         )
-        cls.sample_result_json_with_error = dict(
-            errors=["Error goes here"],
-        )
 
     def test_all_table_columns(self):
         job = ApiJob(type='test_job_type', user=self.user)
         job.save()
 
+        internal_job = Job(
+            job_name='test_unit_type',
+            status=Job.FAILURE,
+            result_message="Error goes here",
+        )
+        internal_job.save()
         unit = ApiJobUnit(
-            job=job, type='test_unit_type', status=ApiJobUnit.FAILURE,
+            parent=job, order_in_parent=1,
+            internal_job=internal_job,
             request_json=self.sample_request_json,
-            result_json=self.sample_result_json_with_error)
+        )
         unit.save()
 
         self.client.force_login(self.superuser)
@@ -194,10 +217,17 @@ class JobDetailTest(ClientTest):
         request_json = self.sample_request_json.copy()
         request_json['classifier_id'] = classifier_id
 
+        internal_job = Job(
+            job_name='test',
+            status=Job.FAILURE,
+            result_message="Error goes here",
+        )
+        internal_job.save()
         unit = ApiJobUnit(
-            job=job, type='test', status=ApiJobUnit.FAILURE,
+            parent=job, order_in_parent=1,
+            internal_job=internal_job,
             request_json=request_json,
-            result_json=self.sample_result_json_with_error)
+        )
         unit.save()
 
         self.client.force_login(self.superuser)
@@ -219,10 +249,13 @@ class JobDetailTest(ClientTest):
         job = ApiJob(type='test_job_type', user=self.user)
         job.save()
 
+        internal_job = Job(job_name='', status=Job.SUCCESS)
+        internal_job.save()
         unit = ApiJobUnit(
-            job=job, type='test_unit_type', status=ApiJobUnit.SUCCESS,
+            parent=job, order_in_parent=1,
+            internal_job=internal_job,
             request_json=self.sample_request_json,
-            result_json={})
+        )
         unit.save()
 
         self.client.force_login(self.superuser)
@@ -243,9 +276,13 @@ class JobDetailTest(ClientTest):
         job = ApiJob(type='test_job_type', user=self.user)
         job.save()
 
+        internal_job = Job(job_name='', status=Job.IN_PROGRESS)
+        internal_job.save()
         unit = ApiJobUnit(
-            job=job, type='test_unit_type', status=ApiJobUnit.IN_PROGRESS,
-            request_json=self.sample_request_json)
+            parent=job, order_in_parent=1,
+            internal_job=internal_job,
+            request_json=self.sample_request_json,
+        )
         unit.save()
 
         self.client.force_login(self.superuser)
@@ -265,12 +302,15 @@ class JobDetailTest(ClientTest):
 
         # Create job units of various statuses
         unit_statuses = [
-            ApiJobUnit.PENDING, ApiJobUnit.IN_PROGRESS,
-            ApiJobUnit.FAILURE, ApiJobUnit.SUCCESS]
-        for status in unit_statuses:
+            Job.PENDING, Job.IN_PROGRESS, Job.FAILURE, Job.SUCCESS]
+        for order, status in enumerate(unit_statuses, 1):
+            internal_job = Job(job_name='', status=status)
+            internal_job.save()
             unit = ApiJobUnit(
-                job=job, type='test_unit_type', status=status,
-                request_json=self.sample_request_json)
+                parent=job, order_in_parent=order,
+                internal_job=internal_job,
+                request_json=self.sample_request_json,
+            )
             unit.save()
 
         self.client.force_login(self.superuser)

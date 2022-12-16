@@ -148,15 +148,24 @@ $(document).ready(function() {
     </div>
 
     <div style="float:left; width:55%; margin-left:20px;height:350px">
-    <h3 style="text-align:center">Automated Annotation</h3>
-    {% if source.enable_robot_classifier %}
+      <h3 style="text-align:center">Automated Annotation</h3>
+
+      {% if robot_stats.has_robot %}
+        <div id="acc_overview" style="height:300px"></div>
+      {% endif %}
+
+      {% if source.enable_robot_classifier %}
         {% if not source.has_robot %}
-            <p> This source does not have a classifier yet. {{min_nbr_annotated_images}} images required to trigger training the first one. </p>
+          <p>This source does not have a classifier yet. Need a minimum of {{min_nbr_annotated_images}} Confirmed images to train a classifier.</p>
         {% endif %}
-    {% endif %}
-    {% if robot_stats.has_robot %}
-        <div id="acc_overview", style="height:300px"></div>    
-    {% endif %}
+
+        {% if "source_edit" in source_perms %}
+          <p>
+            To see backend-job status,
+            <a href="{% url 'jobs:source_dashboard' source.id %}">go here</a>.
+          </p>
+        {% endif %}
+      {% endif %}
     </div>
 
     <div style="float:right">
@@ -185,6 +194,9 @@ $(document).ready(function() {
       </div>
     </div>
 
+    {% comment %}
+    Uncomment this events section when we start using events.
+
     <div style="float:left; width:100%;">
         <div class="detail_box">
         <h3 style="text-align:center">Events</h3>
@@ -198,7 +210,7 @@ $(document).ready(function() {
         </table>
         </div>
     </div>
-
+    {% endcomment %}
 
     <div style="clear:left"></div>
 

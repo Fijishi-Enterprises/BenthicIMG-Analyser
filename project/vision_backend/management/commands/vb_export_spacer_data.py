@@ -44,9 +44,8 @@ class Command(BaseCommand):
                                  "1 = export if do not already exist,"
                                  "2 = export and overwrite.")
 
-    @staticmethod
-    def log(message):
-        log(message, 'export_data.log')
+    def log(self, message):
+        log(message, 'export_data.log', self.stdout.write)
 
     @property
     def labelset_json(self):

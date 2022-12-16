@@ -1,4 +1,3 @@
-from datetime import timedelta
 import json
 
 from django.conf import settings
@@ -6,7 +5,6 @@ from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 from django.utils.decorators import method_decorator
-from django.utils.timezone import now
 from django.views import View
 
 from accounts.utils import get_imported_user
@@ -21,6 +19,7 @@ from lib.decorators import source_permission_required, source_labelset_required
 from lib.exceptions import FileProcessError
 from lib.forms import get_one_form_error
 from lib.utils import filesize_display
+from vision_backend.utils import queue_source_check, reset_features
 from visualization.forms import ImageSpecifyByIdForm
 from .forms import (
     CSVImportForm, ImageUploadForm, ImageUploadFrontendForm)
@@ -28,7 +27,6 @@ from .utils import (
     annotations_csv_to_dict,
     annotations_preview, find_dupe_image, metadata_csv_to_dict,
     metadata_preview, upload_image_process)
-import vision_backend.tasks as backend_tasks
 
 
 @source_permission_required('source_id', perm=Source.PermTypes.EDIT.code)
@@ -163,10 +161,8 @@ def upload_images_ajax(request, source_id):
         current_user=request.user,
     )
 
-    backend_tasks.submit_features.apply_async(
-        args=[img.id],
-        eta=(now() + timedelta(minutes=1)),
-    )
+    # The uploaded images should be ready for feature extraction.
+    queue_source_check(source_id)
 
     return JsonResponse(dict(
         success=True,
@@ -415,11 +411,7 @@ class AnnotationsUploadConfirmView(View):
             # Update relevant image/metadata fields.
             self.update_image_and_metadata_fields(img, new_points)
 
-            # Submit job with 1 hour delay to allow the view and thus DB
-            # transaction to conclude before jobs are submitted.
-            # Details: https://github.com/beijbom/coralnet-system/issues/31.
-            backend_tasks.reset_features.apply_async(
-                args=[img.id], eta=now() + timedelta(hours=1))
+            reset_features(img)
 
         return JsonResponse(dict(
             success=True,

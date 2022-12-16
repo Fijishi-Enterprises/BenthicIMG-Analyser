@@ -171,8 +171,10 @@ INSTALLED_APPS = [
     # Flatpages-related customizations
     'flatpages_custom',
     'images',
+    # Asynchronous job/task management
+    'jobs',
     'labels',
-    # Miscellaneous stuff
+    # Miscellaneous / not specific to any other app
     'lib',
     # Logs of site events/actions
     'newsfeed',
@@ -465,6 +467,12 @@ MARKDOWNX_MARKDOWN_EXTENSIONS = [
     'markdown.extensions.extra'
 ]
 
+
+# [Custom settings]
+# Days until we purge old async jobs.
+JOB_MAX_DAYS = 30
+# Page size when listing async jobs.
+JOBS_PER_PAGE = 100
 
 # Django REST Framework setting.
 REST_FRAMEWORK = {

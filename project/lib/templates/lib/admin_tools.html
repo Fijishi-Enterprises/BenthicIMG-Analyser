@@ -9,11 +9,17 @@
 
 <ul class="detail_list">
   <li><a href="{% url 'admin:index' %}">Admin site</a></li>
-  <li><a href="{% url 'api_management:job_list' %}">API jobs</a></li>
-  <li><a href="{% url 'backend_overview' %}">Backend overview</a></li>
   <li><a href="{% url 'cm_test' %}">Confusion matrix test</a></li>
   <li><a href="{% url 'labelset_duplicates' %}">Duplicate labels</a></li>
   <li><a href="{% url 'emailall' %}">Email all</a></li>
+  <li>
+    Site status
+    <ul>
+      <li><a href="{% url 'jobs:overall_dashboard' %}">All jobs</a></li>
+      <li><a href="{% url 'api_management:job_list' %}">API jobs</a></li>
+      <li><a href="{% url 'backend_overview' %}">Backend overview</a></li>
+    </ul>
+  </li>
 </ul>
 
 {% if debug %}

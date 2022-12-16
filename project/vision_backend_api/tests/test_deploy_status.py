@@ -1,6 +1,5 @@
 import copy
 import json
-from unittest import mock
 
 from django.conf import settings
 from django.test import override_settings
@@ -9,8 +8,9 @@ from rest_framework import status
 
 from api_core.models import ApiJob, ApiJobUnit
 from api_core.tests.utils import BaseAPIPermissionTest
-from vision_backend.tasks import collect_all_jobs
-from .utils import DeployBaseTest, mocked_load_image, noop_task
+from jobs.models import Job
+from vision_backend.tasks import collect_spacer_jobs
+from .utils import DeployBaseTest
 
 
 class DeployStatusAccessTest(BaseAPIPermissionTest):
@@ -92,12 +92,16 @@ class DeployStatusAccessTest(BaseAPIPermissionTest):
             response, msg="4th request should be denied by throttling")
 
 
-@mock.patch('spacer.tasks.load_image', mocked_load_image)
 class DeployStatusEndpointTest(DeployBaseTest):
     """
     Test the deploy status endpoint.
     """
-    def setUp(self):
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+
+        cls.train_classifier()
+
         images = [
             dict(
                 type='image',
@@ -115,9 +119,9 @@ class DeployStatusEndpointTest(DeployBaseTest):
                         dict(row=10, column=10),
                     ])),
         ]
-        self.data = json.dumps(dict(data=images))
+        cls.data = json.dumps(dict(data=images))
 
-    def deploy(self):
+    def queue_deploy(self):
         self.client.post(
             self.deploy_url, self.data, **self.request_kwargs)
 
@@ -129,9 +133,8 @@ class DeployStatusEndpointTest(DeployBaseTest):
         response = self.client.get(status_url, **self.request_kwargs)
         return response
 
-    @mock.patch('vision_backend_api.views.deploy.run', noop_task)
     def test_no_progress_yet(self):
-        job = self.deploy()
+        job = self.queue_deploy()
         response = self.get_job_status(job)
 
         self.assertStatusOK(response)
@@ -154,15 +157,13 @@ class DeployStatusEndpointTest(DeployBaseTest):
             'application/vnd.api+json', response.get('content-type'),
             "Content type should be as expected")
 
-    @mock.patch('vision_backend_api.views.deploy.run', noop_task)
     def test_some_images_in_progress(self):
-        job = self.deploy()
+        job = self.queue_deploy()
 
         # Mark one unit's status as in progress
-        job_unit = ApiJobUnit.objects.filter(
-            job=job, type='deploy').latest('pk')
-        job_unit.status = ApiJobUnit.IN_PROGRESS
-        job_unit.save()
+        job_unit = ApiJobUnit.objects.filter(parent=job).latest('pk')
+        job_unit.internal_job.status = Job.IN_PROGRESS
+        job_unit.internal_job.save()
 
         response = self.get_job_status(job)
 
@@ -182,14 +183,13 @@ class DeployStatusEndpointTest(DeployBaseTest):
                             total=2))]),
             "Response JSON should be as expected")
 
-    @mock.patch('vision_backend.tasks.deploy.run', noop_task)
     def test_all_images_in_progress(self):
-        job = self.deploy()
+        job = self.queue_deploy()
 
-        job_units = ApiJobUnit.objects.filter(job=job, type='deploy')
+        job_units = ApiJobUnit.objects.filter(parent=job)
         for job_unit in job_units:
-            job_unit.status = ApiJobUnit.IN_PROGRESS
-            job_unit.save()
+            job_unit.internal_job.status = Job.IN_PROGRESS
+            job_unit.internal_job.save()
 
         response = self.get_job_status(job)
 
@@ -209,18 +209,17 @@ class DeployStatusEndpointTest(DeployBaseTest):
                             total=2))]),
             "Response JSON should be as expected")
 
-    @mock.patch('vision_backend.tasks.deploy.run', noop_task)
     def test_some_images_success(self):
-        job = self.deploy()
+        job = self.queue_deploy()
 
         # Mark one unit's status as success
-        job_units = ApiJobUnit.objects.filter(job=job, type='deploy')
+        job_units = ApiJobUnit.objects.filter(parent=job)
 
         self.assertEqual(job_units.count(), 2)
 
-        ju = job_units[0]
-        ju.status = ApiJobUnit.SUCCESS
-        ju.save()
+        unit = job_units[0]
+        unit.internal_job.status = Job.SUCCESS
+        unit.internal_job.save()
 
         response = self.get_job_status(job)
 
@@ -240,15 +239,13 @@ class DeployStatusEndpointTest(DeployBaseTest):
                             total=2))]),
             "Response JSON should be as expected")
 
-    @mock.patch('vision_backend.tasks.deploy.run', noop_task)
     def test_some_images_failure(self):
-        job = self.deploy()
+        job = self.queue_deploy()
 
         # Mark one unit's status as failure
-        job_unit = ApiJobUnit.objects.filter(
-            job=job, type='deploy').latest('pk')
-        job_unit.status = ApiJobUnit.FAILURE
-        job_unit.save()
+        job_unit = ApiJobUnit.objects.filter(parent=job).latest('pk')
+        job_unit.internal_job.status = Job.FAILURE
+        job_unit.internal_job.save()
 
         response = self.get_job_status(job)
 
@@ -269,8 +266,9 @@ class DeployStatusEndpointTest(DeployBaseTest):
             "Response JSON should be as expected")
 
     def test_success(self):
-        job = self.deploy()
-        collect_all_jobs()
+        job = self.queue_deploy()
+        self.run_scheduled_jobs_including_deploy()
+        collect_spacer_jobs()
 
         response = self.get_job_status(job)
 
@@ -287,21 +285,19 @@ class DeployStatusEndpointTest(DeployBaseTest):
             reverse('api:deploy_result', args=[job.pk]),
             "Location header should be as expected")
 
-    @mock.patch('vision_backend.tasks.deploy.run', noop_task)
     def test_failure(self):
-        job = self.deploy()
+        job = self.queue_deploy()
 
         # Mark both units' status as done: one success, one failure.
         #
         # Note: We must bind the units to separate names, since assigning an
         # attribute using an index access (like units[0].status = 'SC')
         # doesn't seem to work as desired (the attribute doesn't change).
-        unit_1, unit_2 = ApiJobUnit.objects.filter(
-            job=job, type='deploy')
-        unit_1.status = ApiJobUnit.SUCCESS
-        unit_1.save()
-        unit_2.status = ApiJobUnit.FAILURE
-        unit_2.save()
+        unit_1, unit_2 = ApiJobUnit.objects.filter(parent=job)
+        unit_1.internal_job.status = Job.SUCCESS
+        unit_1.internal_job.save()
+        unit_2.internal_job.status = Job.FAILURE
+        unit_2.internal_job.save()
 
         response = self.get_job_status(job)
 

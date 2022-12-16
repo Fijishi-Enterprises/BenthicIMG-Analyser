@@ -1,14 +1,12 @@
-import datetime
-
 from django.contrib.auth.models import User
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
-from django.utils import timezone
 
 from .managers import AnnotationManager, AnnotationQuerySet
 from images.models import Image, Point, Source
 from labels.models import Label, LocalLabel
 from vision_backend.models import Classifier
+from vision_backend.utils import queue_source_check
 
 
 class Annotation(models.Model):
@@ -99,29 +97,15 @@ class ImageAnnotationInfo(models.Model):
 
         if self.confirmed and confirmed_status_updated:
 
-            # With a new image confirmed, let's try to train a new
-            # robot. The task will simply exit if there are not enough new
-            # images or if a robot is already being trained.
-            #
-            # Note: This task is submitted AFTER the save() call, so
-            # that unit tests (which run tasks immediately) can count the newly
-            # annotated image when submitting the classifier to spacer.
-
-            # We have to import the task here, instead of at the top of the
-            # module, to avoid circular import issues.
-            from vision_backend.tasks import submit_classifier
-            submit_classifier.apply_async(
-                args=[self.image.source.pk],
-                eta=timezone.now()+datetime.timedelta(seconds=10))
+            # With a new image confirmed, let's see if a new robot can be
+            # trained.
+            queue_source_check(self.image.source.pk)
 
         elif last_annotation is None:
 
-            # Image has no annotations now. Add machine annotations if there's
-            # a classifier available.
-            from vision_backend.tasks import classify_image
-            classify_image.apply_async(
-                args=[self.image.pk],
-                eta=timezone.now()+datetime.timedelta(seconds=10))
+            # Image has no annotations now. Let's see if machine annotations
+            # can be added.
+            queue_source_check(self.image.source.pk)
 
 
 class AnnotationToolAccess(models.Model):

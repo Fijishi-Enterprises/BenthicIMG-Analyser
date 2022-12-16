@@ -1,7 +1,8 @@
+from datetime import timedelta
 import numpy as np
-from django.conf import settings
 
 from images.models import Point
+from jobs.utils import queue_job
 from labels.models import Label, LocalLabel
 from .models import Score
 
@@ -133,3 +134,44 @@ def labelset_mapper(labelmode, classids, source):
         raise Exception('labelmode {} not recognized'.format(labelmode))
 
     return classmap, classnames
+
+
+def clear_features(image):
+    """
+    Clears features for image. Call this after any change that affects
+    the image point locations. E.g:
+    Re-generate point locations.
+    Change annotation area.
+    Add new points.
+    """
+    image.refresh_from_db()
+
+    features = image.features
+    features.extracted = False
+    features.classified = False
+    features.save()
+
+
+def reset_features(image):
+    clear_features(image)
+    # Try to re-extract features
+    queue_source_check(image.source_id)
+
+
+def queue_source_check(source_id, delay=None):
+    """
+    Site views should generally call this function if they want to initiate
+    any feature extraction, training, or classification.
+    They should not call those three tasks directly. Let check_source()
+    decide what needs to be run in what order.
+
+    Site views generally shouldn't worry about specifying a delay, since this
+    check_source Job only becomes visible to celery tasks when the view
+    finishes its transaction. However, if desired, they can specify a delay.
+    """
+    queue_job(
+        'check_source',
+        source_id,
+        source_id=source_id,
+        delay=delay,
+    )

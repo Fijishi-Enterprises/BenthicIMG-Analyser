@@ -1,5 +1,7 @@
 from abc import ABCMeta
+from io import BytesIO
 import math
+from unittest import mock
 
 from django.test import override_settings
 from django.urls import reverse
@@ -8,8 +10,9 @@ from spacer.config import MIN_TRAINIMAGES
 from api_core.tests.utils import BaseAPITest
 from images.model_utils import PointGen
 from images.models import Source
+from jobs.tasks import run_scheduled_jobs_until_empty
 from lib.tests.utils import create_sample_image
-from vision_backend.tasks import collect_all_jobs, submit_classifier
+from vision_backend.tasks import collect_spacer_jobs
 
 
 @override_settings(MIN_NBR_ANNOTATED_IMAGES=1)
@@ -43,6 +46,34 @@ class DeployBaseTest(BaseAPITest, metaclass=ABCMeta):
             local_label.code = label_name + '_mycode'
             local_label.save()
 
+        # Get a token
+        response = cls.client.post(
+            reverse('api:token_auth'),
+            data='{"username": "testuser", "password": "SamplePassword"}',
+            content_type='application/vnd.api+json',
+        )
+        token = response.json()['token']
+
+        # Kwargs for test client post() and get().
+        cls.request_kwargs = dict(
+            # Authorization header.
+            HTTP_AUTHORIZATION='Token {token}'.format(token=token),
+            # Content type. Particularly needed for POST requests,
+            # but doesn't hurt for other requests either.
+            content_type='application/vnd.api+json',
+        )
+
+    @classmethod
+    def train_classifier(cls):
+        """
+        This convenience function is almost always useful for deploy-related
+        tests, but we don't call it in this class's setUpTestData().
+
+        The reason is that sometimes we want to apply subclass-specific
+        mocks to the extraction and/or training, and this only appears to
+        be possible if this method is called from that subclass's
+        definition, not this class's definition.
+        """
         # Add enough annotated images to train a classifier.
         #
         # Must have at least 2 unique labels in training data in order to
@@ -61,54 +92,41 @@ class DeployBaseTest(BaseAPITest, metaclass=ABCMeta):
             cls.add_annotations(cls.user, img, annotations)
 
         # Extract features.
-        collect_all_jobs()
+        run_scheduled_jobs_until_empty()
+        collect_spacer_jobs()
         # Train a classifier.
-        submit_classifier(cls.source.id)
-        collect_all_jobs()
+        run_scheduled_jobs_until_empty()
+        collect_spacer_jobs()
         cls.classifier = cls.source.get_latest_robot()
 
         cls.deploy_url = reverse('api:deploy', args=[cls.classifier.pk])
 
-        # Get a token
-        response = cls.client.post(
-            reverse('api:token_auth'),
-            data='{"username": "testuser", "password": "SamplePassword"}',
-            content_type='application/vnd.api+json',
-        )
-        token = response.json()['token']
+    @staticmethod
+    def run_scheduled_jobs_including_deploy():
+        """
+        When running scheduled jobs which include deploy jobs, call this
+        method instead of run_scheduled_jobs_until_empty(), so that the
+        test doesn't have to download from any URLs.
 
-        # Kwargs for test client post() and get().
-        cls.request_kwargs = dict(
-            # Authorization header.
-            HTTP_AUTHORIZATION='Token {token}'.format(token=token),
-            # Content type. Particularly needed for POST requests,
-            # but doesn't hurt for other requests either.
-            content_type='application/vnd.api+json',
-        )
-
-
-# During tests, we use CELERY_ALWAYS_EAGER = True to run tasks synchronously,
-# so that we don't have to wait for tasks to finish before checking their
-# results. To test state before all tasks finish, we'll mock the task
-# functions to disable or change their behavior.
-#
-# Note: We have to patch the run() method of the task rather than patching
-# the task itself. Otherwise, the patched task may end up being
-# patched / not patched in tests where it's not supposed to be.
-# https://stackoverflow.com/a/29269211/
-#
-# Note: Yes, patching views.deploy.run (views, not tasks) is
-# correct if we want to affect usages of deploy in the views module.
-# https://docs.python.org/3/library/unittest.mock.html#where-to-patch
+        Note that mock.patch() doesn't seem to reliably carry over with
+        test-subclassing, so this seems to be the better way to 'DRY' a
+        mock.patch().
+        """
+        with mock.patch(
+            'spacer.storage.URLStorage.load', mock_url_storage_load
+        ):
+            run_scheduled_jobs_until_empty()
 
 
-def noop_task(*args):
-    pass
-
-
-def mocked_load_image(*args):
+def mock_url_storage_load(*args) -> BytesIO:
     """
-    Return a Pillow image. This can be used to mock spacer.storage.load_image()
-    to bypass image downloading from URL, for example.
+    Returns a Pillow image as a stream. This can be used to mock
+    spacer.storage.URLStorage.load()
+    to bypass image-downloading from URL.
     """
-    return create_sample_image()
+    im = create_sample_image()
+    # Save the PIL image to an IO stream
+    stream = BytesIO()
+    im.save(stream, 'PNG')
+    # Return the (not yet closed) IO stream
+    return stream

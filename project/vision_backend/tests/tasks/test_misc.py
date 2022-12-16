@@ -1,42 +1,22 @@
-from datetime import timedelta
+from unittest import mock
 
-from django.core import mail
-from django.test import override_settings
+from django.test.utils import patch_logger
 from django.urls import reverse
-from django.utils import timezone
 
 from annotations.models import Annotation
 from images.models import Image
-from lib.tests.utils import BaseTest, ClientTest
-from vision_backend.models import BatchJob, Score, Classifier
-import vision_backend.task_helpers as th
-from vision_backend.tasks import (
-    clean_up_old_batch_jobs, collect_all_jobs, reset_backend_for_source,
-    reset_classifiers_for_source, warn_about_stuck_jobs)
-from vision_backend.tests.tasks.utils import BaseTaskTest
+from jobs.models import Job
+from jobs.tasks import run_scheduled_jobs_until_empty
+from lib.tests.utils import BaseTest
+from ...models import Score, Classifier
+from ...tasks import (
+    collect_spacer_jobs,
+    reset_backend_for_source,
+    reset_classifiers_for_source,
+)
+from .utils import BaseTaskTest
 
 
-class TestJobTokenEncode(BaseTest):
-
-    def test_encode_one(self):
-
-        job_token = th.encode_spacer_job_token([4])
-        self.assertIn('4', job_token)
-
-    def test_encode_three(self):
-        job_token = th.encode_spacer_job_token([4, 5, 6])
-        self.assertIn('4', job_token)
-        self.assertIn('5', job_token)
-        self.assertIn('6', job_token)
-
-    def test_round_trip(self):
-        pks_in = [4, 5, 6]
-        job_token = th.encode_spacer_job_token(pks_in)
-        pks_out = th.decode_spacer_job_token(job_token)
-        self.assertEqual(pks_in, pks_out)
-
-
-@override_settings(SPACER_QUEUE_CHOICE='vision_backend.queues.LocalQueue')
 class ResetTaskTest(BaseTaskTest):
 
     def test_reset_classifiers_for_source(self):
@@ -79,10 +59,11 @@ class ResetTaskTest(BaseTaskTest):
             Annotation.objects.filter(image=img).count(), 0,
             "img shouldn't have annotations")
 
-        # Classification should be re-done after collecting jobs (note that
-        # this single call can set off a chain of jobs and collections)
-
-        collect_all_jobs()
+        # Train
+        run_scheduled_jobs_until_empty()
+        collect_spacer_jobs()
+        # Classify
+        run_scheduled_jobs_until_empty()
 
         img.features.refresh_from_db()
         self.assertTrue(img.features.classified, "img should be classified")
@@ -142,9 +123,14 @@ class ResetTaskTest(BaseTaskTest):
             Annotation.objects.filter(image=img).count(), 0,
             "img shouldn't have annotations")
 
-        # Backend objects should be re-created after collecting jobs
-
-        collect_all_jobs()
+        # Extract features
+        run_scheduled_jobs_until_empty()
+        collect_spacer_jobs()
+        # Train
+        run_scheduled_jobs_until_empty()
+        collect_spacer_jobs()
+        # Classify
+        run_scheduled_jobs_until_empty()
 
         img.features.refresh_from_db()
         self.assertTrue(img.features.extracted, "img should have features")
@@ -186,139 +172,40 @@ class ResetTaskTest(BaseTaskTest):
         self.assertFalse(Image.objects.get(id=img.id).features.classified)
 
 
-class BatchJobCleanupTest(ClientTest):
-    """
-    Test cleanup of old AWS Batch jobs.
-    """
-    @classmethod
-    def setUpTestData(cls):
-        super().setUpTestData()
+def call_collect_spacer_jobs():
+    collect_spacer_jobs()
 
-        cls.user = cls.create_user()
+    class Queue:
+        status_counts = dict()
+        def collect_jobs(self):
+            return []
+    return Queue
 
-    def test_job_selection(self):
+
+class CollectSpacerJobsTest(BaseTest):
+
+    def test_no_multiple_runs(self):
         """
-        Only jobs eligible for cleanup should be cleaned up.
+        Should block multiple existing runs of this task. That way, no spacer
+        job can get collected multiple times.
         """
-        # More than one job too new to be cleaned up.
+        with patch_logger('jobs.utils', 'debug') as log_messages:
 
-        job = BatchJob(job_token='new')
-        job.save()
+            # Mock a function called by the task, and make that function
+            # attempt to run the task recursively.
+            with mock.patch(
+                'vision_backend.tasks.get_queue_class', call_collect_spacer_jobs
+            ):
+                collect_spacer_jobs()
 
-        job = BatchJob(job_token='29 days ago')
-        job.save()
-        job.create_date = timezone.now() - timedelta(days=29)
-        job.save()
-
-        # More than one job old enough to be cleaned up.
-
-        job = BatchJob(job_token='31 days ago')
-        job.save()
-        job.create_date = timezone.now() - timedelta(days=31)
-        job.save()
-
-        job = BatchJob(job_token='32 days ago')
-        job.save()
-        job.create_date = timezone.now() - timedelta(days=32)
-        job.save()
-
-        clean_up_old_batch_jobs()
-
-        self.assertTrue(
-            BatchJob.objects.filter(job_token='new').exists(),
-            "Shouldn't clean up new job")
-        self.assertTrue(
-            BatchJob.objects.filter(job_token='29 days ago').exists(),
-            "Shouldn't clean up 29 day old job")
-        self.assertFalse(
-            BatchJob.objects.filter(job_token='31 days ago').exists(),
-            "Shouldn't clean up 31 day old job")
-        self.assertFalse(
-            BatchJob.objects.filter(job_token='32 days ago').exists(),
-            "Shouldn't clean up 32 day old job")
-
-
-class WarnAboutStuckJobsTest(ClientTest):
-    """
-    Test warning about AWS Batch jobs that haven't completed in a timely
-    fashion.
-    """
-    @classmethod
-    def setUpTestData(cls):
-        super().setUpTestData()
-
-        cls.user = cls.create_user()
-
-    def test_job_selection_by_date(self):
-        """
-        Only warn about jobs between 5 and 6 days old, and warn once per job.
-        """
-        job1 = BatchJob.objects.create(job_token='1', batch_token='4d 23h ago')
-        job1.create_date = timezone.now() - timedelta(days=4, hours=23)
-        job1.save()
-
-        job2 = BatchJob.objects.create(job_token='2', batch_token='5d 1h ago')
-        job2.create_date = timezone.now() - timedelta(days=5, hours=1)
-        job2.save()
-
-        job3 = BatchJob.objects.create(job_token='3', batch_token='5d 23h ago')
-        job3.create_date = timezone.now() - timedelta(days=5, hours=23)
-        job3.save()
-
-        job4 = BatchJob.objects.create(job_token='4', batch_token='6d 1h ago')
-        job4.create_date = timezone.now() - timedelta(days=6, hours=1)
-        job4.save()
-
-        warn_about_stuck_jobs()
-
-        self.assertEqual(len(mail.outbox), 1)
-        sent_email = mail.outbox[0]
+            log_message = (
+                "Job [collect_spacer_jobs / ]"
+                " is already pending or in progress."
+            )
+            self.assertIn(
+                log_message, log_messages,
+                "Should log the appropriate message")
 
         self.assertEqual(
-            "[CoralNet] 2 AWS Batch job(s) not completed after 5 days",
-            sent_email.subject)
-        self.assertEqual(
-            "The following AWS Batch jobs were not completed after 5 days:"
-            "\n"
-            f"\nBatch token: 5d 1h ago, job token: 2 job id: {job2.pk}"
-            f"\nBatch token: 5d 23h ago, job token: 3 job id: {job3.pk}",
-            sent_email.body)
-
-    def test_job_selection_by_status(self):
-        """
-        Only warn about non-completed jobs.
-        """
-        job1 = BatchJob.objects.create(
-            job_token='1', batch_token='PENDING', status='PENDING')
-        job1.create_date = timezone.now() - timedelta(days=5, hours=1)
-        job1.save()
-
-        job2 = BatchJob.objects.create(
-            job_token='2', batch_token='SUCCEEDED', status='SUCCEEDED')
-        job2.create_date = timezone.now() - timedelta(days=5, hours=1)
-        job2.save()
-
-        job3 = BatchJob.objects.create(
-            job_token='3', batch_token='RUNNING', status='RUNNING')
-        job3.create_date = timezone.now() - timedelta(days=5, hours=1)
-        job3.save()
-
-        job4 = BatchJob.objects.create(
-            job_token='4', batch_token='FAILED', status='FAILED')
-        job4.create_date = timezone.now() - timedelta(days=5, hours=1)
-        job4.save()
-
-        warn_about_stuck_jobs()
-
-        self.assertEqual(len(mail.outbox), 1)
-        sent_email = mail.outbox[0]
-
-        self.assertEqual(
-            "[CoralNet] 2 AWS Batch job(s) not completed after 5 days",
-            sent_email.subject)
-        self.assertEqual(
-            "The following AWS Batch jobs were not completed after 5 days:"
-            "\n"
-            f"\nBatch token: PENDING, job token: 1 job id: {job1.pk}"
-            f"\nBatch token: RUNNING, job token: 3 job id: {job3.pk}",
-            sent_email.body)
+            Job.objects.filter(job_name='collect_spacer_jobs').count(), 1,
+            "Should not have accepted the second run")

@@ -3,20 +3,23 @@ from unittest import mock
 from django.core.cache import cache
 from django.db import IntegrityError
 from django.test import override_settings
-from django.test.utils import patch_logger
 import numpy as np
 import spacer.config as spacer_config
 
 from accounts.utils import get_robot_user, is_robot_user
 from annotations.models import Annotation
 from images.models import Point
+from jobs.models import Job
+from jobs.tasks import run_scheduled_jobs, run_scheduled_jobs_until_empty
+from jobs.tests.utils import JobUtilsMixin
 from vision_backend.models import Score
 from vision_backend.tasks import (
-    classify_image, collect_all_jobs, submit_classifier)
+    collect_spacer_jobs, reset_classifiers_for_source)
+from vision_backend.utils import clear_features, queue_source_check
 from .utils import BaseTaskTest
 
 
-class ClassifyImageTest(BaseTaskTest):
+class ClassifyImageTest(BaseTaskTest, JobUtilsMixin):
 
     def test_classify_unannotated_image(self):
         """Classify an image where all points are unannotated."""
@@ -24,8 +27,15 @@ class ClassifyImageTest(BaseTaskTest):
 
         # Image without annotations
         img = self.upload_image(self.user, self.source)
-        # Process feature extraction results + classify image
-        collect_all_jobs()
+        # Process feature extraction results
+        run_scheduled_jobs_until_empty()
+        collect_spacer_jobs()
+        # Classify image
+        run_scheduled_jobs_until_empty()
+
+        self.assert_job_result_message(
+            'check_source',
+            "Tried to queue classification(s)")
 
         for point in Point.objects.filter(image__id=img.id):
             try:
@@ -65,9 +75,13 @@ class ClassifyImageTest(BaseTaskTest):
         # tasks needed to train a classifier.
         self.upload_data_and_train_classifier()
 
-        # Upload, extract features, classify
+        # Upload
         img = self.upload_image(self.user, self.source)
-        collect_all_jobs()
+        # Extract features
+        run_scheduled_jobs_until_empty()
+        collect_spacer_jobs()
+        # Classify
+        run_scheduled_jobs_until_empty()
 
         for point in Point.objects.filter(image__id=img.id):
             # Score count per point should be label count or 5,
@@ -75,8 +89,11 @@ class ClassifyImageTest(BaseTaskTest):
             # Or apparently in rare cases there may be less than 5, possibly
             # since the scores are integers?
             # But the point is that there shouldn't be 8 scores.
+            self.assertTrue(
+                point.score_set.exists(),
+                "Each point should have scores")
             self.assertLessEqual(
-                5, point.score_set.count(),
+                point.score_set.count(), 5,
                 "Each point should have <= 5 scores")
 
     def test_classify_unconfirmed_image(self):
@@ -121,11 +138,14 @@ class ClassifyImageTest(BaseTaskTest):
 
         # Upload
         img = self.upload_image(self.user, self.source)
-        # Extract features + classify with a particular set of scores
+        # Extract features
+        run_scheduled_jobs_until_empty()
+        collect_spacer_jobs()
+        # Classify with a particular set of scores
         with mock.patch(
                 'spacer.messages.ClassifyReturnMsg.__init__',
                 mock_classify_msg_1):
-            collect_all_jobs()
+            run_scheduled_jobs_until_empty()
 
         # Accept another classifier. Override settings so that 1) we
         # don't need more images to train a new classifier, and 2) we don't
@@ -133,14 +153,20 @@ class ClassifyImageTest(BaseTaskTest):
         with override_settings(
                 NEW_CLASSIFIER_TRAIN_TH=0.0001,
                 NEW_CLASSIFIER_IMPROVEMENT_TH=0.0001):
-            submit_classifier(self.source.pk)
-            # 1) Save classifier. 2) re-classify with a different set of
-            # scores so that specific points get their labels changed (and
-            # other points don't).
-            with mock.patch(
-                    'spacer.messages.ClassifyReturnMsg.__init__',
-                    mock_classify_msg_2):
-                collect_all_jobs()
+            # Source was considered all caught up earlier, so need to queue
+            # another check.
+            queue_source_check(self.source.pk)
+            # Train
+            run_scheduled_jobs_until_empty()
+            collect_spacer_jobs()
+
+        # Re-classify with a different set of
+        # scores so that specific points get their labels changed (and
+        # other points don't).
+        with mock.patch(
+                'spacer.messages.ClassifyReturnMsg.__init__',
+                mock_classify_msg_2):
+            run_scheduled_jobs_until_empty()
 
         clf_2 = self.source.get_latest_robot()
         all_classifiers = self.source.classifier_set.all()
@@ -193,8 +219,11 @@ class ClassifyImageTest(BaseTaskTest):
         img = self.upload_image(self.user, self.source)
         # Add partial annotations
         self.add_annotations(self.user, img, {1: 'A'})
-        # Process feature extraction results + classify image
-        collect_all_jobs()
+        # Extract features
+        run_scheduled_jobs_until_empty()
+        collect_spacer_jobs()
+        # Classify
+        run_scheduled_jobs_until_empty()
 
         for point in Point.objects.filter(image__id=img.id):
             if point.point_number == 1:
@@ -214,17 +243,18 @@ class ClassifyImageTest(BaseTaskTest):
 
         # Image with annotations
         img = self.upload_image_with_annotations('confirmed.png')
-        # Process feature extraction results
-        collect_all_jobs()
-        # Try to classify
-        classify_image(img.id)
+        # Extract features
+        run_scheduled_jobs_until_empty()
+        collect_spacer_jobs()
+        # Attempt to classify
+        run_scheduled_jobs_until_empty()
 
         for point in Point.objects.filter(image__id=img.id):
             self.assertFalse(
                 is_robot_user(point.annotation.user),
                 "Image should still have confirmed annotations")
-            self.assertEqual(
-                2, point.score_set.count(), "Each point should have scores")
+            self.assertFalse(
+                point.score_set.exists(), "Points should not have scores")
 
     def test_classify_scores_and_labels_match(self):
         """
@@ -233,9 +263,13 @@ class ClassifyImageTest(BaseTaskTest):
         """
         self.upload_data_and_train_classifier()
 
-        # Upload, extract features, classify
+        # Upload
         img = self.upload_image(self.user, self.source)
-        collect_all_jobs()
+        # Extract features
+        run_scheduled_jobs_until_empty()
+        collect_spacer_jobs()
+        # Classify
+        run_scheduled_jobs_until_empty()
 
         for point in Point.objects.filter(image__id=img.id):
             ann = point.annotation
@@ -256,11 +290,13 @@ class ClassifyImageTest(BaseTaskTest):
         # Add one image without annotations, including a duplicate point
         img = self.upload_image_with_dupe_points('has_dupe.png')
         # Extract features
-        collect_all_jobs()
-
-        # Train classifier + classify image
-        submit_classifier(self.source.pk)
-        collect_all_jobs()
+        run_scheduled_jobs_until_empty()
+        collect_spacer_jobs()
+        # Train
+        run_scheduled_jobs_until_empty()
+        collect_spacer_jobs()
+        # Classify
+        run_scheduled_jobs_until_empty()
 
         self.assertEqual(
             len(self.rowcols_with_dupes_included),
@@ -286,11 +322,14 @@ class ClassifyImageTest(BaseTaskTest):
 
         # Image without annotations
         img = self.upload_image(self.user, self.source)
-        # Process feature extraction results + classify image
+        # Extract features
+        run_scheduled_jobs_until_empty()
+        collect_spacer_jobs()
+        # Classify
         with mock.patch(
                 'spacer.messages.ClassifyReturnMsg.__init__',
                 mock_classify_msg):
-            collect_all_jobs()
+            run_scheduled_jobs_until_empty()
 
         for point in Point.objects.filter(image__id=img.id):
             try:
@@ -319,52 +358,86 @@ class AbortCasesTest(BaseTaskTest):
 
     def test_classify_nonexistent_image(self):
         """Try to classify a nonexistent image ID."""
-        # To get a nonexistent image ID, upload an image, get its ID, then
-        # delete the image.
+        self.upload_data_and_train_classifier()
+
+        # Upload
         img = self.upload_image(self.user, self.source)
+        # Extract features
+        run_scheduled_jobs_until_empty()
+        collect_spacer_jobs()
+        # Queue classification of img
+        run_scheduled_jobs()
+        # Delete img
         image_id = img.pk
         img.delete()
 
-        # patch_logger is an undocumented Django test utility. It lets us check
-        # logged messages.
-        # https://stackoverflow.com/a/54055056
-        with patch_logger('vision_backend.tasks', 'info') as log_messages:
-            classify_image(image_id)
+        # Try to classify
+        run_scheduled_jobs()
 
-            log_message = "Image {} does not exist.".format(image_id)
-            self.assertIn(
-                log_message, log_messages,
-                "Should log the appropriate message")
+        classify_job = Job.objects.get(job_name='classify_features')
+        self.assertEqual(
+            f"Image {image_id} does not exist.",
+            classify_job.result_message,
+            "Job should have the expected error")
 
     def test_classify_without_features(self):
         """Try to classify an image without features extracted."""
         self.upload_data_and_train_classifier()
 
+        # Upload
         img = self.upload_image(self.user, self.source)
-        classify_image(img.pk)
+        # Extract features
+        run_scheduled_jobs_until_empty()
+        collect_spacer_jobs()
+        # Queue classification of img
+        run_scheduled_jobs()
+        # Clear features
+        clear_features(img)
 
-        self.assertFalse(
-            Annotation.objects.filter(image=img).exists(),
-            "Image shouldn't have been classified")
+        # Try to classify
+        run_scheduled_jobs()
+
+        classify_job = Job.objects.get(job_name='classify_features')
+        self.assertEqual(
+            f"Image {img.pk} needs to have features extracted"
+            f" before being classified.",
+            classify_job.result_message,
+            "Job should have the expected error")
 
     def test_classify_without_classifier(self):
         """Try to classify an image without a classifier for the source."""
+        self.upload_data_and_train_classifier()
+
+        # Upload
         img = self.upload_image(self.user, self.source)
         # Extract features
-        collect_all_jobs()
-        # Try to classify
-        classify_image(img.pk)
+        run_scheduled_jobs_until_empty()
+        collect_spacer_jobs()
+        # Queue classification of img
+        run_scheduled_jobs()
+        # Delete source's classifier
+        reset_classifiers_for_source(self.source.pk)
 
-        self.assertFalse(
-            Annotation.objects.filter(image=img).exists(),
-            "Image shouldn't have been classified")
+        # Try to classify
+        run_scheduled_jobs()
+
+        classify_job = Job.objects.get(job_name='classify_features')
+        self.assertEqual(
+            f"Image {img.pk} can't be classified;"
+            f" its source doesn't have a classifier.",
+            classify_job.result_message,
+            "Job should have the expected error")
 
     def test_integrity_error_when_saving_annotations(self):
         """Get an IntegrityError when saving annotations."""
         self.upload_data_and_train_classifier()
         classifier = self.source.get_latest_robot()
 
+        # Upload
         img = self.upload_image(self.user, self.source)
+        # Extract features
+        run_scheduled_jobs_until_empty()
+        collect_spacer_jobs()
 
         def mock_update_annotation(
                 point, label, now_confirmed, user_or_robot_version):
@@ -385,26 +458,17 @@ class AbortCasesTest(BaseTaskTest):
                 robot_version=user_or_robot_version)
             new_annotation.save()
 
-        # Extract features + classify
-        with patch_logger('vision_backend.tasks', 'info') as log_messages:
-            with mock.patch(
-                    'annotations.models.Annotation.objects'
-                    '.update_point_annotation_if_applicable',
-                    mock_update_annotation):
-                collect_all_jobs()
+        # Try to classify
+        with mock.patch(
+                'annotations.models.Annotation.objects'
+                '.update_point_annotation_if_applicable',
+                mock_update_annotation):
+            run_scheduled_jobs_until_empty()
 
-            log_message = (
-                "Failed to classify Image {} [Source: {} [{}] with "
-                "classifier {}. There might have been a race condition "
-                "when trying to save annotations. Will try again later."
-                .format(
-                    img.pk, img.source, img.source_id, classifier.pk
-                )
-            )
-            self.assertIn(
-                log_message, log_messages,
-                "Should log the appropriate message")
-
-        self.assertTrue(
-            Annotation.objects.filter(image=img).exists(),
-            "Image should have been classified after retry")
+        classify_job = Job.objects.get(job_name='classify_features')
+        self.assertEqual(
+            f"Failed to classify {img} with classifier {classifier.pk}."
+            f" There might have been a race condition when trying"
+            f" to save annotations.",
+            classify_job.result_message,
+            "Job should have the expected error")

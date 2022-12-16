@@ -2,9 +2,10 @@ from django_migration_testcase import MigrationTest
 import numpy as np
 from spacer.messages import ClassifyReturnMsg
 
+from jobs.utils import queue_job
 from lib.tests.utils import ClientTest
 from images.models import Point
-from vision_backend.models import Score
+from vision_backend.models import BatchJob, Score
 import vision_backend.task_helpers as th
 
 
@@ -78,6 +79,24 @@ class CascadeDeleteTest(ClientTest):
         self.assertEqual(Score.objects.filter(image=img).count(),
                          (nbr_points - 1) * expected_nbr_scores)
 
+    def test_job_batchjob_cascade(self):
+        """
+        BatchJobs should be deleted when their corresponding Jobs are
+        deleted.
+        """
+        job = queue_job('test')
+
+        batch_job = BatchJob(internal_job=job)
+        batch_job.save()
+        batch_job_id = batch_job.pk
+
+        job.delete()
+
+        with self.assertRaises(
+            BatchJob.DoesNotExist, msg="batch_job should be gone"
+        ):
+            BatchJob.objects.get(pk=batch_job_id)
+
 
 class PopulateClassifierStatusTest(MigrationTest):
 
@@ -113,3 +132,46 @@ class PopulateClassifierStatusTest(MigrationTest):
         classifier_error.refresh_from_db()
         self.assertEqual(
             classifier_error.status, 'ER')
+
+
+class DeletePreMigrationBatchJobsTest(MigrationTest):
+
+    app_name = 'vision_backend'
+    before = '0008_batchjob_add_internaljob'
+    after = '0009_batchjob_delete_old_completed'
+
+    def test_stop_if_uncompleted_exists(self):
+        BatchJobBefore = self.get_model_before('vision_backend.BatchJob')
+
+        BatchJobBefore(status='SUCCEEDED').save()
+        BatchJobBefore(status='FAILED').save()
+        # Uncompleted
+        BatchJobBefore(status='SUBMITTED').save()
+
+        with self.assertRaises(
+            ValueError, msg="Migration should get an error"
+        ):
+            self.run_migration()
+
+        self.assertEqual(
+            BatchJobBefore.objects.count(), 3,
+            "Should not have deleted any BatchJobs")
+
+        # Manually delete the BatchJobs, so that the test's tearDown()
+        # (which tries to get to the latest migrations) doesn't get an error.
+        BatchJob.objects.all().delete()
+
+    def test_delete_all(self):
+        BatchJobBefore = self.get_model_before('vision_backend.BatchJob')
+
+        BatchJobBefore(status='SUCCEEDED').save()
+        BatchJobBefore(status='FAILED').save()
+        BatchJobBefore(status='SUCCEEDED').save()
+
+        self.run_migration()
+
+        BatchJobAfter = self.get_model_after('vision_backend.BatchJob')
+
+        self.assertEqual(
+            BatchJobAfter.objects.count(), 0,
+            "Should have deleted the BatchJobs")

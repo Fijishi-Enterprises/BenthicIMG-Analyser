@@ -1,7 +1,8 @@
 from django.contrib.auth.decorators import permission_required
 from django.shortcuts import get_object_or_404, render
 
-from api_core.models import ApiJob, ApiJobUnit
+from api_core.models import ApiJob
+from jobs.models import Job
 from vision_backend_api.utils import deploy_request_json_as_strings
 
 
@@ -49,33 +50,27 @@ def job_detail(request, job_id):
     job_status = job.full_status()
 
     units = []
-    for unit_obj in job.apijobunit_set.all().order_by('-pk'):
+    for unit_obj in job.apijobunit_set.order_by('-order_in_parent'):
 
         # Here we assume it's a deploy job. If we expand the API to different
         # job types later, then this code has to become more flexible.
         request_json_strings = deploy_request_json_as_strings(unit_obj)
 
-        error_display = ''
-        if unit_obj.result_json:
-            errors = unit_obj.result_json.get('errors')
-            if errors:
-                error_display = errors[0]
-
         units.append(dict(
             id=unit_obj.pk,
-            type=unit_obj.type,
+            type=unit_obj.internal_job.job_name,
             status=unit_obj.status,
             status_display=unit_obj.get_status_display(),
             request_json_strings=request_json_strings,
-            error_display=error_display,
+            result_message=unit_obj.internal_job.result_message,
         ))
 
     return render(request, 'api_management/job_detail.html', {
         'job': job,
         'job_status': job_status,
         'units': units,
-        'PENDING': ApiJobUnit.PENDING,
-        'IN_PROGRESS': ApiJobUnit.IN_PROGRESS,
-        'SUCCESS': ApiJobUnit.SUCCESS,
-        'FAILURE': ApiJobUnit.FAILURE,
+        'PENDING': Job.PENDING,
+        'IN_PROGRESS': Job.IN_PROGRESS,
+        'SUCCESS': Job.SUCCESS,
+        'FAILURE': Job.FAILURE,
     })

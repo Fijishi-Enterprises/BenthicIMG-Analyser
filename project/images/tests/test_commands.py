@@ -12,7 +12,9 @@ def save_without_checks(self, *args, **kwargs):
     Mock version of Point.save().
     Doesn't run assertions, so we can save any row/column values we want.
     """
-    super().save(*args, **kwargs)
+    # Must use the 2-arg super() form when using super() in a
+    # function defined outside of a class.
+    super(Point, self).save(*args, **kwargs)
 
 
 @skip(

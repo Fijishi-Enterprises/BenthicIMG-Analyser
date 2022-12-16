@@ -4,7 +4,7 @@
 
 
 {% block css-code %}
-<style type="text/css">
+<style>
 tr[data-status="{{ PENDING }}"] {
   background-color: #bbe;
 }
@@ -42,7 +42,7 @@ tr[data-status="{{ FAILURE }}"] {
       <th title="Unit type">Type</th>
       <th title="Progress status">Status</th>
       <th title="JSON with request details">Request JSON</th>
-      <th title="Error message">Error</th>
+      <th title="Error message or other note about the result">Detail</th>
     </tr>
   </thead>
   <tbody>
@@ -58,7 +58,7 @@ tr[data-status="{{ FAILURE }}"] {
             {% endfor %}
           </ul>
         </td>
-        <td>{{ unit.error_display }}</td>
+        <td>{{ unit.result_message }}</td>
       </tr>
     {% endfor %}
   </tbody>

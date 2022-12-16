@@ -1,7 +1,6 @@
 import copy
 import json
 import operator
-from unittest import mock
 
 from django.conf import settings
 from django.test import override_settings
@@ -10,8 +9,9 @@ from rest_framework import status
 
 from api_core.models import ApiJob, ApiJobUnit
 from api_core.tests.utils import BaseAPIPermissionTest
-from vision_backend.tasks import collect_all_jobs
-from .utils import DeployBaseTest, mocked_load_image, noop_task
+from jobs.models import Job
+from vision_backend.tasks import collect_spacer_jobs
+from .utils import DeployBaseTest
 
 
 class DeployResultAccessTest(BaseAPIPermissionTest):
@@ -93,12 +93,16 @@ class DeployResultAccessTest(BaseAPIPermissionTest):
             response, msg="4th request should be denied by throttling")
 
 
-@mock.patch('spacer.tasks.load_image', mocked_load_image)
 class DeployResultEndpointTest(DeployBaseTest):
     """
     Test the deploy result endpoint.
     """
-    def setUp(self):
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+
+        cls.train_classifier()
+
         images = [
             dict(
                 type='image',
@@ -116,9 +120,9 @@ class DeployResultEndpointTest(DeployBaseTest):
                         dict(row=10, column=10),
                     ])),
         ]
-        self.data = json.dumps(dict(data=images))
+        cls.data = json.dumps(dict(data=images))
 
-    def deploy(self):
+    def queue_deploy(self):
         self.client.post(self.deploy_url, self.data, **self.request_kwargs)
         job = ApiJob.objects.latest('pk')
         return job
@@ -139,71 +143,64 @@ class DeployResultEndpointTest(DeployBaseTest):
                 dict(detail="This job isn't finished yet")]),
             "Response JSON should be as expected")
 
-    @mock.patch('vision_backend.tasks.deploy.run', noop_task)
     def test_no_progress_yet(self):
-        job = self.deploy()
+        job = self.queue_deploy()
         response = self.get_job_result(job)
 
         self.assert_result_response_not_finished(response)
 
-    @mock.patch('vision_backend.tasks.deploy.run', noop_task)
     def test_some_images_in_progress(self):
-        job = self.deploy()
+        job = self.queue_deploy()
 
         # Mark one unit's status as in progress
-        job_unit = ApiJobUnit.objects.filter(
-            job=job, type='deploy').latest('pk')
-        job_unit.status = ApiJobUnit.IN_PROGRESS
-        job_unit.save()
+        job_unit = ApiJobUnit.objects.filter(parent=job).latest('pk')
+        job_unit.internal_job.status = Job.IN_PROGRESS
+        job_unit.internal_job.save()
 
         response = self.get_job_result(job)
 
         self.assert_result_response_not_finished(response)
 
-    @mock.patch('vision_backend.tasks.deploy.run', noop_task)
     def test_all_images_in_progress(self):
-        job = self.deploy()
+        job = self.queue_deploy()
 
-        job_units = ApiJobUnit.objects.filter(job=job, type='deploy')
+        job_units = ApiJobUnit.objects.filter(parent=job)
         for job_unit in job_units:
-            job_unit.status = ApiJobUnit.IN_PROGRESS
-            job_unit.save()
+            job_unit.internal_job.status = Job.IN_PROGRESS
+            job_unit.internal_job.save()
 
         response = self.get_job_result(job)
 
         self.assert_result_response_not_finished(response)
 
-    @mock.patch('vision_backend.tasks.deploy.run', noop_task)
     def test_some_images_success(self):
-        job = self.deploy()
+        job = self.queue_deploy()
 
         # Mark one unit's status as success
-        job_unit = ApiJobUnit.objects.filter(
-            job=job, type='deploy').latest('pk')
-        job_unit.status = ApiJobUnit.SUCCESS
-        job_unit.save()
+        job_unit = ApiJobUnit.objects.filter(parent=job).latest('pk')
+        job_unit.internal_job.status = Job.SUCCESS
+        job_unit.internal_job.save()
 
         response = self.get_job_result(job)
 
         self.assert_result_response_not_finished(response)
 
-    @mock.patch('vision_backend.tasks.deploy.run', noop_task)
     def test_some_images_failure(self):
-        job = self.deploy()
+        job = self.queue_deploy()
 
         # Mark one unit's status as failure
-        job_unit = ApiJobUnit.objects.filter(
-            job=job, type='deploy').latest('pk')
-        job_unit.status = ApiJobUnit.FAILURE
-        job_unit.save()
+        job_unit = ApiJobUnit.objects.filter(parent=job).latest('pk')
+        job_unit.internal_job.status = Job.FAILURE
+        job_unit.internal_job.save()
 
         response = self.get_job_result(job)
 
         self.assert_result_response_not_finished(response)
 
     def test_success(self):
-        job = self.deploy()
-        collect_all_jobs()
+        job = self.queue_deploy()
+        self.run_scheduled_jobs_including_deploy()
+        collect_spacer_jobs()
 
         response = self.get_job_result(job)
 
@@ -287,15 +284,15 @@ class DeployResultEndpointTest(DeployBaseTest):
                 point_classification_without_scores,
                 "Classifications JSON besides scores should be as expected")
 
-    @mock.patch('vision_backend.tasks.deploy.run', noop_task)
     def test_failure(self):
-        job = self.deploy()
+        job = self.queue_deploy()
 
         # Mark both units' status as done: one success, one failure.
         unit_1, unit_2 = ApiJobUnit.objects.filter(
-            job=job, type='deploy').order_by('pk')
+            parent=job).order_by('order_in_parent')
 
-        unit_1.status = ApiJobUnit.SUCCESS
+        unit_1.internal_job.status = Job.SUCCESS
+        unit_1.internal_job.save()
         classifications = [dict(
             label_id=self.labels_by_name['A'].pk, label_name='A',
             label_code='A_mycode', score=1.0)]
@@ -313,11 +310,10 @@ class DeployResultEndpointTest(DeployBaseTest):
             url='URL 1', points=points_1)
         unit_1.save()
 
-        unit_2.status = ApiJobUnit.FAILURE
-        url_2_errors = ["Classifier of id 33 does not exist."]
-        unit_2.result_json = dict(
-            url='URL 2', errors=url_2_errors)
-        unit_2.save()
+        unit_2.internal_job.status = Job.FAILURE
+        unit_2.internal_job.result_message = (
+            "Classifier of id 33 does not exist.")
+        unit_2.internal_job.save()
 
         response = self.get_job_result(job)
 
@@ -335,7 +331,10 @@ class DeployResultEndpointTest(DeployBaseTest):
                     dict(
                         type='image',
                         id='URL 2',
-                        attributes=dict(url='URL 2', errors=url_2_errors),
+                        attributes=dict(
+                            url='URL 2',
+                            errors=[
+                                "Classifier of id 33 does not exist."]),
                     ),
                 ]),
             "Response JSON should be as expected")

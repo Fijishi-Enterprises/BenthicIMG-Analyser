@@ -13,7 +13,6 @@ from django.test.utils import override_settings
 import requests
 
 from ..forms import get_one_form_error, get_one_formset_error
-from ..regtest_utils import direct_s3_read, direct_s3_write
 from .utils import (
     BasePermissionTest, BaseTest, ClientTest, sample_image_as_file)
 
@@ -114,23 +113,6 @@ class IndexTest(ClientTest):
             # Check for correct carousel image count.
             self.assertEqual(
                 len(list(response.context['carousel_images'])), 3)
-
-
-@skipIf(not settings.DEFAULT_FILE_STORAGE == 'lib.storage_backends.MediaStorageS3', "Requires S3 storage")
-class DirectS3Test(BaseTest):
-    """
-    Test the direct s3 read and write functions.
-    """
-    @classmethod
-    def setUpTestData(cls):
-        super().setUpTestData()
-
-    def test_write_and_read(self):
-        var = {'A':10, 'B':20}
-        for enc in ['json', 'pickle']:
-            direct_s3_write('testkey', enc, var)
-            var_recovered = direct_s3_read('testkey', enc)
-            self.assertEqual(var, var_recovered)
 
 
 @skipIf(not settings.DEFAULT_FILE_STORAGE == 'lib.storage_backends.MediaStorageS3', "Requires S3 storage")

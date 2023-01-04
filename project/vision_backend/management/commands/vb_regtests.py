@@ -110,10 +110,10 @@ class Command(BaseCommand):
         s = VisionBackendRegressionTest(fixture_source_id, size.upper())
 
         print("\n-> Uploading images which have manual annotations...")
-        imgs_w_anns = s.upload_images(n_with)
+        annotated_image_filepaths = s.upload_images(n_with)
         print("\n-> Adding manual annotations...")
-        for img in imgs_w_anns:
-            s.upload_anns(img)
+        for image_filepath in annotated_image_filepaths:
+            s.upload_anns(image_filepath)
 
         print("\n-> Uploading images which don't have manual annotations...")
         _ = s.upload_images(n_without)

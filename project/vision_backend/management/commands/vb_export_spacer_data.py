@@ -1,10 +1,11 @@
 import json
 import posixpath
 
-import boto
 from django.conf import settings
+from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand
 from django.db.models import F
+from storages.backends.s3boto import S3BotoStorage
 from tqdm import tqdm
 
 from annotations.models import Label, Annotation
@@ -79,8 +80,7 @@ class Command(BaseCommand):
         for ann in Annotation.objects.filter(image=image). \
             order_by('point__id'). \
                 annotate(row=F('point__row'),
-                         col=F('point__column'),
-                         label_id=F('label__pk')):
+                         col=F('point__column')):
             rowcols.append({'row': ann.row,
                             'col': ann.col,
                             'label': ann.label_id})
@@ -96,12 +96,13 @@ class Command(BaseCommand):
         self.log("Starting data export with args: [{}]\n{}".
                  format(args_str, '-'*70))
 
+        export_storage = S3BotoStorage(
+            bucket=options['bucket'], location='')
+
         # Start by exporting the label-set
-        c = boto.connect_s3(settings.AWS_ACCESS_KEY_ID,
-                            settings.AWS_SECRET_ACCESS_KEY)
-        bucket = c.get_bucket(options['bucket'])
-        label_set_key = bucket.new_key(options['name']+'/' + 'label_set.json')
-        label_set_key.set_contents_from_string(self.labelset_json)
+        export_storage.save(
+            options['name'] + '/' + 'label_set.json',
+            ContentFile(self.labelset_json))
 
         # Filter sources
         sources = Source.objects.filter()
@@ -116,9 +117,13 @@ class Command(BaseCommand):
                 source.nbr_confirmed_images))
 
             # Establish a new connection for each source.
-            c = boto.connect_s3(settings.AWS_ACCESS_KEY_ID,
-                                settings.AWS_SECRET_ACCESS_KEY)
-            bucket = c.get_bucket(options['bucket'])
+            export_storage = S3BotoStorage(
+                bucket=options['bucket'], location='')
+            # When we copy files from one bucket to another, we'll need to
+            # access the boto interface at a lower level.
+            export_bucket = export_storage.connection.get_bucket(
+                options['bucket'])
+            main_bucket_name = settings.AWS_STORAGE_BUCKET_NAME
 
             if itt < options['skip_to']:
                 self.log("Skipping...")
@@ -126,9 +131,9 @@ class Command(BaseCommand):
             source_prefix = options['name']+'/'+'s'+str(source.pk)
 
             # Export source meta
-            source_meta_key = bucket.new_key(source_prefix + '/' + 'meta.json')
-            source_meta_key.set_contents_from_string(
-                self.source_meta_json(source))
+            export_storage.save(
+                source_prefix + '/' + 'meta.json',
+                ContentFile(self.source_meta_json(source)))
 
             images_prefix = source_prefix + '/' + 'images'
 
@@ -139,14 +144,14 @@ class Command(BaseCommand):
                 image_prefix = images_prefix + '/i' + str(image.pk)
 
                 # Export image meta
-                source_meta_key = bucket.new_key(image_prefix + '.meta.json')
-                source_meta_key.set_contents_from_string(
-                    self.image_meta_json(image))
+                export_storage.save(
+                    image_prefix + '.meta.json',
+                    ContentFile(self.image_meta_json(image)))
 
                 # Export image annotations
-                source_meta_key = bucket.new_key(image_prefix + '.anns.json')
-                source_meta_key.set_contents_from_string(
-                    self.image_annotations_json(image))
+                export_storage.save(
+                    image_prefix + '.anns.json',
+                    ContentFile(self.image_annotations_json(image)))
 
                 # Set image source and target keys.
                 source_image_key = posixpath.join(settings.AWS_LOCATION,
@@ -158,16 +163,20 @@ class Command(BaseCommand):
 
                 # Copy feature file
                 if options['feature_level'] > 0:
-                    key = bucket.get_key(target_feature_key)
+                    key = export_bucket.get_key(target_feature_key)
                     if key is None or options['feature_level'] == 2:
                         # Nothing exported, or overwrite anyways:
-                        bucket.copy_key(target_feature_key,
-                                        settings.AWS_STORAGE_BUCKET_NAME,
-                                        source_feature_key)
+                        export_bucket.copy_key(
+                            target_feature_key,
+                            main_bucket_name,
+                            source_feature_key
+                        )
 
                 # Copy image file
-                image_key = bucket.get_key(target_image_key)
+                image_key = export_bucket.get_key(target_image_key)
                 if image_key is None:
-                    bucket.copy_key(target_image_key,
-                                    settings.AWS_STORAGE_BUCKET_NAME,
-                                    source_image_key)
+                    export_bucket.copy_key(
+                        target_image_key,
+                        main_bucket_name,
+                        source_image_key
+                    )

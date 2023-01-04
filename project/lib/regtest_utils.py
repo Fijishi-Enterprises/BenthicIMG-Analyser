@@ -10,7 +10,7 @@ from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
 from django.test.client import Client
 from django.urls import reverse
-from storages.backends.s3boto import S3BotoStorage
+from storages.backends.s3boto3 import S3Boto3Storage
 
 from images.models import Source
 from labels.models import LabelGroup, Label, LabelSet, LocalLabel
@@ -28,7 +28,7 @@ class VisionBackendRegressionTest(ClientTest):
     def __init__(self, source_id, name_suffix):
 
         self.client = Client()
-        self.regtest_storage = S3BotoStorage(
+        self.regtest_storage = S3Boto3Storage(
             bucket=settings.REGTEST_BUCKET, location='')
 
         # Get any superuser. We'll assume one exists (if it doesn't, this'll

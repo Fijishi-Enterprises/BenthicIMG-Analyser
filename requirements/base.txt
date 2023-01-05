@@ -78,17 +78,14 @@ django-reversion==3.0.9
 psycopg2-binary>=2.7.7,<2.8
 
 # Amazon Web Services SDK for Python
-# Changelog: https://github.com/boto/boto/tree/develop/docs/source/releasenotes
-#
-# There's a newer package called boto3, but the interface is completely
-# different, so it will take some effort to port it.
-boto==2.40.0
+# Changelog: https://github.com/boto/boto3/blob/develop/CHANGELOG.rst
+# 1.23.10 is the latest version that supports Python 3.6.
+boto3==1.23.10
 
-# Nicer interface for AWS S3 compared to using boto alone; also supports
+# Nicer interface for AWS S3 compared to using boto3 alone; also supports
 # many other storage systems.
 # Even if a dev machine doesn't use S3, we still want this installed to make
 # module imports work.
-# Requires: boto
 # Changelog: https://github.com/jschneier/django-storages/blob/master/CHANGELOG.rst
 django-storages==1.8
 

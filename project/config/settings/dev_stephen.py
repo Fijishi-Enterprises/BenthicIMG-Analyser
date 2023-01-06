@@ -10,6 +10,10 @@ from .storage_local import *
 # be faster.
 FORCE_DUMMY_EXTRACTOR = True
 
+# By default, huey runs tasks immediately if DEBUG is True, and doesn't if
+# False. Can override that behavior here.
+# HUEY['immediate'] = False
+
 # Needed for regtests.
 # ALLOWED_HOSTS = ['127.0.0.1', 'testserver', 'localhost']
 
@@ -19,8 +23,7 @@ AWS_SECRET_ACCESS_KEY = get_secret('AWS_SECRET_ACCESS_KEY')
 os.environ['SPACER_AWS_ACCESS_KEY_ID'] = AWS_ACCESS_KEY_ID
 os.environ['SPACER_AWS_SECRET_ACCESS_KEY'] = AWS_SECRET_ACCESS_KEY
 
-# Options for regtests. BatchQueue needs storage_s3 as well.
-# CELERY_ALWAYS_EAGER = True
+# Option for regtests. BatchQueue needs storage_s3 as well.
 # SPACER_QUEUE_CHOICE = 'vision_backend.queues.BatchQueue'
 
 MAP_IMAGE_COUNT_TIERS = [5, 20, 50]

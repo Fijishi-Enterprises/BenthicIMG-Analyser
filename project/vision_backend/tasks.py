@@ -2,11 +2,10 @@ from datetime import timedelta
 import logging
 import random
 
-from celery.decorators import task, periodic_task
 from django.conf import settings
 from django.core.files.storage import get_storage_class
 from django.db import IntegrityError
-from django.utils.timezone import now
+from huey import crontab
 from spacer.messages import \
     ExtractFeaturesMsg, \
     TrainClassifierMsg, \
@@ -32,12 +31,7 @@ from .utils import queue_source_check, reset_features
 logger = logging.getLogger(__name__)
 
 
-@periodic_task(
-    run_every=timedelta(hours=24),
-    name="Check All Sources",
-    ignore_result=True,
-)
-@full_job()
+@full_job(schedule=crontab(hour=0, minute=0))
 def check_all_sources():
     for source in Source.objects.filter():
         # Queue a check of this source at a random time in the next 4 hours.
@@ -46,7 +40,6 @@ def check_all_sources():
             source.pk, delay=timedelta(seconds=delay_in_seconds))
 
 
-@task(name="Check Source")
 @job_runner()
 def check_source(source_id):
     """
@@ -146,7 +139,6 @@ def check_source(source_id):
     return f"Source seems to be all caught up. {reason}"
 
 
-@task(name="Submit Features")
 @job_starter(job_name='extract_features')
 def submit_features(image_id, job_id):
     """ Submits a feature extraction job. """
@@ -182,7 +174,6 @@ def submit_features(image_id, job_id):
     return msg
 
 
-@task(name="Submit Classifier")
 @job_starter(job_name='train_classifier')
 def submit_classifier(source_id, job_id):
     """ Submits a classifier training job. """
@@ -258,7 +249,6 @@ def submit_classifier(source_id, job_id):
     return msg
 
 
-@task(name="Deploy")
 @job_starter(job_name='classify_image')
 def deploy(api_job_id, api_unit_order, job_id):
     """ Submits a deploy job. """
@@ -306,7 +296,6 @@ def deploy(api_job_id, api_unit_order, job_id):
     return msg
 
 
-@task(name="Classify Image")
 @job_runner(job_name='classify_features')
 def classify_image(image_id):
     """ Executes a classify_image job. """
@@ -366,12 +355,7 @@ def classify_image(image_id):
     return f"Used classifier {classifier.pk}"
 
 
-@periodic_task(
-    run_every=timedelta(minutes=3),
-    name='collect_spacer_jobs',
-    ignore_result=True,
-)
-@full_job()
+@full_job(schedule=crontab(minute='*/3'))
 def collect_spacer_jobs():
     """
     Collects and handles spacer job results until the result queue is empty.
@@ -391,20 +375,21 @@ def collect_spacer_jobs():
     return f"Job count: {counts_str or '0'}"
 
 
-@task(name="Reset Source")
+@job_runner()
 def reset_backend_for_source(source_id):
     """
     Removes all traces of the backend for this source, including
     classifiers and features.
     """
-    reset_classifiers_for_source.apply_async(
-        args=[source_id], eta=now() + timedelta(seconds=10))
+    queue_job(
+        'reset_classifiers_for_source', source_id,
+        source_id=source_id)
 
     for image in Image.objects.filter(source_id=source_id):
         reset_features(image)
 
 
-@task(name="Reset Classifiers")
+@job_runner()
 def reset_classifiers_for_source(source_id):
     """
     Removes all traces of the classifiers for this source, including:

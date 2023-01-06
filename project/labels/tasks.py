@@ -1,13 +1,10 @@
-from datetime import timedelta
+from huey import crontab
 
-from celery.decorators import periodic_task
-
+from jobs.utils import full_job
 from .models import Label
 
 
-@periodic_task(
-    run_every=timedelta(days=7), name='Update Label Popularities',
-    ignore_result=True)
+@full_job(schedule=crontab(day_of_week=0, hour=0, minute=0))
 def update_label_popularities():
     for label in Label.objects.all():
         label._compute_popularity()

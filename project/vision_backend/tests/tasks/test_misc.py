@@ -7,13 +7,10 @@ from annotations.models import Annotation
 from images.models import Image
 from jobs.models import Job
 from jobs.tasks import run_scheduled_jobs_until_empty
+from jobs.utils import queue_job
 from lib.tests.utils import BaseTest
 from ...models import Score, Classifier
-from ...tasks import (
-    collect_spacer_jobs,
-    reset_backend_for_source,
-    reset_classifiers_for_source,
-)
+from ...tasks import collect_spacer_jobs
 from .utils import BaseTaskTest
 
 
@@ -40,7 +37,10 @@ class ResetTaskTest(BaseTaskTest):
             "img should have annotations")
 
         # Reset classifiers
-        reset_classifiers_for_source(self.source.pk)
+        queue_job(
+            'reset_classifiers_for_source', self.source.pk,
+            source_id=self.source.pk)
+        run_scheduled_jobs_until_empty()
 
         # Verify that classifier-related objects were cleared, but not features
 
@@ -104,7 +104,10 @@ class ResetTaskTest(BaseTaskTest):
             "img should have annotations")
 
         # Reset backend
-        reset_backend_for_source(self.source.pk)
+        queue_job(
+            'reset_backend_for_source', self.source.pk,
+            source_id=self.source.pk)
+        run_scheduled_jobs_until_empty()
 
         # Verify that backend objects were cleared
 

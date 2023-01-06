@@ -24,34 +24,34 @@ class Command(BaseCommand):
         Run vision backend regression tests. Depending on your config
         you can run this reg-test in several modes:
         ## Local eager
-        This is the simplest setting. Local backend, no celery and local queue.
+        This is the simplest setting. Local backend, sync tasks, local queue.
         ```
-        CELERY_ALWAYS_EAGER = True
+        HUEY['immediate'] = True
         SPACER_QUEUE_CHOICE = 'vision_backend.queues.LocalQueue'
         from .storage_local import *
         ```
         
-        ## Local celery
+        ## Local async
         Here everything is still local, but jobs are executed asynchronously 
-        using celery. Make sure the celery worker is running before starting 
-        the test: `celery -A config worker`.
+        using huey. Make sure the huey consumer is running before starting 
+        the test: `python manage.py run_huey`.
         ```
-        CELERY_ALWAYS_EAGER = False
+        HUEY['immediate'] = False
         SPACER_QUEUE_CHOICE = 'vision_backend.queues.LocalQueue'
         from .storage_local import *
         ```
         
-        ## S3 celery
-        Still using the LocalQueue and celery, but storage is now on S3. 
+        ## S3 async
+        Still using the LocalQueue and async tasks, but storage is now on S3. 
         ```
-        CELERY_ALWAYS_EAGER = False
+        HUEY['immediate'] = False
         SPACER_QUEUE_CHOICE = 'vision_backend.queues.LocalQueue'
         from .storage_s3 import *.
         ```
         ## AWS ECS cluster. 
         This uses the AWS Batch to process the jobs. 
         ```
-        CELERY_ALWAYS_EAGER = False
+        HUEY['immediate'] = False
         SPACER_QUEUE_CHOICE = 'vision_backend.queues.BatchQueue'
         from .storage_s3 import *
         ```
@@ -59,7 +59,7 @@ class Command(BaseCommand):
         Etc. etc. Most combinations work. The only requirement is that if you 
         use the `BatchQueue` you need to use the `storage_s3` setting. 
         
-        NOTE1: 
+        NOTE: 
         If you use `.storage_local` you need to add these lines to your 
         personal dev_settings to allow access to fixtures and spacer models 
         from s3.
@@ -69,13 +69,6 @@ class Command(BaseCommand):
         os.environ['SPACER_AWS_ACCESS_KEY_ID'] = AWS_ACCESS_KEY_ID
         os.environ['SPACER_AWS_SECRET_ACCESS_KEY'] = AWS_SECRET_ACCESS_KEY
         ```
-                
-        NOTE2: 
-        Sometimes using `CELERY_ALWAYS_EAGER = True`
-        together with `from .storage_s3 import *` fails. 
-        This is likely due to the feature extraction jobs being 
-        submitted before the images are done uploading. 
-        Use CELERY_ALWAYS_EAGER = False if this is a problem.
         '''
 
     def create_parser(self, *args, **kwargs):

@@ -24,7 +24,7 @@ class RunScheduledJobsTest(BaseTest):
     def test_no_multiple_runs(self):
         """
         Should block multiple existing runs of this task. That way, no job
-        looped through in this task can get started in celery multiple times.
+        looped through in this task can get started in huey multiple times.
         """
         with patch_logger('jobs.utils', 'debug') as log_messages:
 

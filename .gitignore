@@ -20,9 +20,6 @@ docs/_templates
 # Redis dumps
 *.rdb
 
-# Celery stuff
-*.pid
-
 # Database stuff
 coralnet_sqlite_database
 *.db

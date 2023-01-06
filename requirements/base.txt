@@ -74,7 +74,7 @@ django-reversion==3.0.9
 # https://github.com/psycopg/psycopg2-wheels/pull/8/files
 # All things considered, we'll use the binary in all environments for
 # simplicity of installation. However, if we encounter any segfaults
-# in celery workers, we should revisit this.
+# in huey workers, we should revisit this.
 psycopg2-binary>=2.7.7,<2.8
 
 # Amazon Web Services SDK for Python
@@ -129,19 +129,18 @@ unipath==1.1
 # https://selenium-python.readthedocs.io/installation.html#drivers
 selenium==3.141.0
 
-# Async job tools
-# Celery changelog: http://docs.celeryproject.org/en/latest/changelog.html
-# (Change the bottom-right version widget to a previous Celery version to see
-# change notes for that version.)
-# Redis changelog: https://github.com/andymccurdy/redis-py/blob/master/CHANGES
-amqp==1.4.9
-anyjson==0.3.3
-billiard==3.3.0.23
-celery==3.1.23
-kombu==3.0.35
-redis==2.10.5
+# Python interface to Redis, an in-memory data store which can be a
+# message broker among other things.
+# Changelog: https://github.com/redis/redis-py/releases
+# Redis 4.4 drops Python 3.6.
+redis>=4.3.5,<4.4
 
-# Supervisord to manage celery.
+# Asynchronous tasks.
+# Changelog: https://github.com/coleifer/huey/blob/master/CHANGELOG.md
+# Requires: redis
+huey>=2.4.4,<2.5
+
+# Process management. Doesn't run on Windows.
 # Changelog: https://github.com/Supervisor/supervisor/blob/master/CHANGES.rst
 supervisor>=4.1.0,<4.2
 

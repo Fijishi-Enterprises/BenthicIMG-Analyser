@@ -1,17 +1,14 @@
 from datetime import timedelta
+
 from django.conf import settings
 from django.utils import timezone
+from huey import crontab
 
-from celery.decorators import periodic_task
-
+from jobs.utils import full_job
 from .models import ApiJob
 
 
-@periodic_task(
-    run_every=timedelta(days=1),
-    name="Clean up old API jobs",
-    ignore_result=True,
-)
+@full_job(schedule=crontab(hour=0, minute=0))
 def clean_up_old_api_jobs():
     """
     Clean up API jobs that satisfy both of these criteria:

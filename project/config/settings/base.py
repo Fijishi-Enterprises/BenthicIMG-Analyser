@@ -212,6 +212,7 @@ INSTALLED_APPS = [
 
     'easy_thumbnails',
     'guardian',
+    'huey.contrib.djhuey',
     'markdownx',
     # REST API
     'rest_framework',
@@ -574,13 +575,12 @@ if has_secrets:
 else:
     GOOGLE_ANALYTICS_CODE = ""
 
-# Celery
-BROKER_URL = 'redis://localhost:6379'
-BROKER_TRANSPORT = 'redis'
-CELERYD_CONCURRENCY = 2
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
+# huey, for asynchronous tasks
+# https://huey.readthedocs.io/en/latest/django.html#setting-things-up
+HUEY = {
+    # Don't store return values of tasks.
+    'results': False,
+}
 
 # LOG
 LOGGING = {

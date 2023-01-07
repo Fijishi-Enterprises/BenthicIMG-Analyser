@@ -24,7 +24,7 @@ def overall_dashboard(request):
     # check_source jobs generally clutter the dashboard more than they provide
     # useful info.
     jobs = Job.objects.exclude(
-        job_name='check_source').order_by('-modify_date')
+        job_name='check_source').order_by('-modify_date', '-id')
 
     COMPLETED_DAYS_SHOWN = 3
     in_progress_jobs = jobs.filter(status=Job.IN_PROGRESS)
@@ -96,7 +96,7 @@ def source_dashboard(request, source_id):
                 output_field=IntegerField(),
             )
         )
-        .order_by('status_score', '-modify_date')
+        .order_by('status_score', '-modify_date', '-id')
     )
 
     page_jobs = paginate(
@@ -175,7 +175,7 @@ def non_source_dashboard(request):
                 output_field=IntegerField(),
             )
         )
-        .order_by('status_score', '-modify_date')
+        .order_by('status_score', '-modify_date', '-id')
     )
 
     page_jobs = paginate(

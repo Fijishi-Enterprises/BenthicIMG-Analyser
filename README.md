@@ -13,6 +13,8 @@ CoralNet's machine-learning processes are powered by PySpacer: https://github.co
 
 ## Building and viewing the documentation
 
+You can browse the docs right in the GitHub repo under `/docs`, but GitHub doesn't support some of the ReStructured Text links. The build will get everything working: 
+
 - Download or `git clone` this repository's code.
 - Install Python and Sphinx. You can do this by either following the installation steps (`docs/installation.rst` in this repo) until Sphinx is installed, or you can use some other Python environment which already has Sphinx installed.
 - Open a terminal/command line, cd to the `docs` directory, and run `make html`. (This command is cross platform, since there's a ``Makefile`` as well as a ``make.bat``.)

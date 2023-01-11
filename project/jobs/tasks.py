@@ -5,6 +5,7 @@ from django.conf import settings
 from django.core.mail import mail_admins
 from django.utils import timezone
 from huey import crontab
+from huey.contrib.djhuey import HUEY
 
 from vision_backend.tasks import (
     check_source,
@@ -38,9 +39,9 @@ job_starter_tasks = {
 
 def get_scheduled_jobs():
     jobs = Job.objects.filter(status=Job.PENDING)
-    # We're repurposing this huey setting to determine whether to run
-    # pending jobs immediately.
-    if not settings.HUEY['immediate']:
+    # We'll run any pending jobs immediately if huey is configured to act
+    # similarly.
+    if not HUEY.immediate:
         jobs = jobs.filter(scheduled_start_date__lt=timezone.now())
     return jobs
 

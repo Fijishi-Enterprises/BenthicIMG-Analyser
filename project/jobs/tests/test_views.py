@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from bs4 import BeautifulSoup
+from django.template.defaultfilters import date as date_template_filter
 from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -479,8 +480,12 @@ class SourceDashboardTest(ClientTest, HtmlTestMixin):
 
         # Most recent completed source check
         response = self.client.get(self.source_url)
-        self.assertContains(
-            response, '<em>Latest source check result:</em> Message 2')
+        date = date_template_filter(
+            timezone.localtime(job.modify_date), 'N j, Y, P')
+        self.assertInHTML(
+            f'<em>Latest source check result:</em>'
+            f' Message 2 ({date})',
+            response.content.decode())
 
 
 class NonSourceDashboardTest(ClientTest, HtmlTestMixin):

@@ -242,9 +242,12 @@ class FullJobDecorator(JobDecorator):
             result_message = str(e)
         except Exception as e:
             # Non-JobError, likely needs fixing:
-            # report it like a server error
-            result_message = str(e)
+            # report it like a server error.
             self.report_task_error(task_func)
+            # Include the error class name, since some error types' messages
+            # don't have enough context otherwise (e.g. a KeyError's message
+            # is just the key that was tried).
+            result_message = f'{type(e).__name__}: {e}'
         finally:
             # Regardless of error or not, mark job as done
             finish_job(job, success=success, result_message=result_message)
@@ -275,9 +278,9 @@ class JobRunnerDecorator(JobDecorator):
             result_message = str(e)
         except Exception as e:
             # Non-JobError, likely needs fixing:
-            # report it like a server error
-            result_message = str(e)
+            # report it like a server error.
             self.report_task_error(task_func)
+            result_message = f'{type(e).__name__}: {e}'
         finally:
             # Regardless of error or not, mark job as done
             finish_job(job, success=success, result_message=result_message)
@@ -309,7 +312,8 @@ class JobStarterDecorator(JobDecorator):
             # Non-JobError, likely needs fixing:
             # job is considered done, and report it like a server error
             self.report_task_error(task_func)
-            finish_job(job, success=False, result_message=str(e))
+            result_message = f'{type(e).__name__}: {e}'
+            finish_job(job, success=False, result_message=result_message)
 
 
 job_starter = JobStarterDecorator

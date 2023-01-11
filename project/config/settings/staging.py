@@ -19,4 +19,4 @@ SITE_DOMAIN = 'ec2-35-162-62-60.us-west-2.compute.amazonaws.com'
 ALLOWED_HOSTS = [SITE_DOMAIN]
 
 # Configure the AWS Batch queue name to use
-BATCH_QUEUE = 'staging'
+BATCH_QUEUE = 'shakeout'

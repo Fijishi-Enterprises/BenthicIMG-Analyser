@@ -2,13 +2,13 @@ from lib.tests.utils import ManagementCommandTest
 from ..models import Job
 
 
-class DeleteJobTest(ManagementCommandTest):
+class AbortJobTest(ManagementCommandTest):
 
     @classmethod
     def setUpTestData(cls):
         super().setUpTestData()
 
-    def test_delete(self):
+    def test_abort(self):
         job_1 = Job(job_name='1')
         job_1.save()
         job_2 = Job(job_name='2')
@@ -17,14 +17,21 @@ class DeleteJobTest(ManagementCommandTest):
         job_3.save()
 
         stdout_text, _ = self.call_command_and_get_output(
-            'jobs', 'delete_job', args=[job_1.pk, job_3.pk])
+            'jobs', 'abort_job', args=[job_1.pk, job_3.pk])
         self.assertIn(
-            f"The 2 specified Job(s) have been deleted.",
+            f"The 2 specified Job(s) have been aborted.",
             stdout_text)
 
-        job_names = {
-            job.job_name for job in Job.objects.all()
+        job_details = {
+            (job.job_name, job.status, job.result_message)
+            for job in Job.objects.all()
         }
         self.assertSetEqual(
-            job_names, {'2'}, "Only job 2 should remain",
+            job_details,
+            {
+                ('1', Job.FAILURE, "Aborted manually"),
+                ('2', Job.PENDING, ""),
+                ('3', Job.FAILURE, "Aborted manually"),
+            },
+            "Only jobs 1 and 3 should have been aborted",
         )

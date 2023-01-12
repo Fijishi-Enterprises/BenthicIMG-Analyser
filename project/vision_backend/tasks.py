@@ -31,7 +31,9 @@ from .utils import queue_source_check, reset_features
 logger = logging.getLogger(__name__)
 
 
-@full_job(schedule=crontab(hour=0, minute=0))
+# Run daily, and not at prime times of biggest users (e.g. US East, Hawaii,
+# Australia). The hour/minute defined here are for UTC.
+@full_job(schedule=crontab(hour=7, minute=0))
 def check_all_sources():
     for source in Source.objects.filter():
         # Queue a check of this source at a random time in the next 4 hours.

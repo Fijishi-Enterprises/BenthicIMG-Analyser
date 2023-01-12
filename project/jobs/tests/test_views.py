@@ -462,10 +462,18 @@ class SourceDashboardTest(ClientTest, HtmlTestMixin):
         self.assertContains(
             response, "This source hasn't been status-checked recently.")
 
-        # Add source check jobs for the source
+        # In progress
         job = queue_job(
             'check_source', self.source.pk, source_id=self.source.pk,
-            initial_status=Job.SUCCESS)
+            initial_status=Job.IN_PROGRESS)
+        job.save()
+        response = self.client.get(self.source_url)
+        self.assertContains(
+            response,
+            "This source is currently being checked for jobs to queue.")
+
+        # Completed checks
+        job.status = Job.SUCCESS
         job.result_message = "Message 1"
         job.save()
         job = queue_job(
@@ -473,12 +481,7 @@ class SourceDashboardTest(ClientTest, HtmlTestMixin):
             initial_status=Job.SUCCESS)
         job.result_message = "Message 2"
         job.save()
-        job = queue_job(
-            'check_source', self.source.pk, source_id=self.source.pk,
-            initial_status=Job.IN_PROGRESS)
-        job.save()
-
-        # Most recent completed source check
+        # Should show the most recent completed source check
         response = self.client.get(self.source_url)
         date = date_template_filter(
             timezone.localtime(job.modify_date), 'N j, Y, P')

@@ -142,18 +142,22 @@ def source_dashboard(request, source_id):
         job_table.append(table_entry)
 
     try:
-        latest_completed_check = source.job_set.filter(
+        latest_check = source.job_set.filter(
             job_name='check_source',
-            status__in=[Job.SUCCESS, Job.FAILURE]).latest('pk')
+            status__in=[Job.SUCCESS, Job.FAILURE, Job.IN_PROGRESS]
+        ).latest('pk')
+        check_in_progress = (latest_check.status == Job.IN_PROGRESS)
     except Job.DoesNotExist:
-        latest_completed_check = None
+        latest_check = None
+        check_in_progress = False
 
     return render(request, 'jobs/source_dashboard.html', {
         'source': source,
         'job_table': job_table,
         'page_results': page_jobs,
         'job_max_days': settings.JOB_MAX_DAYS,
-        'latest_completed_check': latest_completed_check,
+        'latest_check': latest_check,
+        'check_in_progress': check_in_progress,
     })
 
 

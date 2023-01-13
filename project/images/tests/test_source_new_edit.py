@@ -1,11 +1,10 @@
-from unittest import mock
-
 from django.urls import reverse
 from django.utils import timezone
 
 from annotations.model_utils import AnnotationAreaUtils
 from images.model_utils import PointGen
 from images.models import Source
+from jobs.models import Job
 from lib.tests.utils import BasePermissionTest, ClientTest
 from vision_backend.tests.tasks.utils import BaseTaskTest
 
@@ -647,12 +646,12 @@ class SourceEditBackendStatusTest(BaseTaskTest):
         edit_kwargs['feature_extractor_setting'] = 'vgg16_coralnet_ver1'
         self.client.force_login(self.user)
 
-        with mock.patch('vision_backend.tasks.reset_backend_for_source.run') \
-                as mock_method:
-            # Edit source with changed extractor setting
-            response = self.client.post(self.url, edit_kwargs, follow=True)
-            # Assert that the task was called
-            mock_method.assert_called()
+        # Edit source with changed extractor setting
+        response = self.client.post(self.url, edit_kwargs, follow=True)
+        self.assertTrue(
+            Job.objects.filter(
+                job_name='reset_backend_for_source').exists(),
+            msg="Reset job should be queued")
 
         self.assertContains(
             response,
@@ -664,12 +663,12 @@ class SourceEditBackendStatusTest(BaseTaskTest):
         edit_kwargs['feature_extractor_setting'] = 'efficientnet_b0_ver1'
         self.client.force_login(self.user)
 
-        with mock.patch('vision_backend.tasks.reset_backend_for_source.run') \
-                as mock_method:
-            # Edit source with same extractor setting
-            response = self.client.post(self.url, edit_kwargs, follow=True)
-            # Assert that the task was NOT called
-            mock_method.assert_not_called()
+        # Edit source with same extractor setting
+        response = self.client.post(self.url, edit_kwargs, follow=True)
+        self.assertFalse(
+            Job.objects.filter(
+                job_name='reset_backend_for_source').exists(),
+            msg="Reset job should not be queued")
 
         self.assertContains(
             response, "Source successfully edited.",

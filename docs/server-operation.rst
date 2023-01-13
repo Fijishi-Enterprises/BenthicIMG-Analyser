@@ -69,18 +69,12 @@ Run this as a ``.bat`` file:
   rem Start the PostgreSQL service (this does nothing if it's already started)
   net start postgresql-x64-<version number>
 
-  rem Start celery.
-  rem /B runs a command asynchronously and without an extra command window,
+  rem Start huey.
+  rem call runs another batch file and then returns control to this batch file.
+  rem start /B runs a command asynchronously and without an extra command window,
   rem similarly to & in Linux.
-  <path to virtualenv>\Scripts\activate.bat
-  start /B celery -A config worker
-
-  rem If this file exists, it could interfere with celerybeat starting up.
-  del <path up to Git repo>\coralnet\project\celerybeat.pid
-
-  rem Start celery beat. Could consider commenting this out if you don't
-  rem need to submit spacer jobs.
-  start /B celery -A config beat
+  call <path to virtualenv>\Scripts\activate.bat
+  start /B python manage.py run_huey
 
   rem Open a new command window with the virtualenv activated.
   rem Call opens a new command window, cmd /k ensures it waits for input
@@ -107,13 +101,7 @@ make sure messaging agent is running
   redis-server
 start worker
 ::
-  celery -A config worker
-(optionally) also start beat which runs scheduled tasks
-::
-  celery -A config beat
-(optionally) also run the celery task viewer:
-::
-  celery flower -A config
+  python manage.py run_huey
 
 
 Checking test coverage

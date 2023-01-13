@@ -4,6 +4,7 @@ from django.utils.html import escape
 
 from calcification.models import CalcifyRateTable
 from images.model_utils import PointGen
+from jobs.tasks import run_scheduled_jobs_until_empty
 from lib.tests.utils import BasePermissionTest
 from ..models import Label
 from .utils import LabelTest
@@ -311,13 +312,16 @@ class LabelsetAddRemoveTest(LabelTest):
             Label.objects.get(default_code=default_code).pk
             for default_code in ['B', 'C']
         ]
+
         self.client.force_login(self.user)
-        # The backend-reset task should run synchronously here.
         response = self.client.post(
             self.url,
             dict(label_ids=','.join(str(pk) for pk in label_pks)),
             follow=True,
         )
+        # Let the backend-reset run
+        run_scheduled_jobs_until_empty()
+
         self.assertContains(
             response, "Labelset successfully changed.",
             msg_prefix="Form submission should succeed")

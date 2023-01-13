@@ -56,7 +56,3 @@ BATCH_QUEUE = 'shakeout'
 # count to 0 and set pool to [].
 CAROUSEL_IMAGE_COUNT = 0
 CAROUSEL_IMAGE_POOL = []
-
-
-# Change to using only 1 worker here for more predictable results.
-CELERYD_CONCURRENCY = 1

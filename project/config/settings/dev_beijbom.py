@@ -5,7 +5,9 @@ ALLOWED_HOSTS = ['127.0.0.1', 'testserver', 'localhost']
 SPACER_QUEUE_CHOICE = 'vision_backend.queues.LocalQueue'
 #SPACER_QUEUE_CHOICE = 'vision_backend.queues.BatchQueue'
 
-CELERY_ALWAYS_EAGER = True
+# By default, huey runs tasks immediately if DEBUG is True, and doesn't if
+# False. Can override that behavior here.
+# HUEY['immediate'] = False
 
 AWS_ACCESS_KEY_ID = get_secret('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = get_secret('AWS_SECRET_ACCESS_KEY')

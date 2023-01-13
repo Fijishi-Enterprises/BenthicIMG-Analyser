@@ -166,7 +166,7 @@ def queue_source_check(source_id, delay=None):
     decide what needs to be run in what order.
 
     Site views generally shouldn't worry about specifying a delay, since this
-    check_source Job only becomes visible to celery tasks when the view
+    check_source Job only becomes visible to huey tasks when the view
     finishes its transaction. However, if desired, they can specify a delay.
     """
     queue_job(

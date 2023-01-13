@@ -193,7 +193,7 @@ class JobDecoratorTest(BaseTest, ErrorReportTestMixin):
         job = Job.objects.latest('pk')
 
         self.assertEqual(job.status, Job.FAILURE)
-        self.assertEqual(job.result_message, "A ValueError")
+        self.assertEqual(job.result_message, "ValueError: A ValueError")
 
         self.assert_error_log_saved(
             "ValueError",
@@ -233,7 +233,7 @@ class JobDecoratorTest(BaseTest, ErrorReportTestMixin):
         job.refresh_from_db()
 
         self.assertEqual(job.status, Job.FAILURE)
-        self.assertEqual(job.result_message, "A ValueError")
+        self.assertEqual(job.result_message, "ValueError: A ValueError")
 
         self.assert_error_log_saved(
             "ValueError",
@@ -273,7 +273,8 @@ class JobDecoratorTest(BaseTest, ErrorReportTestMixin):
         job.refresh_from_db()
 
         self.assertEqual(job.status, Job.FAILURE)
-        self.assertEqual(job.result_message, f"A ValueError (ID: {job.pk})")
+        self.assertEqual(
+            job.result_message, f"ValueError: A ValueError (ID: {job.pk})")
 
         self.assert_error_log_saved(
             "ValueError",

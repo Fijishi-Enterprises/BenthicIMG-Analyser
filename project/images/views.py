@@ -1,5 +1,4 @@
 import datetime
-from datetime import timedelta
 from urllib.parse import urlencode
 
 from django.conf import settings
@@ -9,30 +8,29 @@ from django.contrib import messages
 from django.http import HttpResponseRedirect
 from django.shortcuts import redirect, render, get_object_or_404
 from django.urls import reverse
-from django.utils.timezone import now
 from django.views.decorators.http import require_POST
 
+from annotations.forms import AnnotationAreaPercentsForm
+from annotations.model_utils import AnnotationAreaUtils
+from annotations.models import Annotation
+from annotations.utils import (
+    get_sitewide_annotation_count,
+    image_annotation_area_is_editable,
+    image_has_any_confirmed_annotations)
+from jobs.utils import queue_job
+from labels.models import LabelGroup
+from lib.decorators import (
+    image_annotation_area_must_be_editable, image_permission_required,
+    image_visibility_required, source_permission_required,
+    source_visibility_required)
+from newsfeed.models import NewsItem
+from visualization.utils import image_search_kwargs_to_queryset
+from vision_backend.utils import reset_features
 from . import utils
 from .forms import ImageSourceForm, MetadataForm, PointGenForm, SourceChangePermissionForm, SourceInviteForm, SourceRemoveUserForm
 from .model_utils import PointGen
 from .models import Source, Image, SourceInvite, Metadata
 from .utils import get_map_sources
-from annotations.forms import AnnotationAreaPercentsForm
-from annotations.model_utils import AnnotationAreaUtils
-from annotations.utils import (
-    get_sitewide_annotation_count,
-    image_annotation_area_is_editable,
-    image_has_any_confirmed_annotations)
-from labels.models import LabelGroup
-from annotations.models import Annotation
-from newsfeed.models import NewsItem
-from lib.decorators import (
-    image_annotation_area_must_be_editable, image_permission_required,
-    image_visibility_required, source_permission_required,
-    source_visibility_required)
-from visualization.utils import image_search_kwargs_to_queryset
-import vision_backend.tasks as backend_tasks
-from vision_backend.utils import reset_features
 
 
 def source_list(request):
@@ -261,8 +259,9 @@ def source_edit(request, source_id):
                 # Feature extractor setting changed. Wipe this source's
                 # features and classifiers.
                 editedSource.save()
-                backend_tasks.reset_backend_for_source.apply_async(
-                    args=[source_id], eta=now()+timedelta(seconds=10))
+                queue_job(
+                    'reset_backend_for_source', source_id,
+                    source_id=source_id)
                 messages.success(
                     request,
                     "Source successfully edited."

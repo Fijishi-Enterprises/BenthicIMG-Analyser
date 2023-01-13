@@ -9,6 +9,7 @@ from django.core.mail import mail_admins
 from django.db import DatabaseError, IntegrityError, transaction
 from django.utils import timezone
 from django.views.debug import ExceptionReporter
+from huey.contrib.djhuey import db_periodic_task, db_task
 
 from errorlogs.utils import instantiate_error_log
 from .exceptions import JobError
@@ -160,10 +161,31 @@ def finish_job(job, success=False, result_message=None):
 
 
 class JobDecorator:
-    def __init__(self, job_name=None):
+    def __init__(self, job_name=None, schedule=None):
+        # This can be left unspecified if the task name works as the
+        # job name.
         self.job_name = job_name
+        # This should be present if the job is to be run as a periodic task.
+        # Should be the same format as the arg to huey's db_periodic_task.
+        # If not present, then the job is a non-periodic task.
+        self.schedule = schedule
 
     def __call__(self, task_func):
+        if not self.job_name:
+            self.job_name = task_func.__name__
+        if self.schedule:
+            huey_decorator = db_periodic_task(
+                self.schedule, name=self.job_name)
+        else:
+            huey_decorator = db_task(name=self.job_name)
+
+        @huey_decorator
+        def task_wrapper(*task_args):
+            self.run_task_wrapper(task_func, task_args)
+
+        return task_wrapper
+
+    def run_task_wrapper(self, task_func, task_args):
         raise NotImplementedError
 
     @staticmethod
@@ -196,39 +218,39 @@ class FullJobDecorator(JobDecorator):
     Job is created as IN_PROGRESS at the start of the decorated task,
     and goes IN_PROGRESS -> SUCCESS/FAILURE at the end of it.
     """
-    def __call__(self, task_func):
-        def task_wrapper(*task_args):
-            job = queue_job(
-                self.job_name or task_func.__name__,
-                *task_args,
-                delay=timedelta(seconds=0),
-                initial_status=Job.IN_PROGRESS,
-                # No usages are source-specific yet.
-                source_id=None,
-            )
-            if not job:
-                return
+    def run_task_wrapper(self, task_func, task_args):
+        job = queue_job(
+            self.job_name,
+            *task_args,
+            delay=timedelta(seconds=0),
+            initial_status=Job.IN_PROGRESS,
+            # No usages are source-specific yet.
+            source_id=None,
+        )
+        if not job:
+            return
 
-            success = False
-            result_message = None
-            try:
-                # Run the task function (which isn't a celery task itself;
-                # the result of this wrapper should be registered as a
-                # celery task).
-                result_message = task_func(*task_args)
-                success = True
-            except JobError as e:
-                result_message = str(e)
-            except Exception as e:
-                # Non-JobError, likely needs fixing:
-                # report it like a server error
-                result_message = str(e)
-                self.report_task_error(task_func)
-            finally:
-                # Regardless of error or not, mark job as done
-                finish_job(job, success=success, result_message=result_message)
-
-        return task_wrapper
+        success = False
+        result_message = None
+        try:
+            # Run the task function (which isn't a huey task itself;
+            # the result of this wrapper should be registered as a
+            # huey task).
+            result_message = task_func(*task_args)
+            success = True
+        except JobError as e:
+            result_message = str(e)
+        except Exception as e:
+            # Non-JobError, likely needs fixing:
+            # report it like a server error.
+            self.report_task_error(task_func)
+            # Include the error class name, since some error types' messages
+            # don't have enough context otherwise (e.g. a KeyError's message
+            # is just the key that was tried).
+            result_message = f'{type(e).__name__}: {e}'
+        finally:
+            # Regardless of error or not, mark job as done
+            finish_job(job, success=success, result_message=result_message)
 
 
 full_job = FullJobDecorator
@@ -239,32 +261,29 @@ class JobRunnerDecorator(JobDecorator):
     Job status goes PENDING -> IN_PROGRESS at the start of the
     decorated task, and IN_PROGRESS -> SUCCESS/FAILURE at the end of it.
     """
-    def __call__(self, task_func):
-        def task_wrapper(*task_args):
-            job = start_pending_job(
-                job_name=self.job_name or task_func.__name__,
-                arg_identifier=Job.args_to_identifier(task_args),
-            )
-            if not job:
-                return
+    def run_task_wrapper(self, task_func, task_args):
+        job = start_pending_job(
+            job_name=self.job_name,
+            arg_identifier=Job.args_to_identifier(task_args),
+        )
+        if not job:
+            return
 
-            success = False
-            result_message = None
-            try:
-                result_message = task_func(*task_args)
-                success = True
-            except JobError as e:
-                result_message = str(e)
-            except Exception as e:
-                # Non-JobError, likely needs fixing:
-                # report it like a server error
-                result_message = str(e)
-                self.report_task_error(task_func)
-            finally:
-                # Regardless of error or not, mark job as done
-                finish_job(job, success=success, result_message=result_message)
-
-        return task_wrapper
+        success = False
+        result_message = None
+        try:
+            result_message = task_func(*task_args)
+            success = True
+        except JobError as e:
+            result_message = str(e)
+        except Exception as e:
+            # Non-JobError, likely needs fixing:
+            # report it like a server error.
+            self.report_task_error(task_func)
+            result_message = f'{type(e).__name__}: {e}'
+        finally:
+            # Regardless of error or not, mark job as done
+            finish_job(job, success=success, result_message=result_message)
 
 
 job_runner = JobRunnerDecorator
@@ -276,27 +295,25 @@ class JobStarterDecorator(JobDecorator):
     decorated task. No update is made at the end of the task
     (unless there's an error).
     """
-    def __call__(self, task_func):
-        def task_wrapper(*task_args):
-            job = start_pending_job(
-                job_name=self.job_name or task_func.__name__,
-                arg_identifier=Job.args_to_identifier(task_args),
-            )
-            if not job:
-                return
+    def run_task_wrapper(self, task_func, task_args):
+        job = start_pending_job(
+            job_name=self.job_name,
+            arg_identifier=Job.args_to_identifier(task_args),
+        )
+        if not job:
+            return
 
-            try:
-                task_func(*task_args, job_id=job.pk)
-            except JobError as e:
-                # JobError: job is considered done
-                finish_job(job, success=False, result_message=str(e))
-            except Exception as e:
-                # Non-JobError, likely needs fixing:
-                # job is considered done, and report it like a server error
-                self.report_task_error(task_func)
-                finish_job(job, success=False, result_message=str(e))
-
-        return task_wrapper
+        try:
+            task_func(*task_args, job_id=job.pk)
+        except JobError as e:
+            # JobError: job is considered done
+            finish_job(job, success=False, result_message=str(e))
+        except Exception as e:
+            # Non-JobError, likely needs fixing:
+            # job is considered done, and report it like a server error
+            self.report_task_error(task_func)
+            result_message = f'{type(e).__name__}: {e}'
+            finish_job(job, success=False, result_message=result_message)
 
 
 job_starter = JobStarterDecorator

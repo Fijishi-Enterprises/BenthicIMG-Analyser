@@ -72,10 +72,14 @@ test_settings['CACHES'] = {
     }
 }
 
-# Bypass the .delay() call to make the tasks run synchronously. 
-# This is needed since the celery agent runs in a different 
-# context (e.g. Database)
-test_settings['CELERY_ALWAYS_EAGER'] = True
+test_settings['HUEY'] = {
+    # This is the same as usual.
+    'results': False,
+    # Make tasks run synchronously. This is needed since the
+    # huey consumer would run in a separate process, meaning it
+    # wouldn't see the state of the current test's open DB-transaction.
+    'immediate': True,
+}
 # Also force spacer jobs to use the dummy extractor.
 # Otherwise tests will run slow.
 test_settings['FORCE_DUMMY_EXTRACTOR'] = True

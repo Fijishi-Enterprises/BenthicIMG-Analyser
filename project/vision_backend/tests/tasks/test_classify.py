@@ -12,10 +12,9 @@ from images.models import Point
 from jobs.models import Job
 from jobs.tasks import run_scheduled_jobs, run_scheduled_jobs_until_empty
 from jobs.tests.utils import JobUtilsMixin
-from vision_backend.models import Score
-from vision_backend.tasks import (
-    collect_spacer_jobs, reset_classifiers_for_source)
-from vision_backend.utils import clear_features, queue_source_check
+from ...models import Score
+from ...tasks import collect_spacer_jobs
+from ...utils import clear_features, queue_source_check
 from .utils import BaseTaskTest
 
 
@@ -416,7 +415,7 @@ class AbortCasesTest(BaseTaskTest):
         # Queue classification of img
         run_scheduled_jobs()
         # Delete source's classifier
-        reset_classifiers_for_source(self.source.pk)
+        self.source.get_latest_robot().delete()
 
         # Try to classify
         run_scheduled_jobs()
@@ -443,7 +442,7 @@ class AbortCasesTest(BaseTaskTest):
                 point, label, now_confirmed, user_or_robot_version):
             # Raise an IntegrityError on the FIRST call only. We want to get an
             # IntegrityError the first time and then do fine the second time.
-            # Due to auto-retries and CELERY_ALWAYS_EAGER, if we always raised
+            # Due to auto-retries and HUEY['immediate'], if we always raised
             # the error, we'd infinite-loop.
             if not cache.get('raised_integrity_error'):
                 cache.set('raised_integrity_error', True)

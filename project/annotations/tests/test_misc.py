@@ -46,18 +46,18 @@ class SitewideAnnotationCountTest(ClientTest):
         self.assertEqual(get_sitewide_annotation_count(), 3)
 
     def test_set_in_advance(self):
-        update_sitewide_annotation_count_task.delay()
+        update_sitewide_annotation_count_task()
         self.assertEqual(get_sitewide_annotation_count(), 3)
 
     def test_set_then_update(self):
-        update_sitewide_annotation_count_task.delay()
+        update_sitewide_annotation_count_task()
         self.assertEqual(get_sitewide_annotation_count(), 3)
         self.add_annotations(self.user, self.img, {4: 'B'})
-        update_sitewide_annotation_count_task.delay()
+        update_sitewide_annotation_count_task()
         self.assertEqual(get_sitewide_annotation_count(), 4)
 
     def test_caching(self):
-        update_sitewide_annotation_count_task.delay()
+        update_sitewide_annotation_count_task()
         self.assertEqual(get_sitewide_annotation_count(), 3)
         self.add_annotations(self.user, self.img, {4: 'B'})
         self.assertEqual(get_sitewide_annotation_count(), 3)

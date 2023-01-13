@@ -1,15 +1,12 @@
-from datetime import timedelta
-
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
-from django.utils.timezone import now
 from reversion import revisions
 from tqdm import tqdm
 
 from annotations.models import Annotation
 from images.models import Source
+from jobs.utils import queue_job
 from labels.models import Label
-from vision_backend import tasks as backend_tasks
 
 User = get_user_model()
 
@@ -97,5 +94,6 @@ class Command(BaseCommand):
         source.labelset.locallabel_set.get(global_label=old_label).delete()
 
         # Reset the classifiers for this source.
-        backend_tasks.reset_classifiers_for_source.apply_async(
-            args=[source.pk], eta=now()+timedelta(seconds=10))
+        queue_job(
+            'reset_classifiers_for_source', source.pk,
+            source_id=source.pk)

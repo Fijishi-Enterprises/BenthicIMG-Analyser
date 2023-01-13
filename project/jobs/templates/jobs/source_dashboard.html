@@ -25,8 +25,16 @@ tr.failure {
 
 <h1>Jobs</h1>
 
-{% if latest_source_check_message %}
-  <p><em>Latest source check result:</em> {{ latest_source_check_message }}</p>
+{% if latest_check %}
+  <p>
+    {% if check_in_progress %}
+      <em>This source is currently being checked for jobs to queue.</em>
+    {% else %}
+      <em>Latest source check result:</em>
+      {{ latest_check.result_message }}
+      ({{ latest_check.modify_date }})
+    {% endif %}
+  </p>
 {% else %}
   <p>This source hasn't been status-checked recently.</p>
 {% endif %}

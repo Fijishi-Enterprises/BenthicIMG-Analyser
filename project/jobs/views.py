@@ -24,7 +24,7 @@ def overall_dashboard(request):
     # check_source jobs generally clutter the dashboard more than they provide
     # useful info.
     jobs = Job.objects.exclude(
-        job_name='check_source').order_by('-modify_date')
+        job_name='check_source').order_by('-modify_date', '-id')
 
     COMPLETED_DAYS_SHOWN = 3
     in_progress_jobs = jobs.filter(status=Job.IN_PROGRESS)
@@ -96,7 +96,7 @@ def source_dashboard(request, source_id):
                 output_field=IntegerField(),
             )
         )
-        .order_by('status_score', '-modify_date')
+        .order_by('status_score', '-modify_date', '-id')
     )
 
     page_jobs = paginate(
@@ -142,19 +142,22 @@ def source_dashboard(request, source_id):
         job_table.append(table_entry)
 
     try:
-        latest_completed_check = source.job_set.filter(
+        latest_check = source.job_set.filter(
             job_name='check_source',
-            status__in=[Job.SUCCESS, Job.FAILURE]).latest('pk')
-        latest_source_check_message = latest_completed_check.result_message
+            status__in=[Job.SUCCESS, Job.FAILURE, Job.IN_PROGRESS]
+        ).latest('pk')
+        check_in_progress = (latest_check.status == Job.IN_PROGRESS)
     except Job.DoesNotExist:
-        latest_source_check_message = None
+        latest_check = None
+        check_in_progress = False
 
     return render(request, 'jobs/source_dashboard.html', {
         'source': source,
         'job_table': job_table,
         'page_results': page_jobs,
         'job_max_days': settings.JOB_MAX_DAYS,
-        'latest_source_check_message': latest_source_check_message,
+        'latest_check': latest_check,
+        'check_in_progress': check_in_progress,
     })
 
 
@@ -175,7 +178,7 @@ def non_source_dashboard(request):
                 output_field=IntegerField(),
             )
         )
-        .order_by('status_score', '-modify_date')
+        .order_by('status_score', '-modify_date', '-id')
     )
 
     page_jobs = paginate(

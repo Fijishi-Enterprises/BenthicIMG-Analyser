@@ -22,18 +22,18 @@ class UpdatePopularityTest(ClientTest):
         self.assertAlmostEqual(self.label_a.popularity, 5, places=0)
 
     def test_set_in_advance(self):
-        update_label_popularities.delay()
+        update_label_popularities()
         self.assertAlmostEqual(self.label_a.popularity, 5, places=0)
 
     def test_set_then_update(self):
-        update_label_popularities.delay()
+        update_label_popularities()
         self.assertAlmostEqual(self.label_a.popularity, 5, places=0)
         self.add_annotations(self.user, self.img, {4: 'A'})
-        update_label_popularities.delay()
+        update_label_popularities()
         self.assertAlmostEqual(self.label_a.popularity, 8, places=0)
 
     def test_caching(self):
-        update_label_popularities.delay()
+        update_label_popularities()
         self.assertAlmostEqual(self.label_a.popularity, 5, places=0)
         self.add_annotations(self.user, self.img, {4: 'A'})
         self.assertAlmostEqual(self.label_a.popularity, 5, places=0)

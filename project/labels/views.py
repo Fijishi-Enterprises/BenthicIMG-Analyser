@@ -1,5 +1,3 @@
-from datetime import timedelta
-
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -11,7 +9,6 @@ from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import render, get_object_or_404
 from django.template.loader import render_to_string
 from django.urls import reverse
-from django.utils.timezone import now
 from django.views.decorators.http import require_POST, require_GET
 
 from annotations.models import Annotation
@@ -19,6 +16,7 @@ from annotations.utils import label_ids_with_confirmed_annotations_in_source
 from calcification.utils import get_default_calcify_tables
 from images.models import Source
 from images.utils import filter_out_test_sources
+from jobs.utils import queue_job
 from lib.decorators import (
     login_required_ajax, source_permission_required,
     source_visibility_required, source_labelset_required)
@@ -26,7 +24,6 @@ from lib.exceptions import FileProcessError
 from lib.forms import get_one_formset_error, get_one_form_error
 from upload.forms import CSVImportForm
 from visualization.utils import generate_patch_if_doesnt_exist, get_patch_url
-from vision_backend import tasks as backend_tasks
 from .decorators import label_edit_permission_required
 from .forms import (
     LabelForm, LabelSearchForm, LabelSetForm, LocalLabelForm,
@@ -159,8 +156,9 @@ def labelset_add(request, source_id):
                 messages.success(request, "Labelset successfully changed.")
             
             # After changing or adding labelset, reset classifiers.
-            backend_tasks.reset_classifiers_for_source.apply_async(
-                args=[source_id], eta=now() + timedelta(seconds=10))
+            queue_job(
+                'reset_classifiers_for_source', source_id,
+                source_id=source_id)
             return HttpResponseRedirect(
                 reverse('labelset_main', args=[source.id]))
         else:

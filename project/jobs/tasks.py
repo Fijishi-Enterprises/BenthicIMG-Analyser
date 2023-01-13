@@ -111,12 +111,15 @@ def report_stuck_jobs():
     # progression was between STUCK days and STUCK+1 days ago.
     stuck_days_ago = timezone.now() - timedelta(days=STUCK)
     stuck_plus_one_days_ago = stuck_days_ago - timedelta(days=1)
-    stuck_jobs_to_report = Job.objects \
-        .filter(
+    stuck_jobs_to_report = (
+        Job.objects.filter(
             modify_date__lt=stuck_days_ago,
             modify_date__gt=stuck_plus_one_days_ago,
-        ) \
+        )
         .exclude(status__in=[Job.SUCCESS, Job.FAILURE])
+        # Oldest listed first
+        .order_by('modify_date', 'pk')
+    )
 
     if not stuck_jobs_to_report.exists():
         return

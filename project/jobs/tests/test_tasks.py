@@ -188,8 +188,8 @@ class ReportStuckJobsTest(BaseTest):
         self.assertEqual(
             "The following job(s) haven't progressed in 3 days:"
             "\n"
-            f"\n2 / 3d 1h ago"
-            f"\n3 / 3d 23h ago",
+            f"\n3 / 3d 23h ago"
+            f"\n2 / 3d 1h ago",
             sent_email.body)
 
     def test_job_selection_by_status(self):

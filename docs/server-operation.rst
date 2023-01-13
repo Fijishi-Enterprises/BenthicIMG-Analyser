@@ -6,17 +6,17 @@ Updating to the latest repository code
 --------------------------------------
 #. Get the new code from Git.
 
-   - To update the master branch, ``git pull origin master``.
+   - To update the master branch, ``git checkout master`` and ``git pull origin master``.
 
-     - Or, if you want to review changes before updating: ``git fetch origin``, ``git checkout master``, and ``git rebase origin/master``.
+   - If you have a feature branch that you want updated, checkout that branch, then ``git rebase master``.
 
-#. Check if there are any changes to requirements files. If there are any new Python packages or package updates to install, then install them: ``pip install -U -r ../requirements/<name>.txt``.
+#. Follow the instructions in coralnet's ``CHANGELOG.md`` to update from the old version to the latest version.
 
-   - If it subsequently advises you to update pip, then do so.
+   - Python packages can be installed/upgraded with ``pip install -U -r ../requirements/<name>.txt``. If it subsequently advises you to upgrade pip, then do so.
 
-#. Check changes to settings files. If there are any new secret settings to specify in ``secrets.json``, then do that.
+   - Run Django migrations with ``python manage.py migrate``.
 
-#. If there are any new Django migrations to run, then run those: ``python manage.py migrate``.
+   - If part of the update requires intermediate steps, the version tags can help. For example, do ``git pull origin 1.4``, take any steps required between 1.4 and 1.5, then do another git-pull and repeat as needed.
 
 
 Upgrading Python
@@ -51,6 +51,8 @@ Server scripts
 --------------
 
 There are a few commands that you generally need to run each time you work on CoralNet. You can put these commands in convenient shell/batch scripts to make life easier.
+
+Note that huey won't start up successfully if in immediate mode (the default for development), but it's no harm to just let it attempt to start up and get an error.
 
 
 Environment setup and services start - Windows
@@ -90,17 +92,20 @@ When you're done working, close the command windows.
 Environment setup -- Mac
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-start postgres
-::
+start postgres::
+
   postgres -D /usr/local/var/postgres/
-set environment variable
-::
+
+set environment variable::
+
   export DJANGO_SETTINGS_MODULE=config.settings.dev_beijbom
-make sure messaging agent is running
-::
+
+make sure messaging agent is running::
+
   redis-server
-start worker
-::
+
+start huey::
+
   python manage.py run_huey
 
 

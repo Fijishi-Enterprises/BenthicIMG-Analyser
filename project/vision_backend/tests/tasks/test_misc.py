@@ -44,10 +44,9 @@ class ResetTaskTest(BaseTaskTest):
 
         # Verify that classifier-related objects were cleared, but not features
 
-        self.assertRaises(
-            Classifier.DoesNotExist,
-            callableObj=Classifier.objects.get, pk=classifier_id,
-            msg="Classifier should be deleted")
+        with self.assertRaises(Classifier.DoesNotExist):
+            Classifier.objects.get(
+                pk=classifier_id, msg="Classifier should be deleted")
 
         img.features.refresh_from_db()
         self.assertTrue(img.features.extracted, "img SHOULD have features")
@@ -111,10 +110,9 @@ class ResetTaskTest(BaseTaskTest):
 
         # Verify that backend objects were cleared
 
-        self.assertRaises(
-            Classifier.DoesNotExist,
-            callableObj=Classifier.objects.get, pk=classifier_id,
-            msg="Classifier should be deleted")
+        with self.assertRaises(Classifier.DoesNotExist):
+            Classifier.objects.get(
+                pk=classifier_id, msg="Classifier should be deleted")
 
         img.features.refresh_from_db()
         self.assertFalse(img.features.extracted, "img shouldn't have features")

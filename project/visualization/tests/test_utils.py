@@ -49,12 +49,13 @@ class LabelPatchGenerationTest(ClientTest):
         except IOError as msg:
             self.fail("Error occurred during patch generation: {}".format(msg))
 
-        # Then assert the patch was actually generated and that is RGB
+        # Then assert the patch was actually generated and that it's RGB
         storage = get_storage_class()()
-        patch = PILImage.open(storage.open(get_patch_path(point_id)))
-        self.assertEqual(patch.size[0], settings.LABELPATCH_NROWS)
-        self.assertEqual(patch.size[1], settings.LABELPATCH_NCOLS)
-        self.assertEqual(patch.mode, 'RGB')
+        with storage.open(get_patch_path(point_id)) as fp:
+            patch = PILImage.open(fp)
+            self.assertEqual(patch.size[0], settings.LABELPATCH_NROWS)
+            self.assertEqual(patch.size[1], settings.LABELPATCH_NCOLS)
+            self.assertEqual(patch.mode, 'RGB')
 
     def test_rgb_convert_fix(self):
 
@@ -147,16 +148,19 @@ class PatchCropTest(ClientTest):
         with mock.patch.object(PILImage.Image, 'save', always_save_png):
             generate_patch_if_doesnt_exist(point.pk)
 
-        # Get the patch.
         storage = get_storage_class()()
-        patch = PILImage.open(storage.open(get_patch_path(point.pk)))
 
-        # The patch should have 1 red pixel in the center (to be exact, the
-        # bottom-right of the 4 center pixels), and 1 green pixel in the
-        # corner.
-        self.assertEqual(patch.size, (21, 21))
-        self.assertEqual(patch.getpixel((10, 10)), red_color)
-        self.assertEqual(patch.getpixel((0, 20)), green_color)
+        with storage.open(get_patch_path(point.pk)) as fp:
+            patch = PILImage.open(fp)
+
+            # The patch should have 1 red pixel in the center (to be exact, the
+            # bottom-right of the 4 center pixels), and 1 green pixel in the
+            # corner.
+            self.assertEqual(patch.size, (21, 21))
+            self.assertEqual(patch.getpixel((10, 10)), red_color)
+            self.assertEqual(patch.getpixel((0, 20)), green_color)
+
+            actual_colors = set(patch.getcolors())
 
         # For the other pixels, on-image pixels should be blue and off-image
         # pixels should be black (even if it's PNG for this test, since RGB
@@ -166,7 +170,7 @@ class PatchCropTest(ClientTest):
             (21*21-2 - off_image_pixel_count, blue_color)}
         if off_image_pixel_count > 0:
             expected_color_counts.add((off_image_pixel_count, black_color))
-        self.assertSetEqual(set(patch.getcolors()), expected_color_counts)
+        self.assertSetEqual(actual_colors, expected_color_counts)
 
     def test_x_greater_dimension(self):
         # For this test, we make the crop size based on the x dimension, and

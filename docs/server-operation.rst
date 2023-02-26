@@ -21,7 +21,7 @@ Updating to the latest repository code
 
 Upgrading Python
 ----------------
-If you are just upgrading the patch version (3.6.12 -> 3.6.13), you should be able to just download and install the new version, allowing it to overwrite your old version. (`Source <https://stackoverflow.com/a/17954487/>`__)
+If you are just upgrading the patch version (3.8.0 -> 3.8.1), you should be able to just download and install the new version, allowing it to overwrite your old version. (`Source <https://stackoverflow.com/a/17954487/>`__)
 
 - If using Windows, you should also create a new virtualenv using the new version, because virtualenv on Windows copies core files/scripts over instead of using symlinks.
 

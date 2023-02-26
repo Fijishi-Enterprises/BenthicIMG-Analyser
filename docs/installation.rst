@@ -58,7 +58,7 @@ If you're going to make any contributions:
 
 Python
 ------
-This project uses the latest Python 3.6.x, so download and install that.
+This project uses Python 3.8.x, so download and install that.
 
 Since this project has many third-party dependencies, and may require specific versions of those dependencies, it's highly recommended to use something like virtualenv to keep those dependencies separate from other Python projects.
 

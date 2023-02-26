@@ -8,14 +8,10 @@ on:
 
 jobs:
   build:
-
-    # ubuntu-22.04 doesn't have Python 3.6 available, so we pin to 20.04
-    # until we can update Python.
-    # https://github.com/actions/setup-python/issues/162
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
-        python-version: [3.6]
+        python-version: [3.8]
     env:
       DJANGO_SETTINGS_MODULE: config.settings.ci
 

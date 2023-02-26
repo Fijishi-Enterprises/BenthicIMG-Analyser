@@ -232,7 +232,7 @@ class AlleviateTester(BaseTest):
         k = 100
         gt = random.sample(range(k), k)
         est = random.sample(range(k), k)
-        scores = np.ones(k, dtype=np.int)
+        scores = np.ones(k, dtype=int)
 
         accs, ratios, ths = utils.get_alleviate(gt, est, scores)
         self.assertEqual(k + 2, len(accs))
@@ -243,7 +243,7 @@ class AlleviateTester(BaseTest):
         for k in [248, 249, 250, 300, 3000]:
             gt = random.sample(range(k), k)
             est = random.sample(range(k), k)
-            scores = np.ones(k, dtype=np.int)
+            scores = np.ones(k, dtype=int)
 
             accs, ratios, ths = utils.get_alleviate(gt, est, scores)
             self.assertEqual(250, len(accs))

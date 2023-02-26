@@ -1,8 +1,8 @@
+from copy import copy
 import json
 
 import numpy as np
 
-from copy import copy
 
 class ConfMatrix:
    """
@@ -12,7 +12,7 @@ class ConfMatrix:
    def __init__(self, nclasses, labelset = None):
       self.nclasses = nclasses
       self.labelset = labelset
-      self.cm = np.zeros((nclasses, nclasses), dtype = np.int)
+      self.cm = np.zeros((nclasses, nclasses), dtype=int)
 
    def add(self, gtlabels, estlabels):
       """
@@ -47,7 +47,7 @@ class ConfMatrix:
       
       # Some black-magix indexing to get the permutations correct.
       tmp = np.arange(self.cm.shape[0])
-      cmperm = np.arange(self.cm.shape[0]);
+      cmperm = np.arange(self.cm.shape[0])
       cmperm[sort_index] = tmp
 
       # The order of the labelset also changes.

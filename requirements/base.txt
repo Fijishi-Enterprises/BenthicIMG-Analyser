@@ -103,10 +103,6 @@ django-migration-testcase==0.0.15
 # https://www.crummy.com/software/BeautifulSoup/bs4/doc/#unicode-dammit
 beautifulsoup4>=4.8.1,<4.9
 
-# Scientific computing
-# Changelog: https://numpy.org/devdocs/release.html
-numpy==1.18.1
-
 # Another filepath calculations module.
 #
 # unipath hasn't been updated since early 2015 (as of late 2017).
@@ -155,6 +151,14 @@ tqdm==4.43.0
 # Changelog: https://github.com/neutronX/django-markdownx/releases
 django-markdownx==3.0.1
 
-# Import spacer which powers the ML stuff.
-# Get the master branch instead of a particular release version.
-pyspacer@git+https://github.com/beijbom/pyspacer.git@master
+# Machine-learning backend behind coralnet
+# This can be installed from a local directory (not just PyPI), as long as
+# the local copy's setup.py matches this version number.
+pyspacer==0.3.1
+
+# Scientific computing
+# We use whatever version of numpy pyspacer uses. To do this, we list
+# pyspacer before numpy in these requirements. We only have numpy listed here
+# for completeness, to acknowledge that coralnet does use it directly.
+# Changelog: https://numpy.org/devdocs/release.html
+numpy

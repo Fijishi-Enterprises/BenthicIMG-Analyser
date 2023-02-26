@@ -24,6 +24,11 @@ piexif==1.1.3
 # Changelog: https://github.com/pyexcel/pyexcel/blob/dev/CHANGELOG.rst
 pyexcel==0.6.6
 
+# Requirement of pyexcel-xlsx
+# Version is pinned below 3.1.0 to resolve this issue:
+# https://github.com/pyexcel/pyexcel-xlsx/issues/52
+openpyxl==3.0.10
+
 # xlsx support in pyexcel.
 # Changelog: https://github.com/pyexcel/pyexcel-xlsx/blob/dev/CHANGELOG.rst
 pyexcel-xlsx==0.6.0

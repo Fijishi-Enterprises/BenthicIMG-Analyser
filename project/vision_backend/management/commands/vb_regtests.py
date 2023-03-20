@@ -78,20 +78,23 @@ class Command(BaseCommand):
         return parser
 
     def add_arguments(self, parser):
-        parser.add_argument('--size',
-                            type=str,
-                            choices=['small', 'medium', 'large'],
-                            default='small',
-                            help='Choose size: '
-                                 'Small ~ 50 images; '
-                                 'medium ~ 400 images; '
-                                 'large ~ 1600 images')
-        parser.add_argument('--fixture_source',
-                            type=int,
-                            choices=[372, 504],
-                            default=372,
-                            help='Choose one of two sources to run your '
-                                 'regression test on.')
+        parser.add_argument(
+            '--size',
+            type=str,
+            choices=['small', 'medium', 'large'],
+            default='small',
+            help='Choose size: '
+                 'Small ~ 50 images; medium ~ 400 images; large ~ 1600 images')
+        parser.add_argument(
+            '--fixture_source',
+            type=int,
+            choices=[372, 504],
+            default=372,
+            help='Choose one of two sources to run your regression test on.')
+        parser.add_argument(
+            '--vgg16',
+            action='store_true',
+            help='Use VGG16 feature extractor instead of EfficientNet.')
 
     def handle(self, *args, **options):
 
@@ -100,7 +103,8 @@ class Command(BaseCommand):
 
         (n_with, n_without) = reg_test_config[fixture_source_id][size]
 
-        s = VisionBackendRegressionTest(fixture_source_id, size.upper())
+        s = VisionBackendRegressionTest(
+            fixture_source_id, size.upper(), options['vgg16'])
 
         print("\n-> Uploading images which have manual annotations...")
         annotated_image_filepaths = s.upload_images(n_with)

@@ -25,7 +25,9 @@ class VisionBackendRegressionTest(ClientTest):
     This class relies on a specific regression test fixture layout.
     """
 
-    def __init__(self, source_id, name_suffix):
+    def __init__(self, source_id, name_suffix, use_vgg16):
+
+        self.use_vgg16 = use_vgg16
 
         self.client = Client()
         self.regtest_storage = S3Boto3Storage(
@@ -144,6 +146,8 @@ class VisionBackendRegressionTest(ClientTest):
         post_dict = dict()
         post_dict.update(self.source_defaults)
         post_dict['name'] = self.source_name
+        if self.use_vgg16:
+            post_dict['feature_extractor_setting'] = 'vgg16_coralnet_ver1'
 
         self.client.force_login(self.user)
         self.client.post(reverse('source_new'), post_dict)

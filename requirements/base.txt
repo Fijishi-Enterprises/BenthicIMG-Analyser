@@ -10,9 +10,9 @@ Django>=2.2.20,<3.0
 django-guardian==2.3.0
 
 # Python Imaging Library
-# (A currently active, package friendly fork of it; also endorsed by Django)
+# (A currently active, package friendly fork of the old PIL; endorsed by Django)
 # Changelog: https://pillow.readthedocs.io/en/stable/releasenotes/index.html
-Pillow==8.2.0
+Pillow==9.4.0
 
 # Image EXIF reading/writing
 # Could be replaced with Pillow once Pillow is 6.0 or higher, since they

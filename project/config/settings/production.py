@@ -31,11 +31,14 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 WSGI_APPLICATION = 'config.wsgi.application'
 
 # [Custom setting]
-# Which vision backend to use.
+# Type of queue to keep track of vision backend jobs.
 SPACER_QUEUE_CHOICE = 'vision_backend.queues.BatchQueue'
-
-# Configure the AWS Batch queue name to use
+# [Custom setting]
+# If AWS Batch is being used, use this job queue name.
 BATCH_QUEUE = 'production'
+# [Custom setting]
+# If AWS Batch is being used, use this job definition name.
+BATCH_JOB_DEFINITION = 'spacer-job'
 
 # [Custom setting]
 # Front page carousel images.

@@ -18,5 +18,9 @@ SITE_DOMAIN = 'ec2-35-162-62-60.us-west-2.compute.amazonaws.com'
 # "*" matches anything, ".example.com" matches example.com and all subdomains
 ALLOWED_HOSTS = [SITE_DOMAIN]
 
-# Configure the AWS Batch queue name to use
+# [Custom setting]
+# If AWS Batch is being used, use this job queue name.
 BATCH_QUEUE = 'shakeout'
+# [Custom setting]
+# If AWS Batch is being used, use this job definition name.
+BATCH_JOB_DEFINITION = 'spacer-job-staging'

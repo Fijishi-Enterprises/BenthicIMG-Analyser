@@ -1,5 +1,3 @@
-import os
-
 # How many more annotated images are required before we try to train a new classifier.
 NEW_CLASSIFIER_TRAIN_TH = 1.1
 
@@ -34,8 +32,6 @@ NBR_SCORES_PER_ANNOTATION = 5
 
 # This is the number of epochs we request the SGD solver to take over the data.
 NBR_TRAINING_EPOCHS = 10
-
-BATCH_JOB_DEFINITION = 'spacer-job'
 
 # Hard-coded shallow learners for each deep model.
 # MLP is the better newer shallow learner, but we stayed with

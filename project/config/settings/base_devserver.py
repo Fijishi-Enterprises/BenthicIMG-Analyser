@@ -34,9 +34,12 @@ SECURE_PROXY_SSL_HEADER = None
 # [Custom setting]
 # Which backend queue to use.
 SPACER_QUEUE_CHOICE = 'vision_backend.queues.LocalQueue'
-
-# Configure the Batch queue
+# [Custom setting]
+# If AWS Batch is being used, use this job queue name.
 BATCH_QUEUE = 'shakeout'
+# [Custom setting]
+# If AWS Batch is being used, use this job definition name.
+BATCH_JOB_DEFINITION = 'spacer-job-staging'
 
 # [Custom setting]
 # Front page carousel images.

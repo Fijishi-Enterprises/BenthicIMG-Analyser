@@ -2,6 +2,7 @@
 
 import json
 import logging
+import os
 import sys
 
 # Configure Pillow to be tolerant of image files that are truncated (missing

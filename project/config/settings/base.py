@@ -182,6 +182,7 @@ INSTALLED_APPS = [
     'upload',
     'visualization',
     'vision_backend',
+    'vision_backend_api',
 
     # Admin site (<domain>/admin)
     'django.contrib.admin',

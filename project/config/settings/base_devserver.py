@@ -22,9 +22,13 @@ SITE_DOMAIN = '127.0.0.1:8000'
 # "*" matches anything, ".example.com" matches example.com and all subdomains
 #
 # When DEBUG is True and ALLOWED_HOSTS is empty,
-# the host is validated against ['localhost', '127.0.0.1', '[::1]'].
+# the host is validated against ['.localhost', '127.0.0.1', '[::1]'].
+# (That's: localhost or subdomains thereof, IPv4 loopback, and IPv6 loopback)
 # https://docs.djangoproject.com/en/dev/ref/settings/#allowed-hosts
-ALLOWED_HOSTS = []
+#
+# Here we add 'testserver' on top of that, which is needed for a dev server
+# to run the submit_deploy management command and the regtests.
+ALLOWED_HOSTS = ['.localhost', '127.0.0.1', '[::1]', 'testserver']
 
 # No HTTPS.
 SESSION_COOKIE_SECURE = False

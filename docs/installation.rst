@@ -225,8 +225,6 @@ Running the web server with DEBUG = False
 -----------------------------------------
 Sometimes you need to run the server with ``DEBUG = False`` in your settings to test something - for example, the 404 and 500 error pages. Running the server like this requires a couple of extra steps.
 
-- Define ``ALLOWED_HOSTS`` in your settings, otherwise runserver gets a CommandError. A value of ``['*']`` should work for development purposes.
-
 - To serve media files, define a ``MEDIA_URL`` in your settings; for example, ``http://127.0.0.1:8070/``. Then in a terminal/command window, run: ``python -m http.server 8070``
 
 - To serve static files, define a ``STATIC_URL`` in your settings; for example, ``http://127.0.0.1:8080/``. Then in a terminal/command window, run: ``python -m http.server 8080``

@@ -14,9 +14,6 @@ FORCE_DUMMY_EXTRACTOR = True
 # False. Can override that behavior here.
 # HUEY['immediate'] = False
 
-# Needed for regtests.
-# ALLOWED_HOSTS = ['127.0.0.1', 'testserver', 'localhost']
-
 # Needed for regtests and BatchQueue.
 AWS_ACCESS_KEY_ID = get_secret('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = get_secret('AWS_SECRET_ACCESS_KEY')
@@ -65,7 +62,6 @@ SELENIUM_BROWSERS = [
 #    DATABASES['default']['ENGINE'] = 'django.db.backends.sqlite3'
 
 # If I ever test with DEBUG = False, I'll want to:
-# - Set an ALLOWED_HOSTS, otherwise runserver gets a CommandError
 # - Set a STATIC_URL which I can serve static files to,
 #   say using `python -m http.server 8080` (this syntax is Python 3),
 #   and remember to use the collectstatic command
@@ -74,11 +70,8 @@ SELENIUM_BROWSERS = [
 #   https://stackoverflow.com/questions/21956683/
 #
 # But I'll leave these all commented out if DEBUG = True, because it's easier
-# to not bother with starting up those extra servers, and ALLOWED_HOSTS gets
-# intelligently filled in if DEBUG = True:
-# https://docs.djangoproject.com/en/dev/ref/settings/#allowed-hosts
+# to not bother with starting up those extra servers.
 #DEBUG = False
-#ALLOWED_HOSTS = ['*']
 #MEDIA_URL = 'http://localhost:8070/'
 #STATIC_URL = 'http://127.0.0.1:8080/'
 

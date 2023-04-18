@@ -44,14 +44,7 @@ Markdown>=3.1.1,<4
 # System for generating smaller versions of images.
 # Requires: django, Pillow
 # Changelog: https://github.com/SmileyChris/easy-thumbnails/blob/master/CHANGES.rst
-#
-# 2.7.1 has a breaking bug. Needs to be fixed before we can upgrade to that.
-# https://github.com/SmileyChris/easy-thumbnails/issues/563
-#
-# 2.7.0 has another breaking bug on certain images. This commit gives us the
-# old 'image file is truncated' errors.
-# https://github.com/SmileyChris/easy-thumbnails/commit/2abd400c8e005045591eb1003d1dcbc0602923c5
-easy-thumbnails==2.6.0
+easy-thumbnails==2.8.5
 
 # Add email activation to user registration process;
 # unlike in userena, this is implemented without additional models.

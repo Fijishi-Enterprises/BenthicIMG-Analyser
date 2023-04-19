@@ -31,6 +31,7 @@ from django.test.client import Client
 from django.test.runner import DiscoverRunner
 from django.urls import reverse
 from django.utils.html import escape as html_escape
+from huey.contrib.djhuey import HUEY
 
 from images.model_utils import PointGen
 from images.models import Source, Point, Image
@@ -72,15 +73,7 @@ test_settings['CACHES'] = {
     }
 }
 
-test_settings['HUEY'] = {
-    # This is the same as usual.
-    'results': False,
-    # Make tasks run synchronously. This is needed since the
-    # huey consumer would run in a separate process, meaning it
-    # wouldn't see the state of the current test's open DB-transaction.
-    'immediate': True,
-}
-# Also force spacer jobs to use the dummy extractor.
+# Force spacer jobs to use the dummy extractor.
 # Otherwise tests will run slow.
 test_settings['FORCE_DUMMY_EXTRACTOR'] = True
 # Validation sets vs. training sets should be completely predictable in
@@ -388,12 +381,17 @@ class ClientUtilsMixin(object, metaclass=ABCMeta):
         add_robot_annotations(robot, image, annotations)
 
 
-class TempStorageTestRunner(DiscoverRunner):
-    """
-    Test runner class which sets up temporary directories for the tests' file
-    storage.
-    """
+class CustomTestRunner(DiscoverRunner):
+
     def run_tests(self, test_labels, extra_tests=None, **kwargs):
+        # Make tasks run synchronously. This is needed since the
+        # huey consumer would run in a separate process, meaning it
+        # wouldn't see the state of the current test's open DB-transaction.
+        #
+        # We specify this behavior here because override_settings doesn't seem
+        # to work on huey. Modifying this HUEY singleton does work.
+        HUEY.immediate = True
+
         storage_manager = get_storage_manager()
 
         # Create temp directories: One for file storage during tests. One
@@ -402,7 +400,7 @@ class TempStorageTestRunner(DiscoverRunner):
         test_storage_dir = storage_manager.create_temp_dir()
         post_setuptestdata_state_dir = storage_manager.create_temp_dir()
 
-        # Create settings that establish the dirs accordingly.
+        # Create settings that establish the temp dirs accordingly.
         test_storage_settings = \
             storage_manager.create_storage_dir_settings(test_storage_dir)
         test_storage_settings['TEST_STORAGE_DIR'] = test_storage_dir

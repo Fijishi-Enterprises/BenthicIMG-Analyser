@@ -619,7 +619,7 @@ LOGGING = {
 }
 
 # The name of the class to use for starting the test suite.
-TEST_RUNNER = 'lib.tests.utils.TempStorageTestRunner'
+TEST_RUNNER = 'lib.tests.utils.CustomTestRunner'
 
 # [Custom setting]
 # Whether to disable tqdm output and processing or not. tqdm might be used

@@ -12,13 +12,14 @@ class SubmitDeployTest(ManagementCommandTest):
         cls.user = cls.create_user()
         cls.source = cls.create_source(cls.user)
         cls.classifier = cls.create_robot(cls.source)
+        cls.classifier_id = cls.classifier.pk
 
     def test_success(self):
         stdout_text, _ = self.call_command_and_get_output(
             'vision_backend_api', 'submit_deploy',
             args=[
                 self.user.username,
-                self.classifier.pk,
+                self.classifier_id,
                 'A URL',
             ],
         )
@@ -36,15 +37,14 @@ class SubmitDeployTest(ManagementCommandTest):
             stdout_text)
 
     def test_error(self):
-        # Use a nonexistent classifier ID
-        classifier_id = self.classifier.pk
+        # Make a nonexistent classifier ID
         self.classifier.delete()
 
         stdout_text, _ = self.call_command_and_get_output(
             'vision_backend_api', 'submit_deploy',
             args=[
                 self.user.username,
-                classifier_id,
+                self.classifier_id,
                 'A URL',
             ],
         )

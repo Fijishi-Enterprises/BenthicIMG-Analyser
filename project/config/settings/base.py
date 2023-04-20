@@ -1,7 +1,6 @@
 # Base settings for any type of server.
 
 import json
-import logging
 import os
 import sys
 
@@ -32,10 +31,6 @@ SITE_DIR = PROJECT_DIR.ancestor(2)
 
 # Directory containing log files.
 LOG_DIR = SITE_DIR.child('log')
-
-# Disable logging during tests.
-if len(sys.argv) > 1 and sys.argv[1] == 'test':
-    logging.disable(logging.CRITICAL)
 
 # JSON-based secrets module, expected to be in the SETTINGS_DIR
 if os.path.exists(SETTINGS_DIR.child('secrets.json')):
@@ -584,10 +579,11 @@ HUEY = {
     'results': False,
 }
 
-# LOG
+# https://docs.djangoproject.com/en/dev/topics/logging/#configuring-logging
 LOGGING = {
     'version': 1,
-    # Existing (default) logging includes error emails to admins.
+    # Existing (default) logging includes error emails to admins,
+    # so we want to keep it.
     'disable_existing_loggers': False,
     'formatters': {
         'standard': {
@@ -612,7 +608,9 @@ LOGGING = {
         'vision_backend': {
             'handlers': ['backend', 'backend_debug'],
             'level': 'DEBUG',
-            'propagate': True,
+            # Don't print this info/debug output to console; it clogs output
+            # during unit tests, for example.
+            'propagate': False,
         }
     },
 

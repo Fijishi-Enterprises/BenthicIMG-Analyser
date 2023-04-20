@@ -59,15 +59,12 @@ class LabelPatchGenerationTest(ClientTest):
 
     def test_rgb_convert_fix(self):
 
-        # This file caused an issue in production. See
-        # https://github.com/beijbom/coralnet/issues/282 for details
+        # This file caused an issue in production. Solution is to set
+        # PIL.ImageFile.LOAD_TRUNCATED_IMAGES = True before loading.
+        # See https://github.com/beijbom/coralnet/issues/282 for details
         filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 'fixtures/p82pkvoqn3.JPG')
         img = PILImage.open(filepath)
-
-        # It was resolved by setting
-        # ImageFile.LOAD_TRUNCATED_IMAGES = True
-        # in any loaded module
 
         try:
             img.convert('RGB')

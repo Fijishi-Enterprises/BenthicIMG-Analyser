@@ -44,7 +44,15 @@ Markdown>=3.1.1,<4
 # System for generating smaller versions of images.
 # Requires: django, Pillow
 # Changelog: https://github.com/SmileyChris/easy-thumbnails/blob/master/CHANGES.rst
-easy-thumbnails==2.8.5
+#
+# As of 2.7.0 this app sets PIL.ImageFile.LOAD_TRUNCATED_IMAGES to False after
+# each image read, which would force us to set it to True before each of our
+# image reads.
+# https://github.com/SmileyChris/easy-thumbnails/commit/2abd400c8e005045591eb1003d1dcbc0602923c5
+# So we use our own fork of easy-thumbnails, which changes the behavior to
+# restore the previous LOAD_TRUNCATED_IMAGES value after easy-thumbnails does
+# its thing.
+easy-thumbnails@git+https://github.com/StephenChan/easy-thumbnails.git@master
 
 # Add email activation to user registration process;
 # unlike in userena, this is implemented without additional models.

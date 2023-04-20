@@ -3,7 +3,6 @@ from unittest import mock
 from django.db import connections, transaction
 from django.db.utils import DEFAULT_DB_ALIAS, load_backend
 from django.test.testcases import TransactionTestCase
-from django.test.utils import patch_logger
 
 from errorlogs.tests.utils import ErrorReportTestMixin
 from lib.tests.utils import BaseTest
@@ -19,15 +18,16 @@ class QueueJobTest(BaseTest):
     def test_queue_job_when_already_pending(self):
         queue_job('name', 'arg')
 
-        with patch_logger('jobs.utils', 'debug') as log_messages:
+        with self.assertLogs(logger='jobs.utils', level='DEBUG') as cm:
             queue_job('name', 'arg')
 
-            log_message = (
-                f"Job [name / arg] is already pending or in progress."
-            )
-            self.assertIn(
-                log_message, log_messages,
-                "Should log the appropriate message")
+        log_message = (
+            "DEBUG:jobs.utils:"
+            "Job [name / arg] is already pending or in progress."
+        )
+        self.assertIn(
+            log_message, cm.output,
+            "Should log the appropriate message")
 
         self.assertEqual(
             Job.objects.all().count(),
@@ -37,15 +37,16 @@ class QueueJobTest(BaseTest):
     def test_queue_job_when_already_in_progress(self):
         queue_job('name', 'arg', initial_status=Job.IN_PROGRESS)
 
-        with patch_logger('jobs.utils', 'debug') as log_messages:
+        with self.assertLogs(logger='jobs.utils', level='DEBUG') as cm:
             queue_job('name', 'arg')
 
-            log_message = (
-                f"Job [name / arg] is already pending or in progress."
-            )
-            self.assertIn(
-                log_message, log_messages,
-                "Should log the appropriate message")
+        log_message = (
+            "DEBUG:jobs.utils:"
+            "Job [name / arg] is already pending or in progress."
+        )
+        self.assertIn(
+            log_message, cm.output,
+            "Should log the appropriate message")
 
         self.assertEqual(
             Job.objects.all().count(),
@@ -86,27 +87,29 @@ class QueueJobTest(BaseTest):
 class StartPendingJobTest(BaseTest):
 
     def test_job_not_found(self):
-        with patch_logger('jobs.utils', 'info') as log_messages:
+        with self.assertLogs(logger='jobs.utils', level='INFO') as cm:
             start_pending_job('name', 'arg')
 
-            log_message = (
-                f"Job [name / arg] not found."
-            )
-            self.assertIn(
-                log_message, log_messages,
-                "Should log the appropriate message")
+        log_message = (
+            "INFO:jobs.utils:"
+            "Job [name / arg] not found."
+        )
+        self.assertIn(
+            log_message, cm.output,
+            "Should log the appropriate message")
 
     def test_job_already_in_progress(self):
         queue_job('name', 'arg', initial_status=Job.IN_PROGRESS)
 
-        with patch_logger('jobs.utils', 'info') as log_messages:
+        with self.assertLogs(logger='jobs.utils', level='INFO') as cm:
             start_pending_job('name', 'arg')
 
             log_message = (
-                f"Job [name / arg] already in progress."
+                "INFO:jobs.utils:"
+                "Job [name / arg] already in progress."
             )
             self.assertIn(
-                log_message, log_messages,
+                log_message, cm.output,
                 "Should log the appropriate message")
 
     def test_delete_duplicate_jobs(self):
@@ -348,16 +351,16 @@ class JobStartRaceConditionTest(TransactionTestCase):
 
             # With the default DB connection, make a start_pending_job() call
             # which will query the same row. Should get locked out.
-            with patch_logger('jobs.utils', 'info') as log_messages:
+            with self.assertLogs(logger='jobs.utils', level='INFO') as cm:
                 start_pending_job('name', 'arg')
 
-                log_message = (
-                    f"Job [name / arg] is locked"
-                    f" to prevent overlapping runs."
-                )
-                self.assertIn(
-                    log_message, log_messages,
-                    "Should log the appropriate message")
+            log_message = (
+                "INFO:jobs.utils:"
+                "Job [name / arg] is locked to prevent overlapping runs."
+            )
+            self.assertIn(
+                log_message, cm.output,
+                "Should log the appropriate message")
         finally:
             # Close the extra DB connection.
             connection.close()
@@ -367,12 +370,13 @@ class JobStartRaceConditionTest(TransactionTestCase):
         # To simulate the race condition, we've mocked Job.save()
         # to create two identical jobs instead of just one job.
         with mock.patch.object(Job, 'save', save_two_copies):
-            with patch_logger('jobs.utils', 'info') as log_messages:
+            with self.assertLogs(logger='jobs.utils', level='INFO') as cm:
                 queue_job('name', 'arg', initial_status=Job.IN_PROGRESS)
 
-                log_message = (
-                    f"Job [name / arg] is already in progress."
-                )
-                self.assertIn(
-                    log_message, log_messages,
-                    "Should log the appropriate message")
+        log_message = (
+            "INFO:jobs.utils:"
+            "Job [name / arg] is already in progress."
+        )
+        self.assertIn(
+            log_message, cm.output,
+            "Should log the appropriate message")

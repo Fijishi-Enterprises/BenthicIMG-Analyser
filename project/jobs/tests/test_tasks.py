@@ -3,7 +3,7 @@ from unittest import mock
 
 from django.contrib.auth.models import User
 from django.core import mail
-from django.test.utils import override_settings, patch_logger
+from django.test.utils import override_settings
 from django.utils import timezone
 
 from api_core.models import ApiJob, ApiJobUnit
@@ -26,7 +26,7 @@ class RunScheduledJobsTest(BaseTest):
         Should block multiple existing runs of this task. That way, no job
         looped through in this task can get started in huey multiple times.
         """
-        with patch_logger('jobs.utils', 'debug') as log_messages:
+        with self.assertLogs(logger='jobs.utils', level='DEBUG') as cm:
 
             # Mock a function called by the task, and make that function
             # attempt to run the task recursively.
@@ -35,13 +35,13 @@ class RunScheduledJobsTest(BaseTest):
             ):
                 run_scheduled_jobs()
 
-            log_message = (
-                "Job [run_scheduled_jobs / ]"
-                " is already pending or in progress."
-            )
-            self.assertIn(
-                log_message, log_messages,
-                "Should log the appropriate message")
+        log_message = (
+            "DEBUG:jobs.utils:"
+            "Job [run_scheduled_jobs / ] is already pending or in progress."
+        )
+        self.assertIn(
+            log_message, cm.output,
+            "Should log the appropriate message")
 
         self.assertEqual(
             Job.objects.filter(job_name='run_scheduled_jobs').count(), 1,

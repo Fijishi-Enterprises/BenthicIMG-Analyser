@@ -1,6 +1,5 @@
 from unittest import mock
 
-from django.test.utils import patch_logger
 from django.urls import reverse
 
 from annotations.models import Annotation
@@ -192,7 +191,7 @@ class CollectSpacerJobsTest(BaseTest):
         Should block multiple existing runs of this task. That way, no spacer
         job can get collected multiple times.
         """
-        with patch_logger('jobs.utils', 'debug') as log_messages:
+        with self.assertLogs(logger='jobs.utils', level='DEBUG') as cm:
 
             # Mock a function called by the task, and make that function
             # attempt to run the task recursively.
@@ -201,13 +200,13 @@ class CollectSpacerJobsTest(BaseTest):
             ):
                 collect_spacer_jobs()
 
-            log_message = (
-                "Job [collect_spacer_jobs / ]"
-                " is already pending or in progress."
-            )
-            self.assertIn(
-                log_message, log_messages,
-                "Should log the appropriate message")
+        log_message = (
+            "DEBUG:jobs.utils:"
+            "Job [collect_spacer_jobs / ] is already pending or in progress."
+        )
+        self.assertIn(
+            log_message, cm.output,
+            "Should log the appropriate message")
 
         self.assertEqual(
             Job.objects.filter(job_name='collect_spacer_jobs').count(), 1,

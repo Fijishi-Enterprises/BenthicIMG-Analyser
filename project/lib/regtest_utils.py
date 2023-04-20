@@ -31,7 +31,7 @@ class VisionBackendRegressionTest(ClientTest):
 
         self.client = Client()
         self.regtest_storage = S3Boto3Storage(
-            bucket=settings.REGTEST_BUCKET, location='')
+            bucket_name=settings.REGTEST_BUCKET, location='')
 
         # Get any superuser. We'll assume one exists (if it doesn't, this'll
         # get an error).

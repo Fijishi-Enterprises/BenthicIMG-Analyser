@@ -97,7 +97,7 @@ class Command(BaseCommand):
                  format(args_str, '-'*70))
 
         export_storage = S3Boto3Storage(
-            bucket=options['bucket'], location='')
+            bucket_name=options['bucket'], location='')
 
         # Start by exporting the label-set
         export_storage.save(
@@ -118,7 +118,7 @@ class Command(BaseCommand):
 
             # Establish a new connection for each source.
             export_storage = S3Boto3Storage(
-                bucket=options['bucket'], location='')
+                bucket_name=options['bucket'], location='')
             # When we copy files from one bucket to another, we'll need to
             # access the boto interface at a lower level.
             export_bucket = export_storage.connection.get_bucket(

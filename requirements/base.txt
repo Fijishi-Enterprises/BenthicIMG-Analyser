@@ -102,7 +102,7 @@ boto3==1.23.10
 # Even if a dev machine doesn't use S3, we still want this installed to make
 # module imports work.
 # Changelog: https://github.com/jschneier/django-storages/blob/master/CHANGELOG.rst
-django-storages==1.8
+django-storages==1.12.3
 
 # REST API framework.
 # Changelog: https://www.django-rest-framework.org/community/release-notes/

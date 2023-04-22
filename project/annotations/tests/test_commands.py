@@ -1,8 +1,11 @@
 from labels.models import Label
 from lib.tests.utils import ManagementCommandTest
+from .utils import AnnotationHistoryTestMixin
 
 
-class ReplaceLabelInSourceTest(ManagementCommandTest):
+class ReplaceLabelInSourceTest(
+    ManagementCommandTest, AnnotationHistoryTestMixin
+):
 
     def test_basic(self):
         # Set up data
@@ -42,6 +45,17 @@ class ReplaceLabelInSourceTest(ManagementCommandTest):
              for label in source.labelset.get_globals_ordered_by_name()],
             ['B', 'C'])
 
-    # TODO:
-    # - Check that an annotation history entry was created.
-    # - Test invalid parameter cases.
+        # Verify annotation history
+        response = self.view_history(user, img=img)
+        self.assert_history_table_equals(
+            response,
+            [
+                ['Point 1: B<br/>Point 3: B',
+                 f'{user.username}'],
+                ['Point 1: A<br/>Point 2: B<br/>Point 3: A'
+                 '<br/>Point 4: C<br/>Point 5: B',
+                 f'{user.username}'],
+            ]
+        )
+
+    # TODO: Test invalid parameter cases.

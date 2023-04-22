@@ -1,7 +1,9 @@
 # Tests which apply regardless of the annotation upload format, but are
 # implemented as CSV-upload tests in this case.
+# CPC version is at cpce/tests/test_upload_general_cases.py.
 
 import codecs
+from unittest import mock
 
 from django.core.files.base import ContentFile
 from django.urls import reverse
@@ -235,6 +237,45 @@ class GeneralCasesTest(
         upload_response = self.upload_annotations(self.user, self.source)
 
         self.check_skipped_filenames(preview_response, upload_response)
+
+    def test_annotation_history(self):
+        """
+        The upload should create an annotation history entry.
+        """
+        rows = [
+            ['Name', 'Column', 'Row', 'Label'],
+            ['1.png', 10, 10, 'A'],
+            ['1.png', 20, 20, ''],
+            ['1.png', 30, 30, 'B'],
+        ]
+        csv_file = self.make_annotations_file('A.csv', rows)
+        self.preview_annotations(self.user, self.source, csv_file)
+        self.upload_annotations(self.user, self.source)
+
+        self.check_annotation_history()
+
+    def test_transaction_rollback(self):
+        """
+        If the confirm view encounters an error after saving annotations,
+        then the saves should be rolled back.
+        """
+        rows = [
+            ['Name', 'Column', 'Row', 'Label'],
+            ['1.png', 10, 10, 'A'],
+            ['1.png', 20, 20, ''],
+            ['1.png', 30, 30, 'B'],
+        ]
+        csv_file = self.make_annotations_file('A.csv', rows)
+        self.preview_annotations(self.user, self.source, csv_file)
+
+        def raise_error(self, *args, **kwargs):
+            raise ValueError
+
+        with mock.patch('upload.views.reset_features', raise_error):
+            with self.assertRaises(ValueError):
+                self.upload_annotations(self.user, self.source)
+
+        self.check_transaction_rollback()
 
 
 class MultipleSourcesTest(

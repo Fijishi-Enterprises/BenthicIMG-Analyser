@@ -61,7 +61,7 @@ django-registration==3.1.2
 
 # Versioning of database objects. Requires django.
 # Changelog: https://github.com/etianen/django-reversion/blob/master/CHANGELOG.rst
-django-reversion==3.0.9
+django-reversion==5.0.2
 
 # Allow Django to connect to a PostgreSQL database.
 # Changelog: https://www.psycopg.org/docs/news.html

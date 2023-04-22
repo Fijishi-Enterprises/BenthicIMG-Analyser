@@ -183,7 +183,7 @@ class PasswordResetTest(ClientTest):
             response, 'registration/password_reset_confirm.html')
         self.assertContains(
             response,
-            escape("The two password fields didn't match."))
+            escape("The two password fields didn’t match."))
 
         # Check that the password has not changed.
         self.client.logout()

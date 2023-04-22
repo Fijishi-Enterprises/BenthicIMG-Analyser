@@ -332,7 +332,7 @@ class RegisterTest(BaseAccountsTest):
         self.assertTemplateUsed(
             response, 'django_registration/registration_form.html')
         self.assertContains(
-            response, escape("The two password fields didn't match."))
+            response, escape("The two password fields didn’t match."))
 
     def test_password_too_short(self):
         """

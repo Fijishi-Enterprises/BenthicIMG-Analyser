@@ -307,7 +307,7 @@ class UploadImageFormatTest(ClientTest):
         )
         error_message = response.json()['error']
         self.assertIn(
-            "Image file: File extension '' is not allowed.", error_message)
+            'Image file: File extension “” is not allowed.', error_message)
 
     def test_empty_file(self):
         """0-byte file. Should get an error."""

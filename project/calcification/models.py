@@ -1,4 +1,3 @@
-from django.contrib.postgres.fields import JSONField
 from django.db import models
 
 from images.models import Source
@@ -21,7 +20,7 @@ class CalcifyRateTable(models.Model):
     #   },
     #   ...
     # }
-    rates_json = JSONField()
+    rates_json = models.JSONField()
 
     # Source that the rate table belongs to.
     # Null for site-wide default rate tables.

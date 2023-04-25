@@ -57,7 +57,6 @@ SELENIUM_BROWSERS = [
 
 # I'll uncomment this for running our Selenium tests, since those tests
 # require an in-memory database like SQLite.
-# TODO: SQLite won't work as long as JSONField is PostgreSQL-only.
 #if 'test' in sys.argv:
 #    DATABASES['default']['ENGINE'] = 'django.db.backends.sqlite3'
 

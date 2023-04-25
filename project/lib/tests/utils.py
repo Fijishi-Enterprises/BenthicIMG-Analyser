@@ -718,11 +718,13 @@ class BasePermissionTest(ClientTest):
 
     @classmethod
     def source_to_private(cls):
+        cls.source.refresh_from_db()
         cls.source.visibility = Source.VisibilityTypes.PRIVATE
         cls.source.save()
 
     @classmethod
     def source_to_public(cls):
+        cls.source.refresh_from_db()
         cls.source.visibility = Source.VisibilityTypes.PUBLIC
         cls.source.save()
 

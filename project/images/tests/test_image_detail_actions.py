@@ -489,6 +489,7 @@ class ResetAnnotationAreaTest(ImageDetailActionBaseTest):
     def test_permission_private_source(self):
         # Change the default annotation area so that it doesn't match any of
         # the images'
+        self.source.refresh_from_db()
         self.source.image_annotation_area = \
             AnnotationAreaUtils.percentages_to_db_format(5, 95, 5, 95)
         self.source.save()
@@ -498,6 +499,7 @@ class ResetAnnotationAreaTest(ImageDetailActionBaseTest):
 
     def test_permission_public_source(self):
         # Change the default annotation area
+        self.source.refresh_from_db()
         self.source.image_annotation_area = \
             AnnotationAreaUtils.percentages_to_db_format(5, 95, 5, 95)
         self.source.save()

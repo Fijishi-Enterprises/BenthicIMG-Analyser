@@ -7,7 +7,7 @@ Django>=3.2.18,<4.0
 # e.g. "can edit this source" not just "can edit sources"
 # Requires: django
 # Changelog: https://github.com/django-guardian/django-guardian/blob/devel/CHANGES
-django-guardian==2.3.0
+django-guardian==2.4.0
 
 # Python Imaging Library
 # (A currently active, package friendly fork of the old PIL; endorsed by Django)
@@ -53,11 +53,11 @@ easy-thumbnails@git+https://github.com/StephenChan/easy-thumbnails.git@master
 # Add email activation to user registration process;
 # unlike in userena, this is implemented without additional models.
 # Changelog: https://django-registration.readthedocs.io/en/stable/upgrade.html
-django-registration==3.2
+django-registration==3.3
 
 # Versioning of database objects. Requires django.
 # Changelog: https://github.com/etianen/django-reversion/blob/master/CHANGELOG.rst
-django-reversion==5.0.2
+django-reversion==5.0.4
 
 # Allow Django to connect to a PostgreSQL database.
 # Changelog: https://www.psycopg.org/docs/news.html
@@ -98,11 +98,11 @@ boto3==1.23.10
 # Even if a dev machine doesn't use S3, we still want this installed to make
 # module imports work.
 # Changelog: https://github.com/jschneier/django-storages/blob/master/CHANGELOG.rst
-django-storages==1.12.3
+django-storages==1.13.2
 
 # REST API framework.
 # Changelog: https://www.django-rest-framework.org/community/release-notes/
-djangorestframework==3.13.1
+djangorestframework==3.14.0
 
 # Writing tests for database migrations.
 # https://github.com/plumdog/django_migration_testcase/
@@ -161,7 +161,7 @@ tqdm==4.65.0
 # with live preview and drag-and-drop image uploads.
 # Requires: Markdown
 # Changelog: https://github.com/neutronX/django-markdownx/releases
-django-markdownx==3.0.1
+django-markdownx==4.0.2
 
 # Machine-learning backend behind coralnet
 # This can be installed from a local directory (not just PyPI), as long as

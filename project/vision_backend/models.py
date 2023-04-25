@@ -96,7 +96,7 @@ class Features(models.Model):
     runtime_core = models.IntegerField(null=True)
 
     # whether the model needed to be downloaded from S3
-    model_was_cashed = models.NullBooleanField(null=True)
+    model_was_cached = models.BooleanField(null=True)
 
     # When were the features extracted
     extracted_date = models.DateTimeField(null=True)

@@ -140,6 +140,12 @@ DATABASES = {
     }
 }
 
+# Default auto-primary-key field type for the database.
+# TODO: As of Django 3.2, the default for this setting is BigAutoField, but we
+#  set it to AutoField to postpone the work of migrating existing fields.
+#  We should do that work sometime, though.
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
+
 # A list of strings designating all applications that are enabled in this
 # Django installation.
 #

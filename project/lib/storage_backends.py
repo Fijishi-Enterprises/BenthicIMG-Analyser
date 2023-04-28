@@ -1,5 +1,4 @@
 from abc import ABCMeta
-from distutils.dir_util import copy_tree
 import os
 from pathlib import Path
 import posixpath
@@ -171,7 +170,7 @@ class StorageManagerS3(StorageManager):
 class StorageManagerLocal(StorageManager):
 
     def copy_dir(self, src, dst):
-        copy_tree(src, dst)
+        shutil.copytree(src, dst, dirs_exist_ok=True)
 
     def create_storage_dir_settings(self, storage_dir):
         storage_settings = dict()

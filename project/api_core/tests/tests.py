@@ -1,7 +1,6 @@
 import copy
-from datetime import datetime, timedelta
+import datetime
 import json
-import pytz
 
 from django.conf import settings
 from django.test import override_settings
@@ -297,7 +296,8 @@ class JobCleanupTest(ClientTest):
         internal_job = Job(job_name='')
         internal_job.save()
         unit = ApiJobUnit(
-            parent=api_job, internal_job=internal_job, order_in_parent=order, request_json=[],
+            parent=api_job, internal_job=internal_job,
+            order_in_parent=order, request_json=[],
         )
         unit.save()
         return unit
@@ -306,7 +306,7 @@ class JobCleanupTest(ClientTest):
         """
         Only jobs eligible for cleanup should be cleaned up.
         """
-        thirty_one_days_ago = timezone.now() - timedelta(days=31)
+        thirty_one_days_ago = timezone.now() - datetime.timedelta(days=31)
 
         job = ApiJob(type='new job, no units', user=self.user)
         job.save()
@@ -381,7 +381,7 @@ class JobCleanupTest(ClientTest):
         """
         The cleanup task should also clean up associated job units.
         """
-        thirty_one_days_ago = timezone.now() - timedelta(days=31)
+        thirty_one_days_ago = timezone.now() - datetime.timedelta(days=31)
 
         job = ApiJob(type='new', user=self.user)
         job.save()
@@ -447,9 +447,9 @@ class UnitAndJobForwardMigrationTest(MigrationTest):
         unit_2.save()
         ApiJobUnitBefore.objects.filter(pk=unit_2.pk).update(
             create_date=timezone.make_aware(
-                datetime(2022, 11, 19), pytz.timezone("UTC")),
+                datetime.datetime(2022, 11, 19), datetime.timezone.utc),
             modify_date=timezone.make_aware(
-                datetime(2022, 11, 21), pytz.timezone("UTC")))
+                datetime.datetime(2022, 11, 21), datetime.timezone.utc))
 
         # Failure
         unit_3 = ApiJobUnitBefore(
@@ -539,11 +539,11 @@ class UnitAndJobBackwardMigrationTest(MigrationTest):
         job_2.save()
         JobBefore.objects.filter(pk=job_2.pk).update(
             create_date=timezone.make_aware(
-                datetime(2022, 11, 19), pytz.timezone("UTC")),
+                datetime.datetime(2022, 11, 19), datetime.timezone.utc),
             scheduled_start_date=timezone.make_aware(
-                datetime(2022, 11, 20), pytz.timezone("UTC")),
+                datetime.datetime(2022, 11, 20), datetime.timezone.utc),
             modify_date=timezone.make_aware(
-                datetime(2022, 11, 21), pytz.timezone("UTC")))
+                datetime.datetime(2022, 11, 21), datetime.timezone.utc))
         unit_2 = ApiJobUnitBefore(
             parent=api_job, order_in_parent=12,
             internal_job=job_2,

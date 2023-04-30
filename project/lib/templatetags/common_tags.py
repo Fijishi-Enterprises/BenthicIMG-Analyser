@@ -1,8 +1,7 @@
 # General-use custom template tags and filters.
 
-from datetime import datetime
+import datetime
 import json
-import pytz
 from urllib.parse import urlencode
 
 from django import template
@@ -53,8 +52,8 @@ def get_maintenance_time():
     try:
         with open(settings.MAINTENANCE_STATUS_FILE_PATH, 'r') as json_file:
             params = json.load(json_file)
-            naive_utc_time = datetime.utcfromtimestamp(params['timestamp'])
-            return timezone.make_aware(naive_utc_time, pytz.timezone("UTC"))
+            return datetime.datetime.fromtimestamp(
+                params['timestamp'], datetime.timezone.utc)
     except IOError:
         return None
 

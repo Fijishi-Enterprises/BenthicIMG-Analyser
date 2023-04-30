@@ -59,7 +59,7 @@ class Command(BaseCommand):
         # 1. DjangoJSONEncoder().encode(dt) - successfully serializes to ISO
         # format, but needs the 3rd party package dateutil to deserialize.
         # 2. Unix timestamp - done with 'U' option of dateformat.format().
-        # Can deserialize with e.g. utcfromtimestamp().
+        # Can deserialize with e.g. fromtimestamp().
         dt_serializable = int(dateformat.format(maintenance_datetime, 'U'))
 
         with open(settings.MAINTENANCE_STATUS_FILE_PATH, 'w') as json_file:

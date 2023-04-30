@@ -1,7 +1,7 @@
 # To see requirements for an installed package, use: pip show <package-name>
 
 
-Django>=3.2.18,<4.0
+Django>=4.0.10,<4.1
 
 # Per-object permissions
 # e.g. "can edit this source" not just "can edit sources"

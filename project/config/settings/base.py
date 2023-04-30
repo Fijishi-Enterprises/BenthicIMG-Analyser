@@ -90,10 +90,6 @@ LANGUAGES = [
 # to load the internationalization machinery.
 USE_I18N = False
 
-# If you set this to True, Django will format dates, numbers and calendars
-# according to user current locale.
-USE_L10N = True
-
 # People who get code error notifications.
 # In the format [('Full Name', 'email@example.com'),
 # ('Full Name', 'anotheremail@example.com')]

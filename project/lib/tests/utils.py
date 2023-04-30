@@ -384,6 +384,11 @@ class ClientUtilsMixin(object, metaclass=ABCMeta):
 class CustomTestRunner(DiscoverRunner):
 
     def run_tests(self, test_labels, extra_tests=None, **kwargs):
+        """
+        extra_tests can be removed from the signature of this method
+        once PyCharm stops using it:
+        https://youtrack.jetbrains.com/issue/PY-53355/Warning-when-running-Django-tests-RemovedInDjango50Warning-The-extratests-argument-is-deprecated
+        """
         # Make tasks run synchronously. This is needed since the
         # huey consumer would run in a separate process, meaning it
         # wouldn't see the state of the current test's open DB-transaction.
@@ -409,8 +414,7 @@ class CustomTestRunner(DiscoverRunner):
 
         # Run tests with the above storage settings applied.
         with override_settings(**test_storage_settings):
-            return_code = super().run_tests(
-                test_labels, extra_tests=extra_tests, **kwargs)
+            return_code = super().run_tests(test_labels, **kwargs)
 
         # Clean up the temp dirs after the tests are done.
         storage_manager.remove_temp_dir(test_storage_dir)

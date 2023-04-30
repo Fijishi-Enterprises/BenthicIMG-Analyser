@@ -5,9 +5,9 @@ Installation
 PostgreSQL installation
 -----------------------
 
-Download and install the PostgreSQL server/core, 10.x. 32 or 64 bit shouldn't matter.
+Download and install the PostgreSQL server/core, 14.x.
 
-- On Linux, the package will probably be ``postgresql-10``.
+- On Linux, the package will probably be ``postgresql-14``.
 - During the setup process, make sure you keep track of the root password.
 
 Locate and open the client program that came with PostgreSQL. Windows has pgAdmin, while Linux should have the command-line ``postgresql-client`` or the GUI pgAdmin as options (may be distributed separately).
@@ -58,31 +58,29 @@ If you're going to make any contributions:
 
 Python
 ------
-This project uses Python 3.8.x, so download and install that.
+This project uses Python 3.10.x, so download and install that.
 
-Since this project has many third-party dependencies, and may require specific versions of those dependencies, it's highly recommended to use something like virtualenv to keep those dependencies separate from other Python projects.
+Since this project has many third-party dependencies, and requires specific versions of those dependencies, it's highly recommended to install dependencies in some kind of separate environment rather than being tied to the Python installation (which you may be using for other projects besides CoralNet). Tools such as venv, virtualenv, or conda can achieve this.
 
 
-.. _virtualenv:
+.. _virtual_environment:
 
-Virtualenv
-^^^^^^^^^^
-Install virtualenv: ``pip install virtualenv`` (Be sure that you're using the ``pip`` from the Python installation you're using for CoralNet.)
+Virtual environment
+^^^^^^^^^^^^^^^^^^^
+This section will cover venv, since venv comes with Python without needing an extra installation step. However, virtualenv, conda, or other tools should work too.
 
-``cd`` to somewhere outside of the ``coralnet`` Git repo. For example, you could go one directory up from the repo.
+Create a virtual environment at a location of your choice: ``python -m venv /path/to/myenv``. Make sure to pick a location outside of the ``coralnet`` Git repo. For example, you could go one directory up from the repo.
 
-Create a virtual environment, making sure it uses your preferred Python version: ``virtualenv -p <path to python> <name of new virtualenv directory>`` (Again, find the ``virtualenv`` executable in the same directory as your python/pip executables.)
+Activate your environment: ``source /path/to/myenv/bin/activate`` on Linux, ``C:/path/to/myenv/Scripts/activate`` on Windows.
 
-Activate your virtualenv: ``source <path to virtualenv you created>/bin/activate`` on Linux, ``<path to virtualenv you created>/Scripts/activate`` on Windows.
-
-You should ensure that your virtual environment is activated when installing Python packages or running Django management commands for the CoralNet project. From here on out, these instructions will assume you have your virtual environment (also referred to as virtualenv) activated.
+You should ensure that your virtual environment is activated when installing Python packages or running Django management commands for the CoralNet project. From here on out, these instructions will assume you have your virtual environment activated.
 
 
 .. _python-packages:
 
 Python packages
 ---------------
-With your virtualenv activated, run ``pip install -r requirements/local.txt`` to install the packages. Note that this will install the listed packages as well as any dependencies those packages might have.
+With your virtual environment activated, run ``pip install -r requirements/local.txt`` to install the packages. Note that this will install the listed packages as well as any dependencies those packages might have.
 
 A few package/OS combinations may need additional steps:
 
@@ -118,7 +116,7 @@ A few package/OS combinations may need additional steps:
 
 If you think you messed up and want to undo a pip installation, use ``pip uninstall <package-name>``.
 
-From now on, whenever you need to get your packages up to date, activate your virtualenv and rerun ``pip install -r requirements/<name>.txt``.
+From now on, whenever you need to get your packages up to date, activate your virtual environment and rerun ``pip install -r requirements/<name>.txt``.
 
 
 Django settings module
@@ -178,7 +176,7 @@ Run ``python manage.py migrate``. If Django's auth system asks you to create a s
 
 Running the web server
 ----------------------
-Ensure your virtualenv is activated, and run ``python manage.py runserver`` from the ``project`` directory.
+Ensure your virtual environment is activated, and run ``python manage.py runserver`` from the ``project`` directory.
 
 Navigate to your localhost web server, e.g. ``http://127.0.0.1:8000/``, in your browser.
 
@@ -202,7 +200,7 @@ How to make PyCharm find everything:
 
 - Go to the Django Support settings and use ``project`` as the Django project root. Also set your Manage script (``manage.py``) and Settings file accordingly.
 
-- Go to the Project Interpreter settings and select the Python within your virtualenv (should be under ``Scripts``). This should make PyCharm detect our third-party Python apps.
+- Go to the Project Interpreter settings and select the Python within your virtual environment (should be under ``Scripts``). This should make PyCharm detect our third-party Python apps.
 
 - Go to the Project Structure settings and mark ``project`` as a Sources directory (`Help <https://www.jetbrains.com/help/pycharm/2016.1/configuring-folders-within-a-content-root.html>`__). This is one way to make PyCharm recognize imports of our apps, such as ``annotations.models``. (There may be other ways.)
 
@@ -216,7 +214,7 @@ How to make a Run Configuration that runs ``manage.py runserver`` from PyCharm:
 
 - If on Windows, set the PATH environment variable in the run configuration, to include shared ffmpeg (to avoid the avcodec-58.dll error). There doesn't seem to be a way to add to the existing PATH, but overriding the old PATH with nothing but ffmpeg seems to be OK.
 
-- Ensure that "Python interpreter" has the Python from your virtualenv.
+- Ensure that "Python interpreter" has the Python from your virtual environment.
 
 .. [#pycharmenvvar] Not sure why this is needed when we specify the settings module in Django Support settings, but it was needed in my experience. -Stephen
 

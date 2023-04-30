@@ -11,13 +11,13 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        python-version: [3.8]
+        python-version: [3.10]
     env:
       DJANGO_SETTINGS_MODULE: config.settings.ci
 
     services:
       postgres:
-        image: postgres:10.8
+        image: postgres:14.7
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres

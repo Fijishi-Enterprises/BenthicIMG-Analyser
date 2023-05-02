@@ -32,7 +32,12 @@ class MaintenanceOnTest(ManagementCommandTest):
 
             mock_now.return_value = get_time(minute=2, second=30)
             stdout_text, _ = self.call_command_and_get_output(
-                'lib', 'maintenanceon', args=[])
+                'lib', 'maintenanceon',
+                # Color-style characters are not present in PyCharm but are
+                # present in Windows command prompt. Make them consistently
+                # absent for ease of assertions.
+                args=['--no-color'],
+            )
 
             os.remove(temp_file.name)
 

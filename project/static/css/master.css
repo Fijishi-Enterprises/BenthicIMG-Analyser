@@ -85,6 +85,10 @@ ul.nav > li > form {
     width: auto;
     cursor: pointer;
 }
+ul.nav > li > :active {
+    /* Shift position like a pressed button */
+    padding: 3px 2px 2px 3px;
+}
 
 /* This is for the stuff within a button (background and text) */
 ul.nav > li span,
@@ -109,10 +113,6 @@ ul.nav > li button {
     cursor: inherit;
 }
 
-ul.nav > li > :active {
-    margin: 3px 0 0 3px;
-    padding: 1px;
-}
 ul.nav > li > a:hover > span,
 ul.nav > li > a:active > span,
 ul.nav > li > form:hover > button,

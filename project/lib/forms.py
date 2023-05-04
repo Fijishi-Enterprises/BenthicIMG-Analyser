@@ -1,5 +1,15 @@
 from django import forms
 from django.forms import fields
+from django.forms.renderers import TemplatesSetting
+
+
+class CustomFormRenderer(TemplatesSetting):
+    """
+    Based off of TemplatesSetting, for overriding built-in widget templates:
+    https://docs.djangoproject.com/en/dev/ref/forms/renderers/#templatessetting
+    """
+    # Use div.html by default, i.e. when using {{ my_form }} in a template.
+    form_template_name = 'django/forms/div.html'
 
 
 class DummyForm(forms.Form):

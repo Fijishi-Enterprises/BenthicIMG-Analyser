@@ -1,25 +1,24 @@
 {% comment %}
-TODO: Once we are on Django 4.0:
-- Don't include this template explicitly; write {{ my_form }} to automatically use this template, utilizing Django 4.0's template-based form rendering.
+TODO: use this template for more forms.
+Use the pattern {{ my_form }} to automatically use this template, and update the following:
 - Use `errors` instead of form.non_field_errors.
 - Use `fields` and `hidden_fields`, instead of {% for field in form %}. For an example, see the built-in template of this same name.
 {% endcomment %}
 
-{{ form.non_field_errors }}
+{% if errors %}
+  {{ errors }}
+{% endif %}
 
 
 <div class="form-fields-grid">
 
   {# Elements here should be defined in pairs, in order to make the grid layout work. First element goes on the left column, second element goes on the right column. Alternatively, an element can have the CSS rule `grid-column: span 2;` to take up an entire row. #}
 
-  {% for field in form %}
+  {% for field, errors in fields %}
     {% with widget=field.field.widget %}
 
-      {# We'll add hidden fields outside of this grid. #}
-      {% if widget.input_type != 'hidden' %}
-
         <div class="field-errors">
-          {{ field.errors|safe }}
+          {{ errors|safe }}
         </div>
 
         {% if widget.input_type == 'checkbox' and not widget.allow_multiple_selected %}
@@ -54,17 +53,12 @@ TODO: Once we are on Django 4.0:
 
         {% endif %}
 
-      {% endif %}
-
     {% endwith %}
   {% endfor %}
 
 </div>
 
 
-{# This separate for loop is for hidden fields. #}
-{% for field in form %}
-  {% if field.field.widget.input_type == 'hidden' %}
-    {{ field }}
-  {% endif %}
+{% for field in hidden_fields %}
+  {{ field }}
 {% endfor %}

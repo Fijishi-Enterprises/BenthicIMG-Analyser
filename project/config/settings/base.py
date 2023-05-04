@@ -402,9 +402,7 @@ PASSWORD_HASHERS = [
     'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',
 ]
 
-# Required for overriding built-in widget templates
-# https://docs.djangoproject.com/en/dev/ref/forms/renderers/#templatessetting
-FORM_RENDERER = 'django.forms.renderers.TemplatesSetting'
+FORM_RENDERER = 'lib.forms.CustomFormRenderer'
 
 # The maximum size (in bytes) that an upload will be before it
 # gets streamed to the file system.

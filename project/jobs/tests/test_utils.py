@@ -1,7 +1,7 @@
 from unittest import mock
 
 from django.db import connections, transaction
-from django.db.utils import DEFAULT_DB_ALIAS, load_backend
+from django.db.utils import DEFAULT_DB_ALIAS
 from django.test.testcases import TransactionTestCase
 
 from errorlogs.tests.utils import ErrorReportTestMixin
@@ -305,19 +305,6 @@ class JobStartRaceConditionTest(TransactionTestCase):
     https://docs.djangoproject.com/en/4.1/topics/testing/tools/#transactiontestcase
     """
 
-    @staticmethod
-    def create_connection(alias=DEFAULT_DB_ALIAS):
-        """
-        TODO: This method can likely be replaced by
-         django.db.connections.create_connection() starting around Django 3.2.
-         https://github.com/django/django/commit/98e05ccde440cc9b768952cc10bc8285f4924e1f#diff-76917634c6c088f56f8dec9493294c657953e61b01e38e33b02d876d5e96dd3a
-        """
-        connections.ensure_defaults(alias)
-        connections.prepare_test_settings(alias)
-        db = connections.databases[alias]
-        backend = load_backend(db['ENGINE'])
-        return backend.DatabaseWrapper(db, alias)
-
     def test_start_pending_job(self):
         # Create a pending job.
         queue_job('name', 'arg')
@@ -336,7 +323,7 @@ class JobStartRaceConditionTest(TransactionTestCase):
                 queryset.query.sql_with_params()[0] % "'name'"
 
         # Make an extra DB connection.
-        connection = self.create_connection()
+        connection = connections.create_connection(alias=DEFAULT_DB_ALIAS)
         try:
             # Start a transaction with the extra DB connection.
             # We do it this way because transaction.atomic() would only

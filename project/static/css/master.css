@@ -1,16 +1,13 @@
 /*
 CSS EXPLANATIONS
 
-border-radius: for making rounded corners; browser support may vary
-
-margin: spacing around the outside of an element.  If specified by 4
- values, it means top right bottom left.  If both left and right have
- a value of auto, then the element is centered horizontally.
+margin: spacing around the outside of an element.
+ 4 values = top right bottom left.
+ 3 values = top left+right bottom.
+ 2 values = top+bottom left+right.
+ If both left and right have a value of auto,
+ then the element is centered horizontally.
 */
-
-/*	WdeB
-breadandpepper.com
-................................... */
 
 @import "reset.css";
 @import url(https://fonts.googleapis.com/css?family=Droid+Sans:regular,bold);
@@ -49,119 +46,94 @@ html, body{
 /*	Navigation bars
 ................................... */
 
-#header h1{
-    width: 150px;
-    height: 112px;
-    margin: 0;
-}
-
-div.nav_container{
-    margin: 20px 20px 20px 20px;
+div.nav_container {
+    margin: 20px;
     position: relative;
     height: 40px;
 }
 
-/* Positioning for left navigation buttons */
-ul.nav_left{
+ul.nav {
     position: absolute;
+    overflow: auto;
+    display: flex;
+}
+ul.nav_left {
     left: 0;
-    overflow: auto;
 }
-
-/* Positioning for right navigation buttons */
-ul.nav_right{
-    position: absolute;
+ul.nav_right {
     right: 0;
-    overflow: auto;
 }
 
-ul.nav li{
-    float: left;
-    margin-left: 5px;
-    margin-right: 5px;
-    /* The border adds shadow around each button, but does not expand the button's clickable area */
-    border-width: 1px;
-    border-style: solid; 
-    border-color: #eee #eee #fff #eee ; 
-    -webkit-border-radius: 11px; 
-    -moz-border-radius: 11px; 
-    border-radius: 11px;
-    -webkit-background-clip: padding-box;
+ul.nav > li {
+    /* Don't word wrap */
+    flex-shrink: 0;
+
+    margin: 0 5px;
 }
 
-ul.nav li.text{
-    /* No borders for text elements, only for buttons.  For now. */
-    border-width: 0;
-}
-
-ul.nav li a{
-    background: #ede9e4;
-    float: left;
-    /* The padding adds shadow around each button; it also expands the button's clickable area */
-    padding: 4px 4px 3px;
-    text-decoration: none; 
-    outline: 0; 
-    -webkit-border-radius: 10px; 
-    -moz-border-radius: 10px; 
+ul.nav > li > a,
+ul.nav > li > form {
+    background-color: hsl(0, 0%, 70%);
+    display: block;
+    /* The padding adds shadow around each button;
+       it also expands the button's clickable area */
+    padding: 1px 4px 4px 1px;
     border-radius: 10px;
-    -webkit-background-clip: padding-box;
+
+    /* Styling the form like a link */
+    margin: 0;
+    width: auto;
+    cursor: pointer;
 }
 
 /* This is for the stuff within a button (background and text) */
-ul.nav li a span {
-    display: block; 
-    color: #686868; 
-    padding: 0.52em 1.4em 0.48em;
-    text-shadow: rgba(255,254,255,0.45) 0 1px 0; 
-    -webkit-box-shadow: rgba(33,33,33,0.45) 0px 0px 3px; 
-    -moz-box-shadow: rgba(33,33,33,0.45) 0px 0px 3px; 
-    box-shadow: rgba(33,33,33,0.45) 0px 0px 3px;
-    -webkit-border-radius: 7px; 
-    -moz-border-radius: 7px; 
+ul.nav > li span,
+ul.nav > li button {
+    display: block;
+    color: hsl(0, 0%, 41%);
+    padding: 0.5em 1.4em;
     border-radius: 7px;
-    background: transparent -webkit-gradient(linear, left top, left bottom, from(rgba(255,255,255,0.6)), color-stop(1.0, rgba(255,255,255,0.15)), color-stop(1.0, rgba(255,255,255,0.01)), to(transparent)); 
-    background: transparent -moz-linear-gradient(top, rgba(255,255,255,0.6), rgba(255,255,255,0.15) 100%, rgba(255,255,255,0.01) 100%, transparent);
-    -webkit-background-clip: padding-box;
+    background: linear-gradient(
+      to bottom,
+      hsl(0, 0%, 100%, 85%),
+      hsl(0, 0%, 100%, 55%)
+    );
     text-decoration: none;
     font-size: .9em;
     line-height: 1.4em;
     font-weight: bold;
+
+    /* Style resetting for button */
+    border: 0;
+    font-family: inherit;
+    cursor: inherit;
 }
 
-ul.nav li.selected a span {
-    color: #000000;
+ul.nav > li > :active {
+    margin: 3px 0 0 3px;
+    padding: 1px;
+}
+ul.nav > li > a:hover > span,
+ul.nav > li > a:active > span,
+ul.nav > li > form:hover > button,
+ul.nav > li > form:active > button {
+    background-color: hsl(0, 0%, 88%);
 }
 
-ul.nav li a:hover span {
-    background-color: #e0dfda;
+ul.nav li.button_prominent a {
+    background-color: hsl(0, 31%, 68%);
 }
-
-ul.nav li a:active span {
-    background-color: #e0dfda;
-    -webkit-box-shadow: rgba(33,33,33,0.45) 0px 0px 1px; 
-    -moz-box-shadow: rgba(33,33,33,0.45) 0px 0px 1px; 
-    box-shadow: rgba(33,33,33,0.45) 0px 0px 1px;
-    padding: 0.62em 1.4em 0.38em;
-}
-
-ul.nav li.button_prominent a{
-    background: #e8c8c8;
-}
-ul.nav li.button_prominent a:hover span {
-    background-color: #f0b8b8;
-}
+ul.nav li.button_prominent a:hover span,
 ul.nav li.button_prominent a:active span {
-    background-color: #f0b8b8;
+    background-color: hsl(0, 55%, 66%);
 }
 
-#nav_profile li a{
-    background: #e8e8b8;
+#nav_profile li a {
+    background-color: hsl(60, 41%, 65%);
 }
-#nav_profile li a:hover span {
-    background-color: #f0f0a8;
-}
+#nav_profile li a:hover span,
 #nav_profile li a:active span {
-    background-color: #f0f0a8;
+    background-color: hsl(60, 61%, 63%);
 }
 
 

@@ -103,7 +103,12 @@
               {% endif %}
 
               <li><a href="{% url 'profile_detail' user.pk %}"><span>Account ({{ user.username }})</span></a></li>
-              <li><a href="{% url 'logout' %}"><span>Sign out</span></a></li>
+              <li>
+                <form method="post" action="{% url 'logout' %}">
+                  {% csrf_token %}
+                  <button>Sign out</button>
+                </form>
+              </li>
 
             {% else %}
 

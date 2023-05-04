@@ -25,7 +25,7 @@ class PermissionTest(BasePermissionTest):
         # Can still access the sign-out view when already signed out. There's
         # not a major use case, but nothing inherently wrong with it either.
         self.assertPermissionLevel(
-            url, self.SIGNED_OUT, template=template)
+            url, self.SIGNED_OUT, post_data=dict(), template=template)
 
 
 class SignInTest(BaseAccountsTest):
@@ -268,7 +268,7 @@ class SignOutTest(ClientTest):
         # Signed in
         self.assertIn('_auth_user_id', self.client.session)
 
-        response = self.client.get(reverse('logout'), follow=True)
+        response = self.client.post(reverse('logout'), follow=True)
         self.assertTemplateUsed(response, 'registration/logged_out.html')
         # Signed out
         self.assertNotIn('_auth_user_id', self.client.session)

@@ -11,7 +11,7 @@ from .models import CalcifyRateTable
 def get_default_calcify_tables():
     # Get the latest global table from each region.
     return CalcifyRateTable.objects.filter(source__isnull=True).order_by(
-        'region', '-date').distinct('region')
+        'region', '-pk').distinct('region')
 
 
 def get_default_calcify_rates():

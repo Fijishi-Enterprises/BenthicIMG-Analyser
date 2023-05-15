@@ -23,11 +23,13 @@ Upgrading Python
 ----------------
 If you are just upgrading the patch version (3.10.0 -> 3.10.1), you should be able to just download and install the new version, allowing it to overwrite your old version. (`Source <https://stackoverflow.com/a/17954487/>`__)
 
-- If using Windows, you should also create a new virtual environment using the new version, because venv on Windows might only copy core files/scripts over instead of using symlinks.
+- If using Windows, you should also create a new virtual environment using the new version, because venv on Windows will probably copy core files/scripts over instead of using symlinks.
 
-If you are upgrading the major version (2 -> 3) or minor version (3.9 -> 3.10), first download and install the new version. It should install in a separate location, such as ``python37`` instead of ``python36``. You'll then want to :ref:`create a new virtual environment <virtual_environment>` using the new Python version, and :ref:`reinstall packages <python-packages>` to that new virtual environment.
+If you are upgrading the major version (2 -> 3) or minor version (3.9 -> 3.10), then it's basically like setting up Python from scratch:
 
-The Django file-based cache uses a different pickle protocol in Python 2 versus 3, so you'll have to clear the Django cache when switching between Python 2 and 3, otherwise you may see errors on the website.
+- Download and install the new version. It should install in a separate location, such as ``python310`` instead of ``python39``.
+- :ref:`Create a new virtual environment <virtual_environment>` using the new Python version.
+- :ref:`Install packages <python-packages>` in that new virtual environment.
 
 
 Upgrading PostgreSQL
@@ -36,15 +38,21 @@ See the `PostgreSQL docs <https://www.postgresql.org/docs/14/upgrading.html>`__.
 
 - Install the new PostgreSQL server version alongside the existing version.
 
-  - Note that if both server versions use the same port number (e.g. 5432, the default), they won't be able to run simultaneously.
+  - Note that if both server versions use the same port number (e.g. 5432, the default), they won't be able to run simultaneously. In many installations, the port can be changed later in ``postgresql.conf`` in the data directory.
 
-- Check the release notes for the major version (9.5, 9.6, 10, 11, 12...), particularly the 'Migration' section, to see if version-specific steps are necessary to upgrade.
+- Check the `release notes <https://www.postgresql.org/docs/14/release.html>`__ to see if version-specific steps are necessary to upgrade, particularly when upgrading the major version (10, 11, 12, 13, 14...).
 
-  - `Upgrading to version 10: <https://www.postgresql.org/docs/10/release-10.html>`__ No extra steps needed for CoralNet. If you happen to connect to your development server remotely, though, ``ssl_dh_params_file`` could be helpful for security.
+  - Version 10 to 14: No extra steps needed for CoralNet.
 
-- Either manually dump your databases from the old server (``dumpall``) and restore them to the new server (``psql`` with ``--file`` option), or use ``pg_upgrade`` to do it.
+- Then assuming you don't want to start from a fresh database, there are a few options to actually migrate the data:
 
-  - If you get prompted for the password several times during the process, just enter the password each time and it should work.
+  - `pg_upgrade <https://www.postgresql.org/docs/14/pgupgrade.html>`__
+
+  - `dumpall <https://www.postgresql.org/docs/14/app-pg-dumpall.html>`__ followed by a restore using ``psql`` with the ``--file`` option. You might try this instead of pg_upgrade if your new database cluster is already non-empty.
+
+  - ``pg_dump`` followed by a restore on each individual database. You might try this if you don't want to port all databases over, if there are issues with porting login roles, or if you only have one or two databases to port anyway.
+
+  To handle the multiple password prompts during the migration process, you can either try configuring a `pgpass <https://www.postgresql.org/docs/14/libpq-pgpass.html>`__ file, or you can just enter the password each time you're prompted.
 
 
 Server scripts
@@ -62,11 +70,7 @@ Run this as a ``.bat`` file:
 .. code-block:: doscon
 
   cd <path up to Git repo>\coralnet\project
-  set "DJANGO_SETTINGS_MODULE=config.settings.<module name>"
-
-  rem Add ffmpeg DLL to PATH. torchvision 0.5.0 appears to need this.
-  rem https://github.com/pytorch/vision/issues/1877
-  set "PATH=%PATH%;<path up to ffmpeg>\ffmpeg-4.1-win64-shared\bin"
+  set "DJANGO_SETTINGS_MODULE=config.settings"
 
   rem Start the PostgreSQL service (this does nothing if it's already started)
   net start postgresql-x64-<version number>
@@ -98,7 +102,7 @@ start postgres::
 
 set environment variable::
 
-  export DJANGO_SETTINGS_MODULE=config.settings.dev_beijbom
+  export DJANGO_SETTINGS_MODULE=config.settings
 
 make sure messaging agent is running::
 

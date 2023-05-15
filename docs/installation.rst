@@ -37,13 +37,6 @@ To add privileges: Expand the ``coralnet`` database, expand ``Schemas``, right c
 
 ``ALTER_ROLE`` method: Right click the ``django`` Login Role, Properties..., Parameters tab. Use the + button to add an entry. Database = ``coralnet``, Name and Value = whatever is specified in that Django docs link.
 
-Notes
-^^^^^
-
-- When you create the ``coralnet`` database, it'll have ``public`` privileges by default. This means that every user created in that PostgreSQL installation has certain privileges by default, such as connecting to that database. `Related SO thread <http://stackoverflow.com/questions/6884020/why-new-user-in-postgresql-can-connect-to-all-databases>`__. This shouldn't be an issue as long as there are no PostgreSQL users with insecure passwords.
-
-- A Django 1.7 release note says: "When running tests on PostgreSQL, the USER will need read access to the built-in postgres database." This doesn't seem to be a problem by default, probably due to the default ``public`` privileges described above.
-
 
 Git
 ---
@@ -100,53 +93,32 @@ A few package/OS combinations may need additional steps:
 
   - You may see "ERROR: Failed building wheel for scikit-learn", followed by an attempt to install using ``setup.py install``. If the latter attempt succeeds, then scikit-learn should be good to go.
 
-- ``scipy`` on Windows
-
-  - Installing SciPy with the requirements file will fail for two reasons. First, NumPy needs to be installed as NumPy+MKL, and the binary for that isn't on PyPI. Second, even after getting the NumPy install right, installing SciPy with pip fails for some reason (the first problem is ``libraries openblas not found in [ ... ] NOT AVAILABLE``).
-
-  - What to do: First install NumPy+MKL and then SciPy manually using the .whl files here: http://www.lfd.uci.edu/~gohlke/pythonlibs/ Be sure to pick the appropriate .whl depending on whether your Python is 32 or 64 bit. To install a .whl, run ``pip install <path to .whl>``. Then run the requirements file to install the rest of the packages.
-
-- ``torch`` and ``torchvision`` on Windows
-
-  - Confirm your CUDA version if you have a GPU that supports it. For example, NVIDIA Control Panel > Help > System Information > Components tab should have this info.
-
-  - Head to the `PyTorch website <https://pytorch.org/>`__ and find the install or getting started page. There are a few possible ways to try to get the appropriate .whl files depending on your OS, CUDA version, and target torch / torchvision versions. For old versions, either try the "install previous versions" link, or head directly to https://download.pytorch.org/whl/torch_stable.html and find the .whl files that most closely match your environment. Download the .whl files and run ``pip install <path to .whl>`` on each.
-
-  - To import torchvision 0.5.0 without getting a "The program can't start because avcodec-58.dll is missing from your computer." error dialog, download the shared version (not static) of ffmpeg and add its ``bin`` directory to your PATH environment variable. (`Source <https://github.com/pytorch/vision/issues/1877>`__)
-
 If you think you messed up and want to undo a pip installation, use ``pip uninstall <package-name>``.
 
 From now on, whenever you need to get your packages up to date, activate your virtual environment and rerun ``pip install -r requirements/<name>.txt``.
 
 
-Django settings module
-----------------------
-Look under ``project/config/settings``.
+Settings
+--------
+Most configuration for the Django project is defined in the version-controlled file ``project/config/settings.py``. However, some configuration details are unique to each installation (such as passwords). There are two ways to specify these settings:
 
-- If you are setting up a development server, use one of the dev-specific settings modules (such as ``dev_stephen.py``) or make your own. The module should include:
+1. Create an un-committed ``.env`` file at the root of the repository (in ``coralnet``, on the same level as ``project``). Consult the example file ``.env.dist`` as a guide on how to write the contents of ``.env``. Here's an example snippet:
 
-  - An import of ``base_devserver``
-  - An import of either ``storage_local`` or ``storage_s3``, depending on whether you want to store media files locally or in an S3 bucket. Local storage works fine for most functionality, but some tests require S3.
-  - Any settings values you want to customize for your environment specifically
+   .. code-block::
 
-By default, Django expects the settings to be in a ``settings.py`` at the project root, so we have to tell it otherwise. One way is with the ``DJANGO_SETTINGS_MODULE`` environment variable. Set this variable to ``config.settings.<module name>``, where ``<module name>`` is ``dev_stephen``, ``dev_oscar``, etc.
+     SETTINGS_BASE=dev-local
+     DATABASE_NAME=coralnet
+     DATABASE_USER=django
 
-- For example, in Linux (bash and most other shells): ``export DJANGO_SETTINGS_MODULE=config.settings.dev_stephen``
+2. Set environment variables. Each variable should be prefixed with ``CORALNET_`` in this case. Example commands to set the variables:
 
+   .. code-block::
 
-secrets.json
-------------
-Some settings like passwords shouldn't be committed to the repo. We keep these settings in an un-committed ``project/config/settings/secrets.json`` file. Create this file and fill it with anything that the settings module obtains with ``get_secret()``. For example::
+     export CORALNET_SETTINGS_BASE='dev-local'
+     export CORALNET_DATABASE_NAME='coralnet'
+     export CORALNET_DATABASE_USER='django'
 
-  {
-    "DATABASES_PASSWORD": "correcthorsebatterystaple",
-    "DATABASES_HOST": "",
-    "DATABASES_PORT": ""
-  }
-
-If you're missing any secret settings in ``secrets.json``, you'll get an ``ImproperlyConfigured`` error when running any ``manage.py`` commands.
-
-Check your settings module (and anything it imports from, such as ``base.py``) for details on the format of each required secret setting.
+If you're missing any expected settings, you should get an ``ImproperlyConfigured`` error when running any ``manage.py`` commands.
 
 
 Creating necessary directories
@@ -192,44 +164,28 @@ If you don't have a superuser yet, use ``python manage.py createsuperuser`` to c
 
 PyCharm configuration
 ---------------------
-Here are some tips for developing and running the website with the PyCharm IDE (optional, but recommended for site development). These instructions refer to PyCharm 2.6.3 (2012/02/26), so some points may be out of date.
+Here are some tips for developing and running the website with the PyCharm IDE (optional, but recommended for site development). These instructions are to date as of PyCharm 2023.1.1.
 
-How to make PyCharm find everything:
+Initial setup:
 
-- Make ``coralnet`` your PyCharm project root.
+- Open PyCharm, File -> New Project, and select Django. The PyCharm project's root should be at the repository root, ``coralnet``. The Python interpreter should be the Python executable in your virtual environment.
 
-- Go to the Django Support settings and use ``project`` as the Django project root. Also set your Manage script (``manage.py``) and Settings file accordingly.
+- In the directory tree sidebar, right-click the ``project`` folder, and select Mark Directory as -> Sources Root.
 
-- Go to the Project Interpreter settings and select the Python within your virtual environment (should be under ``Scripts``). This should make PyCharm detect our third-party Python apps.
+Make a Run Configuration that runs ``manage.py runserver`` from PyCharm:
 
-- Go to the Project Structure settings and mark ``project`` as a Sources directory (`Help <https://www.jetbrains.com/help/pycharm/2016.1/configuring-folders-within-a-content-root.html>`__). This is one way to make PyCharm recognize imports of our apps, such as ``annotations.models``. (There may be other ways.)
+- Run -> Edit Configurations..., then make a new configuration under "Django server".  Add an environment variable with Name ``DJANGO_SETTINGS_MODULE`` and Value ``config.settings``.
 
-- Go to the Python Template Languages settings. Under Template directories, add one entry for each ``templates`` subdirectory in the repository.
-
-How to make a Run Configuration that runs ``manage.py runserver`` from PyCharm:
-
-- Run -> Edit Configurations..., then make a new configuration under "Django server".
-
-- Add an environment variable with Name ``DJANGO_SETTINGS_MODULE`` and Value ``config.settings.<name>``, with <name> being ``local``, ``dev_stephen``, etc. [#pycharmenvvar]_
-
-- If on Windows, set the PATH environment variable in the run configuration, to include shared ffmpeg (to avoid the avcodec-58.dll error). There doesn't seem to be a way to add to the existing PATH, but overriding the old PATH with nothing but ffmpeg seems to be OK.
-
-- Ensure that "Python interpreter" has the Python from your virtual environment.
-
-.. [#pycharmenvvar] Not sure why this is needed when we specify the settings module in Django Support settings, but it was needed in my experience. -Stephen
+- This Run Configuration should let you use ``runserver`` from PyCharm. You can Run it normally, or you can Debug it to use breakpoints and inspect values.
 
 
 Running the web server with DEBUG = False
 -----------------------------------------
-Sometimes you need to run the server with ``DEBUG = False`` in your settings to test something - for example, the 404 and 500 error pages. Running the server like this requires a couple of extra steps.
+Sometimes you want to run your development server with the ``DEBUG = False`` setting to test something - for example, the 404 and 500 error pages.
 
-- To serve media files, define a ``MEDIA_URL`` in your settings; for example, ``http://127.0.0.1:8070/``. Then in a terminal/command window, run: ``python -m http.server 8070``
-
-- To serve static files, define a ``STATIC_URL`` in your settings; for example, ``http://127.0.0.1:8080/``. Then in a terminal/command window, run: ``python -m http.server 8080``
-
-  - Any time static files (CSS, Javascript, etc.) are added or changed, run ``python manage.py collectstatic`` to copy those added/changed static files to STATIC_ROOT. Do ``python manage.py collectstatic --clear`` instead if you think there's some obsolete static files that can be cleaned up.
+There is a section of ``.env.dist`` which explains how to set this up, so follow the explanations there.
 
 
 Linting
 -------
-We use pre-commit hooks. Please run `pre-commit install` to activate after installing the packages in `local.txt`. Linting will run automatically on `git commit`.
+The coralnet repo has pre-commit hooks available, although they're not consistently used by all devs yet. To use them, run ``pre-commit install`` to activate after installing the packages in ``local.txt``. Linting will run automatically on ``git commit``.

@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.5
+
+- Python version has been updated from 3.6 to 3.10. See Server Operation > Upgrading Python in the CoralNet docs.
+- Settings scheme has been changed. The old scheme used a developer-specific `.py` file AND a `secrets.json` file. The new scheme uses a `.env` file OR environment variables. Check the updated installation docs for details.
+- Updates to required packages. Check requirements files for all the changes, but most notably:
+  - Django 2.2.x -> 4.1.x
+  - easy-thumbnails 2.6.0 -> our own fork
+  - pyspacer 0.3.1 -> 0.4.0
+- PostgreSQL version has been updated from 10 to 14. See Server Operation > Upgrading PostgreSQL in the CoralNet docs.
+- New migrations to run for `api_core`, `calcification`, `labels`, `vision_backend`, Django's `auth`, and django-reversion's `reversion`.
+
+### Notes
+
+- A regression: unit tests now have 'noisy' log messages again, because the use of assertLogs() (replacing patch_logger() which was removed in Django 3.0) requires logging to be enabled. Ideally this regression would be fixed by reconfiguring (instead of disabling) the logging during tests, but that's something to figure out for a later release.
+- Page header and footer nav-button styling has been cleaned up, so hopefully the shadowing makes a bit more sense now.
+
 ## 1.4
 
 - Updates to required packages:

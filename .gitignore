@@ -1,5 +1,7 @@
-# Specific files which are unique per machine or generated somehow
-project/config/settings/secrets.json
+# Unique per environment
+.env
+
+# Generated as needed by maintenanceon command
 project/templates/maintenance_notice.html
 
 # Coverage output files

@@ -3,6 +3,11 @@
 
 Django>=4.1.8,<4.2
 
+# Define environment-specific Django config in a .env file or
+# environment variables.
+# Changelog: https://django-environ.readthedocs.io/en/latest/changelog.html
+django-environ==0.10.0
+
 # Per-object permissions
 # e.g. "can edit this source" not just "can edit sources"
 # Requires: django
@@ -110,20 +115,6 @@ django-migration-testcase==0.0.15
 # https://www.crummy.com/software/BeautifulSoup/bs4/doc/#unicode-dammit
 beautifulsoup4>=4.11.1,<4.12
 
-# Another filepath calculations module.
-#
-# unipath hasn't been updated since early 2015 (as of late 2017).
-# Was formerly recommended by Two Scoops of Django for specifying Django
-# settings, but they moved to pathlib.
-# https://github.com/twoscoops/two-scoops-of-django-1.8/issues/150
-# https://github.com/twoscoops/two-scoops-of-django-1.11/blob/master/code/chapter_05_example_30.py
-#
-# However, as of Python 2.7 + Django 1.11, most settings don't accept
-# pathlib.Path objects. This makes it tricky to replace our usage of unipath
-# for settings with pathlib. So, until we upgrade Python/Django, this package
-# will have to stay.
-unipath==1.1
-
 # Browser-side testing.
 # Changelog: https://github.com/SeleniumHQ/selenium/blob/master/py/CHANGES
 #
@@ -160,7 +151,7 @@ django-markdownx==4.0.2
 # Machine-learning backend behind coralnet
 # This can be installed from a local directory (not just PyPI), as long as
 # the local copy's setup.py matches this version number.
-pyspacer==0.3.1
+pyspacer==0.4.0
 
 # Scientific computing
 # We use whatever version of numpy pyspacer uses. To do this, we list

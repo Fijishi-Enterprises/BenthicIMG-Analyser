@@ -13,7 +13,12 @@ jobs:
       matrix:
         python-version: [ "3.10" ]
     env:
-      DJANGO_SETTINGS_MODULE: config.settings.ci
+      DJANGO_SETTINGS_MODULE: config.settings
+      CORALNET_SETTINGS_BASE: dev-local
+      CORALNET_DATABASE_NAME: postgres
+      CORALNET_DATABASE_USER: postgres
+      CORALNET_DATABASE_PASSWORD: postgres
+      CORALNET_SECRET_KEY: ci-secret-key
 
     services:
       postgres:

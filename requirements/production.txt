@@ -4,8 +4,3 @@
 # server (e.g. nginx)
 # Changelog: http://docs.gunicorn.org/en/stable/news.html
 gunicorn>=19.9.0,<19.10
-
-# BeautifulSoup's encoding detection becomes more accurate if chardet or
-# cchardet is installed. chardet is older; cchardet is much faster.
-# Changelog: https://github.com/PyYoshi/cChardet/blob/master/CHANGES.rst
-cchardet==2.1.4

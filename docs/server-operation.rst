@@ -40,9 +40,7 @@ See the `PostgreSQL docs <https://www.postgresql.org/docs/14/upgrading.html>`__.
 
   - Note that if both server versions use the same port number (e.g. 5432, the default), they won't be able to run simultaneously. In many installations, the port can be changed later in ``postgresql.conf`` in the data directory.
 
-- Check the `release notes <https://www.postgresql.org/docs/14/release.html>`__ to see if version-specific steps are necessary to upgrade, particularly when upgrading the major version (10, 11, 12, 13, 14...).
-
-  - Version 10 to 14: No extra steps needed for CoralNet.
+- Do any version-specific steps which are necessary to upgrade. Refer to CoralNet's changelogs for any necessary steps. This shouldn't be too common since CoralNet doesn't use very much of PostgreSQL's feature set.
 
 - Then assuming you don't want to start from a fresh database, there are a few options to actually migrate the data:
 

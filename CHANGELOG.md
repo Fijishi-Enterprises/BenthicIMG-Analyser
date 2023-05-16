@@ -8,7 +8,7 @@
   - Django 2.2.x -> 4.1.x
   - easy-thumbnails 2.6.0 -> our own fork
   - pyspacer 0.3.1 -> 0.4.0
-- PostgreSQL version has been updated from 10 to 14. See Server Operation > Upgrading PostgreSQL in the CoralNet docs.
+- PostgreSQL version has been updated from 10 to 14. See Server Operation > Upgrading PostgreSQL in the CoralNet docs. CoralNet doesn't have any PostgreSQL-version-specific steps for this upgrade.
 - New migrations to run for `api_core`, `calcification`, `labels`, `vision_backend`, Django's `auth`, and django-reversion's `reversion`.
 
 ### Notes

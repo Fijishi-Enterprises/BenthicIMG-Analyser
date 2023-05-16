@@ -1,7 +1,7 @@
 # To see requirements for an installed package, use: pip show <package-name>
 
 
-Django>=4.1.8,<4.2
+Django>=4.1.9,<4.2
 
 # Define environment-specific Django config in a .env file or
 # environment variables.

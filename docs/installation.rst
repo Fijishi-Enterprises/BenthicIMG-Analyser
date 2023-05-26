@@ -73,7 +73,13 @@ You should ensure that your virtual environment is activated when installing Pyt
 
 Python packages
 ---------------
-With your virtual environment activated, run ``pip install -r requirements/local.txt`` to install the packages. Note that this will install the listed packages as well as any dependencies those packages might have.
+With your virtual environment activated, run ``pip install -r requirements/local.txt`` to install the packages. Note that this will install the packages listed/included in that file as well as any dependencies those packages might have.
+
+If you're also working on the PySpacer codebase, or otherwise need a PySpacer version more recent than what's on PyPI, you'll probably want to specify an `editable install <https://pip.pypa.io/en/stable/topics/local-project-installs/>`__ of PySpacer: ``pip install -e path/to/local/spacer``
+
+- The cleanest way to use this would be to do the -e spacer install first, then install other packages with the -r command above.
+
+- Note that any CoralNet pull request you make might not pass in GitHub's CI (GitHub Actions) until PySpacer is updated on PyPI.
 
 A few package/OS combinations may need additional steps:
 

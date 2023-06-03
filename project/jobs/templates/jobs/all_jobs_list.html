@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+
+{% block title %}All Jobs | CoralNet{% endblock %}
+
+
+{% block css-includes %}
+  {% include "static-local-include.html" with type="css" path="css/jobs.css" %}
+{% endblock %}
+
+
+{% block content %}
+
+<h1>All Jobs</h1>
+
+{% include 'jobs/job_table.html' with has_source_column=True %}
+
+{% endblock %}

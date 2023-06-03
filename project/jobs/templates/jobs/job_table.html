@@ -1,0 +1,74 @@
+{# TODO: Form styling similar to browse and label list #}
+<form action="" method="get">
+  {{ job_search_form }}
+
+  <div class="submit_button_wrapper_center">
+    <input type="submit" value="Apply filters">
+  </div>
+</form>
+
+{% if job_table %}
+
+  <p><strong>Job counts:</strong> {% include 'jobs/job_summary_line.html' %}</p>
+
+  <table class="generic" id="job-table">
+    <thead>
+      <tr>
+        <th title="Job ID">Job ID</th>
+        <th title="Job type">Type</th>
+        {% if has_source_column %}
+          <th title="Source the job applies to">Source</th>
+        {% endif %}
+        <th title="Image ID or anything else relevant to this job">Other ID</th>
+        <th title="Progress status">Status</th>
+        <th title="Error message or other note about the result">Detail</th>
+        <th title="Time the job's status was last updated; * means the record will stay after {{ job_max_days }} days">Last updated</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for table_entry in job_table %}
+        <tr class="{{ table_entry.status }}">
+          <td>{{ table_entry.id }}</td>
+          <td>{{ table_entry.job_type }}</td>
+          {% if has_source_column %}
+            <td>
+              {% if table_entry.source_id %}
+                <a href="{% url 'source_main' table_entry.source_id %}">
+                  {{ table_entry.source_name }}
+                </a>
+              {% endif %}
+            </td>
+          {% endif %}
+          <td>
+            {% if table_entry.image_id %}
+              <a href="{% url 'image_detail' table_entry.image_id %}">
+                Image {{ table_entry.image_id }}
+              </a>
+            {% elif table_entry.api_job_unit_id %}
+              <a href="{% url 'api_management:job_detail' table_entry.api_job_id %}">
+                API unit {{ table_entry.api_job_unit_id }}
+              </a>
+            {% endif %}
+          </td>
+          <td>{{ table_entry.status_display }}</td>
+          <td>{{ table_entry.result_message }}</td>
+          <td>
+            {{ table_entry.modify_date }}
+            {% if table_entry.persist %} * {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% include 'pagination_links.html' with page_results=page_results %}
+
+  <p>Most job records are cleaned up after approximately {{ job_max_days }} days, except for jobs with * in Last updated.</p>
+
+{% else %}
+
+  <p>(No jobs found)</p>
+
+  <p>Most job records are cleaned up after approximately {{ job_max_days }} days.</p>
+
+{% endif %}

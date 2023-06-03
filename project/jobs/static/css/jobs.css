@@ -1,0 +1,17 @@
+#job-summary td.PN,
+#job-table tr.PN {
+  background-color: #bbe;
+}
+#job-summary td.IP,
+#job-table tr.IP {
+  background-color: #eeb;
+}
+#job-table tr.SC {
+  background-color: #beb;
+}
+#job-table tr.FL {
+  background-color: #ebb;
+}
+#job-summary td.completed {
+  background-color: #beb;
+}

@@ -282,7 +282,7 @@ class SourceDashboardTest(ClientTest, HtmlTestMixin):
         self.assertContains(response, "(No jobs found)")
         self.assertContains(
             response,
-            "Most job records are cleaned up after 30 days,"
+            "Most job records are cleaned up after approximately 30 days,"
             " except for jobs with * in Last updated.")
 
     def test_job_ordering(self):

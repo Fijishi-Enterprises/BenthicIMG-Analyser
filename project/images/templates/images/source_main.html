@@ -162,7 +162,7 @@ $(document).ready(function() {
         {% if "source_edit" in source_perms %}
           <p>
             To see backend-job status,
-            <a href="{% url 'jobs:source_dashboard' source.id %}">go here</a>.
+            <a href="{% url 'jobs:source_job_list' source.id %}">go here</a>.
           </p>
         {% endif %}
       {% endif %}

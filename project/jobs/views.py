@@ -1,228 +1,216 @@
-from collections import Counter, defaultdict
-from datetime import timedelta
+from abc import ABC
+from typing import Literal
 
 from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth.decorators import permission_required
-from django.db.models.expressions import Case, Value, When
-from django.db.models.fields import IntegerField
 from django.shortcuts import get_object_or_404, render
-from django.utils import timezone
+from django.utils.decorators import method_decorator
+from django.views import View
 
 from images.models import Source
 from lib.decorators import source_permission_required
 from lib.utils import paginate
+from .forms import JobSearchForm, JobSummaryForm
 from .models import Job
-
-
-@permission_required('is_superuser')
-def overall_dashboard(request):
-    """
-    Top-level dashboard for monitoring jobs.
-    """
-    now = timezone.now()
-
-    # check_source jobs generally clutter the dashboard more than they provide
-    # useful info.
-    jobs = Job.objects.exclude(
-        job_name='check_source').order_by('-modify_date', '-id')
-
-    COMPLETED_DAYS_SHOWN = 3
-    in_progress_jobs = jobs.filter(status=Job.IN_PROGRESS)
-    pending_jobs = jobs.filter(status=Job.PENDING)
-    recently_completed_jobs = jobs.filter(
-        status__in=[Job.SUCCESS, Job.FAILURE],
-        modify_date__gt=now - timedelta(days=COMPLETED_DAYS_SHOWN))
-
-    source_job_counts = defaultdict(dict)
-
-    for status_tag, job_group in [
-        ('in_progress', in_progress_jobs),
-        ('pending', pending_jobs),
-        ('recently_completed', recently_completed_jobs),
-    ]:
-        job_source_ids = job_group.values_list('source_id', flat=True)
-        source_id_counts = Counter(job_source_ids)
-        for source_id, count in source_id_counts.items():
-            source_job_counts[source_id][status_tag] = count
-
-    # Get stats for non-source jobs separately.
-    non_source_job_counts = source_job_counts.pop(None, dict())
-
-    source_ids = list(source_job_counts.keys())
-
-    sources = Source.objects.filter(pk__in=source_ids)
-    source_names = {
-        d['pk']: d['name']
-        for d in sources.values('pk', 'name')
-    }
-
-    source_table = []
-    for source_id, job_status_counts in source_job_counts.items():
-        table_entry = job_status_counts
-        table_entry['source_id'] = source_id
-        table_entry['source_name'] = source_names[source_id]
-        source_table.append(table_entry)
-
-    return render(request, 'jobs/overall_dashboard.html', {
-        'source_table': source_table,
-        'non_source_job_counts': non_source_job_counts,
-        'completed_days_shown': COMPLETED_DAYS_SHOWN,
-    })
 
 
 def tag_to_readable(tag):
     return tag.capitalize().replace('_', ' ')
 
 
-@source_permission_required('source_id', perm=Source.PermTypes.EDIT.code)
-def source_dashboard(request, source_id):
-    """
-    Job dashboard for a specific source.
-    """
-    source = get_object_or_404(Source, id=source_id)
+class JobDashboardView(View, ABC):
+    source_id: int | None | Literal['all']
+    template_name: str
+    form: JobSearchForm = None
 
-    jobs = (
-        source.job_set
-        # check_source jobs generally clutter the dashboard more than they
-        # provide useful info. So they won't be in the main table at least.
-        .exclude(job_name='check_source')
-        # In-progress jobs first, then pending, then completed.
-        # Tiebreak by modify date.
-        .annotate(
-            status_score=Case(
-                When(status=Job.IN_PROGRESS, then=Value(1)),
-                When(status=Job.PENDING, then=Value(2)),
-                default=Value(3),
-                output_field=IntegerField(),
+    def get(self, request, **kwargs):
+        if request.GET:
+            self.form = JobSearchForm(request.GET, source_id=self.source_id)
+            if not self.form.is_valid():
+                messages.error(request, "Please correct the errors below.")
+                context = dict(job_search_form=self.form)
+                return render(request, self.template_name, context)
+        else:
+            self.form = JobSearchForm(source_id=self.source_id)
+
+        context = dict(job_search_form=self.form)
+        context |= self.context_if_valid(request)
+
+        return render(request, self.template_name, context)
+
+    def context_if_valid(self, request):
+        raise NotImplementedError
+
+    def get_job_list_context(self, request, jobs, job_counts):
+        has_source_column = self.source_id == 'all'
+        page_jobs = paginate(
+            results=jobs,
+            items_per_page=settings.JOBS_PER_PAGE,
+            request_args=request.GET,
+        )
+
+        job_table = []
+
+        fields = [
+            'pk', 'job_name', 'arg_identifier',
+            'apijobunit', 'apijobunit__parent',
+            'status', 'result_message', 'persist', 'modify_date',
+        ]
+        if has_source_column:
+            fields += ['source', 'source__name']
+
+        for values in page_jobs.object_list.values(*fields):
+            if values['status'] == Job.IN_PROGRESS:
+                status_display = 'In Progress'
+            elif values['status'] == Job.PENDING:
+                status_display = 'Pending'
+            elif values['status'] == Job.SUCCESS:
+                status_display = 'Success'
+            else:
+                # Job.FAILURE
+                status_display = 'Failure'
+
+            table_entry = dict(
+                id=values['pk'],
+                status=values['status'],
+                status_display=status_display,
+                result_message=values['result_message'],
+                persist=values['persist'],
+                modify_date=values['modify_date'],
             )
-        )
-        .order_by('status_score', '-modify_date', '-id')
-    )
 
-    page_jobs = paginate(
-        results=jobs,
-        items_per_page=settings.JOBS_PER_PAGE,
-        request_args=request.GET,
-    )
+            if has_source_column:
+                table_entry['source_id'] = values['source']
+                table_entry['source_name'] = values['source__name']
 
-    job_table = []
-    for values in page_jobs.object_list.values(
-        'pk', 'job_name', 'arg_identifier',
-        'status', 'result_message', 'persist', 'modify_date'
-    ):
-        if values['status'] == Job.IN_PROGRESS:
-            status_tag = 'in_progress'
-        elif values['status'] == Job.PENDING:
-            status_tag = 'pending'
-        elif values['status'] == Job.SUCCESS:
-            status_tag = 'success'
-        else:
-            # Job.FAILURE
-            status_tag = 'failure'
+            if values['job_name'] == 'classify_image':
+                table_entry['job_type'] = "Deploy"
+            if values['job_name'] == 'classify_features':
+                table_entry['job_type'] = "Classify"
+            else:
+                table_entry['job_type'] = tag_to_readable(values['job_name'])
 
-        table_entry = dict(
-            id=values['pk'],
-            status_tag=status_tag,
-            status=tag_to_readable(status_tag),
-            result_message=values['result_message'],
-            persist=values['persist'],
-            modify_date=values['modify_date'],
+            if values['job_name'] == 'classify_image':
+                table_entry['api_job_unit_id'] = values['apijobunit']
+                table_entry['api_job_id'] = values['apijobunit__parent']
+            if values['job_name'] in [
+                'extract_features', 'classify_features'
+            ]:
+                table_entry['image_id'] = values['arg_identifier']
+
+            job_table.append(table_entry)
+
+        return dict(
+            page_results=page_jobs,
+            job_table=job_table,
+            job_max_days=settings.JOB_MAX_DAYS,
+            job_counts=job_counts,
         )
 
-        if values['job_name'] == 'classify_features':
-            table_entry['job_type'] = "Classify"
-        else:
-            table_entry['job_type'] = tag_to_readable(values['job_name'])
+    def get_source_context(self):
+        source = get_object_or_404(Source, id=self.source_id)
 
-        if values['job_name'] in [
-            'extract_features', 'classify_features'
-        ]:
-            table_entry['image_id'] = values['arg_identifier']
+        try:
+            latest_check = source.job_set.filter(
+                job_name='check_source',
+                status__in=[Job.SUCCESS, Job.FAILURE, Job.IN_PROGRESS]
+            ).latest('pk')
+            check_in_progress = (latest_check.status == Job.IN_PROGRESS)
+        except Job.DoesNotExist:
+            latest_check = None
+            check_in_progress = False
 
-        job_table.append(table_entry)
-
-    try:
-        latest_check = source.job_set.filter(
-            job_name='check_source',
-            status__in=[Job.SUCCESS, Job.FAILURE, Job.IN_PROGRESS]
-        ).latest('pk')
-        check_in_progress = (latest_check.status == Job.IN_PROGRESS)
-    except Job.DoesNotExist:
-        latest_check = None
-        check_in_progress = False
-
-    return render(request, 'jobs/source_dashboard.html', {
-        'source': source,
-        'job_table': job_table,
-        'page_results': page_jobs,
-        'job_max_days': settings.JOB_MAX_DAYS,
-        'latest_check': latest_check,
-        'check_in_progress': check_in_progress,
-    })
+        return dict(
+            source=source,
+            latest_check=latest_check,
+            check_in_progress=check_in_progress,
+        )
 
 
-@permission_required('is_superuser')
-def non_source_dashboard(request):
+@method_decorator(
+    permission_required('is_superuser'),
+    name='dispatch')
+class AllJobsListView(JobDashboardView):
+    """List of all jobs: from any source or no source."""
+    source_id = 'all'
+    template_name = 'jobs/all_jobs_list.html'
+
+    def context_if_valid(self, request):
+        return self.get_job_list_context(
+            request, self.form.get_jobs(), self.form.get_job_counts()
+        )
+
+
+# @dataclass(kw_only=True)
+@method_decorator(
+    source_permission_required('source_id', perm=Source.PermTypes.EDIT.code),
+    name='dispatch')
+class SourceJobListView(JobDashboardView):
     """
-    Dashboard for jobs not belonging to a specific source.
+    List of jobs from a specific source.
     """
-    jobs = (
-        Job.objects.filter(source__isnull=True)
-        # In-progress jobs first, then pending, then completed.
-        # Tiebreak by modify date.
-        .annotate(
-            status_score=Case(
-                When(status=Job.IN_PROGRESS, then=Value(1)),
-                When(status=Job.PENDING, then=Value(2)),
-                default=Value(3),
-                output_field=IntegerField(),
+    source_id: int
+    template_name = 'jobs/source_job_list.html'
+
+    def dispatch(self, *args, **kwargs):
+        self.source_id = self.kwargs['source_id']
+        return super().dispatch(*args, **kwargs)
+
+    def context_if_valid(self, request):
+        context = (
+            self.get_job_list_context(
+                request, self.form.get_jobs(), self.form.get_job_counts()
             )
+            | self.get_source_context()
         )
-        .order_by('status_score', '-modify_date', '-id')
-    )
+        return context
 
-    page_jobs = paginate(
-        results=jobs,
-        items_per_page=settings.JOBS_PER_PAGE,
-        request_args=request.GET,
-    )
 
-    job_table = []
-    for values in page_jobs.object_list.values(
-        'pk', 'job_name', 'apijobunit', 'apijobunit__parent',
-        'status', 'result_message', 'modify_date'
-    ):
-        if values['status'] == Job.IN_PROGRESS:
-            status_tag = 'in_progress'
-        elif values['status'] == Job.PENDING:
-            status_tag = 'pending'
-        elif values['status'] == Job.SUCCESS:
-            status_tag = 'success'
-        else:
-            # Job.FAILURE
-            status_tag = 'failure'
+@method_decorator(
+    permission_required('is_superuser'),
+    name='dispatch')
+class NonSourceJobListView(JobDashboardView):
+    """
+    List of jobs not belonging to a source.
+    """
+    source_id = None
+    template_name = 'jobs/non_source_job_list.html'
 
-        table_entry = dict(
-            id=values['pk'],
-            status_tag=status_tag,
-            status=tag_to_readable(status_tag),
-            result_message=values['result_message'],
-            modify_date=values['modify_date'],
+    def context_if_valid(self, request):
+        return self.get_job_list_context(
+            request, self.form.get_jobs(), self.form.get_job_counts()
         )
 
-        if values['job_name'] == 'classify_image':
-            table_entry['job_type'] = "Deploy"
+
+@method_decorator(
+    permission_required('is_superuser'),
+    name='dispatch')
+class JobSummaryView(View):
+    """
+    Top-level dashboard for monitoring jobs.
+    """
+    template_name = 'jobs/all_jobs_summary.html'
+
+    def get(self, request, **kwargs):
+        if request.GET:
+            summary_form = JobSummaryForm(request.GET)
+            if not summary_form.is_valid():
+                messages.error(request, "Please correct the errors below.")
+                context = dict(job_summary_form=summary_form)
+                return render(request, self.template_name, context)
         else:
-            table_entry['job_type'] = tag_to_readable(values['job_name'])
+            summary_form = JobSummaryForm()
 
-        if values['job_name'] == 'classify_image':
-            table_entry['api_job_unit_id'] = values['apijobunit']
-            table_entry['api_job_id'] = values['apijobunit__parent']
+        job_counts_by_source, non_source_job_counts = \
+            summary_form.get_job_counts_by_source()
 
-        job_table.append(table_entry)
+        context = dict(
+            job_summary_form=summary_form,
+            source_table=job_counts_by_source,
+            overall_job_counts=summary_form.get_job_counts(),
+            non_source_job_counts=non_source_job_counts,
+            completed_day_limit=summary_form.completed_day_limit,
+        )
 
-    return render(request, 'jobs/non_source_dashboard.html', {
-        'job_table': job_table,
-        'page_results': page_jobs,
-        'job_max_days': settings.JOB_MAX_DAYS,
-    })
+        return render(request, self.template_name, context)

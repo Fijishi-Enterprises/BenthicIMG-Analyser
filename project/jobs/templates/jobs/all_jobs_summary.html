@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Summary of async jobs | CoralNet{% endblock %}
+
+
+{% block css-includes %}
+  {% include "static-local-include.html" with type="css" path="css/jobs.css" %}
+{% endblock %}
+
+
+{% block content %}
+
+<h1>Summary of async jobs</h1>
+
+{# TODO: Form styling similar to browse and label list #}
+<form action="" method="get">
+  {{ job_summary_form }}
+
+  <div class="submit_button_wrapper_center">
+    <input type="submit" value="Apply filters">
+  </div>
+</form>
+
+<table class="generic" id="job-summary">
+  <thead>
+    <tr>
+      <th>Source</th>
+      <th>In progress</th>
+      <th>Pending</th>
+      <th>Completed in last {{ completed_day_limit }} days</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr id="all-jobs-summary">
+      <td>
+        <a href="{% url 'jobs:all_jobs_list' %}">
+          <em>All jobs</em>
+        </a>
+      </td>
+      <td class="IP"><strong>{{ overall_job_counts.IP|default:0 }}</strong></td>
+      <td class="PN"><strong>{{ overall_job_counts.PN|default:0 }}</strong></td>
+      <td class="completed"><strong>{{ overall_job_counts.completed|default:0 }}</strong></td>
+    </tr>
+    <tr id="non-source-summary">
+      <td>
+        <a href="{% url 'jobs:non_source_job_list' %}">
+          <em>Non-source jobs</em>
+        </a>
+      </td>
+      <td class="IP">{{ non_source_job_counts.IP|default:0 }}</td>
+      <td class="PN">{{ non_source_job_counts.PN|default:0 }}</td>
+      <td class="completed">{{ non_source_job_counts.completed|default:0 }}</td>
+    </tr>
+    {% for table_entry in source_table %}
+      <tr>
+        <td>
+          <a href="{% url 'jobs:source_job_list' table_entry.source_id %}">
+            {{ table_entry.source_name }}
+          </a>
+        </td>
+        <td class="IP">{{ table_entry.IP|default:0 }}</td>
+        <td class="PN">{{ table_entry.PN|default:0 }}</td>
+        <td class="completed">{{ table_entry.completed|default:0 }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% endblock %}

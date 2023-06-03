@@ -1,0 +1,32 @@
+{% extends "images/base_source.html" %}
+
+{% block title %}Jobs for {{ source.name }} | CoralNet{% endblock %}
+
+
+{% block css-includes %}
+  {{ block.super }}
+  {% include "static-local-include.html" with type="css" path="css/jobs.css" %}
+{% endblock %}
+
+
+{% block content %}
+
+<h1>Jobs</h1>
+
+{% if latest_check %}
+  <p>
+    {% if check_in_progress %}
+      This source is currently being checked for jobs to queue.
+    {% else %}
+      <strong>Latest source check result:</strong>
+      {{ latest_check.result_message }}
+      ({{ latest_check.modify_date }})
+    {% endif %}
+  </p>
+{% else %}
+  <p>This source hasn't been status-checked recently.</p>
+{% endif %}
+
+{% include 'jobs/job_table.html' %}
+
+{% endblock %}

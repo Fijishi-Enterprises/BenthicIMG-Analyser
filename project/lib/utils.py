@@ -3,6 +3,7 @@
 import datetime
 import random
 import string
+import urllib.parse
 
 from django.core.paginator import Paginator, EmptyPage, InvalidPage
 
@@ -48,7 +49,12 @@ def paginate(results, items_per_page, request_args):
     except (EmptyPage, InvalidPage):
         page_results = paginator.page(paginator.num_pages)
 
-    return page_results
+    # We'll often want a string of the other query args for building the
+    # next/previous page links.
+    other_args = {k: v for k, v in request_args.items() if k != 'page'}
+    query_string = urllib.parse.urlencode(other_args)
+
+    return page_results, query_string
 
 
 def rand_string(num_of_chars):

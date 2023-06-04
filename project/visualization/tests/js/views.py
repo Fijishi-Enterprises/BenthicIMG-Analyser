@@ -19,7 +19,7 @@ def browse_images_actions(request):
         context = {
             'source': dict(pk=1, confidence_threshold=80),
             'page_results': paginate(
-                results=[1, 2, 3, 4], items_per_page=3, request_args=dict()),
+                results=[1, 2, 3, 4], items_per_page=3, request_args=dict())[0],
             'links': dict(
                 annotation_tool_first_result='/annotate_all/',
                 annotation_tool_page_results=['/annotate_selected/']),

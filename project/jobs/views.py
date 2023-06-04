@@ -44,7 +44,7 @@ class JobDashboardView(View, ABC):
 
     def get_job_list_context(self, request, jobs, job_counts):
         has_source_column = self.source_id == 'all'
-        page_jobs = paginate(
+        page_jobs, query_string = paginate(
             results=jobs,
             items_per_page=settings.JOBS_PER_PAGE,
             request_args=request.GET,
@@ -103,6 +103,7 @@ class JobDashboardView(View, ABC):
 
         return dict(
             page_results=page_jobs,
+            query_string=query_string,
             job_table=job_table,
             job_max_days=settings.JOB_MAX_DAYS,
             job_counts=job_counts,

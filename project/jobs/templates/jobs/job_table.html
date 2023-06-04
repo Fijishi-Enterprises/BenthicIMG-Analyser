@@ -61,7 +61,7 @@
     </tbody>
   </table>
 
-  {% include 'pagination_links.html' with page_results=page_results %}
+  {% include 'pagination_links.html' with page_results=page_results query_string=query_string %}
 
   <p>Most job records are cleaned up after approximately {{ job_max_days }} days, except for jobs with * in Last updated.</p>
 

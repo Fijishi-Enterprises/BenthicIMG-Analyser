@@ -56,7 +56,7 @@ def browse_images(request, source_id):
         # Coming from a straight link or URL entry
         image_results = source.image_set.order_by('metadata__name', 'pk')
 
-    page_results = paginate(
+    page_results, _ = paginate(
         image_results,
         settings.BROWSE_DEFAULT_THUMBNAILS_PER_PAGE,
         request.POST)
@@ -232,7 +232,7 @@ def browse_patches(request, source_id):
     # Random order
     annotation_results = annotation_results.order_by('?')
 
-    page_results = paginate(
+    page_results, _ = paginate(
         annotation_results,
         settings.BROWSE_DEFAULT_THUMBNAILS_PER_PAGE,
         request.POST)

@@ -84,12 +84,19 @@ class AdminDashboardTest(ClientTest, HtmlTestMixin):
         self.assertStatusOK(response)
 
     def test_source_jobs_only(self):
-        queue_job('1', source_id=self.source.pk, initial_status=Job.PENDING)
-        queue_job('2', source_id=self.source.pk, initial_status=Job.PENDING)
-        queue_job('3', source_id=self.source.pk, initial_status=Job.IN_PROGRESS)
-        queue_job('4', source_id=self.source.pk, initial_status=Job.SUCCESS)
-        queue_job('5', source_id=self.source.pk, initial_status=Job.SUCCESS)
-        queue_job('6', source_id=self.source.pk, initial_status=Job.FAILURE)
+        queue_job(
+            '1', source_id=self.source.pk, initial_status=Job.Status.PENDING)
+        queue_job(
+            '2', source_id=self.source.pk, initial_status=Job.Status.PENDING)
+        queue_job(
+            '3', source_id=self.source.pk,
+            initial_status=Job.Status.IN_PROGRESS)
+        queue_job(
+            '4', source_id=self.source.pk, initial_status=Job.Status.SUCCESS)
+        queue_job(
+            '5', source_id=self.source.pk, initial_status=Job.Status.SUCCESS)
+        queue_job(
+            '6', source_id=self.source.pk, initial_status=Job.Status.FAILURE)
 
         self.client.force_login(self.superuser)
         response = self.client.get(self.url)
@@ -103,12 +110,12 @@ class AdminDashboardTest(ClientTest, HtmlTestMixin):
         self.assert_non_source_summary_equal(response_soup, [0, 0, 0])
 
     def test_non_source_jobs_only(self):
-        queue_job('1', initial_status=Job.PENDING)
-        queue_job('2', initial_status=Job.PENDING)
-        queue_job('3', initial_status=Job.IN_PROGRESS)
-        queue_job('4', initial_status=Job.SUCCESS)
-        queue_job('5', initial_status=Job.SUCCESS)
-        queue_job('6', initial_status=Job.FAILURE)
+        queue_job('1', initial_status=Job.Status.PENDING)
+        queue_job('2', initial_status=Job.Status.PENDING)
+        queue_job('3', initial_status=Job.Status.IN_PROGRESS)
+        queue_job('4', initial_status=Job.Status.SUCCESS)
+        queue_job('5', initial_status=Job.Status.SUCCESS)
+        queue_job('6', initial_status=Job.Status.FAILURE)
 
         self.client.force_login(self.superuser)
         response = self.client.get(self.url)
@@ -120,8 +127,9 @@ class AdminDashboardTest(ClientTest, HtmlTestMixin):
         self.assert_non_source_summary_equal(response_soup, [1, 2, 3])
 
     def test_source_and_non_source_jobs(self):
-        queue_job('1', source_id=self.source.pk, initial_status=Job.PENDING)
-        queue_job('2', initial_status=Job.PENDING)
+        queue_job(
+            '1', source_id=self.source.pk, initial_status=Job.Status.PENDING)
+        queue_job('2', initial_status=Job.Status.PENDING)
 
         self.client.force_login(self.superuser)
         response = self.client.get(self.url)
@@ -137,39 +145,51 @@ class AdminDashboardTest(ClientTest, HtmlTestMixin):
     def test_source_ordering(self):
         # 3rd: has pending, modified later
         queue_job_with_modify_date(
-            '1', source_id=self.sources[0].pk, initial_status=Job.PENDING,
+            '1', source_id=self.sources[0].pk,
+            initial_status=Job.Status.PENDING,
             modify_date=timezone.now() + timedelta(days=1))
         queue_job(
-            '2', source_id=self.sources[0].pk, initial_status=Job.SUCCESS)
+            '2', source_id=self.sources[0].pk,
+            initial_status=Job.Status.SUCCESS)
         # 4th: has pending
         queue_job(
-            '3', source_id=self.sources[1].pk, initial_status=Job.PENDING)
+            '3', source_id=self.sources[1].pk,
+            initial_status=Job.Status.PENDING)
         queue_job(
-            '4', source_id=self.sources[1].pk, initial_status=Job.PENDING)
+            '4', source_id=self.sources[1].pk,
+            initial_status=Job.Status.PENDING)
 
         # 2nd: has in progress
         queue_job(
-            '5', source_id=self.sources[2].pk, initial_status=Job.IN_PROGRESS)
+            '5', source_id=self.sources[2].pk,
+            initial_status=Job.Status.IN_PROGRESS)
         queue_job(
-            '6', source_id=self.sources[2].pk, initial_status=Job.SUCCESS)
+            '6', source_id=self.sources[2].pk,
+            initial_status=Job.Status.SUCCESS)
         # 1st: has in progress, modified later
         queue_job_with_modify_date(
-            '7', source_id=self.sources[3].pk, initial_status=Job.IN_PROGRESS,
+            '7', source_id=self.sources[3].pk,
+            initial_status=Job.Status.IN_PROGRESS,
             modify_date=timezone.now() + timedelta(days=1))
         queue_job(
-            '8', source_id=self.sources[3].pk, initial_status=Job.PENDING)
+            '8', source_id=self.sources[3].pk,
+            initial_status=Job.Status.PENDING)
 
         # 5th: only has completed, modified later
         queue_job(
-            '9', source_id=self.sources[4].pk, initial_status=Job.SUCCESS)
+            '9', source_id=self.sources[4].pk,
+            initial_status=Job.Status.SUCCESS)
         queue_job_with_modify_date(
-            '10', source_id=self.sources[4].pk, initial_status=Job.SUCCESS,
+            '10', source_id=self.sources[4].pk,
+            initial_status=Job.Status.SUCCESS,
             modify_date=timezone.now() + timedelta(days=1))
         # 6th: only has completed
         queue_job(
-            '11', source_id=self.sources[5].pk, initial_status=Job.SUCCESS)
+            '11', source_id=self.sources[5].pk,
+            initial_status=Job.Status.SUCCESS)
         queue_job(
-            '12', source_id=self.sources[5].pk, initial_status=Job.SUCCESS)
+            '12', source_id=self.sources[5].pk,
+            initial_status=Job.Status.SUCCESS)
 
         self.client.force_login(self.superuser)
         response = self.client.get(self.url)
@@ -199,22 +219,26 @@ class AdminDashboardTest(ClientTest, HtmlTestMixin):
     def test_source_job_age_cutoff(self):
         # Not old enough to clean up
         queue_job_with_modify_date(
-            '1', source_id=self.sources[0].pk, initial_status=Job.SUCCESS,
+            '1', source_id=self.sources[0].pk,
+            initial_status=Job.Status.SUCCESS,
             modify_date=timezone.now() - timedelta(days=2, hours=23))
 
         # Old enough to clean up
         queue_job_with_modify_date(
-            '2', source_id=self.sources[1].pk, initial_status=Job.SUCCESS,
+            '2', source_id=self.sources[1].pk,
+            initial_status=Job.Status.SUCCESS,
             modify_date=timezone.now() - timedelta(days=3, hours=1))
 
         # Old enough to clean up, but pending
         queue_job_with_modify_date(
-            '3', source_id=self.sources[2].pk, initial_status=Job.PENDING,
+            '3', source_id=self.sources[2].pk,
+            initial_status=Job.Status.PENDING,
             modify_date=timezone.now() - timedelta(days=3, hours=1))
 
         # Old enough to clean up, but in progress
         queue_job_with_modify_date(
-            '4', source_id=self.sources[3].pk, initial_status=Job.IN_PROGRESS,
+            '4', source_id=self.sources[3].pk,
+            initial_status=Job.Status.IN_PROGRESS,
             modify_date=timezone.now() - timedelta(days=3, hours=1))
 
         self.client.force_login(self.superuser)
@@ -238,22 +262,22 @@ class AdminDashboardTest(ClientTest, HtmlTestMixin):
     def test_non_source_job_age_cutoff(self):
         # Not old enough to clean up
         queue_job_with_modify_date(
-            '1', initial_status=Job.SUCCESS,
+            '1', initial_status=Job.Status.SUCCESS,
             modify_date=timezone.now() - timedelta(days=2, hours=23))
 
         # Old enough to clean up
         queue_job_with_modify_date(
-            '2', initial_status=Job.SUCCESS,
+            '2', initial_status=Job.Status.SUCCESS,
             modify_date=timezone.now() - timedelta(days=3, hours=1))
 
         # Old enough to clean up, but pending
         queue_job_with_modify_date(
-            '3', initial_status=Job.PENDING,
+            '3', initial_status=Job.Status.PENDING,
             modify_date=timezone.now() - timedelta(days=3, hours=1))
 
         # Old enough to clean up, but in progress
         queue_job_with_modify_date(
-            '4', initial_status=Job.IN_PROGRESS,
+            '4', initial_status=Job.Status.IN_PROGRESS,
             modify_date=timezone.now() - timedelta(days=3, hours=1))
 
         self.client.force_login(self.superuser)
@@ -288,30 +312,32 @@ class SourceDashboardTest(ClientTest, HtmlTestMixin):
     def test_job_ordering(self):
         # 3rd: pending, modified later
         job_1 = queue_job_with_modify_date(
-            '1', source_id=self.source.pk, initial_status=Job.PENDING,
+            '1', source_id=self.source.pk, initial_status=Job.Status.PENDING,
             modify_date=timezone.now() + timedelta(days=1))
         # 4th: pending
         job_2 = queue_job(
-            '2', source_id=self.source.pk, initial_status=Job.PENDING)
+            '2', source_id=self.source.pk, initial_status=Job.Status.PENDING)
 
         # 2nd: in progress
         job_3 = queue_job(
-            '3', source_id=self.source.pk, initial_status=Job.IN_PROGRESS)
+            '3', source_id=self.source.pk,
+            initial_status=Job.Status.IN_PROGRESS)
         # 1st: in progress, modified later
         job_4 = queue_job_with_modify_date(
-            '4', source_id=self.source.pk, initial_status=Job.IN_PROGRESS,
+            '4', source_id=self.source.pk,
+            initial_status=Job.Status.IN_PROGRESS,
             modify_date=timezone.now() + timedelta(days=1))
 
         # 6th: completed, modified 2nd latest (success/failure doesn't matter)
         job_5 = queue_job_with_modify_date(
-            '5', source_id=self.source.pk, initial_status=Job.FAILURE,
+            '5', source_id=self.source.pk, initial_status=Job.Status.FAILURE,
             modify_date=timezone.now() + timedelta(days=1))
         # 7th: completed
         job_6 = queue_job(
-            '6', source_id=self.source.pk, initial_status=Job.SUCCESS)
+            '6', source_id=self.source.pk, initial_status=Job.Status.SUCCESS)
         # 5th: completed, modified latest
         job_7 = queue_job_with_modify_date(
-            '7', source_id=self.source.pk, initial_status=Job.SUCCESS,
+            '7', source_id=self.source.pk, initial_status=Job.Status.SUCCESS,
             modify_date=timezone.now() + timedelta(days=2))
 
         self.client.force_login(self.user)
@@ -371,15 +397,15 @@ class SourceDashboardTest(ClientTest, HtmlTestMixin):
 
     def test_result_message_column(self):
         queue_job(
-            '1', source_id=self.source.pk, initial_status=Job.SUCCESS)
+            '1', source_id=self.source.pk, initial_status=Job.Status.SUCCESS)
 
         job = queue_job(
-            '2', source_id=self.source.pk, initial_status=Job.FAILURE)
+            '2', source_id=self.source.pk, initial_status=Job.Status.FAILURE)
         job.result_message = "Error message goes here"
         job.save()
 
         job = queue_job(
-            '3', source_id=self.source.pk, initial_status=Job.SUCCESS)
+            '3', source_id=self.source.pk, initial_status=Job.Status.SUCCESS)
         job.result_message = "Comment about the result goes here"
         job.save()
 
@@ -465,7 +491,7 @@ class SourceDashboardTest(ClientTest, HtmlTestMixin):
         # In progress
         job = queue_job(
             'check_source', self.source.pk, source_id=self.source.pk,
-            initial_status=Job.IN_PROGRESS)
+            initial_status=Job.Status.IN_PROGRESS)
         job.save()
         response = self.client.get(self.source_url)
         self.assertContains(
@@ -473,12 +499,12 @@ class SourceDashboardTest(ClientTest, HtmlTestMixin):
             "This source is currently being checked for jobs to queue.")
 
         # Completed checks
-        job.status = Job.SUCCESS
+        job.status = Job.Status.SUCCESS
         job.result_message = "Message 1"
         job.save()
         job = queue_job(
             'check_source', self.source.pk, source_id=self.source.pk,
-            initial_status=Job.SUCCESS)
+            initial_status=Job.Status.SUCCESS)
         job.result_message = "Message 2"
         job.save()
         # Should show the most recent completed source check

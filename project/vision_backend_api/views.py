@@ -160,7 +160,7 @@ class DeployResult(APIView):
             # in the deploy request.
             for unit in deploy_job.apijobunit_set.order_by('order_in_parent'):
 
-                if unit.status == Job.SUCCESS:
+                if unit.status == Job.Status.SUCCESS:
                     # This has 'url' and 'points'
                     attributes = unit.result_json
                 else:

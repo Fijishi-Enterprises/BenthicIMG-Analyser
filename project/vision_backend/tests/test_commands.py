@@ -57,7 +57,7 @@ class CheckSourceTest(ManagementCommandTest):
         self.assertSetEqual(
             job_details,
             {
-                ('check_source', str(self.source_1.pk), Job.PENDING),
+                ('check_source', str(self.source_1.pk), Job.Status.PENDING),
             },
             "Should queue the appropriate job",
         )
@@ -78,9 +78,9 @@ class CheckSourceTest(ManagementCommandTest):
         self.assertSetEqual(
             job_details,
             {
-                ('check_source', str(self.source_1.pk), Job.PENDING),
-                ('check_source', str(self.source_2.pk), Job.PENDING),
-                ('check_source', str(self.source_3.pk), Job.PENDING),
+                ('check_source', str(self.source_1.pk), Job.Status.PENDING),
+                ('check_source', str(self.source_2.pk), Job.Status.PENDING),
+                ('check_source', str(self.source_3.pk), Job.Status.PENDING),
             },
             "Should queue the appropriate jobs",
         )
@@ -144,7 +144,7 @@ class ResetFeaturesTest(ManagementCommandTest):
 
         pending_job_details = {
             (job.job_name, job.arg_identifier)
-            for job in Job.objects.filter(status=Job.PENDING)
+            for job in Job.objects.filter(status=Job.Status.PENDING)
         }
         self.assertSetEqual(
             pending_job_details,
@@ -181,7 +181,7 @@ class ResetFeaturesTest(ManagementCommandTest):
 
         pending_job_details = {
             (job.job_name, job.arg_identifier)
-            for job in Job.objects.filter(status=Job.PENDING)
+            for job in Job.objects.filter(status=Job.Status.PENDING)
         }
         self.assertSetEqual(
             pending_job_details,
@@ -482,7 +482,7 @@ class InspectExtractedFeaturesTest(ManagementCommandTest):
         )
 
         # Should have queued no jobs
-        self.assertFalse(Job.objects.filter(status=Job.PENDING).exists())
+        self.assertFalse(Job.objects.filter(status=Job.Status.PENDING).exists())
 
         # Then, with corrections
         self.call_command(
@@ -490,11 +490,11 @@ class InspectExtractedFeaturesTest(ManagementCommandTest):
         )
 
         # Now there should be jobs queued
-        self.assertTrue(Job.objects.filter(status=Job.PENDING).exists())
+        self.assertTrue(Job.objects.filter(status=Job.Status.PENDING).exists())
 
         pending_job_details = {
             (job.job_name, job.arg_identifier)
-            for job in Job.objects.filter(status=Job.PENDING)
+            for job in Job.objects.filter(status=Job.Status.PENDING)
         }
         self.assertSetEqual(
             pending_job_details,
@@ -529,7 +529,7 @@ class SubmitTrainTest(ManagementCommandTest):
         self.assertSetEqual(
             job_details,
             {
-                ('train_classifier', str(self.source_1.pk), Job.PENDING),
+                ('train_classifier', str(self.source_1.pk), Job.Status.PENDING),
             },
             "Should queue the appropriate job",
         )

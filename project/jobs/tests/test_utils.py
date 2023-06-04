@@ -35,7 +35,7 @@ class QueueJobTest(BaseTest):
             "Should not have queued the second job")
 
     def test_queue_job_when_already_in_progress(self):
-        queue_job('name', 'arg', initial_status=Job.IN_PROGRESS)
+        queue_job('name', 'arg', initial_status=Job.Status.IN_PROGRESS)
 
         with self.assertLogs(logger='jobs.utils', level='DEBUG') as cm:
             queue_job('name', 'arg')
@@ -54,7 +54,7 @@ class QueueJobTest(BaseTest):
             "Should not have queued the second job")
 
     def test_queue_job_when_previously_done(self):
-        queue_job('name', 'arg', initial_status=Job.SUCCESS)
+        queue_job('name', 'arg', initial_status=Job.Status.SUCCESS)
         queue_job('name', 'arg')
 
         self.assertEqual(
@@ -63,7 +63,7 @@ class QueueJobTest(BaseTest):
             "Should have queued the second job")
 
     def test_attempt_number_increment(self):
-        job = queue_job('name', 'arg', initial_status=Job.FAILURE)
+        job = queue_job('name', 'arg', initial_status=Job.Status.FAILURE)
         job.result_message = "An error"
         job.save()
 
@@ -75,7 +75,7 @@ class QueueJobTest(BaseTest):
             "Should have attempt number of 2")
 
     def test_attempt_number_non_increment(self):
-        queue_job('name', 'arg', initial_status=Job.SUCCESS)
+        queue_job('name', 'arg', initial_status=Job.Status.SUCCESS)
         job_2 = queue_job('name', 'arg')
 
         self.assertEqual(
@@ -99,7 +99,7 @@ class StartPendingJobTest(BaseTest):
             "Should log the appropriate message")
 
     def test_job_already_in_progress(self):
-        queue_job('name', 'arg', initial_status=Job.IN_PROGRESS)
+        queue_job('name', 'arg', initial_status=Job.Status.IN_PROGRESS)
 
         with self.assertLogs(logger='jobs.utils', level='INFO') as cm:
             start_pending_job('name', 'arg')
@@ -132,12 +132,13 @@ class FinishJobTest(BaseTest, ErrorReportTestMixin):
     def test_repeated_failure(self):
         # 4 fails in a row
         for _ in range(4):
-            job = queue_job('name', 'arg', initial_status=Job.IN_PROGRESS)
+            job = queue_job(
+                'name', 'arg', initial_status=Job.Status.IN_PROGRESS)
             finish_job(job, success=False, result_message="An error")
             self.assert_no_email()
 
         # 5th fail in a row
-        job = queue_job('name', 'arg', initial_status=Job.IN_PROGRESS)
+        job = queue_job('name', 'arg', initial_status=Job.Status.IN_PROGRESS)
         finish_job(job, success=False, result_message="An error")
         self.assert_error_email(
             "Job is failing repeatedly: name / arg",
@@ -179,14 +180,14 @@ class JobDecoratorTest(BaseTest, ErrorReportTestMixin):
 
         self.assertEqual(job.job_name, 'full_job_example')
         self.assertEqual(job.arg_identifier, 'some_arg')
-        self.assertEqual(job.status, Job.SUCCESS)
+        self.assertEqual(job.status, Job.Status.SUCCESS)
         self.assertEqual(job.result_message, "Comment about result")
 
     def test_full_job_error(self):
         full_job_example('job_error')
         job = Job.objects.latest('pk')
 
-        self.assertEqual(job.status, Job.FAILURE)
+        self.assertEqual(job.status, Job.Status.FAILURE)
         self.assertEqual(job.result_message, "A JobError")
         self.assert_no_error_log_saved()
         self.assert_no_email()
@@ -195,7 +196,7 @@ class JobDecoratorTest(BaseTest, ErrorReportTestMixin):
         full_job_example('other_error')
         job = Job.objects.latest('pk')
 
-        self.assertEqual(job.status, Job.FAILURE)
+        self.assertEqual(job.status, Job.Status.FAILURE)
         self.assertEqual(job.result_message, "ValueError: A ValueError")
 
         self.assert_error_log_saved(
@@ -215,7 +216,7 @@ class JobDecoratorTest(BaseTest, ErrorReportTestMixin):
 
         self.assertEqual(job.job_name, 'job_runner_example')
         self.assertEqual(job.arg_identifier, 'some_arg')
-        self.assertEqual(job.status, Job.SUCCESS)
+        self.assertEqual(job.status, Job.Status.SUCCESS)
         self.assertEqual(job.result_message, "Comment about result")
 
     def test_runner_job_error(self):
@@ -224,7 +225,7 @@ class JobDecoratorTest(BaseTest, ErrorReportTestMixin):
         job_runner_example('job_error')
         job.refresh_from_db()
 
-        self.assertEqual(job.status, Job.FAILURE)
+        self.assertEqual(job.status, Job.Status.FAILURE)
         self.assertEqual(job.result_message, "A JobError")
         self.assert_no_error_log_saved()
         self.assert_no_email()
@@ -235,7 +236,7 @@ class JobDecoratorTest(BaseTest, ErrorReportTestMixin):
         job_runner_example('other_error')
         job.refresh_from_db()
 
-        self.assertEqual(job.status, Job.FAILURE)
+        self.assertEqual(job.status, Job.Status.FAILURE)
         self.assertEqual(job.result_message, "ValueError: A ValueError")
 
         self.assert_error_log_saved(
@@ -255,7 +256,7 @@ class JobDecoratorTest(BaseTest, ErrorReportTestMixin):
 
         self.assertEqual(job.job_name, 'job_starter_example')
         self.assertEqual(job.arg_identifier, 'some_arg')
-        self.assertEqual(job.status, Job.IN_PROGRESS)
+        self.assertEqual(job.status, Job.Status.IN_PROGRESS)
         self.assertEqual(job.result_message, "")
 
     def test_starter_job_error(self):
@@ -264,7 +265,7 @@ class JobDecoratorTest(BaseTest, ErrorReportTestMixin):
         job_starter_example('job_error')
         job.refresh_from_db()
 
-        self.assertEqual(job.status, Job.FAILURE)
+        self.assertEqual(job.status, Job.Status.FAILURE)
         self.assertEqual(job.result_message, f"A JobError (ID: {job.pk})")
         self.assert_no_error_log_saved()
         self.assert_no_email()
@@ -275,7 +276,7 @@ class JobDecoratorTest(BaseTest, ErrorReportTestMixin):
         job_starter_example('other_error')
         job.refresh_from_db()
 
-        self.assertEqual(job.status, Job.FAILURE)
+        self.assertEqual(job.status, Job.Status.FAILURE)
         self.assertEqual(
             job.result_message, f"ValueError: A ValueError (ID: {job.pk})")
 
@@ -358,7 +359,7 @@ class JobStartRaceConditionTest(TransactionTestCase):
         # to create two identical jobs instead of just one job.
         with mock.patch.object(Job, 'save', save_two_copies):
             with self.assertLogs(logger='jobs.utils', level='INFO') as cm:
-                queue_job('name', 'arg', initial_status=Job.IN_PROGRESS)
+                queue_job('name', 'arg', initial_status=Job.Status.IN_PROGRESS)
 
         log_message = (
             "INFO:jobs.utils:"

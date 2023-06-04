@@ -154,7 +154,7 @@ class DeployResultEndpointTest(DeployBaseTest):
 
         # Mark one unit's status as in progress
         job_unit = ApiJobUnit.objects.filter(parent=job).latest('pk')
-        job_unit.internal_job.status = Job.IN_PROGRESS
+        job_unit.internal_job.status = Job.Status.IN_PROGRESS
         job_unit.internal_job.save()
 
         response = self.get_job_result(job)
@@ -166,7 +166,7 @@ class DeployResultEndpointTest(DeployBaseTest):
 
         job_units = ApiJobUnit.objects.filter(parent=job)
         for job_unit in job_units:
-            job_unit.internal_job.status = Job.IN_PROGRESS
+            job_unit.internal_job.status = Job.Status.IN_PROGRESS
             job_unit.internal_job.save()
 
         response = self.get_job_result(job)
@@ -178,7 +178,7 @@ class DeployResultEndpointTest(DeployBaseTest):
 
         # Mark one unit's status as success
         job_unit = ApiJobUnit.objects.filter(parent=job).latest('pk')
-        job_unit.internal_job.status = Job.SUCCESS
+        job_unit.internal_job.status = Job.Status.SUCCESS
         job_unit.internal_job.save()
 
         response = self.get_job_result(job)
@@ -190,7 +190,7 @@ class DeployResultEndpointTest(DeployBaseTest):
 
         # Mark one unit's status as failure
         job_unit = ApiJobUnit.objects.filter(parent=job).latest('pk')
-        job_unit.internal_job.status = Job.FAILURE
+        job_unit.internal_job.status = Job.Status.FAILURE
         job_unit.internal_job.save()
 
         response = self.get_job_result(job)
@@ -291,7 +291,7 @@ class DeployResultEndpointTest(DeployBaseTest):
         unit_1, unit_2 = ApiJobUnit.objects.filter(
             parent=job).order_by('order_in_parent')
 
-        unit_1.internal_job.status = Job.SUCCESS
+        unit_1.internal_job.status = Job.Status.SUCCESS
         unit_1.internal_job.save()
         classifications = [dict(
             label_id=self.labels_by_name['A'].pk, label_name='A',
@@ -310,7 +310,7 @@ class DeployResultEndpointTest(DeployBaseTest):
             url='URL 1', points=points_1)
         unit_1.save()
 
-        unit_2.internal_job.status = Job.FAILURE
+        unit_2.internal_job.status = Job.Status.FAILURE
         unit_2.internal_job.result_message = (
             "Classifier of id 33 does not exist.")
         unit_2.internal_job.save()

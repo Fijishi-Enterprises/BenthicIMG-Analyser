@@ -38,7 +38,7 @@ job_starter_tasks = {
 
 
 def get_scheduled_jobs():
-    jobs = Job.objects.filter(status=Job.PENDING)
+    jobs = Job.objects.filter(status=Job.Status.PENDING)
     # We'll run any pending jobs immediately if huey is configured to act
     # similarly.
     if not HUEY.immediate:
@@ -116,7 +116,7 @@ def report_stuck_jobs():
             modify_date__lt=stuck_days_ago,
             modify_date__gt=stuck_plus_one_days_ago,
         )
-        .exclude(status__in=[Job.SUCCESS, Job.FAILURE])
+        .exclude(status__in=[Job.Status.SUCCESS, Job.Status.FAILURE])
         # Oldest listed first
         .order_by('modify_date', 'pk')
     )

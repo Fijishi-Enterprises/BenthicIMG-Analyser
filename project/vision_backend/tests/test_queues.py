@@ -220,7 +220,7 @@ class BatchQueueBasicTest(QueueBasicTest):
 
         # Check for error status
         job = Job.objects.get(job_name='extract_features')
-        self.assertEqual(job.status, Job.FAILURE)
+        self.assertEqual(job.status, Job.Status.FAILURE)
 
     def test_training_fail(self):
         """A training job can't be collected."""
@@ -243,7 +243,7 @@ class BatchQueueBasicTest(QueueBasicTest):
 
         # Check for error status
         job = Job.objects.get(job_name='train_classifier')
-        self.assertEqual(job.status, Job.FAILURE)
+        self.assertEqual(job.status, Job.Status.FAILURE)
 
 
 class QueueClassificationTest(DeployBaseTest, JobUtilsMixin):
@@ -264,7 +264,7 @@ class QueueClassificationTest(DeployBaseTest, JobUtilsMixin):
             'collect_spacer_jobs', "Job count: 1 SUCCEEDED")
         # Check for successful result handling
         unit = ApiJobUnit.objects.latest('pk')
-        self.assertEqual(unit.status, Job.SUCCESS)
+        self.assertEqual(unit.status, Job.Status.SUCCESS)
         self.assertTrue(unit.result_json)
 
     def do_test_collect_multiple_classification(self):
@@ -353,7 +353,7 @@ class BatchQueueClassificationTest(QueueClassificationTest):
 
         # Check for error status
         job = Job.objects.get(job_name='classify_image')
-        self.assertEqual(job.status, Job.FAILURE)
+        self.assertEqual(job.status, Job.Status.FAILURE)
 
 
 @batch_queue_decorator

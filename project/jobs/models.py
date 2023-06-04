@@ -21,19 +21,13 @@ class Job(models.Model):
     # Source this Job applies to, if applicable.
     source = models.ForeignKey(Source, null=True, on_delete=models.CASCADE)
 
-    PENDING = 'PN'
-    IN_PROGRESS = 'IP'
-    SUCCESS = 'SC'
-    FAILURE = 'FL'
-
-    STATUS_CHOICES = [
-        (PENDING, "Pending"),
-        (IN_PROGRESS, "In Progress"),
-        (SUCCESS, "Success"),
-        (FAILURE, "Failure"),
-    ]
+    class Status(models.TextChoices):
+        PENDING = 'pending', "Pending"
+        IN_PROGRESS = 'in_progress', "In Progress"
+        SUCCESS = 'success', "Success"
+        FAILURE = 'failure', "Failure"
     status = models.CharField(
-        max_length=2, choices=STATUS_CHOICES, default=PENDING)
+        max_length=20, choices=Status.choices, default=Status.PENDING)
 
     # Error message or comment about the job's result.
     result_message = models.CharField(max_length=500, blank=True)

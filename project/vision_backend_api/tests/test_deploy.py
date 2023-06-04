@@ -146,7 +146,7 @@ class DeployAccessTest(BaseAPIPermissionTest):
         # Finish one of the original user's jobs
         job = ApiJob.objects.get(pk=job_ids[0])
         for unit in job.apijobunit_set.all():
-            unit.internal_job.status = Job.SUCCESS
+            unit.internal_job.status = Job.Status.SUCCESS
             unit.internal_job.save()
 
         # Try submitting again as the original user
@@ -510,7 +510,7 @@ class SuccessTest(DeployBaseTest):
         self.assertEqual(
             job_unit.order_in_parent, 1, "Unit order should be correct")
         self.assertEqual(
-            job_unit.status, Job.PENDING,
+            job_unit.status, Job.Status.PENDING,
             "Unit status should be pending")
         self.assertDictEqual(
             job_unit.request_json,
@@ -545,7 +545,7 @@ class SuccessTest(DeployBaseTest):
             self.fail("Deploy job unit should be created")
 
         self.assertEqual(
-            Job.SUCCESS, deploy_unit.status,
+            Job.Status.SUCCESS, deploy_unit.status,
             "Unit should be done")
 
         # Verify result. The classifications can vary, so we can't just verify
@@ -645,7 +645,7 @@ class TaskErrorsTest(DeployBaseTest, ErrorReportTestMixin, JobUtilsMixin):
         job_unit.refresh_from_db()
 
         self.assertEqual(
-            job_unit.status, Job.FAILURE,
+            job_unit.status, Job.Status.FAILURE,
             "Unit should have failed")
         self.assertEqual(
             job_unit.internal_job.result_message,
@@ -674,7 +674,7 @@ class TaskErrorsTest(DeployBaseTest, ErrorReportTestMixin, JobUtilsMixin):
         job_unit = ApiJobUnit.objects.latest('pk')
 
         self.assertEqual(
-            job_unit.status, Job.FAILURE,
+            job_unit.status, Job.Status.FAILURE,
             "Unit should have failed")
         error_traceback = job_unit.result_message
         error_traceback_last_line = error_traceback.splitlines()[-1]
@@ -711,7 +711,7 @@ class TaskErrorsTest(DeployBaseTest, ErrorReportTestMixin, JobUtilsMixin):
         job_unit = ApiJobUnit.objects.latest('pk')
 
         self.assertEqual(
-            job_unit.status, Job.FAILURE,
+            job_unit.status, Job.Status.FAILURE,
             "Unit should have failed")
         error_traceback = job_unit.result_message
         error_traceback_last_line = error_traceback.splitlines()[-1]

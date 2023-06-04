@@ -60,21 +60,13 @@ class JobDashboardView(View, ABC):
         if has_source_column:
             fields += ['source', 'source__name']
 
-        for values in page_jobs.object_list.values(*fields):
-            if values['status'] == Job.IN_PROGRESS:
-                status_display = 'In Progress'
-            elif values['status'] == Job.PENDING:
-                status_display = 'Pending'
-            elif values['status'] == Job.SUCCESS:
-                status_display = 'Success'
-            else:
-                # Job.FAILURE
-                status_display = 'Failure'
+        status_choices_labels = dict(Job.Status.choices)
 
+        for values in page_jobs.object_list.values(*fields):
             table_entry = dict(
                 id=values['pk'],
                 status=values['status'],
-                status_display=status_display,
+                status_display=status_choices_labels[values['status']],
                 result_message=values['result_message'],
                 persist=values['persist'],
                 modify_date=values['modify_date'],
@@ -115,9 +107,13 @@ class JobDashboardView(View, ABC):
         try:
             latest_check = source.job_set.filter(
                 job_name='check_source',
-                status__in=[Job.SUCCESS, Job.FAILURE, Job.IN_PROGRESS]
+                status__in=[
+                    Job.Status.SUCCESS,
+                    Job.Status.FAILURE,
+                    Job.Status.IN_PROGRESS,
+                ]
             ).latest('pk')
-            check_in_progress = (latest_check.status == Job.IN_PROGRESS)
+            check_in_progress = (latest_check.status == Job.Status.IN_PROGRESS)
         except Job.DoesNotExist:
             latest_check = None
             check_in_progress = False

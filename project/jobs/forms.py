@@ -58,7 +58,8 @@ class BaseJobForm(forms.Form):
 
         status_filter = self.status_filter
         if status_filter == 'completed':
-            status_kwargs = dict(status__in=[Job.SUCCESS, Job.FAILURE])
+            status_kwargs = dict(
+                status__in=[Job.Status.SUCCESS, Job.Status.FAILURE])
         elif status_filter:
             status_kwargs = dict(status=status_filter)
         else:
@@ -71,8 +72,8 @@ class BaseJobForm(forms.Form):
             # Tiebreak by last updated, then by ID (last created).
             jobs = jobs.annotate(
                 status_score=Case(
-                    When(status=Job.IN_PROGRESS, then=Value(1)),
-                    When(status=Job.PENDING, then=Value(2)),
+                    When(status=Job.Status.IN_PROGRESS, then=Value(1)),
+                    When(status=Job.Status.PENDING, then=Value(2)),
                     default=Value(3),
                     output_field=models.fields.IntegerField(),
                 )
@@ -92,10 +93,10 @@ class BaseJobForm(forms.Form):
         jobs = self.get_jobs()
 
         return {
-            Job.IN_PROGRESS: jobs.filter(status=Job.IN_PROGRESS),
-            Job.PENDING: jobs.filter(status=Job.PENDING),
+            Job.Status.IN_PROGRESS: jobs.filter(status=Job.Status.IN_PROGRESS),
+            Job.Status.PENDING: jobs.filter(status=Job.Status.PENDING),
             'completed': jobs.filter(
-                status__in=[Job.SUCCESS, Job.FAILURE],
+                status__in=[Job.Status.SUCCESS, Job.Status.FAILURE],
                 modify_date__gt=now - timedelta(days=self.completed_day_limit)
             )
         }
@@ -112,7 +113,7 @@ class JobSearchForm(BaseJobForm):
     status = forms.ChoiceField(
         choices=[
             ('', "Any"),
-            *Job.STATUS_CHOICES,
+            *Job.Status.choices,
             ('completed', "Completed"),
         ],
         required=False, initial='',
@@ -231,8 +232,8 @@ class JobSummaryForm(BaseJobForm):
             # jobs, then tiebreak by most completed jobs
             def sort(entry):
                 return (
-                    entry.get(Job.IN_PROGRESS, 0),
-                    entry.get(Job.PENDING, 0),
+                    entry.get(Job.Status.IN_PROGRESS, 0),
+                    entry.get(Job.Status.PENDING, 0),
                     entry.get('completed', 0),
                 )
             source_entries.sort(key=sort, reverse=True)

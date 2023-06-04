@@ -1,15 +1,15 @@
-#job-summary td.PN,
-#job-table tr.PN {
+#job-summary td.pending,
+#job-table tr.pending {
   background-color: #bbe;
 }
-#job-summary td.IP,
-#job-table tr.IP {
+#job-summary td.in_progress,
+#job-table tr.in_progress {
   background-color: #eeb;
 }
-#job-table tr.SC {
+#job-table tr.success {
   background-color: #beb;
 }
-#job-table tr.FL {
+#job-table tr.failure {
   background-color: #ebb;
 }
 #job-summary td.completed {

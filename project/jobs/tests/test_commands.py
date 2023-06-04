@@ -29,9 +29,9 @@ class AbortJobTest(ManagementCommandTest):
         self.assertSetEqual(
             job_details,
             {
-                ('1', Job.FAILURE, "Aborted manually"),
-                ('2', Job.PENDING, ""),
-                ('3', Job.FAILURE, "Aborted manually"),
+                ('1', Job.Status.FAILURE, "Aborted manually"),
+                ('2', Job.Status.PENDING, ""),
+                ('3', Job.Status.FAILURE, "Aborted manually"),
             },
             "Only jobs 1 and 3 should have been aborted",
         )

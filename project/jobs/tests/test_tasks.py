@@ -150,7 +150,7 @@ class ReportStuckJobsTest(BaseTest):
     Test the report_stuck_jobs task.
     """
     @staticmethod
-    def create_job(name, arg, modify_date, status=Job.PENDING):
+    def create_job(name, arg, modify_date, status=Job.Status.PENDING):
         job = Job.objects.create(
             job_name=name, arg_identifier=arg, status=status)
         job.save()
@@ -198,10 +198,10 @@ class ReportStuckJobsTest(BaseTest):
         """
         d3h1 = timezone.now() - timedelta(days=3, hours=1)
 
-        self.create_job('1', 'PENDING', d3h1, status=Job.PENDING)
-        self.create_job('2', 'SUCCESS', d3h1, status=Job.SUCCESS)
-        self.create_job('3', 'IN_PROGRESS', d3h1, status=Job.IN_PROGRESS)
-        self.create_job('4', 'FAILURE', d3h1, status=Job.FAILURE)
+        self.create_job('1', 'PENDING', d3h1, status=Job.Status.PENDING)
+        self.create_job('2', 'SUCCESS', d3h1, status=Job.Status.SUCCESS)
+        self.create_job('3', 'IN_PROGRESS', d3h1, status=Job.Status.IN_PROGRESS)
+        self.create_job('4', 'FAILURE', d3h1, status=Job.Status.FAILURE)
 
         report_stuck_jobs()
 

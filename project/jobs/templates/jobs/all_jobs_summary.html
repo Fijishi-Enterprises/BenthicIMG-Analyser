@@ -37,8 +37,8 @@
           <em>All jobs</em>
         </a>
       </td>
-      <td class="IP"><strong>{{ overall_job_counts.IP|default:0 }}</strong></td>
-      <td class="PN"><strong>{{ overall_job_counts.PN|default:0 }}</strong></td>
+      <td class="in_progress"><strong>{{ overall_job_counts.in_progress|default:0 }}</strong></td>
+      <td class="pending"><strong>{{ overall_job_counts.pending|default:0 }}</strong></td>
       <td class="completed"><strong>{{ overall_job_counts.completed|default:0 }}</strong></td>
     </tr>
     <tr id="non-source-summary">
@@ -47,8 +47,8 @@
           <em>Non-source jobs</em>
         </a>
       </td>
-      <td class="IP">{{ non_source_job_counts.IP|default:0 }}</td>
-      <td class="PN">{{ non_source_job_counts.PN|default:0 }}</td>
+      <td class="in_progress">{{ non_source_job_counts.in_progress|default:0 }}</td>
+      <td class="pending">{{ non_source_job_counts.pending|default:0 }}</td>
       <td class="completed">{{ non_source_job_counts.completed|default:0 }}</td>
     </tr>
     {% for table_entry in source_table %}
@@ -58,8 +58,8 @@
             {{ table_entry.source_name }}
           </a>
         </td>
-        <td class="IP">{{ table_entry.IP|default:0 }}</td>
-        <td class="PN">{{ table_entry.PN|default:0 }}</td>
+        <td class="in_progress">{{ table_entry.in_progress|default:0 }}</td>
+        <td class="pending">{{ table_entry.pending|default:0 }}</td>
         <td class="completed">{{ table_entry.completed|default:0 }}</td>
       </tr>
     {% endfor %}

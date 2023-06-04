@@ -60,7 +60,7 @@ def check_source(source_id):
         active_training_jobs = Job.objects.filter(
             job_name='train_classifier',
             source_id=source_id,
-            status__in=[Job.PENDING, Job.IN_PROGRESS]
+            status__in=[Job.Status.PENDING, Job.Status.IN_PROGRESS]
         )
         if active_training_jobs.exists():
             # If we submit, rowcols that were submitted to training may get

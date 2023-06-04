@@ -23,7 +23,7 @@ def queue_job(
         *task_args,
         delay: timedelta = None,
         source_id: int = None,
-        initial_status: str = Job.PENDING) -> Optional[Job]:
+        initial_status: str = Job.Status.PENDING) -> Optional[Job]:
 
     if delay is None:
         # Use a random amount of jitter to slightly space out jobs that are
@@ -43,7 +43,7 @@ def queue_job(
     # starting a job (as opposed to just queueing it as pending).
     jobs = Job.objects.filter(**job_kwargs)
     try:
-        job = jobs.get(status__in=[Job.PENDING, Job.IN_PROGRESS])
+        job = jobs.get(status__in=[Job.Status.PENDING, Job.Status.IN_PROGRESS])
     except Job.DoesNotExist:
         pass
     else:
@@ -58,7 +58,7 @@ def queue_job(
     except Job.DoesNotExist:
         pass
     else:
-        if last_job.status == Job.FAILURE:
+        if last_job.status == Job.Status.FAILURE:
             attempt_number = last_job.attempt_number + 1
 
     # Create a new job and proceed
@@ -100,7 +100,7 @@ def start_pending_job(job_name: str, arg_identifier: str) -> Optional[Job]:
     jobs_queryset = Job.objects.select_for_update(nowait=True).filter(
         job_name=job_name,
         arg_identifier=arg_identifier,
-        status__in=[Job.PENDING, Job.IN_PROGRESS],
+        status__in=[Job.Status.PENDING, Job.Status.IN_PROGRESS],
     )
     with transaction.atomic():
         # Evaluate the query.
@@ -118,7 +118,7 @@ def start_pending_job(job_name: str, arg_identifier: str) -> Optional[Job]:
             logger.info(f"Job [{job_name} / {arg_identifier}] not found.")
             return None
 
-        if Job.IN_PROGRESS in [job.status for job in jobs]:
+        if Job.Status.IN_PROGRESS in [job.status for job in jobs]:
             logger.info(f"Job [{jobs[0]}] already in progress.")
             return None
 
@@ -128,7 +128,7 @@ def start_pending_job(job_name: str, arg_identifier: str) -> Optional[Job]:
                 # Delete any duplicate pending jobs
                 dupe_job.delete()
 
-        job.status = Job.IN_PROGRESS
+        job.status = Job.Status.IN_PROGRESS
         job.save()
     return job
 
@@ -140,7 +140,7 @@ def finish_job(job, success=False, result_message=None):
     """
     # This field doesn't take None; no message is set as an empty string.
     job.result_message = result_message or ""
-    job.status = Job.SUCCESS if success else Job.FAILURE
+    job.status = Job.Status.SUCCESS if success else Job.Status.FAILURE
 
     # Successful training jobs should persist in the DB.
     if job.job_name == 'train_classifier' and success:
@@ -148,7 +148,7 @@ def finish_job(job, success=False, result_message=None):
 
     job.save()
 
-    if job.status == Job.FAILURE and job.attempt_number % 5 == 0:
+    if job.status == Job.Status.FAILURE and job.attempt_number % 5 == 0:
         mail_admins(
             f"Job is failing repeatedly:"
             f" {job.job_name} / {job.arg_identifier}",
@@ -223,7 +223,7 @@ class FullJobDecorator(JobDecorator):
             self.job_name,
             *task_args,
             delay=timedelta(seconds=0),
-            initial_status=Job.IN_PROGRESS,
+            initial_status=Job.Status.IN_PROGRESS,
             # No usages are source-specific yet.
             source_id=None,
         )

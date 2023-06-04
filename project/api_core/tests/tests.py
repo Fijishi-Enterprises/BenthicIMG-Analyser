@@ -427,7 +427,7 @@ class UnitAndJobForwardMigrationTest(MigrationTest):
 
         # In progress
         unit_1 = ApiJobUnitBefore(
-            job=api_job, type='some_type', status=Job.IN_PROGRESS,
+            job=api_job, type='some_type', status=Job.Status.IN_PROGRESS,
             request_json=dict(
                 url='URL 1', image_order=10,
             ),
@@ -436,7 +436,7 @@ class UnitAndJobForwardMigrationTest(MigrationTest):
 
         # Success + test specific dates
         unit_2 = ApiJobUnitBefore(
-            job=api_job, type='some_type', status=Job.SUCCESS,
+            job=api_job, type='some_type', status=Job.Status.SUCCESS,
             request_json=dict(
                 url='URL 2', image_order=11,
             ),
@@ -453,7 +453,7 @@ class UnitAndJobForwardMigrationTest(MigrationTest):
 
         # Failure
         unit_3 = ApiJobUnitBefore(
-            job=api_job, type='some_type', status=Job.FAILURE,
+            job=api_job, type='some_type', status=Job.Status.FAILURE,
             request_json=dict(
                 url='URL 3', image_order=12,
             ),
@@ -473,7 +473,7 @@ class UnitAndJobForwardMigrationTest(MigrationTest):
         self.assertEqual(unit_1.internal_job.job_name, 'some_type')
         self.assertEqual(
             unit_1.internal_job.arg_identifier, f'{api_job.pk},11')
-        self.assertEqual(unit_1.internal_job.status, Job.IN_PROGRESS)
+        self.assertEqual(unit_1.internal_job.status, Job.Status.IN_PROGRESS)
 
         unit_2 = ApiJobUnitAfter.objects.get(pk=unit_2.pk)
         self.assertEqual(unit_2.parent_id, api_job.pk)
@@ -481,7 +481,7 @@ class UnitAndJobForwardMigrationTest(MigrationTest):
         self.assertEqual(unit_2.internal_job.job_name, 'some_type')
         self.assertEqual(
             unit_2.internal_job.arg_identifier, f'{api_job.pk},12')
-        self.assertEqual(unit_2.internal_job.status, Job.SUCCESS)
+        self.assertEqual(unit_2.internal_job.status, Job.Status.SUCCESS)
         self.assertEqual(unit_2.internal_job.create_date.day, 19)
         self.assertEqual(unit_2.internal_job.scheduled_start_date.day, 19)
         self.assertEqual(unit_2.internal_job.modify_date.day, 21)
@@ -492,7 +492,7 @@ class UnitAndJobForwardMigrationTest(MigrationTest):
         self.assertEqual(unit_3.internal_job.job_name, 'some_type')
         self.assertEqual(
             unit_3.internal_job.arg_identifier, f'{api_job.pk},13')
-        self.assertEqual(unit_3.internal_job.status, Job.FAILURE)
+        self.assertEqual(unit_3.internal_job.status, Job.Status.FAILURE)
         self.assertEqual(unit_3.internal_job.result_message, "Some error")
 
 
@@ -520,7 +520,7 @@ class UnitAndJobBackwardMigrationTest(MigrationTest):
         job_1 = JobBefore(
             job_name='some_type',
             arg_identifier=f'{api_job.pk},11',
-            status=Job.IN_PROGRESS,
+            status=Job.Status.IN_PROGRESS,
         )
         job_1.save()
         unit_1 = ApiJobUnitBefore(
@@ -534,7 +534,7 @@ class UnitAndJobBackwardMigrationTest(MigrationTest):
         job_2 = JobBefore(
             job_name='some_type',
             arg_identifier=f'{api_job.pk},12',
-            status=Job.SUCCESS,
+            status=Job.Status.SUCCESS,
         )
         job_2.save()
         JobBefore.objects.filter(pk=job_2.pk).update(
@@ -556,7 +556,7 @@ class UnitAndJobBackwardMigrationTest(MigrationTest):
         job_3 = JobBefore(
             job_name='some_type',
             arg_identifier=f'{api_job.pk},13',
-            status=Job.FAILURE,
+            status=Job.Status.FAILURE,
             result_message="Some error",
         )
         job_3.save()
@@ -575,7 +575,7 @@ class UnitAndJobBackwardMigrationTest(MigrationTest):
         unit_1 = ApiJobUnitAfter.objects.get(pk=unit_1.pk)
         self.assertEqual(unit_1.job_id, api_job.pk)
         self.assertEqual(unit_1.type, 'some_type')
-        self.assertEqual(unit_1.status, Job.IN_PROGRESS)
+        self.assertEqual(unit_1.status, Job.Status.IN_PROGRESS)
         self.assertDictEqual(
             unit_1.request_json,
             dict(url='URL 1', image_order=10),
@@ -585,7 +585,7 @@ class UnitAndJobBackwardMigrationTest(MigrationTest):
         unit_2 = ApiJobUnitAfter.objects.get(pk=unit_2.pk)
         self.assertEqual(unit_2.job_id, api_job.pk)
         self.assertEqual(unit_2.type, 'some_type')
-        self.assertEqual(unit_2.status, Job.SUCCESS)
+        self.assertEqual(unit_2.status, Job.Status.SUCCESS)
         self.assertDictEqual(
             unit_2.request_json,
             dict(url='URL 2', image_order=11),
@@ -597,7 +597,7 @@ class UnitAndJobBackwardMigrationTest(MigrationTest):
         unit_3 = ApiJobUnitAfter.objects.get(pk=unit_3.pk)
         self.assertEqual(unit_3.job_id, api_job.pk)
         self.assertEqual(unit_3.type, 'some_type')
-        self.assertEqual(unit_3.status, Job.FAILURE)
+        self.assertEqual(unit_3.status, Job.Status.FAILURE)
         self.assertDictEqual(
             unit_3.request_json,
             dict(url='URL 3', image_order=12),

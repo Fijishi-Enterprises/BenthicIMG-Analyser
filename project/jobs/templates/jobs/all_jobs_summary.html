@@ -28,6 +28,7 @@
       <th>In progress</th>
       <th>Pending</th>
       <th>Completed in last {{ completed_day_limit }} days</th>
+      <th>Last job activity</th>
     </tr>
   </thead>
   <tbody>
@@ -40,6 +41,7 @@
       <td class="in_progress"><strong>{{ overall_job_counts.in_progress|default:0 }}</strong></td>
       <td class="pending"><strong>{{ overall_job_counts.pending|default:0 }}</strong></td>
       <td class="completed"><strong>{{ overall_job_counts.completed|default:0 }}</strong></td>
+      <td><strong>{{ overall_job_counts.last_activity }}</strong></td>
     </tr>
     <tr id="non-source-summary">
       <td>
@@ -50,17 +52,19 @@
       <td class="in_progress">{{ non_source_job_counts.in_progress|default:0 }}</td>
       <td class="pending">{{ non_source_job_counts.pending|default:0 }}</td>
       <td class="completed">{{ non_source_job_counts.completed|default:0 }}</td>
+      <td>{{ non_source_job_counts.last_activity }}</td>
     </tr>
-    {% for table_entry in source_table %}
+    {% for source_entry in source_table %}
       <tr>
         <td>
-          <a href="{% url 'jobs:source_job_list' table_entry.source_id %}">
-            {{ table_entry.source_name }}
+          <a href="{% url 'jobs:source_job_list' source_entry.source_id %}">
+            {{ source_entry.source_name }}
           </a>
         </td>
-        <td class="in_progress">{{ table_entry.in_progress|default:0 }}</td>
-        <td class="pending">{{ table_entry.pending|default:0 }}</td>
-        <td class="completed">{{ table_entry.completed|default:0 }}</td>
+        <td class="in_progress">{{ source_entry.in_progress|default:0 }}</td>
+        <td class="pending">{{ source_entry.pending|default:0 }}</td>
+        <td class="completed">{{ source_entry.completed|default:0 }}</td>
+        <td>{{ source_entry.last_activity }}</td>
       </tr>
     {% endfor %}
   </tbody>

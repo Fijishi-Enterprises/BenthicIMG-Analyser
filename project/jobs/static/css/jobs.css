@@ -1,3 +1,8 @@
+#job-table th {
+  /* Give indication that there are tooltips */
+  cursor: help;
+}
+
 #job-summary td.pending,
 #job-table tr.pending {
   background-color: #bbe;

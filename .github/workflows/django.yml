@@ -46,6 +46,9 @@ jobs:
       run: |
         mkdir ../log
         mkdir ../tmp
+    - name: Start PostgreSQL
+      run: |
+        sudo systemctl start postgresql.service
     - name: Run Tests
       run: |
         python manage.py test

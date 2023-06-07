@@ -52,7 +52,10 @@ class CoralNetEnvMapping(MutableMapping):
 class CoralNetEnv(environ.Env):
     ENVIRON = CoralNetEnvMapping()
 
-    def path(self, var, default: Path | environ.NoValue = environ.Env.NOTSET, **kwargs):
+    def path(
+        self, var, default: Path | environ.NoValue = environ.Env.NOTSET,
+        **kwargs
+    ):
         # Use pathlib.Path instead of environ.Path
         return Path(self.get_value(var, default=default))
 
@@ -160,9 +163,14 @@ USE_I18N = False
 
 # People who get code error notifications.
 # In the format: Name 1 <email@example.com>,Name 2 <email@example2.com>
-ADMINS = getaddresses(env('ADMINS', default=[]))
-if ADMINS == [] and REAL_SERVER:
-    raise ImproperlyConfigured("Can't have zero ADMINS.")
+
+if REAL_SERVER:
+    ADMINS = getaddresses(env('ADMINS'))
+else:
+    # Some unit tests need at least one admin specified.
+    # The address shouldn't matter since a non-real-server setup shouldn't
+    # be sending actual emails.
+    ADMINS = [('CoralNet Admin', 'admin@coralnet.ucsd.edu')]
 
 # Not-necessarily-technical managers of the site. They get broken link
 # notifications and other various emails.

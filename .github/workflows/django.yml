@@ -18,6 +18,9 @@ jobs:
       CORALNET_DATABASE_NAME: postgres
       CORALNET_DATABASE_USER: postgres
       CORALNET_DATABASE_PASSWORD: postgres
+      # Although we might expect Django to default to localhost,
+      # this must be explicitly specified for CI for some reason.
+      CORALNET_DATABASE_HOST: localhost
       CORALNET_SECRET_KEY: ci-secret-key
 
     services:
@@ -51,5 +54,4 @@ jobs:
         python manage.py test
       working-directory: ./project
       env:
-        POSTGRES_HOST: postgres
         POSTGRES_PORT: ${{ job.services.postgres.ports[5432] }}

@@ -349,7 +349,7 @@ class PointGenTest(ClientTest):
             reverse('annotation_area_edit', args=[img.pk]),
             data=dict(min_x=8, max_x=36, min_y=0, max_y=18))
 
-        points = img.point_set.all()
+        points = img.point_set.order_by('point_number')
         self.assertEqual(
             points.count(), 5*4*6,
             "Should generate the correct number of points")

@@ -1,4 +1,3 @@
-from datetime import timedelta
 import numpy as np
 
 from images.models import Point
@@ -63,8 +62,8 @@ def get_alleviate(estlabels, gtlabels, scores):
     
     # convert to numpy for easy indexing
     scores = np.asarray(scores)
-    gtlabels = np.asarray(gtlabels, dtype=np.int)
-    estlabels = np.asarray(estlabels, dtype=np.int)
+    gtlabels = np.asarray(gtlabels, dtype=int)
+    estlabels = np.asarray(estlabels, dtype=int)
     
     # Figure out teh appropriate thresholds to use
     ths = sorted(scores)
@@ -77,7 +76,7 @@ def get_alleviate(estlabels, gtlabels, scores):
     ths = np.asarray(ths)  # Convert back to numpy.
     # cap at 250
     if len(ths) > 250:
-        ths = ths[np.linspace(0, len(ths) - 1, 250, dtype=np.int)]  # max 250!
+        ths = ths[np.linspace(0, len(ths) - 1, 250, dtype=int)]  # max 250!
     
     # do the actual sweep.
     accs, ratios = [], []
@@ -95,8 +94,8 @@ def map_labels(labellist, classmap):
     """
     Helper function to map integer labels to new labels.
     """
-    labellist = np.asarray(labellist, dtype=np.int)
-    newlist = -1 * np.ones(len(labellist), dtype=np.int)
+    labellist = np.asarray(labellist, dtype=int)
+    newlist = -1 * np.ones(len(labellist), dtype=int)
     for key in classmap.keys():
         newlist[labellist == key] = classmap[key]
     return list(newlist)

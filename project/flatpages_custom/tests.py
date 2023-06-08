@@ -121,7 +121,7 @@ class FlatpageEditTest(ClientTest):
             # )
             r'\)'
         )
-        self.assertRegexpMatches(
+        self.assertRegex(
             image_code, image_code_regex,
             "markdownx should return a valid image code")
 

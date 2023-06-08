@@ -269,7 +269,7 @@ class SpacerFeatureResultHandler(SpacerResultHandler):
 
         # TODO: remove runtime_core from DB
         img.features.runtime_core = 0
-        img.features.model_was_cashed = task_res.model_was_cashed
+        img.features.model_was_cached = task_res.model_was_cached
         img.features.extracted_date = now()
         img.features.save()
 

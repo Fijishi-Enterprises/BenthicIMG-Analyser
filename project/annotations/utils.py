@@ -1,6 +1,5 @@
 import datetime
 import operator
-import pytz
 
 from django.contrib.auth.models import User
 from django.core.cache import cache
@@ -105,7 +104,7 @@ def get_annotation_version_user_display(anno_version, date_created):
         # robot runs had not yet started.
         beta_start_dt_naive = datetime.datetime(2016, 11, 20, 2)
         beta_start_dt = timezone.make_aware(
-            beta_start_dt_naive, pytz.timezone("UTC"))
+            beta_start_dt_naive, datetime.timezone.utc)
 
         if date_created < beta_start_dt:
             # Alpha

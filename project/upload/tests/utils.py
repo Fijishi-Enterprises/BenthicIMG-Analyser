@@ -8,6 +8,7 @@ from django.urls import reverse
 from accounts.utils import get_imported_user
 from annotations.model_utils import AnnotationAreaUtils
 from annotations.models import Annotation
+from annotations.tests.utils import AnnotationHistoryTestMixin
 from images.model_utils import PointGen
 from images.models import Point
 from lib.tests.utils import ClientTest
@@ -53,7 +54,8 @@ class UploadAnnotationsCsvTestMixin(UploadAnnotationsTestMixin, ABC):
         )
 
 
-class UploadAnnotationsGeneralCasesTest(ClientTest, ABC):
+class UploadAnnotationsGeneralCasesTest(
+        ClientTest, AnnotationHistoryTestMixin, ABC):
     """
     Testing general functionality for uploading annotations.
     This class is agnostic to the upload format. Subclasses may be
@@ -454,6 +456,33 @@ class UploadAnnotationsGeneralCasesTest(ClientTest, ABC):
             ('A', Point.objects.get(
                 point_number=1, image=self.img1).pk, self.img1.pk),
         })
+
+    def check_annotation_history(self):
+
+        response = self.view_history(self.user, img=self.img1)
+        self.assert_history_table_equals(
+            response,
+            [
+                ['Point 1: A<br/>Point 3: B', 'Imported'],
+            ]
+        )
+
+    def check_transaction_rollback(self):
+
+        # No annotations should be saved
+        annotations = Annotation.objects.filter(image__in=[self.img1])
+        values_set = set(
+            (a.label_code, a.point.pk, a.image.pk)
+            for a in annotations
+        )
+        self.assertSetEqual(values_set, set())
+
+        # No history should be saved
+        response = self.view_history(self.user, img=self.img1)
+        self.assert_history_table_equals(
+            response,
+            []
+        )
 
 
 class UploadAnnotationsMultipleSourcesTest(ClientTest, ABC):

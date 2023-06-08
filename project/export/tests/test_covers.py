@@ -80,12 +80,12 @@ class FileTypeTest(BaseImageCoversExportTest):
     def test_csv(self):
         response = self.export_image_covers(dict())
 
-        self.assertEquals(
+        self.assertEqual(
             response['content-disposition'],
             'attachment;filename="percent_covers.csv"',
             msg="Filename should be as expected")
 
-        self.assertEquals(
+        self.assertEqual(
             response['content-type'], 'text/csv',
             msg="Content type should be CSV")
 
@@ -99,12 +99,12 @@ class FileTypeTest(BaseImageCoversExportTest):
         data['export_format'] = 'excel'
         response = self.export_image_covers(data)
 
-        self.assertEquals(
+        self.assertEqual(
             response['content-disposition'],
             'attachment;filename="percent_covers.xlsx"',
             msg="Filename should be as expected")
 
-        self.assertEquals(
+        self.assertEqual(
             response['content-type'],
             'application/'
             'vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -455,4 +455,4 @@ class PerformanceTest(BaseImageCoversExportTest):
         with self.assertNumQueries(31):
             response = self.client.post(url, data)
         self.assertStatusOK(response)
-        self.assertEquals(response['content-type'], 'text/csv')
+        self.assertEqual(response['content-type'], 'text/csv')

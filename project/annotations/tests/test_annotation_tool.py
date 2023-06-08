@@ -8,10 +8,11 @@ from django.urls import reverse
 from django.utils import timezone
 
 from accounts.utils import is_alleviate_user, is_robot_user
-from annotations.models import Annotation, AnnotationToolSettings
 from images.model_utils import PointGen
 from images.models import Source
 from lib.tests.utils import BasePermissionTest, ClientTest
+from ..models import Annotation, AnnotationToolAccess, AnnotationToolSettings
+from .utils import AnnotationHistoryTestMixin
 
 tz = timezone.get_current_timezone()
 
@@ -816,7 +817,7 @@ def mock_update_annotation(point, label, now_confirmed, user_or_robot_version):
     new_annotation.save()
 
 
-class SaveAnnotationsTest(ClientTest):
+class SaveAnnotationsTest(ClientTest, AnnotationHistoryTestMixin):
     """Test submitting the annotation form which is available at the right side
     of the annotation tool."""
     @classmethod
@@ -844,6 +845,12 @@ class SaveAnnotationsTest(ClientTest):
     def assert_didnt_save_anything(self):
         self.assertEqual(
             Annotation.objects.filter(image__pk=self.img.pk).count(), 0)
+
+        response = self.view_history(self.user, img=self.img)
+        self.assert_history_table_equals(
+            response,
+            []
+        )
 
     def test_cant_delete_existing_annotation(self):
         """If a point already has an annotation in the DB, submitting a blank
@@ -906,6 +913,15 @@ class SaveAnnotationsTest(ClientTest):
         self.assertEqual(annotation_3.label_code, 'B')
         self.assertEqual(annotation_3.user.username, self.user.username)
 
+        response = self.view_history(self.user)
+        self.assert_history_table_equals(
+            response,
+            [
+                ['Point 3: B',
+                 f'{self.user.username}'],
+            ]
+        )
+
     def test_confirm_an_unconfirmed_annotation(self):
         robot = self.create_robot(self.source)
         self.add_robot_annotations(robot, self.img, {1: 'A', 2: 'B', 3: 'B'})
@@ -923,6 +939,17 @@ class SaveAnnotationsTest(ClientTest):
             image__pk=self.img.pk, point__point_number=1)
         self.assertEqual(annotation_1.label_code, 'A')
         self.assertEqual(annotation_1.user.username, self.user.username)
+
+        response = self.view_history(self.user)
+        self.assert_history_table_equals(
+            response,
+            [
+                ['Point 1: A',
+                 f'{self.user.username}'],
+                ['Point 1: A<br/>Point 2: B<br/>Point 3: B',
+                 f'Robot {robot.pk}'],
+            ]
+        )
 
     def test_change_an_unconfirmed_annotation(self):
         robot = self.create_robot(self.source)
@@ -942,6 +969,17 @@ class SaveAnnotationsTest(ClientTest):
         self.assertEqual(annotation_1.label_code, 'B')
         self.assertEqual(annotation_1.user.username, self.user.username)
 
+        response = self.view_history(self.user)
+        self.assert_history_table_equals(
+            response,
+            [
+                ['Point 1: B',
+                 f'{self.user.username}'],
+                ['Point 1: A<br/>Point 2: B<br/>Point 3: B',
+                 f'Robot {robot.pk}'],
+            ]
+        )
+
     def test_change_a_confirmed_annotation(self):
         self.add_annotations(self.user, self.img, {1: 'A'})
 
@@ -958,6 +996,17 @@ class SaveAnnotationsTest(ClientTest):
             image__pk=self.img.pk, point__point_number=1)
         self.assertEqual(annotation_1.label_code, 'B')
         self.assertEqual(annotation_1.user.username, self.user.username)
+
+        response = self.view_history(self.user)
+        self.assert_history_table_equals(
+            response,
+            [
+                ['Point 1: B',
+                 f'{self.user.username}'],
+                ['Point 1: A',
+                 f'{self.user.username}'],
+            ]
+        )
 
     def test_change_a_confirmed_annotation_from_another_user(self):
         # Add 1 as admin
@@ -981,6 +1030,17 @@ class SaveAnnotationsTest(ClientTest):
             image__pk=self.img.pk, point__point_number=1)
         self.assertEqual(annotation_1.label_code, 'B')
         self.assertEqual(annotation_1.user.username, other_user.username)
+
+        response = self.view_history(self.user)
+        self.assert_history_table_equals(
+            response,
+            [
+                ['Point 1: B',
+                 f'{other_user.username}'],
+                ['Point 1: A',
+                 f'{self.user.username}'],
+            ]
+        )
 
     def test_robot_value_null_with_non_blank_label_code(self):
         """This happens when a user loads the annotation tool, fills in a
@@ -1204,7 +1264,7 @@ class SaveAnnotationsTest(ClientTest):
         self.assert_didnt_save_anything()
 
 
-class AlleviateTest(ClientTest):
+class AlleviateTest(ClientTest, AnnotationHistoryTestMixin):
     """Test the Alleviate feature, where confident-enough machine annotations
     get auto-confirmed when entering the annotation tool."""
     @classmethod
@@ -1334,6 +1394,113 @@ class AlleviateTest(ClientTest):
             msg_prefix=(
                 "The updated last annotation should show on the"
                 " annotation tool"))
+
+    def test_history(self):
+        """
+        Alleviate application should create an annotation history entry.
+        """
+        robot = self.create_robot(self.source)
+        self.add_robot_annotations(
+            robot, self.img,
+            {1: ('A', 81), 2: ('B', 79)})
+
+        # Access the annotation tool to trigger Alleviate
+        self.client.force_login(self.user)
+        self.client.get(reverse('annotation_tool', args=[self.img.pk]))
+
+        response = self.view_history(self.user)
+        self.assert_history_table_equals(
+            response,
+            [
+                # 3rd: Access event
+                ['Accessed annotation tool',
+                 f'{self.user.username}'],
+                # 2nd: Alleviate should have triggered for point 1
+                ['Point 1: A',
+                 'Alleviate'],
+                # 1st: Robot annotation
+                ['Point 1: A<br/>Point 2: B',
+                 f'Robot {robot.pk}'],
+            ]
+        )
+
+    def test_post_request(self):
+        """
+        Alleviate takes a different code path if the annotation tool request
+        is POST instead of GET. This happens when the annotation tool is
+        entered through a Browse search.
+        """
+        robot = self.create_robot(self.source)
+        self.add_robot_annotations(
+            robot, self.img,
+            {1: ('A', 81), 2: ('B', 79)})
+
+        # Access the annotation tool through a Browse search
+        self.client.force_login(self.user)
+        data = default_search_params.copy()
+        self.client.post(
+            reverse('annotation_tool', args=[self.img.pk]), data)
+
+        # Alleviate should have run
+        annotation_1 = Annotation.objects.get(
+            image__pk=self.img.pk, point__point_number=1)
+        self.assertFalse(
+            is_robot_user(annotation_1.user),
+            "1 should no longer be a robot annotation")
+
+        # History entry should be there
+        response = self.view_history(self.user, img=self.img)
+        self.assert_history_table_equals(
+            response,
+            [
+                # 3rd: Access event
+                ['Accessed annotation tool',
+                 f'{self.user.username}'],
+                # 2nd: Alleviate should have triggered for point 1
+                ['Point 1: A',
+                 'Alleviate'],
+                # 1st: Robot annotation
+                ['Point 1: A<br/>Point 2: B',
+                 f'Robot {robot.pk}'],
+            ]
+        )
+
+    def test_transaction_rollback(self):
+        """
+        If an error occurs after Alleviate is applied and before the annotation
+        tool view completes, changes should be rolled back.
+        """
+        robot = self.create_robot(self.source)
+        self.add_robot_annotations(
+            robot, self.img, {1: ('A', 95), 2: ('B', 95)})
+
+        def raise_error(self, *args, **kwargs):
+            raise IntegrityError
+
+        # Trigger Alleviate, with one of the view's calls mocked to raise an
+        # error after Alleviate happens
+        self.client.force_login(self.user)
+        with mock.patch.object(AnnotationToolAccess, 'save', raise_error):
+            with self.assertRaises(IntegrityError):
+                self.client.get(self.tool_url)
+
+        self.img.annoinfo.refresh_from_db()
+        self.assertFalse(
+            self.img.annoinfo.confirmed, "Image shouldn't be confirmed")
+        all_done_response = self.client.get(self.all_done_url).json()
+        self.assertFalse(
+            all_done_response['all_done'], "Image shouldn't be all done")
+
+        # History should only have the initial robot annotation action
+        response = self.view_history(self.user)
+        self.assert_history_table_equals(
+            response,
+            [
+                # 1st: Robot annotation
+                ['Point 1: A<br/>Point 2: B',
+                 f'Robot {robot.pk}'],
+            ]
+        )
 
 
 class SettingsTest(ClientTest):

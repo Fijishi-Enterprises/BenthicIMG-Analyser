@@ -167,15 +167,12 @@ class DeleteImageTest(ImageDetailActionBaseTest):
             msg_prefix="Page should show the correct message")
 
         # Image, metadata, and features should not exist anymore
-        self.assertRaises(
-            Image.DoesNotExist,
-            callableObj=Image.objects.get, pk=image_id)
-        self.assertRaises(
-            Metadata.DoesNotExist,
-            callableObj=Metadata.objects.get, pk=metadata_id)
-        self.assertRaises(
-            Features.DoesNotExist,
-            callableObj=Features.objects.get, pk=features_id)
+        with self.assertRaises(Image.DoesNotExist):
+            Image.objects.get(pk=image_id)
+        with self.assertRaises(Metadata.DoesNotExist):
+            Metadata.objects.get(pk=metadata_id)
+        with self.assertRaises(Features.DoesNotExist):
+            Features.objects.get(pk=features_id)
 
     def test_other_images_not_deleted(self):
         """Ensure that other images don't get deleted, just this one."""
@@ -192,9 +189,8 @@ class DeleteImageTest(ImageDetailActionBaseTest):
         self.post_to_action_view(self.user, self.img)
 
         # img should be gone
-        self.assertRaises(
-            Image.DoesNotExist,
-            callableObj=Image.objects.get, pk=img_id)
+        with self.assertRaises(Image.DoesNotExist):
+            Image.objects.get(pk=img_id)
         # Other image in the same source should still be there
         Image.objects.get(pk=img2_id)
         # Image in another source should still be there
@@ -493,6 +489,7 @@ class ResetAnnotationAreaTest(ImageDetailActionBaseTest):
     def test_permission_private_source(self):
         # Change the default annotation area so that it doesn't match any of
         # the images'
+        self.source.refresh_from_db()
         self.source.image_annotation_area = \
             AnnotationAreaUtils.percentages_to_db_format(5, 95, 5, 95)
         self.source.save()
@@ -502,6 +499,7 @@ class ResetAnnotationAreaTest(ImageDetailActionBaseTest):
 
     def test_permission_public_source(self):
         # Change the default annotation area
+        self.source.refresh_from_db()
         self.source.image_annotation_area = \
             AnnotationAreaUtils.percentages_to_db_format(5, 95, 5, 95)
         self.source.save()

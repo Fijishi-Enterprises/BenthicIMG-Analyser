@@ -23,12 +23,12 @@ class Command(BaseCommand):
     help = '''
         Run vision backend regression tests. Depending on your config
         you can run this reg-test in several modes:
-        ## Local eager
+        ## Local immediate
         This is the simplest setting. Local backend, sync tasks, local queue.
         ```
-        HUEY['immediate'] = True
-        SPACER_QUEUE_CHOICE = 'vision_backend.queues.LocalQueue'
-        from .storage_local import *
+        HUEY_IMMEDIATE=True
+        SPACER_QUEUE_CHOICE=vision_backend.queues.LocalQueue
+        SETTINGS_BASE=dev-local
         ```
         
         ## Local async
@@ -36,39 +36,33 @@ class Command(BaseCommand):
         using huey. Make sure the huey consumer is running before starting 
         the test: `python manage.py run_huey`.
         ```
-        HUEY['immediate'] = False
-        SPACER_QUEUE_CHOICE = 'vision_backend.queues.LocalQueue'
-        from .storage_local import *
+        HUEY_IMMEDIATE=False
+        SPACER_QUEUE_CHOICE=vision_backend.queues.LocalQueue
+        SETTINGS_BASE=dev-local
         ```
         
         ## S3 async
         Still using the LocalQueue and async tasks, but storage is now on S3. 
         ```
-        HUEY['immediate'] = False
-        SPACER_QUEUE_CHOICE = 'vision_backend.queues.LocalQueue'
-        from .storage_s3 import *.
+        HUEY_IMMEDIATE=False
+        SPACER_QUEUE_CHOICE=vision_backend.queues.LocalQueue
+        SETTINGS_BASE=dev-s3
         ```
         ## AWS ECS cluster. 
         This uses the AWS Batch to process the jobs. 
         ```
-        HUEY['immediate'] = False
-        SPACER_QUEUE_CHOICE = 'vision_backend.queues.BatchQueue'
-        from .storage_s3 import *
+        HUEY_IMMEDIATE=False
+        SPACER_QUEUE_CHOICE=vision_backend.queues.BatchQueue
+        SETTINGS_BASE=dev-s3
         ```
         
         Etc. etc. Most combinations work. The only requirement is that if you 
-        use the `BatchQueue` you need to use the `storage_s3` setting. 
+        use the `BatchQueue` you need to use the `dev-s3` setting. 
         
         NOTE: 
-        If you use `.storage_local` you need to add these lines to your 
-        personal dev_settings to allow access to fixtures and spacer models 
-        from s3.
-        ```
-        AWS_ACCESS_KEY_ID = get_secret('AWS_ACCESS_KEY_ID')
-        AWS_SECRET_ACCESS_KEY = get_secret('AWS_SECRET_ACCESS_KEY')
-        os.environ['SPACER_AWS_ACCESS_KEY_ID'] = AWS_ACCESS_KEY_ID
-        os.environ['SPACER_AWS_SECRET_ACCESS_KEY'] = AWS_SECRET_ACCESS_KEY
-        ```
+        If you use `dev-local` you still need to have AWS_ACCESS_KEY_ID and
+        AWS_SECRET_ACCESS_KEY in your .env to allow access to fixtures and
+        spacer models from s3.
         '''
 
     def create_parser(self, *args, **kwargs):
@@ -78,20 +72,23 @@ class Command(BaseCommand):
         return parser
 
     def add_arguments(self, parser):
-        parser.add_argument('--size',
-                            type=str,
-                            choices=['small', 'medium', 'large'],
-                            default='small',
-                            help='Choose size: '
-                                 'Small ~ 50 images; '
-                                 'medium ~ 400 images; '
-                                 'large ~ 1600 images')
-        parser.add_argument('--fixture_source',
-                            type=int,
-                            choices=[372, 504],
-                            default=372,
-                            help='Choose one of two sources to run your '
-                                 'regression test on.')
+        parser.add_argument(
+            '--size',
+            type=str,
+            choices=['small', 'medium', 'large'],
+            default='small',
+            help='Choose size: '
+                 'Small ~ 50 images; medium ~ 400 images; large ~ 1600 images')
+        parser.add_argument(
+            '--fixture_source',
+            type=int,
+            choices=[372, 504],
+            default=372,
+            help='Choose one of two sources to run your regression test on.')
+        parser.add_argument(
+            '--vgg16',
+            action='store_true',
+            help='Use VGG16 feature extractor instead of EfficientNet.')
 
     def handle(self, *args, **options):
 
@@ -100,7 +97,8 @@ class Command(BaseCommand):
 
         (n_with, n_without) = reg_test_config[fixture_source_id][size]
 
-        s = VisionBackendRegressionTest(fixture_source_id, size.upper())
+        s = VisionBackendRegressionTest(
+            fixture_source_id, size.upper(), options['vgg16'])
 
         print("\n-> Uploading images which have manual annotations...")
         annotated_image_filepaths = s.upload_images(n_with)

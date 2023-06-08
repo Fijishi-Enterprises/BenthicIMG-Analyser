@@ -160,20 +160,26 @@ def generate_patch_if_doesnt_exist(point_id):
     if storage.exists(patch_relative_path):
         return
 
-    # Locate and open the image.
+    # Locate the image.
     point = Point.objects.get(pk=point_id)
     image = point.image
     original_image_relative_path = image.original_file.name
-    original_image_file = storage.open(original_image_relative_path)
 
     # Figure out the size to crop out of the original image. Base it on the
     # larger of the two image dimensions.
     approx_region_size = int(max(image.original_width, image.original_height)
                              * settings.LABELPATCH_SIZE_FRACTION)
 
-    # Load the image and convert to RGB.
-    im = PILImage.open(original_image_file)
-    im = im.convert('RGB')
+    # Open the image file.
+    with storage.open(original_image_relative_path) as original_image_file:
+
+        # Load the image with Pillow.
+        im = PILImage.open(original_image_file)
+
+        # Convert to RGB, since the input may have an alpha (transparency)
+        # channel, and we're saving the thumbnail as JPEG which doesn't
+        # have alpha.
+        im = im.convert('RGB')
 
     # Crop.
     # - Both CoralNet coordinates and Pillow coordinates start from 0 at the

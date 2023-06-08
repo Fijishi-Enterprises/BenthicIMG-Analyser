@@ -2,7 +2,6 @@ from collections import Counter
 
 from django.contrib.auth.models import User
 from django.db import models
-from django.contrib.postgres.fields import JSONField
 
 from jobs.models import Job
 
@@ -93,11 +92,11 @@ class ApiJobUnit(models.Model):
 
     # JSON containing data on the requested work. The exact format depends
     # on the type of job unit.
-    request_json = JSONField()
+    request_json = models.JSONField()
 
     # JSON results of the job unit when it's done. The exact format depends
     # on the type of job unit.
-    result_json = JSONField(null=True)
+    result_json = models.JSONField(null=True)
 
     class Meta:
         constraints = [

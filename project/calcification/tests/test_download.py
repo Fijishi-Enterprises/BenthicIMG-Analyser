@@ -85,8 +85,8 @@ class RateTableDownloadTest(BaseExportTest):
         self.assert_csv_content_equal(response.content, expected_lines)
 
         self.assertEqual(
-            response._headers['content-disposition'],
-            ('Content-Disposition', 'attachment;filename="Table Name.csv"'),
+            response.headers['content-disposition'],
+            'attachment;filename="Table Name.csv"',
             msg="CSV filename should be as expected")
 
     def test_source_table(self):
@@ -150,6 +150,6 @@ class RateTableDownloadTest(BaseExportTest):
             reverse('calcification:rate_table_download', args=[table.pk]))
 
         self.assertEqual(
-            response._headers['content-disposition'],
-            ('Content-Disposition', 'attachment;filename="_Table_Name__.csv"'),
+            response.headers['content-disposition'],
+            'attachment;filename="_Table_Name__.csv"',
             msg="CSV filename should replace expected chars with underscores")

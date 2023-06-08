@@ -199,7 +199,7 @@ class UploadImageTest(ClientTest):
             # Same extension as the uploaded file
             .replace('{extension}', r'\.png')
         )
-        self.assertRegexpMatches(
+        self.assertRegex(
             str(img.original_file), image_filepath_regex)
 
         self.assertEqual(img.original_width, 600)
@@ -307,7 +307,7 @@ class UploadImageFormatTest(ClientTest):
         )
         error_message = response.json()['error']
         self.assertIn(
-            "Image file: File extension '' is not allowed.", error_message)
+            'Image file: File extension “” is not allowed.', error_message)
 
     def test_empty_file(self):
         """0-byte file. Should get an error."""
@@ -481,7 +481,7 @@ class UploadImageFilenameCollisionTest(ClientTest):
             response = self.upload(image_name)
 
             img = Image.objects.get(pk=response.json()['image_id'])
-            self.assertRegexpMatches(img.original_file.name, r'[abc]\.png')
+            self.assertRegex(img.original_file.name, r'[abc]\.png')
 
         self.assertEqual(
             len(mail.outbox), 0, msg="Should have no admin mail yet")
@@ -493,7 +493,7 @@ class UploadImageFilenameCollisionTest(ClientTest):
         img = Image.objects.get(pk=response.json()['image_id'])
         # In this case, we expect the storage framework to add a suffix to get
         # a unique filename.
-        self.assertRegexpMatches(
+        self.assertRegex(
             img.original_file.name, r'[abc]_[A-Za-z0-9]+\.png')
 
         self.assertEqual(len(mail.outbox), 1)
@@ -507,7 +507,7 @@ class UploadImageFilenameCollisionTest(ClientTest):
         img = Image.objects.get(pk=response.json()['image_id'])
         # In this case, we expect the storage framework to not add a suffix
         # because the extension is different.
-        self.assertRegexpMatches(
+        self.assertRegex(
             img.original_file.name, r'[abc]\.jpg')
 
         self.assertEqual(len(mail.outbox), 2)

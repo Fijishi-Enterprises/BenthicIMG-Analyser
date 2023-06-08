@@ -1,68 +1,77 @@
 # To see requirements for an installed package, use: pip show <package-name>
 
 
-Django>=2.2.20,<3.0
+Django>=4.1.9,<4.2
+
+# Define environment-specific Django config in a .env file or
+# environment variables.
+# Changelog: https://django-environ.readthedocs.io/en/latest/changelog.html
+django-environ==0.10.0
 
 # Per-object permissions
 # e.g. "can edit this source" not just "can edit sources"
 # Requires: django
 # Changelog: https://github.com/django-guardian/django-guardian/blob/devel/CHANGES
-django-guardian==2.3.0
+django-guardian==2.4.0
 
 # Python Imaging Library
-# (A currently active, package friendly fork of it; also endorsed by Django)
+# (A currently active, package friendly fork of the old PIL; endorsed by Django)
 # Changelog: https://pillow.readthedocs.io/en/stable/releasenotes/index.html
-Pillow==8.2.0
+Pillow==9.4.0
 
 # Image EXIF reading/writing
 # Could be replaced with Pillow once Pillow is 6.0 or higher, since they
 # added EXIF writing support then.
+# Last updated 2019, as of 2023/04.
 # Changelog: https://piexif.readthedocs.io/en/latest/changes.html
 piexif==1.1.3
 
 # Working with Excel and other spreadsheet formats.
 # Changelog: https://github.com/pyexcel/pyexcel/blob/dev/CHANGELOG.rst
-pyexcel==0.6.6
+pyexcel==0.6.7
+
+# Requirement of pyexcel-xlsx
+# Version is pinned below 3.1.0 to resolve this issue:
+# https://github.com/pyexcel/pyexcel-xlsx/issues/52
+openpyxl==3.0.10
 
 # xlsx support in pyexcel.
 # Changelog: https://github.com/pyexcel/pyexcel-xlsx/blob/dev/CHANGELOG.rst
 pyexcel-xlsx==0.6.0
 
-# Web requests.
-# Changelog: https://github.com/psf/requests/blob/master/HISTORY.md
-requests==2.25.1
-
 # Markdown support in the blog and other places.
 # Changelog: https://github.com/Python-Markdown/markdown/blob/master/docs/change_log/index.md
-Markdown>=3.1.1,<4
+Markdown>=3.4.3,<3.5
 
 # System for generating smaller versions of images.
 # Requires: django, Pillow
 # Changelog: https://github.com/SmileyChris/easy-thumbnails/blob/master/CHANGES.rst
 #
-# 2.7.1 has a breaking bug. Needs to be fixed before we can upgrade to that.
-# https://github.com/SmileyChris/easy-thumbnails/issues/563
-#
-# 2.7.0 has another breaking bug on certain images. This commit gives us the
-# old 'image file is truncated' errors.
+# As of 2.7.0 this app sets PIL.ImageFile.LOAD_TRUNCATED_IMAGES to False after
+# each image read, which would force us to set it to True before each of our
+# image reads.
 # https://github.com/SmileyChris/easy-thumbnails/commit/2abd400c8e005045591eb1003d1dcbc0602923c5
-easy-thumbnails==2.6.0
+# So we use our own fork of easy-thumbnails, which changes the behavior to
+# restore the previous LOAD_TRUNCATED_IMAGES value after easy-thumbnails does
+# its thing.
+easy-thumbnails@git+https://github.com/StephenChan/easy-thumbnails.git@master
 
 # Add email activation to user registration process;
 # unlike in userena, this is implemented without additional models.
 # Changelog: https://django-registration.readthedocs.io/en/stable/upgrade.html
-django-registration==3.1.2
+django-registration==3.3
 
 # Versioning of database objects. Requires django.
 # Changelog: https://github.com/etianen/django-reversion/blob/master/CHANGELOG.rst
-django-reversion==3.0.9
+django-reversion==5.0.4
 
 # Allow Django to connect to a PostgreSQL database.
-# Changelog: http://initd.org/psycopg/docs/news.html
+# Changelog: https://www.psycopg.org/docs/news.html
 #
 # See here for versions Django supports:
 # https://docs.djangoproject.com/en/dev/ref/databases/#postgresql-notes
 #
+# About psycopg2-binary vs. psycopg2:
 # psycopg2 separates source and binary releases into separate packages
 # (psycopg2 and psycopg2-binary respectively) starting from 2.7, with the
 # intention of emphasizing that they consider the binary unsafe for production.
@@ -75,51 +84,43 @@ django-reversion==3.0.9
 # All things considered, we'll use the binary in all environments for
 # simplicity of installation. However, if we encounter any segfaults
 # in huey workers, we should revisit this.
-psycopg2-binary>=2.7.7,<2.8
+#
+# About psycopg 2 versus 3:
+# Django <=4.1 doesn't support 3, but support is planned in Django 4.2.
+psycopg2-binary>=2.9.6,<2.10
 
 # Amazon Web Services SDK for Python
 # Changelog: https://github.com/boto/boto3/blob/develop/CHANGELOG.rst
-# 1.23.10 is the latest version that supports Python 3.6.
-boto3==1.23.10
+boto3>=1.26.122,<1.27
 
 # Nicer interface for AWS S3 compared to using boto3 alone; also supports
 # many other storage systems.
 # Even if a dev machine doesn't use S3, we still want this installed to make
 # module imports work.
 # Changelog: https://github.com/jschneier/django-storages/blob/master/CHANGELOG.rst
-django-storages==1.8
+django-storages==1.13.2
 
 # REST API framework.
 # Changelog: https://www.django-rest-framework.org/community/release-notes/
-djangorestframework==3.12.2
+djangorestframework==3.14.0
 
 # Writing tests for database migrations.
+# https://github.com/plumdog/django_migration_testcase/
 django-migration-testcase==0.0.15
+
+# Character encoding detection.
+# Which is a hard problem, so we ask 2 different libraries for their opinions.
+# cchardet is a faster version of chardet, but is no longer maintained:
+# https://github.com/PyYoshi/cChardet/issues/77
+chardet>=5.1.0,<5.2
+charset-normalizer>=3.1.0,<3.2
 
 # HTML parsing.
 # Changelog: https://bazaar.launchpad.net/~leonardr/beautifulsoup/bs4/view/head:/CHANGELOG
 #
 # Also comes with a character encoding detection tool called "Unicode, Dammit":
 # https://www.crummy.com/software/BeautifulSoup/bs4/doc/#unicode-dammit
-beautifulsoup4>=4.8.1,<4.9
-
-# Scientific computing
-# Changelog: https://numpy.org/devdocs/release.html
-numpy==1.18.1
-
-# Another filepath calculations module.
-#
-# unipath hasn't been updated since early 2015 (as of late 2017).
-# Was formerly recommended by Two Scoops of Django for specifying Django
-# settings, but they moved to pathlib.
-# https://github.com/twoscoops/two-scoops-of-django-1.8/issues/150
-# https://github.com/twoscoops/two-scoops-of-django-1.11/blob/master/code/chapter_05_example_30.py
-#
-# However, as of Python 2.7 + Django 1.11, most settings don't accept
-# pathlib.Path objects. This makes it tricky to replace our usage of unipath
-# for settings with pathlib. So, until we upgrade Python/Django, this package
-# will have to stay.
-unipath==1.1
+beautifulsoup4>=4.11.1,<4.12
 
 # Browser-side testing.
 # Changelog: https://github.com/SeleniumHQ/selenium/blob/master/py/CHANGES
@@ -132,29 +133,36 @@ selenium==3.141.0
 # Python interface to Redis, an in-memory data store which can be a
 # message broker among other things.
 # Changelog: https://github.com/redis/redis-py/releases
-# Redis 4.4 drops Python 3.6.
-redis>=4.3.5,<4.4
+redis>=4.5.4,<4.6
 
 # Asynchronous tasks.
 # Changelog: https://github.com/coleifer/huey/blob/master/CHANGELOG.md
 # Requires: redis
-huey>=2.4.4,<2.5
+huey>=2.4.5,<2.5
 
-# Process management. Doesn't run on Windows.
+# Process management. Doesn't run on Windows (but it can still be installed).
 # Changelog: https://github.com/Supervisor/supervisor/blob/master/CHANGES.rst
-supervisor>=4.1.0,<4.2
+supervisor>=4.2.5,<4.3
 
 # Progress bar for CLI
 # Changelog: https://tqdm.github.io/releases/
-tqdm==4.43.0
+tqdm==4.65.0
 
 # Support for rendering markdown as HTML, with extra rendering features over
 # the Markdown package (such as tables). Also includes a fancy Markdown editor,
 # with live preview and drag-and-drop image uploads.
 # Requires: Markdown
 # Changelog: https://github.com/neutronX/django-markdownx/releases
-django-markdownx==3.0.1
+django-markdownx==4.0.2
 
-# Import spacer which powers the ML stuff.
-# Get the master branch instead of a particular release version.
-pyspacer@git+https://github.com/beijbom/pyspacer.git@master
+# Machine-learning backend behind coralnet
+# This can be installed from a local directory (not just PyPI), as long as
+# the local copy's setup.py matches this version number.
+pyspacer==0.4.0
+
+# Scientific computing
+# We use whatever version of numpy pyspacer uses. To do this, we list
+# pyspacer before numpy in these requirements. We only have numpy listed here
+# for completeness, to acknowledge that coralnet does use it directly.
+# Changelog: https://numpy.org/devdocs/release.html
+numpy

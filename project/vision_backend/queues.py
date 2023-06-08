@@ -1,7 +1,7 @@
 import abc
 from collections import Counter
 from datetime import timedelta
-from io import StringIO
+from io import BytesIO
 import json
 import logging
 import sys
@@ -197,7 +197,7 @@ class LocalQueue(BaseQueue):
         filepath = storage.path_join('backend_job_res', f'{job_id}.json')
         storage.save(
             filepath,
-            StringIO(json.dumps(return_msg.serialize())))
+            BytesIO(json.dumps(return_msg.serialize()).encode()))
 
     def collect_jobs(self):
         job_statuses = []

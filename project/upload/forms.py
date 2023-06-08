@@ -15,6 +15,8 @@ class MultipleFileInput(FileInput):
     of multi-file input.
     (When FileInput takes multiple files, it only validates the last one.)
     """
+    allow_multiple_selected = True
+
     def __init__(self, attrs=None):
         # Include the attr multiple = 'multiple' by default.
         # (For reference, TextArea.__init__ adds default attrs in the same way.)

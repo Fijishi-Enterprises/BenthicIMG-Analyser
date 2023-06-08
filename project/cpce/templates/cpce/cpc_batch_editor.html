@@ -83,7 +83,7 @@
   >
     {% csrf_token %}
 
-    {% include 'django/forms/default.html' with form=process_form %}
+    {{ process_form }}
   </form>
 
   <p>

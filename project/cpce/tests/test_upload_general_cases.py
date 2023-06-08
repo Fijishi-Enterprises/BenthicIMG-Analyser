@@ -1,6 +1,8 @@
-# These tests should be one-to-one with export/tests/test_annotations.py.
+# These tests should be one-to-one with
+# upload/tests/test_annotations_general_cases.py.
 
 import codecs
+from unittest import mock
 
 from django.core.files.base import ContentFile
 from django.urls import reverse
@@ -291,6 +293,47 @@ class GeneralCasesTest(
         upload_response = self.upload_annotations(self.user, self.source)
 
         self.check_skipped_filenames(preview_response, upload_response)
+
+    def test_annotation_history(self):
+        """
+        The upload should create an annotation history entry.
+        """
+        cpc_files = [
+            self.make_annotations_file(
+                self.image_dimensions, '1.cpc',
+                r"C:\My Photos\2017-05-13 GBR\1.png", [
+                    (9*15, 9*15, 'A'),
+                    (19*15, 19*15, ''),
+                    (29*15, 29*15, 'B')]),
+        ]
+        self.preview_annotations(self.user, self.source, cpc_files)
+        self.upload_annotations(self.user, self.source)
+
+        self.check_annotation_history()
+
+    def test_transaction_rollback(self):
+        """
+        If the confirm view encounters an error after saving annotations,
+        then the saves should be rolled back.
+        """
+        cpc_files = [
+            self.make_annotations_file(
+                self.image_dimensions, '1.cpc',
+                r"C:\My Photos\2017-05-13 GBR\1.png", [
+                    (9*15, 9*15, 'A'),
+                    (19*15, 19*15, ''),
+                    (29*15, 29*15, 'B')]),
+        ]
+        self.preview_annotations(self.user, self.source, cpc_files)
+
+        def raise_error(self, *args, **kwargs):
+            raise ValueError
+
+        with mock.patch('upload.views.reset_features', raise_error):
+            with self.assertRaises(ValueError):
+                self.upload_annotations(self.user, self.source)
+
+        self.check_transaction_rollback()
 
 
 class MultipleSourcesTest(

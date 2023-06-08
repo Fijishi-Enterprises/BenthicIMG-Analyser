@@ -508,7 +508,7 @@ class SourceMainTest(ClientTest):
                 '{}'.format(count),
                 r'<\/a>',
             ]))
-            self.assertRegexpMatches(
+            self.assertRegex(
                 source_main_content, status_line_regex,
                 "Line for this status should be present with the correct count")
 

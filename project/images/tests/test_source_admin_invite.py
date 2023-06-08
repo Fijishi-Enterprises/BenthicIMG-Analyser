@@ -62,9 +62,8 @@ class SourceInviteTest(BasePermissionTest):
         )
 
         # Invite should be used up
-        self.assertRaises(
-            SourceInvite.DoesNotExist, callableObj=SourceInvite.objects.get,
-            sender=sender, source=self.source)
+        with self.assertRaises(SourceInvite.DoesNotExist):
+            SourceInvite.objects.get(sender=sender, source=self.source)
 
     def test_send_and_accept_view_level_invite(self):
         new_member = self.create_user()
@@ -126,9 +125,8 @@ class SourceInviteTest(BasePermissionTest):
         )
 
         # Invite should no longer exist
-        self.assertRaises(
-            SourceInvite.DoesNotExist, callableObj=SourceInvite.objects.get,
-            sender=self.user, source=self.source)
+        with self.assertRaises(SourceInvite.DoesNotExist):
+            SourceInvite.objects.get(sender=self.user, source=self.source)
 
         # Test for lack of permission
         self.assertPermissionDenied(
@@ -153,9 +151,8 @@ class SourceInviteTest(BasePermissionTest):
         )
 
         # Invite should no longer exist
-        self.assertRaises(
-            SourceInvite.DoesNotExist, callableObj=SourceInvite.objects.get,
-            sender=self.user, source=self.source)
+        with self.assertRaises(SourceInvite.DoesNotExist):
+            SourceInvite.objects.get(sender=self.user, source=self.source)
 
         # Test for lack of permission
         self.assertPermissionDenied(
@@ -309,15 +306,11 @@ class DeleteSourceTest(ClientTest):
         self.assertContains(response, "Source has been deleted.")
 
         # Objects should no longer exist
-        self.assertRaises(
-            Source.DoesNotExist, callableObj=Source.objects.get,
-            pk=source_id)
-        self.assertRaises(
-            Image.DoesNotExist, callableObj=Image.objects.get,
-            pk=image_id)
-        self.assertRaises(
-            Metadata.DoesNotExist, callableObj=Metadata.objects.get,
-            pk=metadata_id)
-        self.assertRaises(
-            Features.DoesNotExist, callableObj=Features.objects.get,
-            pk=features_id)
+        with self.assertRaises(Source.DoesNotExist):
+            Source.objects.get(pk=source_id)
+        with self.assertRaises(Image.DoesNotExist):
+            Image.objects.get(pk=image_id)
+        with self.assertRaises(Metadata.DoesNotExist):
+            Metadata.objects.get(pk=metadata_id)
+        with self.assertRaises(Features.DoesNotExist):
+            Features.objects.get(pk=features_id)

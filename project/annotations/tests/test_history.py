@@ -1,11 +1,11 @@
-from bs4 import BeautifulSoup
+# Most annotation-history-related assertions are in the tests
+# for views which update annotations (annotation tool, CSV upload, etc.)
+# This test module is for miscellaneous annotation history tests.
+
 from django.urls import reverse
 
-from cpce.tests.utils import UploadAnnotationsCpcTestMixin
-from images.model_utils import PointGen
-from images.models import Source
 from lib.tests.utils import BasePermissionTest, ClientTest
-from upload.tests.utils import UploadAnnotationsCsvTestMixin
+from .utils import AnnotationHistoryTestMixin
 
 
 class PermissionTest(BasePermissionTest):
@@ -30,93 +30,22 @@ class PermissionTest(BasePermissionTest):
         self.assertPermissionLevel(url, self.SOURCE_EDIT, template=template)
 
 
-class AnnotationHistoryBaseTest(ClientTest):
+class AnnotationHistoryAccessTest(ClientTest, AnnotationHistoryTestMixin):
     """
-    Test the annotation history page.
+    Test accessing the annotation history page.
     """
     @classmethod
     def setUpTestData(cls):
         super().setUpTestData()
 
         cls.user = cls.create_user()
-
-        cls.source = cls.create_source(
-            cls.user, visibility=Source.VisibilityTypes.PRIVATE,
-            point_generation_type=PointGen.Types.SIMPLE,
-            simple_number_of_points=3,
-        )
+        cls.source = cls.create_source(cls.user)
         labels = cls.create_labels(cls.user, ['A', 'B'], 'GroupA')
         cls.create_labelset(cls.user, cls.source, labels)
 
-        cls.other_user = cls.create_user()
-        cls.add_source_member(
-            cls.user, cls.source, cls.other_user, Source.PermTypes.EDIT.code)
-
-        cls.img = cls.upload_image(
-            cls.user, cls.source,
-            image_options=dict(filename='1.png', width=100, height=100))
-        cls.image_dimensions = (100, 100)
-
-    def view_history(self, user):
-        if user:
-            self.client.force_login(user)
-        else:
-            self.client.logout()
-        return self.client.get(
-            reverse('annotation_history', args=[self.img.pk]))
-
-    def assert_history_table_equals(self, response, expected_rows):
-        response_soup = BeautifulSoup(response.content, 'html.parser')
-
-        # History should be the SECOND detail table on this page, the first
-        # having image aux metadata.
-        # But it also might not exist at all.
-        detail_table_soups = response_soup.find_all(
-            'table', class_='detail_table')
-        self.assertEqual(
-            len(detail_table_soups), 2,
-            msg="Unexpected number of detail tables on page")
-
-        table_soup = detail_table_soups[1]
-        row_soups = table_soup.find_all('tr')
-        # Not checking the table's header row
-        body_row_soups = row_soups[1:]
-
-        # Check for equal number of rows
-        self.assertEqual(
-            len(expected_rows), len(body_row_soups),
-            msg="History table doesn't have expected number of rows",
-        )
-
-        # Check that row content matches what we expect
-        for row_num, row_soup in enumerate(body_row_soups, 1):
-            expected_row = expected_rows[row_num - 1]
-            cell_soups = row_soup.find_all('td')
-            # Point numbers and label codes
-            expected_cell = '<td>' + expected_row[0] + '</td>'
-            self.assertHTMLEqual(
-                expected_cell, str(cell_soups[0]),
-                msg="Point/label mismatch in row {n}".format(n=row_num),
-            )
-            # Annotator
-            expected_cell = '<td>' + expected_row[1] + '</td>'
-            self.assertHTMLEqual(
-                expected_cell, str(cell_soups[1]),
-                msg="Annotator mismatch in row {n}".format(n=row_num),
-            )
-            # Date; we may or may not care about checking this
-            if len(expected_row) > 2:
-                expected_cell = '<td>' + expected_row[2] + '</td>'
-                self.assertHTMLEqual(
-                    expected_cell, str(cell_soups[2]),
-                    msg="Date mismatch in row {n}".format(n=row_num),
-                )
-
-
-class AnnotationHistoryTest(AnnotationHistoryBaseTest):
+        cls.img = cls.upload_image(cls.user, cls.source)
 
     def test_access_event(self):
-        # Access the annotation tool
         self.client.force_login(self.user)
         self.client.get(reverse('annotation_tool', args=[self.img.pk]))
 
@@ -126,144 +55,5 @@ class AnnotationHistoryTest(AnnotationHistoryBaseTest):
             [
                 ['Accessed annotation tool',
                  '{name}'.format(name=self.user.username)],
-            ]
-        )
-
-    def test_human_annotation_event(self):
-        data = dict(
-            label_1='A', label_2='', label_3='B',
-            robot_1='false', robot_2='false', robot_3='false',
-        )
-        self.client.force_login(self.user)
-        self.client.post(
-            reverse('save_annotations_ajax', args=[self.img.pk]), data)
-
-        response = self.view_history(self.user)
-        self.assert_history_table_equals(
-            response,
-            [
-                ['Point 1: A<br/>Point 3: B',
-                 '{name}'.format(name=self.user.username)],
-            ]
-        )
-
-    def test_human_annotation_overwrite(self):
-        # Annotate as user: 2 new (2 history points)
-        data = dict(
-            label_1='A', label_2='', label_3='B',
-            robot_1='false', robot_2='false', robot_3='false',
-        )
-        self.client.force_login(self.user)
-        self.client.post(
-            reverse('save_annotations_ajax', args=[self.img.pk]), data)
-
-        # Annotate as other_user: 1 replaced, 1 new, 1 same (2 history points)
-        data = dict(
-            label_1='B', label_2='A', label_3='B',
-            robot_1='false', robot_2='false', robot_3='false',
-        )
-        self.client.logout()
-        self.client.force_login(self.other_user)
-        self.client.post(
-            reverse('save_annotations_ajax', args=[self.img.pk]), data)
-
-        response = self.view_history(self.other_user)
-        self.assert_history_table_equals(
-            response,
-            [
-                # Remember, the table goes from newest to oldest entries
-                ['Point 1: B<br/>Point 2: A',
-                 '{name}'.format(name=self.other_user.username)],
-                ['Point 1: A<br/>Point 3: B',
-                 '{name}'.format(name=self.user.username)],
-            ]
-        )
-
-    def test_robot_annotation(self):
-        robot = self.create_robot(self.source)
-        self.add_robot_annotations(robot, self.img, {1: 'A', 2: 'B', 3: 'B'})
-
-        response = self.view_history(self.user)
-        self.assert_history_table_equals(
-            response,
-            [
-                ['Point 1: A<br/>Point 2: B<br/>Point 3: B',
-                 'Robot {ver}'.format(ver=robot.pk)],
-            ]
-        )
-
-    def test_alleviate(self):
-        self.source.confidence_threshold = 80
-        self.source.save()
-
-        robot = self.create_robot(self.source)
-        self.add_robot_annotations(
-            robot, self.img,
-            {1: ('A', 81), 2: ('B', 79), 3: ('B', 95)})
-
-        # Access the annotation tool to trigger Alleviate
-        self.client.force_login(self.user)
-        self.client.get(reverse('annotation_tool', args=[self.img.pk]))
-
-        response = self.view_history(self.user)
-        self.assert_history_table_equals(
-            response,
-            [
-                # 3rd: Access event
-                ['Accessed annotation tool',
-                 '{name}'.format(name=self.user.username)],
-                # 2nd: Alleviate should have triggered for points 1 and 3
-                ['Point 1: A<br/>Point 3: B',
-                 'Alleviate'],
-                # 1st: Robot annotation
-                ['Point 1: A<br/>Point 2: B<br/>Point 3: B',
-                 'Robot {ver}'.format(ver=robot.pk)],
-            ]
-        )
-
-
-class AnnotationHistoryCsvUploadTest(
-        AnnotationHistoryBaseTest, UploadAnnotationsCsvTestMixin):
-
-    def test_csv_import(self):
-        rows = [
-            ['Name', 'Column', 'Row', 'Label'],
-            ['1.png', 10, 10, 'A'],
-            ['1.png', 20, 20, ''],
-            ['1.png', 30, 30, 'B'],
-        ]
-        csv_file = self.make_annotations_file('A.csv', rows)
-        self.preview_annotations(self.user, self.source, csv_file)
-        self.upload_annotations(self.user, self.source)
-
-        response = self.view_history(self.user)
-        self.assert_history_table_equals(
-            response,
-            [
-                ['Point 1: A<br/>Point 3: B', 'Imported'],
-            ]
-        )
-
-
-class AnnotationHistoryCpcUploadTest(
-        AnnotationHistoryBaseTest, UploadAnnotationsCpcTestMixin):
-
-    def test_cpc_import(self):
-        cpc_files = [
-            self.make_annotations_file(
-                self.image_dimensions, '1.cpc',
-                r"C:\My Photos\2017-05-13 GBR\1.png", [
-                    (9*15, 9*15, 'A'),
-                    (19*15, 19*15, ''),
-                    (29*15, 29*15, 'B')]),
-        ]
-        self.preview_annotations(self.user, self.source, cpc_files)
-        self.upload_annotations(self.user, self.source)
-
-        response = self.view_history(self.user)
-        self.assert_history_table_equals(
-            response,
-            [
-                ['Point 1: A<br/>Point 3: B', 'Imported'],
             ]
         )

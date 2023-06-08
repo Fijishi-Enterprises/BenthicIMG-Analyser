@@ -1,7 +1,9 @@
 # Lib tests and non-app-specific tests.
 import datetime
 from unittest import skip, skipIf
+from urllib.error import HTTPError
 from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
+import urllib.request
 
 from django.conf import settings
 from django.core.files.storage import DefaultStorage
@@ -10,7 +12,6 @@ from django.shortcuts import resolve_url
 from django.urls import reverse
 from django.test.client import Client
 from django.test.utils import override_settings
-import requests
 
 from ..forms import get_one_form_error, get_one_formset_error
 from .utils import (
@@ -131,6 +132,11 @@ class S3UrlAccessTest(ClientTest):
         cls.img = cls.upload_image(
             cls.user, cls.source, image_options=dict(filename='1.png'))
 
+    def assert_forbidden(self, url, msg):
+        with self.assertRaises(HTTPError) as cm:
+            urllib.request.urlopen(url)
+        self.assertEqual(cm.exception.code, 403, msg)
+
     def test_image_url_query_args(self):
         url = self.img.original_file.url
         current_timestamp = datetime.datetime.now().timestamp()
@@ -155,64 +161,57 @@ class S3UrlAccessTest(ClientTest):
         query_string = urlsplit(url).query
         query_args = parse_qs(query_string)
 
-        response = requests.get(url)
+        response = urllib.request.urlopen(url)
         self.assertEqual(
-            response.status_code, 200, "Getting the URL should work")
+            response.status, 200, "Getting the URL should work")
         self.assertEqual(
             response.headers['Content-Type'], 'image/png',
             "URL response should have the expected content type")
 
         alt_query_args = query_args.copy()
         alt_query_args.pop('AWSAccessKeyId')
-        response = requests.get(base_url + '?' + urlencode(alt_query_args))
-        self.assertEqual(
-            response.status_code, 403,
+        self.assert_forbidden(
+            base_url + '?' + urlencode(alt_query_args),
             "Getting the URL without the access key shouldn't work")
 
         alt_query_args = query_args.copy()
         alt_query_args.pop('Expires')
-        response = requests.get(base_url + '?' + urlencode(alt_query_args))
-        self.assertEqual(
-            response.status_code, 403,
+        self.assert_forbidden(
+            base_url + '?' + urlencode(alt_query_args),
             "Getting the URL without the expire time shouldn't work")
 
         alt_query_args = query_args.copy()
         alt_query_args.pop('Signature')
-        response = requests.get(base_url + '?' + urlencode(alt_query_args))
-        self.assertEqual(
-            response.status_code, 403,
+        self.assert_forbidden(
+            base_url + '?' + urlencode(alt_query_args),
             "Getting the URL without the signature shouldn't work")
 
-        response = requests.get(base_url)
-        self.assertEqual(
-            response.status_code, 403,
+        self.assert_forbidden(
+            base_url,
             "Getting the URL without any query args shouldn't work")
 
         alt_query_args = query_args.copy()
         alt_query_args['AWSAccessKeyId'][0] = \
             alt_query_args['AWSAccessKeyId'][0].replace(
                 alt_query_args['AWSAccessKeyId'][0][5], 'X')
-        response = requests.get(base_url + '?' + urlencode(alt_query_args))
-        self.assertEqual(
-            response.status_code, 403,
+        self.assert_forbidden(
+            base_url + '?' + urlencode(alt_query_args),
             "Getting the URL with a modified access key shouldn't work")
 
         alt_query_args = query_args.copy()
         alt_query_args['Expires'][0] = \
             alt_query_args['Expires'][0].replace(
                 alt_query_args['Expires'][0][5], '0')
-        response = requests.get(base_url + '?' + urlencode(alt_query_args))
-        self.assertEqual(
-            response.status_code, 403,
+        self.assert_forbidden(
+            base_url + '?' + urlencode(alt_query_args),
             "Getting the URL with a modified expire time shouldn't work")
 
         alt_query_args = query_args.copy()
         alt_query_args['Signature'][0] = \
             alt_query_args['Signature'][0].replace(
                 alt_query_args['Signature'][0][5], 'X')
-        response = requests.get(base_url + '?' + urlencode(alt_query_args))
-        self.assertEqual(
-            response.status_code, 403,
+        self.assert_forbidden(
+            base_url + '?' + urlencode(alt_query_args),
             "Getting the URL with a modified signature shouldn't work")
 
 

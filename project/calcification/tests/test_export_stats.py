@@ -137,7 +137,7 @@ class FileTypeTest(BaseCalcifyStatsExportTest):
         data['rate_table_id'] = calcify_table.pk
         response = self.export_calcify_stats(data)
 
-        self.assertEquals(
+        self.assertEqual(
             response['content-type'],
             'application/'
             'vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -1006,4 +1006,4 @@ class PerformanceTest(BaseCalcifyStatsExportTest):
         with self.assertNumQueries(30):
             response = self.client.post(url, data)
         self.assertStatusOK(response)
-        self.assertEquals(response['content-type'], 'text/csv')
+        self.assertEqual(response['content-type'], 'text/csv')

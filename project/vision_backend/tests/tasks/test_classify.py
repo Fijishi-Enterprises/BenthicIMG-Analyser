@@ -8,6 +8,7 @@ import spacer.config as spacer_config
 
 from accounts.utils import get_robot_user, is_robot_user
 from annotations.models import Annotation
+from annotations.tests.utils import AnnotationHistoryTestMixin
 from images.models import Point
 from jobs.models import Job
 from jobs.tasks import run_scheduled_jobs, run_scheduled_jobs_until_empty
@@ -18,7 +19,15 @@ from ...utils import clear_features, queue_source_check
 from .utils import BaseTaskTest
 
 
-class ClassifyImageTest(BaseTaskTest, JobUtilsMixin):
+class ClassifyImageTest(
+        BaseTaskTest, JobUtilsMixin, AnnotationHistoryTestMixin):
+
+    @staticmethod
+    def image_label_codes(image):
+        label_codes = []
+        for point in image.point_set.order_by('point_number'):
+            label_codes.append(point.annotation.label_code)
+        return label_codes
 
     def test_classify_unannotated_image(self):
         """Classify an image where all points are unannotated."""
@@ -48,6 +57,19 @@ class ClassifyImageTest(BaseTaskTest, JobUtilsMixin):
             # whichever is less. (In this case it's label count)
             self.assertEqual(
                 2, point.score_set.count(), "Each point should have scores")
+
+        codes = self.image_label_codes(img)
+        robot = self.source.get_latest_robot()
+        response = self.view_history(self.user, img=img)
+        self.assert_history_table_equals(
+            response,
+            [
+                [f'Point 1: {codes[0]}<br/>Point 2: {codes[1]}'
+                 f'<br/>Point 3: {codes[2]}<br/>Point 4: {codes[3]}'
+                 f'<br/>Point 5: {codes[4]}',
+                 f'Robot {robot.pk}'],
+            ]
+        )
 
     def test_more_than_5_labels(self):
         """
@@ -206,6 +228,19 @@ class ClassifyImageTest(BaseTaskTest, JobUtilsMixin):
             Point.objects.filter(
                 image=img, annotation__robot_version=clf_2).count(),
             "2 points should have been updated by classifier 2")
+
+        response = self.view_history(self.user, img=img)
+        self.assert_history_table_equals(
+            response,
+            [
+                [f'Point 2: B<br/>Point 3: B',
+                 f'Robot {clf_2.pk}'],
+                [f'Point 1: A<br/>Point 2: A'
+                 f'<br/>Point 3: A<br/>Point 4: A'
+                 f'<br/>Point 5: A',
+                 f'Robot {clf_1.pk}'],
+            ]
+        )
 
     def test_classify_partially_confirmed_image(self):
         """

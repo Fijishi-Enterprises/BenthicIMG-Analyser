@@ -1,9 +1,7 @@
-#nav_image li a{
-    background: #c8e8c8;
+#nav_image li a {
+    background: hsl(120, 31%, 68%);
 }
-#nav_image li a:hover span {
-    background-color: #b8f0b8;
-}
+#nav_image li a:hover span,
 #nav_image li a:active span {
-    background-color: #b8f0b8;
+    background-color: hsl(120, 55%, 66%);
 }

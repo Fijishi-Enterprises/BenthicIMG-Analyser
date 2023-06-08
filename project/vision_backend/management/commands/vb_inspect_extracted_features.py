@@ -108,13 +108,13 @@ class Command(BaseCommand):
                     f" [{source_num}/{source_count}]"
                     f" with {source.nbr_images} images")
 
-                for image in source.image_set.all():
+                for image in source.image_set.order_by('pk'):
                     self.inspect_image(image, options['do_correct'])
 
         else:
 
             # mode is image_ids
-            images = Image.objects.filter(pk__in=options['ids'])
+            images = Image.objects.filter(pk__in=options['ids']).order_by('pk')
             for image in images:
                 self.log(f"Inspecting image {image.pk}")
                 self.inspect_image(image, options['do_correct'])

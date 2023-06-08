@@ -8,20 +8,24 @@ on:
 
 jobs:
   build:
-
-    # ubuntu-22.04 doesn't have Python 3.6 available, so we pin to 20.04
-    # until we can update Python.
-    # https://github.com/actions/setup-python/issues/162
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
-        python-version: [3.6]
+        python-version: [ "3.10" ]
     env:
-      DJANGO_SETTINGS_MODULE: config.settings.ci
+      DJANGO_SETTINGS_MODULE: config.settings
+      CORALNET_SETTINGS_BASE: dev-local
+      CORALNET_DATABASE_NAME: postgres
+      CORALNET_DATABASE_USER: postgres
+      CORALNET_DATABASE_PASSWORD: postgres
+      # Although we might expect Django to default to localhost,
+      # this must be explicitly specified for CI for some reason.
+      CORALNET_DATABASE_HOST: localhost
+      CORALNET_SECRET_KEY: ci-secret-key
 
     services:
       postgres:
-        image: postgres:10.8
+        image: postgres:14.7
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres

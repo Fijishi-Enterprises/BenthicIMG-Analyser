@@ -1,11 +1,9 @@
-#nav_source li a{
-    background: #c8c8e8;
+#nav_source li a {
+    background: hsl(240, 31%, 68%);
 }
-#nav_source li a:hover span {
-    background-color: #b8b8f0;
-}
+#nav_source li a:hover span,
 #nav_source li a:active span {
-    background-color: #b8b8f0;
+    background-color: hsl(240, 55%, 66%);
 }
 
 

@@ -1,5 +1,6 @@
 from unittest import mock
 
+from django.test.client import Client
 from django.urls import reverse
 
 from lib.tests.utils import ClientTest
@@ -12,19 +13,19 @@ class ErrorLogTest(ClientTest):
     def mock_render(*args):
         raise ValueError("Test error")
 
+    def setUp(self):
+        super().setUp()
+
+        # These tests are intended to get error statuses, so don't crash the
+        # test when such statuses happen.
+        self.client = Client(raise_request_exception=False)
+
     def test_get(self):
         # Mock render(), which is going to be called at the end of the view.
         # This is django.shortcuts.render, but due to the way it's imported
         # in views, the patch target is lib.views.render.
         with mock.patch('lib.views.render', self.mock_render):
-            try:
-                self.client.get(reverse('index'))
-            except ValueError:
-                # TODO: When we're on Django 3.0 or higher, use the
-                # new Client option raise_request_exception to avoid bubbling
-                # the request exception up to the test. That way we don't have
-                # to catch the exception here.
-                pass
+            self.client.get(reverse('index'))
 
         log = ErrorLog.objects.latest('pk')
         self.assertEqual(log.kind, "ValueError")
@@ -40,14 +41,7 @@ class ErrorLogTest(ClientTest):
         user = self.create_user()
         self.client.force_login(user)
         with mock.patch('images.views.render', self.mock_render):
-            try:
-                self.client.post(reverse('source_new'))
-            except ValueError:
-                # TODO: When we're on Django 3.0 or higher, use the
-                # new Client option raise_request_exception to avoid bubbling
-                # the request exception up to the test. That way we don't have
-                # to catch the exception here.
-                pass
+            self.client.post(reverse('source_new'))
 
         log = ErrorLog.objects.latest('pk')
         self.assertEqual(log.kind, "ValueError")

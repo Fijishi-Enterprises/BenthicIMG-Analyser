@@ -1,6 +1,10 @@
 # Changelog
 
-## 1.5
+
+For general instructions on how to update a development environment of CoralNet, see "Server operation" > "Updating to the latest repository code" under `/docs`. This changelog has specific instructions/notes for each CoralNet version.
+
+
+## [1.5](https://github.com/beijbom/coralnet/tree/1.5)
 
 - Python version has been updated from 3.6 to 3.10. See Server Operation > Upgrading Python in the CoralNet docs.
 - Settings scheme has been changed. The old scheme used a developer-specific `.py` file AND a `secrets.json` file. The new scheme uses a `.env` file OR environment variables. Check the updated installation docs for details.
@@ -16,7 +20,7 @@
 - A regression: unit tests now have 'noisy' log messages again, because the use of assertLogs() (replacing patch_logger() which was removed in Django 3.0) requires logging to be enabled. Ideally this regression would be fixed by reconfiguring (instead of disabling) the logging during tests, but that's something to figure out for a later release.
 - Page header and footer nav-button styling has been cleaned up, so hopefully the shadowing makes a bit more sense now.
 
-## 1.4
+## [1.4](https://github.com/beijbom/coralnet/tree/1.4)
 
 - Updates to required packages:
   - Removed `celery`.
@@ -26,13 +30,13 @@
 - ``CELERY_ALWAYS_EAGER`` setting has been replaced with ``HUEY['immediate']``.
 - Feel free to clean up any celery-generated files, such as the logs and schedule.
 
-## 1.3
+## [1.3](https://github.com/beijbom/coralnet/tree/1.3)
 
 - Updates to required packages:
   - Removed `boto`.
   - Added `boto3==1.23.10`.
 
-## 1.2
+## [1.2](https://github.com/beijbom/coralnet/tree/1.2)
 
 **Before updating from 1.1 to 1.2,** ensure that all spacer jobs and BatchJobs have finished first, because 1) spacer job token formats have changed for train and deploy, and 2) the migrations will be abandoning all existing BatchJobs. To do this:
   - Stop the web server and celery processes.
@@ -45,10 +49,10 @@ Once that's done, update to 1.2, then:
 
 - Do an announcement after updating production. The new job-monitoring page for sources will hopefully answer many questions of the form "what's happening with the classifiers in my source?".
 
-## 1.1
+## [1.1](https://github.com/beijbom/coralnet/tree/1.1)
 
 Update instructions have not been well tracked up to this point. If the migrations give you trouble, consider starting your environment fresh from 1.2 or later.
 
-## 1.0
+## [1.0](https://github.com/beijbom/coralnet/tree/1.0)
 
 See [blog post](https://coralnet.ucsd.edu/blog/coralnet-is-officially-out-of-beta/) for major changes associated with this release.

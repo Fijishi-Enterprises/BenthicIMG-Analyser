@@ -13,7 +13,7 @@ Contents:
 
    installation
    server-operation
-   release
+   versions
    design/index
 
 

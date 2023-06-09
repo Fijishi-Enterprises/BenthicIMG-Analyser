@@ -1,6 +1,8 @@
-Releases and semantic versioning
-================================
+Semantic versioning
+===================
 
+
+CoralNet versions serve as landmarks to improve communication between devs about new changes and associated upgrade steps. These landmarks can also help with troubleshooting issues.
 
 Versions take on the form A.B.C, where:
 
@@ -18,15 +20,9 @@ Versions take on the form A.B.C, where:
 
   Patch versions can be used as often or as scarcely as we see fit; we may frequently have smaller PRs which don't have any version bump at all.
 
-Note that the versioning system for pluggable apps tends to be different; in particular, the criteria for B is usually considered worthy of a major version. But the system above feels better optimized for CoralNet; this is an end-user app, not a pluggable one.
+Note that the versioning system for pluggable apps tends to be different; in particular, the criteria for B are often considered worthy of a major version. But the system above feels better optimized for CoralNet; this is an end-user app, not a pluggable one.
 
-When it's time to bump the version, we should:
-
-1. Add a Git tag to the appropriate point in the commit history. Note that tags can be pushed and fetched along with everything else in the repo. ``git push --follow-tags`` to include tags in your push, or ``git push origin <tag_name>`` to push only a single tag.
-
-2. Add an entry to the top of the ``CHANGELOG.md`` file. At minimum, this should include update-instructions for major and minor versions (e.g. "New migrations in vision_backend"). Would also be nice to have a brief description of the changes in functionality.
-
-Then, a dev looking to update an environment can:
+A dev looking to update an environment can:
 
 1. Identify the version their environment is on, and the version they want to update to.
 

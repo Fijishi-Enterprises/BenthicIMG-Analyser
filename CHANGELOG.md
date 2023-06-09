@@ -1,7 +1,9 @@
 # Changelog
 
 
-For general instructions on how to update a development environment of CoralNet, see "Server operation" > "Updating to the latest repository code" under `/docs`. This changelog has specific instructions/notes for each CoralNet version.
+For general instructions on how to update a development environment of CoralNet, see "Updating to the latest repository code" in `docs/server_operation.rst`. This changelog has specific instructions/notes for each CoralNet version.
+
+For info about the semantic versioning used here, see `docs/versions.rst`.
 
 
 ## [1.5](https://github.com/beijbom/coralnet/tree/1.5)

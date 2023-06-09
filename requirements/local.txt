@@ -7,11 +7,8 @@
 # Django project.
 coverage
 
-# Documentation.
-# The version shouldn't really matter here, as it's not part of the running
-# Django project.
-Sphinx
+# reStructuredText documentation.
+Sphinx>=5.0
 
-
-# For development. This allows pre-commit hooks for syntax linting.
+# Allows pre-commit hooks for syntax linting.
 pre-commit==2.10.1

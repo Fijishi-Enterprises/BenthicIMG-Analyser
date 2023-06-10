@@ -3,7 +3,6 @@ from datetime import timedelta
 from typing import Literal
 
 from django.conf import settings
-from django.contrib import messages
 from django.contrib.auth.decorators import permission_required
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
@@ -30,8 +29,9 @@ class JobListView(View, ABC):
         if request.GET:
             self.form = JobSearchForm(request.GET, source_id=self.source_id)
             if not self.form.is_valid():
-                messages.error(request, "Please correct the errors below.")
-                context = dict(job_search_form=self.form)
+                context = dict(
+                    job_search_form=self.form,
+                    search_error="Search parameters were invalid.")
                 return render(request, self.template_name, context)
         else:
             self.form = JobSearchForm(source_id=self.source_id)
@@ -211,8 +211,9 @@ class JobSummaryView(View):
         if request.GET:
             summary_form = JobSummaryForm(request.GET)
             if not summary_form.is_valid():
-                messages.error(request, "Please correct the errors below.")
-                context = dict(job_summary_form=summary_form)
+                context = dict(
+                    job_summary_form=summary_form,
+                    search_error="Search parameters were invalid.")
                 return render(request, self.template_name, context)
         else:
             summary_form = JobSummaryForm()

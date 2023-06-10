@@ -7,7 +7,11 @@
   </div>
 </form>
 
-{% if job_table %}
+{% if search_error %}
+
+  <p>{{ search_error }}</p>
+
+{% elif job_table %}
 
   <p><strong>Job counts:</strong> {% include 'jobs/job_summary_line.html' %}</p>
 

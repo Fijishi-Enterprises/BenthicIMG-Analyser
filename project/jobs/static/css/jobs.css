@@ -20,3 +20,12 @@
 #job-summary td.completed {
   background-color: #beb;
 }
+
+#job-table td.source,
+#job-table td.detail {
+  /* Some source names, or identifiers in details, are long and could stretch
+     the column wide. Make them word wrap after a certain point. */
+  max-width: 200px;
+  /* Don't require word breaks to word wrap. */
+  overflow-wrap: break-word;
+}

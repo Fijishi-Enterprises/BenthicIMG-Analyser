@@ -1,9 +1,9 @@
-from huey import crontab
+from datetime import timedelta
 
-from jobs.utils import full_job
+from jobs.utils import job_runner
 from .utils import update_sitewide_annotation_count
 
 
-@full_job(schedule=crontab(hour=0, minute=0))
+@job_runner(interval=timedelta(days=1))
 def update_sitewide_annotation_count_task():
     update_sitewide_annotation_count()

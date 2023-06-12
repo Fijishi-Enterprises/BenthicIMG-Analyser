@@ -36,7 +36,7 @@
           <td>{{ job_entry.id }}</td>
           <td>{{ job_entry.job_type }}</td>
           {% if has_source_column %}
-            <td>
+            <td class="source">
               {% if job_entry.source_id %}
                 <a href="{% url 'source_main' job_entry.source_id %}">
                   {{ job_entry.source_name }}
@@ -56,7 +56,7 @@
             {% endif %}
           </td>
           <td>{{ job_entry.status_display }}</td>
-          <td>{{ job_entry.result_message }}</td>
+          <td class="detail">{{ job_entry.result_message|linebreaksbr }}</td>
           <td>
             {{ job_entry.modify_date }}
             {% if job_entry.persist %} * {% endif %}

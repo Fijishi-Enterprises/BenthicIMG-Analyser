@@ -1,3 +1,4 @@
+import datetime
 from datetime import timedelta
 import logging
 import random
@@ -5,7 +6,6 @@ import random
 from django.conf import settings
 from django.core.files.storage import get_storage_class
 from django.db import IntegrityError
-from huey import crontab
 from spacer.messages import \
     ExtractFeaturesMsg, \
     TrainClassifierMsg, \
@@ -21,7 +21,7 @@ from api_core.models import ApiJobUnit
 from images.models import Source, Image, Point
 from jobs.exceptions import JobError
 from jobs.models import Job
-from jobs.utils import full_job, job_runner, job_starter, queue_job
+from jobs.utils import job_runner, job_starter, queue_job
 from labels.models import Label
 from . import task_helpers as th
 from .models import Classifier, Score
@@ -32,8 +32,14 @@ logger = logging.getLogger(__name__)
 
 
 # Run daily, and not at prime times of biggest users (e.g. US East, Hawaii,
-# Australia). The hour/minute defined here are for UTC.
-@full_job(schedule=crontab(hour=7, minute=0))
+# Australia).
+@job_runner(
+    interval=timedelta(days=1),
+    offset=datetime.datetime(
+        year=2023, month=1, day=1, hour=7, minute=0,
+        tzinfo=datetime.timezone.utc,
+    ),
+)
 def check_all_sources():
     for source in Source.objects.filter():
         # Queue a check of this source at a random time in the next 4 hours.
@@ -357,7 +363,7 @@ def classify_image(image_id):
     return f"Used classifier {classifier.pk}"
 
 
-@full_job(schedule=crontab(minute='*/3'))
+@job_runner(interval=timedelta(minutes=3))
 def collect_spacer_jobs():
     """
     Collects and handles spacer job results until the result queue is empty.

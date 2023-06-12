@@ -1,3 +1,5 @@
+from typing import Iterable
+
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
@@ -64,19 +66,23 @@ class Job(models.Model):
         ]
 
     def __str__(self):
-        s = f"{self.job_name} / {self.arg_identifier}"
+        s = self.job_name
+        if self.arg_identifier:
+            s += f" / {self.arg_identifier}"
         if self.attempt_number > 1:
             s += f", attempt {self.attempt_number}"
         return s
 
     @staticmethod
-    def args_to_identifier(args):
+    def args_to_identifier(args: Iterable) -> str:
         return ','.join([str(arg) for arg in args])
 
     @staticmethod
-    def identifier_to_args(identifier):
+    def identifier_to_args(identifier: str) -> list[str]:
         """
         Note: this gets the args in string form, and doesn't work if the
         args themselves have , in them.
         """
+        if identifier == '':
+            return []
         return identifier.split(',')

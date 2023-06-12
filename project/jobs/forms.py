@@ -6,7 +6,8 @@ from typing import Literal
 from django import forms
 from django.conf import settings
 from django.db import models
-from django.db.models.expressions import Case, Value, When
+from django.db.models.lookups import LessThan
+from django.db.models.expressions import Case, F, Value, When
 from django.utils import timezone
 
 from images.models import Source
@@ -68,13 +69,16 @@ class BaseJobForm(forms.Form):
 
         sort_method = self.job_sort_method
         if sort_method == 'status':
-            # In-progress jobs first, then pending, then completed.
+            # In-progress jobs first, then pending + due,
+            # then pending + scheduled for later, then completed.
             # Tiebreak by last updated, then by ID (last created).
             jobs = jobs.annotate(
+                due=LessThan(F('scheduled_start_date'), timezone.now()),
                 status_score=Case(
                     When(status=Job.Status.IN_PROGRESS, then=Value(1)),
-                    When(status=Job.Status.PENDING, then=Value(2)),
-                    default=Value(3),
+                    When(status=Job.Status.PENDING, due=True, then=Value(2)),
+                    When(status=Job.Status.PENDING, due=False, then=Value(3)),
+                    default=Value(4),
                     output_field=models.fields.IntegerField(),
                 )
             )

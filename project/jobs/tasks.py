@@ -50,7 +50,7 @@ def run_scheduled_jobs():
     if job_count > 3:
         message = f"Ran {job_count} jobs, including:"
     elif job_count > 0:
-        message = f"Ran {job_count} jobs:"
+        message = f"Ran {job_count} job(s):"
     else:
         # 0
         message = f"Ran {job_count} jobs"
@@ -94,7 +94,13 @@ def clean_up_old_jobs():
         persist=False,
         apijobunit__isnull=True,
     )
+    count = jobs_to_clean_up.count()
     jobs_to_clean_up.delete()
+
+    if count > 0:
+        return f"Cleaned up {count} old job(s)"
+    else:
+        return "No old jobs to clean up"
 
 
 @job_runner(interval=timedelta(days=1))
@@ -123,7 +129,7 @@ def report_stuck_jobs():
     )
 
     if not stuck_jobs_to_report.exists():
-        return
+        return "No stuck jobs detected"
 
     stuck_job_count = stuck_jobs_to_report.count()
     subject = f"{stuck_job_count} job(s) haven't progressed in {STUCK} days"
@@ -133,6 +139,8 @@ def report_stuck_jobs():
         message += f"\n{job}"
 
     mail_admins(subject, message)
+
+    return f"Reported {stuck_job_count} stuck job(s)"
 
 
 @full_job(huey_interval_minutes=5)
@@ -157,6 +165,7 @@ def queue_periodic_jobs():
     jobs in the first place.
     """
     periodic_job_schedules = get_periodic_job_schedules()
+    queued = 0
 
     for name, schedule in periodic_job_schedules.items():
         try:
@@ -170,4 +179,11 @@ def queue_periodic_jobs():
             continue
 
         interval, offset = schedule
-        queue_job(name, delay=next_run_delay(interval, offset))
+        job = queue_job(name, delay=next_run_delay(interval, offset))
+        if job:
+            queued += 1
+
+    if queued > 0:
+        return f"Queued {queued} periodic job(s)"
+    else:
+        return "All periodic jobs are already queued"

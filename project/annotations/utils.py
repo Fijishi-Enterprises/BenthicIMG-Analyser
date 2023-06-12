@@ -166,15 +166,14 @@ def update_sitewide_annotation_count():
     """
     cache_key = 'sitewide_annotation_count'
     thirty_days = 60*60*24*30
-    cache.set(
-        key=cache_key, value=Annotation.objects.all().count(),
-        timeout=thirty_days)
+    count = Annotation.objects.all().count()
+    cache.set(key=cache_key, value=count, timeout=thirty_days)
+    return count
 
 
 def get_sitewide_annotation_count():
     cache_key = 'sitewide_annotation_count'
     count = cache.get(cache_key)
     if count is None:
-        update_sitewide_annotation_count()
-        count = cache.get(cache_key)
+        count = update_sitewide_annotation_count()
     return count

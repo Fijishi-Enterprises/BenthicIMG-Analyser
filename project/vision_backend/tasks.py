@@ -41,11 +41,15 @@ logger = logging.getLogger(__name__)
     ),
 )
 def check_all_sources():
-    for source in Source.objects.filter():
+    queued = 0
+    for source in Source.objects.all():
         # Queue a check of this source at a random time in the next 4 hours.
         delay_in_seconds = random.randrange(1, 60*60*4)
-        queue_source_check(
+        job = queue_source_check(
             source.pk, delay=timedelta(seconds=delay_in_seconds))
+        if job:
+            queued += 1
+    return f"Queued checks for {queued} source(s)"
 
 
 @job_runner()

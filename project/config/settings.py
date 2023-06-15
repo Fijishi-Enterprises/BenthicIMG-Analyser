@@ -806,7 +806,11 @@ TEMPLATES = [
     },
 ]
 
-FORM_RENDERER = 'lib.forms.CustomFormRenderer'
+# Use this class by default for rendering forms, i.e. when using
+# {{ my_form }} in a template.
+# Individual Form classes can specify a default_renderer attribute to
+# override this.
+FORM_RENDERER = 'lib.forms.GridFormRenderer'
 
 # The maximum size (in bytes) that an upload will be before it
 # gets streamed to the file system.

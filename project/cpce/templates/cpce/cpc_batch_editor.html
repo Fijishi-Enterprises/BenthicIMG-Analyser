@@ -79,7 +79,7 @@
   </p>
 
   <form id="process-form" enctype="multipart/form-data" method="post"
-    action="{% url 'cpce:cpc_batch_editor_process_ajax' %}"
+    action="{% url 'cpce:cpc_batch_editor_process_ajax' %}" class="no-padding"
   >
     {% csrf_token %}
 
@@ -101,10 +101,10 @@
   </div>
 
   <form id="download-form" method="get"
-    action="{% url 'cpce:cpc_batch_editor_file_serve' %}"
+    action="{% url 'cpce:cpc_batch_editor_file_serve' %}" class="no-padding"
   >
     <input type="hidden" name="session_data_timestamp" />
-    <input type="submit" value="Download edited CPCs" disabled />
+    <input type="submit" class="red" value="Download edited CPCs" disabled />
   </form>
 
   <p>

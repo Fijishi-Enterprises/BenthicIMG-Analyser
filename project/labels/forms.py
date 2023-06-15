@@ -15,7 +15,7 @@ from django.utils.safestring import mark_safe
 
 from annotations.utils import label_ids_with_confirmed_annotations_in_source
 from lib.exceptions import FileProcessError
-from lib.forms import get_one_form_error
+from lib.forms import BoxFormRenderer, EnhancedForm, get_one_form_error
 from upload.utils import csv_to_dicts
 from .models import Label, LabelGroup, LabelSet, LocalLabel
 from .utils import search_labels_by_text
@@ -225,7 +225,7 @@ class LabelFormForCurators(LabelForm):
             self.fields['duplicate'].queryset.order_by('name')
 
 
-class LabelSearchForm(Form):
+class LabelSearchForm(EnhancedForm):
 
     name_search = CharField(
         label="Search by name",
@@ -248,6 +248,14 @@ class LabelSearchForm(Form):
         label="Minimum popularity (0-100)",
         required=False,
         min_value=0, max_value=100)
+
+    default_renderer = BoxFormRenderer
+    fieldsets_keys = [
+        [
+            ['name_search', 'show_verified', 'show_regular', 'show_duplicate'],
+            ['functional_group', 'min_popularity'],
+        ],
+    ]
 
     def get_labels(self):
         """

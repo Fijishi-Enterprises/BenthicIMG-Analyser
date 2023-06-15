@@ -22,7 +22,8 @@
 }
 
 #job-table td.source,
-#job-table td.detail {
+#job-table td.detail,
+#job-summary td.source {
   /* Some source names, or identifiers in details, are long and could stretch
      the column wide. Make them word wrap after a certain point. */
   max-width: 200px;

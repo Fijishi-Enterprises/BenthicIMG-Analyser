@@ -11,6 +11,7 @@ from django.db.models.expressions import Case, F, Value, When
 from django.utils import timezone
 
 from images.models import Source
+from lib.forms import BoxFormRenderer
 from .models import Job
 
 
@@ -133,6 +134,8 @@ class JobSearchForm(BaseJobForm):
     )
     # show_source_check_jobs: See __init__()
 
+    default_renderer = BoxFormRenderer
+
     def __init__(self, *args, **kwargs):
         self.source_id: int | None | Literal['all'] = kwargs.pop('source_id')
         super().__init__(*args, **kwargs)
@@ -185,7 +188,9 @@ class JobSummaryForm(BaseJobForm):
         ],
         required=False, initial='job_count',
     )
+
     source_id = 'all'
+    default_renderer = BoxFormRenderer
 
     @property
     def show_source_check_jobs(self):

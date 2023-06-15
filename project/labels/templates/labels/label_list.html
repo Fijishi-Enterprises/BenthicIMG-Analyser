@@ -28,18 +28,12 @@
     </div>
   {% endif %}
 
-  {# Search form #}
-  <div id="search-form-box" class="box">
-    <form id="search-form" data-url="{% url 'label_list_search_ajax' %}">
-
-      {% for field in search_form %}
-        {# Put label+field in a div to ensure they stay on the same line. #}
-        <div style="display: inline-block">
-          {{ field.label }}: {{ field }} </div>
-      {% endfor %}
-
-    </form>
-  </div>
+  <form class="no-padding" id="label-search-form"
+  data-url="{% url 'label_list_search_ajax' %}">
+    <div class="form-box">
+      {{ search_form }}
+    </div>
+  </form>
 
   <div id="label-search-status" class="line"></div>
 

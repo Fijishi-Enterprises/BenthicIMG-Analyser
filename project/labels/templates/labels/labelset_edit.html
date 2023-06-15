@@ -16,7 +16,7 @@
 
   <legend>Edit label codes</legend>
 
-  <form id="labelset-form" action="" method="post">
+  <form id="labelset-form" action="" method="post" class="no-padding">
     {% csrf_token %}
     {{ formset.management_form }}
 
@@ -55,8 +55,8 @@
     </table>
 
     <div class="line">
-      <input type="submit" value="Save Changes" />
-      <input type="submit" name="cancel" value="Cancel Changes" />
+      <input type="submit" class="red" value="Save Changes" />
+      <input type="submit" class="red" name="cancel" value="Cancel Changes" />
     </div>
   </form>
 

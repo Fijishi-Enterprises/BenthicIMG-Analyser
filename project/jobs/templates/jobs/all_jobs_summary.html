@@ -10,20 +10,25 @@
 
 {% block content %}
 
-<h1>Summary of async jobs</h1>
+<div class="tool-heading">
+  <span>Summary of async jobs</span>
+</div>
 
-{# TODO: Form styling similar to browse and label list #}
-<form action="" method="get">
-  {{ job_summary_form }}
+<form action="" method="get" class="no-padding">
+  <div class="center-box-wrapper">
+    <div class="form-box">
+      {{ job_summary_form }}
 
-  <div class="submit_button_wrapper_center">
-    <input type="submit" value="Apply filters">
+      <div class="submit_button_wrapper_center">
+        <input type="submit" value="Apply filters">
+      </div>
+    </div>
   </div>
 </form>
 
 {% if search_error %}
 
-  <p>{{ search_error }}</p>
+  <div class="line">{{ search_error }}</div>
 
 {% else %}
 
@@ -62,7 +67,7 @@
       </tr>
       {% for source_entry in source_table %}
         <tr>
-          <td>
+          <td class="source">
             <a href="{% url 'jobs:source_job_list' source_entry.source_id %}">
               {{ source_entry.source_name }}
             </a>

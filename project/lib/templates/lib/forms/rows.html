@@ -1,0 +1,34 @@
+{# This layout is suitable for a simple form that shouldn't have too much page presence, or for a form that would look awkward in the grid layout. Here, the fields are just laid out row by row compactly without lining up with each other. #}
+
+{% if errors %}
+  {{ errors }}
+{% endif %}
+
+
+<div class="form-fields-rows">
+
+  {% for field, errors in fields %}
+    {% with widget=field.field.widget %}
+
+      <div class="field-errors">
+        {{ errors|safe }}
+      </div>
+
+      <div>
+        <label for="{{ field.id_for_label }}">
+          {{ field.label }}:
+        </label>
+
+        {{ field }}
+        {% include "form_generic_one_field_help_text.html" with field=field %}
+      </div>
+
+    {% endwith %}
+  {% endfor %}
+
+</div>
+
+
+{% for field in hidden_fields %}
+  {{ field }}
+{% endfor %}

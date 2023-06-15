@@ -30,11 +30,13 @@
   Calcification rate data: {% calcify_rate_indicator label 'text' %}
 </div>
 
-{% if label.description %}
-  <p>Description: {{ label.description|truncatewords:30 }}</p>
-{% else %}
-  <p>Description: (None)</p>
-{% endif %}
+<div class="line">
+  {% if label.description %}
+    Description: {{ label.description|truncatewords:30 }}
+  {% else %}
+    Description: (None)
+  {% endif %}
+</div>
 
 <a href="{% url 'label_main' label.pk %}" target="_blank">
   See more details</a>

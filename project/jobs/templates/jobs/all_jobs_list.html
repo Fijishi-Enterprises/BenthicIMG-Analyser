@@ -10,7 +10,9 @@
 
 {% block content %}
 
-<h1>All Jobs</h1>
+<div class="tool-heading">
+  <span>All Jobs</span>
+</div>
 
 {% include 'jobs/job_table.html' with has_source_column=True %}
 

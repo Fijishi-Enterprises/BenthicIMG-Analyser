@@ -17,6 +17,7 @@ from images.utils import (
     get_aux_field_name, get_aux_label, get_aux_metadata_form_choices,
     get_num_aux_fields)
 from labels.models import LabelGroup, Label
+from lib.forms import BoxFormRenderer, EnhancedForm
 from .utils import get_annotation_tool_users, image_search_kwargs_to_queryset
 
 tz = timezone.get_current_timezone()
@@ -360,7 +361,7 @@ class AnnotatorFilterField(MultiValueField):
         return queryset_kwargs
 
 
-class ImageSearchForm(forms.Form):
+class BaseImageSearchForm(EnhancedForm):
 
     # This field makes it easier to tell which kind of image-specifying
     # form has been submitted.
@@ -372,11 +373,11 @@ class ImageSearchForm(forms.Form):
     # Search by image name.
     image_name = forms.CharField(label="Image name contains", required=False)
 
+    default_renderer = BoxFormRenderer
+
     def __init__(self, *args, **kwargs):
 
         self.source = kwargs.pop('source')
-        for_browse_patches = kwargs.pop('for_browse_patches', False)
-        for_edit_metadata = kwargs.pop('for_edit_metadata', False)
         super().__init__(*args, **kwargs)
 
         # Date filter
@@ -436,65 +437,43 @@ class ImageSearchForm(forms.Form):
             # self.fields[field_name], and seems easier to use in templates.
             self.metadata_choice_fields.append(self[field_name])
 
-        if not for_browse_patches:
+    def add_image_annotation_status_fields(self):
 
-            # Annotation status
+        # Annotation status
 
-            status_choices = [('', "Any"), ('confirmed', "Confirmed")]
-            if self.source.enable_robot_classifier:
-                status_choices.append(('unconfirmed', "Unconfirmed"))
-            status_choices.append(('unclassified', "Unclassified"))
+        status_choices = [('', "Any"), ('confirmed', "Confirmed")]
+        if self.source.enable_robot_classifier:
+            status_choices.append(('unconfirmed', "Unconfirmed"))
+        status_choices.append(('unclassified', "Unclassified"))
 
-            self.fields['annotation_status'] = forms.ChoiceField(
-                label="Annotation status",
-                choices=status_choices,
-                required=False,
-            )
+        self.fields['annotation_status'] = forms.ChoiceField(
+            label="Annotation status",
+            choices=status_choices,
+            required=False,
+        )
 
-            # Last annotated
+        # Last annotated
 
-            annotation_years = range(
-                self.source.create_date.year, timezone.now().year + 1)
-            annotation_year_choices = [
-                (str(year), str(year)) for year in annotation_years]
-            self.fields['last_annotated'] = DateFilterField(
-                label="Last annotation date",
-                year_choices=annotation_year_choices,
-                date_lookup='annoinfo__last_annotation__annotation_date',
-                is_datetime_field=True, required=False)
+        annotation_years = range(
+            self.source.create_date.year, timezone.now().year + 1)
+        annotation_year_choices = [
+            (str(year), str(year)) for year in annotation_years]
+        self.fields['last_annotated'] = DateFilterField(
+            label="Last annotation date",
+            year_choices=annotation_year_choices,
+            date_lookup='annoinfo__last_annotation__annotation_date',
+            is_datetime_field=True, required=False)
 
-            # Last annotator
+        # Last annotator
 
-            self.fields['last_annotator'] = AnnotatorFilterField(
-                label="By",
-                source=self.source,
-                annotator_lookup='annoinfo__last_annotation__user',
-                required=False)
-            # 'verbose name' separate from the label, for use by
-            # get_applied_search_display().
-            self.fields['last_annotator'].verbose_name = "Last annotator"
-
-        if not for_edit_metadata and not for_browse_patches:
-
-            # Sort options
-
-            self.fields['sort_method'] = forms.ChoiceField(
-                label="Sort by",
-                choices=(
-                    ('name', "Name"),
-                    ('upload_date', "Upload date"),
-                    ('photo_date', "Photo date"),
-                    ('last_annotation_date', "Last annotation date"),
-                ),
-                required=True)
-
-            self.fields['sort_direction'] = forms.ChoiceField(
-                label="Direction",
-                choices=(
-                    ('asc', "Ascending"),
-                    ('desc', "Descending"),
-                ),
-                required=True)
+        self.fields['last_annotator'] = AnnotatorFilterField(
+            label="By",
+            source=self.source,
+            annotator_lookup='annoinfo__last_annotation__user',
+            required=False)
+        # 'verbose name' separate from the label, for use by
+        # get_applied_search_display().
+        self.fields['last_annotator'].verbose_name = "Last annotator"
 
     def clean_image_form_type(self):
         value = self.cleaned_data['image_form_type']
@@ -554,19 +533,87 @@ class ImageSearchForm(forms.Form):
             return sorting_by_str
 
 
-class PatchSearchOptionsForm(Form):
+class ImageSearchForm(BaseImageSearchForm):
+
+    fieldsets_keys = [
+        [
+            ['aux1', 'aux2', 'aux3', 'aux4', 'aux5'],
+            ['photo_date', 'image_name'],
+        ],
+        [
+            ['annotation_status'],
+            ['last_annotated', 'last_annotator'],
+        ],
+        [
+            ['sort_method', 'sort_direction'],
+        ],
+    ]
 
     def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.add_image_annotation_status_fields()
 
-        source = kwargs.pop('source')
+        # Add sort fields
+
+        self.fields['sort_method'] = forms.ChoiceField(
+            label="Sort by",
+            choices=(
+                ('name', "Name"),
+                ('upload_date', "Upload date"),
+                ('photo_date', "Photo date"),
+                ('last_annotation_date', "Last annotation date"),
+            ),
+            required=True)
+
+        self.fields['sort_direction'] = forms.ChoiceField(
+            label="Direction",
+            choices=(
+                ('asc', "Ascending"),
+                ('desc', "Descending"),
+            ),
+            required=True)
+
+
+class MetadataEditSearchForm(BaseImageSearchForm):
+
+    fieldsets_keys = [
+        [
+            ['aux1', 'aux2', 'aux3', 'aux4', 'aux5'],
+            ['photo_date', 'image_name'],
+        ],
+        [
+            ['annotation_status'],
+            ['last_annotated', 'last_annotator'],
+        ],
+    ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.add_image_annotation_status_fields()
+
+
+class PatchSearchForm(BaseImageSearchForm):
+
+    fieldsets_keys = [
+        [
+            ['aux1', 'aux2', 'aux3', 'aux4', 'aux5'],
+            ['photo_date', 'image_name'],
+        ],
+        [
+            ['label', 'annotation_status'],
+            ['annotation_date', 'annotator'],
+        ],
+    ]
+
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         # Label
 
-        if source.labelset is None:
+        if self.source.labelset is None:
             label_choices = Label.objects.none()
         else:
-            label_choices = source.labelset.get_globals().order_by('name')
+            label_choices = self.source.labelset.get_globals().order_by('name')
         self.fields['label'] = forms.ModelChoiceField(
             queryset=label_choices,
             required=False,
@@ -576,7 +623,7 @@ class PatchSearchOptionsForm(Form):
         # Annotation status
 
         status_choices = [('', "Any"), ('confirmed', "Confirmed")]
-        if source.enable_robot_classifier:
+        if self.source.enable_robot_classifier:
             status_choices.append(('unconfirmed', "Unconfirmed"))
 
         self.fields['annotation_status'] = forms.ChoiceField(
@@ -587,7 +634,7 @@ class PatchSearchOptionsForm(Form):
         # Annotation date
 
         annotation_years = range(
-            source.create_date.year, timezone.now().year + 1)
+            self.source.create_date.year, timezone.now().year + 1)
         annotation_year_choices = [
             (str(year), str(year)) for year in annotation_years]
         self.fields['annotation_date'] = DateFilterField(
@@ -599,11 +646,11 @@ class PatchSearchOptionsForm(Form):
 
         self.fields['annotator'] = AnnotatorFilterField(
             label="Annotated by",
-            source=source,
+            source=self.source,
             annotator_lookup='user',
             required=False)
 
-    def get_annotations(self, image_results):
+    def get_annotations(self):
         """
         Call this after cleaning the form to get the annotation search results
         specified by the fields, within the specified images.
@@ -613,6 +660,8 @@ class PatchSearchOptionsForm(Form):
         and then just grab the few points that we want to display on the page.
         """
         data = self.cleaned_data
+
+        image_results = self.get_images()
 
         # Only get patches corresponding to annotated points of the
         # given images.
@@ -702,17 +751,20 @@ class ImageSpecifyByIdForm(forms.Form):
 
 
 def create_image_filter_form(
-        data, source, for_edit_metadata=False, for_browse_patches=False):
+        data, source, for_edit_metadata=False):
     """
-    All the browse views and the annotation tool view can use this
+    Browse Images, Edit Metadata, and the annotation tool view can use this
     to process image-specification forms.
+
+    This doesn't apply to Browse Patches because there isn't a way to
+    get image-ID-based results there.
     """
     image_form = None
     if data.get('image_form_type') == 'search':
-        image_form = ImageSearchForm(
-            data, source=source,
-            for_edit_metadata=for_edit_metadata,
-            for_browse_patches=for_browse_patches)
+        if for_edit_metadata:
+            image_form = MetadataEditSearchForm(data, source=source)
+        else:
+            image_form = ImageSearchForm(data, source=source)
     elif data.get('image_form_type') == 'ids':
         image_form = ImageSpecifyByIdForm(data, source=source)
 

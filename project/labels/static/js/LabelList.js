@@ -85,7 +85,7 @@ var LabelList = (function() {
             });
 
             $searchStatus = $('#label-search-status');
-            $searchForm = $('#search-form');
+            $searchForm = $('#label-search-form');
 
             // Update search results 0.75s after changing a field
             var afterChange = function() {

@@ -1,29 +1,3 @@
-/* Some form/field rules to make styling a bit cleaner compared to
- using master.css. */
-/* TODO: Merge some of these rules into master.css? */
-
-div.box {
-    padding: 10px;
-    margin: 10px 0;
-
-    background-color: #e0e0e0;
-    border: 1px solid #000000;
-    border-radius: 5px;
-}
-div#search-form-box, div#action-box {
-    width: 800px;
-
-    /* Center horizontally */
-    margin: 10px auto;
-}
-form {
-    margin: 0;
-    padding: 0;
-    width: auto;
-}
-label {
-    width: auto;
-}
 button#manage-calcify-tables-button {
     /* Horizontally center the button */
     display: block;
@@ -61,10 +35,15 @@ img.thumb.needs_annotation {
     border-color: red;
 }
 #id_metadata_form textarea {
-    /* Make this fit better in a grid (at the expense of ease of editing). */
+    /* Make this fit better in a grid (as a tradeoff vs. ease of editing). */
     width: 200px;
     height: 1.5em;
     margin: 0;
+}
+#metadata-form-table-wrapper {
+    overflow: auto;
+    max-height: 500px;
+    width: 980px;
 }
 #metadataFormTable {
     /* Don't allow descendant elements to word-wrap, including the
@@ -75,4 +54,7 @@ img.thumb.needs_annotation {
     /* Make the text fields and text areas line up better.
     'baseline' makes them line up weird. */
     vertical-align: middle;
+}
+#metadataFormTable td.status {
+    padding: 0 10px;
 }

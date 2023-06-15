@@ -15,27 +15,26 @@
 
 {% block content %}
 
-  <legend>Upload Metadata</legend>
+  <div class="tool-heading">
+    <span>Upload Metadata</span>
+    <div class="tutorial-message">
+      {% include 'upload/upload_metadata_help.html' %}
+    </div>
+  </div>
 
   <div class="narrow_column">
 
-    <div class="page_section">
+    <div class="page-section">
 
-      <form id="csv_form" action="" method="post" enctype="multipart/form-data">
+      <form id="csv_form" action="" method="post" enctype="multipart/form-data" class="no-padding">
         {% csrf_token %}
 
-        {% with csv_import_form.csv_file as field %}
-          {{ field.label }}: {{ field }}
-        {% endwith %}
-
-        <div class="tutorial-message">
-          {% include 'upload/upload_metadata_help.html' %}
-        </div>
+        {{ csv_import_form }}
       </form>
 
     </div>
 
-    <div class="page_section">
+    <div class="page-section">
 
       <div id="upload_summary_section">
 
@@ -50,7 +49,7 @@
 
       <div id="upload_and_proceed_buttons">
 
-        <button type="button" class="submit" id="id_upload_submit" disabled="disabled">Save metadata</button>
+        <button type="button" class="submit red" id="id_upload_submit" disabled="disabled">Save metadata</button>
 
       </div>
 

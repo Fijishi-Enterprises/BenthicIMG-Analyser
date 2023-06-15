@@ -126,53 +126,6 @@
 }
 
 
-/* Some rules to make styling a bit cleaner compared to
- using master.css. */
-/* TODO: Merge some of these rules into master.css? */
-
-div.page_section {
-    margin: 20px 0;  /* top/bottom left/right */
-    padding: 0;
-
-    width: auto;
-}
-form {
-    margin: 0;
-    padding: 0;
-    width: auto;
-}
-p {
-    margin: 0.5em 0;  /* top/bottom left/right */
-    line-height: 1.0em;
-}
-
-
-/* Label list search box */
-div.box {
-    padding: 10px;
-    margin: 10px 0;
-
-    background-color: #e0e0e0;
-    border: 1px solid #000000;
-    border-radius: 5px;
-}
-div#search-form-box {
-    width: 700px;
-}
-div#search-form-box form {
-    display: inline-block;
-    margin: 0;
-    padding: 0;
-    width: auto;
-}
-div#search-form-box input[name="min_popularity"] {
-    width: 50px;
-}
-div#search-form-box label {
-    width: auto;
-}
-
-
 /* Label detail page */
 div.label-basic-info-and-thumbnail-wrapper {
     display: flex;

@@ -11,10 +11,12 @@
 
 {% block content %}
 
-<h1>Jobs</h1>
+<div class="tool-heading">
+  <span>Jobs</span>
+</div>
 
 {% if latest_check %}
-  <p>
+  <div class="line">
     {% if check_in_progress %}
       This source is currently being checked for jobs to queue.
     {% else %}
@@ -22,9 +24,9 @@
       {{ latest_check.result_message }}
       ({{ latest_check.modify_date }})
     {% endif %}
-  </p>
+  </div>
 {% else %}
-  <p>This source hasn't been status-checked recently.</p>
+  <div class="line">This source hasn't been status-checked recently.</div>
 {% endif %}
 
 {% include 'jobs/job_table.html' %}

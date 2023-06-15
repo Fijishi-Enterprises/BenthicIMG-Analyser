@@ -15,34 +15,30 @@
 
 {% block content %}
 
-  <legend>Upload Images</legend>
+  <div class="tool-heading">
+    <span>Upload Images</span>
+    <div class="tutorial-message">
+      {% include 'upload/upload_images_help.html' %}
+    </div>
+  </div>
 
   <div class="narrow_column">
 
-    <div class="page_section" id="auto_generate_points_page_section">
+    <div class="page-section" id="auto_generate_points_page_section">
       <span class="helptext">{{ auto_generate_points_message|linebreaksbr }}</span>
     </div>
 
-    <div class="page_section">
+    <div class="page-section">
 
       {% comment %}
       These fields aren't going to get submitted directly,
       so they're not in a form element.
       {% endcomment %}
-      {% with images_form.files as field %}
-        <div>{{ field.label }}: {{ field }}</div>
-      {% endwith %}
-      {% with images_form.name_prefix as field %}
-        <div>{{ field.label }}: {{ field }}</div>
-      {% endwith %}
-
-      <div class="tutorial-message">
-        {% include 'upload/upload_images_help.html' %}
-      </div>
+      {{ images_form }}
 
     </div>
 
-    <div class="page_section">
+    <div class="page-section">
 
       <div id="upload_summary_section">
 
@@ -51,13 +47,13 @@
         <span id="pre_upload_summary"></span>
 
         <div id="files_table_auto_scroll_checkbox_container">
-            <input type="checkbox" id="files_table_auto_scroll_checkbox" checked>
-            <label for="files_table_auto_scroll_checkbox">Auto-scroll to the currently uploading file</label>
+          <input type="checkbox" id="files_table_auto_scroll_checkbox" checked>
+          <label for="files_table_auto_scroll_checkbox">Auto-scroll to the currently uploading file</label>
         </div>
 
         {# Table showing the files selected for upload. #}
         <div id="files_table_container">
-            <table id="files_table"></table>
+          <table id="files_table"></table>
         </div>
 
         <span id="mid_upload_summary"></span>
@@ -67,27 +63,29 @@
       <div id="upload_and_proceed_buttons">
 
         {# start/abort upload #}
-        <button type="button" class="submit" id="id_upload_submit" disabled="disabled">Start upload</button>
-        <button type="button" class="submit" id="id_upload_abort_button" disabled="disabled">Abort upload</button>
+        <button type="button" class="submit red" id="id_upload_submit" disabled="disabled">Start upload</button>
+        <button type="button" class="submit red" id="id_upload_abort_button" disabled="disabled">Abort upload</button>
 
         {# start another upload #}
-        <form action="" method="get" id="id_start_another_upload_form">
-            <input type="submit" value="Upload more images" id="id_start_another_upload_button" />
-            <p class="helptext_small">Upload another set of images.</p>
+        <form action="" method="get" id="id_start_another_upload_form"
+        class="no-padding">
+          <input type="submit" class="red" value="Upload more images" id="id_start_another_upload_button" />
+          <p class="helptext_small">Upload another set of images.</p>
         </form>
 
         {# proceed to the page where you manage image metadata #}
         <form action="{% url 'edit_metadata' source.id %}" method="post"
-              id="id_proceed_to_manage_metadata_form">{% csrf_token %}
+              id="id_proceed_to_manage_metadata_form" class="no-padding">
+          {% csrf_token %}
 
-            {% for field in proceed_to_manage_metadata_form %}
-                {{ field }}
-            {% endfor %}
+          {% for field in proceed_to_manage_metadata_form %}
+            {{ field }}
+          {% endfor %}
 
-            <input type="submit" value="Manage image metadata"
-                   name="image_specify_form_from_upload"
-                   id="id_proceed_to_manage_metadata_button"/>
-            <p class="helptext_small">View and edit the metadata of the images you just uploaded.</p>
+          <input type="submit" class="red" value="Manage image metadata"
+                 name="image_specify_form_from_upload"
+                 id="id_proceed_to_manage_metadata_button"/>
+          <p class="helptext_small">View and edit the metadata of the images you just uploaded.</p>
         </form>
 
       </div>

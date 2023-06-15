@@ -1,19 +1,24 @@
-{# TODO: Form styling similar to browse and label list #}
-<form action="" method="get">
-  {{ job_search_form }}
+<form action="" method="get" class="no-padding">
+  <div class="center-box-wrapper">
+    <div class="form-box">
+      {{ job_search_form }}
 
-  <div class="submit_button_wrapper_center">
-    <input type="submit" value="Apply filters">
+      <div class="submit_button_wrapper_center">
+        <input type="submit" value="Apply filters">
+      </div>
+    </div>
   </div>
 </form>
 
 {% if search_error %}
 
-  <p>{{ search_error }}</p>
+  <div class="line">{{ search_error }}</div>
 
 {% elif job_table %}
 
-  <p><strong>Job counts:</strong> {% include 'jobs/job_summary_line.html' %}</p>
+  <div class="line">
+    <strong>Job counts:</strong> {% include 'jobs/job_summary_line.html' %}
+  </div>
 
   <table class="generic" id="job-table">
     <thead>
@@ -25,7 +30,7 @@
         {% endif %}
         <th title="Image ID or anything else relevant to this job">Other ID</th>
         <th title="Progress status">Status</th>
-        <th title="Error message or other note about the result">Detail</th>
+        <th title="Notes about the result, or error message if the job failed">Detail</th>
         <th title="Time the job's status was last updated; * means the record will stay after {{ job_max_days }} days">Last updated</th>
         <th title="Time since in-progress job was queued, time taken for job to complete, or time until job is scheduled to start. Hover over the text to see the job's scheduled date">Duration</th>
       </tr>
@@ -80,12 +85,12 @@
 
   {% include 'pagination_links.html' with page_results=page_results query_string=query_string %}
 
-  <p>Most job records are cleaned up after approximately {{ job_max_days }} days, except for jobs with * in Last updated.</p>
+  <div class="line">Most job records are cleaned up after approximately {{ job_max_days }} days, except for jobs with * in Last updated.</div>
 
 {% else %}
 
-  <p>(No jobs found)</p>
+  <div class="line">(No jobs found)</div>
 
-  <p>Most job records are cleaned up after approximately {{ job_max_days }} days.</p>
+  <div class="line">Most job records are cleaned up after approximately {{ job_max_days }} days.</div>
 
 {% endif %}

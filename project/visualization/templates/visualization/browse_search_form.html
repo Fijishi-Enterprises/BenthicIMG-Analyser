@@ -1,50 +1,13 @@
-<div id="search-form-box" class="box">
-  <form action="" method="post" id="search-form">
-    {% csrf_token %}
+<form action="" method="post" class="no-padding" id="search-form">
+  {% csrf_token %}
 
-    {% for field in form.metadata_choice_fields %}
-      {# Put label+field in a div to ensure they stay on the same line. #}
-      <div style="display: inline-block">
-        {{ field.label }}: {{ field }} </div>
-    {% endfor %}
-    {# TODO: This br should only be present IF there were any metadata choice fields to display above. Alternatively, rework the CSS so brs aren't needed. #}
-    <br/>
-    {{ form.photo_date.label }}: {{ form.photo_date }}
-    {{ form.image_name.label }}: {{ form.image_name }}
-    <hr/>
+  <div class="center-box-wrapper">
+    <div class="form-box">
+      {{ form }}
 
-    {% if patch_form %}
-
-      {{ patch_form.label.label }}: {{ patch_form.label }}
-      {{ patch_form.annotation_status.label }}:
-        {{ patch_form.annotation_status }}
-      <br/>
-      {{ patch_form.annotation_date.label }}: {{ patch_form.annotation_date }}
-      {{ patch_form.annotator.label }}: {{ patch_form.annotator }}
-
-    {% else %}
-
-      {{ form.annotation_status.label }}: {{ form.annotation_status }}
-      <br/>
-      {{ form.last_annotated.label }}: {{ form.last_annotated }}
-      {{ form.last_annotator.label }}: {{ form.last_annotator }}
-
-      {% if form.sort_method %}
-
-        {# This doesn't apply to Edit Metadata yet #}
-        <hr/>
-        {{ form.sort_method.label }}: {{ form.sort_method }}
-        {{ form.sort_direction.label }}: {{ form.sort_direction }}
-
-      {% endif %}
-
-    {% endif %}
-
-    {# Hidden field #}
-    {{ form.image_form_type }}
-
-    <div class="submit_button_wrapper_center">
-      <input type="submit" value="Search">
+      <div class="submit_button_wrapper_center">
+        <input type="submit" value="Search" class="red">
+      </div>
     </div>
-  </form>
-</div>
+  </div>
+</form>

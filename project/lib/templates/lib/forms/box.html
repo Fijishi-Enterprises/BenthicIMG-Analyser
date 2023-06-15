@@ -1,0 +1,32 @@
+{# These form contents should be inside a <div class="form-box"> #}
+
+{% if fieldsets %}
+
+  {% for fieldset in fieldsets %}
+    {% for subfieldset in fieldset %}
+      {% for field, errors in subfieldset %}
+        {% include 'lib/forms/box_field.html' %}
+      {% endfor %}
+
+      {% if not forloop.last %}
+        <br/>
+      {% endif %}
+    {% endfor %}
+
+    {% if not forloop.last %}
+      <hr/>
+    {% endif %}
+  {% endfor %}
+
+{% else %}
+
+  {% for field, errors in fields %}
+    {% include 'lib/forms/box_field.html' %}
+  {% endfor %}
+
+{% endif %}
+
+
+{% for field in hidden_fields %}
+  {{ field }}
+{% endfor %}

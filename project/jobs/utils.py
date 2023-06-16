@@ -32,6 +32,7 @@ def queue_job(
         # Use a random amount of jitter to slightly space out jobs that are
         # being submitted in quick succession.
         delay = timedelta(seconds=random.randrange(5, 30))
+    scheduled_start_date = timezone.now() + delay
 
     arg_identifier = Job.args_to_identifier(task_args)
     job_kwargs = dict(
@@ -51,6 +52,15 @@ def queue_job(
         pass
     else:
         logger.debug(f"Job [{job}] is already pending or in progress.")
+
+        if job.status == Job.Status.PENDING:
+            # Update the scheduled start date if an earlier date was just
+            # requested
+            if scheduled_start_date < job.scheduled_start_date:
+                job.scheduled_start_date = scheduled_start_date
+                job.save()
+                logger.debug(f"Updated the job's scheduled start date.")
+
         return None
 
     # See if the same job failed last time (if there was a last time).
@@ -65,7 +75,6 @@ def queue_job(
             attempt_number = last_job.attempt_number + 1
 
     # Create a new job and proceed
-    scheduled_start_date = timezone.now() + delay
     job = Job(
         scheduled_start_date=scheduled_start_date,
         attempt_number=attempt_number,

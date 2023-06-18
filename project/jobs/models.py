@@ -60,7 +60,7 @@ class Job(models.Model):
             # in-progress Jobs.
             models.UniqueConstraint(
                 fields=['job_name', 'arg_identifier'],
-                condition=Q(status='IP'),
+                condition=Q(status='in_progress'),
                 name='unique_running_jobs',
             ),
         ]

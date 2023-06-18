@@ -140,7 +140,7 @@ def report_stuck_jobs():
 
     mail_admins(subject, message)
 
-    return f"Reported {stuck_job_count} stuck job(s)"
+    return subject
 
 
 @full_job(huey_interval_minutes=5)
@@ -168,16 +168,6 @@ def queue_periodic_jobs():
     queued = 0
 
     for name, schedule in periodic_job_schedules.items():
-        try:
-            Job.objects.get(
-                job_name=name,
-                status__in=[Job.Status.PENDING, Job.Status.IN_PROGRESS])
-        except Job.DoesNotExist:
-            pass
-        else:
-            # This job's already queued/running
-            continue
-
         interval, offset = schedule
         job = queue_job(name, delay=next_run_delay(interval, offset))
         if job:

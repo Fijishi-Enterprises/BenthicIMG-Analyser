@@ -600,8 +600,8 @@ class PatchSearchForm(BaseImageSearchForm):
             ['photo_date', 'image_name'],
         ],
         [
-            ['label', 'annotation_status'],
-            ['annotation_date', 'annotator'],
+            ['patch_label', 'patch_annotation_status'],
+            ['patch_annotation_date', 'patch_annotator'],
         ],
     ]
 
@@ -614,7 +614,7 @@ class PatchSearchForm(BaseImageSearchForm):
             label_choices = Label.objects.none()
         else:
             label_choices = self.source.labelset.get_globals().order_by('name')
-        self.fields['label'] = forms.ModelChoiceField(
+        self.fields['patch_label'] = forms.ModelChoiceField(
             queryset=label_choices,
             required=False,
             empty_label="Any",
@@ -626,7 +626,9 @@ class PatchSearchForm(BaseImageSearchForm):
         if self.source.enable_robot_classifier:
             status_choices.append(('unconfirmed', "Unconfirmed"))
 
-        self.fields['annotation_status'] = forms.ChoiceField(
+        # Since the other forms have an image annotation status field,
+        # this is where the patch_ prefix really helps avoid confusion.
+        self.fields['patch_annotation_status'] = forms.ChoiceField(
             choices=status_choices,
             required=False,
         )
@@ -637,14 +639,14 @@ class PatchSearchForm(BaseImageSearchForm):
             self.source.create_date.year, timezone.now().year + 1)
         annotation_year_choices = [
             (str(year), str(year)) for year in annotation_years]
-        self.fields['annotation_date'] = DateFilterField(
+        self.fields['patch_annotation_date'] = DateFilterField(
             label="Annotation date", year_choices=annotation_year_choices,
             date_lookup='annotation_date',
             is_datetime_field=True, none_option=False, required=False)
 
         # Annotator
 
-        self.fields['annotator'] = AnnotatorFilterField(
+        self.fields['patch_annotator'] = AnnotatorFilterField(
             label="Annotated by",
             source=self.source,
             annotator_lookup='user',
@@ -674,16 +676,16 @@ class PatchSearchForm(BaseImageSearchForm):
         # An empty value for these fields means we're not filtering
         # by the field.
 
-        if data['label'] is not None:
-            results = results.filter(label=data['label'])
+        if data['patch_label'] is not None:
+            results = results.filter(label=data['patch_label'])
 
-        if data['annotation_status'] == 'unconfirmed':
+        if data['patch_annotation_status'] == 'unconfirmed':
             results = results.unconfirmed()
-        elif data['annotation_status'] == 'confirmed':
+        elif data['patch_annotation_status'] == 'confirmed':
             results = results.confirmed()
 
         # For multi-value fields, the search kwargs are the cleaned data.
-        for field_name in ['annotation_date', 'annotator']:
+        for field_name in ['patch_annotation_date', 'patch_annotator']:
             field_kwargs = data.get(field_name, None)
             if field_kwargs:
                 results = results.filter(**field_kwargs)

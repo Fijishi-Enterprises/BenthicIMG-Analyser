@@ -234,13 +234,17 @@ class JobSummaryView(View):
             for value_dict
             in last_active_job_per_source.values('source', 'modify_date')
         }
+
         for entry in source_entries:
             entry['last_activity'] = \
                 last_activity_per_source[entry['source_id']]
         non_source_job_counts['last_activity'] = \
-            last_activity_per_source[None]
-        overall_job_counts['last_activity'] = \
-            sorted(last_activity_per_source.values(), reverse=True)[0]
+            last_activity_per_source.get(None, None)
+        if last_activity_per_source:
+            overall_job_counts['last_activity'] = \
+                sorted(last_activity_per_source.values(), reverse=True)[0]
+        else:
+            overall_job_counts['last_activity'] = None
 
         context = dict(
             job_summary_form=summary_form,

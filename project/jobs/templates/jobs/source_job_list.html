@@ -15,8 +15,8 @@
   <span>Jobs</span>
 </div>
 
-{% if latest_check %}
-  <div class="line">
+<div class="line" id="source-check-status">
+  {% if latest_check %}
     {% if check_in_progress %}
       This source is currently being checked for jobs to queue.
     {% else %}
@@ -24,10 +24,10 @@
       {{ latest_check.result_message }}
       ({{ latest_check.modify_date }})
     {% endif %}
-  </div>
-{% else %}
-  <div class="line">This source hasn't been status-checked recently.</div>
-{% endif %}
+  {% else %}
+    This source hasn't been status-checked recently.
+  {% endif %}
+</div>
 
 {% include 'jobs/job_table.html' %}
 

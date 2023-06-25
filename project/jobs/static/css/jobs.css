@@ -30,3 +30,9 @@
   /* Don't require word breaks to word wrap. */
   overflow-wrap: break-word;
 }
+#job-summary td.summary-name {
+  font-style: italic;
+}
+#job-summary tr#all-jobs-summary td:not(.summary-name) {
+  font-weight: bold;
+}

@@ -6,6 +6,7 @@ import sys
 import traceback
 from typing import Optional
 
+from django.conf import settings
 from django.core.mail import mail_admins
 from django.db import DatabaseError, IntegrityError, transaction
 from django.utils import timezone
@@ -170,11 +171,12 @@ def finish_job(job, success=False, result_message=None):
     if job.result_message:
         logger.info(f"Job [{job}]: {job.result_message}")
 
-    # If it's a periodic job, schedule another run of it
-    schedule = get_periodic_job_schedules().get(name, None)
-    if schedule:
-        interval, offset = schedule
-        queue_job(name, delay=next_run_delay(interval, offset))
+    if settings.ENABLE_PERIODIC_JOBS:
+        # If it's a periodic job, schedule another run of it
+        schedule = get_periodic_job_schedules().get(name, None)
+        if schedule:
+            interval, offset = schedule
+            queue_job(name, delay=next_run_delay(interval, offset))
 
 
 class JobDecorator:

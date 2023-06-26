@@ -7,7 +7,7 @@ from images.models import Image
 from jobs.tasks import run_scheduled_jobs
 from lib.regtest_utils import VisionBackendRegressionTest
 from ...models import Classifier
-from ...tasks import collect_spacer_jobs
+from ...tests.tasks.utils import queue_and_run_collect_spacer_jobs
 
 reg_test_config = {
     372: {'small': (25, 5),
@@ -114,7 +114,7 @@ class Command(BaseCommand):
         while not all_have_features:
             time.sleep(5)
             run_scheduled_jobs()
-            collect_spacer_jobs()
+            queue_and_run_collect_spacer_jobs()
             n_with_feats = Image.objects.filter(
                 source=s.source, features__extracted=True).count()
             n_imgs = Image.objects.filter(source=s.source).count()
@@ -128,7 +128,7 @@ class Command(BaseCommand):
         while not has_classifier:
             time.sleep(5)
             run_scheduled_jobs()
-            collect_spacer_jobs()
+            queue_and_run_collect_spacer_jobs()
             print("-> No classifier trained yet.")
             has_classifier = Classifier.objects.filter(
                 source=s.source, status=Classifier.ACCEPTED).count() > 0

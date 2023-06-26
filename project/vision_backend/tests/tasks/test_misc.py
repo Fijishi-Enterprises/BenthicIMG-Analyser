@@ -1,5 +1,6 @@
 from unittest import mock
 
+from django.test.utils import override_settings
 from django.urls import reverse
 
 from annotations.models import Annotation
@@ -7,10 +8,10 @@ from images.models import Image
 from jobs.models import Job
 from jobs.tasks import run_scheduled_jobs_until_empty
 from jobs.utils import queue_job
-from lib.tests.utils import BaseTest
+from lib.tests.utils import BaseTest, ClientTest
 from ...models import Score, Classifier
-from ...tasks import collect_spacer_jobs
-from .utils import BaseTaskTest
+from ...tasks import check_all_sources
+from .utils import BaseTaskTest, queue_and_run_collect_spacer_jobs
 
 
 class ResetTaskTest(BaseTaskTest):
@@ -60,7 +61,7 @@ class ResetTaskTest(BaseTaskTest):
 
         # Train
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
         # Classify
         run_scheduled_jobs_until_empty()
 
@@ -127,10 +128,10 @@ class ResetTaskTest(BaseTaskTest):
 
         # Extract features
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
         # Train
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
         # Classify
         run_scheduled_jobs_until_empty()
 
@@ -175,7 +176,7 @@ class ResetTaskTest(BaseTaskTest):
 
 
 def call_collect_spacer_jobs():
-    collect_spacer_jobs()
+    queue_job('collect_spacer_jobs')
 
     class Queue:
         status_counts = dict()
@@ -184,6 +185,7 @@ def call_collect_spacer_jobs():
     return Queue
 
 
+@override_settings(ENABLE_PERIODIC_JOBS=False)
 class CollectSpacerJobsTest(BaseTest):
 
     def test_no_multiple_runs(self):
@@ -198,11 +200,11 @@ class CollectSpacerJobsTest(BaseTest):
             with mock.patch(
                 'vision_backend.tasks.get_queue_class', call_collect_spacer_jobs
             ):
-                collect_spacer_jobs()
+                queue_and_run_collect_spacer_jobs()
 
         log_message = (
             "DEBUG:jobs.utils:"
-            "Job [collect_spacer_jobs / ] is already pending or in progress."
+            "Job [collect_spacer_jobs] is already pending or in progress."
         )
         self.assertIn(
             log_message, cm.output,
@@ -211,3 +213,39 @@ class CollectSpacerJobsTest(BaseTest):
         self.assertEqual(
             Job.objects.filter(job_name='collect_spacer_jobs').count(), 1,
             "Should not have accepted the second run")
+
+
+class CheckAllSourcesTest(ClientTest):
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.user = cls.create_user()
+        cls.source = cls.create_source(cls.user)
+        cls.source2 = cls.create_source(cls.user)
+
+    @staticmethod
+    def run_and_get_result():
+        # Note that this may or may not queue a new job instance; perhaps
+        # the periodic job was already queued at the end of the previous
+        # job's run.
+        queue_job('check_all_sources')
+        check_all_sources()
+        job = Job.objects.filter(
+            job_name='check_all_sources',
+            status=Job.Status.SUCCESS).latest('pk')
+        return job.result_message
+
+    def test(self):
+        self.assertEqual(
+            self.run_and_get_result(),
+            "Queued checks for 2 source(s)")
+
+        # If these lines don't get errors, then the expected
+        # queued jobs exist
+        Job.objects.get(
+            job_name='check_source', arg_identifier=self.source.pk,
+            status=Job.Status.PENDING)
+        Job.objects.get(
+            job_name='check_source', arg_identifier=self.source2.pk,
+            status=Job.Status.PENDING)

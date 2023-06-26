@@ -14,9 +14,8 @@ from jobs.tasks import run_scheduled_jobs_until_empty
 from jobs.tests.utils import JobUtilsMixin
 from ...models import Classifier
 from ...queues import get_queue_class
-from ...tasks import collect_spacer_jobs
 from ...task_helpers import handle_spacer_result
-from .utils import BaseTaskTest
+from .utils import BaseTaskTest, queue_and_run_collect_spacer_jobs
 
 
 class TrainClassifierTest(BaseTaskTest, JobUtilsMixin):
@@ -28,7 +27,7 @@ class TrainClassifierTest(BaseTaskTest, JobUtilsMixin):
             train_image_count=spacer_config.MIN_TRAINIMAGES,
             val_image_count=val_image_count)
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
 
         # Train a classifier
         run_scheduled_jobs_until_empty()
@@ -43,7 +42,7 @@ class TrainClassifierTest(BaseTaskTest, JobUtilsMixin):
             Classifier.objects.filter(source=self.source).count() > 0)
 
         # Collect training
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
 
         # Now we should have a trained classifier whose accuracy is the best so
         # far (due to having no previous classifiers), and thus it should have
@@ -99,7 +98,7 @@ class TrainClassifierTest(BaseTaskTest, JobUtilsMixin):
         self.upload_images_for_training(
             train_image_count=spacer_config.MIN_TRAINIMAGES, val_image_count=1)
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
         # Submit classifier.
         run_scheduled_jobs_until_empty()
 
@@ -107,7 +106,7 @@ class TrainClassifierTest(BaseTaskTest, JobUtilsMixin):
         with mock.patch(
                 'spacer.messages.TrainClassifierReturnMsg.__init__',
                 mock_train_msg_1):
-            collect_spacer_jobs()
+            queue_and_run_collect_spacer_jobs()
 
         clf_1 = self.source.get_latest_robot()
 
@@ -120,7 +119,7 @@ class TrainClassifierTest(BaseTaskTest, JobUtilsMixin):
             train_image_count=added_image_count, val_image_count=0)
         # Extract features.
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
         # Submit classifier.
         run_scheduled_jobs_until_empty()
 
@@ -129,7 +128,7 @@ class TrainClassifierTest(BaseTaskTest, JobUtilsMixin):
         with mock.patch(
                 'spacer.messages.TrainClassifierReturnMsg.__init__',
                 mock_train_msg_2):
-            collect_spacer_jobs()
+            queue_and_run_collect_spacer_jobs()
 
         clf_2 = self.source.get_latest_robot()
 
@@ -159,7 +158,7 @@ class TrainClassifierTest(BaseTaskTest, JobUtilsMixin):
 
         # Extract features
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
         # Train classifier; call internal job-collection methods to
         # get access to the job return msg.
         run_scheduled_jobs_until_empty()
@@ -226,7 +225,7 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin, JobUtilsMixin):
             train_image_count=spacer_config.MIN_TRAINIMAGES, val_image_count=1)
         # Extract features
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
 
         # Disable classification.
         self.source.enable_robot_classifier = False
@@ -250,7 +249,7 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin, JobUtilsMixin):
         self.upload_images_for_training(
             train_image_count=spacer_config.MIN_TRAINIMAGES, val_image_count=1)
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
 
         # But set CoralNet's requirement 1 higher than that image count.
         min_images = spacer_config.MIN_TRAINIMAGES + 2
@@ -274,9 +273,9 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin, JobUtilsMixin):
         self.upload_images_for_training(
             train_image_count=spacer_config.MIN_TRAINIMAGES, val_image_count=1)
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
 
         # Attempt to train another classifier without adding more images.
         run_scheduled_jobs_until_empty()
@@ -313,7 +312,7 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin, JobUtilsMixin):
                 self.user, img, {1: 'A', 2: 'A', 3: 'A', 4: 'A', 5: 'A'})
         # Extract features.
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
 
         # Try to train classifier.
         run_scheduled_jobs_until_empty()
@@ -339,7 +338,7 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin, JobUtilsMixin):
         self.upload_images_for_training(
             train_image_count=spacer_config.MIN_TRAINIMAGES, val_image_count=1)
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
 
         # Submit training, with a spacer function mocked to
         # throw an error.
@@ -349,7 +348,7 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin, JobUtilsMixin):
             run_scheduled_jobs_until_empty()
 
         # Collect training.
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
 
         self.assert_job_result_message(
             'train_classifier',
@@ -371,7 +370,7 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin, JobUtilsMixin):
         self.upload_images_for_training(
             train_image_count=spacer_config.MIN_TRAINIMAGES, val_image_count=1)
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
 
         # Train, with a spacer function mocked to
         # throw a SpacerInputError, which is less critical than other
@@ -380,7 +379,7 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin, JobUtilsMixin):
             raise SpacerInputError("A spacer input error")
         with mock.patch('spacer.tasks.train_classifier', raise_error):
             run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
 
         self.assert_job_result_message(
             'train_classifier',
@@ -398,7 +397,7 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin, JobUtilsMixin):
             train_image_count=spacer_config.MIN_TRAINIMAGES, val_image_count=1)
         # Extract features.
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
         # Train classifier.
         run_scheduled_jobs_until_empty()
 
@@ -408,7 +407,7 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin, JobUtilsMixin):
         classifier.delete()
 
         # Collect training.
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
 
         self.assert_job_result_message(
             'train_classifier',
@@ -430,9 +429,9 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin, JobUtilsMixin):
         self.upload_images_for_training(
             train_image_count=spacer_config.MIN_TRAINIMAGES, val_image_count=1)
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
 
         # Upload enough additional images for the next training to happen.
         old_image_count = spacer_config.MIN_TRAINIMAGES + 1
@@ -442,7 +441,7 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin, JobUtilsMixin):
         self.upload_images_for_training(
             train_image_count=added_image_count, val_image_count=0)
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
         run_scheduled_jobs_until_empty()
 
         with override_settings(NEW_CLASSIFIER_IMPROVEMENT_TH=1.4):
@@ -451,7 +450,7 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin, JobUtilsMixin):
             with mock.patch(
                     'spacer.messages.TrainClassifierReturnMsg.__init__',
                     mock_train_msg):
-                collect_spacer_jobs()
+                queue_and_run_collect_spacer_jobs()
 
         classifier = self.source.get_latest_robot(only_accepted=False)
         self.assertEqual(classifier.status, Classifier.REJECTED_ACCURACY)

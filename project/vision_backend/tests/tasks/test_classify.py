@@ -14,9 +14,8 @@ from jobs.models import Job
 from jobs.tasks import run_scheduled_jobs, run_scheduled_jobs_until_empty
 from jobs.tests.utils import JobUtilsMixin
 from ...models import Score
-from ...tasks import collect_spacer_jobs
 from ...utils import clear_features, queue_source_check
-from .utils import BaseTaskTest
+from .utils import BaseTaskTest, queue_and_run_collect_spacer_jobs
 
 
 class ClassifyImageTest(
@@ -37,7 +36,7 @@ class ClassifyImageTest(
         img = self.upload_image(self.user, self.source)
         # Process feature extraction results
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
         # Classify image
         run_scheduled_jobs_until_empty()
 
@@ -100,7 +99,7 @@ class ClassifyImageTest(
         img = self.upload_image(self.user, self.source)
         # Extract features
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
         # Classify
         run_scheduled_jobs_until_empty()
 
@@ -161,7 +160,7 @@ class ClassifyImageTest(
         img = self.upload_image(self.user, self.source)
         # Extract features
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
         # Classify with a particular set of scores
         with mock.patch(
                 'spacer.messages.ClassifyReturnMsg.__init__',
@@ -179,7 +178,7 @@ class ClassifyImageTest(
             queue_source_check(self.source.pk)
             # Train
             run_scheduled_jobs_until_empty()
-            collect_spacer_jobs()
+            queue_and_run_collect_spacer_jobs()
 
         # Re-classify with a different set of
         # scores so that specific points get their labels changed (and
@@ -255,7 +254,7 @@ class ClassifyImageTest(
         self.add_annotations(self.user, img, {1: 'A'})
         # Extract features
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
         # Classify
         run_scheduled_jobs_until_empty()
 
@@ -279,7 +278,7 @@ class ClassifyImageTest(
         img = self.upload_image_with_annotations('confirmed.png')
         # Extract features
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
         # Attempt to classify
         run_scheduled_jobs_until_empty()
 
@@ -301,7 +300,7 @@ class ClassifyImageTest(
         img = self.upload_image(self.user, self.source)
         # Extract features
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
         # Classify
         run_scheduled_jobs_until_empty()
 
@@ -325,10 +324,10 @@ class ClassifyImageTest(
         img = self.upload_image_with_dupe_points('has_dupe.png')
         # Extract features
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
         # Train
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
         # Classify
         run_scheduled_jobs_until_empty()
 
@@ -358,7 +357,7 @@ class ClassifyImageTest(
         img = self.upload_image(self.user, self.source)
         # Extract features
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
         # Classify
         with mock.patch(
                 'spacer.messages.ClassifyReturnMsg.__init__',
@@ -398,7 +397,7 @@ class AbortCasesTest(BaseTaskTest):
         img = self.upload_image(self.user, self.source)
         # Extract features
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
         # Queue classification of img
         run_scheduled_jobs()
         # Delete img
@@ -422,7 +421,7 @@ class AbortCasesTest(BaseTaskTest):
         img = self.upload_image(self.user, self.source)
         # Extract features
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
         # Queue classification of img
         run_scheduled_jobs()
         # Clear features
@@ -446,7 +445,7 @@ class AbortCasesTest(BaseTaskTest):
         img = self.upload_image(self.user, self.source)
         # Extract features
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
         # Queue classification of img
         run_scheduled_jobs()
         # Delete source's classifier
@@ -471,7 +470,7 @@ class AbortCasesTest(BaseTaskTest):
         img = self.upload_image(self.user, self.source)
         # Extract features
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
 
         def mock_update_annotation(
                 point, label, now_confirmed, user_or_robot_version):

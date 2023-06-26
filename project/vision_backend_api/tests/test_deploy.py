@@ -17,7 +17,7 @@ from jobs.tasks import run_scheduled_jobs
 from jobs.tests.utils import JobUtilsMixin
 from jobs.utils import queue_job
 from vision_backend.models import Classifier
-from vision_backend.tasks import collect_spacer_jobs
+from vision_backend.tests.tasks.utils import queue_and_run_collect_spacer_jobs
 from .utils import DeployBaseTest
 
 
@@ -534,7 +534,7 @@ class SuccessTest(DeployBaseTest):
         self.client.post(self.deploy_url, data, **self.request_kwargs)
         # Deploy
         self.run_scheduled_jobs_including_deploy()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
 
         deploy_job = ApiJob.objects.latest('pk')
 
@@ -669,7 +669,7 @@ class TaskErrorsTest(DeployBaseTest, ErrorReportTestMixin, JobUtilsMixin):
             raise ValueError("A spacer error")
         with mock.patch('spacer.tasks.classify_image', raise_error):
             run_scheduled_jobs()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
 
         job_unit = ApiJobUnit.objects.latest('pk')
 
@@ -706,7 +706,7 @@ class TaskErrorsTest(DeployBaseTest, ErrorReportTestMixin, JobUtilsMixin):
             raise SpacerInputError("Couldn't access URL")
         with mock.patch('spacer.tasks.classify_image', raise_error):
             run_scheduled_jobs()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
 
         job_unit = ApiJobUnit.objects.latest('pk')
 

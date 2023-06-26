@@ -9,8 +9,7 @@ from spacer.exceptions import SpacerInputError
 from errorlogs.tests.utils import ErrorReportTestMixin
 from jobs.tasks import run_scheduled_jobs, run_scheduled_jobs_until_empty
 from jobs.tests.utils import JobUtilsMixin
-from ...tasks import collect_spacer_jobs
-from .utils import BaseTaskTest
+from .utils import BaseTaskTest, queue_and_run_collect_spacer_jobs
 
 
 class ExtractFeaturesTest(BaseTaskTest, JobUtilsMixin):
@@ -32,7 +31,7 @@ class ExtractFeaturesTest(BaseTaskTest, JobUtilsMixin):
 
         # With LocalQueue, the result should be
         # available for collection immediately.
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
 
         # Features should be successfully extracted.
         self.assertTrue(img.features.extracted)
@@ -44,7 +43,7 @@ class ExtractFeaturesTest(BaseTaskTest, JobUtilsMixin):
 
         # Extract features + collect results.
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
 
         self.assertTrue(img1.features.extracted)
         self.assertTrue(img2.features.extracted)
@@ -60,7 +59,7 @@ class ExtractFeaturesTest(BaseTaskTest, JobUtilsMixin):
         img = self.upload_image_with_dupe_points('1.png')
         # Extract features + process result.
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
 
         self.assertTrue(img.features.extracted, "Features should be extracted")
 
@@ -91,7 +90,7 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin, JobUtilsMixin):
             train_image_count=spacer_config.MIN_TRAINIMAGES,
             val_image_count=1)
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
 
         # Train a classifier.
         run_scheduled_jobs_until_empty()
@@ -137,7 +136,7 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin, JobUtilsMixin):
         img.delete()
 
         # Collect feature extraction.
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
 
         self.assert_job_result_message(
             'extract_features',
@@ -157,7 +156,7 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin, JobUtilsMixin):
             run_scheduled_jobs()
 
         # Collect feature extraction.
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
 
         self.assert_job_result_message(
             'extract_features',
@@ -185,7 +184,7 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin, JobUtilsMixin):
             raise SpacerInputError("A spacer input error")
         with mock.patch('spacer.tasks.extract_features', raise_error):
             run_scheduled_jobs()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
 
         self.assert_job_result_message(
             'extract_features',
@@ -211,7 +210,7 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin, JobUtilsMixin):
         point.save()
 
         # Collect feature extraction.
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
 
         self.assert_job_result_message(
             'extract_features',

@@ -1,3 +1,4 @@
+from datetime import timedelta
 from unittest import mock
 
 from django.db import connections, transaction
@@ -61,6 +62,28 @@ class QueueJobTest(BaseTest):
             Job.objects.all().count(),
             2,
             "Should have queued the second job")
+
+    def test_start_date_update(self):
+        """
+        Test a pending job's scheduled start date getting updated by a
+        subsequent queue_job() call.
+        """
+        job = queue_job('name', 'arg', delay=timedelta(hours=1))
+        original_start_date = job.scheduled_start_date
+
+        queue_job('name', 'arg', delay=timedelta(hours=5))
+        job.refresh_from_db()
+        self.assertEqual(
+            job.scheduled_start_date, original_start_date,
+            msg="Start date shouldn't be updated when requesting a later date"
+        )
+
+        queue_job('name', 'arg', delay=timedelta(seconds=30))
+        job.refresh_from_db()
+        self.assertLess(
+            job.scheduled_start_date, original_start_date,
+            msg="Start date should be updated when requesting an earlier date"
+        )
 
     def test_attempt_number_increment(self):
         job = queue_job('name', 'arg', initial_status=Job.Status.FAILURE)
@@ -129,6 +152,33 @@ class StartPendingJobTest(BaseTest):
 
 class FinishJobTest(BaseTest, ErrorReportTestMixin):
 
+    def test_periodic_job_queues_another_run(self):
+        """
+        Test a periodic job getting another instance of it queued after the
+        current instance finishes.
+        """
+        def test_periodic():
+            """
+            By patching get_periodic_job_schedules() with this, we have this
+            name registered as a periodic job.
+            """
+            return dict(
+                name=(5*60, 0),
+            )
+
+        with mock.patch(
+            'jobs.utils.get_periodic_job_schedules', test_periodic
+        ):
+            job = queue_job(
+                'name', initial_status=Job.Status.IN_PROGRESS)
+            finish_job(job, success=True)
+
+        job.refresh_from_db()
+        self.assertEqual(job.status, Job.Status.SUCCESS)
+
+        # Another PENDING job should exist now
+        Job.objects.get(job_name='name', status=Job.Status.PENDING)
+
     def test_repeated_failure(self):
         # 4 fails in a row
         for _ in range(4):
@@ -141,8 +191,8 @@ class FinishJobTest(BaseTest, ErrorReportTestMixin):
         job = queue_job('name', 'arg', initial_status=Job.Status.IN_PROGRESS)
         finish_job(job, success=False, result_message="An error")
         self.assert_error_email(
-            "Job is failing repeatedly: name / arg",
-            ["Currently on attempt number 5. Error:\n\nAn error"],
+            "Job is failing repeatedly: name / arg, attempt 5",
+            ["Error info:\n\nAn error"],
         )
 
 

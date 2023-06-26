@@ -632,13 +632,16 @@ HUEY = {
     'results': False,
     # Whether to run tasks immediately or to schedule them as normal.
     'immediate': env.bool('HUEY_IMMEDIATE', default=DEBUG),
-    # Whether to run periodic tasks or not.
+    # Whether to run huey-registered periodic tasks or not.
     'consumer': {
         'periodic': env.bool('HUEY_CONSUMER_PERIODIC', default=True),
     }
 }
 
 # [CoralNet settings]
+# Whether to periodically run CoralNet-managed (not huey-registered)
+# periodic jobs. Can be useful to disable for certain tests.
+ENABLE_PERIODIC_JOBS = True
 # Additional API-throttling policy for async jobs.
 MAX_CONCURRENT_API_JOBS_PER_USER = 5
 # Days until we purge old async jobs.

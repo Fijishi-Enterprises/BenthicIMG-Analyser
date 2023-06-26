@@ -9,7 +9,7 @@ from rest_framework import status
 from api_core.models import ApiJob, ApiJobUnit
 from api_core.tests.utils import BaseAPIPermissionTest
 from jobs.models import Job
-from vision_backend.tasks import collect_spacer_jobs
+from vision_backend.tests.tasks.utils import queue_and_run_collect_spacer_jobs
 from .utils import DeployBaseTest
 
 
@@ -268,7 +268,7 @@ class DeployStatusEndpointTest(DeployBaseTest):
     def test_success(self):
         job = self.queue_deploy()
         self.run_scheduled_jobs_including_deploy()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
 
         response = self.get_job_status(job)
 
@@ -291,7 +291,7 @@ class DeployStatusEndpointTest(DeployBaseTest):
         # Mark both units' status as done: one success, one failure.
         #
         # Note: We must bind the units to separate names, since assigning an
-        # attribute using an index access (like units[0].status = 'SC')
+        # attribute using an index access (like units[0].status = ...)
         # doesn't seem to work as desired (the attribute doesn't change).
         unit_1, unit_2 = ApiJobUnit.objects.filter(parent=job)
         unit_1.internal_job.status = Job.Status.SUCCESS

@@ -9,9 +9,9 @@ import random
 from unittest import mock
 import urllib.parse
 from urllib.parse import quote as url_quote
+from typing import Any, Callable
 
-from spacer.messages import ClassifyReturnMsg
-
+import bs4
 from PIL import Image as PILImage
 from selenium import webdriver
 from selenium.common.exceptions import NoAlertPresentException
@@ -32,6 +32,7 @@ from django.test.runner import DiscoverRunner
 from django.urls import reverse
 from django.utils.html import escape as html_escape
 from huey.contrib.djhuey import HUEY
+from spacer.messages import ClassifyReturnMsg
 
 from images.model_utils import PointGen
 from images.models import Source, Point, Image
@@ -986,30 +987,76 @@ class BasePermissionTest(ClientTest):
                         "Unsupported deny_type: {}".format(deny_type))
 
 
-class HtmlTestMixin(SimpleTestCase):
+class HtmlAssertionsMixin:
 
-    def assert_soup_tr_contents_equal(self, soup_tr, expected_cell_contents):
-        """
-        An element of expected_cell_contents can be None to skip checking
-        the content of that cell.
-        """
-        cells = soup_tr.find_all('td')
-        self.assertEqual(len(cells), len(expected_cell_contents))
+    def _assert_row_values(self, row, expected_row, column_names, row_number):
+        cells = row.select('td')
+        cell_contents = [
+            ''.join([str(item) for item in cell.contents])
+            for cell in cells
+        ]
 
-        for cell_number, (cell, expected_content) \
-                in enumerate(zip(cells, expected_cell_contents), 1):
+        if isinstance(expected_row, dict):
+            # expected_row only has dict entries for the cell values
+            # that are to be checked. dict keys are the column names.
+            actual_values = dict(zip(column_names, cell_contents))
 
-            if expected_content is None:
-                # Not checking this cell's content
-                continue
+            for key, expected_value in expected_row.items():
+                self.assertHTMLEqual(
+                    actual_values.get(key),
+                    # Tolerate integers as expected content
+                    str(expected_value),
+                    msg=f"Body row {row_number}, {key} cell"
+                        f" should have expected content"
+                )
+        else:
+            # expected_row is a list of all the cells' values.
+            for cell_number, actual_value, expected_value in zip(
+                range(1, 1+len(cell_contents)), cell_contents, expected_row
+            ):
+                # Any element specified as None is considered a
+                # "don't care" value which shouldn't be checked.
+                if expected_value is None:
+                    continue
 
-            actual_content = ''.join(
-                [str(item) for item in cell.contents])
-            self.assertHTMLEqual(
-                actual_content,
-                # Tolerate integers as expected content
-                str(expected_content),
-                msg=f"Cell {cell_number} not equal")
+                self.assertHTMLEqual(
+                    actual_value,
+                    str(expected_value),
+                    msg=f"Body row {row_number}, cell {cell_number}"
+                        f" should have expected content"
+                )
+
+    def assert_table_values(
+        self, table_soup: bs4.element.Tag,
+        expected_values: list[dict|list],
+    ):
+        # Get column names from the th elements in the thead.
+        column_names = [th.text for th in table_soup.select('thead th')]
+        # Only check body rows (from the tbody part of the table).
+        body_rows = table_soup.select('tbody > tr')
+
+        self.assertEqual(
+            len(body_rows), len(expected_values),
+            msg="Should have expected number of table body rows")
+
+        for row_number, row, expected_row in zip(
+            range(1, 1+len(body_rows)), body_rows, expected_values
+        ):
+            self._assert_row_values(
+                row, expected_row, column_names, row_number)
+
+    def assert_table_row_values(
+        self, table_soup: bs4.element.Tag,
+        expected_values: dict|list,
+        row_number: int,
+    ):
+        # Get column names from the th elements in the thead.
+        column_names = [th.text for th in table_soup.select('thead th')]
+        body_rows = table_soup.select('tbody > tr')
+        row = body_rows[row_number - 1]
+
+        self._assert_row_values(
+            row, expected_values, column_names, row_number)
 
 
 class ManagementCommandTest(ClientTest):
@@ -1276,3 +1323,39 @@ def add_robot_annotations(robot, image, annotations=None):
 
     image.features.classified = True
     image.features.save()
+
+
+def scrambled_run(
+    items_sort_order: list[Callable[[int], Any]]
+) -> tuple[list[int], dict[int, Any]]:
+    """
+    Utility function for testing sort-order.
+
+    Takes a list of functions which do some kind of setup action
+    for some sortable items (e.g. insert the items into the database).
+    The functions' order should correspond to the expected sort order of
+    the items.
+    This utility function runs the given functions in a scrambled order,
+    guaranteeing that the items do not start off in the expected order
+    before the sorting action happens.
+    Returns 1) the run order, and 2) return values of the functions
+    in run order.
+    """
+    item_count = len(items_sort_order)
+    if item_count <= 2:
+        raise ValueError("Can't scramble 2 or fewer items.")
+
+    # Example: [2, 4, 6, 7, 5, 3, 1]
+    # For all item_count >= 3, this is not [1, ..., item_count] or the
+    # reverse of that.
+    # And for all item_count >= 4, it's not a shifted version, either.
+    run_order = (
+        list(range(2, item_count+1, 2))
+        + list(reversed(range(1, item_count+1, 2)))
+    )
+
+    return_values = dict()
+    for run_number, f in sorted(zip(run_order, items_sort_order)):
+        return_values[run_number] = f(run_number)
+
+    return run_order, return_values

@@ -45,6 +45,9 @@ class BaseJobForm(forms.Form):
             return self[field_name].initial
 
     def get_jobs(self):
+        if self.is_bound and not self.is_valid():
+            return Job.objects.none()
+
         jobs = Job.objects.all()
 
         if self.source_id is None:

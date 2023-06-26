@@ -1,11 +1,8 @@
-from abc import ABC
-from datetime import timedelta
-from typing import Literal
+from abc import ABC, abstractmethod
 
 from django.conf import settings
 from django.contrib.auth.decorators import permission_required
 from django.shortcuts import get_object_or_404, render
-from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views import View
 
@@ -21,31 +18,38 @@ def tag_to_readable(tag):
 
 
 class JobListView(View, ABC):
-    source_id: int | None | Literal['all']
     template_name: str
     form: JobSearchForm = None
 
     def get(self, request, **kwargs):
-        if request.GET:
-            self.form = JobSearchForm(request.GET, source_id=self.source_id)
-            if not self.form.is_valid():
-                context = dict(
-                    job_search_form=self.form,
-                    search_error="Search parameters were invalid.")
-                return render(request, self.template_name, context)
-        else:
-            self.form = JobSearchForm(source_id=self.source_id)
+        context = dict()
 
-        context = dict(job_search_form=self.form)
-        context |= self.context_if_valid(request)
+        if request.GET:
+            self.form = self.get_form(request.GET)
+            if not self.form.is_valid():
+                context['search_error'] = "Search parameters were invalid."
+        else:
+            self.form = self.get_form()
+
+        context['job_search_form'] = self.form
+        context |= self.get_context(request)
 
         return render(request, self.template_name, context)
 
-    def context_if_valid(self, request):
+    @abstractmethod
+    def get_form(self, data=None):
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_context(self, request):
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def has_source_column(self):
         raise NotImplementedError
 
     def get_job_list_context(self, request, jobs, job_counts):
-        has_source_column = self.source_id == 'all'
         page_jobs, query_string = paginate(
             results=jobs,
             items_per_page=settings.JOBS_PER_PAGE,
@@ -60,12 +64,10 @@ class JobListView(View, ABC):
             'status', 'result_message',
             'persist', 'modify_date', 'scheduled_start_date',
         ]
-        if has_source_column:
+        if self.has_source_column:
             fields += ['source', 'source__name']
 
         status_choices_labels = dict(Job.Status.choices)
-
-        now = timezone.now()
 
         for values in page_jobs.object_list.values(*fields):
             job_entry = dict(
@@ -78,20 +80,7 @@ class JobListView(View, ABC):
                 scheduled_start_date=values['scheduled_start_date'],
             )
 
-            if values['status'] == Job.Status.IN_PROGRESS:
-                job_entry['duration'] = now - values['scheduled_start_date']
-            elif values['status'] in [Job.Status.SUCCESS, Job.Status.FAILURE]:
-                job_entry['duration'] = \
-                    values['modify_date'] - values['scheduled_start_date']
-            else:
-                # PENDING
-                if values['scheduled_start_date'] > now:
-                    job_entry['time_until'] = \
-                        values['scheduled_start_date'] - now
-                else:
-                    job_entry['time_until'] = timedelta(seconds=0)
-
-            if has_source_column:
+            if self.has_source_column:
                 job_entry['source_id'] = values['source']
                 job_entry['source_name'] = values['source__name']
 
@@ -120,42 +109,25 @@ class JobListView(View, ABC):
             job_counts=job_counts,
         )
 
-    def get_source_context(self):
-        source = get_object_or_404(Source, id=self.source_id)
-
-        try:
-            latest_check = source.job_set.filter(
-                job_name='check_source',
-                status__in=[
-                    Job.Status.SUCCESS,
-                    Job.Status.FAILURE,
-                    Job.Status.IN_PROGRESS,
-                ]
-            ).latest('pk')
-            check_in_progress = (latest_check.status == Job.Status.IN_PROGRESS)
-        except Job.DoesNotExist:
-            latest_check = None
-            check_in_progress = False
-
-        return dict(
-            source=source,
-            latest_check=latest_check,
-            check_in_progress=check_in_progress,
-        )
-
 
 @method_decorator(
     permission_required('is_superuser'),
     name='dispatch')
 class AllJobsListView(JobListView):
     """List of all jobs: from any source or no source."""
-    source_id = 'all'
     template_name = 'jobs/all_jobs_list.html'
 
-    def context_if_valid(self, request):
+    def get_form(self, data=None):
+        return JobSearchForm(data=data, source_id='all')
+
+    def get_context(self, request):
         return self.get_job_list_context(
             request, self.form.get_jobs(), self.form.get_job_counts()
         )
+
+    @property
+    def has_source_column(self):
+        return True
 
 
 @method_decorator(
@@ -172,14 +144,39 @@ class SourceJobListView(JobListView):
         self.source_id = self.kwargs['source_id']
         return super().dispatch(*args, **kwargs)
 
-    def context_if_valid(self, request):
-        context = (
-            self.get_job_list_context(
-                request, self.form.get_jobs(), self.form.get_job_counts()
-            )
-            | self.get_source_context()
+    def get_form(self, data=None):
+        return JobSearchForm(data=data, source_id=self.source_id)
+
+    def get_context(self, request):
+        source = get_object_or_404(Source, id=self.source_id)
+
+        try:
+            latest_check = source.job_set.filter(
+                job_name='check_source',
+                status__in=[
+                    Job.Status.SUCCESS,
+                    Job.Status.FAILURE,
+                    Job.Status.IN_PROGRESS,
+                ]
+            ).latest('pk')
+            check_in_progress = (latest_check.status == Job.Status.IN_PROGRESS)
+        except Job.DoesNotExist:
+            latest_check = None
+            check_in_progress = False
+
+        context = dict(
+            source=source,
+            latest_check=latest_check,
+            check_in_progress=check_in_progress,
+        )
+        context |= self.get_job_list_context(
+            request, self.form.get_jobs(), self.form.get_job_counts()
         )
         return context
+
+    @property
+    def has_source_column(self):
+        return False
 
 
 @method_decorator(
@@ -189,13 +186,19 @@ class NonSourceJobListView(JobListView):
     """
     List of jobs not belonging to a source.
     """
-    source_id = None
     template_name = 'jobs/non_source_job_list.html'
 
-    def context_if_valid(self, request):
+    def get_form(self, data=None):
+        return JobSearchForm(data=data, source_id=None)
+
+    def get_context(self, request):
         return self.get_job_list_context(
             request, self.form.get_jobs(), self.form.get_job_counts()
         )
+
+    @property
+    def has_source_column(self):
+        return False
 
 
 @method_decorator(

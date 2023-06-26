@@ -6,6 +6,10 @@ For general instructions on how to update a development environment of CoralNet,
 For info about the semantic versioning used here, see `docs/versions.rst`.
 
 
+## [1.6](https://github.com/beijbom/coralnet/tree/1.6)
+
+- New migrations to run for `jobs`.
+
 ## [1.5](https://github.com/beijbom/coralnet/tree/1.5)
 
 - Python version has been updated from 3.6 to 3.10. See Server Operation > Upgrading Python in the CoralNet docs.

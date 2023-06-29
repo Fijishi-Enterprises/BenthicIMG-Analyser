@@ -4,15 +4,13 @@ import spacer.config as spacer_config
 
 from images.model_utils import PointGen
 from jobs.tasks import run_scheduled_jobs_until_empty
-from jobs.utils import queue_job
+from jobs.tests.utils import queue_and_run_job
 from lib.tests.utils import ClientTest
 from upload.tests.utils import UploadAnnotationsCsvTestMixin
-from ...tasks import collect_spacer_jobs
 
 
 def queue_and_run_collect_spacer_jobs():
-    queue_job('collect_spacer_jobs')
-    collect_spacer_jobs()
+    queue_and_run_job('collect_spacer_jobs')
 
 
 @override_settings(

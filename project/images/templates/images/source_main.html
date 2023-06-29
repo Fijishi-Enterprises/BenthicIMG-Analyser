@@ -83,8 +83,8 @@ $(document).ready(function() {
                     <li>Machine annotator: Disabled (can enable upon <a href="{{ forum_link }}">request</a>)</li>
                 {% else %}
                 {% if robot_stats.has_robot %}
-                    <li>Last classifier saved: {{robot_stats.create_date_saved}}</li>
-                    <li>Last classifier trained: {{robot_stats.create_date_trained}}</li>
+                    <li>Last classifier saved: {{robot_stats.last_classifier_saved_date}}</li>
+                    <li>Last classifier trained: {{robot_stats.last_classifier_trained_date}}</li>
                 {% endif %}
             {% endif %}
             </ul>

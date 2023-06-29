@@ -375,8 +375,8 @@ job_starter = JobStarterDecorator
 _job_run_functions = dict()
 
 
-def get_job_run_functions():
-    if len(_job_run_functions) == 0:
+def get_job_run_function(job_name):
+    if job_name not in _job_run_functions:
         # Auto-discover.
         # 'Running' the tasks modules should populate the dict.
         #
@@ -385,11 +385,16 @@ def get_job_run_functions():
         # are not available to the web server threads.
         autodiscover_modules('tasks')
 
-    return _job_run_functions
+    return _job_run_functions[job_name]
 
 
 def set_job_run_function(name, task):
     _job_run_functions[name] = task
+
+
+def run_job(job):
+    starter_task = get_job_run_function(job.job_name)
+    starter_task(*Job.identifier_to_args(job.arg_identifier))
 
 
 _periodic_job_schedules = dict()

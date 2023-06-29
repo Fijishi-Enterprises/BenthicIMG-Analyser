@@ -29,12 +29,13 @@ def test(arg):
     return str(arg)
 
 
-def test_job_available():
+def test_job_available(job_name):
     """
-    By patching get_job_run_functions() with this, we have a no-op task
+    By patching get_job_run_function() with this, we have a no-op task
     available called 'test'.
     """
-    return dict(test=test)
+    if job_name == 'test':
+        return test
 
 
 class RunScheduledJobsTest(BaseTest):
@@ -42,7 +43,7 @@ class RunScheduledJobsTest(BaseTest):
     @staticmethod
     def run_scheduled_jobs_and_get_result():
         with mock.patch(
-            'jobs.tasks.get_job_run_functions', test_job_available
+            'jobs.utils.get_job_run_function', test_job_available
         ):
             run_scheduled_jobs()
 

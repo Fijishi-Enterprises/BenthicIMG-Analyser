@@ -397,7 +397,9 @@ def source_robot_status(source_id):
     status['nbr_unclassified_images'] = Image.objects.filter(source=source, features__classified=False, annoinfo__confirmed=False).count()
     status['nbr_human_annotated_images'] = Image.objects.filter(source=source, annoinfo__confirmed=True).count()
 
-    status['nbr_in_current_model'] = source.get_latest_robot().nbr_train_images if status['has_robot'] else 0
+    status['nbr_in_current_model'] = (
+        source.get_current_classifier().nbr_train_images
+        if status['has_robot'] else 0)
     if source.has_robot():
         status['nbr_images_until_next_robot'] = status['nbr_in_current_model'] * settings.NEW_CLASSIFIER_TRAIN_TH - status['nbr_human_annotated_images']
     else:

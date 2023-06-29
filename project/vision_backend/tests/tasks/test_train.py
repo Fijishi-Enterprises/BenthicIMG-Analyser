@@ -11,7 +11,8 @@ from spacer.exceptions import SpacerInputError
 from errorlogs.tests.utils import ErrorReportTestMixin
 from images.model_utils import PointGen
 from jobs.tasks import run_scheduled_jobs_until_empty
-from jobs.tests.utils import JobUtilsMixin
+from jobs.tests.utils import (
+    JobUtilsMixin, queue_and_run_job, run_pending_job)
 from ...models import Classifier
 from ...queues import get_queue_class
 from ...task_helpers import handle_spacer_result
@@ -19,6 +20,27 @@ from .utils import BaseTaskTest, queue_and_run_collect_spacer_jobs
 
 
 class TrainClassifierTest(BaseTaskTest, JobUtilsMixin):
+
+    def test_source_check(self):
+        # Provide enough data for training. Extract features.
+        val_image_count = 1
+        self.upload_images_for_training(
+            train_image_count=spacer_config.MIN_TRAINIMAGES,
+            val_image_count=val_image_count)
+        run_scheduled_jobs_until_empty()
+        queue_and_run_collect_spacer_jobs()
+
+        run_pending_job('check_source', self.source.pk)
+        self.assert_job_result_message(
+            'check_source',
+            "Queued training")
+
+        queue_and_run_job(
+            'check_source', self.source.pk,
+            source_id=self.source.pk)
+        self.assert_job_result_message(
+            'check_source',
+            "Waiting for training to finish")
 
     def test_success(self):
         # Provide enough data for training. Extract features.
@@ -32,10 +54,6 @@ class TrainClassifierTest(BaseTaskTest, JobUtilsMixin):
         # Train a classifier
         run_scheduled_jobs_until_empty()
 
-        self.assert_job_result_message(
-            'check_source',
-            "Tried to queue training")
-
         # This source should now have a classifier (though training hasn't
         # been collected yet)
         self.assertTrue(
@@ -47,7 +65,7 @@ class TrainClassifierTest(BaseTaskTest, JobUtilsMixin):
         # Now we should have a trained classifier whose accuracy is the best so
         # far (due to having no previous classifiers), and thus it should have
         # been marked as accepted
-        latest_classifier = self.source.get_latest_robot()
+        latest_classifier = self.source.classifier_set.latest('pk')
         self.assertEqual(latest_classifier.status, Classifier.ACCEPTED)
 
         # Also check that the actual classifier is created in storage.
@@ -108,7 +126,7 @@ class TrainClassifierTest(BaseTaskTest, JobUtilsMixin):
                 mock_train_msg_1):
             queue_and_run_collect_spacer_jobs()
 
-        clf_1 = self.source.get_latest_robot()
+        clf_1 = self.source.get_current_classifier()
 
         # Upload enough additional images for the next training to happen.
         old_image_count = spacer_config.MIN_TRAINIMAGES + 1
@@ -130,7 +148,7 @@ class TrainClassifierTest(BaseTaskTest, JobUtilsMixin):
                 mock_train_msg_2):
             queue_and_run_collect_spacer_jobs()
 
-        clf_2 = self.source.get_latest_robot()
+        clf_2 = self.source.get_current_classifier()
 
         self.assertNotEqual(clf_1.pk, clf_2.pk, "Should have a new classifier")
         self.assertGreater(
@@ -209,7 +227,7 @@ class TrainClassifierTest(BaseTaskTest, JobUtilsMixin):
 
         # Check that there's an accepted classifier.
 
-        latest_classifier = self.source.get_latest_robot()
+        latest_classifier = self.source.classifier_set.latest('pk')
         self.assertEqual(latest_classifier.status, Classifier.ACCEPTED)
 
 
@@ -317,7 +335,7 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin, JobUtilsMixin):
         # Try to train classifier.
         run_scheduled_jobs_until_empty()
 
-        classifier = self.source.get_latest_robot(only_accepted=False)
+        classifier = self.source.classifier_set.latest('pk')
         self.assertEqual(
             classifier.status, Classifier.LACKING_UNIQUE_LABELS,
             msg="Classifier status should be correct")
@@ -402,7 +420,7 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin, JobUtilsMixin):
         run_scheduled_jobs_until_empty()
 
         # Delete classifier.
-        classifier = self.source.get_latest_robot(only_accepted=False)
+        classifier = self.source.classifier_set.latest('pk')
         classifier_id = classifier.pk
         classifier.delete()
 
@@ -452,7 +470,7 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin, JobUtilsMixin):
                     mock_train_msg):
                 queue_and_run_collect_spacer_jobs()
 
-        classifier = self.source.get_latest_robot(only_accepted=False)
+        classifier = self.source.classifier_set.latest('pk')
         self.assertEqual(classifier.status, Classifier.REJECTED_ACCURACY)
 
         self.assert_job_result_message(

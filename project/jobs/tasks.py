@@ -9,11 +9,11 @@ from huey.contrib.djhuey import HUEY
 from .models import Job
 from .utils import (
     full_job,
-    get_job_run_functions,
     get_periodic_job_schedules,
     job_runner,
     next_run_delay,
     queue_job,
+    run_job,
 )
 
 
@@ -41,8 +41,7 @@ def run_scheduled_jobs():
     jobs_to_run = get_scheduled_jobs()
 
     for job in jobs_to_run:
-        starter_task = get_job_run_functions()[job.job_name]
-        starter_task(*Job.identifier_to_args(job.arg_identifier))
+        run_job(job)
 
     # Build result message
 

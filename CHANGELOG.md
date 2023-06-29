@@ -8,7 +8,7 @@ For info about the semantic versioning used here, see `docs/versions.rst`.
 
 ## [1.6](https://github.com/beijbom/coralnet/tree/1.6)
 
-- New migrations to run for `jobs`.
+- New migrations to run for `jobs` and `vision_backend`.
 
 ## [1.5](https://github.com/beijbom/coralnet/tree/1.5)
 

@@ -1,15 +1,23 @@
 import html
+import math
 import re
 from unittest import skip
 
 from bs4 import BeautifulSoup
+from django.template.defaultfilters import date as date_template_filter
 from django.test import override_settings
 from django.urls import reverse
+from django.utils import timezone
 
-from images.model_utils import PointGen
-from images.models import Source
+from jobs.tasks import run_scheduled_jobs_until_empty
 from lib.tests.utils import BasePermissionTest, ClientTest
 from newsfeed.models import NewsItem
+from vision_backend.models import Classifier
+from vision_backend.tests.tasks.utils import (
+    BaseTaskTest, queue_and_run_collect_spacer_jobs)
+from vision_backend.utils import queue_source_check
+from ..model_utils import PointGen
+from ..models import Source
 
 
 class PermissionTest(BasePermissionTest):
@@ -390,7 +398,7 @@ class SourceMainTest(ClientTest):
             ),
             response.content.decode())
 
-    def test_source_fields_box_1(self):
+    def test_source_fields_box_1_basics(self):
         source = self.create_source(
             self.user,
             min_x=0, max_x=100, min_y=5, max_y=95,
@@ -399,13 +407,10 @@ class SourceMainTest(ClientTest):
             confidence_threshold=80,
             feature_extractor_setting='efficientnet_b0_ver1',
             description="This is a\nmultiline description.")
-        self.create_robot(source)
 
         self.client.force_login(self.user)
         response = self.client.get(reverse('source_main', args=[source.pk]))
 
-        self.assertContains(response, "Last classifier saved:")
-        self.assertContains(response, "Last classifier trained:")
         self.assertContains(
             response,
             "Default image annotation area: X: 0 - 100% / Y: 5 - 95%")
@@ -417,6 +422,18 @@ class SourceMainTest(ClientTest):
         self.assertInHTML(
             '<br><br>This is a<br>multiline description.',
             response.content.decode())
+
+    def test_source_fields_box_1_without_robot(self):
+        """
+        With-robot test is in another class which better
+        supports running tasks.
+        """
+        source = self.create_source(self.user)
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('source_main', args=[source.pk]))
+
+        self.assertNotContains(response, "Last classifier saved:")
+        self.assertNotContains(response, "Last classifier trained:")
 
     def test_source_fields_box_2(self):
         source = self.create_source(
@@ -587,3 +604,71 @@ class SourceMainTest(ClientTest):
         # Don't show news from other sources
         self.assertNotContains(
             response, reverse('newsfeed_details', args=[other_news_item.pk]))
+
+
+class SourceMainRobotTest(BaseTaskTest):
+
+    @staticmethod
+    def date_display(date):
+        return date_template_filter(timezone.localtime(date), 'N j, Y, P')
+
+    def test_source_fields_with_robot(self):
+        # Train and accept a classifier.
+        self.upload_data_and_train_classifier()
+
+        classifier_1 = self.source.classifier_set.latest('pk')
+        self.assertEqual(classifier_1.status, Classifier.ACCEPTED)
+
+        # Train and reject a classifier. Override settings so that
+        # 1) we don't need more images to train a new classifier, and
+        # 2) it's impossible to improve accuracy enough to accept
+        # another classifier.
+        with override_settings(
+                NEW_CLASSIFIER_TRAIN_TH=0.0001,
+                NEW_CLASSIFIER_IMPROVEMENT_TH=math.inf):
+            # Source was considered all caught up earlier, so need to queue
+            # another check.
+            queue_source_check(self.source.pk)
+            # Train
+            run_scheduled_jobs_until_empty()
+            queue_and_run_collect_spacer_jobs()
+
+        classifier_2 = self.source.classifier_set.latest('pk')
+        self.assertEqual(classifier_2.status, Classifier.REJECTED_ACCURACY)
+
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse('source_main', args=[self.source.pk]))
+
+        save_date = classifier_1.train_job.modify_date
+        self.assertContains(
+            response,
+            f"Last classifier saved: {self.date_display(save_date)}")
+        train_date = classifier_2.train_job.modify_date
+        self.assertContains(
+            response,
+            f"Last classifier trained: {self.date_display(train_date)}")
+
+    def test_source_fields_with_robot_without_job(self):
+        # Train and accept a classifier.
+        self.upload_data_and_train_classifier()
+
+        classifier = self.source.classifier_set.latest('pk')
+        self.assertEqual(classifier.status, Classifier.ACCEPTED)
+
+        # Delete the train job associated with the classifier,
+        # so that the classifier's create date must be used as
+        # a fallback for the train-finish date.
+        classifier.train_job.delete()
+
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse('source_main', args=[self.source.pk]))
+
+        date = classifier.create_date
+        self.assertContains(
+            response,
+            f"Last classifier saved: {self.date_display(date)}")
+        self.assertContains(
+            response,
+            f"Last classifier trained: {self.date_display(date)}")

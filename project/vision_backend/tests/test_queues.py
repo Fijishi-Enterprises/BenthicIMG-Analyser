@@ -149,7 +149,7 @@ class QueueBasicTest(BaseTaskTest, JobUtilsMixin):
         self.assert_job_result_message(
             'collect_spacer_jobs', "Job count: 1 SUCCEEDED")
         # Check for successful result handling
-        latest_classifier = self.source.get_latest_robot()
+        latest_classifier = self.source.classifier_set.latest('pk')
         self.assertEqual(latest_classifier.status, Classifier.ACCEPTED)
 
     def do_test_job_gets_consumed(self):

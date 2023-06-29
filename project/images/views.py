@@ -25,6 +25,7 @@ from lib.decorators import (
     source_visibility_required)
 from newsfeed.models import NewsItem
 from visualization.utils import image_search_kwargs_to_queryset
+from vision_backend.models import Classifier
 from vision_backend.utils import reset_features
 from . import utils
 from .forms import ImageSourceForm, MetadataForm, PointGenForm, SourceChangePermissionForm, SourceInviteForm, SourceRemoveUserForm
@@ -205,10 +206,14 @@ def source_main(request, source_id):
             })
         robot_stats['backend_plot_data'] = backend_plot_data
         robot_stats['has_robot'] = True
-        robot_stats['create_date_saved'] = source.get_latest_robot(
-            only_accepted=True).create_date
-        robot_stats['create_date_trained'] = source.get_latest_robot(
-            only_accepted=False).create_date
+
+        robot_stats['last_classifier_saved_date'] = \
+            source.get_current_classifier().train_completion_date
+
+        trained_classifiers = source.classifier_set.filter(
+            status__in=[Classifier.ACCEPTED, Classifier.REJECTED_ACCURACY])
+        robot_stats['last_classifier_trained_date'] = \
+            trained_classifiers.latest('pk').train_completion_date
     else:
         robot_stats['has_robot'] = False
 

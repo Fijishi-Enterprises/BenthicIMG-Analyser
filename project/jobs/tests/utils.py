@@ -1,7 +1,7 @@
 from unittest.case import TestCase
 
 from ..models import Job
-from ..utils import queue_job
+from ..utils import queue_job, run_job
 
 
 def queue_job_with_modify_date(*args, modify_date=None, **kwargs):
@@ -12,6 +12,27 @@ def queue_job_with_modify_date(*args, modify_date=None, **kwargs):
     Job.objects.filter(pk=job.pk).update(modify_date=modify_date)
 
     return job
+
+
+def queue_and_run_job(*args, **kwargs):
+    job = queue_job(*args, **kwargs)
+    run_job(job)
+
+
+def run_pending_job(job_name, arg_identifier):
+    """
+    Sometimes we want to run only a specific job without touching others
+    that are pending.
+
+    This is much less rigorous against race conditions etc. than
+    start_pending_job(), and should only be used for testing.
+    """
+    job = Job.objects.get(
+        job_name=job_name,
+        arg_identifier=arg_identifier,
+        status=Job.Status.PENDING,
+    )
+    run_job(job)
 
 
 class JobUtilsMixin(TestCase):

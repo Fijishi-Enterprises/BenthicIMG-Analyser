@@ -92,22 +92,32 @@ def check_source(source_id):
 
         # Try to queue extractions (will not be queued if an extraction for
         # the same image is already active)
+        num_queued_extractions = 0
         for image in not_extracted:
-            queue_job('extract_features', image.pk, source_id=source_id)
+            job = queue_job('extract_features', image.pk, source_id=source_id)
+            if job:
+                num_queued_extractions += 1
+
         # If there are extractions to be done, then having that overlap with
-        # training can lead to desynced rowcols, so we worry about training
-        # later.
-        return "Tried to queue feature extraction(s)"
+        # training can lead to desynced rowcols, so we return and worry about
+        # training later.
+        if num_queued_extractions > 0:
+            return f"Queued {num_queued_extractions} feature extraction(s)"
+        else:
+            return "Waiting for feature extraction(s) to finish"
 
     # Classifier training
 
     need_new_robot, reason = source.need_new_robot()
     if need_new_robot:
         # Try to queue training
-        queue_job('train_classifier', source_id, source_id=source_id)
-        # Don't worry about classification until the classifier is
-        # up to date.
-        return "Tried to queue training"
+        job = queue_job('train_classifier', source_id, source_id=source_id)
+        # We return and don't worry about classification until the classifier
+        # is up to date.
+        if job:
+            return "Queued training"
+        else:
+            return "Waiting for training to finish"
 
     # Image classification
 
@@ -121,7 +131,7 @@ def check_source(source_id):
         features__classified=False,
     )
     latest_classifier_annotations = source.annotation_set \
-        .filter(robot_version=source.get_latest_robot())
+        .filter(robot_version=source.get_current_classifier())
 
     if latest_classifier_annotations.exists():
         # The classifier version of an annotation only gets updated if the
@@ -142,9 +152,17 @@ def check_source(source_id):
 
     if images_to_classify.exists():
         # Try to queue classifications
+        num_queued_classifications = 0
         for image in images_to_classify:
-            queue_job('classify_features', image.pk, source_id=source_id)
-        return "Tried to queue classification(s)"
+            job = queue_job('classify_features', image.pk, source_id=source_id)
+            if job:
+                num_queued_classifications += 1
+
+        if num_queued_classifications > 0:
+            return (
+                f"Queued {num_queued_classifications} image classification(s)")
+        else:
+            return "Waiting for image classification(s) to finish"
 
     # If we got here, then the source should be all caught up, and there's
     # no need to queue another check for now.
@@ -199,7 +217,8 @@ def submit_classifier(source_id, job_id):
     images = Image.objects.filter(source=source,
                                   annoinfo__confirmed=True,
                                   features__extracted=True)[:IMAGE_LIMIT]
-    classifier = Classifier(source=source, nbr_train_images=len(images))
+    classifier = Classifier(
+        source=source, train_job_id=job_id, nbr_train_images=len(images))
     classifier.save()
 
     logger.info(f"Preparing: {classifier}")
@@ -321,7 +340,7 @@ def classify_image(image_id):
             f"Image {image_id} needs to have features extracted"
             f" before being classified.")
 
-    classifier = img.source.get_latest_robot()
+    classifier = img.source.get_current_classifier()
     if not classifier:
         raise JobError(
             f"Image {image_id} can't be classified;"

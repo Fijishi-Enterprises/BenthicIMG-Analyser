@@ -4,8 +4,6 @@ from django.db import models
 from django.db.models import Q
 from django.utils import timezone
 
-from images.models import Source
-
 
 class Job(models.Model):
     """
@@ -21,7 +19,8 @@ class Job(models.Model):
     arg_identifier = models.CharField(max_length=100, blank=True)
 
     # Source this Job applies to, if applicable.
-    source = models.ForeignKey(Source, null=True, on_delete=models.CASCADE)
+    source = models.ForeignKey(
+        'images.Source', null=True, on_delete=models.CASCADE)
 
     class Status(models.TextChoices):
         PENDING = 'pending', "Pending"

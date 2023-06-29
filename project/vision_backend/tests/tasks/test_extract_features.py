@@ -8,11 +8,35 @@ from spacer.exceptions import SpacerInputError
 
 from errorlogs.tests.utils import ErrorReportTestMixin
 from jobs.tasks import run_scheduled_jobs, run_scheduled_jobs_until_empty
-from jobs.tests.utils import JobUtilsMixin
+from jobs.tests.utils import JobUtilsMixin, queue_and_run_job, run_pending_job
 from .utils import BaseTaskTest, queue_and_run_collect_spacer_jobs
 
 
 class ExtractFeaturesTest(BaseTaskTest, JobUtilsMixin):
+
+    def test_source_check(self):
+        self.upload_image(self.user, self.source)
+        self.upload_image(self.user, self.source)
+
+        run_pending_job('check_source', self.source.pk)
+        self.assert_job_result_message(
+            'check_source',
+            "Queued 2 feature extraction(s)")
+
+        self.upload_image(self.user, self.source)
+
+        run_pending_job('check_source', self.source.pk)
+        # Should not re-queue the other extractions
+        self.assert_job_result_message(
+            'check_source',
+            "Queued 1 feature extraction(s)")
+
+        queue_and_run_job(
+            'check_source', self.source.pk,
+            source_id=self.source.pk)
+        self.assert_job_result_message(
+            'check_source',
+            "Waiting for feature extraction(s) to finish")
 
     def test_success(self):
         # After an image upload, features are ready to be submitted.
@@ -20,10 +44,6 @@ class ExtractFeaturesTest(BaseTaskTest, JobUtilsMixin):
 
         # Extract features.
         run_scheduled_jobs_until_empty()
-
-        self.assert_job_result_message(
-            'check_source',
-            "Tried to queue feature extraction(s)")
 
         self.assertExistsInStorage(
             settings.FEATURE_VECTOR_FILE_PATTERN.format(

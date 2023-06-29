@@ -201,7 +201,7 @@ def source_main(request, source_id):
                 'y': round(100 * clf.accuracy),
                 'nimages': clf.nbr_train_images, 
                 'traintime': str(datetime.timedelta(seconds = clf.runtime_train)),
-                'date': str(clf.create_date.strftime("%Y-%m-%d")),
+                'date': str(clf.train_completion_date.strftime("%Y-%m-%d")),
                 'pk': str(clf.pk),
             })
         robot_stats['backend_plot_data'] = backend_plot_data

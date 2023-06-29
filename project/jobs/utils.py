@@ -155,9 +155,13 @@ def finish_job(job, success=False, result_message=None):
     job.result_message = result_message or ""
     job.status = Job.Status.SUCCESS if success else Job.Status.FAILURE
 
-    # Successful training jobs should persist in the DB.
+    # Successful jobs related to classifier history should persist in the DB.
     name = job.job_name
-    if name == 'train_classifier' and success:
+    if success and name in [
+        'train_classifier',
+        'reset_classifiers_for_source',
+        'reset_backend_for_source',
+    ]:
         job.persist = True
 
     job.save()

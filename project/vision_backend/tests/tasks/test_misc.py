@@ -37,10 +37,16 @@ class ResetTaskTest(BaseTaskTest):
             "img should have annotations")
 
         # Reset classifiers
-        queue_job(
+        job = queue_job(
             'reset_classifiers_for_source', self.source.pk,
             source_id=self.source.pk)
         run_scheduled_jobs_until_empty()
+
+        job.refresh_from_db()
+        self.assertEqual(
+            job.status, Job.Status.SUCCESS, "Job should be marked as succeeded")
+        self.assertTrue(
+            job.persist, "Job should be marked as persistent")
 
         # Verify that classifier-related objects were cleared, but not features
 
@@ -104,10 +110,16 @@ class ResetTaskTest(BaseTaskTest):
             "img should have annotations")
 
         # Reset backend
-        queue_job(
+        job = queue_job(
             'reset_backend_for_source', self.source.pk,
             source_id=self.source.pk)
         run_scheduled_jobs_until_empty()
+
+        job.refresh_from_db()
+        self.assertEqual(
+            job.status, Job.Status.SUCCESS, "Job should be marked as succeeded")
+        self.assertTrue(
+            job.persist, "Job should be marked as persistent")
 
         # Verify that backend objects were cleared
 

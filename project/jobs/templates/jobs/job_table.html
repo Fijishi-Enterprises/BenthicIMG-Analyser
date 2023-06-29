@@ -43,7 +43,7 @@
           {% if has_source_column %}
             <td class="source">
               {% if job_entry.source_id %}
-                <a href="{% url 'source_main' job_entry.source_id %}">
+                <a href="{% url 'jobs:source_job_list' job_entry.source_id %}">
                   {{ job_entry.source_name }}
                 </a>
               {% endif %}

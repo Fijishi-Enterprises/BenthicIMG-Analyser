@@ -887,16 +887,16 @@ class AllJobsListTest(JobListTestsMixin, ClientTest):
         self.job(source=2)
         self.job(source=None)
 
-        def source_main_url(source):
-            return reverse('source_main', args=[source.pk])
+        def source_jobs_url(source):
+            return reverse('jobs:source_job_list', args=[source.pk])
 
         self.assert_job_table_values(
             list(reversed([
                 {"Source":
-                     f'<a href="{source_main_url(self.sources[0])}">'
+                     f'<a href="{source_jobs_url(self.sources[0])}">'
                      f'{self.sources[0].name}</a>'},
                 {"Source":
-                     f'<a href="{source_main_url(self.sources[1])}">'
+                     f'<a href="{source_jobs_url(self.sources[1])}">'
                      f'{self.sources[1].name}</a>'},
                 {"Source": ''},
             ]))

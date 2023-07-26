@@ -6,6 +6,7 @@ import random
 from django.conf import settings
 from django.core.files.storage import get_storage_class
 from django.db import IntegrityError
+from django.db.models import F
 from spacer.messages import \
     ExtractFeaturesMsg, \
     TrainClassifierMsg, \
@@ -63,10 +64,18 @@ def check_source(source_id):
     except Source.DoesNotExist:
         raise JobError(f"Can't find source {source_id}")
 
+    done_caveat = None
+
     # Feature extraction
 
     not_extracted = source.image_set.filter(features__extracted=False)
-    if not_extracted.exists():
+    not_extracted = not_extracted.annotate(
+        num_pixels=F('original_width') * F('original_height'))
+    cant_extract = not_extracted.filter(
+        num_pixels__gt=settings.SPACER['MAX_IMAGE_PIXELS'])
+    to_extract = not_extracted.difference(cant_extract)
+
+    if to_extract.exists():
         active_training_jobs = Job.objects.filter(
             job_name='train_classifier',
             source_id=source_id,
@@ -93,7 +102,7 @@ def check_source(source_id):
         # Try to queue extractions (will not be queued if an extraction for
         # the same image is already active)
         num_queued_extractions = 0
-        for image in not_extracted:
+        for image in to_extract:
             job = queue_job('extract_features', image.pk, source_id=source_id)
             if job:
                 num_queued_extractions += 1
@@ -105,6 +114,11 @@ def check_source(source_id):
             return f"Queued {num_queued_extractions} feature extraction(s)"
         else:
             return "Waiting for feature extraction(s) to finish"
+
+    if cant_extract.exists():
+        done_caveat = (
+            f"At least one image has too large of a resolution to extract"
+            f" features (example: image ID {cant_extract[0].pk}).")
 
     # Classifier training
 
@@ -165,7 +179,12 @@ def check_source(source_id):
             return "Waiting for image classification(s) to finish"
 
     # If we got here, then the source should be all caught up, and there's
-    # no need to queue another check for now.
+    # no need to queue another check for now. However, there may be a caveat
+    # to the 'caught up' status.
+    if done_caveat:
+        return (
+            f"{done_caveat} Otherwise, the source seems to be all caught up."
+            f" {reason}")
     return f"Source seems to be all caught up. {reason}"
 
 

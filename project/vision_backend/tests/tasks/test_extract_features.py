@@ -2,6 +2,7 @@ from unittest import mock
 
 from django.conf import settings
 from django.core.files.storage import get_storage_class
+from django.test import override_settings
 import spacer.config as spacer_config
 from spacer.data_classes import ImageFeatures
 from spacer.exceptions import SpacerInputError
@@ -93,6 +94,35 @@ class ExtractFeaturesTest(BaseTaskTest, JobUtilsMixin):
         self.assertListEqual(
             self.rowcols_with_dupes_included, sorted(rowcols),
             "Feature rowcols should match the actual points including dupes")
+
+    @override_settings(SPACER={'MAX_IMAGE_PIXELS': 100})
+    def test_resolution_too_large(self):
+        # Upload image.
+        img1 = self.upload_image(
+            self.user, self.source, image_options=dict(width=10, height=10))
+        # Upload too-large image.
+        img2 = self.upload_image(
+            self.user, self.source, image_options=dict(width=10, height=11))
+        # Extract features + process result.
+        run_scheduled_jobs_until_empty()
+        queue_and_run_collect_spacer_jobs()
+
+        # Let the next source-check get past the training and classification
+        # checks.
+        robot = self.create_robot(self.source)
+        self.add_robot_annotations(robot, img1)
+
+        # Check source again.
+        run_scheduled_jobs_until_empty()
+
+        img2.features.refresh_from_db()
+        self.assertFalse(img2.features.extracted)
+        self.assert_job_result_message(
+            'check_source',
+            "At least one image has too large of a resolution to extract"
+            f" features (example: image ID {img2.pk})."
+            f" Otherwise, the source seems to be all caught up."
+            f" Not enough annotated images for initial training")
 
 
 class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin, JobUtilsMixin):

@@ -8,7 +8,7 @@ from images.models import Image
 from jobs.models import Job
 from jobs.tasks import run_scheduled_jobs_until_empty
 from jobs.utils import queue_job
-from lib.tests.utils import BaseTest, ClientTest
+from lib.tests.utils import ClientTest
 from ...models import Score, Classifier
 from ...tasks import check_all_sources
 from .utils import BaseTaskTest, queue_and_run_collect_spacer_jobs
@@ -198,7 +198,57 @@ def call_collect_spacer_jobs():
 
 
 @override_settings(ENABLE_PERIODIC_JOBS=False)
-class CollectSpacerJobsTest(BaseTest):
+class CollectSpacerJobsTest(BaseTaskTest):
+
+    @staticmethod
+    def run_and_get_result():
+        # Note that this may or may not queue a new job instance; perhaps
+        # the periodic job was already queued at the end of the previous
+        # job's run.
+        queue_and_run_collect_spacer_jobs()
+        job = Job.objects.filter(
+            job_name='collect_spacer_jobs',
+            status=Job.Status.SUCCESS).latest('pk')
+        return job.result_message
+
+    def test_success(self):
+        # Run 2 extract-features jobs.
+        self.upload_image(self.user, self.source)
+        self.upload_image(self.user, self.source)
+        run_scheduled_jobs_until_empty()
+
+        # Collect jobs.
+        # The effects of the actual spacer-job collections (e.g. features
+        # marked as extracted) don't need to be tested here. That belongs in
+        # e.g. feature-extraction tests.
+        self.assertEqual(
+            self.run_and_get_result(), "Jobs collected: 2 SUCCEEDED")
+
+        # Should be no more to collect.
+        self.assertEqual(self.run_and_get_result(), "Jobs collected: 0")
+
+    @override_settings(JOB_MAX_MINUTES=-1)
+    def test_time_out(self):
+        # Run 2 extract-features jobs.
+        self.upload_image(self.user, self.source)
+        self.upload_image(self.user, self.source)
+        run_scheduled_jobs_until_empty()
+
+        # Collect jobs; this should time out after collecting 1st job and
+        # before collecting 2nd job (as that's when the 1st time-check is done)
+        self.assertEqual(
+            self.run_and_get_result(),
+            "Jobs collected: 1 SUCCEEDED (timed out)")
+
+        # Running again should collect the other job. It'll still say
+        # timed out because it didn't get a chance to check if there were
+        # more jobs before timing out.
+        self.assertEqual(
+            self.run_and_get_result(),
+            "Jobs collected: 1 SUCCEEDED (timed out)")
+
+        # Should be no more to collect.
+        self.assertEqual(self.run_and_get_result(), "Jobs collected: 0")
 
     def test_no_multiple_runs(self):
         """

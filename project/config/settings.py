@@ -687,6 +687,13 @@ MAX_CONCURRENT_API_JOBS_PER_USER = 5
 JOB_MAX_DAYS = 30
 # Page size when listing async jobs.
 JOBS_PER_PAGE = 100
+# Potentially long-running jobs should try to finish up once this
+# amount of time passes. By defining a duration cap, we have better
+# chances to gracefully shut down the server (without force-stopping
+# jobs).
+# For example, the supervisor `stopwaitsecs` parameter for the huey
+# process can be twice this duration.
+JOB_MAX_MINUTES = 10
 
 
 #

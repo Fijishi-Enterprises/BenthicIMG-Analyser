@@ -1,3 +1,4 @@
+from collections import Counter
 import datetime
 from datetime import timedelta
 import logging
@@ -7,6 +8,7 @@ from django.conf import settings
 from django.core.files.storage import get_storage_class
 from django.db import IntegrityError
 from django.db.models import F
+from django.utils import timezone
 from spacer.messages import \
     ExtractFeaturesMsg, \
     TrainClassifierMsg, \
@@ -405,24 +407,46 @@ def classify_image(image_id):
     return f"Used classifier {classifier.pk}"
 
 
-@job_runner(interval=timedelta(minutes=3))
+@job_runner(interval=timedelta(minutes=1))
 def collect_spacer_jobs():
     """
-    Collects and handles spacer job results until the result queue is empty.
+    Collects and handles spacer job results until A) the result queue is empty
+    or B) the max job time has been reached.
 
     This task gets job-tracking to enforce that only one thread runs this
     task at a time. That way, no spacer job can get collected multiple times.
     """
+    start = timezone.now()
+    wrap_up_time = start + timedelta(minutes=settings.JOB_MAX_MINUTES)
+    timed_out = False
+
     queue = get_queue_class()()
-    for job_res in queue.collect_jobs():
-        th.handle_spacer_result(job_res)
+    job_statuses = []
+
+    for job in queue.get_collectable_jobs():
+        job_res, job_status = queue.collect_job(job)
+        job_statuses.append(job_status)
+        if job_res:
+            th.handle_spacer_result(job_res)
+
+        if timezone.now() > wrap_up_time:
+            # As long as collect_jobs() is implemented with `yield`,
+            # this loop-break won't abandon any job results.
+            timed_out = True
+            break
+
+    status_counts = Counter(job_statuses)
 
     # sorted() sorts statuses alphabetically.
     counts_str = ', '.join([
         f'{count} {status}'
-        for status, count in sorted(queue.status_counts.items())
+        for status, count in sorted(status_counts.items())
     ])
-    return f"Job count: {counts_str or '0'}"
+    result_str = f"Jobs collected: {counts_str or '0'}"
+
+    if timed_out:
+        result_str += " (timed out)"
+    return result_str
 
 
 @job_runner()

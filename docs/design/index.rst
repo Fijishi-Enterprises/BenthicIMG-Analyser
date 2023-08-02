@@ -9,3 +9,4 @@ Contents:
    annotation
    browser-compatibility
    docs
+   jobs

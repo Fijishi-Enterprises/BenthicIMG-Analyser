@@ -91,6 +91,9 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 # output. They are ignored by default.
 #show_authors = False
 
+# Default language to highlight literal blocks and code blocks.
+highlight_language = 'none'
+
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
 

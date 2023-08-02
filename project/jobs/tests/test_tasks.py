@@ -77,6 +77,19 @@ class RunScheduledJobsTest(BaseTest):
             f"Ran 4 jobs, including:\n{job_5.pk}: test / 5"
             f"\n{job_6.pk}: test / 6\n{job_7.pk}: test / 7")
 
+    @override_settings(JOB_MAX_MINUTES=-1)
+    def test_time_out(self):
+        for i in range(12):
+            queue_job('test', i)
+
+        result_message = self.run_scheduled_jobs_and_get_result()
+        self.assertTrue(
+            result_message.startswith("Ran 10 jobs (timed out), including:"))
+
+        result_message = self.run_scheduled_jobs_and_get_result()
+        self.assertTrue(
+            result_message.startswith("Ran 2 job(s):"))
+
     def test_no_multiple_runs(self):
         """
         Should block multiple existing runs of this task. That way, no job

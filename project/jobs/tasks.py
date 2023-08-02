@@ -38,23 +38,41 @@ def run_scheduled_jobs():
     thread runs this task at a time. That way, no job looped through in this
     task can get started in huey multiple times.
     """
+    start = timezone.now()
+    wrap_up_time = start + timedelta(minutes=settings.JOB_MAX_MINUTES)
+    timed_out = False
+
     jobs_to_run = get_scheduled_jobs()
+    example_jobs = []
+    jobs_ran = 0
 
     for job in jobs_to_run:
         run_job(job)
 
+        jobs_ran += 1
+        if jobs_ran <= 3:
+            example_jobs.append(job)
+        if (
+            jobs_ran % 10 == 0
+            and timezone.now() > wrap_up_time
+        ):
+            timed_out = True
+            break
+
     # Build result message
 
-    job_count = len(jobs_to_run)
-    if job_count > 3:
-        message = f"Ran {job_count} jobs, including:"
-    elif job_count > 0:
-        message = f"Ran {job_count} job(s):"
+    if jobs_ran > 3:
+        if timed_out:
+            message = f"Ran {jobs_ran} jobs (timed out), including:"
+        else:
+            message = f"Ran {jobs_ran} jobs, including:"
+    elif jobs_ran > 0:
+        message = f"Ran {jobs_ran} job(s):"
     else:
         # 0
-        message = f"Ran {job_count} jobs"
+        message = f"Ran {jobs_ran} jobs"
 
-    for job in jobs_to_run[:3]:
+    for job in example_jobs:
         message += f"\n{job.pk}: {job}"
 
     return message

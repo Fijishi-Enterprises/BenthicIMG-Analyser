@@ -66,6 +66,10 @@ def check_source(source_id):
     except Source.DoesNotExist:
         raise JobError(f"Can't find source {source_id}")
 
+    start = timezone.now()
+    wrap_up_time = start + timedelta(minutes=settings.JOB_MAX_MINUTES)
+    timed_out = False
+
     done_caveat = None
 
     # Feature extraction
@@ -101,19 +105,48 @@ def check_source(source_id):
                 f"Feature extraction(s) ready, but not"
                 f" submitted due to training in progress")
 
+        active_extraction_jobs = Job.objects.filter(
+            job_name='extract_features',
+            source_id=source_id,
+            status__in=[Job.Status.PENDING, Job.Status.IN_PROGRESS]
+        )
+        active_extraction_image_ids = set([
+            int(str_id) for str_id in
+            active_extraction_jobs.values_list('arg_identifier', flat=True)
+        ])
+
         # Try to queue extractions (will not be queued if an extraction for
         # the same image is already active)
         num_queued_extractions = 0
         for image in to_extract:
+            if image.pk in active_extraction_image_ids:
+                # Very quick short-circuit without additional DB check.
+                continue
+
+            # This hits the DB to check for a race condition (identical
+            # active job), then to create a job as appropriate.
             job = queue_job('extract_features', image.pk, source_id=source_id)
-            if job:
-                num_queued_extractions += 1
+            if not job:
+                continue
+
+            num_queued_extractions += 1
+
+            if (
+                num_queued_extractions % 10 == 0
+                and timezone.now() > wrap_up_time
+            ):
+                timed_out = True
+                break
 
         # If there are extractions to be done, then having that overlap with
         # training can lead to desynced rowcols, so we return and worry about
         # training later.
         if num_queued_extractions > 0:
-            return f"Queued {num_queued_extractions} feature extraction(s)"
+            result_str = (
+                f"Queued {num_queued_extractions} feature extraction(s)")
+            if timed_out:
+                result_str += " (timed out)"
+            return result_str
         else:
             return "Waiting for feature extraction(s) to finish"
 
@@ -167,16 +200,43 @@ def check_source(source_id):
         images_to_classify = extracted_not_confirmed
 
     if images_to_classify.exists():
+
+        active_classify_jobs = Job.objects.filter(
+            job_name='classify_features',
+            source_id=source_id,
+            status__in=[Job.Status.PENDING, Job.Status.IN_PROGRESS]
+        )
+        active_classify_image_ids = set([
+            int(str_id) for str_id in
+            active_classify_jobs.values_list('arg_identifier', flat=True)
+        ])
+
         # Try to queue classifications
         num_queued_classifications = 0
         for image in images_to_classify:
+            if image.pk in active_classify_image_ids:
+                # Very quick short-circuit without additional DB check.
+                continue
+
             job = queue_job('classify_features', image.pk, source_id=source_id)
-            if job:
-                num_queued_classifications += 1
+            if not job:
+                continue
+
+            num_queued_classifications += 1
+
+            if (
+                num_queued_classifications % 10 == 0
+                and timezone.now() > wrap_up_time
+            ):
+                timed_out = True
+                break
 
         if num_queued_classifications > 0:
-            return (
+            result_str = (
                 f"Queued {num_queued_classifications} image classification(s)")
+            if timed_out:
+                result_str += " (timed out)"
+            return result_str
         else:
             return "Waiting for image classification(s) to finish"
 

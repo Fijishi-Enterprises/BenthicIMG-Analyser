@@ -63,6 +63,29 @@ class ClassifyImageTest(
             'check_source',
             "Waiting for image classification(s) to finish")
 
+    def test_source_check_time_out(self):
+        self.upload_data_and_train_classifier()
+
+        # Images without annotations
+        for _ in range(12):
+            self.upload_image(self.user, self.source)
+        # Process feature extraction results
+        run_scheduled_jobs_until_empty()
+        queue_and_run_collect_spacer_jobs()
+
+        with override_settings(JOB_MAX_MINUTES=-1):
+            run_pending_job('check_source', self.source.pk)
+            self.assert_job_result_message(
+                'check_source',
+                "Queued 10 image classification(s) (timed out)")
+
+        queue_and_run_job(
+            'check_source', self.source.pk,
+            source_id=self.source.pk)
+        self.assert_job_result_message(
+            'check_source',
+            "Queued 2 image classification(s)")
+
     def test_classify_unannotated_image(self):
         """Classify an image where all points are unannotated."""
         self.upload_data_and_train_classifier()

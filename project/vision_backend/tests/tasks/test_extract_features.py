@@ -39,6 +39,23 @@ class ExtractFeaturesTest(BaseTaskTest, JobUtilsMixin):
             'check_source',
             "Waiting for feature extraction(s) to finish")
 
+    @override_settings(JOB_MAX_MINUTES=-1)
+    def test_source_check_time_out(self):
+        for _ in range(12):
+            self.upload_image(self.user, self.source)
+
+        run_pending_job('check_source', self.source.pk)
+        self.assert_job_result_message(
+            'check_source',
+            "Queued 10 feature extraction(s) (timed out)")
+
+        queue_and_run_job(
+            'check_source', self.source.pk,
+            source_id=self.source.pk)
+        self.assert_job_result_message(
+            'check_source',
+            "Queued 2 feature extraction(s)")
+
     def test_success(self):
         # After an image upload, features are ready to be submitted.
         img = self.upload_image(self.user, self.source)

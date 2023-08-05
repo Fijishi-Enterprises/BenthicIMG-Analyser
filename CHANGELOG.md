@@ -8,6 +8,9 @@ For info about the semantic versioning used here, see `docs/versions.rst`.
 
 ## [1.6](https://github.com/beijbom/coralnet/tree/1.6)
 
+- Updates to required packages:
+  - pyspacer 0.4.0 -> 0.4.1
+  - numpy is now only required transitively through pyspacer, to avoid version conflicts
 - New migrations to run for `jobs` and `vision_backend`.
 
 ## [1.5](https://github.com/beijbom/coralnet/tree/1.5)

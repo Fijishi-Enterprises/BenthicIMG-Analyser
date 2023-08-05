@@ -158,11 +158,8 @@ django-markdownx==4.0.2
 # Machine-learning backend behind coralnet
 # This can be installed from a local directory (not just PyPI), as long as
 # the local copy's setup.py matches this version number.
+#
+# coralnet also directly uses numpy, but will leave it to pyspacer to decide
+# which numpy version is suitable. Re-specifying numpy in this requirements
+# file can create conflicts.
 pyspacer==0.4.1
-
-# Scientific computing
-# We use whatever version of numpy pyspacer uses. To do this, we list
-# pyspacer before numpy in these requirements. We only have numpy listed here
-# for completeness, to acknowledge that coralnet does use it directly.
-# Changelog: https://numpy.org/devdocs/release.html
-numpy

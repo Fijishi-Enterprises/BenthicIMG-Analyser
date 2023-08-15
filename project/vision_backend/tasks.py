@@ -502,7 +502,7 @@ def collect_spacer_jobs():
         f'{count} {status}'
         for status, count in sorted(status_counts.items())
     ])
-    result_str = f"Jobs collected: {counts_str or '0'}"
+    result_str = f"Jobs checked/collected: {counts_str or '0'}"
 
     if timed_out:
         result_str += " (timed out)"

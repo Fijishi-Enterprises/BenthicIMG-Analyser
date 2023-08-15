@@ -222,10 +222,11 @@ class CollectSpacerJobsTest(BaseTaskTest):
         # marked as extracted) don't need to be tested here. That belongs in
         # e.g. feature-extraction tests.
         self.assertEqual(
-            self.run_and_get_result(), "Jobs collected: 2 SUCCEEDED")
+            self.run_and_get_result(), "Jobs checked/collected: 2 SUCCEEDED")
 
         # Should be no more to collect.
-        self.assertEqual(self.run_and_get_result(), "Jobs collected: 0")
+        self.assertEqual(
+            self.run_and_get_result(), "Jobs checked/collected: 0")
 
     @override_settings(JOB_MAX_MINUTES=-1)
     def test_time_out(self):
@@ -238,17 +239,18 @@ class CollectSpacerJobsTest(BaseTaskTest):
         # before collecting 2nd job (as that's when the 1st time-check is done)
         self.assertEqual(
             self.run_and_get_result(),
-            "Jobs collected: 1 SUCCEEDED (timed out)")
+            "Jobs checked/collected: 1 SUCCEEDED (timed out)")
 
         # Running again should collect the other job. It'll still say
         # timed out because it didn't get a chance to check if there were
         # more jobs before timing out.
         self.assertEqual(
             self.run_and_get_result(),
-            "Jobs collected: 1 SUCCEEDED (timed out)")
+            "Jobs checked/collected: 1 SUCCEEDED (timed out)")
 
         # Should be no more to collect.
-        self.assertEqual(self.run_and_get_result(), "Jobs collected: 0")
+        self.assertEqual(
+            self.run_and_get_result(), "Jobs checked/collected: 0")
 
     def test_no_multiple_runs(self):
         """

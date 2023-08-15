@@ -122,7 +122,7 @@ class QueueBasicTest(BaseTaskTest, JobUtilsMixin):
     def do_test_no_jobs(self):
         queue_and_run_collect_spacer_jobs()
         self.assert_job_result_message(
-            'collect_spacer_jobs', "Jobs collected: 0")
+            'collect_spacer_jobs', "Jobs checked/collected: 0")
 
     def do_test_collect_feature_extraction(self):
         img = self.upload_image(self.user, self.source)
@@ -131,7 +131,7 @@ class QueueBasicTest(BaseTaskTest, JobUtilsMixin):
         # Collect
         queue_and_run_collect_spacer_jobs()
         self.assert_job_result_message(
-            'collect_spacer_jobs', "Jobs collected: 1 SUCCEEDED")
+            'collect_spacer_jobs', "Jobs checked/collected: 1 SUCCEEDED")
         # Check for successful result handling
         self.assertTrue(img.features.extracted)
 
@@ -147,7 +147,7 @@ class QueueBasicTest(BaseTaskTest, JobUtilsMixin):
         # Collect
         queue_and_run_collect_spacer_jobs()
         self.assert_job_result_message(
-            'collect_spacer_jobs', "Jobs collected: 1 SUCCEEDED")
+            'collect_spacer_jobs', "Jobs checked/collected: 1 SUCCEEDED")
         # Check for successful result handling
         latest_classifier = self.source.classifier_set.latest('pk')
         self.assertEqual(latest_classifier.status, Classifier.ACCEPTED)
@@ -163,11 +163,11 @@ class QueueBasicTest(BaseTaskTest, JobUtilsMixin):
         # Collect
         queue_and_run_collect_spacer_jobs()
         self.assert_job_result_message(
-            'collect_spacer_jobs', "Jobs collected: 1 SUCCEEDED")
+            'collect_spacer_jobs', "Jobs checked/collected: 1 SUCCEEDED")
         # Collect again; job should already be consumed
         queue_and_run_collect_spacer_jobs()
         self.assert_job_result_message(
-            'collect_spacer_jobs', "Jobs collected: 0")
+            'collect_spacer_jobs', "Jobs checked/collected: 0")
 
 
 @local_queue_decorator
@@ -215,7 +215,7 @@ class BatchQueueBasicTest(QueueBasicTest):
             # Collect
             queue_and_run_collect_spacer_jobs()
             self.assert_job_result_message(
-                'collect_spacer_jobs', "Jobs collected: 1 FAILED")
+                'collect_spacer_jobs', "Jobs checked/collected: 1 FAILED")
 
         # Check for error status
         job = Job.objects.get(job_name='extract_features')
@@ -238,7 +238,7 @@ class BatchQueueBasicTest(QueueBasicTest):
             # Collect
             queue_and_run_collect_spacer_jobs()
             self.assert_job_result_message(
-                'collect_spacer_jobs', "Jobs collected: 1 FAILED")
+                'collect_spacer_jobs', "Jobs checked/collected: 1 FAILED")
 
         # Check for error status
         job = Job.objects.get(job_name='train_classifier')
@@ -260,7 +260,7 @@ class QueueClassificationTest(DeployBaseTest, JobUtilsMixin):
         # Collect
         queue_and_run_collect_spacer_jobs()
         self.assert_job_result_message(
-            'collect_spacer_jobs', "Jobs collected: 1 SUCCEEDED")
+            'collect_spacer_jobs', "Jobs checked/collected: 1 SUCCEEDED")
         # Check for successful result handling
         unit = ApiJobUnit.objects.latest('pk')
         self.assertEqual(unit.status, Job.Status.SUCCESS)
@@ -301,7 +301,7 @@ class QueueClassificationTest(DeployBaseTest, JobUtilsMixin):
         # Collect
         queue_and_run_collect_spacer_jobs()
         self.assert_job_result_message(
-            'collect_spacer_jobs', "Jobs collected: 8 SUCCEEDED")
+            'collect_spacer_jobs', "Jobs checked/collected: 8 SUCCEEDED")
 
         # Check for successful result handling
         api_jobs = list(ApiJob.objects.all())
@@ -348,7 +348,7 @@ class BatchQueueClassificationTest(QueueClassificationTest):
             # Collect
             queue_and_run_collect_spacer_jobs()
             self.assert_job_result_message(
-                'collect_spacer_jobs', "Jobs collected: 1 FAILED")
+                'collect_spacer_jobs', "Jobs checked/collected: 1 FAILED")
 
         # Check for error status
         job = Job.objects.get(job_name='classify_image')
@@ -364,7 +364,8 @@ class BatchQueueSpecificsTest(BaseTaskTest, JobUtilsMixin):
         # Collect
         queue_and_run_collect_spacer_jobs()
         self.assert_job_result_message(
-            'collect_spacer_jobs', f"Jobs collected: {expected_counts_str}")
+            'collect_spacer_jobs',
+            f"Jobs checked/collected: {expected_counts_str}")
 
     def assert_job_error(self, expected_error_template):
         # Check for error status
@@ -396,7 +397,8 @@ class BatchQueueSpecificsTest(BaseTaskTest, JobUtilsMixin):
             # Try to collect
             queue_and_run_collect_spacer_jobs()
             self.assert_job_result_message(
-                'collect_spacer_jobs', "Jobs collected: 1 NOT SUBMITTED")
+                'collect_spacer_jobs',
+                "Jobs checked/collected: 1 NOT SUBMITTED")
 
             # Make the BatchJob old enough to be considered a victim of
             # an AWS service error.
@@ -408,7 +410,8 @@ class BatchQueueSpecificsTest(BaseTaskTest, JobUtilsMixin):
             # Then try to collect again.
             queue_and_run_collect_spacer_jobs()
             self.assert_job_result_message(
-                'collect_spacer_jobs', "Jobs collected: 1 DROPPED")
+                'collect_spacer_jobs',
+                "Jobs checked/collected: 1 DROPPED")
 
         self.assert_job_error("Failed to get AWS Batch token.")
 

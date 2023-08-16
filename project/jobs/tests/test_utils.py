@@ -4,6 +4,7 @@ from unittest import mock
 from django.db import connections, transaction
 from django.db.utils import DEFAULT_DB_ALIAS
 from django.test.testcases import TransactionTestCase
+from django.utils import timezone
 
 from errorlogs.tests.utils import ErrorReportTestMixin
 from lib.tests.utils import BaseTest
@@ -14,7 +15,7 @@ from ..utils import (
     job_starter, queue_job, start_pending_job)
 
 
-class QueueJobTest(BaseTest):
+class QueueJobTest(BaseTest, ErrorReportTestMixin):
 
     def test_queue_job_when_already_pending(self):
         queue_job('name', 'arg')
@@ -106,6 +107,58 @@ class QueueJobTest(BaseTest):
             1,
             "Should have attempt number of 1")
 
+    def test_repeated_failure(self):
+        # 5 fails in a row
+        for _ in range(5):
+            job = queue_job(
+                'name', 'arg', initial_status=Job.Status.IN_PROGRESS)
+            finish_job(job, success=False, result_message="An error")
+            self.assert_no_email()
+
+        # Queue the same job again
+        job = queue_job('name', 'arg')
+        self.assert_error_email(
+            "Job has been failing repeatedly: name / arg, attempt 5",
+            ["Error info:\n\nAn error"],
+        )
+        self.assertAlmostEquals(
+            timezone.now() + timedelta(days=3),
+            job.scheduled_start_date,
+            delta=timedelta(minutes=10),
+            msg="Latest job should be pushed back to 3 days in the future",
+        )
+
+        # And again
+        finish_job(job, success=False, result_message="An error")
+        queue_job('name', 'arg')
+        self.assert_error_email(
+            "Job has been failing repeatedly: name / arg, attempt 6",
+            ["Error info:\n\nAn error"],
+        )
+
+    def test_repeated_failure_longer_delay(self):
+        # 5 fails in a row
+        for _ in range(5):
+            job = queue_job(
+                'name', 'arg', initial_status=Job.Status.IN_PROGRESS)
+            finish_job(job, success=False, result_message="An error")
+            self.assert_no_email()
+
+        # Queue the same job again
+        job = queue_job('name', 'arg', delay=timedelta(days=5))
+        self.assert_error_email(
+            "Job has been failing repeatedly: name / arg, attempt 5",
+            ["Error info:\n\nAn error"],
+        )
+        self.assertAlmostEquals(
+            timezone.now() + timedelta(days=5),
+            job.scheduled_start_date,
+            delta=timedelta(minutes=10),
+            msg=(
+                "Latest job should still be 5 days in the future;"
+                " 3 days is just a lower bound"),
+        )
+
 
 class StartPendingJobTest(BaseTest):
 
@@ -150,7 +203,7 @@ class StartPendingJobTest(BaseTest):
             "Dupe jobs should have been deleted")
 
 
-class FinishJobTest(BaseTest, ErrorReportTestMixin):
+class FinishJobTest(BaseTest):
 
     def test_periodic_job_queues_another_run(self):
         """
@@ -178,22 +231,6 @@ class FinishJobTest(BaseTest, ErrorReportTestMixin):
 
         # Another PENDING job should exist now
         Job.objects.get(job_name='name', status=Job.Status.PENDING)
-
-    def test_repeated_failure(self):
-        # 4 fails in a row
-        for _ in range(4):
-            job = queue_job(
-                'name', 'arg', initial_status=Job.Status.IN_PROGRESS)
-            finish_job(job, success=False, result_message="An error")
-            self.assert_no_email()
-
-        # 5th fail in a row
-        job = queue_job('name', 'arg', initial_status=Job.Status.IN_PROGRESS)
-        finish_job(job, success=False, result_message="An error")
-        self.assert_error_email(
-            "Job is failing repeatedly: name / arg, attempt 5",
-            ["Error info:\n\nAn error"],
-        )
 
 
 @full_job()

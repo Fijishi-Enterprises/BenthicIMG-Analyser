@@ -33,7 +33,8 @@ def queue_job(
         # Use a random amount of jitter to slightly space out jobs that are
         # being submitted in quick succession.
         delay = timedelta(seconds=random.randrange(5, 30))
-    scheduled_start_date = timezone.now() + delay
+    now = timezone.now()
+    scheduled_start_date = now + delay
 
     arg_identifier = Job.args_to_identifier(task_args)
     job_kwargs = dict(
@@ -74,6 +75,18 @@ def queue_job(
     else:
         if last_job.status == Job.Status.FAILURE:
             attempt_number = last_job.attempt_number + 1
+
+            if attempt_number > 5:
+                # Notify admins on repeated failure.
+                mail_admins(
+                    f"Job has been failing repeatedly: {last_job}",
+                    f"Error info:\n\n{last_job.result_message}",
+                )
+                # Make sure it doesn't retry too quickly until the failure
+                # situation's resolved.
+                three_days_from_now = now + timedelta(days=3)
+                if scheduled_start_date < three_days_from_now:
+                    scheduled_start_date = three_days_from_now
 
     # Create a new job and proceed
     job = Job(
@@ -165,12 +178,6 @@ def finish_job(job, success=False, result_message=None):
         job.persist = True
 
     job.save()
-
-    if job.status == Job.Status.FAILURE and job.attempt_number % 5 == 0:
-        mail_admins(
-            f"Job is failing repeatedly: {job}",
-            f"Error info:\n\n{result_message}",
-        )
 
     if job.result_message:
         logger.info(f"Job [{job}]: {job.result_message}")

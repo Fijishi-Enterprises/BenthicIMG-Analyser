@@ -296,7 +296,7 @@ SPACER_JOB_HASH = env('SPACER_JOB_HASH', default='default_hash')
 SPACER = {
     # For regression tests, spacer expects a local model path.
     # Expects str, not Path.
-    'LOCAL_MODEL_PATH': str(SITE_DIR / 'spacer_models'),
+    'EXTRACTORS_CACHE_DIR': str(SITE_DIR / 'extractors_cache'),
 }
 
 # If True, feature extraction just returns dummy results to speed up testing.
@@ -334,6 +334,7 @@ AWS_SECRET_ACCESS_KEY = env('AWS_SECRET_ACCESS_KEY', default=None)
 # [PySpacer settings]
 SPACER['AWS_ACCESS_KEY_ID'] = AWS_ACCESS_KEY_ID
 SPACER['AWS_SECRET_ACCESS_KEY'] = AWS_SECRET_ACCESS_KEY
+SPACER['AWS_REGION'] = env('AWS_REGION', default=None)
 
 # [CoralNet setting]
 # Name of the CoralNet regtests S3 bucket.

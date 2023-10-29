@@ -6,9 +6,9 @@ Updating to the latest repository code
 --------------------------------------
 #. Get the new code from Git.
 
-   - To update the master branch, ``git checkout master`` and ``git pull origin master``.
+   - To update the main branch, ``git checkout main`` and ``git pull origin main``.
 
-   - If you have a feature branch that you want updated, checkout that branch, then ``git rebase master``.
+   - If you have a feature branch that you want updated, checkout that branch, then ``git rebase main``.
 
 #. Follow the instructions in coralnet's ``CHANGELOG.md`` to update from the old version to the latest version.
 

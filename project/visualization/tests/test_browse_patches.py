@@ -34,10 +34,12 @@ default_search_params = dict(
     photographer='', framing='', balance='',
     photo_date_0='', photo_date_1='', photo_date_2='',
     photo_date_3='', photo_date_4='',
-    image_name='', annotation_status='', label='',
-    annotation_date_0='', annotation_date_1='', annotation_date_2='',
-    annotation_date_3='', annotation_date_4='',
-    annotator_0='', annotator_1='',
+    image_name='',
+    patch_annotation_status='', patch_label='',
+    patch_annotation_date_0='', patch_annotation_date_1='',
+    patch_annotation_date_2='', patch_annotation_date_3='',
+    patch_annotation_date_4='',
+    patch_annotator_0='', patch_annotator_1='',
 )
 
 
@@ -162,7 +164,7 @@ class SearchTest(ClientTest):
             {1: 'A', 2: 'A', 3: 'A'})
 
         self.assert_search_results(
-            dict(annotation_status='confirmed'),
+            dict(patch_annotation_status='confirmed'),
             [1, 2, 3])
 
     def test_filter_by_annotation_status_unconfirmed(self):
@@ -174,7 +176,7 @@ class SearchTest(ClientTest):
             {1: 'A', 2: 'A', 3: 'A'})
 
         self.assert_search_results(
-            dict(annotation_status='unconfirmed'),
+            dict(patch_annotation_status='unconfirmed'),
             [4, 5, 6, 7, 8, 9, 10])
 
     def test_filter_by_label(self):
@@ -183,7 +185,7 @@ class SearchTest(ClientTest):
             {1: 'A', 2: 'A', 3: 'A', 4: 'B', 5: 'B'})
 
         self.assert_search_results(
-            dict(label=self.source.labelset.get_global_by_code('A').pk),
+            dict(patch_label=self.source.labelset.get_global_by_code('A').pk),
             [1, 2, 3])
 
     def test_label_choices(self):
@@ -195,7 +197,7 @@ class SearchTest(ClientTest):
         response = self.client.get(self.url)
 
         search_form = response.context['patch_search_form']
-        field = search_form.fields['label']
+        field = search_form.fields['patch_label']
         self.assertListEqual(
             list(field.choices),
             [('', "Any"),
@@ -208,7 +210,7 @@ class SearchTest(ClientTest):
         response = self.client.get(self.url)
 
         search_form = response.context['patch_search_form']
-        field = search_form.fields['annotation_date'].fields[0]
+        field = search_form.fields['patch_annotation_date'].fields[0]
         self.assertListEqual(
             list(field.choices),
             [('', "Any"),
@@ -238,7 +240,7 @@ class SearchTest(ClientTest):
         response = self.client.get(self.url)
 
         search_form = response.context['patch_search_form']
-        year_field = search_form.fields['annotation_date'].fields[1]
+        year_field = search_form.fields['patch_annotation_date'].fields[1]
         year_choices = [value for value, label in year_field.choices]
         # Choices should be based on the source create date and the
         # current year, not based on existing annotation dates. It's done this
@@ -262,8 +264,8 @@ class SearchTest(ClientTest):
 
         self.assert_search_results(
             dict(
-                annotation_date_0='date',
-                annotation_date_2=datetime.date(2012, 1, 13),
+                patch_annotation_date_0='date',
+                patch_annotation_date_2=datetime.date(2012, 1, 13),
             ),
             [2, 3])
 
@@ -282,9 +284,9 @@ class SearchTest(ClientTest):
 
         self.assert_search_results(
             dict(
-                annotation_date_0='date_range',
-                annotation_date_3=datetime.date(2012, 3, 10),
-                annotation_date_4=datetime.date(2012, 3, 20),
+                patch_annotation_date_0='date_range',
+                patch_annotation_date_3=datetime.date(2012, 3, 10),
+                patch_annotation_date_4=datetime.date(2012, 3, 20),
             ),
             [2, 3, 4])
 
@@ -301,7 +303,7 @@ class SearchTest(ClientTest):
         self.set_annotation(4, annotator=get_alleviate_user())
 
         self.assert_search_results(
-            dict(annotator_0='annotation_tool'),
+            dict(patch_annotator_0='annotation_tool'),
             [1, 2])
 
     def test_filter_by_annotator_tool_specific_user(self):
@@ -313,8 +315,8 @@ class SearchTest(ClientTest):
             {4: 'A', 5: 'A'})
 
         post_data = default_search_params.copy()
-        post_data['annotator_0'] = 'annotation_tool'
-        post_data['annotator_1'] = self.user.pk
+        post_data['patch_annotator_0'] = 'annotation_tool'
+        post_data['patch_annotator_1'] = self.user.pk
 
         self.client.force_login(self.user)
         response = self.client.post(self.url, post_data)
@@ -333,7 +335,7 @@ class SearchTest(ClientTest):
         response = self.client.get(self.url)
 
         search_form = response.context['patch_search_form']
-        field = search_form.fields['annotator'].fields[1]
+        field = search_form.fields['patch_annotator'].fields[1]
         self.assertListEqual(
             list(field.choices),
             [('', "Any user"), (self.user.pk, self.user.username),
@@ -349,7 +351,7 @@ class SearchTest(ClientTest):
         self.set_annotation(4, annotator=get_alleviate_user())
 
         self.assert_search_results(
-            dict(annotator_0='alleviate'),
+            dict(patch_annotator_0='alleviate'),
             [4])
 
     def test_dont_get_other_sources_patches(self):

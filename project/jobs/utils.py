@@ -1,14 +1,18 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 import logging
+import math
 import random
 import sys
 import traceback
 from typing import Optional
 
+from django.conf import settings
 from django.core.mail import mail_admins
 from django.db import DatabaseError, IntegrityError, transaction
 from django.utils import timezone
+from django.utils.module_loading import autodiscover_modules
 from django.views.debug import ExceptionReporter
+from huey import crontab
 from huey.contrib.djhuey import db_periodic_task, db_task
 
 from errorlogs.utils import instantiate_error_log
@@ -23,12 +27,14 @@ def queue_job(
         *task_args,
         delay: timedelta = None,
         source_id: int = None,
-        initial_status: str = Job.PENDING) -> Optional[Job]:
+        initial_status: str = Job.Status.PENDING) -> Optional[Job]:
 
     if delay is None:
         # Use a random amount of jitter to slightly space out jobs that are
         # being submitted in quick succession.
         delay = timedelta(seconds=random.randrange(5, 30))
+    now = timezone.now()
+    scheduled_start_date = now + delay
 
     arg_identifier = Job.args_to_identifier(task_args)
     job_kwargs = dict(
@@ -43,11 +49,20 @@ def queue_job(
     # starting a job (as opposed to just queueing it as pending).
     jobs = Job.objects.filter(**job_kwargs)
     try:
-        job = jobs.get(status__in=[Job.PENDING, Job.IN_PROGRESS])
+        job = jobs.get(status__in=[Job.Status.PENDING, Job.Status.IN_PROGRESS])
     except Job.DoesNotExist:
         pass
     else:
         logger.debug(f"Job [{job}] is already pending or in progress.")
+
+        if job.status == Job.Status.PENDING:
+            # Update the scheduled start date if an earlier date was just
+            # requested
+            if scheduled_start_date < job.scheduled_start_date:
+                job.scheduled_start_date = scheduled_start_date
+                job.save()
+                logger.debug(f"Updated the job's scheduled start date.")
+
         return None
 
     # See if the same job failed last time (if there was a last time).
@@ -58,11 +73,22 @@ def queue_job(
     except Job.DoesNotExist:
         pass
     else:
-        if last_job.status == Job.FAILURE:
+        if last_job.status == Job.Status.FAILURE:
             attempt_number = last_job.attempt_number + 1
 
+            if attempt_number > 5:
+                # Notify admins on repeated failure.
+                mail_admins(
+                    f"Job has been failing repeatedly: {last_job}",
+                    f"Error info:\n\n{last_job.result_message}",
+                )
+                # Make sure it doesn't retry too quickly until the failure
+                # situation's resolved.
+                three_days_from_now = now + timedelta(days=3)
+                if scheduled_start_date < three_days_from_now:
+                    scheduled_start_date = three_days_from_now
+
     # Create a new job and proceed
-    scheduled_start_date = timezone.now() + delay
     job = Job(
         scheduled_start_date=scheduled_start_date,
         attempt_number=attempt_number,
@@ -100,7 +126,7 @@ def start_pending_job(job_name: str, arg_identifier: str) -> Optional[Job]:
     jobs_queryset = Job.objects.select_for_update(nowait=True).filter(
         job_name=job_name,
         arg_identifier=arg_identifier,
-        status__in=[Job.PENDING, Job.IN_PROGRESS],
+        status__in=[Job.Status.PENDING, Job.Status.IN_PROGRESS],
     )
     with transaction.atomic():
         # Evaluate the query.
@@ -118,7 +144,7 @@ def start_pending_job(job_name: str, arg_identifier: str) -> Optional[Job]:
             logger.info(f"Job [{job_name} / {arg_identifier}] not found.")
             return None
 
-        if Job.IN_PROGRESS in [job.status for job in jobs]:
+        if Job.Status.IN_PROGRESS in [job.status for job in jobs]:
             logger.info(f"Job [{jobs[0]}] already in progress.")
             return None
 
@@ -128,7 +154,7 @@ def start_pending_job(job_name: str, arg_identifier: str) -> Optional[Job]:
                 # Delete any duplicate pending jobs
                 dupe_job.delete()
 
-        job.status = Job.IN_PROGRESS
+        job.status = Job.Status.IN_PROGRESS
         job.save()
     return job
 
@@ -140,48 +166,85 @@ def finish_job(job, success=False, result_message=None):
     """
     # This field doesn't take None; no message is set as an empty string.
     job.result_message = result_message or ""
-    job.status = Job.SUCCESS if success else Job.FAILURE
+    job.status = Job.Status.SUCCESS if success else Job.Status.FAILURE
 
-    # Successful training jobs should persist in the DB.
-    if job.job_name == 'train_classifier' and success:
+    # Successful jobs related to classifier history should persist in the DB.
+    name = job.job_name
+    if success and name in [
+        'train_classifier',
+        'reset_classifiers_for_source',
+        'reset_backend_for_source',
+    ]:
         job.persist = True
 
     job.save()
 
-    if job.status == Job.FAILURE and job.attempt_number % 5 == 0:
-        mail_admins(
-            f"Job is failing repeatedly:"
-            f" {job.job_name} / {job.arg_identifier}",
-            f"Currently on attempt number {job.attempt_number}. Error:"
-            f"\n\n{result_message}",
-        )
-
     if job.result_message:
         logger.info(f"Job [{job}]: {job.result_message}")
 
+    if settings.ENABLE_PERIODIC_JOBS:
+        # If it's a periodic job, schedule another run of it
+        schedule = get_periodic_job_schedules().get(name, None)
+        if schedule:
+            interval, offset = schedule
+            queue_job(name, delay=next_run_delay(interval, offset))
+
 
 class JobDecorator:
-    def __init__(self, job_name=None, schedule=None):
+    def __init__(
+        self, job_name: str = None,
+        interval: timedelta = None, offset: datetime = None,
+        huey_interval_minutes: int = None,
+    ):
         # This can be left unspecified if the task name works as the
         # job name.
         self.job_name = job_name
-        # This should be present if the job is to be run as a periodic task.
-        # Should be the same format as the arg to huey's db_periodic_task.
-        # If not present, then the job is a non-periodic task.
-        self.schedule = schedule
+
+        # This should be present if the job is to be run periodically
+        # through run_scheduled_jobs().
+        # This is an interval for next_run_delay().
+        if interval:
+            self.interval = interval.total_seconds()
+        else:
+            self.interval = None
+
+        # This is only looked at if interval is present.
+        # This is an offset for next_run_delay().
+        if offset:
+            self.offset = offset.timestamp()
+        else:
+            self.offset = 0
+
+        # This should be present if the job is to be run as a huey periodic
+        # task.
+        # Only minute-intervals are supported for simplicity.
+        self.huey_interval_minutes = huey_interval_minutes
 
     def __call__(self, task_func):
         if not self.job_name:
             self.job_name = task_func.__name__
-        if self.schedule:
+
+        if self.huey_interval_minutes:
             huey_decorator = db_periodic_task(
-                self.schedule, name=self.job_name)
+                # Cron-like specification for when huey should run the task.
+                crontab(f'*/{self.huey_interval_minutes}'),
+                # huey will discard the task run if it's this late.
+                # Basically if huey falls behind 30 minutes, we don't need it
+                # to run the same every-3-minutes task 10 times as makeup.
+                expires=timedelta(minutes=self.huey_interval_minutes*2),
+                name=self.job_name,
+            )
         else:
+            if self.interval:
+                set_periodic_job_schedule(
+                    self.job_name, self.interval, self.offset)
             huey_decorator = db_task(name=self.job_name)
 
         @huey_decorator
         def task_wrapper(*task_args):
             self.run_task_wrapper(task_func, task_args)
+
+        set_job_run_function(self.job_name, task_wrapper)
 
         return task_wrapper
 
@@ -223,7 +286,7 @@ class FullJobDecorator(JobDecorator):
             self.job_name,
             *task_args,
             delay=timedelta(seconds=0),
-            initial_status=Job.IN_PROGRESS,
+            initial_status=Job.Status.IN_PROGRESS,
             # No usages are source-specific yet.
             source_id=None,
         )
@@ -317,3 +380,63 @@ class JobStarterDecorator(JobDecorator):
 
 
 job_starter = JobStarterDecorator
+
+
+# Dict of functions which start each defined job.
+_job_run_functions = dict()
+
+
+def get_job_run_function(job_name):
+    if job_name not in _job_run_functions:
+        # Auto-discover.
+        # 'Running' the tasks modules should populate the dict.
+        #
+        # Note: although the run_huey command also autodiscovers tasks,
+        # that autodiscovery only applies to the huey thread; the results
+        # are not available to the web server threads.
+        autodiscover_modules('tasks')
+
+    return _job_run_functions[job_name]
+
+
+def set_job_run_function(name, task):
+    _job_run_functions[name] = task
+
+
+def run_job(job):
+    starter_task = get_job_run_function(job.job_name)
+    starter_task(*Job.identifier_to_args(job.arg_identifier))
+
+
+_periodic_job_schedules = dict()
+
+
+def get_periodic_job_schedules():
+    if len(_periodic_job_schedules) == 0:
+        # Auto-discover.
+        # 'Running' the tasks modules should populate the dict.
+        autodiscover_modules('tasks')
+
+    return _periodic_job_schedules
+
+
+def set_periodic_job_schedule(name, interval, offset):
+    _periodic_job_schedules[name] = (interval, offset)
+
+
+def next_run_delay(interval: int, offset: int = 0) -> timedelta:
+    """
+    Given a periodic job with a periodic interval of `interval` and a period
+    offset of `offset`, find the time until the job is scheduled to run next.
+
+    Both interval and offset are in seconds.
+    Offset is defined from Unix timestamp 0. One can either treat is as purely
+    relative (e.g. two 1-hour interval jobs, pass 0 offset for one job and
+    1/2 hour offset for the other), or pass in a specific date's timestamp to
+    induce runs at specific times of day / days of week.
+    """
+    now_timestamp = timezone.now().timestamp()
+    interval_count = math.ceil((now_timestamp - offset) / interval)
+    next_run_timestamp = offset + (interval_count * interval)
+    delay_in_seconds = max(next_run_timestamp - now_timestamp, 0)
+    return timedelta(seconds=delay_in_seconds)

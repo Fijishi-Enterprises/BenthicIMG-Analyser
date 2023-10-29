@@ -4,14 +4,23 @@ import spacer.config as spacer_config
 
 from images.model_utils import PointGen
 from jobs.tasks import run_scheduled_jobs_until_empty
+from jobs.tests.utils import queue_and_run_job
 from lib.tests.utils import ClientTest
 from upload.tests.utils import UploadAnnotationsCsvTestMixin
-from vision_backend.tasks import collect_spacer_jobs
 
 
-# Note that spacer also has its own minimum image count for training.
-@override_settings(MIN_NBR_ANNOTATED_IMAGES=1)
-@override_settings(SPACER_QUEUE_CHOICE='vision_backend.queues.LocalQueue')
+def queue_and_run_collect_spacer_jobs():
+    queue_and_run_job('collect_spacer_jobs')
+
+
+@override_settings(
+    # Note that spacer also has its own minimum image count for training.
+    MIN_NBR_ANNOTATED_IMAGES=1,
+    SPACER_QUEUE_CHOICE='vision_backend.queues.LocalQueue',
+    # Sometimes it helps to run certain periodic jobs (particularly
+    # collect_spacer_jobs) only when we explicitly want to.
+    ENABLE_PERIODIC_JOBS=False,
+)
 class BaseTaskTest(ClientTest, UploadAnnotationsCsvTestMixin):
     """Base test class for testing the backend's 'main' tasks."""
 
@@ -52,17 +61,17 @@ class BaseTaskTest(ClientTest, UploadAnnotationsCsvTestMixin):
             train_image_count=spacer_config.MIN_TRAINIMAGES, val_image_count=1)
         # Extract features
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
         # Train classifier
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
 
     def upload_image_and_machine_classify(self, user, source):
         # Image without annotations
         img = self.upload_image(user, source)
         # Extract features
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
         # Classify image
         run_scheduled_jobs_until_empty()
 

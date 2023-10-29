@@ -32,8 +32,8 @@
 
       {% include 'labels/label_basic_fields.html' %}
 
-      <p>Stats: Used in {{ source_count }} sources
-        and for {{ annotation_count }} annotations</p>
+      <div class="line">Stats: Used in {{ source_count }} sources
+        and for {{ annotation_count }} annotations</div>
     </div>
 
     {% if label.thumbnail %}
@@ -110,10 +110,10 @@
 
   </dl>
 
-  <p>Create Date: {{ label.create_date|default:"(Unknown)" }}</p>
-  <p>Created By: {{ label.created_by|default:"(Unknown)" }}</p>
+  <div class="line">Create Date: {{ label.create_date|default:"(Unknown)" }}</div>
+  <div class="line">Created By: {{ label.created_by|default:"(Unknown)" }}</div>
 
-  <p>Example Patches:</p>
+  <div class="line">Example Patches:</div>
   <div id="patches-container"></div>
 
   <button id="get-more-patches-button" type="button">Get more patches</button>

@@ -3,13 +3,67 @@ from django.forms import fields
 from django.forms.renderers import TemplatesSetting
 
 
-class CustomFormRenderer(TemplatesSetting):
+class GridFormRenderer(TemplatesSetting):
     """
     Based off of TemplatesSetting, for overriding built-in widget templates:
     https://docs.djangoproject.com/en/dev/ref/forms/renderers/#templatessetting
     """
-    # Use div.html by default, i.e. when using {{ my_form }} in a template.
-    form_template_name = 'django/forms/div.html'
+    form_template_name = 'lib/forms/grid.html'
+
+
+class RowsFormRenderer(TemplatesSetting):
+    form_template_name = 'lib/forms/rows.html'
+
+
+class BoxFormRenderer(TemplatesSetting):
+    form_template_name = 'lib/forms/box.html'
+
+
+class EnhancedForm(forms.Form):
+    """
+    Form subclass with our own additions:
+
+    - Allows grouping fields into fieldsets, which can be recognized
+    in renderer templates for visually grouping related fields.
+    """
+    fieldsets_keys: list
+
+    def get_context(self):
+        """
+        Context for the form-renderer template.
+        """
+        context = super().get_context()
+        if not self.fieldsets_keys:
+            # No fieldsets have been defined in the Form
+            return context
+
+        field_dict = {
+            field.name: (field, errors)
+            for (field, errors) in context['fields']
+        }
+
+        # Two levels of fieldsets are supported: fieldsets and subfieldsets.
+        # If you only need one level, then put your fieldsets in another pair
+        # of brackets [] to define it as subfieldsets of a single fieldset.
+        fieldsets = []
+        for fieldset_keys in self.fieldsets_keys:
+            fieldset = []
+
+            for subfieldset_keys in fieldset_keys:
+                subfieldset = []
+
+                for key in subfieldset_keys:
+                    if key in field_dict:
+                        subfieldset.append(field_dict[key])
+
+                if subfieldset:
+                    fieldset.append(subfieldset)
+
+            if fieldset:
+                fieldsets.append(fieldset)
+
+        context['fieldsets'] = fieldsets
+        return context
 
 
 class DummyForm(forms.Form):

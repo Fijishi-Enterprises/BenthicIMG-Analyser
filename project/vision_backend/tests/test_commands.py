@@ -5,6 +5,7 @@ from unittest import mock
 from django.conf import settings
 from django.core.files.storage import get_storage_class
 from django.core.management.base import CommandError
+from django.test.utils import override_settings
 from spacer.data_classes import ImageFeatures
 
 from jobs.models import Job
@@ -12,7 +13,7 @@ from jobs.tasks import run_scheduled_jobs_until_empty
 from lib.storage_backends import get_storage_manager
 from lib.tests.utils import ManagementCommandTest
 from ..models import Features
-from ..tasks import collect_spacer_jobs
+from .tasks.utils import queue_and_run_collect_spacer_jobs
 
 
 class MockOpenFactory:
@@ -57,7 +58,7 @@ class CheckSourceTest(ManagementCommandTest):
         self.assertSetEqual(
             job_details,
             {
-                ('check_source', str(self.source_1.pk), Job.PENDING),
+                ('check_source', str(self.source_1.pk), Job.Status.PENDING),
             },
             "Should queue the appropriate job",
         )
@@ -78,14 +79,15 @@ class CheckSourceTest(ManagementCommandTest):
         self.assertSetEqual(
             job_details,
             {
-                ('check_source', str(self.source_1.pk), Job.PENDING),
-                ('check_source', str(self.source_2.pk), Job.PENDING),
-                ('check_source', str(self.source_3.pk), Job.PENDING),
+                ('check_source', str(self.source_1.pk), Job.Status.PENDING),
+                ('check_source', str(self.source_2.pk), Job.Status.PENDING),
+                ('check_source', str(self.source_3.pk), Job.Status.PENDING),
             },
             "Should queue the appropriate jobs",
         )
 
 
+@override_settings(ENABLE_PERIODIC_JOBS=False)
 class ResetFeaturesTest(ManagementCommandTest):
 
     @classmethod
@@ -106,7 +108,7 @@ class ResetFeaturesTest(ManagementCommandTest):
 
         # Extract features
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
         # Let remaining check_source jobs run (they should have nothing to do)
         run_scheduled_jobs_until_empty()
 
@@ -144,7 +146,7 @@ class ResetFeaturesTest(ManagementCommandTest):
 
         pending_job_details = {
             (job.job_name, job.arg_identifier)
-            for job in Job.objects.filter(status=Job.PENDING)
+            for job in Job.objects.filter(status=Job.Status.PENDING)
         }
         self.assertSetEqual(
             pending_job_details,
@@ -181,7 +183,7 @@ class ResetFeaturesTest(ManagementCommandTest):
 
         pending_job_details = {
             (job.job_name, job.arg_identifier)
-            for job in Job.objects.filter(status=Job.PENDING)
+            for job in Job.objects.filter(status=Job.Status.PENDING)
         }
         self.assertSetEqual(
             pending_job_details,
@@ -206,6 +208,7 @@ class ResetFeaturesTest(ManagementCommandTest):
         )
 
 
+@override_settings(ENABLE_PERIODIC_JOBS=False)
 class InspectExtractedFeaturesTest(ManagementCommandTest):
 
     @classmethod
@@ -270,7 +273,7 @@ class InspectExtractedFeaturesTest(ManagementCommandTest):
     def test_features_ok(self):
         # Extract features normally.
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
 
         stdout_text, features_log_content, errors_json = self.call_command(
             'image_ids', '--ids', self.image_1a.pk,
@@ -303,7 +306,7 @@ class InspectExtractedFeaturesTest(ManagementCommandTest):
     def test_bad_feature_dim(self):
         # Extract features normally.
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
 
         # Modify features to have a mismatching feature_dim attribute.
         storage = get_storage_class()()
@@ -334,7 +337,7 @@ class InspectExtractedFeaturesTest(ManagementCommandTest):
     def test_rowcol_mismatch(self):
         # Extract features normally.
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
 
         # Change a point without clearing features.
         point = self.image_1a.point_set.get(point_number=1)
@@ -462,7 +465,7 @@ class InspectExtractedFeaturesTest(ManagementCommandTest):
     def test_do_correct(self):
         # Extract features
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
         # Let remaining check_source jobs run (they should have nothing to do)
         run_scheduled_jobs_until_empty()
 
@@ -482,7 +485,7 @@ class InspectExtractedFeaturesTest(ManagementCommandTest):
         )
 
         # Should have queued no jobs
-        self.assertFalse(Job.objects.filter(status=Job.PENDING).exists())
+        self.assertFalse(Job.objects.filter(status=Job.Status.PENDING).exists())
 
         # Then, with corrections
         self.call_command(
@@ -490,11 +493,11 @@ class InspectExtractedFeaturesTest(ManagementCommandTest):
         )
 
         # Now there should be jobs queued
-        self.assertTrue(Job.objects.filter(status=Job.PENDING).exists())
+        self.assertTrue(Job.objects.filter(status=Job.Status.PENDING).exists())
 
         pending_job_details = {
             (job.job_name, job.arg_identifier)
-            for job in Job.objects.filter(status=Job.PENDING)
+            for job in Job.objects.filter(status=Job.Status.PENDING)
         }
         self.assertSetEqual(
             pending_job_details,
@@ -529,7 +532,7 @@ class SubmitTrainTest(ManagementCommandTest):
         self.assertSetEqual(
             job_details,
             {
-                ('train_classifier', str(self.source_1.pk), Job.PENDING),
+                ('train_classifier', str(self.source_1.pk), Job.Status.PENDING),
             },
             "Should queue the appropriate job",
         )

@@ -168,7 +168,7 @@ def queue_source_check(source_id, delay=None):
     check_source Job only becomes visible to huey tasks when the view
     finishes its transaction. However, if desired, they can specify a delay.
     """
-    queue_job(
+    return queue_job(
         'check_source',
         source_id,
         source_id=source_id,

@@ -5,11 +5,31 @@
 {% endblock %}
 
 {% block page-specific-includes %}
-    {% include "static-local-include.html" with type="js" path="js/highcharts.js" %}
-    {% include "static-local-include.html" with type="js" path="js/heatmap.js" %}
+  {% include "static-local-include.html" with type="js" path="js/highcharts.js" %}
+  {% include "static-local-include.html" with type="js" path="js/heatmap.js" %}
 {% endblock %}
 
 {% block title %}Backend Inspector|CoralNet{% endblock %}
+
+{% block css-code %}
+<style>
+#alleviate {
+    width: 60%;
+    height: 300px;
+    margin: 10px auto;
+}
+#cm-wrapper {
+    height: 900px;
+    width: 900px;
+    overflow: scroll;
+    margin: 10px auto;
+    position: relative;
+}
+#cm {
+    margin: 0 auto;
+}
+</style>
+{% endblock %}
 
 {% block javascript-functions %}
 
@@ -121,40 +141,50 @@ $(document).ready(function() {
 
 {% block content %}
 
-    <legend>Vision backend</legend>
+  <div class="tool-heading">
+    <span>Vision backend diagnostics</span>
     <div class="tutorial-message">
-        {% include "vision_backend/help_backend.html" %}
+      {% include 'vision_backend/help_backend.html' %}
     </div>
-    
-    <p>Diagnostics tools for the CoralNet computer vision backend. </p>
-    
-    <hr/>
+  </div>
 
-    {% if has_classifier %}
-        <div id="alleviate", style="width:60%; height:300px;margin-left: auto;
-        margin-right: auto"></div>
+  {% if has_classifier %}
+    <p>
+      This plot shows the latest classifier's evaluated accuracy when we only include points over a certain confidence threshold. The source's confidence threshold setting is {{ source.confidence_threshold }}%; to change it, ask the source admin to visit the <a href="{% url 'source_edit' source.id %}">source admin page</a>.
+    </p>
+    <div id="alleviate"></div>
 
-        <p>Select confidence threshold and label grouping to view detailed classifier performance. To actually change the source settings ask source admin to visit the <a href="{% url 'source_edit' source.id %}">source admin page</a>.
-        <div style="width:60%;margin-left:auto; margin-right:auto">
-            <form action="" method="get">
-                {{ form }}
-                <input type="submit" name="cm_params"/>
-            </form>    
-        </div>
+    <p>
+      The below confusion matrix shows which labels the classifier performs better or worse on, and which labels it frequently confuses with other labels. Note that the classifier is evaluated on a random 1/8ths-subset of the confirmed point annotations (the other 7/8ths are used for training). For more info, click the '?' button above.
+    </p>
+    <h3>
+      Confusion matrix options
+    </h3>
 
-        <div style="width:20%;margin-left:auto; margin-right:auto">
-        <form action="" method="post">{% csrf_token %}
-            <input type="submit" name="export_cm" value="Export confusion matrix" />
-        </form>
-        </div>
+    <form action="" method="get" class="no-padding">
+      {{ form }}
+      <div class="submit_button_wrapper_column_form">
+        <input type="submit" value="Update confusion matrix display" name="cm_params" class="red">
+      </div>
+    </form>
 
-        <div style="height: 900px; width: 900px; overflow:scroll; scroll: auto; margin-left:auto; margin-right:auto;position: relative;">
-            <div id="cm", style="height: {{cm.css_height}}px; width: {{cm.css_width}}px; margin-left:auto; margin-right:auto"></div></div>
+    <form action="" method="post" class="no-padding">
+      {% csrf_token %}
+      <div class="submit_button_wrapper_column_form">
+        <input type="submit" name="export_cm" value="Export confusion matrix as CSV" class="red" />
+      </div>
+    </form>
 
-        
+    <div id="cm-wrapper">
+      <div id="cm" style="height: {{cm.css_height}}px; width: {{cm.css_width}}px;"></div>
+    </div>
 
-    {% else %}
-        <p> <i>This source does not have an automated classifier yet.</i></p>
-    {% endif %}
+  {% else %}
+
+    <p>
+      <i>This source does not have an automated classifier yet.</i>
+    </p>
+
+  {% endif %}
 
 {% endblock %}

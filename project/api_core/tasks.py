@@ -2,13 +2,12 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.utils import timezone
-from huey import crontab
 
-from jobs.utils import full_job
+from jobs.utils import job_runner
 from .models import ApiJob
 
 
-@full_job(schedule=crontab(hour=0, minute=0))
+@job_runner(interval=timedelta(days=1))
 def clean_up_old_api_jobs():
     """
     Clean up API jobs that satisfy both of these criteria:
@@ -19,6 +18,7 @@ def clean_up_old_api_jobs():
     created, but its job units haven't been created yet.
     """
     x_days_ago = timezone.now() - timedelta(days=settings.JOB_MAX_DAYS)
+    count = 0
 
     for job in ApiJob.objects.filter(create_date__lt=x_days_ago):
         units_were_modified_in_last_x_days = job.apijobunit_set.filter(
@@ -26,3 +26,9 @@ def clean_up_old_api_jobs():
         if not units_were_modified_in_last_x_days:
             # Delete the job, and its job units should cascade-delete with it.
             job.delete()
+            count += 1
+
+    if count > 0:
+        return f"Cleaned up {count} old API job(s)"
+    else:
+        return "No old API jobs to clean up"

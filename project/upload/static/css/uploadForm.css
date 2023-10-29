@@ -111,25 +111,3 @@ span.annotation-delete-info {
     padding: 50px;
     text-align: center;
 }
-
-
-/* Some form/field rules to make styling a bit cleaner compared to
- using master.css. */
-/* TODO: Merge some of these rules into master.css? */
-
-div.page_section {
-    margin: 20px 0;  /* top/bottom left/right */
-    padding: 0;
-
-    width: auto;
-}
-
-form {
-    margin: 0;
-    padding: 0;
-    width: auto;
-}
-
-label {
-    width: auto;
-}

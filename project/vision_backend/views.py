@@ -91,13 +91,13 @@ def backend_main(request, source_id):
             'source': source,
         })
 
-    cc = source.get_latest_robot()
+    cc = source.get_current_classifier()
     if 'valres' in request.session.keys() and \
             'ccpk' in request.session.keys() and \
             request.session['ccpk'] == cc.pk:
         pass
     else:
-        valres: ValResults = source.get_latest_robot().valres
+        valres: ValResults = cc.valres
         request.session['valres'] = valres.serialize()
         request.session['ccpk'] = cc.pk
     

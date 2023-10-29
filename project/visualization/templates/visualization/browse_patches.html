@@ -15,14 +15,15 @@
 
 {% block content %}
 
-  <legend>Browse Patches</legend>
-
-  <div class="tutorial-message">
-    {% include "visualization/help_browse.html" %}
+  <div class="tool-heading">
+    <span>Browse Patches</span>
+    <div class="tutorial-message">
+      {% include 'visualization/help_browse.html' %}
+    </div>
   </div>
 
   {# Search form #}
-  {% include "visualization/browse_search_form.html" with form=image_search_form patch_form=patch_search_form %}
+  {% include "visualization/browse_search_form.html" with form=patch_search_form %}
 
   {% if page_results.paginator.count == 0 %}
     {{ empty_message }}
@@ -52,7 +53,7 @@
     {% endfor %}
 
     {# Pagination info and links #}
-    {% include 'pagination_links.html' with use_post_form=True hidden_form=hidden_image_and_patch_form page_results=page_results %}
+    {% include 'pagination_links.html' with use_post_form=True hidden_form=hidden_filter_form page_results=page_results %}
   {% endif %}
 
   {# Script in the body will run on page load. #}

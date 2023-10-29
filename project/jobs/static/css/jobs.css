@@ -1,0 +1,38 @@
+#job-table th {
+  /* Give indication that there are tooltips */
+  cursor: help;
+}
+
+#job-summary td.pending,
+#job-table tr.pending {
+  background-color: #bbe;
+}
+#job-summary td.in_progress,
+#job-table tr.in_progress {
+  background-color: #eeb;
+}
+#job-table tr.success {
+  background-color: #beb;
+}
+#job-table tr.failure {
+  background-color: #ebb;
+}
+#job-summary td.completed {
+  background-color: #beb;
+}
+
+#job-table td.source,
+#job-table td.detail,
+#job-summary td.source {
+  /* Some source names, or identifiers in details, are long and could stretch
+     the column wide. Make them word wrap after a certain point. */
+  max-width: 200px;
+  /* Don't require word breaks to word wrap. */
+  overflow-wrap: break-word;
+}
+#job-summary td.summary-name {
+  font-style: italic;
+}
+#job-summary tr#all-jobs-summary td:not(.summary-name) {
+  font-weight: bold;
+}

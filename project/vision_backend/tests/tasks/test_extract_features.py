@@ -2,18 +2,59 @@ from unittest import mock
 
 from django.conf import settings
 from django.core.files.storage import get_storage_class
+from django.test import override_settings
 import spacer.config as spacer_config
 from spacer.data_classes import ImageFeatures
 from spacer.exceptions import SpacerInputError
 
 from errorlogs.tests.utils import ErrorReportTestMixin
 from jobs.tasks import run_scheduled_jobs, run_scheduled_jobs_until_empty
-from jobs.tests.utils import JobUtilsMixin
-from ...tasks import collect_spacer_jobs
-from .utils import BaseTaskTest
+from jobs.tests.utils import JobUtilsMixin, queue_and_run_job, run_pending_job
+from .utils import BaseTaskTest, queue_and_run_collect_spacer_jobs
 
 
 class ExtractFeaturesTest(BaseTaskTest, JobUtilsMixin):
+
+    def test_source_check(self):
+        self.upload_image(self.user, self.source)
+        self.upload_image(self.user, self.source)
+
+        run_pending_job('check_source', self.source.pk)
+        self.assert_job_result_message(
+            'check_source',
+            "Queued 2 feature extraction(s)")
+
+        self.upload_image(self.user, self.source)
+
+        run_pending_job('check_source', self.source.pk)
+        # Should not re-queue the other extractions
+        self.assert_job_result_message(
+            'check_source',
+            "Queued 1 feature extraction(s)")
+
+        queue_and_run_job(
+            'check_source', self.source.pk,
+            source_id=self.source.pk)
+        self.assert_job_result_message(
+            'check_source',
+            "Waiting for feature extraction(s) to finish")
+
+    @override_settings(JOB_MAX_MINUTES=-1)
+    def test_source_check_time_out(self):
+        for _ in range(12):
+            self.upload_image(self.user, self.source)
+
+        run_pending_job('check_source', self.source.pk)
+        self.assert_job_result_message(
+            'check_source',
+            "Queued 10 feature extraction(s) (timed out)")
+
+        queue_and_run_job(
+            'check_source', self.source.pk,
+            source_id=self.source.pk)
+        self.assert_job_result_message(
+            'check_source',
+            "Queued 2 feature extraction(s)")
 
     def test_success(self):
         # After an image upload, features are ready to be submitted.
@@ -22,17 +63,13 @@ class ExtractFeaturesTest(BaseTaskTest, JobUtilsMixin):
         # Extract features.
         run_scheduled_jobs_until_empty()
 
-        self.assert_job_result_message(
-            'check_source',
-            "Tried to queue feature extraction(s)")
-
         self.assertExistsInStorage(
             settings.FEATURE_VECTOR_FILE_PATTERN.format(
                 full_image_path=img.original_file.name))
 
         # With LocalQueue, the result should be
         # available for collection immediately.
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
 
         # Features should be successfully extracted.
         self.assertTrue(img.features.extracted)
@@ -44,7 +81,7 @@ class ExtractFeaturesTest(BaseTaskTest, JobUtilsMixin):
 
         # Extract features + collect results.
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
 
         self.assertTrue(img1.features.extracted)
         self.assertTrue(img2.features.extracted)
@@ -60,7 +97,7 @@ class ExtractFeaturesTest(BaseTaskTest, JobUtilsMixin):
         img = self.upload_image_with_dupe_points('1.png')
         # Extract features + process result.
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
 
         self.assertTrue(img.features.extracted, "Features should be extracted")
 
@@ -74,6 +111,35 @@ class ExtractFeaturesTest(BaseTaskTest, JobUtilsMixin):
         self.assertListEqual(
             self.rowcols_with_dupes_included, sorted(rowcols),
             "Feature rowcols should match the actual points including dupes")
+
+    @override_settings(SPACER={'MAX_IMAGE_PIXELS': 100})
+    def test_resolution_too_large(self):
+        # Upload image.
+        img1 = self.upload_image(
+            self.user, self.source, image_options=dict(width=10, height=10))
+        # Upload too-large image.
+        img2 = self.upload_image(
+            self.user, self.source, image_options=dict(width=10, height=11))
+        # Extract features + process result.
+        run_scheduled_jobs_until_empty()
+        queue_and_run_collect_spacer_jobs()
+
+        # Let the next source-check get past the training and classification
+        # checks.
+        robot = self.create_robot(self.source)
+        self.add_robot_annotations(robot, img1)
+
+        # Check source again.
+        run_scheduled_jobs_until_empty()
+
+        img2.features.refresh_from_db()
+        self.assertFalse(img2.features.extracted)
+        self.assert_job_result_message(
+            'check_source',
+            "At least one image has too large of a resolution to extract"
+            f" features (example: image ID {img2.pk})."
+            f" Otherwise, the source seems to be all caught up."
+            f" Not enough annotated images for initial training")
 
 
 class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin, JobUtilsMixin):
@@ -91,7 +157,7 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin, JobUtilsMixin):
             train_image_count=spacer_config.MIN_TRAINIMAGES,
             val_image_count=1)
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
 
         # Train a classifier.
         run_scheduled_jobs_until_empty()
@@ -137,7 +203,7 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin, JobUtilsMixin):
         img.delete()
 
         # Collect feature extraction.
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
 
         self.assert_job_result_message(
             'extract_features',
@@ -157,7 +223,7 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin, JobUtilsMixin):
             run_scheduled_jobs()
 
         # Collect feature extraction.
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
 
         self.assert_job_result_message(
             'extract_features',
@@ -185,7 +251,7 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin, JobUtilsMixin):
             raise SpacerInputError("A spacer input error")
         with mock.patch('spacer.tasks.extract_features', raise_error):
             run_scheduled_jobs()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
 
         self.assert_job_result_message(
             'extract_features',
@@ -211,7 +277,7 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin, JobUtilsMixin):
         point.save()
 
         # Collect feature extraction.
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
 
         self.assert_job_result_message(
             'extract_features',

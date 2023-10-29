@@ -3,8 +3,8 @@ from django.urls import reverse
 
 from jobs.tasks import run_scheduled_jobs_until_empty
 from lib.tests.utils import BasePermissionTest, ClientTest
-from vision_backend.tasks import collect_spacer_jobs
-from vision_backend.tests.tasks.utils import BaseTaskTest
+from vision_backend.tests.tasks.utils import (
+    BaseTaskTest, queue_and_run_collect_spacer_jobs)
 
 
 class PermissionTest(BasePermissionTest):
@@ -229,7 +229,7 @@ class ClassifyAfterDeleteTest(BaseTaskTest):
             image_options=dict(filename='unconfirmed.png'))
         # Extract features
         run_scheduled_jobs_until_empty()
-        collect_spacer_jobs()
+        queue_and_run_collect_spacer_jobs()
         # Classify
         run_scheduled_jobs_until_empty()
 

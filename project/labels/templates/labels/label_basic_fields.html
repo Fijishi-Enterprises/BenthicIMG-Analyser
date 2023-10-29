@@ -1,19 +1,19 @@
 {% load labels %}
 {% load truncate_float from common_tags %}
 
-<p>Name: {{ label.name }}</p>
-<p>Functional Group: {{ label.group.name }}</p>
-<p>Default Short Code: {{ label.default_code }}</p>
+<div class="line">Name: {{ label.name }}</div>
+<div class="line">Functional Group: {{ label.group.name }}</div>
+<div class="line">Default Short Code: {{ label.default_code }}</div>
 
 {% if label.duplicate %}
-  <p>
+  <div class="line">
     <strong>
       THIS LABEL IS A DUPLICATE OF:
       <a href="{% url 'label_main' label.duplicate.id %}">
         {{ label.duplicate }}
       </a>
     </strong>
-  </p>
+  </div>
 {% endif %}
 
 <div class="line">Verified:

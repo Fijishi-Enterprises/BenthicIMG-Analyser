@@ -140,8 +140,11 @@ ul.nav li.button_prominent a:active span {
 /*	Type
 ................................... */
 
-h1, h2, h3, h4, h5, h6 { font-family: 'Droid Sans', helvetica, arial, Geneva, sans-serif; text-transform: uppercase;}
-/*h1, h2, h3, h4, h5, h6 { font-family: 'Droid Sans', helvetica, arial, Geneva, sans-serif; text-transform: uppercase; text-shadow: #ffffff 1px 1px 0px;}*/
+h1, h2, h3, h4, h5, h6, div.tool-heading {
+    font-family: 'Droid Sans', helvetica, arial, Geneva, sans-serif;
+    text-transform: uppercase;
+}
+
 p{
     font-size: 1.0em;
     line-height: 1.5em;
@@ -161,6 +164,23 @@ div.narrow_column {
     margin: 0 auto;  /* top/bottom left/right */
 }
 
+div.page-section {
+    margin: 20px 0;  /* top/bottom left/right */
+    padding: 0;
+
+    width: auto;
+}
+
+/* This can work similarly to h2 etc., while being more flexible. */
+div.tool-heading {
+    color: hsl(0, 0%, 50%);
+    font-size: 1.4em;
+    font-weight: bold;
+    padding: 5px 0;
+    border-bottom: 1px solid hsl(0, 0%, 87%);
+    margin-bottom: 5px;
+}
+
 h1{
     font-size: 2.2em;
     margin-bottom: 0.6em;
@@ -169,20 +189,6 @@ h1{
 h2{
     font-size: 1.4em;
     margin-bottom: 1.0em;
-}
-
-h2.content-title{
-	font-size: 1.5em;
-	margin: 10px;
-    padding: 15px 15px 12px;	
-    background: #e7e2de no-repeat 90px 30px;
-    -moz-border-radius: 8px;
-    -webkit-border-radius: 8px;
-    border-radius: 8px;
-     -moz-box-shadow: inset 0 0 3px #999;
-    -webkit-box-shadow: inset 0 0 3px #999;
-    box-shadow: inset 0 0 3px #999;
-    color: #ab292a;
 }
 
 /* Smaller text on the same line as the main h2 text. */
@@ -194,23 +200,6 @@ h2 span.subheader{
 h3{
     font-size: 1.2em;
     margin: 0 0 5px;
-}
-
-/* This is intended as an alternative to legend.small, particularly when
-   a certain element isn't allowed to hold a legend inside it. */
-.page_section h3{
-    /* This keeps the bottom border's width confined to the text's width
-       (which block doesn't do), and allows margins and padding to actually
-       take effect (which inline doesn't do). */
-    display: inline-block;
-
-    padding: 5px 0 6px 0;
-    border-bottom: 1px solid #ddd;
-    margin-bottom: 5px;
-    font-size: 1.2em;
-    color: #ab292a;
-    font-weight: bold;
-    text-transform: none;
 }
 
 h4{
@@ -276,19 +265,6 @@ a.button:active span {
     box-shadow: rgba(33,33,33,0.45) 0px 0px 1px;
     padding: 0.58em 1.6em 0.30em;
     line-height: 1.5em;
-}
-
-/* Previous/Next page links which use GET, not POST. Ones that use POST
-   are `input[type=submit].gray`. */
-a.prev-next-page {
-    background: hsl(0, 0%, 80%);
-    color: hsl(0, 0%, 25%);
-
-    /* Make it easier to click and slightly more appealing. */
-    padding: 4px;
-    border-radius: 4px;
-    /* Background size should ignore leading/trailing spaces. */
-    display: inline-block;
 }
 
 
@@ -362,7 +338,7 @@ sup {
 /*	Forms
 ................................... */
 
-form, div.page_section {
+form {
     margin: 15px auto 20px;
     padding: 12px 0;
     width: 800px;
@@ -375,9 +351,10 @@ form p, .form_item_wrapper {
     overflow: auto;  /* This allows the element to expand for multi-line labels and such */
 }
 
-/* Forms with less page presence. */
-form.inline {
-    display: inline-block;
+/* We're slowly porting all <form> elements to not have padding, margin, etc.
+ of their own, leaving that to an outer or inner div instead. This is a
+ transitional class to use until all forms are like this. */
+form.no-padding {
     margin: 0;
     padding: 0;
     width: auto;
@@ -468,7 +445,6 @@ input[type=password], input[type=file], textarea, span.editable {
 
 input[type=checkbox] {
     padding: 14px 0;
-    width: 20px;
 }
 
 /* Dropdown box */
@@ -499,7 +475,12 @@ textarea.large {
     height: 16em;
 }
 
-input[type=submit], button.submit {
+/* TODO: Add the 'red' class to all of the site's standard-styled submit
+    buttons, and then make the below rules apply only to 'red'. That way,
+    the other submit button styles don't have to reset all of these
+    rules. */
+input[type=submit], button.submit,
+input[type=submit].red, button.submit.red {
     height: 35px;
     display: inline;
     line-height: 34px;
@@ -521,13 +502,15 @@ input[type=submit], button.submit {
     font-family: 'Droid Sans', helvetica, arial, Geneva, sans-serif;
 }
 
-input[type=submit]:active, button.submit:active {
+input[type=submit]:active, button.submit:active,
+input[type=submit].red:active, button.submit.red:active {
     line-height: 36px;  /* Intended effect is to make the button move a bit as you click it.  May not work the same in FF and Chrome though. */
     background-color: #bd302d;
     border: 1px inset #ce3024;
 }
 
-input[type=submit][disabled], button.submit[disabled] {
+input[type=submit][disabled], button.submit[disabled],
+input[type=submit][disabled].red, button.submit[disabled].red {
     line-height: 34px;
     background-color: #666666;
     color: #9f9f9f;
@@ -536,34 +519,8 @@ input[type=submit][disabled], button.submit[disabled] {
 }
 /* Don't define a [disabled]:active style, so the disabled submit button doesn't change appearance when you click it */
 
-
-input[type=submit].gray {
-    /* Make these input elements look roughly like normal buttons. */
-    /* TODO: Instead of doing THIS much style resetting, perhaps the
-       'standard' submit button should have its own class, instead
-       of just taking over input type=submit in general. */
-    background: hsl(0, 0%, 80%);
-    color: inherit;
-    font-family: inherit;
-    font-size: inherit;
-    font-weight: inherit;
-    line-height: inherit;
-    letter-spacing: inherit;
-    text-shadow: none;
-
-    min-width: inherit;
-    height: inherit;
-    border: none;
-    padding: 0;
-    margin: 0;
-    cursor: pointer;
-}
-
 input[type=submit].link {
     /* Make these input elements look like links. */
-    /* TODO: Instead of doing THIS much style resetting, perhaps the
-       'standard' submit button should have its own class, instead
-       of just taking over input type=submit in general. */
     background: none;
     color: #880E00;
     font-family: inherit;
@@ -691,6 +648,38 @@ legend.smaller {
 .checkbox_row.selected.disabled td.clickable_cell{
     cursor: default;
     background-color: #aaaaaa;
+}
+
+
+/*  pagination
+....................................*/
+
+
+div.pagination-links {
+    display: flex;
+}
+
+/* Previous/Next page links which use POST. */
+input[type=submit].page,
+/* Previous/Next page links which use GET. */
+a.prev-next-page{
+    /* Make these input elements look roughly like normal buttons. */
+    background: hsl(0, 0%, 80%);
+    color: inherit;
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    line-height: inherit;
+    letter-spacing: inherit;
+    text-shadow: none;
+
+    min-width: inherit;
+    height: inherit;
+    border: none;
+    border-radius: 3px;
+    padding: 0 3px;
+    margin: 0 5px;
+    cursor: pointer;
 }
 
 

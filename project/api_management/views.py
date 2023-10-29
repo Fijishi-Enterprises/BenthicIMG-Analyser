@@ -69,8 +69,8 @@ def job_detail(request, job_id):
         'job': job,
         'job_status': job_status,
         'units': units,
-        'PENDING': Job.PENDING,
-        'IN_PROGRESS': Job.IN_PROGRESS,
-        'SUCCESS': Job.SUCCESS,
-        'FAILURE': Job.FAILURE,
+        'PENDING': Job.Status.PENDING,
+        'IN_PROGRESS': Job.Status.IN_PROGRESS,
+        'SUCCESS': Job.Status.SUCCESS,
+        'FAILURE': Job.Status.FAILURE,
     })

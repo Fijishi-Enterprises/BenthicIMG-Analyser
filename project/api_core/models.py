@@ -37,10 +37,10 @@ class ApiJob(models.Model):
         counts = Counter(job_unit_statuses)
         total_unit_count = len(job_unit_statuses)
 
-        if counts[Job.PENDING] == len(job_unit_statuses):
+        if counts[Job.Status.PENDING] == len(job_unit_statuses):
             # All units are still pending, so the job as a whole is pending
             overall_status = self.PENDING
-        elif counts[Job.PENDING] + counts[Job.IN_PROGRESS] > 0:
+        elif counts[Job.Status.PENDING] + counts[Job.Status.IN_PROGRESS] > 0:
             # Some units haven't finished yet, so the job isn't done yet
             overall_status = self.IN_PROGRESS
         else:
@@ -49,10 +49,10 @@ class ApiJob(models.Model):
 
         return dict(
             overall_status=overall_status,
-            pending_units=counts[Job.PENDING],
-            in_progress_units=counts[Job.IN_PROGRESS],
-            failure_units=counts[Job.FAILURE],
-            success_units=counts[Job.SUCCESS],
+            pending_units=counts[Job.Status.PENDING],
+            in_progress_units=counts[Job.Status.IN_PROGRESS],
+            failure_units=counts[Job.Status.FAILURE],
+            success_units=counts[Job.Status.SUCCESS],
             total_units=total_unit_count,
         )
 

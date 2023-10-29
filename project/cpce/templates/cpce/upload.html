@@ -15,25 +15,25 @@
 
 {% block content %}
 
-  <legend>
-    Upload Points and Annotations (CPC)
+  <div class="tool-heading">
+    <span>Upload Points and Annotations (CPC)</span>
     <div class="tutorial-message">
       {% include 'cpce/upload_help.html' %}
     </div>
-  </legend>
+  </div>
 
   <div class="narrow_column">
 
-    <div class="page_section">
+    <div class="page-section">
 
-      <form id="cpc_form" action="" method="post" enctype="multipart/form-data">
+      <form id="cpc_form" action="" method="post" enctype="multipart/form-data" class="no-padding">
         {% csrf_token %}
         {{ cpc_import_form }}
       </form>
 
     </div>
 
-    <div class="page_section">
+    <div class="page-section">
 
       <div id="upload_summary_section">
 
@@ -48,7 +48,7 @@
 
       <div id="upload_and_proceed_buttons">
 
-        <button type="button" class="submit" id="id_upload_submit" disabled="disabled">Save points and annotations</button>
+        <button type="button" class="submit red" id="id_upload_submit" disabled="disabled">Save points and annotations</button>
 
       </div>
 

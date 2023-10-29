@@ -11,13 +11,19 @@ from django.db import models
 
 from easy_thumbnails.fields import ThumbnailerImageField
 from guardian.shortcuts import (
-    get_objects_for_user, get_users_with_perms, get_perms, assign_perm, remove_perm)
+    assign_perm,
+    get_objects_for_user,
+    get_perms,
+    get_users_with_perms,
+    remove_perm,
+)
 
 from .model_utils import PointGen
 from accounts.utils import is_robot_user
 from annotations.model_utils import AnnotationAreaUtils
 from labels.models import LabelSet
 from lib.utils import rand_string
+from vision_backend.models import Classifier
 
 
 class SourceManager(models.Manager):
@@ -347,7 +353,7 @@ class Source(models.Model):
 
     @property
     def best_robot_accuracy(self):
-        robot = self.get_latest_robot()
+        robot = self.get_current_classifier()
         if robot is None:
             return None
         else:
@@ -377,33 +383,24 @@ class Source(models.Model):
         return AnnotationAreaUtils.db_format_to_display(
             self.image_annotation_area)
 
-    def get_latest_robot(self, only_accepted=True):
+    def get_current_classifier(self):
         """
-        return the latest robot associated with this source.
-        if no robots, return None
+        Returns the classifier currently used for image classification
+        in this source, or None if no such classifier is available.
         """
-        if only_accepted:
-            robots = self.get_accepted_robots()
-            if robots.count() > 0:
-                return robots[0]
-            else:
-                return None
-        else:
-            robots = self.classifier_set.order_by('-id')
-            if robots.count() > 0:
-                return robots[0]
-            else:
-                return None
+        try:
+            return self.classifier_set.filter(
+                status=Classifier.ACCEPTED).latest('pk')
+        except Classifier.DoesNotExist:
+            return None
 
     def get_accepted_robots(self):
         """
         Returns a list of all robots that have been accepted for use in the
         source
         """
-        # Method-level import to avoid circular module-level imports
-        from vision_backend.models import Classifier
         return self.classifier_set.filter(
-            status=Classifier.ACCEPTED).order_by('-id')
+            status=Classifier.ACCEPTED).order_by('-pk')
 
     def need_new_robot(self) -> Tuple[bool, str]:
         """
@@ -420,13 +417,13 @@ class Source(models.Model):
                 < settings.MIN_NBR_ANNOTATED_IMAGES):
             return False, "Not enough annotated images for initial training"
 
-        latest_robot = self.get_latest_robot(only_accepted=False)
-        if not latest_robot:
+        try:
+            latest_classifier_attempt = self.classifier_set.exclude(
+                status=Classifier.TRAIN_PENDING).latest('pk')
+        except Classifier.DoesNotExist:
             return True, "No classifier yet"
 
-        # Method-level import to avoid circular module-level imports.
-        from vision_backend.models import Classifier
-        if latest_robot.status == Classifier.TRAIN_ERROR:
+        if latest_classifier_attempt.status == Classifier.TRAIN_ERROR:
             return True, "Last training resulted in an error"
 
         # Check whether there are enough newly annotated images
@@ -438,7 +435,7 @@ class Source(models.Model):
         # retrain when there are no new images.
         threshold_for_new = math.ceil(
             settings.NEW_CLASSIFIER_TRAIN_TH
-            * latest_robot.nbr_train_images
+            * latest_classifier_attempt.nbr_train_images
         )
         has_enough = nbr_verified_images_with_features >= threshold_for_new
         message = (

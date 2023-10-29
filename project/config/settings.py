@@ -243,6 +243,41 @@ DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
 
 #
+# Upload/data restrictions
+#
+
+# The maximum size (in bytes) that an upload will be before it
+# gets streamed to the file system.
+#
+# The value in this base settings module should match what we want for the
+# production server. Each developer's settings module can override this
+# as needed.
+FILE_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50 MB
+
+# The maximum size for a request body (not counting file uploads).
+# Due to metadata-edit not having an image limit yet, this needs to be quite
+# big.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50 MB
+
+# Maximum number of GET/POST parameters that are parsed from a single request.
+# Due to metadata-edit not having an image limit yet, this needs to be quite
+# large (each image would have about 20 fields).
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000000
+
+# [CoralNet settings]
+IMAGE_UPLOAD_MAX_FILE_SIZE = 30*1024*1024  # 30 MB
+IMAGE_UPLOAD_MAX_DIMENSIONS = (8000, 8000)
+IMAGE_UPLOAD_ACCEPTED_CONTENT_TYPES = [
+    # https://www.sitepoint.com/web-foundations/mime-types-complete-list/
+    'image/jpeg',
+    'image/pjpeg',  # Progressive JPEG
+    'image/png',
+    'image/mpo',
+]
+CSV_UPLOAD_MAX_FILE_SIZE = 30*1024*1024  # 30 MB
+
+
+#
 # PySpacer and the vision backend
 #
 
@@ -255,6 +290,7 @@ NEW_CLASSIFIER_TRAIN_TH = 1.1
 NEW_CLASSIFIER_IMPROVEMENT_TH = 1.01
 
 # This many images must be annotated before a first classifier is trained.
+# TODO: Configure this on spacer's side as well
 MIN_NBR_ANNOTATED_IMAGES = env.int('MIN_NBR_ANNOTATED_IMAGES', default=20)
 
 # Naming schemes
@@ -297,6 +333,9 @@ SPACER = {
     # For regression tests, spacer expects a local model path.
     # Expects str, not Path.
     'LOCAL_MODEL_PATH': str(SITE_DIR / 'spacer_models'),
+
+    'MAX_IMAGE_PIXELS': (
+        IMAGE_UPLOAD_MAX_DIMENSIONS[0] * IMAGE_UPLOAD_MAX_DIMENSIONS[1]),
 }
 
 # If True, feature extraction just returns dummy results to speed up testing.
@@ -632,19 +671,29 @@ HUEY = {
     'results': False,
     # Whether to run tasks immediately or to schedule them as normal.
     'immediate': env.bool('HUEY_IMMEDIATE', default=DEBUG),
-    # Whether to run periodic tasks or not.
+    # Whether to run huey-registered periodic tasks or not.
     'consumer': {
         'periodic': env.bool('HUEY_CONSUMER_PERIODIC', default=True),
     }
 }
 
 # [CoralNet settings]
+# Whether to periodically run CoralNet-managed (not huey-registered)
+# periodic jobs. Can be useful to disable for certain tests.
+ENABLE_PERIODIC_JOBS = True
 # Additional API-throttling policy for async jobs.
 MAX_CONCURRENT_API_JOBS_PER_USER = 5
 # Days until we purge old async jobs.
 JOB_MAX_DAYS = 30
 # Page size when listing async jobs.
 JOBS_PER_PAGE = 100
+# Potentially long-running jobs should try to finish up once this
+# amount of time passes. By defining a duration cap, we have better
+# chances to gracefully shut down the server (without force-stopping
+# jobs).
+# For example, the supervisor `stopwaitsecs` parameter for the huey
+# process can be twice this duration.
+JOB_MAX_MINUTES = 10
 
 
 #
@@ -806,25 +855,11 @@ TEMPLATES = [
     },
 ]
 
-FORM_RENDERER = 'lib.forms.CustomFormRenderer'
-
-# The maximum size (in bytes) that an upload will be before it
-# gets streamed to the file system.
-#
-# The value in this base settings module should match what we want for the
-# production server. Each developer's settings module can override this
-# as needed.
-FILE_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50 MB
-
-# The maximum size for a request body (not counting file uploads).
-# Due to metadata-edit not having an image limit yet, this needs to be quite
-# big.
-DATA_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50 MB
-
-# Maximum number of GET/POST parameters that are parsed from a single request.
-# Due to metadata-edit not having an image limit yet, this needs to be quite
-# large (each image would have about 20 fields).
-DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000000
+# Use this class by default for rendering forms, i.e. when using
+# {{ my_form }} in a template.
+# Individual Form classes can specify a default_renderer attribute to
+# override this.
+FORM_RENDERER = 'lib.forms.GridFormRenderer'
 
 # For the Django sites framework
 SITE_ID = 1
@@ -939,18 +974,6 @@ MAINTENANCE_STATUS_FILE_PATH = SITE_DIR / 'tmp' / 'maintenance.json'
 IMPORTED_USERNAME = 'Imported'
 ROBOT_USERNAME = 'robot'
 ALLEVIATE_USERNAME = 'Alleviate'
-
-# Upload restrictions
-IMAGE_UPLOAD_MAX_FILE_SIZE = 30*1024*1024  # 30 MB
-IMAGE_UPLOAD_MAX_DIMENSIONS = (8000, 8000)
-IMAGE_UPLOAD_ACCEPTED_CONTENT_TYPES = [
-    # https://www.sitepoint.com/web-foundations/mime-types-complete-list/
-    'image/jpeg',
-    'image/pjpeg',  # Progressive JPEG
-    'image/png',
-    'image/mpo',
-]
-CSV_UPLOAD_MAX_FILE_SIZE = 30*1024*1024  # 30 MB
 
 BROWSE_DEFAULT_THUMBNAILS_PER_PAGE = 20
 

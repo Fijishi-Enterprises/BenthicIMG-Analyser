@@ -10,6 +10,7 @@ from django_migration_testcase import MigrationTest
 from rest_framework import status
 
 from jobs.models import Job
+from jobs.utils import queue_job
 from lib.tests.utils import ClientTest
 from ..models import ApiJob, ApiJobUnit
 from ..tasks import clean_up_old_api_jobs
@@ -292,7 +293,8 @@ class JobCleanupTest(ClientTest):
 
         cls.user = cls.create_user()
 
-    def create_unit(self, api_job, order):
+    @staticmethod
+    def create_unit(api_job, order):
         internal_job = Job(job_name='')
         internal_job.save()
         unit = ApiJobUnit(
@@ -301,6 +303,25 @@ class JobCleanupTest(ClientTest):
         )
         unit.save()
         return unit
+
+    @staticmethod
+    def run_and_get_result():
+        # Note that this may or may not queue a new job instance; perhaps
+        # the periodic job was already queued at the end of the previous
+        # job's run.
+        queue_job('clean_up_old_api_jobs')
+        clean_up_old_api_jobs()
+        job = Job.objects.filter(
+            job_name='clean_up_old_api_jobs',
+            status=Job.Status.SUCCESS).latest('pk')
+        return job.result_message
+
+    def test_zero_jobs_message(self):
+        """
+        Check the result message when there are no API jobs to clean up.
+        """
+        self.assertEqual(
+            self.run_and_get_result(), "No old API jobs to clean up")
 
     def test_job_selection(self):
         """
@@ -352,7 +373,8 @@ class JobCleanupTest(ClientTest):
         Job.objects.filter(pk=unit_2.internal_job.pk).update(
             modify_date=thirty_one_days_ago)
 
-        clean_up_old_api_jobs()
+        self.assertEqual(
+            self.run_and_get_result(), "Cleaned up 2 old API job(s)")
 
         self.assertTrue(
             ApiJob.objects.filter(type='new job, no units').exists(),
@@ -399,7 +421,7 @@ class JobCleanupTest(ClientTest):
             Job.objects.filter(pk=unit.internal_job.pk).update(
                 modify_date=thirty_one_days_ago)
 
-        clean_up_old_api_jobs()
+        self.run_and_get_result()
 
         self.assertTrue(
             ApiJobUnit.objects.filter(parent__type='new').exists(),
@@ -427,7 +449,7 @@ class UnitAndJobForwardMigrationTest(MigrationTest):
 
         # In progress
         unit_1 = ApiJobUnitBefore(
-            job=api_job, type='some_type', status=Job.IN_PROGRESS,
+            job=api_job, type='some_type', status='IP',
             request_json=dict(
                 url='URL 1', image_order=10,
             ),
@@ -436,7 +458,7 @@ class UnitAndJobForwardMigrationTest(MigrationTest):
 
         # Success + test specific dates
         unit_2 = ApiJobUnitBefore(
-            job=api_job, type='some_type', status=Job.SUCCESS,
+            job=api_job, type='some_type', status='SC',
             request_json=dict(
                 url='URL 2', image_order=11,
             ),
@@ -453,7 +475,7 @@ class UnitAndJobForwardMigrationTest(MigrationTest):
 
         # Failure
         unit_3 = ApiJobUnitBefore(
-            job=api_job, type='some_type', status=Job.FAILURE,
+            job=api_job, type='some_type', status='FL',
             request_json=dict(
                 url='URL 3', image_order=12,
             ),
@@ -473,7 +495,7 @@ class UnitAndJobForwardMigrationTest(MigrationTest):
         self.assertEqual(unit_1.internal_job.job_name, 'some_type')
         self.assertEqual(
             unit_1.internal_job.arg_identifier, f'{api_job.pk},11')
-        self.assertEqual(unit_1.internal_job.status, Job.IN_PROGRESS)
+        self.assertEqual(unit_1.internal_job.status, 'IP')
 
         unit_2 = ApiJobUnitAfter.objects.get(pk=unit_2.pk)
         self.assertEqual(unit_2.parent_id, api_job.pk)
@@ -481,7 +503,7 @@ class UnitAndJobForwardMigrationTest(MigrationTest):
         self.assertEqual(unit_2.internal_job.job_name, 'some_type')
         self.assertEqual(
             unit_2.internal_job.arg_identifier, f'{api_job.pk},12')
-        self.assertEqual(unit_2.internal_job.status, Job.SUCCESS)
+        self.assertEqual(unit_2.internal_job.status, 'SC')
         self.assertEqual(unit_2.internal_job.create_date.day, 19)
         self.assertEqual(unit_2.internal_job.scheduled_start_date.day, 19)
         self.assertEqual(unit_2.internal_job.modify_date.day, 21)
@@ -492,7 +514,7 @@ class UnitAndJobForwardMigrationTest(MigrationTest):
         self.assertEqual(unit_3.internal_job.job_name, 'some_type')
         self.assertEqual(
             unit_3.internal_job.arg_identifier, f'{api_job.pk},13')
-        self.assertEqual(unit_3.internal_job.status, Job.FAILURE)
+        self.assertEqual(unit_3.internal_job.status, 'FL')
         self.assertEqual(unit_3.internal_job.result_message, "Some error")
 
 
@@ -520,7 +542,7 @@ class UnitAndJobBackwardMigrationTest(MigrationTest):
         job_1 = JobBefore(
             job_name='some_type',
             arg_identifier=f'{api_job.pk},11',
-            status=Job.IN_PROGRESS,
+            status='IP',
         )
         job_1.save()
         unit_1 = ApiJobUnitBefore(
@@ -534,7 +556,7 @@ class UnitAndJobBackwardMigrationTest(MigrationTest):
         job_2 = JobBefore(
             job_name='some_type',
             arg_identifier=f'{api_job.pk},12',
-            status=Job.SUCCESS,
+            status='SC',
         )
         job_2.save()
         JobBefore.objects.filter(pk=job_2.pk).update(
@@ -556,7 +578,7 @@ class UnitAndJobBackwardMigrationTest(MigrationTest):
         job_3 = JobBefore(
             job_name='some_type',
             arg_identifier=f'{api_job.pk},13',
-            status=Job.FAILURE,
+            status='FL',
             result_message="Some error",
         )
         job_3.save()
@@ -575,7 +597,7 @@ class UnitAndJobBackwardMigrationTest(MigrationTest):
         unit_1 = ApiJobUnitAfter.objects.get(pk=unit_1.pk)
         self.assertEqual(unit_1.job_id, api_job.pk)
         self.assertEqual(unit_1.type, 'some_type')
-        self.assertEqual(unit_1.status, Job.IN_PROGRESS)
+        self.assertEqual(unit_1.status, 'IP')
         self.assertDictEqual(
             unit_1.request_json,
             dict(url='URL 1', image_order=10),
@@ -585,7 +607,7 @@ class UnitAndJobBackwardMigrationTest(MigrationTest):
         unit_2 = ApiJobUnitAfter.objects.get(pk=unit_2.pk)
         self.assertEqual(unit_2.job_id, api_job.pk)
         self.assertEqual(unit_2.type, 'some_type')
-        self.assertEqual(unit_2.status, Job.SUCCESS)
+        self.assertEqual(unit_2.status, 'SC')
         self.assertDictEqual(
             unit_2.request_json,
             dict(url='URL 2', image_order=11),
@@ -597,7 +619,7 @@ class UnitAndJobBackwardMigrationTest(MigrationTest):
         unit_3 = ApiJobUnitAfter.objects.get(pk=unit_3.pk)
         self.assertEqual(unit_3.job_id, api_job.pk)
         self.assertEqual(unit_3.type, 'some_type')
-        self.assertEqual(unit_3.status, Job.FAILURE)
+        self.assertEqual(unit_3.status, 'FL')
         self.assertDictEqual(
             unit_3.request_json,
             dict(url='URL 3', image_order=12),

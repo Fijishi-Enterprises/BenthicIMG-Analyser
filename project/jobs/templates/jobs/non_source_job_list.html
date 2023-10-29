@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+
+{% block title %}Non-source Jobs | CoralNet{% endblock %}
+
+
+{% block css-includes %}
+  {% include "static-local-include.html" with type="css" path="css/jobs.css" %}
+{% endblock %}
+
+
+{% block content %}
+
+<div class="tool-heading">
+  <span>Non-source Jobs</span>
+</div>
+
+{% include 'jobs/job_table.html' %}
+
+{% endblock %}

@@ -3,7 +3,7 @@
 {% block title %}Edit profile - CoralNet{% endblock %}
 
 {% block css-code %}
-<style type="text/css">
+<style>
 input#id_website {
     width: 300px;
 }
@@ -14,7 +14,7 @@ input#id_website {
 
 <legend>Edit profile</legend>
 
-<form action="" enctype="multipart/form-data" method="post" class="inline">
+<form action="" enctype="multipart/form-data" method="post" class="no-padding">
   {% csrf_token %}
 
   {% include "form_generic_one_field.html" with field=main_form.privacy %}
@@ -32,13 +32,13 @@ input#id_website {
   </div>
 
   <div class="submit_button_wrapper_column_form">
-    <input type="submit" value="Save Changes" />
+    <input type="submit" class="red" value="Save Changes" />
   </div>
 </form>
 
-<form action="{% url 'profile_edit_cancel' %}" method="get" class="inline">
+<form action="{% url 'profile_edit_cancel' %}" method="get" class="no-padding">
   <div class="submit_button_wrapper_column_form">
-    <input type="submit" value="Cancel Changes" />
+    <input type="submit" class="red" value="Cancel Changes" />
   </div>
 </form>
 

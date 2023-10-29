@@ -8,8 +8,6 @@ from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
-from .forms import CheckboxForm, StatisticsSearchForm, ImageSearchForm, \
-    PatchSearchOptionsForm, HiddenForm, create_image_filter_form
 from annotations.models import Annotation
 from calcification.forms import CalcifyRateTableForm, ExportCalcifyStatsForm
 from calcification.utils import get_default_calcify_tables
@@ -21,6 +19,14 @@ from images.utils import delete_images
 from labels.models import LabelGroup, Label
 from lib.decorators import source_visibility_required, source_permission_required
 from lib.utils import paginate
+from .forms import (
+    CheckboxForm,
+    create_image_filter_form,
+    HiddenForm,
+    ImageSearchForm,
+    MetadataEditSearchForm,
+    PatchSearchForm,
+)
 
 
 @source_visibility_required('source_id')
@@ -56,7 +62,7 @@ def browse_images(request, source_id):
         # Coming from a straight link or URL entry
         image_results = source.image_set.order_by('metadata__name', 'pk')
 
-    page_results = paginate(
+    page_results, _ = paginate(
         image_results,
         settings.BROWSE_DEFAULT_THUMBNAILS_PER_PAGE,
         request.POST)
@@ -118,11 +124,12 @@ def edit_metadata(request, source_id):
 
     # Defaults
     empty_message = "No image results."
-    image_search_form = ImageSearchForm(source=source, for_edit_metadata=True)
+    image_search_form = MetadataEditSearchForm(source=source)
+    image_results = Image.objects.filter(source=source)
 
-    image_form = create_image_filter_form(
-        request.POST or request.GET, source, for_edit_metadata=True)
-    if image_form:
+    if request.POST or request.GET:
+        image_form = create_image_filter_form(
+            request.POST or request.GET, source, for_edit_metadata=True)
         if image_form.is_valid():
             image_results = image_form.get_images()
         else:
@@ -130,12 +137,9 @@ def edit_metadata(request, source_id):
             empty_message = "Search parameters were invalid."
 
         # If a search form was submitted, use that as the displayed
-        # search form. Otherwise we'll display a default-values search form.
-        if isinstance(image_form, ImageSearchForm):
+        # search form.
+        if isinstance(image_form, MetadataEditSearchForm):
             image_search_form = image_form
-    else:
-        # Coming from a straight link or URL entry
-        image_results = Image.objects.filter(source=source)
 
     # Sort options aren't supported for Edit Metadata for now. The part we
     # can't (efficiently) do yet is the transformation from a sorted image
@@ -203,46 +207,33 @@ def browse_patches(request, source_id):
         " corresponding to annotated points."
     )
     annotation_results = Annotation.objects.none()
-    image_search_form = ImageSearchForm(
-        source=source, for_browse_patches=True)
-    patch_search_form = PatchSearchOptionsForm(source=source)
-    hidden_image_and_patch_form = None
+    hidden_filter_form = None
 
-    image_form = create_image_filter_form(
-        request.POST or request.GET, source, for_browse_patches=True)
-    if request.POST:
-        patch_search_form = PatchSearchOptionsForm(request.POST, source=source)
-
-    if image_form:
-        if image_form.is_valid() and patch_search_form.is_valid():
-            image_results = image_form.get_images()
-            annotation_results = patch_search_form.get_annotations(
-                image_results)
-            hidden_image_and_patch_form = \
-                HiddenForm(forms=[image_form, patch_search_form])
+    if request.POST or request.GET:
+        patch_form = PatchSearchForm(
+            request.POST or request.GET, source=source)
+        if patch_form.is_valid():
+            annotation_results = patch_form.get_annotations()
+            hidden_filter_form = HiddenForm(forms=[patch_form])
             empty_message = "No patch results."
         else:
             empty_message = "Search parameters were invalid."
-
-        # If a search form was submitted, use that as the displayed
-        # search form. Otherwise we'll display a default-values search form.
-        if isinstance(image_form, ImageSearchForm):
-            image_search_form = image_form
+    else:
+        patch_form = PatchSearchForm(source=source)
 
     # Random order
     annotation_results = annotation_results.order_by('?')
 
-    page_results = paginate(
+    page_results, _ = paginate(
         annotation_results,
         settings.BROWSE_DEFAULT_THUMBNAILS_PER_PAGE,
         request.POST)
 
     return render(request, 'visualization/browse_patches.html', {
         'source': source,
-        'image_search_form': image_search_form,
-        'patch_search_form': patch_search_form,
+        'patch_search_form': patch_form,
         'page_results': page_results,
-        'hidden_image_and_patch_form': hidden_image_and_patch_form,
+        'hidden_filter_form': hidden_filter_form,
         'empty_message': empty_message,
     })
 

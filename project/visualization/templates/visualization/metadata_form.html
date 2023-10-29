@@ -2,82 +2,85 @@
 This is a template that is used to render a form for editing metadata
 {% endcomment %}
 
-<form method="post" id="id_metadata_form">{% csrf_token %}
-    {{ metadata_formset.management_form }}
+<form method="post" id="id_metadata_form" class="no-padding">
+  {% csrf_token %}
+  {{ metadata_formset.management_form }}
 
-    {% for field in select_all_form %}
-        {{ field }}
-    {% endfor %}
+  {% for field in select_all_form %}
+    {{ field }}
+  {% endfor %}
 
-    <div style="overflow:auto; max-height:500px; width:980px;">
-      <table id="metadataFormTable">
-        {# Header row #}
+  <div id="metadata-form-table-wrapper">
+    <table id="metadataFormTable">
+      {# Header row #}
+      <tr>
+        {# This is the checkbox column #}
+        <th></th>
+
+        {# Use an arbitrary form to get the field labels #}
+        {% for field in metadata_formset.forms.0 %}
+          {% if field.name == 'name' %}
+            {# Link/Status comes after name field #}
+            <th>{{ field.label }}</th>
+            <th>Link/Status</th>
+          {% elif field.name == 'id' %}
+            {# id goes in the name column, not a column of its own #}
+          {% else %}
+            {# Any other field gets a column of its own #}
+            <th>{{ field.label }}</th>
+          {% endif %}
+        {% endfor %}
+      </tr>
+
+      {# One row per image #}
+      {% for metadata_form, checkbox_form, image, status in metadata_rows %}
         <tr>
-          {# This is the checkbox column #}
-          <th></th>
+          {# Checkbox #}
+          {% for field in checkbox_form %}
+            <td>{{ field }}</td>
+          {% endfor %}
 
-          {# Use an arbitrary form to get the field labels #}
-          {% for field in metadata_formset.forms.0 %}
+          {% for field in metadata_form %}
             {% if field.name == 'name' %}
-              {# Link/Status comes after name field #}
-              <th>{{ field.label }}</th>
-              <th>Link/Status</th>
+              <td>
+                {# Name / filename #}
+                {{ field }}
+
+                {# Metadata id (hidden, and piggybacking in one of #}
+                {# the td elements, because td/th are #}
+                {# the only elements that should be #}
+                {# immediate children of a tr) #}
+                {{ metadata_form.id }}
+              </td>
+              <td class="status">
+                {# Link and annotation status #}
+                <a href="{% url 'image_detail' image.id %}" target="_blank">
+                  {{ status }}
+                </a>
+              </td>
             {% elif field.name == 'id' %}
               {# id goes in the name column, not a column of its own #}
             {% else %}
               {# Any other field gets a column of its own #}
-              <th>{{ field.label }}</th>
+              <td>{{ field }}</td>
             {% endif %}
           {% endfor %}
         </tr>
+      {% endfor %}
+    </table>
+  </div>
 
-        {# One row per image #}
-        {% for metadata_form, checkbox_form, image, status in metadata_rows %}
-          <tr>
-            {# Checkbox #}
-            {% for field in checkbox_form %}
-              <td>{{ field }}</td>
-            {% endfor %}
+  <div class="line">
+    Showing {{ num_images }} image results
+  </div>
 
-            {% for field in metadata_form %}
-              {% if field.name == 'name' %}
-                <td>
-                  {# Name / filename #}
-                  {{ field }}
-
-                  {# Metadata id (hidden, and piggybacking in one of #}
-                  {# the td elements, because td/th are #}
-                  {# the only elements that should be #}
-                  {# immediate children of a tr) #}
-                  {{ metadata_form.id }}
-                </td>
-                <td id="status" style="padding: 0 10px 0 10px">
-                  {# Link and annotation status #}
-                  <a href="{% url 'image_detail' image.id %}" target="_blank">
-                    {{ status }}</a>
-                </td>
-              {% elif field.name == 'id' %}
-                {# id goes in the name column, not a column of its own #}
-              {% else %}
-                {# Any other field gets a column of its own #}
-                <td>{{ field }}</td>
-              {% endif %}
-            {% endfor %}
-          </tr>
-        {% endfor %}
-      </table>
-    </div>
-
-    {# TODO: Might want to re-use this style for separating text divs from #}
-    {# surrounding elements, in general #}
-    <div style="margin: 5px 0">
-        Showing {{ num_images }} image results
-    </div>
-
-    <button type="button" class="submit" id="id_metadata_form_save_button">
-        Save Edits
+  <div class="line">
+    <button type="button" class="submit red" id="id_metadata_form_save_button">
+      Save Edits
     </button>
     <span id="id_metadata_save_status"></span>
-    <ul style="margin: 5px 0" id="id_metadata_errors_list"></ul>
+  </div>
+
+  <ul id="id_metadata_errors_list"></ul>
 
 </form>

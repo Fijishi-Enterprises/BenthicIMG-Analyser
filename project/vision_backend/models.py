@@ -13,8 +13,11 @@ class Classifier(models.Model):
     Computer vision classifier.
     """
 
-    # pointer to the source
+    # Source this classifier belongs to and is trained on.
     source = models.ForeignKey('images.Source', on_delete=models.CASCADE)
+
+    # Job that tracks the training status of this classifier.
+    train_job = models.ForeignKey(Job, null=True, on_delete=models.SET_NULL)
 
     TRAIN_PENDING = 'PN'
     LACKING_UNIQUE_LABELS = 'UQ'
@@ -56,6 +59,16 @@ class Classifier(models.Model):
             settings.ROBOT_MODEL_VALRESULT_PATTERN.format(pk=self.pk))
 
         return ValResults.load(valres_loc)
+
+    @property
+    def train_completion_date(self):
+        if self.train_job:
+            return self.train_job.modify_date
+
+        # Else: Most likely this classifier was trained before the introduction
+        # of the Job model.
+        # Use the Classifier's create date as a less-accurate fallback.
+        return self.create_date
 
     def get_process_date_short_str(self):
         """

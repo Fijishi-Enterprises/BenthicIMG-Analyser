@@ -1,8 +1,8 @@
+from typing import Iterable
+
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
-
-from images.models import Source
 
 
 class Job(models.Model):
@@ -19,21 +19,16 @@ class Job(models.Model):
     arg_identifier = models.CharField(max_length=100, blank=True)
 
     # Source this Job applies to, if applicable.
-    source = models.ForeignKey(Source, null=True, on_delete=models.CASCADE)
+    source = models.ForeignKey(
+        'images.Source', null=True, on_delete=models.CASCADE)
 
-    PENDING = 'PN'
-    IN_PROGRESS = 'IP'
-    SUCCESS = 'SC'
-    FAILURE = 'FL'
-
-    STATUS_CHOICES = [
-        (PENDING, "Pending"),
-        (IN_PROGRESS, "In Progress"),
-        (SUCCESS, "Success"),
-        (FAILURE, "Failure"),
-    ]
+    class Status(models.TextChoices):
+        PENDING = 'pending', "Pending"
+        IN_PROGRESS = 'in_progress', "In Progress"
+        SUCCESS = 'success', "Success"
+        FAILURE = 'failure', "Failure"
     status = models.CharField(
-        max_length=2, choices=STATUS_CHOICES, default=PENDING)
+        max_length=20, choices=Status.choices, default=Status.PENDING)
 
     # Error message or comment about the job's result.
     result_message = models.CharField(max_length=500, blank=True)
@@ -64,25 +59,29 @@ class Job(models.Model):
             # in-progress Jobs.
             models.UniqueConstraint(
                 fields=['job_name', 'arg_identifier'],
-                condition=Q(status='IP'),
+                condition=Q(status='in_progress'),
                 name='unique_running_jobs',
             ),
         ]
 
     def __str__(self):
-        s = f"{self.job_name} / {self.arg_identifier}"
+        s = self.job_name
+        if self.arg_identifier:
+            s += f" / {self.arg_identifier}"
         if self.attempt_number > 1:
             s += f", attempt {self.attempt_number}"
         return s
 
     @staticmethod
-    def args_to_identifier(args):
+    def args_to_identifier(args: Iterable) -> str:
         return ','.join([str(arg) for arg in args])
 
     @staticmethod
-    def identifier_to_args(identifier):
+    def identifier_to_args(identifier: str) -> list[str]:
         """
         Note: this gets the args in string form, and doesn't work if the
         args themselves have , in them.
         """
+        if identifier == '':
+            return []
         return identifier.split(',')

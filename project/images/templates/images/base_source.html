@@ -45,7 +45,7 @@
           <span>Backend</span></a></li>
 
         {% if "source_edit" in source_perms %}
-          <li><a href="{% url 'jobs:source_dashboard' source.id %}">
+          <li><a href="{% url 'jobs:source_job_list' source.id %}">
             <span>Jobs</span></a></li>
         {% endif %}
       </ul>

@@ -43,7 +43,7 @@
     </div>
   {% endif %}
 
-  <div class="page_section">
+  <div class="page-section">
     {% if "source_admin" in source_perms %}
       <div class="line">
         <a href="{% url 'labelset_import' source.id %}">Import label entries from CSV</a>
@@ -51,8 +51,8 @@
     {% endif %}
 
     <div class="line">
-      <form method="GET" action="{% url 'export_labelset' source.id %}">
-        <input type="submit" value="Export label entries to CSV"/>
+      <form method="GET" action="{% url 'export_labelset' source.id %}" class="no-padding">
+        <input type="submit" class="red" value="Export label entries to CSV"/>
       </form>
     </div>
   </div>

@@ -1,8 +1,10 @@
+from datetime import timedelta
 from unittest import mock
 
 from django.db import connections, transaction
 from django.db.utils import DEFAULT_DB_ALIAS
 from django.test.testcases import TransactionTestCase
+from django.utils import timezone
 
 from errorlogs.tests.utils import ErrorReportTestMixin
 from lib.tests.utils import BaseTest
@@ -13,7 +15,7 @@ from ..utils import (
     job_starter, queue_job, start_pending_job)
 
 
-class QueueJobTest(BaseTest):
+class QueueJobTest(BaseTest, ErrorReportTestMixin):
 
     def test_queue_job_when_already_pending(self):
         queue_job('name', 'arg')
@@ -35,7 +37,7 @@ class QueueJobTest(BaseTest):
             "Should not have queued the second job")
 
     def test_queue_job_when_already_in_progress(self):
-        queue_job('name', 'arg', initial_status=Job.IN_PROGRESS)
+        queue_job('name', 'arg', initial_status=Job.Status.IN_PROGRESS)
 
         with self.assertLogs(logger='jobs.utils', level='DEBUG') as cm:
             queue_job('name', 'arg')
@@ -54,7 +56,7 @@ class QueueJobTest(BaseTest):
             "Should not have queued the second job")
 
     def test_queue_job_when_previously_done(self):
-        queue_job('name', 'arg', initial_status=Job.SUCCESS)
+        queue_job('name', 'arg', initial_status=Job.Status.SUCCESS)
         queue_job('name', 'arg')
 
         self.assertEqual(
@@ -62,8 +64,30 @@ class QueueJobTest(BaseTest):
             2,
             "Should have queued the second job")
 
+    def test_start_date_update(self):
+        """
+        Test a pending job's scheduled start date getting updated by a
+        subsequent queue_job() call.
+        """
+        job = queue_job('name', 'arg', delay=timedelta(hours=1))
+        original_start_date = job.scheduled_start_date
+
+        queue_job('name', 'arg', delay=timedelta(hours=5))
+        job.refresh_from_db()
+        self.assertEqual(
+            job.scheduled_start_date, original_start_date,
+            msg="Start date shouldn't be updated when requesting a later date"
+        )
+
+        queue_job('name', 'arg', delay=timedelta(seconds=30))
+        job.refresh_from_db()
+        self.assertLess(
+            job.scheduled_start_date, original_start_date,
+            msg="Start date should be updated when requesting an earlier date"
+        )
+
     def test_attempt_number_increment(self):
-        job = queue_job('name', 'arg', initial_status=Job.FAILURE)
+        job = queue_job('name', 'arg', initial_status=Job.Status.FAILURE)
         job.result_message = "An error"
         job.save()
 
@@ -75,13 +99,65 @@ class QueueJobTest(BaseTest):
             "Should have attempt number of 2")
 
     def test_attempt_number_non_increment(self):
-        queue_job('name', 'arg', initial_status=Job.SUCCESS)
+        queue_job('name', 'arg', initial_status=Job.Status.SUCCESS)
         job_2 = queue_job('name', 'arg')
 
         self.assertEqual(
             job_2.attempt_number,
             1,
             "Should have attempt number of 1")
+
+    def test_repeated_failure(self):
+        # 5 fails in a row
+        for _ in range(5):
+            job = queue_job(
+                'name', 'arg', initial_status=Job.Status.IN_PROGRESS)
+            finish_job(job, success=False, result_message="An error")
+            self.assert_no_email()
+
+        # Queue the same job again
+        job = queue_job('name', 'arg')
+        self.assert_error_email(
+            "Job has been failing repeatedly: name / arg, attempt 5",
+            ["Error info:\n\nAn error"],
+        )
+        self.assertAlmostEquals(
+            timezone.now() + timedelta(days=3),
+            job.scheduled_start_date,
+            delta=timedelta(minutes=10),
+            msg="Latest job should be pushed back to 3 days in the future",
+        )
+
+        # And again
+        finish_job(job, success=False, result_message="An error")
+        queue_job('name', 'arg')
+        self.assert_error_email(
+            "Job has been failing repeatedly: name / arg, attempt 6",
+            ["Error info:\n\nAn error"],
+        )
+
+    def test_repeated_failure_longer_delay(self):
+        # 5 fails in a row
+        for _ in range(5):
+            job = queue_job(
+                'name', 'arg', initial_status=Job.Status.IN_PROGRESS)
+            finish_job(job, success=False, result_message="An error")
+            self.assert_no_email()
+
+        # Queue the same job again
+        job = queue_job('name', 'arg', delay=timedelta(days=5))
+        self.assert_error_email(
+            "Job has been failing repeatedly: name / arg, attempt 5",
+            ["Error info:\n\nAn error"],
+        )
+        self.assertAlmostEquals(
+            timezone.now() + timedelta(days=5),
+            job.scheduled_start_date,
+            delta=timedelta(minutes=10),
+            msg=(
+                "Latest job should still be 5 days in the future;"
+                " 3 days is just a lower bound"),
+        )
 
 
 class StartPendingJobTest(BaseTest):
@@ -99,7 +175,7 @@ class StartPendingJobTest(BaseTest):
             "Should log the appropriate message")
 
     def test_job_already_in_progress(self):
-        queue_job('name', 'arg', initial_status=Job.IN_PROGRESS)
+        queue_job('name', 'arg', initial_status=Job.Status.IN_PROGRESS)
 
         with self.assertLogs(logger='jobs.utils', level='INFO') as cm:
             start_pending_job('name', 'arg')
@@ -127,22 +203,34 @@ class StartPendingJobTest(BaseTest):
             "Dupe jobs should have been deleted")
 
 
-class FinishJobTest(BaseTest, ErrorReportTestMixin):
+class FinishJobTest(BaseTest):
 
-    def test_repeated_failure(self):
-        # 4 fails in a row
-        for _ in range(4):
-            job = queue_job('name', 'arg', initial_status=Job.IN_PROGRESS)
-            finish_job(job, success=False, result_message="An error")
-            self.assert_no_email()
+    def test_periodic_job_queues_another_run(self):
+        """
+        Test a periodic job getting another instance of it queued after the
+        current instance finishes.
+        """
+        def test_periodic():
+            """
+            By patching get_periodic_job_schedules() with this, we have this
+            name registered as a periodic job.
+            """
+            return dict(
+                name=(5*60, 0),
+            )
 
-        # 5th fail in a row
-        job = queue_job('name', 'arg', initial_status=Job.IN_PROGRESS)
-        finish_job(job, success=False, result_message="An error")
-        self.assert_error_email(
-            "Job is failing repeatedly: name / arg",
-            ["Currently on attempt number 5. Error:\n\nAn error"],
-        )
+        with mock.patch(
+            'jobs.utils.get_periodic_job_schedules', test_periodic
+        ):
+            job = queue_job(
+                'name', initial_status=Job.Status.IN_PROGRESS)
+            finish_job(job, success=True)
+
+        job.refresh_from_db()
+        self.assertEqual(job.status, Job.Status.SUCCESS)
+
+        # Another PENDING job should exist now
+        Job.objects.get(job_name='name', status=Job.Status.PENDING)
 
 
 @full_job()
@@ -179,14 +267,14 @@ class JobDecoratorTest(BaseTest, ErrorReportTestMixin):
 
         self.assertEqual(job.job_name, 'full_job_example')
         self.assertEqual(job.arg_identifier, 'some_arg')
-        self.assertEqual(job.status, Job.SUCCESS)
+        self.assertEqual(job.status, Job.Status.SUCCESS)
         self.assertEqual(job.result_message, "Comment about result")
 
     def test_full_job_error(self):
         full_job_example('job_error')
         job = Job.objects.latest('pk')
 
-        self.assertEqual(job.status, Job.FAILURE)
+        self.assertEqual(job.status, Job.Status.FAILURE)
         self.assertEqual(job.result_message, "A JobError")
         self.assert_no_error_log_saved()
         self.assert_no_email()
@@ -195,7 +283,7 @@ class JobDecoratorTest(BaseTest, ErrorReportTestMixin):
         full_job_example('other_error')
         job = Job.objects.latest('pk')
 
-        self.assertEqual(job.status, Job.FAILURE)
+        self.assertEqual(job.status, Job.Status.FAILURE)
         self.assertEqual(job.result_message, "ValueError: A ValueError")
 
         self.assert_error_log_saved(
@@ -215,7 +303,7 @@ class JobDecoratorTest(BaseTest, ErrorReportTestMixin):
 
         self.assertEqual(job.job_name, 'job_runner_example')
         self.assertEqual(job.arg_identifier, 'some_arg')
-        self.assertEqual(job.status, Job.SUCCESS)
+        self.assertEqual(job.status, Job.Status.SUCCESS)
         self.assertEqual(job.result_message, "Comment about result")
 
     def test_runner_job_error(self):
@@ -224,7 +312,7 @@ class JobDecoratorTest(BaseTest, ErrorReportTestMixin):
         job_runner_example('job_error')
         job.refresh_from_db()
 
-        self.assertEqual(job.status, Job.FAILURE)
+        self.assertEqual(job.status, Job.Status.FAILURE)
         self.assertEqual(job.result_message, "A JobError")
         self.assert_no_error_log_saved()
         self.assert_no_email()
@@ -235,7 +323,7 @@ class JobDecoratorTest(BaseTest, ErrorReportTestMixin):
         job_runner_example('other_error')
         job.refresh_from_db()
 
-        self.assertEqual(job.status, Job.FAILURE)
+        self.assertEqual(job.status, Job.Status.FAILURE)
         self.assertEqual(job.result_message, "ValueError: A ValueError")
 
         self.assert_error_log_saved(
@@ -255,7 +343,7 @@ class JobDecoratorTest(BaseTest, ErrorReportTestMixin):
 
         self.assertEqual(job.job_name, 'job_starter_example')
         self.assertEqual(job.arg_identifier, 'some_arg')
-        self.assertEqual(job.status, Job.IN_PROGRESS)
+        self.assertEqual(job.status, Job.Status.IN_PROGRESS)
         self.assertEqual(job.result_message, "")
 
     def test_starter_job_error(self):
@@ -264,7 +352,7 @@ class JobDecoratorTest(BaseTest, ErrorReportTestMixin):
         job_starter_example('job_error')
         job.refresh_from_db()
 
-        self.assertEqual(job.status, Job.FAILURE)
+        self.assertEqual(job.status, Job.Status.FAILURE)
         self.assertEqual(job.result_message, f"A JobError (ID: {job.pk})")
         self.assert_no_error_log_saved()
         self.assert_no_email()
@@ -275,7 +363,7 @@ class JobDecoratorTest(BaseTest, ErrorReportTestMixin):
         job_starter_example('other_error')
         job.refresh_from_db()
 
-        self.assertEqual(job.status, Job.FAILURE)
+        self.assertEqual(job.status, Job.Status.FAILURE)
         self.assertEqual(
             job.result_message, f"ValueError: A ValueError (ID: {job.pk})")
 
@@ -358,7 +446,7 @@ class JobStartRaceConditionTest(TransactionTestCase):
         # to create two identical jobs instead of just one job.
         with mock.patch.object(Job, 'save', save_two_copies):
             with self.assertLogs(logger='jobs.utils', level='INFO') as cm:
-                queue_job('name', 'arg', initial_status=Job.IN_PROGRESS)
+                queue_job('name', 'arg', initial_status=Job.Status.IN_PROGRESS)
 
         log_message = (
             "INFO:jobs.utils:"

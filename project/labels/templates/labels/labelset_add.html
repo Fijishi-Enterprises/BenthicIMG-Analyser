@@ -61,16 +61,16 @@
     </div>
   {% endif %}
 
-  <form id="labelset-form" action="" method="post">
+  <form id="labelset-form" action="" method="post" class="no-padding">
     {% csrf_token %}
 
     {{ labelset_form.label_ids }}
 
     <div class="line">
       {% if source.labelset %}
-        <input type="submit" class="save-button" value="Save Changes" />
+        <input type="submit" class="save-button red" value="Save Changes" />
       {% else %}
-        <input type="submit" class="save-button" value="Create Labelset" />
+        <input type="submit" class="save-button red" value="Create Labelset" />
       {% endif %}
     </div>
   </form>
@@ -78,9 +78,9 @@
   {% if source.labelset %}
     {# Provide a cancel button. This must be separate from the main form, #}
     {# because the main form has custom submit behavior. #}
-    <form action="" method="post">
+    <form action="" method="post" class="no-padding">
       {% csrf_token %}
-      <input type="submit" name="cancel" value="Cancel Changes" />
+      <input type="submit" class="red" name="cancel" value="Cancel Changes" />
     </form>
   {% endif %}
 

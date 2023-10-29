@@ -1,3 +1,7 @@
+/* TODO: Gradually go through the forms-related CSS in master.css, modernize it
+    and transfer it to this file. */
+
+
 div.form-fields-grid {
     display: grid;
     grid-template-columns: minmax(200px, 1fr) 3fr;
@@ -39,8 +43,42 @@ div.form-fields-grid .radio-option-label {
 }
 
 
+/* Form with multiple fields on one line and a surrounding box.
+   There may also be other uses for just the box. */
+
+/* This wrapper goes around div.form-box or div.box if we want to center it. */
+div.center-box-wrapper {
+    text-align: center;
+}
+div.form-box,
+div.box {
+    max-width: 800px;
+    /* Allow the width to shrink to its contents */
+    display: inline-block;
+    /* Don't apply parent's text-align to descendants */
+    text-align: initial;
+
+    padding: 10px;
+    margin: 10px;
+    border: 1px solid black;
+    border-radius: 5px;
+
+    background-color: hsl(0, 0%, 88%);
+}
+/* This wrapper goes around the field and label, keeping both on the same
+   line. */
+div.form-box div.field-and-label-wrapper {
+    display: inline-block;
+    margin: 0 5px;
+}
+
+
 /* Sizing specific fields */
 
 #export-annotations-cpc-ajax-form input.cpc-filepath {
     width: 25em;
+}
+
+#label-search-form input[name="min_popularity"] {
+    width: 50px;
 }

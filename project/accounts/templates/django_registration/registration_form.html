@@ -18,7 +18,7 @@
   {{ profile_form.non_field_errors }}
   {{ honeypot_form.non_field_errors }}
 
-  <div class="page_section">
+  <div class="page-section">
     {% include "form_generic_one_field.html" with field=main_form.username %}
     {% include "form_generic_one_field.html" with field=main_form.email %}
     {% include "form_generic_one_field.html" with field=main_form.password1 %}
@@ -32,7 +32,7 @@
     </span>
   </div>
 
-  <div class="page_section">
+  <div class="page-section">
     <div class="line">
       Since we have open registration, we'd like to know a little more about you so we have confidence that you're a legitimate user. If you prefer, you can edit your account profile later to hide your personal details from public view.
     </div>
@@ -44,7 +44,7 @@
     {% include "form_generic_one_field.html" with field=profile_form.how_did_you_hear_about_us %}
   </div>
 
-  <div class="page_section">
+  <div class="page-section">
     {% include "form_generic_one_field.html" with field=main_form.agree_to_data_policy %}
   </div>
 

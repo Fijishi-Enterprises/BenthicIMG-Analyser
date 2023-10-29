@@ -1,3 +1,5 @@
+from collections import Counter
+import datetime
 from datetime import timedelta
 import logging
 import random
@@ -5,7 +7,8 @@ import random
 from django.conf import settings
 from django.core.files.storage import get_storage_class
 from django.db import IntegrityError
-from huey import crontab
+from django.db.models import F
+from django.utils import timezone
 from spacer.messages import \
     ExtractFeaturesMsg, \
     TrainClassifierMsg, \
@@ -21,7 +24,7 @@ from api_core.models import ApiJobUnit
 from images.models import Source, Image, Point
 from jobs.exceptions import JobError
 from jobs.models import Job
-from jobs.utils import full_job, job_runner, job_starter, queue_job
+from jobs.utils import job_runner, job_starter, queue_job
 from labels.models import Label
 from . import task_helpers as th
 from .models import Classifier, Score
@@ -32,14 +35,24 @@ logger = logging.getLogger(__name__)
 
 
 # Run daily, and not at prime times of biggest users (e.g. US East, Hawaii,
-# Australia). The hour/minute defined here are for UTC.
-@full_job(schedule=crontab(hour=7, minute=0))
+# Australia).
+@job_runner(
+    interval=timedelta(days=1),
+    offset=datetime.datetime(
+        year=2023, month=1, day=1, hour=7, minute=0,
+        tzinfo=datetime.timezone.utc,
+    ),
+)
 def check_all_sources():
-    for source in Source.objects.filter():
+    queued = 0
+    for source in Source.objects.all():
         # Queue a check of this source at a random time in the next 4 hours.
         delay_in_seconds = random.randrange(1, 60*60*4)
-        queue_source_check(
+        job = queue_source_check(
             source.pk, delay=timedelta(seconds=delay_in_seconds))
+        if job:
+            queued += 1
+    return f"Queued checks for {queued} source(s)"
 
 
 @job_runner()
@@ -53,14 +66,26 @@ def check_source(source_id):
     except Source.DoesNotExist:
         raise JobError(f"Can't find source {source_id}")
 
+    start = timezone.now()
+    wrap_up_time = start + timedelta(minutes=settings.JOB_MAX_MINUTES)
+    timed_out = False
+
+    done_caveat = None
+
     # Feature extraction
 
     not_extracted = source.image_set.filter(features__extracted=False)
-    if not_extracted.exists():
+    not_extracted = not_extracted.annotate(
+        num_pixels=F('original_width') * F('original_height'))
+    cant_extract = not_extracted.filter(
+        num_pixels__gt=settings.SPACER['MAX_IMAGE_PIXELS'])
+    to_extract = not_extracted.difference(cant_extract)
+
+    if to_extract.exists():
         active_training_jobs = Job.objects.filter(
             job_name='train_classifier',
             source_id=source_id,
-            status__in=[Job.PENDING, Job.IN_PROGRESS]
+            status__in=[Job.Status.PENDING, Job.Status.IN_PROGRESS]
         )
         if active_training_jobs.exists():
             # If we submit, rowcols that were submitted to training may get
@@ -80,24 +105,68 @@ def check_source(source_id):
                 f"Feature extraction(s) ready, but not"
                 f" submitted due to training in progress")
 
+        active_extraction_jobs = Job.objects.filter(
+            job_name='extract_features',
+            source_id=source_id,
+            status__in=[Job.Status.PENDING, Job.Status.IN_PROGRESS]
+        )
+        active_extraction_image_ids = set([
+            int(str_id) for str_id in
+            active_extraction_jobs.values_list('arg_identifier', flat=True)
+        ])
+
         # Try to queue extractions (will not be queued if an extraction for
         # the same image is already active)
-        for image in not_extracted:
-            queue_job('extract_features', image.pk, source_id=source_id)
+        num_queued_extractions = 0
+        for image in to_extract:
+            if image.pk in active_extraction_image_ids:
+                # Very quick short-circuit without additional DB check.
+                continue
+
+            # This hits the DB to check for a race condition (identical
+            # active job), then to create a job as appropriate.
+            job = queue_job('extract_features', image.pk, source_id=source_id)
+            if not job:
+                continue
+
+            num_queued_extractions += 1
+
+            if (
+                num_queued_extractions % 10 == 0
+                and timezone.now() > wrap_up_time
+            ):
+                timed_out = True
+                break
+
         # If there are extractions to be done, then having that overlap with
-        # training can lead to desynced rowcols, so we worry about training
-        # later.
-        return "Tried to queue feature extraction(s)"
+        # training can lead to desynced rowcols, so we return and worry about
+        # training later.
+        if num_queued_extractions > 0:
+            result_str = (
+                f"Queued {num_queued_extractions} feature extraction(s)")
+            if timed_out:
+                result_str += " (timed out)"
+            return result_str
+        else:
+            return "Waiting for feature extraction(s) to finish"
+
+    if cant_extract.exists():
+        done_caveat = (
+            f"At least one image has too large of a resolution to extract"
+            f" features (example: image ID {cant_extract[0].pk}).")
 
     # Classifier training
 
     need_new_robot, reason = source.need_new_robot()
     if need_new_robot:
         # Try to queue training
-        queue_job('train_classifier', source_id, source_id=source_id)
-        # Don't worry about classification until the classifier is
-        # up to date.
-        return "Tried to queue training"
+        job = queue_job('train_classifier', source_id, source_id=source_id)
+        # We return and don't worry about classification until the classifier
+        # is up to date.
+        if job:
+            return "Queued training"
+        else:
+            return "Waiting for training to finish"
 
     # Image classification
 
@@ -111,7 +180,7 @@ def check_source(source_id):
         features__classified=False,
     )
     latest_classifier_annotations = source.annotation_set \
-        .filter(robot_version=source.get_latest_robot())
+        .filter(robot_version=source.get_current_classifier())
 
     if latest_classifier_annotations.exists():
         # The classifier version of an annotation only gets updated if the
@@ -131,13 +200,53 @@ def check_source(source_id):
         images_to_classify = extracted_not_confirmed
 
     if images_to_classify.exists():
+
+        active_classify_jobs = Job.objects.filter(
+            job_name='classify_features',
+            source_id=source_id,
+            status__in=[Job.Status.PENDING, Job.Status.IN_PROGRESS]
+        )
+        active_classify_image_ids = set([
+            int(str_id) for str_id in
+            active_classify_jobs.values_list('arg_identifier', flat=True)
+        ])
+
         # Try to queue classifications
+        num_queued_classifications = 0
         for image in images_to_classify:
-            queue_job('classify_features', image.pk, source_id=source_id)
-        return "Tried to queue classification(s)"
+            if image.pk in active_classify_image_ids:
+                # Very quick short-circuit without additional DB check.
+                continue
+
+            job = queue_job('classify_features', image.pk, source_id=source_id)
+            if not job:
+                continue
+
+            num_queued_classifications += 1
+
+            if (
+                num_queued_classifications % 10 == 0
+                and timezone.now() > wrap_up_time
+            ):
+                timed_out = True
+                break
+
+        if num_queued_classifications > 0:
+            result_str = (
+                f"Queued {num_queued_classifications} image classification(s)")
+            if timed_out:
+                result_str += " (timed out)"
+            return result_str
+        else:
+            return "Waiting for image classification(s) to finish"
 
     # If we got here, then the source should be all caught up, and there's
-    # no need to queue another check for now.
+    # no need to queue another check for now. However, there may be a caveat
+    # to the 'caught up' status.
+    if done_caveat:
+        return (
+            f"{done_caveat} Otherwise, the source seems to be all caught up."
+            f" {reason}")
     return f"Source seems to be all caught up. {reason}"
 
 
@@ -189,7 +298,8 @@ def submit_classifier(source_id, job_id):
     images = Image.objects.filter(source=source,
                                   annoinfo__confirmed=True,
                                   features__extracted=True)[:IMAGE_LIMIT]
-    classifier = Classifier(source=source, nbr_train_images=len(images))
+    classifier = Classifier(
+        source=source, train_job_id=job_id, nbr_train_images=len(images))
     classifier.save()
 
     logger.info(f"Preparing: {classifier}")
@@ -311,7 +421,7 @@ def classify_image(image_id):
             f"Image {image_id} needs to have features extracted"
             f" before being classified.")
 
-    classifier = img.source.get_latest_robot()
+    classifier = img.source.get_current_classifier()
     if not classifier:
         raise JobError(
             f"Image {image_id} can't be classified;"
@@ -357,24 +467,46 @@ def classify_image(image_id):
     return f"Used classifier {classifier.pk}"
 
 
-@full_job(schedule=crontab(minute='*/3'))
+@job_runner(interval=timedelta(minutes=1))
 def collect_spacer_jobs():
     """
-    Collects and handles spacer job results until the result queue is empty.
+    Collects and handles spacer job results until A) the result queue is empty
+    or B) the max job time has been reached.
 
     This task gets job-tracking to enforce that only one thread runs this
     task at a time. That way, no spacer job can get collected multiple times.
     """
+    start = timezone.now()
+    wrap_up_time = start + timedelta(minutes=settings.JOB_MAX_MINUTES)
+    timed_out = False
+
     queue = get_queue_class()()
-    for job_res in queue.collect_jobs():
-        th.handle_spacer_result(job_res)
+    job_statuses = []
+
+    for job in queue.get_collectable_jobs():
+        job_res, job_status = queue.collect_job(job)
+        job_statuses.append(job_status)
+        if job_res:
+            th.handle_spacer_result(job_res)
+
+        if timezone.now() > wrap_up_time:
+            # As long as collect_jobs() is implemented with `yield`,
+            # this loop-break won't abandon any job results.
+            timed_out = True
+            break
+
+    status_counts = Counter(job_statuses)
 
     # sorted() sorts statuses alphabetically.
     counts_str = ', '.join([
         f'{count} {status}'
-        for status, count in sorted(queue.status_counts.items())
+        for status, count in sorted(status_counts.items())
     ])
-    return f"Job count: {counts_str or '0'}"
+    result_str = f"Jobs checked/collected: {counts_str or '0'}"
+
+    if timed_out:
+        result_str += " (timed out)"
+    return result_str
 
 
 @job_runner()

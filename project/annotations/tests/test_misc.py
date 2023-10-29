@@ -4,11 +4,13 @@ from unittest import skip
 from bs4 import BeautifulSoup
 from django.urls import reverse
 
-from annotations.model_utils import AnnotationAreaUtils
-from annotations.tasks import update_sitewide_annotation_count_task
-from annotations.utils import get_sitewide_annotation_count
 from images.model_utils import PointGen
+from jobs.models import Job
+from jobs.utils import queue_job
 from lib.tests.utils import BasePermissionTest, ClientTest
+from ..model_utils import AnnotationAreaUtils
+from ..tasks import update_sitewide_annotation_count_task
+from ..utils import get_sitewide_annotation_count
 
 
 class PermissionTest(BasePermissionTest):
@@ -42,22 +44,34 @@ class SitewideAnnotationCountTest(ClientTest):
         cls.img = cls.upload_image(cls.user, cls.source)
         cls.add_annotations(cls.user, cls.img, {1: 'A', 2: 'B', 3: 'A'})
 
+    @staticmethod
+    def run_and_get_result():
+        # Note that this may or may not queue a new job instance; perhaps
+        # the periodic job was already queued at the end of the previous
+        # job's run.
+        queue_job('update_sitewide_annotation_count')
+        update_sitewide_annotation_count_task()
+        job = Job.objects.filter(
+            job_name='update_sitewide_annotation_count',
+            status=Job.Status.SUCCESS).latest('pk')
+        return job.result_message
+
     def test_set_on_demand(self):
         self.assertEqual(get_sitewide_annotation_count(), 3)
 
     def test_set_in_advance(self):
-        update_sitewide_annotation_count_task()
+        self.assertEqual(self.run_and_get_result(), "Updated count to 3")
         self.assertEqual(get_sitewide_annotation_count(), 3)
 
     def test_set_then_update(self):
-        update_sitewide_annotation_count_task()
+        self.assertEqual(self.run_and_get_result(), "Updated count to 3")
         self.assertEqual(get_sitewide_annotation_count(), 3)
         self.add_annotations(self.user, self.img, {4: 'B'})
-        update_sitewide_annotation_count_task()
+        self.assertEqual(self.run_and_get_result(), "Updated count to 4")
         self.assertEqual(get_sitewide_annotation_count(), 4)
 
     def test_caching(self):
-        update_sitewide_annotation_count_task()
+        self.run_and_get_result()
         self.assertEqual(get_sitewide_annotation_count(), 3)
         self.add_annotations(self.user, self.img, {4: 'B'})
         self.assertEqual(get_sitewide_annotation_count(), 3)

@@ -7,7 +7,7 @@
   </div>
 
   <form id="label-form" action="{% url 'label_new_ajax' %}"
-    method="post" enctype="multipart/form-data">
+    method="post" enctype="multipart/form-data" class="no-padding">
     {% csrf_token %}
 
     {% for field in form %}
@@ -19,7 +19,7 @@
       {% endif %}
     {% endfor %}
 
-    <input type="submit" value="Create Label" />
+    <input type="submit" class="red" value="Create Label" />
   </form>
 
 {% endblock %}

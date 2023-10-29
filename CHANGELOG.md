@@ -6,6 +6,13 @@ For general instructions on how to update a development environment of CoralNet,
 For info about the semantic versioning used here, see `docs/versions.rst`.
 
 
+## [1.6](https://github.com/beijbom/coralnet/tree/1.6)
+
+- Updates to required packages:
+  - pyspacer 0.4.0 -> 0.4.1
+  - numpy is now pinned to match pyspacer's requirements.txt
+- New migrations to run for `jobs` and `vision_backend`.
+
 ## [1.5](https://github.com/beijbom/coralnet/tree/1.5)
 
 - Python version has been updated from 3.6 to 3.10. See Server Operation > Upgrading Python in the CoralNet docs.

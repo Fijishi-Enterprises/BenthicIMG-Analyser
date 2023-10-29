@@ -41,7 +41,7 @@ class TestDeployCollector(ClientTest):
         internal_job = queue_job(
             'classify_image',
             api_job.pk, 1,
-            initial_status=Job.IN_PROGRESS,
+            initial_status=Job.Status.IN_PROGRESS,
         )
         api_job_unit = ApiJobUnit(
             parent=api_job, order_in_parent=1,
@@ -85,7 +85,7 @@ class TestDeployCollector(ClientTest):
         SpacerClassifyResultHandler.handle(job_res)
 
         api_job_unit = ApiJobUnit.objects.get(pk=self.api_job_unit_pk)
-        self.assertEqual(api_job_unit.status, Job.SUCCESS)
+        self.assertEqual(api_job_unit.status, Job.Status.SUCCESS)
 
         api_res = api_job_unit.result_json
 
@@ -122,7 +122,7 @@ class TestDeployCollector(ClientTest):
         SpacerClassifyResultHandler.handle(job_res)
 
         api_job_unit = ApiJobUnit.objects.get(pk=self.api_job_unit_pk)
-        self.assertEqual(api_job_unit.status, Job.FAILURE)
+        self.assertEqual(api_job_unit.status, Job.Status.FAILURE)
         self.assertEqual(
             api_job_unit.result_message,
             'SomeError: File not found')

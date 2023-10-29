@@ -51,8 +51,8 @@ class JobListTest(ClientTest):
 
         # Create job units of various statuses
         unit_statuses = (
-            [Job.PENDING]*4 + [Job.IN_PROGRESS]*3
-            + [Job.FAILURE]*2 + [Job.SUCCESS])
+            [Job.Status.PENDING]*4 + [Job.Status.IN_PROGRESS]*3
+            + [Job.Status.FAILURE]*2 + [Job.Status.SUCCESS])
         for order, status in enumerate(unit_statuses, 1):
             internal_job = Job(
                 job_name='', arg_identifier=order, status=status)
@@ -87,7 +87,7 @@ class JobListTest(ClientTest):
     def test_all_job_statuses(self):
         pending_job = ApiJob(type='test', user=self.user)
         pending_job.save()
-        internal_job = Job(job_name='test', status=Job.PENDING)
+        internal_job = Job(job_name='test', status=Job.Status.PENDING)
         internal_job.save()
         unit = ApiJobUnit(
             parent=pending_job, order_in_parent=1,
@@ -97,7 +97,7 @@ class JobListTest(ClientTest):
 
         in_progress_job = ApiJob(type='test', user=self.user)
         in_progress_job.save()
-        internal_job = Job(job_name='test', status=Job.IN_PROGRESS)
+        internal_job = Job(job_name='test', status=Job.Status.IN_PROGRESS)
         internal_job.save()
         unit = ApiJobUnit(
             parent=in_progress_job, order_in_parent=1,
@@ -107,13 +107,13 @@ class JobListTest(ClientTest):
 
         done_with_fails_job = ApiJob(type='test', user=self.user)
         done_with_fails_job.save()
-        internal_job = Job(job_name='test', status=Job.SUCCESS)
+        internal_job = Job(job_name='test', status=Job.Status.SUCCESS)
         internal_job.save()
         unit = ApiJobUnit(
             parent=done_with_fails_job, order_in_parent=1,
             internal_job=internal_job, request_json={})
         unit.save()
-        internal_job = Job(job_name='test', status=Job.FAILURE)
+        internal_job = Job(job_name='test', status=Job.Status.FAILURE)
         internal_job.save()
         unit = ApiJobUnit(
             parent=done_with_fails_job, order_in_parent=2,
@@ -123,7 +123,7 @@ class JobListTest(ClientTest):
 
         done_success_job = ApiJob(type='test', user=self.user)
         done_success_job.save()
-        internal_job = Job(job_name='test', status=Job.SUCCESS)
+        internal_job = Job(job_name='test', status=Job.Status.SUCCESS)
         internal_job.save()
         unit = ApiJobUnit(
             parent=done_success_job, order_in_parent=1,
@@ -173,7 +173,7 @@ class JobDetailTest(ClientTest):
 
         internal_job = Job(
             job_name='test_unit_type',
-            status=Job.FAILURE,
+            status=Job.Status.FAILURE,
             result_message="Error goes here",
         )
         internal_job.save()
@@ -219,7 +219,7 @@ class JobDetailTest(ClientTest):
 
         internal_job = Job(
             job_name='test',
-            status=Job.FAILURE,
+            status=Job.Status.FAILURE,
             result_message="Error goes here",
         )
         internal_job.save()
@@ -249,7 +249,7 @@ class JobDetailTest(ClientTest):
         job = ApiJob(type='test_job_type', user=self.user)
         job.save()
 
-        internal_job = Job(job_name='', status=Job.SUCCESS)
+        internal_job = Job(job_name='', status=Job.Status.SUCCESS)
         internal_job.save()
         unit = ApiJobUnit(
             parent=job, order_in_parent=1,
@@ -276,7 +276,7 @@ class JobDetailTest(ClientTest):
         job = ApiJob(type='test_job_type', user=self.user)
         job.save()
 
-        internal_job = Job(job_name='', status=Job.IN_PROGRESS)
+        internal_job = Job(job_name='', status=Job.Status.IN_PROGRESS)
         internal_job.save()
         unit = ApiJobUnit(
             parent=job, order_in_parent=1,
@@ -302,7 +302,8 @@ class JobDetailTest(ClientTest):
 
         # Create job units of various statuses
         unit_statuses = [
-            Job.PENDING, Job.IN_PROGRESS, Job.FAILURE, Job.SUCCESS]
+            Job.Status.PENDING, Job.Status.IN_PROGRESS,
+            Job.Status.FAILURE, Job.Status.SUCCESS]
         for order, status in enumerate(unit_statuses, 1):
             internal_job = Job(job_name='', status=status)
             internal_job.save()

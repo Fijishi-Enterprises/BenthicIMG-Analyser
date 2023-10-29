@@ -6,6 +6,7 @@ from django.core.files.images import get_image_dimensions
 from django.forms import CharField, ImageField, Form, FileField
 from django.forms.widgets import FileInput
 
+from lib.forms import RowsFormRenderer
 from .utils import text_file_to_unicode_stream
 
 
@@ -106,6 +107,8 @@ class ImageUploadFrontendForm(Form):
         label="Name prefix (optional)",
     )
 
+    default_renderer = RowsFormRenderer
+
 
 class ImageUploadForm(Form):
     """
@@ -180,6 +183,8 @@ class CSVImportForm(Form):
         label='CSV file',
         error_messages=dict(required="Please select a CSV file."),
     )
+
+    default_renderer = RowsFormRenderer
 
     def clean_csv_file(self):
         csv_file = self.cleaned_data['csv_file']

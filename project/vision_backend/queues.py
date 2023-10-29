@@ -1,11 +1,10 @@
 import abc
-from collections import Counter
 from datetime import timedelta
 from io import BytesIO
 import json
 import logging
 import sys
-from typing import Generator
+from typing import Optional
 
 import boto3
 from django.conf import settings
@@ -47,18 +46,19 @@ def get_queue_class():
 
 class BaseQueue(abc.ABC):
 
-    status_counts = None
+    def __init__(self):
+        self.storage = get_storage_class()()
 
     @abc.abstractmethod
     def submit_job(self, job: JobMsg, job_id: int):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def collect_jobs(self) -> Generator[JobReturnMsg, None, None]:
-        """
-        Check the entire job queue. Collect any completed jobs,
-        and yield the result of each successfully-completed job.
-        """
+    def get_collectable_jobs(self):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def collect_job(self, job) -> tuple[Optional[JobReturnMsg], str]:
         raise NotImplementedError
 
 
@@ -75,20 +75,21 @@ class BatchQueue(BaseQueue):
     """
     Manages AWS Batch jobs.
     """
-    def submit_job(self, job_msg: JobMsg, internal_job_id: int):
+    def __init__(self):
+        super().__init__()
+        self.batch_client = get_batch_client()
 
-        batch_client = get_batch_client()
-        storage = get_storage_class()()
+    def submit_job(self, job_msg: JobMsg, internal_job_id: int):
 
         batch_job = BatchJob(internal_job_id=internal_job_id)
         batch_job.save()
 
-        job_msg_loc = storage.spacer_data_loc(batch_job.job_key)
+        job_msg_loc = self.storage.spacer_data_loc(batch_job.job_key)
         job_msg.store(job_msg_loc)
 
-        job_res_loc = storage.spacer_data_loc(batch_job.res_key)
+        job_res_loc = self.storage.spacer_data_loc(batch_job.res_key)
 
-        resp = batch_client.submit_job(
+        resp = self.batch_client.submit_job(
             jobQueue=settings.BATCH_QUEUE,
             jobName=batch_job.make_batch_job_name(),
             jobDefinition=settings.BATCH_JOB_DEFINITION,
@@ -116,69 +117,62 @@ class BatchQueue(BaseQueue):
         finish_job(
             batch_job.internal_job, success=False, result_message=error_message)
 
-    def collect_jobs(self):
-        job_statuses = []
-
-        batch_client = get_batch_client()
-        storage = get_storage_class()()
-
-        # Iterate over not-yet-collected BatchJobs.
-        for job in BatchJob.objects.exclude(
+    def get_collectable_jobs(self):
+        # Not-yet-collected BatchJobs.
+        return BatchJob.objects.exclude(
             status__in=['SUCCEEDED', 'FAILED']
-        ):
+        )
 
-            if job.batch_token is None:
-                # Didn't get a batch token from AWS Batch. May indicate AWS
-                # service problems (see coralnet issue 458) or it may just be
-                # unlucky timing between submit and collect. Check the
-                # create_date to be sure.
-                if timezone.now() - job.create_date > timedelta(minutes=30):
-                    # Likely an AWS service problem.
-                    self.handle_job_failure(
-                        job, "Failed to get AWS Batch token.")
-                    job_statuses.append('DROPPED')
-                else:
-                    # Let's wait a bit longer.
-                    job_statuses.append('NOT SUBMITTED')
-                # In either case, continue to next job.
-                continue
-
-            resp = batch_client.describe_jobs(jobs=[job.batch_token])
-
-            if len(resp['jobs']) == 0:
+    def collect_job(self, job: BatchJob) -> tuple[Optional[JobReturnMsg], str]:
+        if job.batch_token is None:
+            # Didn't get a batch token from AWS Batch. May indicate AWS
+            # service problems (see coralnet issue 458) or it may just be
+            # unlucky timing between submit and collect. Check the
+            # create_date to be sure.
+            if timezone.now() - job.create_date > timedelta(minutes=30):
+                # Likely an AWS service problem.
                 self.handle_job_failure(
-                    job, f"Batch job [{job}] not found in AWS.")
-                job_statuses.append('DROPPED')
-                continue
+                    job, "Failed to get AWS Batch token.")
+                return None, 'DROPPED'
+            else:
+                # Let's wait a bit longer.
+                return None, 'NOT SUBMITTED'
 
-            job.status = resp['jobs'][0]['status']
-            job.save()
+        resp = self.batch_client.describe_jobs(jobs=[job.batch_token])
 
-            if job.status == 'FAILED':
-                self.handle_job_failure(
-                    job, f"Batch job [{job}] marked as FAILED by AWS.")
+        if len(resp['jobs']) == 0:
+            self.handle_job_failure(
+                job, f"Batch job [{job}] not found in AWS.")
+            return None, 'DROPPED'
 
-            elif job.status == 'SUCCEEDED':
-                logger.info(f"Entering collection of Batch job [{job}].")
-                job_res_loc = storage.spacer_data_loc(job.res_key)
+        job.status = resp['jobs'][0]['status']
+        job.save()
 
-                try:
-                    return_msg = JobReturnMsg.load(job_res_loc)
-                except IOError as e:
-                    self.handle_job_failure(
-                        job,
-                        f"Batch job [{job}] succeeded,"
-                        f" but couldn't get output at the expected location."
-                        f" ({e})")
-                else:
-                    # Success
-                    logger.info(f"Exiting collection of Batch job [{job}].")
-                    yield return_msg
+        if job.status == 'FAILED':
+            self.handle_job_failure(
+                job, f"Batch job [{job}] marked as FAILED by AWS.")
+            return None, job.status
 
-            job_statuses.append(job.status)
+        if job.status != 'SUCCEEDED':
+            return None, job.status
 
-        # Count the job statuses
-        self.status_counts = Counter(job_statuses)
+        # Else: 'SUCCEEDED'
+        logger.info(f"Entering collection of Batch job [{job}].")
+        job_res_loc = self.storage.spacer_data_loc(job.res_key)
+
+        try:
+            return_msg = JobReturnMsg.load(job_res_loc)
+        except IOError as e:
+            self.handle_job_failure(
+                job,
+                f"Batch job [{job}] succeeded,"
+                f" but couldn't get output at the expected location."
+                f" ({e})")
+            return None, job.status
+
+        # All went well
+        logger.info(f"Exiting collection of Batch job [{job}].")
+        return return_msg, job.status
 
 
 class LocalQueue(BaseQueue):
@@ -192,19 +186,14 @@ class LocalQueue(BaseQueue):
         # Process the job right away.
         return_msg = process_job(job)
 
-        storage = get_storage_class()()
-
-        filepath = storage.path_join('backend_job_res', f'{job_id}.json')
-        storage.save(
+        filepath = self.storage.path_join('backend_job_res', f'{job_id}.json')
+        self.storage.save(
             filepath,
             BytesIO(json.dumps(return_msg.serialize()).encode()))
 
-    def collect_jobs(self):
-        job_statuses = []
-
-        storage = get_storage_class()()
+    def get_collectable_jobs(self):
         try:
-            dir_names, filenames = storage.listdir('backend_job_res')
+            dir_names, filenames = self.storage.listdir('backend_job_res')
         except FileNotFoundError:
             # Perhaps this is a test run and no results files were created
             # yet (thus, the backend_job_res directory was not created).
@@ -212,21 +201,18 @@ class LocalQueue(BaseQueue):
 
         # Sort by filename, which should also put them in job order
         filenames.sort()
+        return filenames
 
-        for filename in filenames:
+    def collect_job(
+            self, job_filename: str) -> tuple[Optional[JobReturnMsg], str]:
 
-            # Read the job result message
-            filepath = storage.path_join('backend_job_res', filename)
-            with storage.open(filepath) as results_file:
-                return_msg = JobReturnMsg.deserialize(json.load(results_file))
-            # Delete the job result file
-            storage.delete(filepath)
+        # Read the job result message
+        filepath = self.storage.path_join('backend_job_res', job_filename)
+        with self.storage.open(filepath) as results_file:
+            return_msg = JobReturnMsg.deserialize(json.load(results_file))
+        # Delete the job result file
+        self.storage.delete(filepath)
 
-            yield return_msg
-
-            # Unlike BatchQueue, LocalQueue is only aware of the
-            # jobs that successfully output their results.
-            job_statuses.append('SUCCEEDED')
-
-        # Count the job statuses
-        self.status_counts = Counter(job_statuses)
+        # Unlike BatchQueue, LocalQueue is only aware of the
+        # jobs that successfully output their results.
+        return return_msg, 'SUCCEEDED'

@@ -170,7 +170,7 @@ If you don't have a superuser yet, use ``python manage.py createsuperuser`` to c
 
 PyCharm configuration
 ---------------------
-Here are some tips for developing and running the website with the PyCharm IDE (optional, but recommended for site development). These instructions are to date as of PyCharm 2023.1.1.
+Here are some tips for developing and running the website with the PyCharm IDE (optional, but recommended for site development). These instructions are up to date as of PyCharm 2023.1.2.
 
 Initial setup:
 
@@ -183,6 +183,10 @@ Make a Run Configuration that runs ``manage.py runserver`` from PyCharm:
 - Run -> Edit Configurations..., then make a new configuration under "Django server".  Add an environment variable with Name ``DJANGO_SETTINGS_MODULE`` and Value ``config.settings``.
 
 - This Run Configuration should let you use ``runserver`` from PyCharm. You can Run it normally, or you can Debug it to use breakpoints and inspect values.
+
+Go to Settings -> Languages & Frameworks -> Django, select the coralnet project, and ensure that ``config/settings.py`` is set as the settings file. This should enable PyCharm to recognize template-tag loading and template paths throughout the project.
+
+- If template paths still aren't recognized, there's another way: right-click a templates folder in the tree view and select Mark Directory as -> Template Folder.
 
 
 Running the web server with DEBUG = False

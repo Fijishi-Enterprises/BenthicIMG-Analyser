@@ -1,3 +1,6 @@
+from enum import Enum
+from typing import Union
+
 from django.db import models
 
 from accounts.utils import get_robot_user, is_robot_user
@@ -34,8 +37,18 @@ class AnnotationQuerySet(models.QuerySet):
 
 class AnnotationManager(models.Manager):
 
+    class UpdateResultsCodes(Enum):
+        ADDED = 'added'
+        UPDATED = 'updated'
+        NO_CHANGE = 'no change'
+
     def update_point_annotation_if_applicable(
-            self, point, label, now_confirmed, user_or_robot_version):
+        self,
+        point: 'Point',
+        label: 'Label',
+        now_confirmed: bool,
+        user_or_robot_version: Union['User', 'Classifier'],
+    ) -> str:
         """
         Update a single Point's Annotation in the database. If an Annotation
         exists for this point already, update it accordingly. Else, create a
@@ -53,10 +66,11 @@ class AnnotationManager(models.Manager):
 
         :param point: Point object we're interested in saving an Annotation to.
         :param label: Label object to save to the Annotation.
-        :param now_confirmed: boolean saying whether the Annotation is
-        considered confirmed or not.
-        :param user_or_robot_version: a User if now_confirmed is True; a Robot
-        if now_confirmed is False.
+        :param now_confirmed: boolean saying whether the Annotation, if
+          created/updated, would be considered confirmed or not.
+        :param user_or_robot_version: a User if now_confirmed is True; a
+          Classifier if now_confirmed is False.
+        :return: String saying what the resulting action was.
         """
         try:
             annotation = point.annotation
@@ -72,25 +86,30 @@ class AnnotationManager(models.Manager):
                 new_annotation.user = get_robot_user()
                 new_annotation.robot_version = user_or_robot_version
             new_annotation.save()
-        else:
-            # An annotation for this point exists in the database
-            previously_confirmed = not is_robot_user(annotation.user)
+            return self.UpdateResultsCodes.ADDED.value
 
-            if previously_confirmed and not now_confirmed:
-                # Never overwrite confirmed with unconfirmed.
-                pass
-            elif (not previously_confirmed and now_confirmed) \
-                    or (label != annotation.label):
-                # Previously unconfirmed, and now a human user is
-                # confirming or changing it
-                # OR
-                # Label was otherwise changed
-                # In either case, we update the annotation.
-                annotation.label = label
-                if now_confirmed:
-                    annotation.user = user_or_robot_version
-                else:
-                    annotation.user = get_robot_user()
-                    annotation.robot_version = user_or_robot_version
-                annotation.save()
-            # Else, there's nothing to save, so don't do anything.
+        # An annotation for this point exists in the database
+        previously_confirmed = not is_robot_user(annotation.user)
+
+        if previously_confirmed and not now_confirmed:
+            # Never overwrite confirmed with unconfirmed.
+            return self.UpdateResultsCodes.NO_CHANGE.value
+
+        elif (not previously_confirmed and now_confirmed) \
+                or (label != annotation.label):
+            # Previously unconfirmed, and now a human user is
+            # confirming or changing it
+            # OR
+            # Label was otherwise changed
+            # In either case, we update the annotation.
+            annotation.label = label
+            if now_confirmed:
+                annotation.user = user_or_robot_version
+            else:
+                annotation.user = get_robot_user()
+                annotation.robot_version = user_or_robot_version
+            annotation.save()
+            return self.UpdateResultsCodes.UPDATED.value
+
+        # Else, there's nothing to save, so don't do anything.
+        return self.UpdateResultsCodes.NO_CHANGE.value

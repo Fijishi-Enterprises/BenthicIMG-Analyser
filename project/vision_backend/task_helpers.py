@@ -25,6 +25,7 @@ from spacer.messages import \
 from annotations.models import Annotation
 from api_core.models import ApiJobUnit
 from errorlogs.utils import instantiate_error_log
+from events.models import ClassifyImageEvent
 from images.models import Image, Point
 from jobs.exceptions import JobError
 from jobs.models import Job
@@ -63,6 +64,7 @@ def add_annotations(image_id: int,
     """
     img = Image.objects.get(pk=image_id)
     points = Point.objects.filter(image=img).order_by('id')
+    event_details = dict()
 
     # From spacer 0.2 we store row, col locations in features and in
     # classifier scores. This allows us to match scores to points
@@ -74,12 +76,24 @@ def add_annotations(image_id: int,
             scores = res[(point.row, point.column)]
         else:
             _, _, scores = res.scores[itt]
+        label = label_objs[int(np.argmax(scores))]
+
         with transaction.atomic():
-            Annotation.objects.update_point_annotation_if_applicable(
+            result = Annotation.objects.update_point_annotation_if_applicable(
                 point=point,
-                label=label_objs[int(np.argmax(scores))],
+                label=label,
                 now_confirmed=False,
                 user_or_robot_version=classifier)
+
+        event_details[point.point_number] = dict(label=label.pk, result=result)
+
+    event = ClassifyImageEvent(
+        source_id=img.source_id,
+        image_id=image_id,
+        classifier_id=classifier.pk,
+        details=event_details,
+    )
+    event.save()
 
 
 def add_scores(image_id: int,

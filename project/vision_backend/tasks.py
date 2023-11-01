@@ -21,6 +21,7 @@ from spacer.tasks import classify_features as spacer_classify_features
 
 from annotations.models import Annotation
 from api_core.models import ApiJobUnit
+from events.models import ClassifyImageEvent
 from images.models import Source, Image, Point
 from jobs.exceptions import JobError
 from jobs.models import Job
@@ -172,32 +173,40 @@ def check_source(source_id):
 
     if not source.has_robot():
         return f"Can't train first classifier: {reason}"
-    extracted_not_confirmed = source.image_set.filter(
+
+    classifiable_images = source.image_set.filter(
         features__extracted=True,
         annoinfo__confirmed=False,
     )
-    extracted_not_classified = extracted_not_confirmed.filter(
+    unclassified_images = classifiable_images.filter(
         features__classified=False,
     )
-    latest_classifier_annotations = source.annotation_set \
-        .filter(robot_version=source.get_current_classifier())
 
-    if latest_classifier_annotations.exists():
-        # The classifier version of an annotation only gets updated if the
-        # new classifier disagrees with the old classifier. So we can't
-        # tell what's outdated by only looking at a single annotation's
-        # classifier version.
-        # But in general, we are never in a state where some classifications
-        # have been last checked by the latest classifier, and others have
-        # been last checked by an old classifier. It's either all latest,
-        # or all old.
-        # So if the latest classifier has ANY annotations attributed to it,
-        # we only worry about unclassified images.
-        images_to_classify = extracted_not_classified
+    # Here we detect whether the current classifier has been used for ANY
+    # classifications so far. We check this because, most of the time,
+    # the current classifier has either taken a pass on ALL classifiable
+    # images, or it hasn't run at all yet.
+    #
+    # Checking the events should work for any classifications that happened
+    # after such events were introduced (CoralNet 1.7). Otherwise, we look
+    # for annotations attributed to the current classifier, but that can
+    # miss cases where the current classifier agreed with the previous
+    # classifier on all points.
+    current_classifier = source.get_current_classifier()
+    current_classifier_events = ClassifyImageEvent.objects \
+        .filter(classifier_id=current_classifier.pk)
+    current_classifier_annotations = source.annotation_set \
+        .filter(robot_version=current_classifier)
+    current_classifier_used = current_classifier_events.exists() \
+        or current_classifier_annotations.exists()
+
+    if current_classifier_used:
+        # Has been used; so most likely the only images to look at are the
+        # unclassified ones.
+        images_to_classify = unclassified_images
     else:
-        # If there's no trace of the latest classifier, then we go through
-        # all non-confirmed images.
-        images_to_classify = extracted_not_confirmed
+        # Hasn't been used; so the classifier needs to run on everything.
+        images_to_classify = classifiable_images
 
     if images_to_classify.exists():
 

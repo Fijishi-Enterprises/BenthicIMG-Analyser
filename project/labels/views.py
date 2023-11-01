@@ -150,15 +150,17 @@ def labelset_add(request, source_id):
 
         if labelset_form.is_valid():
             labelset_was_created = labelset_form.save_labelset()
+
             if labelset_was_created:
                 messages.success(request, "Labelset successfully created.")
             else:
                 messages.success(request, "Labelset successfully changed.")
-            
-            # After changing or adding labelset, reset classifiers.
-            queue_job(
-                'reset_classifiers_for_source', source_id,
-                source_id=source_id)
+
+                # Reset classifiers.
+                queue_job(
+                    'reset_classifiers_for_source', source_id,
+                    source_id=source_id)
+
             return HttpResponseRedirect(
                 reverse('labelset_main', args=[source.id]))
         else:

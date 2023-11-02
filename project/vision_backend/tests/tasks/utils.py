@@ -3,8 +3,7 @@ from django.test import override_settings
 import spacer.config as spacer_config
 
 from images.model_utils import PointGen
-from jobs.tasks import run_scheduled_jobs_until_empty
-from jobs.tests.utils import queue_and_run_job
+from jobs.tests.utils import do_job, queue_and_run_job
 from lib.tests.utils import ClientTest
 from upload.tests.utils import UploadAnnotationsCsvTestMixin
 
@@ -40,42 +39,67 @@ class BaseTaskTest(ClientTest, UploadAnnotationsCsvTestMixin):
         storage = get_storage_class()()
         self.assertTrue(storage.exists(filepath))
 
-    def upload_image_with_annotations(self, filename):
-        img = self.upload_image(
-            self.user, self.source, image_options=dict(filename=filename))
-        self.add_annotations(
-            self.user, img, {1: 'A', 2: 'B', 3: 'A', 4: 'A', 5: 'B'})
+    @classmethod
+    def upload_image_with_annotations(cls, filename):
+        img = cls.upload_image(
+            cls.user, cls.source, image_options=dict(filename=filename))
+        cls.add_annotations(
+            cls.user, img, {1: 'A', 2: 'B', 3: 'A', 4: 'A', 5: 'B'})
         return img
 
-    def upload_images_for_training(self, train_image_count, val_image_count):
-        for _ in range(train_image_count):
-            self.upload_image_with_annotations(
-                'train{}.png'.format(self.image_count))
-        for _ in range(val_image_count):
-            self.upload_image_with_annotations(
-                'val{}.png'.format(self.image_count))
+    @classmethod
+    def upload_images_for_training(cls, train_image_count, val_image_count):
+        train_images = []
+        val_images = []
 
-    def upload_data_and_train_classifier(self):
-        # Provide enough data for training
-        self.upload_images_for_training(
-            train_image_count=spacer_config.MIN_TRAINIMAGES, val_image_count=1)
+        for _ in range(train_image_count):
+            train_images.append(
+                cls.upload_image_with_annotations(
+                    'train{}.png'.format(cls.image_count)))
+        for _ in range(val_image_count):
+            val_images.append(
+                cls.upload_image_with_annotations(
+                    'val{}.png'.format(cls.image_count)))
+
+        return train_images, val_images
+
+    @classmethod
+    def upload_data_and_train_classifier(cls, new_train_images_count=None):
+        if not new_train_images_count:
+            # Provide enough data for initial training
+            new_train_images_count = spacer_config.MIN_TRAINIMAGES
+
+        train_images, val_images = cls.upload_images_for_training(
+            train_image_count=new_train_images_count, val_image_count=1)
         # Extract features
-        run_scheduled_jobs_until_empty()
+        # In most cases, run_scheduled_jobs_until_empty() would be equivalent
+        # to these do_job() calls, but sometimes it's useful to make sure no
+        # other job runs in the meantime.
+        for image in [*train_images, *val_images]:
+            do_job('extract_features', image.pk, source_id=cls.source.pk)
         queue_and_run_collect_spacer_jobs()
         # Train classifier
-        run_scheduled_jobs_until_empty()
+        do_job('train_classifier', cls.source.pk, source_id=cls.source.pk)
         queue_and_run_collect_spacer_jobs()
 
-    def upload_image_and_machine_classify(self, user, source):
+    @classmethod
+    def upload_image_for_classification(cls):
         # Image without annotations
-        img = self.upload_image(user, source)
+        image = cls.upload_image(cls.user, cls.source)
         # Extract features
-        run_scheduled_jobs_until_empty()
+        do_job('extract_features', image.pk, source_id=cls.source.pk)
         queue_and_run_collect_spacer_jobs()
-        # Classify image
-        run_scheduled_jobs_until_empty()
 
-        return img
+        return image
+
+    @classmethod
+    def upload_image_and_machine_classify(cls):
+        # Image without annotations, with features extracted
+        image = cls.upload_image_for_classification()
+        # Classify image (assumes there's already a classifier)
+        do_job('classify_features', image.pk, source_id=cls.source.pk)
+
+        return image
 
     def upload_image_with_dupe_points(self, filename, with_labels=False):
         img = self.upload_image(

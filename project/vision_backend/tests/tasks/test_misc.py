@@ -21,7 +21,7 @@ class ResetTaskTest(BaseTaskTest):
         # Classify image and verify that it worked
 
         self.upload_data_and_train_classifier()
-        img = self.upload_image_and_machine_classify(self.user, self.source)
+        img = self.upload_image_and_machine_classify()
 
         classifier = self.source.get_current_classifier()
         self.assertIsNotNone(classifier, "Should have a classifier")
@@ -94,7 +94,7 @@ class ResetTaskTest(BaseTaskTest):
         # Classify image and verify that it worked
 
         self.upload_data_and_train_classifier()
-        img = self.upload_image_and_machine_classify(self.user, self.source)
+        img = self.upload_image_and_machine_classify()
 
         classifier = self.source.get_current_classifier()
         self.assertIsNotNone(classifier, "Should have a classifier")

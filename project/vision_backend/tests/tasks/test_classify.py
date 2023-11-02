@@ -1,3 +1,4 @@
+import re
 from unittest import mock
 
 from django.core.cache import cache
@@ -9,17 +10,219 @@ import spacer.config as spacer_config
 from accounts.utils import get_robot_user, is_robot_user
 from annotations.models import Annotation
 from annotations.tests.utils import AnnotationHistoryTestMixin
+from events.models import ClassifyImageEvent
 from images.models import Point
 from jobs.models import Job
 from jobs.tasks import run_scheduled_jobs, run_scheduled_jobs_until_empty
-from jobs.tests.utils import JobUtilsMixin, queue_and_run_job, run_pending_job
+from jobs.tests.utils import queue_and_run_job, queue_job, JobUtilsMixin
 from ...models import Score
-from ...utils import clear_features, queue_source_check
+from ...utils import clear_features
 from .utils import BaseTaskTest, queue_and_run_collect_spacer_jobs
+
+
+def noop(*args, **kwargs):
+    pass
+
+
+def classify(image, create_event=True):
+    if create_event:
+        queue_and_run_job('classify_features', image.pk)
+    else:
+        with mock.patch.object(ClassifyImageEvent, 'save', noop):
+            queue_and_run_job('classify_features', image.pk)
+
+
+class SourceCheckTest(BaseTaskTest, JobUtilsMixin):
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+
+        cls.upload_data_and_train_classifier()
+
+    def test_basic(self):
+        self.upload_image_for_classification()
+        self.upload_image_for_classification()
+        self.source_check_and_assert_message(
+            "Queued 2 image classification(s)")
+        self.source_check_and_assert_message(
+            "Waiting for image classification(s) to finish")
+
+    def test_do_not_requeue(self):
+        img1 = self.upload_image_for_classification()
+        img2 = self.upload_image_for_classification()
+        self.source_check_and_assert_message(
+            "Queued 2 image classification(s)")
+
+        self.upload_image_for_classification()
+
+        img1.refresh_from_db()
+        img2.refresh_from_db()
+        img1.features.refresh_from_db()
+        img2.features.refresh_from_db()
+        self.assertFalse(
+            any([img1.features.classified, img2.features.classified]),
+            msg="First 2 classifications shouldn't have run yet (sanity check)",
+        )
+
+        self.source_check_and_assert_message(
+            "Queued 1 image classification(s)",
+            assert_msg="Should not re-queue the original 2 classifications",
+        )
+
+    def test_various_image_cases_new_classifier_on_events_and_annotations(self):
+        self.do_test_various_image_cases(True, True)
+
+    def test_various_image_cases_new_classifier_on_events_only(self):
+        self.do_test_various_image_cases(True, False)
+
+    def test_various_image_cases_new_classifier_on_annotations_only(self):
+        self.do_test_various_image_cases(False, True)
+
+    def test_various_image_cases_new_classifier_on_nothing(self):
+        self.do_test_various_image_cases(False, False)
+
+    def do_test_various_image_cases(
+        self,
+        # Whether Events are created upon classifying images; otherwise,
+        # annotations have the only record of which classifier last visited.
+        # False will simulate images processed before CoralNet 1.7,
+        # which is when the Events were introduced.
+        create_events: bool,
+        # Whether the new classifier changes annotations from the old
+        # classifier, thus allowing the new classifier to have attribution in
+        # the annotations.
+        new_classifier_on_annotations: bool,
+    ):
+
+        def mock_classify_msg_all_a(
+                self_, runtime, scores, classes, valid_rowcol):
+            """Classify any point as A."""
+            self_.runtime = runtime
+            self_.scores = [
+                (row, column, [0.8, 0.2])
+                for row, column, _ in scores
+            ]
+            self_.classes = classes
+            self_.valid_rowcol = valid_rowcol
+        def mock_classify_msg_all_b(
+                self_, runtime, scores, classes, valid_rowcol):
+            """Classify any point as B."""
+            self_.runtime = runtime
+            self_.scores = [
+                (row, column, [0.2, 0.8])
+                for row, column, _ in scores
+            ]
+            self_.classes = classes
+            self_.valid_rowcol = valid_rowcol
+
+        if new_classifier_on_annotations:
+            # Have old and new classifiers make (at least some)
+            # different classifications.
+            old_classifier_msg_mock = mock_classify_msg_all_a
+            new_classifier_msg_mock = mock_classify_msg_all_b
+        else:
+            # Have old and new classifiers make the same classifications.
+            old_classifier_msg_mock = mock_classify_msg_all_a
+            new_classifier_msg_mock = mock_classify_msg_all_a
+
+        img1 = self.upload_image_for_classification()
+        img2 = self.upload_image_for_classification()
+        img3 = self.upload_image_for_classification()
+
+        with mock.patch(
+            'spacer.messages.ClassifyReturnMsg.__init__',
+            old_classifier_msg_mock,
+        ):
+            classify(img1, create_event=create_events)
+            classify(img2, create_event=create_events)
+
+        # Accept another classifier. Override settings so that 1) we
+        # don't need more images to train a new classifier, and 2) we don't
+        # need improvement to mark a new classifier as accepted.
+        with override_settings(
+            NEW_CLASSIFIER_TRAIN_TH=0.0001,
+            NEW_CLASSIFIER_IMPROVEMENT_TH=0.0001,
+        ):
+            self.upload_data_and_train_classifier(new_train_images_count=0)
+
+        with mock.patch(
+            'spacer.messages.ClassifyReturnMsg.__init__',
+            new_classifier_msg_mock,
+        ):
+            classify(img1, create_event=create_events)
+
+        if create_events:
+            self.assertTrue(
+                ClassifyImageEvent.objects.filter(image_id=img1.pk).exists(),
+                "img1 classification event should exist (sanity check)")
+            self.assertTrue(
+                ClassifyImageEvent.objects.filter(image_id=img2.pk).exists(),
+                "img2 classification event should exist (sanity check)")
+        else:
+            self.assertFalse(
+                ClassifyImageEvent.objects.filter(
+                    image_id__in=[img1.pk, img2.pk]).exists(),
+                "img1 and img2 classification events shouldn't exist"
+                " (sanity check)")
+
+        # Don't really need to check how many images are queued here, because
+        # we'll check specifically which ones were queued after this.
+        self.source_check_and_assert_message(
+            re.compile(r"Queued \d+ image classification\(s\)"),
+        )
+
+        queued_image_ids = Job.objects \
+            .filter(job_name='classify_features', status=Job.Status.PENDING) \
+            .values_list('arg_identifier', flat=True)
+        queued_image_ids = [int(pk) for pk in queued_image_ids]
+
+        self.assertIn(
+            img3.pk, queued_image_ids,
+            msg="Unclassified image should have been queued")
+
+        if not create_events and not new_classifier_on_annotations:
+            # If there's no sign of activity from the new classifier,
+            # then all unconfirmed images are queued for classification.
+            self.assertIn(
+                img2.pk, queued_image_ids,
+                msg="Image that was last classified by the previous classifier"
+                    " should have been queued")
+            self.assertIn(
+                img1.pk, queued_image_ids,
+                msg="Image that was last classified by the current classifier"
+                    " should have been queued")
+        else:
+            self.assertNotIn(
+                img2.pk, queued_image_ids,
+                msg="Image that was last classified by the previous classifier"
+                    " should not have been queued")
+            self.assertNotIn(
+                img1.pk, queued_image_ids,
+                msg="Image that was last classified by the current classifier"
+                    " should not have been queued")
+
+    def test_time_out(self):
+        for _ in range(12):
+            self.upload_image_for_classification()
+
+        with override_settings(JOB_MAX_MINUTES=-1):
+            self.source_check_and_assert_message(
+                "Queued 10 image classification(s) (timed out)")
+
+        self.source_check_and_assert_message(
+            "Queued 2 image classification(s)")
 
 
 class ClassifyImageTest(
         BaseTaskTest, JobUtilsMixin, AnnotationHistoryTestMixin):
+
+    @staticmethod
+    def image_label_ids(image):
+        label_ids = []
+        for point in image.point_set.order_by('point_number'):
+            label_ids.append(point.annotation.label_id)
+        return label_ids
 
     @staticmethod
     def image_label_codes(image):
@@ -28,75 +231,11 @@ class ClassifyImageTest(
             label_codes.append(point.annotation.label_code)
         return label_codes
 
-    def test_source_check(self):
-        self.upload_data_and_train_classifier()
-
-        # Images without annotations
-        self.upload_image(self.user, self.source)
-        self.upload_image(self.user, self.source)
-        # Process feature extraction results
-        run_scheduled_jobs_until_empty()
-        queue_and_run_collect_spacer_jobs()
-
-        run_pending_job('check_source', self.source.pk)
-        self.assert_job_result_message(
-            'check_source',
-            "Queued 2 image classification(s)")
-
-        img = self.upload_image(self.user, self.source)
-        # Extract features for the newly-uploaded image
-        # without running any classifications
-        run_pending_job('check_source', self.source.pk)
-        run_pending_job('extract_features', img.pk)
-        queue_and_run_collect_spacer_jobs()
-
-        run_pending_job('check_source', self.source.pk)
-        # Should not re-queue the other classifications
-        self.assert_job_result_message(
-            'check_source',
-            "Queued 1 image classification(s)")
-
-        queue_and_run_job(
-            'check_source', self.source.pk,
-            source_id=self.source.pk)
-        self.assert_job_result_message(
-            'check_source',
-            "Waiting for image classification(s) to finish")
-
-    def test_source_check_time_out(self):
-        self.upload_data_and_train_classifier()
-
-        # Images without annotations
-        for _ in range(12):
-            self.upload_image(self.user, self.source)
-        # Process feature extraction results
-        run_scheduled_jobs_until_empty()
-        queue_and_run_collect_spacer_jobs()
-
-        with override_settings(JOB_MAX_MINUTES=-1):
-            run_pending_job('check_source', self.source.pk)
-            self.assert_job_result_message(
-                'check_source',
-                "Queued 10 image classification(s) (timed out)")
-
-        queue_and_run_job(
-            'check_source', self.source.pk,
-            source_id=self.source.pk)
-        self.assert_job_result_message(
-            'check_source',
-            "Queued 2 image classification(s)")
-
     def test_classify_unannotated_image(self):
         """Classify an image where all points are unannotated."""
         self.upload_data_and_train_classifier()
 
-        # Image without annotations
-        img = self.upload_image(self.user, self.source)
-        # Process feature extraction results
-        run_scheduled_jobs_until_empty()
-        queue_and_run_collect_spacer_jobs()
-        # Classify image
-        run_scheduled_jobs_until_empty()
+        img = self.upload_image_and_machine_classify()
 
         for point in Point.objects.filter(image__id=img.id):
             try:
@@ -112,7 +251,23 @@ class ClassifyImageTest(
                 2, point.score_set.count(), "Each point should have scores")
 
         codes = self.image_label_codes(img)
-        robot = self.source.get_current_classifier()
+        label_ids = self.image_label_ids(img)
+        classifier = self.source.get_current_classifier()
+
+        event = ClassifyImageEvent.objects.get(image_id=img.pk)
+        self.assertEqual(event.source_id, self.source.pk)
+        self.assertEqual(event.classifier_id, classifier.pk)
+        self.assertDictEqual(
+            event.details,
+            {
+                '1': dict(label=label_ids[0], result='added'),
+                '2': dict(label=label_ids[1], result='added'),
+                '3': dict(label=label_ids[2], result='added'),
+                '4': dict(label=label_ids[3], result='added'),
+                '5': dict(label=label_ids[4], result='added'),
+            },
+        )
+
         response = self.view_history(self.user, img=img)
         self.assert_history_table_equals(
             response,
@@ -120,13 +275,22 @@ class ClassifyImageTest(
                 [f'Point 1: {codes[0]}<br/>Point 2: {codes[1]}'
                  f'<br/>Point 3: {codes[2]}<br/>Point 4: {codes[3]}'
                  f'<br/>Point 5: {codes[4]}',
-                 f'Robot {robot.pk}'],
+                 f'Robot {classifier.pk}'],
             ]
         )
 
     def test_more_than_5_labels(self):
         """
         When there are more than 5 labels, score count should be capped to 5.
+
+        TODO:
+         1) Due to the randomness of the training 'reference set', there's
+         no guarantee of what labels would be included without the
+         score-count cap. Once PySpacer is updated to allow specifying a
+         non-random reference set, use that option here.
+         2) This test would be more robust if it tested the same
+         annotation-specifying logic with 2 different score-count caps
+         (e.g. 3 and 5).
         """
         # Increase label count from 2 to 8.
         labels = self.create_labels(
@@ -149,13 +313,7 @@ class ClassifyImageTest(
         # tasks needed to train a classifier.
         self.upload_data_and_train_classifier()
 
-        # Upload
-        img = self.upload_image(self.user, self.source)
-        # Extract features
-        run_scheduled_jobs_until_empty()
-        queue_and_run_collect_spacer_jobs()
-        # Classify
-        run_scheduled_jobs_until_empty()
+        img = self.upload_image_and_machine_classify()
 
         for point in Point.objects.filter(image__id=img.id):
             # Score count per point should be label count or 5,
@@ -210,36 +368,25 @@ class ClassifyImageTest(
         self.upload_data_and_train_classifier()
         clf_1 = self.source.get_current_classifier()
 
-        # Upload
-        img = self.upload_image(self.user, self.source)
-        # Extract features
-        run_scheduled_jobs_until_empty()
-        queue_and_run_collect_spacer_jobs()
-        # Classify with a particular set of scores
+        # Upload, extract, and classify with a particular set of scores
         with mock.patch(
-                'spacer.messages.ClassifyReturnMsg.__init__',
-                mock_classify_msg_1):
-            run_scheduled_jobs_until_empty()
+            'spacer.messages.ClassifyReturnMsg.__init__', mock_classify_msg_1
+        ):
+            img = self.upload_image_and_machine_classify()
 
-        # Accept another classifier. Override settings so that 1) we
-        # don't need more images to train a new classifier, and 2) we don't
-        # need improvement to mark a new classifier as accepted.
+        # Accept another classifier.
         with override_settings(
-                NEW_CLASSIFIER_TRAIN_TH=0.0001,
-                NEW_CLASSIFIER_IMPROVEMENT_TH=0.0001):
-            # Source was considered all caught up earlier, so need to queue
-            # another check.
-            queue_source_check(self.source.pk)
-            # Train
-            run_scheduled_jobs_until_empty()
-            queue_and_run_collect_spacer_jobs()
+            NEW_CLASSIFIER_TRAIN_TH=0.0001,
+            NEW_CLASSIFIER_IMPROVEMENT_TH=0.0001,
+        ):
+            self.upload_data_and_train_classifier(new_train_images_count=0)
 
         # Re-classify with a different set of
         # scores so that specific points get their labels changed (and
         # other points don't).
         with mock.patch(
-                'spacer.messages.ClassifyReturnMsg.__init__',
-                mock_classify_msg_2):
+            'spacer.messages.ClassifyReturnMsg.__init__', mock_classify_msg_2
+        ):
             run_scheduled_jobs_until_empty()
 
         clf_2 = self.source.get_current_classifier()
@@ -281,6 +428,19 @@ class ClassifyImageTest(
             Point.objects.filter(
                 image=img, annotation__robot_version=clf_2).count(),
             "2 points should have been updated by classifier 2")
+
+        label_ids = self.image_label_ids(img)
+        event = ClassifyImageEvent.objects.latest('pk')
+        self.assertDictEqual(
+            event.details,
+            {
+                '1': dict(label=label_ids[0], result='no change'),
+                '2': dict(label=label_ids[1], result='updated'),
+                '3': dict(label=label_ids[2], result='updated'),
+                '4': dict(label=label_ids[3], result='no change'),
+                '5': dict(label=label_ids[4], result='no change'),
+            },
+        )
 
         response = self.view_history(self.user, img=img)
         self.assert_history_table_equals(
@@ -324,6 +484,19 @@ class ClassifyImageTest(
             self.assertEqual(
                 2, point.score_set.count(), "Each point should have scores")
 
+        label_ids = self.image_label_ids(img)
+        event = ClassifyImageEvent.objects.latest('pk')
+        self.assertDictEqual(
+            event.details,
+            {
+                '1': dict(label=label_ids[0], result='no change'),
+                '2': dict(label=label_ids[1], result='added'),
+                '3': dict(label=label_ids[2], result='added'),
+                '4': dict(label=label_ids[3], result='added'),
+                '5': dict(label=label_ids[4], result='added'),
+            },
+        )
+
     def test_classify_confirmed_image(self):
         """Attempt to classify an image where all points are confirmed."""
         self.upload_data_and_train_classifier()
@@ -343,6 +516,10 @@ class ClassifyImageTest(
             self.assertFalse(
                 point.score_set.exists(), "Points should not have scores")
 
+        # There should be no classify event
+        with self.assertRaises(ClassifyImageEvent.DoesNotExist):
+            ClassifyImageEvent.objects.latest('pk')
+
     def test_classify_scores_and_labels_match(self):
         """
         Check that the Scores and the labels assigned by classification are
@@ -350,13 +527,7 @@ class ClassifyImageTest(
         """
         self.upload_data_and_train_classifier()
 
-        # Upload
-        img = self.upload_image(self.user, self.source)
-        # Extract features
-        run_scheduled_jobs_until_empty()
-        queue_and_run_collect_spacer_jobs()
-        # Classify
-        run_scheduled_jobs_until_empty()
+        img = self.upload_image_and_machine_classify()
 
         for point in Point.objects.filter(image__id=img.id):
             ann = point.annotation
@@ -407,16 +578,11 @@ class ClassifyImageTest(
 
         self.upload_data_and_train_classifier()
 
-        # Image without annotations
-        img = self.upload_image(self.user, self.source)
-        # Extract features
-        run_scheduled_jobs_until_empty()
-        queue_and_run_collect_spacer_jobs()
-        # Classify
+        # Upload, extract, and classify
         with mock.patch(
-                'spacer.messages.ClassifyReturnMsg.__init__',
-                mock_classify_msg):
-            run_scheduled_jobs_until_empty()
+            'spacer.messages.ClassifyReturnMsg.__init__', mock_classify_msg
+        ):
+            img = self.upload_image_and_machine_classify()
 
         for point in Point.objects.filter(image__id=img.id):
             try:
@@ -440,20 +606,20 @@ class ClassifyImageTest(
             "Applied labels match the given scores")
 
 
-class AbortCasesTest(BaseTaskTest):
+class AbortCasesTest(BaseTaskTest, JobUtilsMixin):
     """Test cases where the task would abort before reaching the end."""
+
+    def upload_image_and_queue_classification(self):
+        # Upload and extract features
+        img = self.upload_image_for_classification()
+        queue_job('classify_features', img.pk, source_id=self.source.pk)
+        return img
 
     def test_classify_nonexistent_image(self):
         """Try to classify a nonexistent image ID."""
         self.upload_data_and_train_classifier()
 
-        # Upload
-        img = self.upload_image(self.user, self.source)
-        # Extract features
-        run_scheduled_jobs_until_empty()
-        queue_and_run_collect_spacer_jobs()
-        # Queue classification of img
-        run_scheduled_jobs()
+        img = self.upload_image_and_queue_classification()
         # Delete img
         image_id = img.pk
         img.delete()
@@ -471,13 +637,7 @@ class AbortCasesTest(BaseTaskTest):
         """Try to classify an image without features extracted."""
         self.upload_data_and_train_classifier()
 
-        # Upload
-        img = self.upload_image(self.user, self.source)
-        # Extract features
-        run_scheduled_jobs_until_empty()
-        queue_and_run_collect_spacer_jobs()
-        # Queue classification of img
-        run_scheduled_jobs()
+        img = self.upload_image_and_queue_classification()
         # Clear features
         clear_features(img)
 
@@ -495,13 +655,7 @@ class AbortCasesTest(BaseTaskTest):
         """Try to classify an image without a classifier for the source."""
         self.upload_data_and_train_classifier()
 
-        # Upload
-        img = self.upload_image(self.user, self.source)
-        # Extract features
-        run_scheduled_jobs_until_empty()
-        queue_and_run_collect_spacer_jobs()
-        # Queue classification of img
-        run_scheduled_jobs()
+        img = self.upload_image_and_queue_classification()
         # Delete source's classifier
         self.source.get_current_classifier().delete()
 
@@ -520,11 +674,7 @@ class AbortCasesTest(BaseTaskTest):
         self.upload_data_and_train_classifier()
         classifier = self.source.get_current_classifier()
 
-        # Upload
-        img = self.upload_image(self.user, self.source)
-        # Extract features
-        run_scheduled_jobs_until_empty()
-        queue_and_run_collect_spacer_jobs()
+        img = self.upload_image_and_queue_classification()
 
         def mock_update_annotation(
                 point, label, now_confirmed, user_or_robot_version):

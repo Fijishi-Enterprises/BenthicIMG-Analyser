@@ -53,6 +53,19 @@ class Event(models.Model):
 
         super().save(*args, **kwargs)
 
+    def __str__(self):
+        s = "Event: "
+        s += self.type or "(No type)"
+        if self.source_id:
+            s += f" - Source {self.source_id}"
+        if self.image_id:
+            s += f" - Image {self.image_id}"
+        if self.classifier_id:
+            s += f" - Classifier {self.classifier_id}"
+        if self.creator_id:
+            s += f" - by User {self.creator_id}"
+        return s
+
 
 class ClassifyImageEvent(Event):
     class Meta:

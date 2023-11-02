@@ -5,9 +5,12 @@ from django.db import models
 
 from images.models import Image
 from labels.models import Label
+from .managers import EventManager
 
 
 class Event(models.Model):
+
+    objects = EventManager()
 
     class Types(models.TextChoices):
         CLASSIFY_IMAGE = 'classify_image', "Classify image"
@@ -34,30 +37,28 @@ class Event(models.Model):
 
     date = models.DateTimeField(auto_now_add=True, editable=False)
 
-    type_for_subclass: str
+    type_for_subclass: str = None
     required_id_fields: list[str] = []
 
-    def __init__(self, *args, **kwargs):
+    def save(self, *args, **kwargs):
         if self.type_for_subclass:
-            kwargs['type'] = self.type_for_subclass
-        super().__init__(*args, **kwargs)
-
-    def clean(self):
-        cleaned_data = super().clean()
+            self.type = self.type_for_subclass
 
         for field_name in self.required_id_fields:
-            if not cleaned_data.get(field_name):
+            if not getattr(self, field_name):
                 raise ValidationError(
                     f"This event type requires the {field_name} field.",
                     code='required_for_type',
                 )
+
+        super().save(*args, **kwargs)
 
 
 class ClassifyImageEvent(Event):
     class Meta:
         proxy = True
 
-    type_for_subclass = Event.Types.CLASSIFY_IMAGE[0]
+    type_for_subclass = Event.Types.CLASSIFY_IMAGE.value
     required_id_fields = ['source_id', 'image_id', 'classifier_id']
 
     @property

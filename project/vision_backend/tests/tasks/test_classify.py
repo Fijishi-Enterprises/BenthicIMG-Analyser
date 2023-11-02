@@ -2,7 +2,6 @@ import re
 from unittest import mock
 
 from django.core.cache import cache
-from django.db import IntegrityError
 from django.test import override_settings
 import numpy as np
 import spacer.config as spacer_config
@@ -670,22 +669,23 @@ class AbortCasesTest(BaseTaskTest, JobUtilsMixin):
             "Job should have the expected error")
 
     def test_integrity_error_when_saving_annotations(self):
-        """Get an IntegrityError when saving annotations."""
-        self.upload_data_and_train_classifier()
-        classifier = self.source.get_current_classifier()
 
-        img = self.upload_image_and_queue_classification()
+        class UnexpectedPointOrderError(Exception):
+            pass
 
         def mock_update_annotation(
                 point, label, now_confirmed, user_or_robot_version):
-            # Raise an IntegrityError on the FIRST call only. We want to get an
-            # IntegrityError the first time and then do fine the second time.
-            # Due to auto-retries and HUEY['immediate'], if we always raised
-            # the error, we'd infinite-loop.
-            if not cache.get('raised_integrity_error'):
-                cache.set('raised_integrity_error', True)
-                raise IntegrityError
+            """
+            When the save_annotations_ajax view tries to actually save the
+            annotations to the DB, this patched function should save the
+            annotation for point 1, then raise an IntegrityError for point 2.
+            This should make the view return an appropriate
+            error message, and should make point 1 get rolled back.
 
+            And this should only happen ONCE. Due to auto-retries and
+            HUEY['immediate'], if we always raised the error,
+            we'd infinite-loop.
+            """
             # This is a simple saving case (for brevity) which works for this
             # particular test.
             new_annotation = Annotation(
@@ -695,11 +695,32 @@ class AbortCasesTest(BaseTaskTest, JobUtilsMixin):
                 robot_version=user_or_robot_version)
             new_annotation.save()
 
+            if point.point_number == 1:
+                cache.set('point_1_processed', True)
+            if point.point_number == 2:
+                if not cache.get('point_1_processed'):
+                    # The point order, which the test depends on, isn't as
+                    # expected. Raise a non-IntegrityError to fail the test.
+                    raise UnexpectedPointOrderError
+                if not cache.get('raised_integrity_error'):
+                    cache.set('raised_integrity_error', True)
+                    # Save another Annotation for this Point, simulating a
+                    # race condition of some kind.
+                    # Should get an IntegrityError.
+                    new_annotation.pk = None
+                    new_annotation.save()
+
+        self.upload_data_and_train_classifier()
+        classifier = self.source.get_current_classifier()
+
+        img = self.upload_image_and_queue_classification()
+
         # Try to classify
         with mock.patch(
-                'annotations.models.Annotation.objects'
-                '.update_point_annotation_if_applicable',
-                mock_update_annotation):
+            'annotations.models.Annotation.objects'
+            '.update_point_annotation_if_applicable',
+            mock_update_annotation
+        ):
             run_scheduled_jobs_until_empty()
 
         classify_job = Job.objects.get(job_name='classify_features')
@@ -709,3 +730,10 @@ class AbortCasesTest(BaseTaskTest, JobUtilsMixin):
             f" to save annotations.",
             classify_job.result_message,
             "Job should have the expected error")
+
+        # Although the error occurred on point 2, nothing should have been
+        # saved, including point 1.
+        self.assertEqual(
+            img.annotation_set.count(), 0,
+            "Point 1's annotation should have been rolled back"
+        )

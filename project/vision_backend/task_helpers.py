@@ -10,7 +10,6 @@ import numpy as np
 from django.conf import settings
 from django.core.files.storage import get_storage_class
 from django.core.mail import mail_admins
-from django.db import transaction
 from django.db.models import F
 from django.utils.timezone import now
 from reversion import revisions
@@ -37,30 +36,32 @@ from .utils import queue_source_check
 logger = logging.getLogger(__name__)
 
 
-# Must explicitly turn on history creation when RevisionMiddleware is
-# not in effect. (It's only in effect within views.)
-@revisions.create_revision()
+# This function is generally called outside of Django views, so the
+# middleware which do atomic transactions and create revisions aren't
+# active. This decorator enables both of those things.
+@revisions.create_revision(atomic=True)
 def add_annotations(image_id: int,
                     res: ClassifyReturnMsg,
                     label_objs: List[Label],
                     classifier: Classifier):
     """
-    Adds annotations objects using the classifier scores.
+    Adds DB Annotations using the scores in the spacer return message.
 
     :param image_id: Database ID of the Image to add scores for.
-    :param res: ClassifyReturnMessage from spacer.
+    :param res: ClassifyReturnMsg from spacer.
     :param label_objs: Iterable of Label DB objects, one per label in the
       source's labelset.
-    :param classifier: Classifier object.
+    :param classifier: Classifier that will get attribution for the changes.
 
     May throw an IntegrityError when trying to save annotations. The caller is
     responsible for handling the error. In this error case, no annotations
-    are saved due to the transaction.atomic() context manager.
+    are saved due to the `atomic=True` in the decorator.
 
-    NOTE: this function is SLOW.
-    Note that bulk-saving annotations would skip the signal firing,
-    and thus would not trigger django-reversion's revision creation.
-    So we must save annotations one by one.
+    This function slowly saves annotations one by one, because bulk-saving
+    annotations would skip signal firing, and thus would not trigger
+    django-reversion's revision creation.
+    So this is slow on a database-ops timescale, although perhaps not on a
+    vision-backend-tasks timescale.
     """
     img = Image.objects.get(pk=image_id)
     points = Point.objects.filter(image=img).order_by('id')
@@ -78,12 +79,11 @@ def add_annotations(image_id: int,
             _, _, scores = res.scores[itt]
         label = label_objs[int(np.argmax(scores))]
 
-        with transaction.atomic():
-            result = Annotation.objects.update_point_annotation_if_applicable(
-                point=point,
-                label=label,
-                now_confirmed=False,
-                user_or_robot_version=classifier)
+        result = Annotation.objects.update_point_annotation_if_applicable(
+            point=point,
+            label=label,
+            now_confirmed=False,
+            user_or_robot_version=classifier)
 
         event_details[point.point_number] = dict(label=label.pk, result=result)
 
@@ -100,10 +100,10 @@ def add_scores(image_id: int,
                res: ClassifyReturnMsg,
                label_objs: List[Label]):
     """
-    Adds score objects using the classifier scores.
+    Adds DB Scores using the scores in the spacer return message.
 
     :param image_id: Database ID of the Image to add scores for.
-    :param res: ClassifyReturnMessage from spacer.
+    :param res: ClassifyReturnMsg from spacer.
     :param label_objs: Iterable of Label DB objects, one per label in the
       source's labelset.
     """

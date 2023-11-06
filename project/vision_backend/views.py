@@ -19,23 +19,30 @@ from .utils import labelset_mapper, map_labels, get_alleviate
 
 @permission_required('is_superuser')
 def backend_overview(request):
-    nimgs = Image.objects.filter().count()
-    nconfirmed = Image.objects.filter(annoinfo__confirmed=True).count()
-    nclassified = Image.objects.filter(features__classified=True).count()
-    nextracted = Image.objects.filter(features__extracted=True).count()
-    nnaked = Image.objects.filter(features__extracted=False,
-                                  annoinfo__confirmed=False).count()
+    total = Image.objects.filter().count()
+
+    confirmed = Image.objects.confirmed().count()
+    unconfirmed = Image.objects.unconfirmed().count()
+    unclassified_with_features = \
+        Image.objects.unclassified().with_features().count()
+    unclassified_without_features = \
+        Image.objects.unclassified().without_features().count()
+
+    def percent_display(numerator, denominator):
+        return format(100*numerator / denominator, '.1f') + "%"
 
     img_stats = {
-        'nimgs': nimgs,
-        'nconfirmed': nconfirmed,
-        'nclassified': nclassified, 
-        'nextracted': nextracted,
-        'nnaked': nnaked,
-        'fextracted': '{:.1f}'.format(100*nextracted / nimgs),
-        'fconfirmed': '{:.1f}'.format(100*nconfirmed / nimgs),
-        'fclassified': '{:.1f}'.format(100*nclassified / nimgs),
-        'fnaked': '{:.1f}'.format(100*nnaked / nimgs)
+        'total': total,
+        'confirmed': confirmed,
+        'unconfirmed': unconfirmed,
+        'unclassified_with_features': unclassified_with_features,
+        'unclassified_without_features': unclassified_without_features,
+        'pct_confirmed': percent_display(confirmed, total),
+        'pct_unconfirmed': percent_display(unconfirmed, total),
+        'pct_unclassified_with_features': percent_display(
+            unclassified_with_features, total),
+        'pct_unclassified_without_features': percent_display(
+            unclassified_without_features, total),
     }
 
     clf_stats = {

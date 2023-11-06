@@ -3,7 +3,6 @@ import time
 
 from django.core.management.base import BaseCommand
 
-from images.models import Image
 from jobs.tasks import run_scheduled_jobs
 from lib.regtest_utils import VisionBackendRegressionTest
 from ...models import Classifier
@@ -115,9 +114,8 @@ class Command(BaseCommand):
             time.sleep(5)
             run_scheduled_jobs()
             queue_and_run_collect_spacer_jobs()
-            n_with_feats = Image.objects.filter(
-                source=s.source, features__extracted=True).count()
-            n_imgs = Image.objects.filter(source=s.source).count()
+            n_with_feats = s.source.image_set.with_features().count()
+            n_imgs = s.source.image_set.count()
             print(f"-> {n_with_feats} out of {n_imgs} images have features.")
             all_have_features = n_with_feats == n_imgs
 
@@ -135,22 +133,17 @@ class Command(BaseCommand):
 
         print("-> Classifier trained!")
 
-        print("-> Waiting for unconfirmed images to be classified.")
+        print("-> Waiting for non-manually-annotated images to be classified.")
         all_imgs_classified = False
         while not all_imgs_classified:
             time.sleep(5)
             run_scheduled_jobs()
-            n_classified = Image.objects.filter(
-                source=s.source,
-                annoinfo__confirmed=False,
-                features__classified=True).count()
-            n_imgs = Image.objects.filter(
-                source=s.source,
-                annoinfo__confirmed=False).count()
+            n_classified = s.source.image_set.unconfirmed().count()
+            n_imgs = s.source.image_set.incomplete().count()
 
             print(
-                f"-> {n_classified} out of {n_imgs} unconfirmed images"
-                f" are classified.")
+                f"-> {n_classified} out of {n_imgs} non-manually-annotated"
+                f" images are classified.")
             all_imgs_classified = n_classified == n_imgs
 
         print("-> All Done!")

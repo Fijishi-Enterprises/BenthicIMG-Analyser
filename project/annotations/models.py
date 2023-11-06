@@ -2,11 +2,12 @@ from django.contrib.auth.models import User
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
-from .managers import AnnotationManager, AnnotationQuerySet
 from images.models import Image, Point, Source
 from labels.models import Label, LocalLabel
 from vision_backend.models import Classifier
 from vision_backend.utils import queue_source_check
+from .managers import AnnotationManager, AnnotationQuerySet
+from .model_utils import ImageAnnoStatuses, image_annotation_status
 
 
 class Annotation(models.Model):
@@ -33,13 +34,12 @@ class Annotation(models.Model):
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
-        # The image's annotation progress info may need updating.
         self.image.annoinfo.update_annotation_progress_fields()
 
     def delete(self, *args, **kwargs):
-        super().delete(*args, **kwargs)
-        # The image's annotation progress info may need updating.
+        return_values = super().delete(*args, **kwargs)
         self.image.annoinfo.update_annotation_progress_fields()
+        return return_values
 
     def __str__(self):
         return "%s - %s - %s" % (
@@ -55,13 +55,16 @@ class ImageAnnotationInfo(models.Model):
         # Name of reverse relation
         related_name='annoinfo')
 
-    # Whether the image has confirmed annotations on all points. This is a
-    # redundant field, in the sense that it can be computed from other fields.
-    # But it's necessary for image-searching performance.
-    confirmed = models.BooleanField(default=False)
+    # The image's annotation status. This is a redundant field, in the sense
+    # that it can be computed from the annotations. But it's necessary
+    # for image-searching performance.
+    status = models.CharField(
+        max_length=30, choices=ImageAnnoStatuses.choices,
+        default=ImageAnnoStatuses.UNCLASSIFIED.value,
+    )
 
     # Latest updated annotation for this image. This is a redundant field, in
-    # the sense that it can be computed from other fields. But it's
+    # the sense that it can be computed from the annotations. But it's
     # necessary for performance of queries such as 'find the 20 most recently
     # annotated images'.
     last_annotation = models.ForeignKey(
@@ -75,6 +78,9 @@ class ImageAnnotationInfo(models.Model):
         """
         Ensure the redundant annotation-progress fields (which exist for
         performance reasons) are up to date.
+
+        This should be called after saving, deleting, bulk-deleting, or
+        bulk-creating Annotations or Points.
         """
         # Update the last_annotation.
         # If there are no annotations, then first() returns None.
@@ -82,20 +88,13 @@ class ImageAnnotationInfo(models.Model):
             '-annotation_date').first()
         self.last_annotation = last_annotation
 
-        # Must import within this function to avoid circular import
-        # at the module level.
-        from .utils import image_annotation_all_done
-        # Are all points human annotated?
-        all_done = image_annotation_all_done(self.image)
-
-        # Update confirmed status, if needed.
-        confirmed_status_updated = self.confirmed != all_done
-        if confirmed_status_updated:
-            self.confirmed = all_done
+        # Update status.
+        previously_confirmed = self.confirmed
+        self.status = image_annotation_status(self.image)
 
         self.save()
 
-        if self.confirmed and confirmed_status_updated:
+        if self.confirmed and not previously_confirmed:
 
             # With a new image confirmed, let's see if a new robot can be
             # trained.
@@ -106,6 +105,18 @@ class ImageAnnotationInfo(models.Model):
             # Image has no annotations now. Let's see if machine annotations
             # can be added.
             queue_source_check(self.image.source.pk)
+
+    @property
+    def confirmed(self):
+        return self.status == ImageAnnoStatuses.CONFIRMED.value
+
+    @property
+    def classified(self):
+        return self.status != ImageAnnoStatuses.UNCLASSIFIED.value
+
+    @property
+    def status_display(self):
+        return ImageAnnoStatuses(self.status).label
 
 
 class AnnotationToolAccess(models.Model):

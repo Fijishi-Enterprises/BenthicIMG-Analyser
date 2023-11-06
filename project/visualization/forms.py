@@ -11,11 +11,15 @@ from django.utils import timezone
 
 from accounts.utils import (
     get_alleviate_user, get_imported_user, get_robot_user)
+from annotations.model_utils import ImageAnnoStatuses
 from annotations.models import Annotation
 from images.models import Source, Metadata, Image
 from images.utils import (
-    get_aux_field_name, get_aux_label, get_aux_metadata_form_choices,
-    get_num_aux_fields)
+    get_aux_field_name,
+    get_aux_label,
+    get_aux_metadata_form_choices,
+    get_num_aux_fields,
+)
 from labels.models import LabelGroup, Label
 from lib.forms import BoxFormRenderer, EnhancedForm
 from .utils import get_annotation_tool_users, image_search_kwargs_to_queryset
@@ -440,12 +444,10 @@ class BaseImageSearchForm(EnhancedForm):
     def add_image_annotation_status_fields(self):
 
         # Annotation status
-
-        status_choices = [('', "Any"), ('confirmed', "Confirmed")]
-        if self.source.enable_robot_classifier:
-            status_choices.append(('unconfirmed', "Unconfirmed"))
-        status_choices.append(('unclassified', "Unclassified"))
-
+        status_choices = [
+            ('', "Any"),
+            *ImageAnnoStatuses.choices,
+        ]
         self.fields['annotation_status'] = forms.ChoiceField(
             label="Annotation status",
             choices=status_choices,
@@ -622,10 +624,11 @@ class PatchSearchForm(BaseImageSearchForm):
 
         # Annotation status
 
-        status_choices = [('', "Any"), ('confirmed', "Confirmed")]
-        if self.source.enable_robot_classifier:
-            status_choices.append(('unconfirmed', "Unconfirmed"))
-
+        status_choices = [
+            ('', "Any"),
+            ('confirmed', "Confirmed"),
+            ('unconfirmed', "Unconfirmed"),
+        ]
         # Since the other forms have an image annotation status field,
         # this is where the patch_ prefix really helps avoid confusion.
         self.fields['patch_annotation_status'] = forms.ChoiceField(

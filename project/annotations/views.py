@@ -18,8 +18,7 @@ from .forms import (
 from .model_utils import AnnotationAreaUtils
 from .models import Annotation, AnnotationToolAccess, AnnotationToolSettings
 from .utils import (
-    apply_alleviate, get_annotation_version_user_display,
-    image_annotation_all_done)
+    apply_alleviate, get_annotation_version_user_display)
 from images.models import Source, Image, Point
 from images.utils import (
     generate_points, get_next_image, get_date_and_aux_metadata_table,
@@ -206,33 +205,26 @@ def annotation_tool(request, image_id):
     ]
 
     # Get the machine's label scores, if applicable.
-    if not settings_obj.show_machine_annotations:
-        label_scores = None
-    elif not image.features.classified:
-        label_scores = None
-    else:
+    label_scores = None
+
+    if settings_obj.show_machine_annotations and image.score_set.exists():
         label_scores = get_label_scores_for_image(image_id)
-        # label_scores can still be None here if something goes wrong.
-        # But if not None, apply Alleviate.
-        if label_scores:
-            # reversion's revision-creating context manager is active here if
-            # the request is POST. If it's GET, it won't be active, and thus
-            # we need to activate it ourselves. We check because we don't want
-            # to double-activate it.
-            # TODO: Ideally the request triggering Alleviate should always be
-            # POST, since data-changing requests shouldn't be GET.
-            # Accomplishing this may or may not involve moving Alleviate
-            # to a separate request from the main annotation tool request.
-            if reversion.is_active():
-                apply_alleviate(image, label_scores)
-            else:
-                with create_revision():
-                    apply_alleviate(image, label_scores)
+
+        # Apply Alleviate.
+        #
+        # reversion's revision-creating context manager is active here if
+        # the request is POST. If it's GET, it won't be active, and thus
+        # we need to activate it ourselves. We check because we don't want
+        # to double-activate it.
+        # TODO: Ideally the request triggering Alleviate should always be
+        # POST, since data-changing requests shouldn't be GET.
+        # Accomplishing this may or may not involve moving Alleviate
+        # to a separate request from the main annotation tool request.
+        if reversion.is_active():
+            apply_alleviate(image, label_scores)
         else:
-            messages.error(
-                request,
-                "Woops! Could not get the machine annotator's"
-                " scores. Manual annotation still works.")
+            with create_revision():
+                apply_alleviate(image, label_scores)
 
     # Form where you enter annotations' label codes
     form = AnnotationForm(
@@ -388,8 +380,7 @@ def save_annotations_ajax(request, image_id):
             " annotations changed at the same time that you submitted."
             " Try again and see if it works.")))
 
-    all_done = image_annotation_all_done(image)
-    return JsonResponse(dict(all_done=all_done))
+    return JsonResponse(dict(all_done=image.annoinfo.confirmed))
 
 
 @image_permission_required(
@@ -401,7 +392,7 @@ def is_annotation_all_done_ajax(request, image_id):
       error: Error message if there was an error
     """
     image = get_object_or_404(Image, id=image_id)
-    return JsonResponse(dict(all_done=image_annotation_all_done(image)))
+    return JsonResponse(dict(all_done=image.annoinfo.confirmed))
 
 
 @login_required_ajax

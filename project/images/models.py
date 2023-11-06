@@ -8,7 +8,6 @@ from django.core.exceptions import ImproperlyConfigured, ObjectDoesNotExist
 from django.core.mail import mail_admins
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
-
 from easy_thumbnails.fields import ThumbnailerImageField
 from guardian.shortcuts import (
     assign_perm,
@@ -18,12 +17,13 @@ from guardian.shortcuts import (
     remove_perm,
 )
 
-from .model_utils import PointGen
 from accounts.utils import is_robot_user
 from annotations.model_utils import AnnotationAreaUtils
 from labels.models import LabelSet
 from lib.utils import rand_string
 from vision_backend.models import Classifier
+from .managers import ImageQuerySet, PointQuerySet
+from .model_utils import PointGen
 
 
 class SourceManager(models.Manager):
@@ -340,12 +340,11 @@ class Source(models.Model):
 
     @property
     def nbr_confirmed_images(self):
-        qs = self.get_all_images()
-        return qs.exclude(annoinfo__confirmed=False).count()
+        return self.image_set.confirmed().count()
 
     @property
     def nbr_images(self):
-        return self.get_all_images().count()
+        return self.image_set.count()
 
     @property
     def nbr_accepted_robots(self):
@@ -411,9 +410,10 @@ class Source(models.Model):
         if not self.enable_robot_classifier:
             return False, "Source has classifier disabled"
 
-        nbr_verified_images_with_features = self.image_set.filter(
-            annoinfo__confirmed=True, features__extracted=True).count()
-        if (nbr_verified_images_with_features
+        nbr_confirmed_images_with_features = (
+            self.image_set.confirmed().with_features().count()
+        )
+        if (nbr_confirmed_images_with_features
                 < settings.MIN_NBR_ANNOTATED_IMAGES):
             return False, "Not enough annotated images for initial training"
 
@@ -437,10 +437,10 @@ class Source(models.Model):
             settings.NEW_CLASSIFIER_TRAIN_TH
             * latest_classifier_attempt.nbr_train_images
         )
-        has_enough = nbr_verified_images_with_features >= threshold_for_new
+        has_enough = nbr_confirmed_images_with_features >= threshold_for_new
         message = (
             f"Need {threshold_for_new} annotated images for next training,"
-            f" and currently have {nbr_verified_images_with_features}")
+            f" and currently have {nbr_confirmed_images_with_features}")
         return has_enough, message
 
     def has_robot(self):
@@ -638,6 +638,8 @@ def get_original_image_upload_path(instance, filename):
 
 
 class Image(models.Model):
+    objects = ImageQuerySet.as_manager()
+
     # width_field and height_field allow Django to cache the
     # width and height values, so that the image file doesn't have
     # to be read every time we want the width and height.
@@ -738,37 +740,6 @@ class Image(models.Model):
         # Just use the image name (usually filename).
         return self.metadata.name
 
-    def get_annotation_status_code(self):
-        """
-        Returns a code for the annotation status of this image.
-        """
-        if self.source.enable_robot_classifier:
-            if self.annoinfo.confirmed:
-                return "confirmed"
-            elif self.features.classified:
-                return "unconfirmed"
-            else:
-                return "needs_annotation"
-        else:
-            if self.annoinfo.confirmed:
-                return "annotated"
-            else:
-                return "needs_annotation"
-
-    def get_annotation_status_str(self):
-        """
-        Returns a string describing the annotation status of this image.
-        """
-        code = self.get_annotation_status_code()
-        if code == "confirmed":
-            return "Confirmed"
-        elif code == "unconfirmed":
-            return "Unconfirmed"
-        elif code == "needs_annotation":
-            return "Needs annotation"
-        elif code == "annotated":
-            return "Annotated"
-
     def point_gen_method_display(self):
         """
         Display the point generation method in templates.
@@ -800,6 +771,8 @@ class Image(models.Model):
 
 
 class Point(models.Model):
+    objects = PointQuerySet.as_manager()
+
     row = models.IntegerField()
     column = models.IntegerField()
     point_number = models.IntegerField()
@@ -857,6 +830,11 @@ class Point(models.Model):
 
         # The image's annotation status may need updating.
         self.image.annoinfo.update_annotation_progress_fields()
+
+    def delete(self, *args, **kwargs):
+        return_values = super().delete(*args, **kwargs)
+        self.image.annoinfo.update_annotation_progress_fields()
+        return return_values
 
     def __str__(self):
         """

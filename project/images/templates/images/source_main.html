@@ -177,11 +177,9 @@ $(document).ready(function() {
             <a href="{{ image_stats.unclassified_link }}">
               {{ image_stats.unclassified }}</a></td></tr>
 
-          {% if source.enable_robot_classifier %}
-            <tr><td>Unconfirmed:
-              <a href="{{ image_stats.unconfirmed_link }}">
-                {{ image_stats.unconfirmed }}</a></td></tr>
-          {% endif %}
+          <tr><td>Unconfirmed:
+            <a href="{{ image_stats.unconfirmed_link }}">
+              {{ image_stats.unconfirmed }}</a></td></tr>
 
           <tr><td>Confirmed:
             <a href="{{ image_stats.confirmed_link }}">

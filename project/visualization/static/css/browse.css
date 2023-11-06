@@ -16,13 +16,13 @@ table#table-of-calcify-tables td.actions {
 }
 
 /* Image/patch thumbnail grid, indicating annotation status. */
-img.thumb.confirmed, img.thumb.annotated {
+img.thumb.confirmed {
     border: 4px #00CC00 solid;
 }
 img.thumb.unconfirmed {
     border: 4px #FF9900 solid;
 }
-img.thumb.needs_annotation {
+img.thumb.unclassified {
     border: 4px #CC4444 solid;
 }
 

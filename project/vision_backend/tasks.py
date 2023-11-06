@@ -75,7 +75,7 @@ def check_source(source_id):
 
     # Feature extraction
 
-    not_extracted = source.image_set.filter(features__extracted=False)
+    not_extracted = source.image_set.without_features()
     not_extracted = not_extracted.annotate(
         num_pixels=F('original_width') * F('original_height'))
     cant_extract = not_extracted.filter(
@@ -174,13 +174,8 @@ def check_source(source_id):
     if not source.has_robot():
         return f"Can't train first classifier: {reason}"
 
-    classifiable_images = source.image_set.filter(
-        features__extracted=True,
-        annoinfo__confirmed=False,
-    )
-    unclassified_images = classifiable_images.filter(
-        features__classified=False,
-    )
+    classifiable_images = source.image_set.incomplete().with_features()
+    unclassified_images = classifiable_images.unclassified()
 
     # Here we detect whether the current classifier has been used for ANY
     # classifications so far. We check this because, most of the time,
@@ -304,9 +299,7 @@ def submit_classifier(source_id, job_id):
 
     # Create new classifier model
     IMAGE_LIMIT = 1e5
-    images = Image.objects.filter(source=source,
-                                  annoinfo__confirmed=True,
-                                  features__extracted=True)[:IMAGE_LIMIT]
+    images = source.image_set.confirmed().with_features()[:IMAGE_LIMIT]
     classifier = Classifier(
         source=source, train_job_id=job_id, nbr_train_images=len(images))
     classifier.save()
@@ -470,9 +463,6 @@ def classify_image(image_id):
     # Always add scores
     th.add_scores(image_id, res, label_objs)
 
-    img.features.classified = True
-    img.features.save()
-
     return f"Used classifier {classifier.pk}"
 
 
@@ -535,17 +525,11 @@ def reset_backend_for_source(source_id):
 @job_runner()
 def reset_classifiers_for_source(source_id):
     """
-    Removes all traces of the classifiers for this source, including:
-    1) Delete all Score objects for all images
-    2) Delete Classifier objects
-    3) Sets all image.features.classified = False
+    Removes all traces of the classifiers for this source.
     """
     Score.objects.filter(source_id=source_id).delete()
     Classifier.objects.filter(source_id=source_id).delete()
     Annotation.objects.filter(source_id=source_id).unconfirmed().delete()
-    for image in Image.objects.filter(source_id=source_id):
-        image.features.classified = False
-        image.features.save()
 
     # Can probably train a new classifier.
     queue_source_check(source_id)

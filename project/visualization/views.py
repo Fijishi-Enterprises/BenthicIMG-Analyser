@@ -172,7 +172,7 @@ def edit_metadata(request, source_id):
     }
     checkbox_formset = CheckboxFormSet(initValues)
 
-    statuses = [img.get_annotation_status_str() for img in image_results]
+    statuses = [img.annoinfo.status_display for img in image_results]
     # Put all the formset table stuff together in an iterable
     metadata_rows = zip(
         metadata_formset.forms,

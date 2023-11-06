@@ -7,6 +7,8 @@
 from decimal import Decimal
 import math
 
+from django.db import models
+
 
 class AnnotationAreaUtils():
 
@@ -101,3 +103,84 @@ class AnnotationAreaUtils():
             d[key] = max(d[key], 0)
 
         return d
+
+
+class ImageAnnoStatuses(models.TextChoices):
+    UNCLASSIFIED = 'unclassified', "Unclassified"
+    UNCONFIRMED = 'unconfirmed', "Unconfirmed"
+    CONFIRMED = 'confirmed', "Confirmed"
+
+
+class VerboseImageAnnoStatuses(models.TextChoices):
+    NOT_STARTED = 'not_started', "Not started"
+    UNCONFIRMED = 'unconfirmed', "Unconfirmed"
+    PARTIALLY_CONFIRMED = 'partially_confirmed', "Partially confirmed"
+    CONFIRMED = 'confirmed', "Confirmed (completed)"
+
+
+def image_annotation_status(image):
+    """
+    Unclassified pts | Unconfirmed pts | Confirmed pts | Status
+    ------------------------------------------------------------------
+    Y | Y | Y | UNCLASSIFIED
+    Y | Y | N | UNCLASSIFIED
+    Y | N | Y | UNCLASSIFIED
+    Y | N | N | UNCLASSIFIED
+    N | Y | Y | UNCONFIRMED
+    N | Y | N | UNCONFIRMED
+    N | N | Y | CONFIRMED
+    N | N | N | UNCLASSIFIED
+    """
+    annotations = image.annotation_set.all()
+    annotation_count = annotations.count()
+
+    if annotation_count == 0:
+        return ImageAnnoStatuses.UNCLASSIFIED.value
+
+    point_count = image.point_set.count()
+    if annotation_count < point_count:
+        return ImageAnnoStatuses.UNCLASSIFIED.value
+
+    if annotations.unconfirmed().exists():
+        return ImageAnnoStatuses.UNCONFIRMED.value
+
+    return ImageAnnoStatuses.CONFIRMED.value
+
+
+def image_annotation_verbose_status(image):
+    """
+    Unclassified pts | Unconfirmed pts | Confirmed pts | Status
+    ------------------------------------------------------------------
+    Y | Y | Y | PARTIALLY_CONFIRMED
+    Y | Y | N | NOT_STARTED
+    Y | N | Y | PARTIALLY_CONFIRMED
+    Y | N | N | NOT_STARTED
+    N | Y | Y | PARTIALLY_CONFIRMED
+    N | Y | N | UNCONFIRMED
+    N | N | Y | CONFIRMED
+    N | N | N | NOT_STARTED
+    """
+    annotations = image.annotation_set.all()
+    annotation_count = annotations.count()
+
+    if annotation_count == 0:
+        return VerboseImageAnnoStatuses.NOT_STARTED.value
+
+    point_count = image.point_set.count()
+    confirmed_count = annotations.confirmed().count()
+
+    if confirmed_count == point_count:
+        return VerboseImageAnnoStatuses.CONFIRMED.value
+
+    if confirmed_count > 0:
+        return VerboseImageAnnoStatuses.PARTIALLY_CONFIRMED.value
+
+    if annotation_count == point_count:
+        return VerboseImageAnnoStatuses.UNCONFIRMED.value
+
+    return VerboseImageAnnoStatuses.NOT_STARTED.value
+
+
+def image_annotation_verbose_status_label(image):
+    return VerboseImageAnnoStatuses(
+        image_annotation_verbose_status(image)).label

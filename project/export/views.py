@@ -16,14 +16,19 @@ from django.utils.decorators import method_decorator
 from django.views import View
 import pyexcel
 
-from .forms import ExportAnnotationsForm, ExportImageCoversForm
-from .utils import (
-    create_csv_stream_response, create_stream_response, get_request_images,
-    write_annotations_csv, write_labelset_csv)
+from annotations.model_utils import ImageAnnoStatuses
 from images.models import Source
 from images.utils import metadata_field_names_to_labels
 from lib.decorators import source_visibility_required
 from lib.forms import get_one_form_error
+from .forms import ExportAnnotationsForm, ExportImageCoversForm
+from .utils import (
+    create_csv_stream_response,
+    create_stream_response,
+    get_request_images,
+    write_annotations_csv,
+    write_labelset_csv,
+)
 
 
 # TODO: Use this View class to improve DRY among more of the export views.
@@ -195,16 +200,17 @@ class ImageStatsExportView(SourceCsvExportView, ABC):
         writer = csv.DictWriter(stream, fieldnames)
         writer.writeheader()
 
+        # Unannotated or partially annotated images probably
+        # won't be useful to export, and they'll skew the summary
+        # stats as well.
+        image_set = image_set.exclude(
+            annoinfo__status=ImageAnnoStatuses.UNCLASSIFIED.value)
+
         # One row per image
         for image in image_set \
                 .select_related('annoinfo', 'features', 'metadata') \
                 .annotate(num_points=Count('point')):
 
-            if image.get_annotation_status_code() == 'needs_annotation':
-                # The image is unannotated or partially annotated, so chances
-                # are it won't be useful to export, and it'll skew the summary
-                # stats as well. Skip the image.
-                continue
             num_annotated_images += 1
 
             # Counter for annotations of each label. Initialize by giving each
@@ -226,7 +232,7 @@ class ImageStatsExportView(SourceCsvExportView, ABC):
             row = {
                 "Image ID": image.pk,
                 "Image name": image.metadata.name,
-                "Annotation status": image.get_annotation_status_str(),
+                "Annotation status": image.annoinfo.status_display,
                 "Points": image.num_points,
             }
             row = self.image_loop_main_body(

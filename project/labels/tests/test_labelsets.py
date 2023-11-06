@@ -335,8 +335,8 @@ class LabelsetAddRemoveTest(LabelTest):
             self.source.annotation_set.unconfirmed().count(), 0,
             "Unconfirmed annotations should be deleted")
         self.assertEqual(
-            self.source.image_set.filter(features__classified=True).count(), 0,
-            "No features should be marked as classified")
+            self.source.image_set.unconfirmed().count(), 0,
+            "No images should be classified")
 
 
 class LabelsetAddRemoveInfoPopupTest(LabelTest):

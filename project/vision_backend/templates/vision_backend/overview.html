@@ -3,34 +3,74 @@
 
 {% block content %}
 
-<p>There are {{img_stats.nimgs}} images on the site out of which {{img_stats.nextracted}} ({{img_stats.fextracted}}%) have features, {{img_stats.nconfirmed}} ({{img_stats.fconfirmed}}%) are confirmed and {{img_stats.nclassified}} ({{img_stats.fclassified}}%) classified. {{img_stats.nnaked}} are neither classified nor confirmed ({{img_stats.fnaked}}%).</p>
-
-<p>There are {{clf_stats.nclassifiers}} trained classifiers out of which {{clf_stats.nacceptedclassifiers}} are accepted. This means there are on average {{clf_stats.accepted_ratio}} accepted classifiers per each of the {{clf_stats.nsources}} sources. </p>
-
-<table class="detail_table_popup">
+<table class="detail_table" id="image-counts-table">
+  <thead>
     <tr>
-        <th>id</th>
-        <th>name</th>
-        <th># ver rbts</th>
-        <th># rbts</th>
-        <th>need new</th>
-        <th># imgs</th>
-        <th># ver.</th>
-        <th># in curr.</th>
-        <th># need feats</th>
-        <th># uncl.</th>
+      <th>Image status</th>
+      <th>Image count</th>
+      <th>Percent of total</th>
     </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Confirmed</td>
+      <td>{{ img_stats.confirmed }}</td>
+      <td>{{ img_stats.pct_confirmed }}</td>
+    </tr>
+    <tr>
+      <td>Unconfirmed</td>
+      <td>{{ img_stats.unconfirmed }}</td>
+      <td>{{ img_stats.pct_unconfirmed }}</td>
+    </tr>
+    <tr>
+      <td>Unclassified, with features</td>
+      <td>{{ img_stats.unclassified_with_features }}</td>
+      <td>{{ img_stats.pct_unclassified_with_features }}</td>
+    </tr>
+    <tr>
+      <td>Unclassified, without features</td>
+      <td>{{ img_stats.unclassified_without_features }}</td>
+      <td>{{ img_stats.pct_unclassified_without_features }}</td>
+    </tr>
+    <tr>
+      <td>All</td>
+      <td>{{ img_stats.total }}</td>
+      <td>100.0%</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="line">
+  There are {{clf_stats.nclassifiers}} trained classifiers out of which {{clf_stats.nacceptedclassifiers}} are accepted. This means there are on average {{clf_stats.accepted_ratio}} accepted classifiers per each of the {{clf_stats.nsources}} sources.
+</div>
+
+<table class="detail_table_popup" id="sources-table">
+  <thead>
+    <tr>
+      <th>id</th>
+      <th>name</th>
+      <th># ver rbts</th>
+      <th># rbts</th>
+      <th>need new</th>
+      <th># imgs</th>
+      <th># ver.</th>
+      <th># in curr.</th>
+      <th># need feats</th>
+      <th># uncl.</th>
+    </tr>
+  </thead>
+  <tbody>
     {% for source in laundry_list %}
+      <tr
         {% if source.need_attention %}
-            <tr style="background-color:red;color:#000">
+          style="background-color:red;color:#000"
+        {% elif source.has_robot %}
+          style="background-color:green;color:#000"
         {% else %}
-            {% if source.has_robot %}
-                <tr style="background-color:green;color:#000">
-            {% else %}
-                <tr style="background-color:gray;color:#000">
-            {% endif %}
+          style="background-color:gray;color:#000"
         {% endif %}
-        <td> <a href="{% url 'source_main' source.id %}">{{source.id}}</a></td>
+      >
+        <td> <a href="{% url 'source_main' source.id %}">{{source.id}}</a> </td>
         <td> {{source.name_short}} </td>
         <td> {{source.nbr_accepted_robots}} </td>
         <td> {{source.nbr_robots}} </td>
@@ -40,8 +80,9 @@
         <td> {{source.nbr_in_current_model}} </td>
         <td> {{source.nbr_images_needs_features}} </td>
         <td> {{source.nbr_unclassified_images}} </td>
-        </tr>
+      </tr>
     {% endfor %}
+  </tbody>
 </table>
 
 {% endblock %}

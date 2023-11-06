@@ -1103,7 +1103,7 @@ class ImageStatusIndicatorTest(ClientTest):
 
         expected_thumb_set = {
             (reverse('image_detail', args=[img_unannotated.pk]),
-             'thumb needs_annotation media-async'),
+             'thumb unclassified media-async'),
             (reverse('image_detail', args=[img_unconfirmed.pk]),
              'thumb unconfirmed media-async'),
             (reverse('image_detail', args=[img_partially_confirmed.pk]),

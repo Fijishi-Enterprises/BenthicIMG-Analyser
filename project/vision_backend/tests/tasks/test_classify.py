@@ -57,10 +57,10 @@ class SourceCheckTest(BaseTaskTest, JobUtilsMixin):
 
         img1.refresh_from_db()
         img2.refresh_from_db()
-        img1.features.refresh_from_db()
-        img2.features.refresh_from_db()
+        img1.annoinfo.refresh_from_db()
+        img2.annoinfo.refresh_from_db()
         self.assertFalse(
-            any([img1.features.classified, img2.features.classified]),
+            any([img1.annoinfo.classified, img2.annoinfo.classified]),
             msg="First 2 classifications shouldn't have run yet (sanity check)",
         )
 
@@ -125,8 +125,11 @@ class SourceCheckTest(BaseTaskTest, JobUtilsMixin):
             old_classifier_msg_mock = mock_classify_msg_all_a
             new_classifier_msg_mock = mock_classify_msg_all_a
 
+        # This will be classified by the old, then the new classifier.
         img1 = self.upload_image_for_classification()
+        # This will be classified by the old classifier.
         img2 = self.upload_image_for_classification()
+        # This will be unclassified.
         img3 = self.upload_image_for_classification()
 
         with mock.patch(

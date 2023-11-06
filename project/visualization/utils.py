@@ -70,14 +70,8 @@ def image_search_kwargs_to_queryset(search_kwargs, source):
     if annotation_status == '':
         # Don't filter
         pass
-    elif annotation_status == 'confirmed':
-        qs.append(Q(annoinfo__confirmed=True))
-    elif annotation_status == 'unconfirmed':
-        qs.append(Q(annoinfo__confirmed=False))
-        qs.append(Q(features__classified=True))
-    elif annotation_status == 'unclassified':
-        qs.append(Q(annoinfo__confirmed=False))
-        qs.append(Q(features__classified=False))
+    else:
+        qs.append(Q(annoinfo__status=annotation_status))
 
     # AND all of the constraints so far, and remember to search within
     # the source

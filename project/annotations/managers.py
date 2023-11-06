@@ -14,7 +14,7 @@ class AnnotationQuerySet(models.QuerySet):
         return self.exclude(user=get_robot_user())
 
     def unconfirmed(self):
-        """Confirmed annotations only."""
+        """Unconfirmed annotations only."""
         return self.filter(user=get_robot_user())
 
     def delete(self):
@@ -28,11 +28,26 @@ class AnnotationQuerySet(models.QuerySet):
         # Evaluate the queryset before deleting the annotations.
         images = list(images)
         # Delete the annotations.
-        super().delete()
+        return_values = super().delete()
 
         # The images' annotation progress info may need updating.
         for image in images:
             image.annoinfo.update_annotation_progress_fields()
+
+        return return_values
+
+    def bulk_create(self, *args, **kwargs):
+        raise NotImplementedError(
+            "Bulk creation would skip django-reversion signals.")
+
+        # new_annotations = super().bulk_create(*args, **kwargs)
+        #
+        # images = Image.objects.filter(
+        #     annotation__in=new_annotations).distinct()
+        # for image in images:
+        #     image.annoinfo.update_annotation_progress_fields()
+        #
+        # return new_annotations
 
 
 class AnnotationManager(models.Manager):

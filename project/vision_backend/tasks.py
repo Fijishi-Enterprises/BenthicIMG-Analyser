@@ -21,6 +21,7 @@ from spacer.tasks import classify_features as spacer_classify_features
 
 from annotations.models import Annotation
 from api_core.models import ApiJobUnit
+from events.models import ClassifyImageEvent
 from images.models import Source, Image, Point
 from jobs.exceptions import JobError
 from jobs.models import Job
@@ -74,7 +75,7 @@ def check_source(source_id):
 
     # Feature extraction
 
-    not_extracted = source.image_set.filter(features__extracted=False)
+    not_extracted = source.image_set.without_features()
     not_extracted = not_extracted.annotate(
         num_pixels=F('original_width') * F('original_height'))
     cant_extract = not_extracted.filter(
@@ -172,32 +173,35 @@ def check_source(source_id):
 
     if not source.has_robot():
         return f"Can't train first classifier: {reason}"
-    extracted_not_confirmed = source.image_set.filter(
-        features__extracted=True,
-        annoinfo__confirmed=False,
-    )
-    extracted_not_classified = extracted_not_confirmed.filter(
-        features__classified=False,
-    )
-    latest_classifier_annotations = source.annotation_set \
-        .filter(robot_version=source.get_current_classifier())
 
-    if latest_classifier_annotations.exists():
-        # The classifier version of an annotation only gets updated if the
-        # new classifier disagrees with the old classifier. So we can't
-        # tell what's outdated by only looking at a single annotation's
-        # classifier version.
-        # But in general, we are never in a state where some classifications
-        # have been last checked by the latest classifier, and others have
-        # been last checked by an old classifier. It's either all latest,
-        # or all old.
-        # So if the latest classifier has ANY annotations attributed to it,
-        # we only worry about unclassified images.
-        images_to_classify = extracted_not_classified
+    classifiable_images = source.image_set.incomplete().with_features()
+    unclassified_images = classifiable_images.unclassified()
+
+    # Here we detect whether the current classifier has been used for ANY
+    # classifications so far. We check this because, most of the time,
+    # the current classifier has either taken a pass on ALL classifiable
+    # images, or it hasn't run at all yet.
+    #
+    # Checking the events should work for any classifications that happened
+    # after such events were introduced (CoralNet 1.7). Otherwise, we look
+    # for annotations attributed to the current classifier, but that can
+    # miss cases where the current classifier agreed with the previous
+    # classifier on all points.
+    current_classifier = source.get_current_classifier()
+    current_classifier_events = ClassifyImageEvent.objects \
+        .filter(classifier_id=current_classifier.pk)
+    current_classifier_annotations = source.annotation_set \
+        .filter(robot_version=current_classifier)
+    current_classifier_used = current_classifier_events.exists() \
+        or current_classifier_annotations.exists()
+
+    if current_classifier_used:
+        # Has been used; so most likely the only images to look at are the
+        # unclassified ones.
+        images_to_classify = unclassified_images
     else:
-        # If there's no trace of the latest classifier, then we go through
-        # all non-confirmed images.
-        images_to_classify = extracted_not_confirmed
+        # Hasn't been used; so the classifier needs to run on everything.
+        images_to_classify = classifiable_images
 
     if images_to_classify.exists():
 
@@ -295,9 +299,7 @@ def submit_classifier(source_id, job_id):
 
     # Create new classifier model
     IMAGE_LIMIT = 1e5
-    images = Image.objects.filter(source=source,
-                                  annoinfo__confirmed=True,
-                                  features__extracted=True)[:IMAGE_LIMIT]
+    images = source.image_set.confirmed().with_features()[:IMAGE_LIMIT]
     classifier = Classifier(
         source=source, train_job_id=job_id, nbr_train_images=len(images))
     classifier.save()
@@ -461,9 +463,6 @@ def classify_image(image_id):
     # Always add scores
     th.add_scores(image_id, res, label_objs)
 
-    img.features.classified = True
-    img.features.save()
-
     return f"Used classifier {classifier.pk}"
 
 
@@ -526,17 +525,11 @@ def reset_backend_for_source(source_id):
 @job_runner()
 def reset_classifiers_for_source(source_id):
     """
-    Removes all traces of the classifiers for this source, including:
-    1) Delete all Score objects for all images
-    2) Delete Classifier objects
-    3) Sets all image.features.classified = False
+    Removes all traces of the classifiers for this source.
     """
     Score.objects.filter(source_id=source_id).delete()
     Classifier.objects.filter(source_id=source_id).delete()
     Annotation.objects.filter(source_id=source_id).unconfirmed().delete()
-    for image in Image.objects.filter(source_id=source_id):
-        image.features.classified = False
-        image.features.save()
 
     # Can probably train a new classifier.
     queue_source_check(source_id)

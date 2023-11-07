@@ -11,24 +11,38 @@ from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from annotations.forms import AnnotationAreaPercentsForm
-from annotations.model_utils import AnnotationAreaUtils
+from annotations.model_utils import (
+    AnnotationAreaUtils,
+    ImageAnnoStatuses,
+    image_annotation_verbose_status_label,
+)
 from annotations.models import Annotation
 from annotations.utils import (
     get_sitewide_annotation_count,
     image_annotation_area_is_editable,
-    image_has_any_confirmed_annotations)
+    image_has_any_confirmed_annotations,
+)
 from jobs.utils import queue_job
 from labels.models import LabelGroup
 from lib.decorators import (
-    image_annotation_area_must_be_editable, image_permission_required,
-    image_visibility_required, source_permission_required,
-    source_visibility_required)
+    image_annotation_area_must_be_editable,
+    image_permission_required,
+    image_visibility_required,
+    source_permission_required,
+    source_visibility_required,
+)
 from newsfeed.models import NewsItem
-from visualization.utils import image_search_kwargs_to_queryset
 from vision_backend.models import Classifier
 from vision_backend.utils import reset_features
 from . import utils
-from .forms import ImageSourceForm, MetadataForm, PointGenForm, SourceChangePermissionForm, SourceInviteForm, SourceRemoveUserForm
+from .forms import (
+    ImageSourceForm,
+    MetadataForm,
+    PointGenForm,
+    SourceChangePermissionForm,
+    SourceInviteForm,
+    SourceRemoveUserForm,
+)
 from .model_utils import PointGen
 from .models import Source, Image, SourceInvite, Metadata
 from .utils import get_map_sources
@@ -161,15 +175,11 @@ def source_main(request, source_id):
                         role=source.get_member_role(member))
                    for member in members]
 
-    all_images = source.get_all_images()
+    all_images = source.image_set.all()
     latest_images = all_images.order_by('-upload_date')[:3]
 
     # Images' annotation status
     browse_url_base = reverse('browse_images', args=[source.id])
-
-    def image_count_by_status(annotation_status):
-        return image_search_kwargs_to_queryset(
-            dict(annotation_status=annotation_status), source).count()
 
     def browse_link_filtered_by_status(annotation_status):
         return browse_url_base + '?' + urlencode(dict(
@@ -179,16 +189,16 @@ def source_main(request, source_id):
     image_stats = dict(
         total = all_images.count(),
         total_link = browse_url_base,
-        confirmed = image_count_by_status('confirmed'),
-        confirmed_link = browse_link_filtered_by_status('confirmed'),
-        unclassified = image_count_by_status('unclassified'),
-        unclassified_link = browse_link_filtered_by_status('unclassified'),
+        confirmed = all_images.confirmed().count(),
+        confirmed_link = browse_link_filtered_by_status(
+            ImageAnnoStatuses.CONFIRMED.value),
+        unconfirmed = all_images.unconfirmed().count(),
+        unconfirmed_link = browse_link_filtered_by_status(
+            ImageAnnoStatuses.UNCONFIRMED.value),
+        unclassified = all_images.unclassified().count(),
+        unclassified_link = browse_link_filtered_by_status(
+            ImageAnnoStatuses.UNCLASSIFIED.value),
     )
-    if source.enable_robot_classifier:
-        image_stats.update(dict(
-            unconfirmed = image_count_by_status('unconfirmed'),
-            unconfirmed_link = browse_link_filtered_by_status('unconfirmed'),
-        ))
 
     # Setup the classifier overview plot
     clfs = source.get_accepted_robots()
@@ -483,16 +493,6 @@ def image_detail(request, image_id):
     next_image = utils.get_next_image(image, source_images, wrap=False)
     prev_image = utils.get_prev_image(image, source_images, wrap=False)
 
-    # Annotation status
-    if image.annoinfo.confirmed:
-        annotation_status = "Confirmed (completed)"
-    elif image_has_any_confirmed_annotations(image):
-        annotation_status = "Partially confirmed"
-    elif image.features.classified:
-        annotation_status = "Unconfirmed"
-    else:
-        annotation_status = "Not started"
-
     return render(request, 'images/image_detail.html', {
         'source': source,
         'image': image,
@@ -503,7 +503,7 @@ def image_detail(request, image_id):
         'other_fields': other_fields,
         'has_thumbnail': bool(thumbnail_dimensions),
         'thumbnail_dimensions': thumbnail_dimensions,
-        'annotation_status': annotation_status,
+        'annotation_status': image_annotation_verbose_status_label(image),
         # The boolean flags below determine what actions can be performed
         # on the image.
         'annotation_area_editable':

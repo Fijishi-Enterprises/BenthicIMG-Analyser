@@ -344,15 +344,19 @@ class ClientUtilsMixin(object, metaclass=ABCMeta):
         return image
 
     @classmethod
-    def add_annotations(cls, user, image, annotations):
+    def add_annotations(cls, user, image, annotations=None):
         """
         Add human annotations to an image.
         :param user: Which user to annotate as.
         :param image: Image to add annotations for.
         :param annotations: Annotations to add, as a dict of point
             numbers to label codes, e.g.: {1: 'labelA', 2: 'labelB'}
+            If not specified, adds random annotations for all points.
         :return: None.
         """
+        if not annotations:
+            annotations = random_annotations(image)
+
         num_points = Point.objects.filter(image=image).count()
 
         post_dict = dict()
@@ -379,7 +383,7 @@ class ClientUtilsMixin(object, metaclass=ABCMeta):
         """
         Add robot annotations to an image.
         """
-        add_robot_annotations(robot, image, annotations)
+        add_robot_annotations(robot, image, annotations=annotations)
 
 
 class CustomTestRunner(DiscoverRunner):
@@ -1207,6 +1211,19 @@ def create_robot(source):
     return classifier
 
 
+def random_annotations(image) -> dict[int, str]:
+    """
+    Example: {1: 'labelA', 2: 'labelB'}
+    """
+    point_count = image.point_set.count()
+    point_numbers = range(1, point_count + 1)
+    local_labels = list(image.source.labelset.locallabel_set.all())
+    label_codes = [
+        random.choice(local_labels).code
+        for _ in range(point_count)]
+    return dict(zip(point_numbers, label_codes))
+
+
 def add_robot_annotations(robot, image, annotations=None):
     """
     Add robot annotations and scores to an image, without touching any
@@ -1238,13 +1255,7 @@ def add_robot_annotations(robot, image, annotations=None):
     label_count = len(local_labels)
 
     if annotations is None:
-        # Pick random labels.
-        point_count = points.count()
-        point_numbers = range(1, point_count + 1)
-        label_codes = [
-            random.choice(local_labels).code
-            for _ in range(point_count)]
-        annotations = dict(zip(point_numbers, label_codes))
+        annotations = random_annotations(image)
 
     # Make label scores. The specified label should come out on top,
     # and that label's confidence value (if specified) should be respected.
@@ -1320,9 +1331,6 @@ def add_robot_annotations(robot, image, annotations=None):
     backend_task_helpers.add_scores(image.pk, clf_return_msg, global_labels)
     backend_task_helpers.add_annotations(
         image.pk, clf_return_msg, global_labels, robot)
-
-    image.features.classified = True
-    image.features.save()
 
 
 def scrambled_run(

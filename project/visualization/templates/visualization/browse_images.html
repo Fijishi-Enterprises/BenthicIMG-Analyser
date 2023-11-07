@@ -37,10 +37,10 @@
 
       <span class="thumb_wrapper">
         <a href="{% url 'image_detail' image.pk %}">
-          <img class="thumb {{ image.get_annotation_status_code }} media-async"
+          <img class="thumb {{ image.annoinfo.status }} media-async"
             src="{{ thumb_dict.src }}"
             data-async-request-hash="{{ thumb_dict.async_request_hash }}"
-            title="{{ image.get_image_element_title }} - {{ image.get_annotation_status_str }}"/>
+            title="{{ image.get_image_element_title }} - {{ image.annoinfo.status_display }}"/>
         </a>
       </span>
     {% endfor %}

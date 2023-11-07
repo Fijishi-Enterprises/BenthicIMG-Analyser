@@ -147,7 +147,6 @@ def clear_features(image):
 
     features = image.features
     features.extracted = False
-    features.classified = False
     features.save()
 
 

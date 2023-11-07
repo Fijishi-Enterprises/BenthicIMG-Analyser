@@ -9,7 +9,7 @@ from storages.backends.s3boto3 import S3Boto3Storage
 from tqdm import tqdm
 
 from annotations.models import Label, Annotation
-from images.models import Source, Image
+from images.models import Source
 from images.utils import filter_out_test_sources
 from .utils import log
 
@@ -137,9 +137,9 @@ class Command(BaseCommand):
 
             images_prefix = source_prefix + '/' + 'images'
 
-            for image in tqdm(Image.objects.filter(source=source,
-                                                   annoinfo__confirmed=True,
-                                                   features__extracted=True)):
+            for image in tqdm(
+                source.image_set.confirmed().with_features()
+            ):
 
                 image_prefix = images_prefix + '/i' + str(image.pk)
 

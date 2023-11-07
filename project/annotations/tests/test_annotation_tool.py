@@ -2,6 +2,7 @@ import datetime
 from unittest import mock
 
 from bs4 import BeautifulSoup
+from django.core.cache import cache
 from django.db import IntegrityError
 from django.shortcuts import resolve_url
 from django.urls import reverse
@@ -792,31 +793,6 @@ class IsAnnotationAllDoneTest(ClientTest):
         self.assertTrue(response['all_done'])
 
 
-def mock_update_annotation(point, label, now_confirmed, user_or_robot_version):
-    """
-    When the save_annotations_ajax view tries to actually save the
-    annotations to the DB, this patched function should raise an
-    IntegrityError for point 2, making the view return an appropriate
-    error message.
-
-    We'll let other points save normally, so that we can confirm that those
-    points' annotations don't get committed if point 2 fails.
-
-    We use a mock.patch approach for this because raising IntegrityError
-    legitimately involves replicating a race condition, which is much
-    trickier to do reliably.
-    """
-    if point.point_number == 2:
-        raise IntegrityError
-
-    # This is a simple saving case (for brevity) which works for this
-    # particular test.
-    new_annotation = Annotation(
-        point=point, image=point.image,
-        source=point.image.source, label=label, user=user_or_robot_version)
-    new_annotation.save()
-
-
 class SaveAnnotationsTest(ClientTest, AnnotationHistoryTestMixin):
     """Test submitting the annotation form which is available at the right side
     of the annotation tool."""
@@ -843,8 +819,7 @@ class SaveAnnotationsTest(ClientTest, AnnotationHistoryTestMixin):
             'save_annotations_ajax', kwargs=dict(image_id=cls.img.pk))
 
     def assert_didnt_save_anything(self):
-        self.assertEqual(
-            Annotation.objects.filter(image__pk=self.img.pk).count(), 0)
+        self.assertEqual(self.img.annotation_set.count(), 0)
 
         response = self.view_history(self.user, img=self.img)
         self.assert_history_table_equals(
@@ -1239,10 +1214,41 @@ class SaveAnnotationsTest(ClientTest, AnnotationHistoryTestMixin):
         self.assertEqual(response['error'], "Invalid robot field value: asdf")
         self.assert_didnt_save_anything()
 
-    @mock.patch(
-        'annotations.models.Annotation.objects.update_point_annotation_if_applicable',
-        mock_update_annotation)
     def test_integrity_error_when_saving(self):
+
+        class UnexpectedPointOrderError(Exception):
+            pass
+
+        def mock_update_annotation(
+            point, label, now_confirmed, user_or_robot_version
+        ):
+            """
+            When the save_annotations_ajax view tries to actually save the
+            annotations to the DB, this patched function should save the
+            annotation for point 1, then raise an IntegrityError for point 2.
+            This should make the view return an appropriate
+            error message, and should make point 1 get rolled back.
+            """
+            # This is a simple saving case (for brevity) which works for this
+            # particular test.
+            new_annotation = Annotation(
+                point=point, image=point.image,
+                source=point.image.source, label=label,
+                user=user_or_robot_version)
+            new_annotation.save()
+
+            if point.point_number == 1:
+                cache.set('point_1_processed', True)
+            if point.point_number == 2:
+                if not cache.get('point_1_processed'):
+                    # The point order, which the test depends on, isn't as
+                    # expected. Raise a non-IntegrityError to fail the test.
+                    raise UnexpectedPointOrderError
+                # Save another Annotation for this Point, simulating a race
+                # condition of some kind. Should get an IntegrityError.
+                new_annotation.pk = None
+                new_annotation.save()
+
         data = dict(
             label_1='A', label_2='B', label_3='B',
             robot_1='false', robot_2='false', robot_3='false',
@@ -1250,7 +1256,13 @@ class SaveAnnotationsTest(ClientTest, AnnotationHistoryTestMixin):
         # Due to the mocked method, this should get an IntegrityError when
         # trying to save point 2.
         self.client.force_login(self.user)
-        response = self.client.post(self.url, data).json()
+
+        with mock.patch(
+            'annotations.models.Annotation.objects'
+            '.update_point_annotation_if_applicable',
+            mock_update_annotation
+        ):
+            response = self.client.post(self.url, data).json()
 
         self.assertTrue('error' in response)
         self.assertEqual(

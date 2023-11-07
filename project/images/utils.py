@@ -392,10 +392,10 @@ def source_robot_status(source_id):
     status['nbr_robots'] = source.classifier_set.count()
     status['nbr_accepted_robots'] = source.get_accepted_robots().count()
 
-    status['nbr_total_images'] = Image.objects.filter(source=source).count()
-    status['nbr_images_needs_features'] = Image.objects.filter(source=source, features__extracted=False).count()
-    status['nbr_unclassified_images'] = Image.objects.filter(source=source, features__classified=False, annoinfo__confirmed=False).count()
-    status['nbr_human_annotated_images'] = Image.objects.filter(source=source, annoinfo__confirmed=True).count()
+    status['nbr_total_images'] = source.image_set.count()
+    status['nbr_images_needs_features'] = source.image_set.without_features().count()
+    status['nbr_unclassified_images'] = source.image_set.unclassified().count()
+    status['nbr_human_annotated_images'] = source.image_set.confirmed().count()
 
     status['nbr_in_current_model'] = (
         source.get_current_classifier().nbr_train_images

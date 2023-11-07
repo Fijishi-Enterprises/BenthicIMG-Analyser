@@ -1,10 +1,11 @@
-from unittest import skip
-
+from bs4 import BeautifulSoup
 from django.urls import reverse
 
 from export.tests.utils import BaseExportTest
+from jobs.tests.utils import do_job
 from labels.models import Label
-from lib.tests.utils import BasePermissionTest, ClientTest
+from lib.tests.utils import BasePermissionTest, ClientTest, HtmlAssertionsMixin
+from .tasks.utils import queue_and_run_collect_spacer_jobs
 
 
 class BackendViewPermissions(BasePermissionTest):
@@ -18,9 +19,6 @@ class BackendViewPermissions(BasePermissionTest):
         self.source_to_public()
         self.assertPermissionLevel(url, self.SIGNED_OUT, template=template)
 
-    @skip(
-        "Skip as long as backend_overview requires Redis"
-        " (in which case Travis can't pass this test).")
     def test_backend_overview(self):
         # Requires at least 1 image
         self.upload_image(self.user, self.source)
@@ -167,6 +165,87 @@ class BackendMainTest(ClientTest):
         self.assertIn('OTHER', context_cm['ylabels'])
         self.assertNotIn('30 (30)', context_cm['ylabels'])
         self.assertNotIn('31 (31)', context_cm['ylabels'])
+
+
+class BackendOverviewTest(ClientTest, HtmlAssertionsMixin):
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+
+        cls.user = cls.create_user()
+        cls.labels = cls.create_labels(cls.user, ['A', 'B'], "Group1")
+
+        cls.source1 = cls.create_source(cls.user)
+        cls.source2 = cls.create_source(cls.user)
+        cls.create_labelset(cls.user, cls.source1, cls.labels)
+        cls.create_labelset(cls.user, cls.source2, cls.labels)
+
+        cls.url = reverse('backend_overview')
+
+    def test(self):
+        """
+        This test is somewhat haphazard and doesn't test all cases.
+        """
+        image1a = self.upload_image(self.user, self.source1)
+        image1b = self.upload_image(self.user, self.source1)
+        image1c = self.upload_image(self.user, self.source1)
+        _image1d = self.upload_image(self.user, self.source1)
+        self.add_annotations(self.user, image1a)
+        self.add_annotations(self.user, image1b)
+        do_job('extract_features', image1c.pk, source_id=self.source1.pk)
+        queue_and_run_collect_spacer_jobs()
+
+        classifier2 = self.create_robot(self.source2)
+        image2a = self.upload_image(self.user, self.source2)
+        image2b = self.upload_image(self.user, self.source2)
+        image2c = self.upload_image(self.user, self.source2)
+        self.add_annotations(self.user, image2a)
+        self.add_robot_annotations(classifier2, image2b)
+        self.add_robot_annotations(classifier2, image2c)
+
+        self.client.force_login(self.superuser)
+        response = self.client.get(self.url)
+        response_soup = BeautifulSoup(response.content, 'html.parser')
+
+        image_counts_table_soup = response_soup.select(
+            'table#image-counts-table')[0]
+        self.assert_table_values(image_counts_table_soup, [
+            ["Confirmed", "3", "42.9%"],
+            ["Unconfirmed", "2", "28.6%"],
+            ["Unclassified, with features", "1", "14.3%"],
+            ["Unclassified, without features", "1", "14.3%"],
+            ["All", "7", "100.0%"],
+        ])
+
+        sources_table_soup = response_soup.select(
+            'table#sources-table')[0]
+        self.assert_table_values(sources_table_soup, [
+            {
+                "id": (
+                    f'<a href="'
+                    f'{reverse("source_main", args=[self.source2.pk])}">'
+                    f'{self.source2.pk}'
+                    f'</a>'
+                ),
+                "# imgs": 3,
+                "# ver.": 1,
+                "# need feats": 3,
+                "# uncl.": 0,
+            },
+            {
+                "id": (
+                    f'<a href="'
+                    f'{reverse("source_main", args=[self.source1.pk])}">'
+                    f'{self.source1.pk}'
+                    f'</a>'
+                ),
+                "# imgs": 4,
+                "# ver.": 2,
+                "# need feats": 3,
+                "# uncl.": 2,
+            },
+        ])
 
 
 class BackendMainConfusionMatrixExportTest(BaseExportTest):

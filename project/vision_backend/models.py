@@ -99,9 +99,6 @@ class Features(models.Model):
     # Indicates whether the features are extracted. Set when jobs are collected
     extracted = models.BooleanField(default=False)
 
-    # Indicates whether features are classified by any version of the robot.
-    classified = models.BooleanField(default=False)
-
     # total runtime for job
     runtime_total = models.IntegerField(null=True)
 

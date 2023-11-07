@@ -235,8 +235,9 @@ class DeleteAnnotationsTest(ImageDetailActionBaseTest):
         img.annoinfo.refresh_from_db()
         self.assertEqual(
             img.annotation_set.count(), 2, msg="Should have annotations")
-        self.assertTrue(
-            img.annoinfo.confirmed, msg="Image should be confirmed")
+        self.assertEqual(
+            img.annoinfo.status, 'confirmed',
+            msg="Should be confirmed")
 
         response = self.post_to_action_view(self.user, img)
         self.assertContains(
@@ -247,11 +248,12 @@ class DeleteAnnotationsTest(ImageDetailActionBaseTest):
         self.assertEqual(
             img.annotation_set.count(), 0,
             msg="Annotations should be deleted")
-        self.assertFalse(
-            img.annoinfo.confirmed, msg="Image should not be confirmed")
+        self.assertEqual(
+            img.annoinfo.status, 'unclassified',
+            msg="Should be unclassified")
 
     def test_last_annotation_field_updated(self):
-        """The image's last_annotation field should get cleared."""
+        """The annoinfo's last_annotation field should get cleared."""
         img = self.upload_image(self.user, self.source)
 
         self.add_annotations(self.user, img, {1: 'A', 2: 'B'})

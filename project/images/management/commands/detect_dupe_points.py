@@ -70,7 +70,7 @@ class Command(BaseCommand):
                                 w=image.original_width,
                                 h=image.original_height),
                             "Annotation status":
-                                image.get_annotation_status_str(),
+                                image.annoinfo.status_display,
                         })
 
                         images_with_dupes_count += 1

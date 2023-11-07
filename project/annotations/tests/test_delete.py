@@ -244,21 +244,28 @@ class ClassifyAfterDeleteTest(BaseTaskTest):
         url = reverse('batch_delete_annotations_ajax', args=[self.source.pk])
         response = self.client.post(url, default_search_params)
         self.assertDictEqual(response.json(), dict(success=True))
+
+        self.source.refresh_from_db()
+        self.assertFalse(
+            self.source.annotation_set.exists(),
+            f"Source should have no annotations")
+
         # Classify
         run_scheduled_jobs_until_empty()
 
         for image in self.source.image_set.all():
             self.assertFalse(
                 image.annotation_set.confirmed().exists(),
-                f"Image {image.metadata.name}'s confirmed annotations"
-                f" should be deleted")
+                f"Image {image.metadata.name} should have"
+                f" no confirmed annotations")
             self.assertEqual(
                 image.annotation_set.unconfirmed().count(), 5,
-                f"Image {image.metadata.name} should now have"
+                f"Image {image.metadata.name} should have"
                 f" unconfirmed annotations")
-            self.assertFalse(
-                image.annoinfo.confirmed,
-                f"Image {image.metadata.name} should not be confirmed anymore")
+            self.assertEqual(
+                image.annoinfo.status,
+                'unconfirmed',
+                f"Image {image.metadata.name} should be unconfirmed")
 
 
 class OtherSourceTest(BaseDeleteTest):

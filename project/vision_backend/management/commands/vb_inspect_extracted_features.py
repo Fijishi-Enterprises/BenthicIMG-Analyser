@@ -94,10 +94,10 @@ class Command(BaseCommand):
                 # 'all_sources'
                 skip_to = options.get('skip_to')
                 if skip_to:
-                    sources = Source.objects.filter(
-                        pk__gte=skip_to).order_by('pk')
+                    sources = Source.objects.filter(pk__gte=skip_to)
                 else:
-                    sources = Source.objects.order_by('pk')
+                    sources = Source.objects.all()
+            sources = sources.order_by('pk')
 
             source_count = len(sources)
 

@@ -513,7 +513,7 @@ class SourceMainTest(ClientTest):
         # following the URLs works as expected.
 
         for status_main_page, status_browse_thumb, count in [
-                ('Unclassified', 'needs_annotation', 1),
+                ('Unclassified', 'unclassified', 1),
                 ('Unconfirmed', 'unconfirmed', 2),
                 ('Confirmed', 'confirmed', 1),
                 ('Total images', None, 4)]:

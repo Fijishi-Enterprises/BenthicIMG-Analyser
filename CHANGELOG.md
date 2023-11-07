@@ -6,6 +6,10 @@ For general instructions on how to update a development environment of CoralNet,
 For info about the semantic versioning used here, see `docs/versions.rst`.
 
 
+## 1.7 (WIP)
+
+- New migrations to run for `annotations`, `events`, and `vision_backend`. annotations 0023 could possibly take hours per million images.
+
 ## [1.6](https://github.com/beijbom/coralnet/tree/1.6)
 
 - Updates to required packages:

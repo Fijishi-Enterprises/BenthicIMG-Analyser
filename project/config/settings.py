@@ -723,6 +723,8 @@ INSTALLED_APPS = [
     'cpce',
     # Saves internal server error messages for viewing in the admin site
     'errorlogs.apps.ErrorlogsConfig',
+    # Logs of site events/actions
+    'events',
     'export',
     # Flatpages-related customizations
     'flatpages_custom',
@@ -732,7 +734,7 @@ INSTALLED_APPS = [
     'labels',
     # Miscellaneous / not specific to any other app
     'lib',
-    # Logs of site events/actions
+    # Logs of site events/actions (likely being replaced by 'events')
     'newsfeed',
     'upload',
     'visualization',

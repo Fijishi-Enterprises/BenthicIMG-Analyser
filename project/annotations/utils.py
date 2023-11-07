@@ -10,34 +10,19 @@ from images.model_utils import PointGen
 from images.models import Point
 
 
-def image_annotation_all_done(image):
-    """
-    Return True if all of the image's annotation points are human annotated.
-    Return False otherwise.
-    Don't use image.annoinfo.confirmed.  That field depends
-    on this function, not the other way around!
-    """
-    annotations = Annotation.objects.filter(image=image)
-
-    # If every point has an annotation, and all annotations are by humans,
-    # then we're all done
-    return (annotations.count() == Point.objects.filter(image=image).count()
-            and annotations.unconfirmed().count() == 0)
-
-
 def image_has_any_confirmed_annotations(image):
     """
     Return True if the image has at least one confirmed Annotation.
     Return False otherwise.
     """
-    return image.annotation_set.confirmed().count() > 0
+    return image.annotation_set.confirmed().exists()
 
 
 def image_annotation_area_is_editable(image):
     """
     Returns True if the image's annotation area is editable; False otherwise.
     The annotation area is editable only if:
-    (1) there are no human annotations for the image yet, and
+    (1) there are no confirmed annotations for the image yet, and
     (2) the points are not imported.
     """
     point_gen_method = PointGen.db_to_args_format(image.point_generation_method)

@@ -21,14 +21,14 @@ class ResetTaskTest(BaseTaskTest):
         # Classify image and verify that it worked
 
         self.upload_data_and_train_classifier()
-        img = self.upload_image_and_machine_classify(self.user, self.source)
+        img = self.upload_image_and_machine_classify()
 
         classifier = self.source.get_current_classifier()
         self.assertIsNotNone(classifier, "Should have a classifier")
         classifier_id = classifier.pk
 
         self.assertTrue(img.features.extracted, "img should have features")
-        self.assertTrue(img.features.classified, "img should be classified")
+        self.assertTrue(img.annoinfo.classified, "img should be classified")
         self.assertGreater(
             Score.objects.filter(image=img).count(), 0,
             "img should have scores")
@@ -56,8 +56,9 @@ class ResetTaskTest(BaseTaskTest):
             Classifier.objects.get(pk=classifier_id)
 
         img.features.refresh_from_db()
+        img.annoinfo.refresh_from_db()
         self.assertTrue(img.features.extracted, "img SHOULD have features")
-        self.assertFalse(img.features.classified, "img shouldn't be classified")
+        self.assertFalse(img.annoinfo.classified, "img shouldn't be classified")
         self.assertEqual(
             Score.objects.filter(image=img).count(), 0,
             "img shouldn't have scores")
@@ -71,8 +72,8 @@ class ResetTaskTest(BaseTaskTest):
         # Classify
         run_scheduled_jobs_until_empty()
 
-        img.features.refresh_from_db()
-        self.assertTrue(img.features.classified, "img should be classified")
+        img.annoinfo.refresh_from_db()
+        self.assertTrue(img.annoinfo.classified, "img should be classified")
         self.assertGreater(
             Score.objects.filter(image=img).count(), 0,
             "img should have scores")
@@ -94,14 +95,14 @@ class ResetTaskTest(BaseTaskTest):
         # Classify image and verify that it worked
 
         self.upload_data_and_train_classifier()
-        img = self.upload_image_and_machine_classify(self.user, self.source)
+        img = self.upload_image_and_machine_classify()
 
         classifier = self.source.get_current_classifier()
         self.assertIsNotNone(classifier, "Should have a classifier")
         classifier_id = classifier.pk
 
         self.assertTrue(img.features.extracted, "img should have features")
-        self.assertTrue(img.features.classified, "img should be classified")
+        self.assertTrue(img.annoinfo.classified, "img should be classified")
         self.assertGreater(
             Score.objects.filter(image=img).count(), 0,
             "img should have scores")
@@ -129,8 +130,9 @@ class ResetTaskTest(BaseTaskTest):
             Classifier.objects.get(pk=classifier_id)
 
         img.features.refresh_from_db()
+        img.annoinfo.refresh_from_db()
         self.assertFalse(img.features.extracted, "img shouldn't have features")
-        self.assertFalse(img.features.classified, "img shouldn't be classified")
+        self.assertFalse(img.annoinfo.classified, "img shouldn't be classified")
         self.assertEqual(
             Score.objects.filter(image=img).count(), 0,
             "img shouldn't have scores")
@@ -148,8 +150,9 @@ class ResetTaskTest(BaseTaskTest):
         run_scheduled_jobs_until_empty()
 
         img.features.refresh_from_db()
+        img.annoinfo.refresh_from_db()
         self.assertTrue(img.features.extracted, "img should have features")
-        self.assertTrue(img.features.classified, "img should be classified")
+        self.assertTrue(img.annoinfo.classified, "img should be classified")
         self.assertGreater(
             Score.objects.filter(image=img).count(), 0,
             "img should have scores")
@@ -170,21 +173,25 @@ class ResetTaskTest(BaseTaskTest):
         """
         If we generate new points, features must be reset.
         """
-        img = self.upload_image(self.user, self.source)
-        img.features.extracted = True
-        img.features.classified = True
-        img.features.save()
+        image = self.upload_image(self.user, self.source)
+        image.features.extracted = True
+        image.features.save()
+        robot = self.create_robot(self.source)
+        self.add_robot_annotations(robot, image)
 
-        self.assertTrue(Image.objects.get(id=img.id).features.extracted)
-        self.assertTrue(Image.objects.get(id=img.id).features.classified)
+        image.features.refresh_from_db()
+        image.annoinfo.refresh_from_db()
+        self.assertTrue(image.features.extracted, "Should have features")
+        self.assertTrue(image.annoinfo.classified, "Should be classified")
 
         self.client.force_login(self.user)
-        url = reverse('image_regenerate_points', args=[img.id])
+        url = reverse('image_regenerate_points', args=[image.id])
         self.client.post(url)
 
-        # Now features should be reset
-        self.assertFalse(Image.objects.get(id=img.id).features.extracted)
-        self.assertFalse(Image.objects.get(id=img.id).features.classified)
+        image.features.refresh_from_db()
+        image.annoinfo.refresh_from_db()
+        self.assertFalse(image.features.extracted, "Should not have features")
+        self.assertFalse(image.annoinfo.classified, "Should not be classified")
 
 
 def call_collect_spacer_jobs():

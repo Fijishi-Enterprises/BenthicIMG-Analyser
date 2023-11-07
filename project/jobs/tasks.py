@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_scheduled_jobs():
-    jobs = Job.objects.filter(status=Job.Status.PENDING)
+    jobs = Job.objects.filter(status=Job.Status.PENDING).order_by('pk')
     # We'll run any pending jobs immediately if huey is configured to act
     # similarly.
     if not HUEY.immediate:

@@ -1387,11 +1387,6 @@ class AlleviateTest(ClientTest, AnnotationHistoryTestMixin):
         self.add_robot_annotations(
             robot, self.img, {1: ('A', 81), 2: ('B', 79)})
 
-        self.img.annoinfo.refresh_from_db()
-        self.assertEqual(
-            self.img.annoinfo.last_annotation.point.point_number, 2,
-            msg="Last annotation should be on the last point")
-
         # Trigger Alleviate on point 1
         self.client.force_login(self.user)
         response = self.client.get(self.tool_url)
@@ -1399,13 +1394,24 @@ class AlleviateTest(ClientTest, AnnotationHistoryTestMixin):
         self.img.annoinfo.refresh_from_db()
         self.assertEqual(
             self.img.annoinfo.last_annotation.point.point_number, 1,
-            msg="Last annotation should be updated")
+            msg="Last annotation should be on point 1")
 
         self.assertContains(
             response, "Last annotation update: Alleviate",
             msg_prefix=(
-                "The updated last annotation should show on the"
+                "Last annotation should show on the"
                 " annotation tool"))
+
+        # Trigger Alleviate on point 2
+        self.source.confidence_threshold = 75
+        self.source.save()
+        self.client.force_login(self.user)
+        self.client.get(self.tool_url)
+
+        self.img.annoinfo.refresh_from_db()
+        self.assertEqual(
+            self.img.annoinfo.last_annotation.point.point_number, 2,
+            msg="Last annotation should be on point 2")
 
     def test_history(self):
         """

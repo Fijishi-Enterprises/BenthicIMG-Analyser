@@ -65,7 +65,7 @@ class BaseQueue(abc.ABC):
 def get_batch_client():
     return boto3.client(
         'batch',
-        region_name="us-west-2",
+        region_name=settings.AWS_BATCH_REGION,
         aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
         aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
     )

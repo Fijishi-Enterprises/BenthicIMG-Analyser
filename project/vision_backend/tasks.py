@@ -28,9 +28,10 @@ from jobs.models import Job
 from jobs.utils import job_runner, job_starter, queue_job
 from labels.models import Label
 from . import task_helpers as th
+from .common import CLASSIFIER_MAPPINGS
 from .models import Classifier, Score
 from .queues import get_queue_class
-from .utils import queue_source_check, reset_features
+from .utils import get_extractor, queue_source_check, reset_features
 
 logger = logging.getLogger(__name__)
 
@@ -271,7 +272,7 @@ def submit_features(image_id, job_id):
     # Assemble task.
     task = ExtractFeaturesMsg(
         job_token=str(job_id),
-        feature_extractor_name=img.source.feature_extractor,
+        extractor=get_extractor(img.source.feature_extractor),
         rowcols=rowcols,
         image_loc=storage.spacer_data_loc(img.original_file.name),
         feature_loc=storage.spacer_data_loc(
@@ -338,7 +339,7 @@ def submit_classifier(source_id, job_id):
         job_token=str(job_id),
         trainer_name='minibatch',
         nbr_epochs=settings.NBR_TRAINING_EPOCHS,
-        clf_type=settings.CLASSIFIER_MAPPINGS[source.feature_extractor],
+        clf_type=CLASSIFIER_MAPPINGS[source.feature_extractor],
         train_labels=train_labels,
         val_labels=val_labels,
         features_loc=storage.spacer_data_loc(''),
@@ -390,7 +391,7 @@ def deploy(api_job_id, api_unit_order, job_id):
             storage_type='url',
             key=api_job_unit.request_json['url']
         ),
-        feature_extractor_name=classifier.source.feature_extractor,
+        extractor=get_extractor(classifier.source.feature_extractor),
         rowcols=[(point['row'], point['column']) for point in
                  api_job_unit.request_json['points']],
         classifier_loc=storage.spacer_data_loc(

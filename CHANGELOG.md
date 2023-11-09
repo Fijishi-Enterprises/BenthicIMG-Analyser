@@ -8,6 +8,10 @@ For info about the semantic versioning used here, see `docs/versions.rst`.
 
 ## 1.7 (WIP)
 
+- The new `EXTRACTORS_BUCKET` setting is now required in .env when using a non-dummy feature extractor.
+- Updates to required packages:
+  - pyspacer 0.4.1 -> 0.6.0
+  - Pillow 9.4.0 -> 10.1.0
 - New migrations to run for `annotations`, `events`, and `vision_backend`. annotations 0023 could possibly take hours per million images.
 
 ## [1.6](https://github.com/beijbom/coralnet/tree/1.6)

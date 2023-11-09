@@ -1,8 +1,17 @@
+from django.conf import settings
 import numpy as np
+from spacer.extract_features import (
+    DummyExtractor,
+    EfficientNetExtractor,
+    FeatureExtractor,
+    VGG16CaffeExtractor,
+)
+from spacer.messages import DataLocation
 
 from images.models import Point
 from jobs.utils import queue_job
 from labels.models import Label, LocalLabel
+from .common import Extractors
 from .models import Score
 
 
@@ -173,3 +182,47 @@ def queue_source_check(source_id, delay=None):
         source_id=source_id,
         delay=delay,
     )
+
+
+def get_extractor(extractor_choice: Extractors) -> FeatureExtractor:
+    """
+    For simplicity, the only extractor files supported here are the ones
+    living in S3. So if not using AWS credentials, then need to use the
+    dummy extractor.
+    """
+    match extractor_choice:
+        case Extractors.EFFICIENTNET.value:
+            return EfficientNetExtractor(
+                data_locations=dict(
+                    weights=DataLocation(
+                        storage_type='s3',
+                        key='efficientnet_b0_ver1.pt',
+                        bucket_name=settings.EXTRACTORS_BUCKET,
+                    ),
+                ),
+                data_hashes=dict(
+                    weights='c3dc6d304179c6729c0a0b3d4e60c728bdcf0d82687deeba54af71827467204c',
+                ),
+            )
+        case Extractors.VGG16.value:
+            return VGG16CaffeExtractor(
+                data_locations=dict(
+                    definition=DataLocation(
+                        storage_type='s3',
+                        key='vgg16_coralnet_ver1.deploy.prototxt',
+                        bucket_name=settings.EXTRACTORS_BUCKET,
+                    ),
+                    weights=DataLocation(
+                        storage_type='s3',
+                        key='vgg16_coralnet_ver1.caffemodel',
+                        bucket_name=settings.EXTRACTORS_BUCKET,
+                    ),
+                ),
+                data_hashes=dict(
+            weights='fb83781de0e207ded23bd42d7eb6e75c1e915a6fbef74120f72732984e227cca',
+        ),
+            )
+        case Extractors.DUMMY.value:
+            return DummyExtractor()
+        case _:
+            assert f"{extractor_choice} isn't a supported extractor"

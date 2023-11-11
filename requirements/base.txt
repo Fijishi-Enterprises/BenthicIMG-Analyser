@@ -164,4 +164,4 @@ numpy==1.24.1
 # Machine-learning backend behind coralnet
 # This can be installed from a local directory (not just PyPI), as long as
 # the local copy's setup.py matches this version number.
-pyspacer[dev]==0.6.0
+pyspacer[dev]==0.6.1

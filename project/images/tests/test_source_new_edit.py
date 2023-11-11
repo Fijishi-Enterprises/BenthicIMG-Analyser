@@ -1,3 +1,4 @@
+from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -503,19 +504,41 @@ class SourceNewTest(ClientTest):
             )
         )
 
-    def test_pointgen_too_many_points(self):
+    @override_settings(MAX_POINTS_PER_IMAGE=1000)
+    def test_pointgen_max_points_ok(self):
+        self.client.force_login(self.user)
+
+        # Match the point limit exactly
+        response = self.create_source(
+            point_generation_type=PointGen.Types.STRATIFIED,
+            simple_number_of_points='', number_of_cell_rows=10,
+            number_of_cell_columns=10, stratified_points_per_cell=10)
+
+        new_source = Source.objects.latest('create_date')
+        self.assertTemplateUsed('images/source_main.html')
+        self.assertEqual(response.context['source'], new_source)
+
+        self.assertEqual(
+            new_source.default_point_generation_method,
+            PointGen.args_to_db_format(
+                point_generation_type=PointGen.Types.STRATIFIED,
+                number_of_cell_rows=10, number_of_cell_columns=10,
+                stratified_points_per_cell=10))
+
+    @override_settings(MAX_POINTS_PER_IMAGE=1000)
+    def test_pointgen_above_max_points(self):
         self.client.force_login(self.user)
 
         response = self.create_source(
             point_generation_type=PointGen.Types.STRATIFIED,
-            simple_number_of_points='', number_of_cell_rows=10,
-            number_of_cell_columns=10, stratified_points_per_cell=11)
+            simple_number_of_points='', number_of_cell_rows=7,
+            number_of_cell_columns=11, stratified_points_per_cell=13)
         self.assertTemplateUsed(response, 'images/source_new.html')
         self.assertDictEqual(
             response.context['pointGenForm'].errors,
             dict(
                 __all__=[
-                    "You specified 1100 points total."
+                    "You specified 1001 points total."
                     " Please make it no more than 1000."],
             )
         )

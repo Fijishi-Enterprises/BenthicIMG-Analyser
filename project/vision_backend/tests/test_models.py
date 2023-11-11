@@ -3,7 +3,7 @@ import numpy as np
 from spacer.messages import ClassifyReturnMsg
 
 from jobs.utils import queue_job
-from lib.tests.utils import ClientTest
+from lib.tests.utils import ClientTest, sample_image_as_file
 from images.models import Point
 from vision_backend.models import BatchJob, Score
 import vision_backend.task_helpers as th
@@ -175,3 +175,51 @@ class DeletePreMigrationBatchJobsTest(MigrationTest):
         self.assertEqual(
             BatchJobAfter.objects.count(), 0,
             "Should have deleted the BatchJobs")
+
+
+class PopulateLoadedRemotelyTest(MigrationTest):
+
+    app_name = 'vision_backend'
+    before = '0015_features_extractor_loaded_remotely'
+    after = '0016_populate_extractor_loaded_remotely'
+
+    def test_migration(self):
+        User = self.get_model_before('auth.User')
+        Source = self.get_model_before('images.Source')
+        Metadata = self.get_model_before('images.Metadata')
+        Image = self.get_model_before('images.Image')
+        Features = self.get_model_before('vision_backend.Features')
+
+        user = User(username='testuser')
+        user.save()
+        source = Source(name="Test source")
+        source.save()
+        images = []
+        for value in [True, False, None]:
+            metadata = Metadata()
+            metadata.save()
+            image = Image(
+                original_file=sample_image_as_file('a.png'),
+                uploaded_by=user,
+                point_generation_method=source.default_point_generation_method,
+                metadata=metadata,
+                source=source,
+            )
+            image.save()
+            images.append(image)
+
+            features = Features(image=image, model_was_cached=value)
+            features.save()
+
+        self.assertTrue(images[0].features.model_was_cached)
+        self.assertFalse(images[1].features.model_was_cached)
+        self.assertIsNone(images[2].features.model_was_cached)
+
+        self.run_migration()
+
+        images[0].features.refresh_from_db()
+        images[1].features.refresh_from_db()
+        images[2].features.refresh_from_db()
+        self.assertFalse(images[0].features.extractor_loaded_remotely)
+        self.assertTrue(images[1].features.extractor_loaded_remotely)
+        self.assertIsNone(images[2].features.extractor_loaded_remotely)

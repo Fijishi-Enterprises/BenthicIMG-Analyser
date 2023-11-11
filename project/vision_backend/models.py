@@ -105,8 +105,8 @@ class Features(models.Model):
     # runtime for the call to caffe
     runtime_core = models.IntegerField(null=True)
 
-    # whether the model needed to be downloaded from S3
-    model_was_cached = models.BooleanField(null=True)
+    # Whether the extractor needed to be downloaded from S3
+    extractor_loaded_remotely = models.BooleanField(null=True)
 
     # When were the features extracted
     extracted_date = models.DateTimeField(null=True)

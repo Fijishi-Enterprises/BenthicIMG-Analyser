@@ -3,7 +3,6 @@ from unittest import mock
 from django.conf import settings
 from django.core.files.storage import get_storage_class
 from django.test import override_settings
-import spacer.config as spacer_config
 from spacer.data_classes import ImageFeatures
 from spacer.exceptions import SpacerInputError
 
@@ -153,9 +152,7 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin, JobUtilsMixin):
         progress.
         """
         # Provide enough data for training. Extract features.
-        self.upload_images_for_training(
-            train_image_count=spacer_config.MIN_TRAINIMAGES,
-            val_image_count=1)
+        self.upload_images_for_training()
         run_scheduled_jobs_until_empty()
         queue_and_run_collect_spacer_jobs()
 

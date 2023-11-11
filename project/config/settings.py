@@ -290,7 +290,6 @@ NEW_CLASSIFIER_TRAIN_TH = 1.1
 NEW_CLASSIFIER_IMPROVEMENT_TH = 1.01
 
 # This many images must be annotated before a first classifier is trained.
-# TODO: Configure this on spacer's side as well
 MIN_NBR_ANNOTATED_IMAGES = env.int('MIN_NBR_ANNOTATED_IMAGES', default=20)
 
 # Naming schemes
@@ -327,6 +326,8 @@ SPACER = {
 
     'MAX_IMAGE_PIXELS': (
         IMAGE_UPLOAD_MAX_DIMENSIONS[0] * IMAGE_UPLOAD_MAX_DIMENSIONS[1]),
+
+    'MIN_TRAINIMAGES': MIN_NBR_ANNOTATED_IMAGES,
 }
 
 # If True, feature extraction just returns dummy results to speed up testing.

@@ -6,6 +6,7 @@ from typing import Callable, Dict, List, Optional, Tuple
 
 import chardet
 import charset_normalizer
+from django.conf import settings
 from django.urls import reverse
 
 from annotations.models import ImageAnnotationInfo
@@ -325,6 +326,13 @@ def annotations_csv_verify_contents(csv_annotations, source):
             # planning to upload later, or an image they're not planning
             # to upload but are still tracking in their records.
             continue
+
+        point_count = len(annotations_for_image)
+        if point_count > settings.MAX_POINTS_PER_IMAGE:
+            raise FileProcessError(
+                f"For image {image_name}:"
+                f" Found {point_count} points, which exceeds the"
+                f" maximum allowed of {settings.MAX_POINTS_PER_IMAGE}")
 
         for point_number, point_dict in enumerate(annotations_for_image, 1):
 

@@ -5,6 +5,7 @@ import codecs
 from unittest import mock
 
 from django.core.files.base import ContentFile
+from django.test.utils import override_settings
 from django.urls import reverse
 
 from images.models import Point
@@ -521,6 +522,24 @@ class ContentsEdgeAndErrorCasesTest(ClientTest, UploadAnnotationsCpcTestMixin):
                 (20, 20, 2, self.img1.pk),
                 (150, 90, 3, self.img1.pk),
             })
+
+    @override_settings(MAX_POINTS_PER_IMAGE=3)
+    def test_max_points(self):
+        self.do_success(
+            [(10*15, 10*15), (20*15, 20*15), (30*15, 30*15)],
+            {
+                (10, 10, 1, self.img1.pk),
+                (20, 20, 2, self.img1.pk),
+                (30, 30, 3, self.img1.pk),
+            })
+
+    @override_settings(MAX_POINTS_PER_IMAGE=3)
+    def test_above_max_points(self):
+        self.do_error(
+            [(10*15, 10*15), (20*15, 20*15), (30*15, 30*15), (40*15, 40*15)],
+            "From file 1.cpc:"
+            " Found 4 points, which exceeds the"
+            " maximum allowed of 3")
 
     def test_label_not_in_labelset(self):
         self.do_error(

@@ -99,11 +99,8 @@ class Features(models.Model):
     # Indicates whether the features are extracted. Set when jobs are collected
     extracted = models.BooleanField(default=False)
 
-    # total runtime for job
+    # Total runtime for job
     runtime_total = models.IntegerField(null=True)
-
-    # runtime for the call to caffe
-    runtime_core = models.IntegerField(null=True)
 
     # Whether the extractor needed to be downloaded from S3
     extractor_loaded_remotely = models.BooleanField(null=True)

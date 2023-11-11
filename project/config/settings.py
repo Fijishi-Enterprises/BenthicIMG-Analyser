@@ -246,6 +246,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 # Upload/data restrictions
 #
 
+MAX_POINTS_PER_IMAGE = 1000
+
 # The maximum size (in bytes) that an upload will be before it
 # gets streamed to the file system.
 #
@@ -326,6 +328,7 @@ SPACER = {
 
     'MAX_IMAGE_PIXELS': (
         IMAGE_UPLOAD_MAX_DIMENSIONS[0] * IMAGE_UPLOAD_MAX_DIMENSIONS[1]),
+    'MAX_POINTS_PER_IMAGE': MAX_POINTS_PER_IMAGE,
 
     'MIN_TRAINIMAGES': MIN_NBR_ANNOTATED_IMAGES,
 }

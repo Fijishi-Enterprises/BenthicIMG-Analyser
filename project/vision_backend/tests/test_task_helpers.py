@@ -6,6 +6,7 @@ from api_core.models import ApiJob, ApiJobUnit
 from jobs.models import Job
 from jobs.utils import queue_job
 from ..task_helpers import SpacerClassifyResultHandler
+from ..utils import get_extractor
 
 from spacer.messages import ClassifyImageMsg, JobMsg, JobReturnMsg, \
     ClassifyReturnMsg, DataLocation
@@ -58,7 +59,7 @@ class TestDeployCollector(ClientTest):
         cls.task = ClassifyImageMsg(
             job_token=str(internal_job.pk),
             image_loc=DataLocation(storage_type='url', key=''),
-            feature_extractor_name='dummy',
+            extractor=get_extractor('dummy'),
             rowcols=[(100, 100), (200, 200)],
             classifier_loc=DataLocation(storage_type='memory', key=''),
         )

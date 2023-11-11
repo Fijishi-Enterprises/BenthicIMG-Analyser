@@ -315,24 +315,15 @@ NBR_SCORES_PER_ANNOTATION = 5
 # This is the number of epochs we request the SGD solver to take over the data.
 NBR_TRAINING_EPOCHS = 10
 
-# Hard-coded shallow learners for each deep model.
-# MLP is the better newer shallow learner, but we stayed with
-# LR for the old extractor for backwards compatibility.
-CLASSIFIER_MAPPINGS = {
-    'vgg16_coralnet_ver1': 'LR',
-    'efficientnet_b0_ver1': 'MLP',
-    'dummy': 'LR'
-}
-
 # Spacer job hash to identify this server instance's jobs in the AWS Batch
 # dashboard.
 SPACER_JOB_HASH = env('SPACER_JOB_HASH', default='default_hash')
 
 # [PySpacer setting]
 SPACER = {
-    # For regression tests, spacer expects a local model path.
+    # Filesystem directory for caching feature extractor files.
     # Expects str, not Path.
-    'LOCAL_MODEL_PATH': str(SITE_DIR / 'spacer_models'),
+    'EXTRACTORS_CACHE_DIR': str(SITE_DIR / 'spacer_models'),
 
     'MAX_IMAGE_PIXELS': (
         IMAGE_UPLOAD_MAX_DIMENSIONS[0] * IMAGE_UPLOAD_MAX_DIMENSIONS[1]),
@@ -340,6 +331,12 @@ SPACER = {
 
 # If True, feature extraction just returns dummy results to speed up testing.
 FORCE_DUMMY_EXTRACTOR = env.bool('FORCE_DUMMY_EXTRACTOR', default=DEBUG)
+
+if not FORCE_DUMMY_EXTRACTOR:
+    # [CoralNet setting]
+    # Non-dummy feature extractors need to live at the root of this
+    # S3 bucket, using the filenames expected by get_extractor().
+    EXTRACTORS_BUCKET = env('EXTRACTORS_BUCKET')
 
 # Type of queue to keep track of vision backend jobs.
 if SETTINGS_BASE in [Bases.PRODUCTION, Bases.STAGING]:
@@ -355,6 +352,8 @@ if SETTINGS_BASE == Bases.PRODUCTION:
 else:
     BATCH_QUEUE = 'shakeout'
     BATCH_JOB_DEFINITION = 'spacer-job-staging'
+
+AWS_BATCH_REGION = env('AWS_BATCH_REGION', default='us-west-2')
 
 
 #
@@ -429,7 +428,10 @@ else:
 
     # [CoralNet settings]
     # S3 details on storing media.
-    AWS_S3_DOMAIN = f's3-us-west-2.amazonaws.com/{AWS_STORAGE_BUCKET_NAME}'
+    AWS_S3_REGION = env('AWS_S3_REGION', default='us-west-2')
+    SPACER['AWS_REGION'] = AWS_S3_REGION
+    AWS_S3_DOMAIN = \
+        f's3-{AWS_S3_REGION}.amazonaws.com/{AWS_STORAGE_BUCKET_NAME}'
     AWS_S3_MEDIA_SUBDIR = 'media'
 
     # Base URL where user-uploaded media are served.

@@ -281,9 +281,8 @@ class SpacerFeatureResultHandler(SpacerResultHandler):
         img.features.extracted = True
         img.features.runtime_total = task_res.runtime
 
-        # TODO: remove runtime_core from DB
-        img.features.runtime_core = 0
-        img.features.model_was_cached = task_res.model_was_cached
+        img.features.extractor_loaded_remotely = \
+            task_res.extractor_loaded_remotely
         img.features.extracted_date = now()
         img.features.save()
 

@@ -1,12 +1,14 @@
 from argparse import RawTextHelpFormatter
+from datetime import timedelta
 import time
 
 from django.core.management.base import BaseCommand
 
+from jobs.models import Job
 from jobs.tasks import run_scheduled_jobs
+from jobs.utils import queue_job
 from lib.regtest_utils import VisionBackendRegressionTest
 from ...models import Classifier
-from ...tests.tasks.utils import queue_and_run_collect_spacer_jobs
 
 reg_test_config = {
     372: {'small': (25, 5),
@@ -64,6 +66,8 @@ class Command(BaseCommand):
         spacer models from s3.
         '''
 
+    latest_job_id: int
+
     def create_parser(self, *args, **kwargs):
         """ This makes the help text more nicely formatted. """
         parser = super().create_parser(*args, **kwargs)
@@ -96,6 +100,8 @@ class Command(BaseCommand):
 
         (n_with, n_without) = reg_test_config[fixture_source_id][size]
 
+        self.latest_job_id = Job.objects.latest('pk').pk
+
         s = VisionBackendRegressionTest(
             fixture_source_id, size.upper(), options['vgg16'])
 
@@ -109,15 +115,16 @@ class Command(BaseCommand):
         _ = s.upload_images(n_without)
 
         print("-> Waiting until feature extraction is done...")
+        n_imgs = s.source.image_set.count()
         all_have_features = False
         while not all_have_features:
             time.sleep(5)
             run_scheduled_jobs()
-            queue_and_run_collect_spacer_jobs()
+            queue_job('collect_spacer_jobs', delay=timedelta(seconds=0))
             n_with_feats = s.source.image_set.with_features().count()
-            n_imgs = s.source.image_set.count()
             print(f"-> {n_with_feats} out of {n_imgs} images have features.")
             all_have_features = n_with_feats == n_imgs
+            self.check_for_failed_jobs()
 
         print("-> All images have features!")
 
@@ -126,10 +133,11 @@ class Command(BaseCommand):
         while not has_classifier:
             time.sleep(5)
             run_scheduled_jobs()
-            queue_and_run_collect_spacer_jobs()
+            queue_job('collect_spacer_jobs', delay=timedelta(seconds=0))
             print("-> No classifier trained yet.")
             has_classifier = Classifier.objects.filter(
                 source=s.source, status=Classifier.ACCEPTED).count() > 0
+            self.check_for_failed_jobs()
 
         print("-> Classifier trained!")
 
@@ -145,5 +153,16 @@ class Command(BaseCommand):
                 f"-> {n_classified} out of {n_imgs} non-manually-annotated"
                 f" images are classified.")
             all_imgs_classified = n_classified == n_imgs
+            self.check_for_failed_jobs()
 
         print("-> All Done!")
+
+    def check_for_failed_jobs(self):
+        failed_jobs = Job.objects.filter(
+            status=Job.Status.FAILURE, pk__gt=self.latest_job_id)
+        if failed_jobs.exists():
+            print("Jobs have failed:")
+            for job in failed_jobs:
+                print(f"- {job}: {job.result_message}")
+            # Next time, only report any new failures
+            self.latest_job_id = failed_jobs.latest('pk').pk

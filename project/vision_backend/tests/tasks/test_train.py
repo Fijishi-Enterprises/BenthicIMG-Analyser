@@ -123,7 +123,7 @@ class TrainClassifierTest(BaseTaskTest, JobUtilsMixin):
         clf_1 = self.source.get_current_classifier()
 
         # Upload enough additional images for the next training to happen.
-        old_image_count = settings.MIN_NBR_ANNOTATED_IMAGES + 1
+        old_image_count = settings.TRAINING_MIN_IMAGES + 1
         new_image_count = math.ceil(
             old_image_count*settings.NEW_CLASSIFIER_TRAIN_TH)
         added_image_count = new_image_count - old_image_count
@@ -165,7 +165,7 @@ class TrainClassifierTest(BaseTaskTest, JobUtilsMixin):
             'train.png', with_labels=True)
         # Other annotated images to get enough for training
         self.upload_images_for_training(
-            train_image_count=settings.MIN_NBR_ANNOTATED_IMAGES-1,
+            train_image_count=settings.TRAINING_MIN_IMAGES-1,
             val_image_count=0)
 
         # Extract features
@@ -264,7 +264,7 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin, JobUtilsMixin):
         # But set CoralNet's requirement 1 higher than that image count.
         min_images = self.source.image_set.count() + 1
 
-        with override_settings(MIN_NBR_ANNOTATED_IMAGES=min_images):
+        with override_settings(TRAINING_MIN_IMAGES=min_images):
             # Check source
             run_scheduled_jobs_until_empty()
 
@@ -307,7 +307,7 @@ class AbortCasesTest(BaseTaskTest, ErrorReportTestMixin, JobUtilsMixin):
         # The intersection of the train data labelset and the val data labelset
         # is the training labelset. That labelset will be size 1 (only A),
         # thus fulfilling our test conditions.
-        for _ in range(settings.MIN_NBR_ANNOTATED_IMAGES):
+        for _ in range(settings.TRAINING_MIN_IMAGES):
             img = self.upload_image(
                 self.user, self.source, image_options=dict(
                     filename=f'train{self.image_count}.png'))

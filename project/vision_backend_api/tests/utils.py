@@ -79,8 +79,8 @@ class DeployBaseTest(BaseAPITest, metaclass=ABCMeta):
         # Must have at least 2 unique labels in training data in order to
         # be accepted by spacer.
         annotations = {1: 'A_mycode', 2: 'B_mycode'}
-        num_validation_images = math.ceil(settings.MIN_NBR_ANNOTATED_IMAGES / 8)
-        for i in range(settings.MIN_NBR_ANNOTATED_IMAGES):
+        num_validation_images = math.ceil(settings.TRAINING_MIN_IMAGES / 8)
+        for i in range(settings.TRAINING_MIN_IMAGES):
             img = cls.upload_image(
                 cls.user, cls.source, dict(filename=f'train{i}.png'))
             cls.add_annotations(cls.user, img, annotations)

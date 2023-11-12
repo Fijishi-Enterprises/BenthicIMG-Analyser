@@ -23,7 +23,7 @@ jobs:
       CORALNET_DATABASE_HOST: localhost
       CORALNET_SECRET_KEY: ci-secret-key
       # This is for speeding up tests.
-      CORALNET_MIN_NBR_ANNOTATED_IMAGES: 2
+      CORALNET_TRAINING_MIN_IMAGES: 2
 
     services:
       postgres:

@@ -8,7 +8,8 @@ For info about the semantic versioning used here, see `docs/versions.rst`.
 
 ## 1.7 (WIP)
 
-- The new `EXTRACTORS_BUCKET` setting is now required in .env when using a non-dummy feature extractor.
+- The new `EXTRACTORS_BUCKET` setting is now required when using a non-dummy feature extractor.
+- The `MIN_NBR_ANNOTATED_IMAGES` setting has been renamed to `TRAINING_MIN_IMAGES`. Also, it's now tied to the corresponding pyspacer setting, which means that lowering this number will speed up unit tests.
 - Updates to required packages:
   - pyspacer 0.4.1 -> 0.6.1
   - Pillow 9.4.0 -> 10.1.0

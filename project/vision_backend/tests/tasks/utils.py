@@ -51,7 +51,7 @@ class BaseTaskTest(ClientTest, UploadAnnotationsCsvTestMixin):
     ):
         if not train_image_count:
             # Provide enough data for initial training
-            train_image_count = settings.MIN_NBR_ANNOTATED_IMAGES
+            train_image_count = settings.TRAINING_MIN_IMAGES
 
         train_images = []
         val_images = []

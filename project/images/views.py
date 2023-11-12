@@ -236,7 +236,7 @@ def source_main(request, source_id):
         'latest_images': latest_images,
         'image_stats': image_stats,
         'robot_stats': robot_stats,
-        'min_nbr_annotated_images': settings.MIN_NBR_ANNOTATED_IMAGES,
+        'min_nbr_annotated_images': settings.TRAINING_MIN_IMAGES,
         'news_items': [item.render_view() for item in
                        NewsItem.objects.filter(source_id=source.id).order_by('-pk')]
     })

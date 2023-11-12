@@ -292,7 +292,7 @@ NEW_CLASSIFIER_TRAIN_TH = 1.1
 NEW_CLASSIFIER_IMPROVEMENT_TH = 1.01
 
 # This many images must be annotated before a first classifier is trained.
-MIN_NBR_ANNOTATED_IMAGES = env.int('MIN_NBR_ANNOTATED_IMAGES', default=20)
+TRAINING_MIN_IMAGES = env.int('TRAINING_MIN_IMAGES', default=20)
 
 # Naming schemes
 FEATURE_VECTOR_FILE_PATTERN = '{full_image_path}.featurevector'
@@ -330,7 +330,7 @@ SPACER = {
         IMAGE_UPLOAD_MAX_DIMENSIONS[0] * IMAGE_UPLOAD_MAX_DIMENSIONS[1]),
     'MAX_POINTS_PER_IMAGE': MAX_POINTS_PER_IMAGE,
 
-    'MIN_TRAINIMAGES': MIN_NBR_ANNOTATED_IMAGES,
+    'MIN_TRAINIMAGES': TRAINING_MIN_IMAGES,
 }
 
 # If True, feature extraction just returns dummy results to speed up testing.

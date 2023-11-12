@@ -414,7 +414,7 @@ class Source(models.Model):
             self.image_set.confirmed().with_features().count()
         )
         if (nbr_confirmed_images_with_features
-                < settings.MIN_NBR_ANNOTATED_IMAGES):
+                < settings.TRAINING_MIN_IMAGES):
             return False, "Not enough annotated images for initial training"
 
         try:

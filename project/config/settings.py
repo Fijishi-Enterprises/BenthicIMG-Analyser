@@ -740,6 +740,8 @@ INSTALLED_APPS = [
     'labels',
     # Miscellaneous / not specific to any other app
     'lib',
+    # World map of sources
+    'map',
     # Logs of site events/actions (likely being replaced by 'events')
     'newsfeed',
     'upload',

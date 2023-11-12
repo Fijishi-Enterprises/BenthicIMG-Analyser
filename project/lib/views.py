@@ -7,7 +7,8 @@ from django.urls import reverse
 
 from annotations.utils import get_sitewide_annotation_count
 from images.models import Image, Source
-from images.utils import get_map_sources, get_carousel_images
+from images.utils import get_carousel_images
+from map.utils import get_map_sources
 
 
 def index(request):

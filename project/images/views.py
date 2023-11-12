@@ -31,6 +31,7 @@ from lib.decorators import (
     source_permission_required,
     source_visibility_required,
 )
+from map.utils import get_map_sources
 from newsfeed.models import NewsItem
 from vision_backend.models import Classifier
 from vision_backend.utils import reset_features
@@ -45,7 +46,6 @@ from .forms import (
 )
 from .model_utils import PointGen
 from .models import Source, Image, SourceInvite, Metadata
-from .utils import get_map_sources
 
 
 def source_list(request):

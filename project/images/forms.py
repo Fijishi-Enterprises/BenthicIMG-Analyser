@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.forms import Form, ModelForm, BaseModelFormSet
@@ -367,8 +368,6 @@ class PointGenForm(Form):
             "js/PointGenFormHelper.js",
         )
 
-    MAX_NUM_POINTS = 1000
-
     point_generation_type = ChoiceField(
         label='Point generation type',
         choices=Source.POINT_GENERATION_CHOICES,
@@ -385,26 +384,26 @@ class PointGenForm(Form):
     # For simple random
     simple_number_of_points = IntegerField(
         label='Number of annotation points', required=False,
-        min_value=1, max_value=MAX_NUM_POINTS,
+        min_value=1, max_value=settings.MAX_POINTS_PER_IMAGE,
         widget=NumberInput(attrs={'size': 3}),
     )
 
     # For stratified random and uniform grid
     number_of_cell_rows = IntegerField(
         label='Number of cell rows', required=False,
-        min_value=1, max_value=MAX_NUM_POINTS,
+        min_value=1, max_value=settings.MAX_POINTS_PER_IMAGE,
         widget=NumberInput(attrs={'size': 3}),
     )
     number_of_cell_columns = IntegerField(
         label='Number of cell columns', required=False,
-        min_value=1, max_value=MAX_NUM_POINTS,
+        min_value=1, max_value=settings.MAX_POINTS_PER_IMAGE,
         widget=NumberInput(attrs={'size': 3}),
     )
 
     # For stratified random
     stratified_points_per_cell = IntegerField(
         label='Points per cell', required=False,
-        min_value=1, max_value=MAX_NUM_POINTS,
+        min_value=1, max_value=settings.MAX_POINTS_PER_IMAGE,
         widget=NumberInput(attrs={'size': 3}),
     )
 
@@ -471,7 +470,7 @@ class PointGenForm(Form):
         if not self._errors:
             # No errors so far, so do a final check of
             # the total number of points specified.
-            # It should be between 1 and MAX_NUM_POINTS.
+            # It should be between 1 and settings.MAX_POINTS_PER_IMAGE.
             num_points = 0
 
             if point_gen_type == PointGen.Types.SIMPLE:
@@ -486,11 +485,11 @@ class PointGenForm(Form):
                     cleaned_data['number_of_cell_rows']
                     * cleaned_data['number_of_cell_columns'])
 
-            if num_points > PointGenForm.MAX_NUM_POINTS:
+            if num_points > settings.MAX_POINTS_PER_IMAGE:
                 # Raise a non-field error (error applying to the form as a
                 # whole).
                 raise ValidationError(
                     "You specified {num_points} points total."
                     " Please make it no more than {max_points}.".format(
                         num_points=num_points,
-                        max_points=PointGenForm.MAX_NUM_POINTS))
+                        max_points=settings.MAX_POINTS_PER_IMAGE))

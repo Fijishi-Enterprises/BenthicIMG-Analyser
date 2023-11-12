@@ -3,7 +3,6 @@ import json
 from unittest import mock
 
 from django.test.utils import override_settings
-import spacer.config as spacer_config
 from spacer.messages import DataLocation, JobMsg
 from spacer.tasks import process_job
 
@@ -136,9 +135,7 @@ class QueueBasicTest(BaseTaskTest, JobUtilsMixin):
         self.assertTrue(img.features.extracted)
 
     def do_test_collect_training(self):
-        self.upload_images_for_training(
-            train_image_count=spacer_config.MIN_TRAINIMAGES,
-            val_image_count=1)
+        self.upload_images_for_training()
         # Feature extraction
         run_scheduled_jobs_until_empty()
         queue_and_run_collect_spacer_jobs()
@@ -223,9 +220,7 @@ class BatchQueueBasicTest(QueueBasicTest):
 
     def test_training_fail(self):
         """A training job can't be collected."""
-        self.upload_images_for_training(
-            train_image_count=spacer_config.MIN_TRAINIMAGES,
-            val_image_count=1)
+        self.upload_images_for_training()
 
         with mock_boto_client():
             # Feature extraction

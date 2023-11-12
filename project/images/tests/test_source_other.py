@@ -549,7 +549,7 @@ class SourceMainTest(ClientTest):
                         "Following the browse link should show only image"
                         " results of the specified status"))
 
-    @override_settings(MIN_NBR_ANNOTATED_IMAGES=3)
+    @override_settings(TRAINING_MIN_IMAGES=3)
     def test_automated_annotation_section(self):
         source = self.create_source(self.user)
 

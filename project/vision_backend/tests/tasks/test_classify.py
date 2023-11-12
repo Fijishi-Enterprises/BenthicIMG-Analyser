@@ -4,7 +4,6 @@ from unittest import mock
 from django.core.cache import cache
 from django.test import override_settings
 import numpy as np
-import spacer.config as spacer_config
 
 from accounts.utils import get_robot_user, is_robot_user
 from annotations.models import Annotation
@@ -545,8 +544,7 @@ class ClassifyImageTest(
         The image to be classified has two points with the same row/column.
         """
         # Provide enough data for training
-        self.upload_images_for_training(
-            train_image_count=spacer_config.MIN_TRAINIMAGES, val_image_count=1)
+        self.upload_images_for_training()
         # Add one image without annotations, including a duplicate point
         img = self.upload_image_with_dupe_points('has_dupe.png')
         # Extract features

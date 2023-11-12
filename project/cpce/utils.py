@@ -4,6 +4,8 @@ from pathlib import PureWindowsPath
 import re
 from typing import List, Tuple
 
+from django.conf import settings
+
 from annotations.model_utils import AnnotationAreaUtils
 from export.utils import create_zip_stream_response, write_zip
 from images.models import Image, Point, Source
@@ -704,6 +706,9 @@ class CpcFileContent:
         return x_scale
 
     def get_image_and_annotations(self, source, label_mapping):
+        """
+        Process the .cpc info as annotations for an image in the given source.
+        """
         image = self.find_matching_image(source)
         if not image:
             return None, []
@@ -711,6 +716,12 @@ class CpcFileContent:
         image_name = image.metadata.name
 
         pixel_scale_factor = self.get_pixel_scale_factor(image)
+
+        point_count = len(self.points)
+        if point_count > settings.MAX_POINTS_PER_IMAGE:
+            raise FileProcessError(
+                f"Found {point_count} points, which exceeds the"
+                f" maximum allowed of {settings.MAX_POINTS_PER_IMAGE}")
 
         annotations = []
 

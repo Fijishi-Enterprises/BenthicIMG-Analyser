@@ -1,6 +1,6 @@
+from django.conf import settings
 from django.core.files.storage import get_storage_class
 from django.test import override_settings
-import spacer.config as spacer_config
 
 from images.model_utils import PointGen
 from jobs.tests.utils import do_job, queue_and_run_job
@@ -13,8 +13,6 @@ def queue_and_run_collect_spacer_jobs():
 
 
 @override_settings(
-    # Note that spacer also has its own minimum image count for training.
-    MIN_NBR_ANNOTATED_IMAGES=1,
     SPACER_QUEUE_CHOICE='vision_backend.queues.LocalQueue',
     # Sometimes it helps to run certain periodic jobs (particularly
     # collect_spacer_jobs) only when we explicitly want to.
@@ -48,7 +46,13 @@ class BaseTaskTest(ClientTest, UploadAnnotationsCsvTestMixin):
         return img
 
     @classmethod
-    def upload_images_for_training(cls, train_image_count, val_image_count):
+    def upload_images_for_training(
+        cls, train_image_count=None, val_image_count=1,
+    ):
+        if not train_image_count:
+            # Provide enough data for initial training
+            train_image_count = settings.TRAINING_MIN_IMAGES
+
         train_images = []
         val_images = []
 
@@ -65,10 +69,6 @@ class BaseTaskTest(ClientTest, UploadAnnotationsCsvTestMixin):
 
     @classmethod
     def upload_data_and_train_classifier(cls, new_train_images_count=None):
-        if not new_train_images_count:
-            # Provide enough data for initial training
-            new_train_images_count = spacer_config.MIN_TRAINIMAGES
-
         train_images, val_images = cls.upload_images_for_training(
             train_image_count=new_train_images_count, val_image_count=1)
         # Extract features

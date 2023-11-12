@@ -246,6 +246,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 # Upload/data restrictions
 #
 
+MAX_POINTS_PER_IMAGE = 1000
+
 # The maximum size (in bytes) that an upload will be before it
 # gets streamed to the file system.
 #
@@ -290,8 +292,7 @@ NEW_CLASSIFIER_TRAIN_TH = 1.1
 NEW_CLASSIFIER_IMPROVEMENT_TH = 1.01
 
 # This many images must be annotated before a first classifier is trained.
-# TODO: Configure this on spacer's side as well
-MIN_NBR_ANNOTATED_IMAGES = env.int('MIN_NBR_ANNOTATED_IMAGES', default=20)
+TRAINING_MIN_IMAGES = env.int('TRAINING_MIN_IMAGES', default=20)
 
 # Naming schemes
 FEATURE_VECTOR_FILE_PATTERN = '{full_image_path}.featurevector'
@@ -327,6 +328,9 @@ SPACER = {
 
     'MAX_IMAGE_PIXELS': (
         IMAGE_UPLOAD_MAX_DIMENSIONS[0] * IMAGE_UPLOAD_MAX_DIMENSIONS[1]),
+    'MAX_POINTS_PER_IMAGE': MAX_POINTS_PER_IMAGE,
+
+    'MIN_TRAINIMAGES': TRAINING_MIN_IMAGES,
 }
 
 # If True, feature extraction just returns dummy results to speed up testing.

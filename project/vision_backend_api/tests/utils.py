@@ -3,9 +3,9 @@ from io import BytesIO
 import math
 from unittest import mock
 
+from django.conf import settings
 from django.test import override_settings
 from django.urls import reverse
-from spacer.config import MIN_TRAINIMAGES
 
 from api_core.tests.utils import BaseAPITest
 from images.model_utils import PointGen
@@ -15,9 +15,7 @@ from lib.tests.utils import create_sample_image
 from vision_backend.tests.tasks.utils import queue_and_run_collect_spacer_jobs
 
 
-@override_settings(
-    MIN_NBR_ANNOTATED_IMAGES=1,
-    ENABLE_PERIODIC_JOBS=False)
+@override_settings(ENABLE_PERIODIC_JOBS=False)
 class DeployBaseTest(BaseAPITest, metaclass=ABCMeta):
 
     @classmethod
@@ -81,8 +79,8 @@ class DeployBaseTest(BaseAPITest, metaclass=ABCMeta):
         # Must have at least 2 unique labels in training data in order to
         # be accepted by spacer.
         annotations = {1: 'A_mycode', 2: 'B_mycode'}
-        num_validation_images = math.ceil(MIN_TRAINIMAGES / 8)
-        for i in range(MIN_TRAINIMAGES):
+        num_validation_images = math.ceil(settings.TRAINING_MIN_IMAGES / 8)
+        for i in range(settings.TRAINING_MIN_IMAGES):
             img = cls.upload_image(
                 cls.user, cls.source, dict(filename=f'train{i}.png'))
             cls.add_annotations(cls.user, img, annotations)

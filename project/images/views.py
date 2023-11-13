@@ -5,8 +5,9 @@ from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.contrib import messages
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import redirect, render, get_object_or_404
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
@@ -318,10 +319,14 @@ def source_detail_box(request, source_id):
 
     example_images = source.image_set.all().order_by('-upload_date')[:6]
 
-    return render(request, 'images/source_detail_box.html', {
+    detail_box_html = render_to_string('images/source_detail_box.html', {
         'source': source,
         'example_images': example_images,
     })
+
+    return JsonResponse(dict(
+        detailBoxHtml=detail_box_html,
+    ))
 
 
 @source_permission_required('source_id', perm=Source.PermTypes.ADMIN.code)

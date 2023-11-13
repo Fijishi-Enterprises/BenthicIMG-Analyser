@@ -1,32 +1,50 @@
-#map-canvas {
-    /* The map will always take its size from that of its containing element,
-    so you must always set a size on that <div> explicitly.
-    https://developers.google.com/maps/documentation/javascript/tutorial#Map_DOM_Elements */
+#map {
+    /*
+    When Leaflet loads, it accounts for the height of this element.
+    Also, the amount of map content shown at the initial zoom level is
+    sensitive to the width and height here.
+    */
     width: 100%;
     height: 500px;
 
-    margin: 20px 0 40px 0;    /* top left bottom right */
+    margin-top: 20px;
+}
+
+/* Color public source markers green, and private source markers red.
+   The default marker icon is blue. */
+.leaflet-marker-icon.public-source,
+.legend-image.public-source {
+    filter: hue-rotate(240deg);
+}
+.leaflet-marker-icon.private-source,
+.legend-image.private-source {
+    filter: hue-rotate(120deg);
 }
 
 
 #map-legend {
+    display: flex;
+    gap: 25px;
+
     background: white;
-    opacity: 0.5;
-    padding: 10px;
+    opacity: 0.8;
+
+    padding: 8px;
+    margin-bottom: 40px;
 }
-/* Vertically center elements on each row of the legend */
 #map-legend > div {
+    /* Vertically center legend elements. */
     display: flex;
     align-items: center;
 }
-/* Horizontally center the icon within a space of 40px */
-#map-legend .icon-container {
-    width: 40px;
-    display: inline-block;
-    text-align: center;
+#map-legend .legend-image {
+    max-width: 22px;
+    margin: 0 5px;
 }
-#map-legend .icon-container img {
-    max-width: 40px;
+#map-legend .marker-cluster {
+    width: 40px;
+    height: 40px;
+    margin: 0 5px;
 }
 
 

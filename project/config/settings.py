@@ -992,9 +992,6 @@ BROWSE_DEFAULT_THUMBNAILS_PER_PAGE = 20
 MAP_IMAGE_COUNT_TIERS = env.list(
     'MAP_IMAGE_COUNT_TIERS', cast=int, default=[100, 500, 1500])
 
-# https://developers.google.com/maps/faq - "How do I get a new API key?"
-# It seems that development servers don't need an API key though.
-GOOGLE_MAPS_API_KEY = env('GOOGLE_MAPS_API_KEY', default='')
 GOOGLE_ANALYTICS_CODE = env('GOOGLE_ANALYTICS_CODE', default='')
 
 # Whether to disable tqdm output and processing or not. tqdm might be used

@@ -310,6 +310,39 @@ class SourceMapTest(ClientTest):
         ids = {d['sourceId'] for d in response.context['map_sources']}
         self.assertSetEqual(ids, {source_1.pk})
 
+    def test_exclude_no_lat_or_long(self):
+        # One 0 is OK
+        source_1 = self.create_source(self.user, latitude='0')
+        for _ in range(2):
+            self.upload_image(self.user, source_1)
+
+        # Either blank: exclude.
+        # This is only possible for old sources that were created before
+        # lat/long became required in the form.
+        test_source_1 = self.create_source(self.user)
+        test_source_1.latitude = ''
+        test_source_1.save()
+        for _ in range(2):
+            self.upload_image(self.user, test_source_1)
+
+        test_source_2 = self.create_source(self.user)
+        test_source_2.longitude = ''
+        test_source_2.save()
+        for _ in range(2):
+            self.upload_image(self.user, test_source_2)
+
+        # Both 0s: exclude
+        test_source_3 = self.create_source(
+            self.user, latitude='0', longitude='0')
+        for _ in range(2):
+            self.upload_image(self.user, test_source_3)
+
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('source_list'))
+
+        ids = {d['sourceId'] for d in response.context['map_sources']}
+        self.assertSetEqual(ids, {source_1.pk})
+
 
 class SourceDetailBoxTest(ClientTest):
     """

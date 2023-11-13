@@ -8,8 +8,14 @@ from images.utils import filter_out_test_sources
 
 def get_map_sources():
     # Get all sources that have both latitude and longitude specified.
-    # (In other words, leave out the sources that have either of them blank.)
-    map_sources_qs = Source.objects.exclude(latitude='').exclude(longitude='')
+    # (In other words, leave out the sources that have either of them
+    # blank, or both exactly 0.)
+    map_sources_qs = (
+        Source.objects
+        .exclude(latitude='')
+        .exclude(longitude='')
+        .exclude(latitude='0', longitude='0')
+    )
     # Skip test sources.
     map_sources_qs = filter_out_test_sources(map_sources_qs)
     # Skip small sources.

@@ -57,6 +57,17 @@
 }
 
 
-img.source-example-image {
-    padding: 0 3px;  /* top/bottom left/right */
+.example-images-line {
+    display: flex;
+}
+.example-image-container {
+    /*
+    Leaflet may compute the detail-box popup size before the example images
+    are loaded. But by defining width and height of each example image's
+    container, Leaflet can compute the popup size correctly even when
+    that happens.
+    */
+    width: 100px;
+    height: 100px;
+    padding: 0 3px;
 }

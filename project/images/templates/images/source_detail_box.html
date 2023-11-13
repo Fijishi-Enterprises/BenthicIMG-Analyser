@@ -15,11 +15,15 @@
 <div class="line">Number of images: {{ source.image_set.count }}</div>
 
 {% if source.is_public %}
-  <div class="line">
+  <div class="line example-images-line">
     {% for example_image in example_images %}
-      <img class="source-example-image"
-           src="{% thumbnail example_image.original_file 100x100 %}"
-           title="{{ example_image.get_image_element_title }}"/>
+      <div class="example-image-container">
+        <img
+          class="source-example-image"
+          src="{% thumbnail example_image.original_file 100x100 %}"
+          alt="Example image"
+        />
+      </div>
     {% endfor %}
   </div>
 {% endif %}

@@ -317,7 +317,9 @@ def source_edit_cancel(request, source_id):
 def source_detail_box(request, source_id):
     source = get_object_or_404(Source, id=source_id)
 
-    example_images = source.image_set.all().order_by('-upload_date')[:6]
+    example_image_count = 5
+    example_images = \
+        source.image_set.all().order_by('-upload_date')[:example_image_count]
 
     detail_box_html = render_to_string('images/source_detail_box.html', {
         'source': source,

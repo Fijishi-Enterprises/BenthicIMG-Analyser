@@ -81,13 +81,7 @@ class SourcesMap {
 
         let markers = L.markerClusterGroup();
         this.popup = L.popup({
-            // For some reason, if only maxWidth is specified, a popup
-            // for a particular source is more narrow on the first click
-            // and wider the second click. Setting both min and max
-            // prevents that oddity.
-            // TODO: It still only pans up to make the top of the popup
-            //  visible on the second click, not the first.
-            minWidth: 550, maxWidth: 550,
+            maxWidth: 550,
         });
 
         for (let source of mapSources) {

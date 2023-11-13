@@ -29,6 +29,12 @@ class SourcesMap {
             // above 0. If it is 0, then the zoom level can be an
             // arbitrary fractional value.
             zoomSnap: 0,
+            // After panning far enough, make the map 'warp' back to the
+            // initial 'copy' of the world.
+            // Additionally, we will duplicate each marker twice on the
+            // map. These two tricks will ensure that a marker is never
+            // missing from view.
+            worldCopyJump: true,
         }).setView(center, initialZoom);
 
         // Add OpenStreetMap tile layer to the map.
@@ -85,20 +91,38 @@ class SourcesMap {
         });
 
         for (let source of mapSources) {
-            let coordinates = [source['latitude'], source['longitude']];
+            let latitude = Number(source['latitude']);
+            let longitude = Number(source['longitude']);
 
-            let marker = L.marker(
-                coordinates,
-                {icon: icons[source['size']][source['type']]},
-            );
+            // 'Main' marker.
+            let coordinateSets = [[latitude, longitude]];
+            // Extra marker to cover panning right until the
+            // worldCopyJump kicks in. The 20.0 margin is to allow markers
+            // near the edge to be grouped into clusters with stuff
+            // slightly beyond the edge.
+            if (longitude < 20.0) {
+                coordinateSets.push([latitude, longitude + 360.0]);
+            }
+            // Extra marker to cover panning left until the
+            // worldCopyJump kicks in.
+            if (longitude > -20.0) {
+                coordinateSets.push([latitude, longitude - 360.0]);
+            }
 
-            // Click-handler for the marker.
-            marker.addEventListener('click', (event) => {
-                this.showSourceDetail(
-                    source['detailBoxUrl'], coordinates);
-            })
+            for (let coordinates of coordinateSets) {
+                let marker = L.marker(
+                    coordinates,
+                    {icon: icons[source['size']][source['type']]},
+                );
 
-            markers.addLayer(marker);
+                // Click-handler for the marker.
+                marker.addEventListener('click', (event) => {
+                    this.showSourceDetail(
+                        source['detailBoxUrl'], coordinates);
+                })
+
+                markers.addLayer(marker);
+            }
         }
 
         this.map.addLayer(markers);

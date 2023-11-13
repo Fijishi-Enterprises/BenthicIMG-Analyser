@@ -29,6 +29,6 @@ link elements in that order). */
 }
 .ui-dialog.ui-widget-content a {
     /* Use global link color instead of jQuery UI default (inherit doesn't
-     seem to work here, so we just hard-code the color again) */
-    color: #880e00;
+     seem to work here) */
+    color: var(--link-color);
 }

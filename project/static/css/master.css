@@ -13,11 +13,22 @@ margin: spacing around the outside of an element.
 @import url(https://fonts.googleapis.com/css?family=Droid+Sans:regular,bold);
 
 
+/*  Custom properties
+    https://developer.mozilla.org/en-US/docs/Web/CSS/Using_CSS_custom_properties
+................................... */
+
+:root {
+  --link-color: hsl(6, 100%, 27%);
+  --main-font: 'Droid Sans', helvetica, arial, Geneva, sans-serif;
+}
+
+
 /*	Main elements
 ................................... */
 
 html, body{
-    color:#444; font-family: 'Droid Sans', helvetica, arial, Geneva, sans-serif;
+    color: #444;
+    font-family: var(--main-font);
     background: #eae5e1 url(../img/bg-container.png) repeat-y center top;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
@@ -141,7 +152,7 @@ ul.nav li.button_prominent a:active span {
 ................................... */
 
 h1, h2, h3, h4, h5, h6, div.tool-heading {
-    font-family: 'Droid Sans', helvetica, arial, Geneva, sans-serif;
+    font-family: var(--main-font);
     text-transform: uppercase;
 }
 
@@ -215,7 +226,7 @@ h6{
 }
 
 a{
-    color: #880e00;
+    color: var(--link-color);
     text-decoration: none;
 }
 
@@ -499,7 +510,7 @@ input[type=submit].red, button.submit.red {
     text-shadow: #5e98bd 0 -1px 0;
     text-align: center;
     cursor: pointer;
-    font-family: 'Droid Sans', helvetica, arial, Geneva, sans-serif;
+    font-family: var(--main-font);
 }
 
 input[type=submit]:active, button.submit:active,
@@ -522,7 +533,7 @@ input[type=submit][disabled].red, button.submit[disabled].red {
 input[type=submit].link {
     /* Make these input elements look like links. */
     background: none;
-    color: #880E00;
+    color: var(--link-color);
     font-family: inherit;
     font-size: inherit;
     font-weight: inherit;

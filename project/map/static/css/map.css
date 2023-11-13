@@ -57,6 +57,20 @@
 }
 
 
+/* Source popup */
+
+.leaflet-container {
+    /* Don't use Leaflet's font choice; use CoralNet's. */
+    font-family: var(--main-font);
+}
+.leaflet-container a {
+    /* Don't use Leaflet's link color; use CoralNet's. */
+    color: var(--link-color);
+}
+.source-detail-box-header {
+    font-size: 1.4em;
+    font-weight: bold;
+}
 .example-images-line {
     display: flex;
 }

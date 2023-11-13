@@ -10,11 +10,15 @@ class SourcesMap {
         let center = [12.0, 40.0];
         // Zoom level 2 shows exactly one Earth when the map is
         // displayed at around 1024 x 1024 pixels.
-        // The page width for the map is 984 pixels. In theory then,
-        // an initial zoom of 2*(984/1024) would show exactly one
-        // Earth, but in practice we have to adjust the zoom by about 0.02
-        // from there.
-        let initialZoom = 2*(984/1024) + 0.02;
+        //
+        // Ideally we'd use a fractional zoom level, so that we can make
+        // the map show exactly one Earth without having to either
+        // 1) match 1024px width exactly or 2) CSS-scale the map element.
+        // However, Leaflet.markercluster seems to make some markers
+        // disappear with fractional zoom levels.
+        // https://jsfiddle.net/j1ew93yo/2/
+        // https://github.com/Leaflet/Leaflet.markercluster/pull/887
+        let initialZoom = 2;
 
         // Create Leaflet map.
         this.map = L.map(mapElement, {

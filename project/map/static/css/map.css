@@ -3,11 +3,20 @@
     When Leaflet loads, it accounts for the height of this element.
     Also, the amount of map content shown at the initial zoom level is
     sensitive to the width and height here.
+    At zoom level 2, 'one Earth' is shown in a 1024 x 1024 pixel square.
     */
-    width: 100%;
+    width: 1024px;
     height: 500px;
-
-    margin-top: 20px;
+    /*
+    The horizontal space we have to fit the map into isn't quite 1024
+    pixels, so we use CSS scaling, and a transform-origin which ensures
+    the map still lines up with other page elements.
+    Bottom makes it flush with the map legend, while creating some margin
+    from the elements above. Left makes it line up with elements
+    above/below.
+    */
+    transform: scale(calc((1008 - 12 - 12)/1024));
+    transform-origin: bottom left;
 }
 
 /* Color public source markers green, and private source markers red.

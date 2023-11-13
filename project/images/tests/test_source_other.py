@@ -28,12 +28,11 @@ class PermissionTest(BasePermissionTest):
     """
     def test_source_detail_box(self):
         url = reverse('source_detail_box', args=[self.source.pk])
-        template = 'images/source_detail_box.html'
 
         self.source_to_private()
-        self.assertPermissionLevel(url, self.SIGNED_OUT, template=template)
+        self.assertPermissionLevel(url, self.SIGNED_OUT, is_json=True)
         self.source_to_public()
-        self.assertPermissionLevel(url, self.SIGNED_OUT, template=template)
+        self.assertPermissionLevel(url, self.SIGNED_OUT, is_json=True)
 
     def test_source_main(self):
         url = reverse('source_main', args=[self.source.pk])
@@ -365,15 +364,15 @@ class SourceDetailBoxTest(ClientTest):
 
         response = self.client.get(
             reverse('source_detail_box', args=[source.pk]))
+        detail_html = response.json()['detailBoxHtml']
 
-        self.assertContains(response, source.name)
-        self.assertNotContains(
-            response, reverse('source_main', args=[source.pk]))
+        self.assertIn(source.name, detail_html)
+        self.assertNotIn(reverse('source_main', args=[source.pk]), detail_html)
 
-        self.assertContains(response, "My Affiliation")
-        self.assertContains(response, "My Description")
-        self.assertContains(response, "Number of images: 3")
-        self.assertNotContains(response, 'class="source-example-image"')
+        self.assertIn("My Affiliation", detail_html)
+        self.assertIn("My Description", detail_html)
+        self.assertIn("Number of images: 3", detail_html)
+        self.assertNotIn('class="source-example-image"', detail_html)
 
     def test_public_source(self):
         source = self.create_source(
@@ -386,15 +385,15 @@ class SourceDetailBoxTest(ClientTest):
 
         response = self.client.get(
             reverse('source_detail_box', args=[source.pk]))
+        detail_html = response.json()['detailBoxHtml']
 
-        self.assertContains(response, source.name)
-        self.assertContains(
-            response, reverse('source_main', args=[source.pk]))
+        self.assertIn(source.name, detail_html)
+        self.assertIn(reverse('source_main', args=[source.pk]), detail_html)
 
-        self.assertContains(response, "My Affiliation")
-        self.assertContains(response, "My Description")
-        self.assertContains(response, "Number of images: 3")
-        self.assertContains(response, 'class="source-example-image"')
+        self.assertIn("My Affiliation", detail_html)
+        self.assertIn("My Description", detail_html)
+        self.assertIn("Number of images: 3", detail_html)
+        self.assertIn('class="source-example-image"', detail_html)
 
 
 class SourceMainTest(ClientTest):

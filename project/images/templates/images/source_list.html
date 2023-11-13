@@ -40,9 +40,9 @@
   </div>
 
   <hr />
-  <h2>Other Public Sources</h2>
+  <h2>Map of Sources</h2>
 
-  {% include 'lib/map.html' %}
+  {% include 'map/map.html' %}
 
   <div class="index-container-after-map">
   <div class="site-stats">
@@ -63,6 +63,6 @@
     {% endfor %}
   </ul>
 
-  {% include 'lib/map_scripts.html' with map_sources=map_sources %}
+  {% include 'map/map_scripts.html' with map_sources=map_sources %}
 
 {% endblock %}

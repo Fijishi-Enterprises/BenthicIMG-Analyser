@@ -10,3 +10,4 @@ Contents:
    browser-compatibility
    docs
    jobs
+   map

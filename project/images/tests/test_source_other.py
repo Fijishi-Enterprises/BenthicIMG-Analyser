@@ -28,12 +28,11 @@ class PermissionTest(BasePermissionTest):
     """
     def test_source_detail_box(self):
         url = reverse('source_detail_box', args=[self.source.pk])
-        template = 'images/source_detail_box.html'
 
         self.source_to_private()
-        self.assertPermissionLevel(url, self.SIGNED_OUT, template=template)
+        self.assertPermissionLevel(url, self.SIGNED_OUT, is_json=True)
         self.source_to_public()
-        self.assertPermissionLevel(url, self.SIGNED_OUT, template=template)
+        self.assertPermissionLevel(url, self.SIGNED_OUT, is_json=True)
 
     def test_source_main(self):
         url = reverse('source_main', args=[self.source.pk])
@@ -310,6 +309,39 @@ class SourceMapTest(ClientTest):
         ids = {d['sourceId'] for d in response.context['map_sources']}
         self.assertSetEqual(ids, {source_1.pk})
 
+    def test_exclude_no_lat_or_long(self):
+        # One 0 is OK
+        source_1 = self.create_source(self.user, latitude='0')
+        for _ in range(2):
+            self.upload_image(self.user, source_1)
+
+        # Either blank: exclude.
+        # This is only possible for old sources that were created before
+        # lat/long became required in the form.
+        test_source_1 = self.create_source(self.user)
+        test_source_1.latitude = ''
+        test_source_1.save()
+        for _ in range(2):
+            self.upload_image(self.user, test_source_1)
+
+        test_source_2 = self.create_source(self.user)
+        test_source_2.longitude = ''
+        test_source_2.save()
+        for _ in range(2):
+            self.upload_image(self.user, test_source_2)
+
+        # Both 0s: exclude
+        test_source_3 = self.create_source(
+            self.user, latitude='0', longitude='0')
+        for _ in range(2):
+            self.upload_image(self.user, test_source_3)
+
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('source_list'))
+
+        ids = {d['sourceId'] for d in response.context['map_sources']}
+        self.assertSetEqual(ids, {source_1.pk})
+
 
 class SourceDetailBoxTest(ClientTest):
     """
@@ -332,15 +364,15 @@ class SourceDetailBoxTest(ClientTest):
 
         response = self.client.get(
             reverse('source_detail_box', args=[source.pk]))
+        detail_html = response.json()['detailBoxHtml']
 
-        self.assertContains(response, source.name)
-        self.assertNotContains(
-            response, reverse('source_main', args=[source.pk]))
+        self.assertIn(source.name, detail_html)
+        self.assertNotIn(reverse('source_main', args=[source.pk]), detail_html)
 
-        self.assertContains(response, "My Affiliation")
-        self.assertContains(response, "My Description")
-        self.assertContains(response, "Number of images: 3")
-        self.assertNotContains(response, 'class="source-example-image"')
+        self.assertIn("My Affiliation", detail_html)
+        self.assertIn("My Description", detail_html)
+        self.assertIn("Number of images: 3", detail_html)
+        self.assertNotIn('class="source-example-image"', detail_html)
 
     def test_public_source(self):
         source = self.create_source(
@@ -353,15 +385,15 @@ class SourceDetailBoxTest(ClientTest):
 
         response = self.client.get(
             reverse('source_detail_box', args=[source.pk]))
+        detail_html = response.json()['detailBoxHtml']
 
-        self.assertContains(response, source.name)
-        self.assertContains(
-            response, reverse('source_main', args=[source.pk]))
+        self.assertIn(source.name, detail_html)
+        self.assertIn(reverse('source_main', args=[source.pk]), detail_html)
 
-        self.assertContains(response, "My Affiliation")
-        self.assertContains(response, "My Description")
-        self.assertContains(response, "Number of images: 3")
-        self.assertContains(response, 'class="source-example-image"')
+        self.assertIn("My Affiliation", detail_html)
+        self.assertIn("My Description", detail_html)
+        self.assertIn("Number of images: 3", detail_html)
+        self.assertIn('class="source-example-image"', detail_html)
 
 
 class SourceMainTest(ClientTest):

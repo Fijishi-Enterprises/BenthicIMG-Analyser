@@ -1,0 +1,88 @@
+#map {
+    /*
+    When Leaflet loads, it accounts for the height of this element.
+    Also, the amount of map content shown at the initial zoom level is
+    sensitive to the width and height here.
+    At zoom level 2, 'one Earth' is shown in a 1024 x 1024 pixel square.
+    */
+    width: 1024px;
+    height: 500px;
+    /*
+    The horizontal space we have to fit the map into isn't quite 1024
+    pixels, so we use CSS scaling, and a transform-origin which ensures
+    the map still lines up with other page elements.
+    Bottom makes it flush with the map legend, while creating some margin
+    from the elements above. Left makes it line up with elements
+    above/below.
+    */
+    transform: scale(calc((1008 - 12 - 12)/1024));
+    transform-origin: bottom left;
+}
+
+/* Color public source markers green, and private source markers red.
+   The default marker icon is blue. */
+.leaflet-marker-icon.public-source,
+.legend-image.public-source {
+    filter: hue-rotate(240deg);
+}
+.leaflet-marker-icon.private-source,
+.legend-image.private-source {
+    filter: hue-rotate(120deg);
+}
+
+
+#map-legend {
+    display: flex;
+    gap: 25px;
+
+    background: white;
+    opacity: 0.8;
+
+    padding: 8px;
+    margin-bottom: 40px;
+}
+#map-legend > div {
+    /* Vertically center legend elements. */
+    display: flex;
+    align-items: center;
+}
+#map-legend .legend-image {
+    max-width: 22px;
+    margin: 0 5px;
+}
+#map-legend .marker-cluster {
+    width: 40px;
+    height: 40px;
+    margin: 0 5px;
+}
+
+
+/* Source popup */
+
+.leaflet-popup-content {
+    /* Don't use Leaflet's font choice; use CoralNet's. */
+    font-family: var(--main-font);
+}
+.leaflet-popup-content a,
+.leaflet-control-attribution a {
+    /* Don't use Leaflet's link color; use CoralNet's. */
+    color: var(--link-color);
+}
+.source-detail-box-header {
+    font-size: 1.4em;
+    font-weight: bold;
+}
+.example-images-line {
+    display: flex;
+}
+.example-image-container {
+    /*
+    Leaflet may compute the detail-box popup size before the example images
+    are loaded. But by defining width and height of each example image's
+    container, Leaflet can compute the popup size correctly even when
+    that happens.
+    */
+    width: 100px;
+    height: 100px;
+    padding: 0 3px;
+}

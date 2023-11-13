@@ -1,0 +1,5 @@
+{% load jsonify from common_tags %}
+
+<script type="text/javascript">
+  let sourcesMap = new SourcesMap({{ map_sources|jsonify }});
+</script>

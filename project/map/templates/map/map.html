@@ -1,0 +1,33 @@
+{% load static %}
+
+<div id="map">
+  {# The map will be loaded here by Javascript. #}
+</div>
+
+<div id="map-legend">
+  <div>
+    <img
+      src="https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png"
+      class="legend-image public-source"
+      alt="Public source marker"
+    />
+    <span>Public source</span>
+  </div>
+  <div>
+    <img
+      src="https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png"
+      class="legend-image private-source"
+      alt="Private source marker"
+    />
+    <span>Private source</span>
+  </div>
+  <div>
+    {# Marker clusters' designs are defined by CSS, so we imitate the element structure of a marker cluster here. #}
+    <div class="marker-cluster marker-cluster-medium">
+      <div>
+        <span>2</span>
+      </div>
+    </div>
+    <span>Multiple sources</span>
+  </div>
+</div>

@@ -1,25 +1,34 @@
 {% load thumbnail %}
 
-<div class="line" style="font-size: 1.4em;">
+<div class="line source-detail-box-header">
   {% if source.is_public %}
-    <strong><a href="{% url 'source_main' source.id %}">Click to explore the {{ source.name }} data source.</a></strong>
+    <a
+      href="{% url 'source_main' source.id %}"
+      title="Click to explore this data source"
+    >
+      {{ source.name }}
+    </a>
   {% else %}
-    <strong>{{ source.name }}</strong>
+    {{ source.name }}
   {% endif %}
 </div>
 
-<div class="line">{{ source.affiliation }}</div>
+<div class="line">Affiliation: {{ source.affiliation }}</div>
 
-<div class="line">{{ source.description|truncatewords:100 }}</div>
+<div class="line">Description: {{ source.description|truncatewords:40 }}</div>
 
 <div class="line">Number of images: {{ source.image_set.count }}</div>
 
 {% if source.is_public %}
-  <div class="line">
+  <div class="line example-images-line">
     {% for example_image in example_images %}
-      <img class="source-example-image"
-           src="{% thumbnail example_image.original_file 100x100 %}"
-           title="{{ example_image.get_image_element_title }}"/>
+      <div class="example-image-container">
+        <img
+          class="source-example-image"
+          src="{% thumbnail example_image.original_file 100x100 %}"
+          alt="Example image"
+        />
+      </div>
     {% endfor %}
   </div>
 {% endif %}

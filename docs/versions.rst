@@ -14,7 +14,7 @@ Versions take on the form A.B.C, where:
 
 - B is the **minor version**. Updating this indicates that a CoralNet environment (production/staging or development) needs to do something other than ``git pull`` and ``manage.py collectstatic`` to update to that point of the repo. For example, updating a package version, running DB migrations, or specifying new settings.
 
-  In general, this could be advanced once per pull request which involves such steps for updating, but there may be exceptions. For example, one minor version for back-to-back related PRs, or multiple minor versions for a single PR with a tricky installation (like `PR #387 <https://github.com/beijbom/coralnet/pull/387>`__).
+  In general, this could be advanced once per pull request which involves such steps for updating, but there may be exceptions. For example, one minor version for back-to-back related PRs, or multiple minor versions for a single PR with a tricky installation (like `PR #387 <https://github.com/coralnet/coralnet/pull/387>`__).
 
 - C is the **patch version**. This indicates any update that doesn't meet the criteria for A or B, but is still worth marking as a version for one reason or another. For example, a security update which should be pushed to production quickly.
 

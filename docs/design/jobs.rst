@@ -2,7 +2,7 @@ Asynchronous jobs
 =================
 
 
-Why we switched from celery to huey - from `PR #464 <https://github.com/beijbom/coralnet/pull/464>`__:
+Why we switched from celery to huey - from `PR #464 <https://github.com/coralnet/coralnet/pull/464>`__:
 
   Long story short, I was trying to update celery (issue #310) from 3.1.23 to 5.1.2 (latest version that supports Python 3.6). I was able to get over some hurdles, but got really stuck on this error, which appeared in the celery output whenever it tried to run a periodic task:
 

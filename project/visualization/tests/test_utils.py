@@ -61,7 +61,7 @@ class LabelPatchGenerationTest(ClientTest):
 
         # This file caused an issue in production. Solution is to set
         # PIL.ImageFile.LOAD_TRUNCATED_IMAGES = True before loading.
-        # See https://github.com/beijbom/coralnet/issues/282 for details
+        # See https://github.com/coralnet/coralnet/issues/282 for details
         filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 'fixtures/p82pkvoqn3.JPG')
         img = PILImage.open(filepath)

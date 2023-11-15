@@ -1,6 +1,6 @@
 # CoralNet
 
-[![CI Status](https://github.com/beijbom/coralnet/actions/workflows/django.yml/badge.svg)](https://github.com/beijbom/coralnet/actions/workflows/django.yml)
+[![CI Status](https://github.com/coralnet/coralnet/actions/workflows/django.yml/badge.svg)](https://github.com/coralnet/coralnet/actions/workflows/django.yml)
 
 CoralNet is a website which serves as a repository and resource for benthic image analysis.
 
@@ -8,7 +8,7 @@ Website home: https://coralnet.ucsd.edu
 
 Read more about us: https://coralnet.ucsd.edu/about/
 
-CoralNet's machine-learning processes are powered by PySpacer: https://github.com/beijbom/pyspacer
+CoralNet's machine-learning processes are powered by PySpacer: https://github.com/coralnet/pyspacer
 
 
 ## Building and viewing the documentation

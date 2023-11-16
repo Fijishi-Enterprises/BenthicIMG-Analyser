@@ -122,18 +122,31 @@ def edit_metadata(request, source_id):
     """
     source = get_object_or_404(Source, id=source_id)
 
+    if source.image_set.count() >= 500:
+        empty_message = (
+            "Use the form to specify the images you want to work with."
+            " This page tends to be unresponsive when approaching"
+            " thousands of images, so be sure to use the search filters to"
+            " narrow down the image set."
+        )
+    else:
+        empty_message = (
+            "Use the form to specify the images you want to work with."
+            " If you'd like to work with all images in the source, you can"
+            " click Search without applying any filters."
+        )
+
     # Defaults
-    empty_message = "No image results."
     image_search_form = MetadataEditSearchForm(source=source)
-    image_results = Image.objects.filter(source=source)
+    image_results = Image.objects.none()
 
     if request.POST or request.GET:
         image_form = create_image_filter_form(
             request.POST or request.GET, source, for_edit_metadata=True)
         if image_form.is_valid():
             image_results = image_form.get_images()
+            empty_message = "No image results."
         else:
-            image_results = Image.objects.none()
             empty_message = "Search parameters were invalid."
 
         # If a search form was submitted, use that as the displayed

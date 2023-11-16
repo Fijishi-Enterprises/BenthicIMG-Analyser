@@ -1,4 +1,5 @@
 import datetime
+from typing import Any
 
 from django.urls import reverse
 
@@ -39,6 +40,20 @@ class PermissionTest(BasePermissionTest):
             url, self.SOURCE_EDIT, is_json=True, post_data=post_data)
 
 
+default_search_params: dict[str, Any] = dict(
+    image_form_type='search',
+    aux1='', aux2='', aux3='', aux4='', aux5='',
+    height_in_cm='', latitude='', longitude='', depth='',
+    photographer='', framing='', balance='',
+    photo_date_0='', photo_date_1='', photo_date_2='',
+    photo_date_3='', photo_date_4='',
+    image_name='', annotation_status='',
+    last_annotated_0='', last_annotated_1='', last_annotated_2='',
+    last_annotated_3='', last_annotated_4='',
+    last_annotator_0='', last_annotator_1='',
+)
+
+
 class LoadPageTest(ClientTest):
     """
     Test the metadata edit functionality.
@@ -54,29 +69,27 @@ class LoadPageTest(ClientTest):
         cls.img3 = cls.upload_image(cls.user, cls.source)
         cls.url = reverse('edit_metadata', args=[cls.source.pk])
 
-        cls.default_search_params = dict(
-            image_form_type='search',
-            aux1='', aux2='', aux3='', aux4='', aux5='',
-            height_in_cm='', latitude='', longitude='', depth='',
-            photographer='', framing='', balance='',
-            photo_date_0='', photo_date_1='', photo_date_2='',
-            photo_date_3='', photo_date_4='',
-            image_name='', annotation_status='',
-            last_annotated_0='', last_annotated_1='', last_annotated_2='',
-            last_annotated_3='', last_annotated_4='',
-            last_annotator_0='', last_annotator_1='',
-        )
-
     def test_page_landing(self):
         self.client.force_login(self.user)
         response = self.client.get(self.url)
-        self.assertEqual(response.context['num_images'], 3)
+        self.assertEqual(response.context['num_images'], 0)
+        self.assertContains(
+            response,
+            "Use the form to specify the images you want to work with")
 
-    def test_search(self):
+    def test_search_all(self):
+        self.client.force_login(self.user)
+        response = self.client.post(self.url, default_search_params)
+        self.assertEqual(response.context['num_images'], 3)
+        self.assertNotContains(
+            response,
+            "Use the form to specify the images you want to work with")
+
+    def test_search_filtered(self):
         self.img1.metadata.aux1 = 'SiteA'
         self.img1.metadata.save()
 
-        post_data = self.default_search_params.copy()
+        post_data = default_search_params.copy()
         post_data['aux1'] = 'SiteA'
 
         self.client.force_login(self.user)
@@ -118,7 +131,7 @@ class LoadPageTest(ClientTest):
         self.assertContains(response, "Search parameters were invalid.")
 
     def test_zero_images(self):
-        post_data = self.default_search_params.copy()
+        post_data = default_search_params.copy()
         post_data['photo_date_0'] = 'date'
         post_data['photo_date_2'] = datetime.date(2000, 1, 1)
 
@@ -147,7 +160,7 @@ class LoadPageTest(ClientTest):
         self.img2.metadata.save()
 
         self.client.force_login(self.user)
-        response = self.client.get(self.url)
+        response = self.client.post(self.url, default_search_params)
 
         # The form should have the correct metadata for both images.
         formset = response.context['metadata_formset']

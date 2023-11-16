@@ -134,9 +134,11 @@ class RegistrationView(BaseRegistrationView):
 
 class ActivationResendView(BaseRegistrationView):
     """
-    Activation-email sending functionality is defined in the registration view,
-    so this view inherits from that view to re-use that functionality.
-    However, we have to replace some parts obviously.
+    Activation-email sending functionality is defined in the registration view
+    class, so this view class inherits from that class to re-use that
+    functionality.
+    However, since the view itself does activation resending, not registration,
+    we obviously have to override some parts.
     """
     form_class = ActivationResendForm
     success_url = 'activation_resend_complete'
@@ -147,9 +149,14 @@ class ActivationResendView(BaseRegistrationView):
         if User.objects.filter(email=email).exists():
             user = User.objects.get(email=email)
             self.send_activation_email(user)
+
         # TODO: Send a different email if the email address doesn't have
         # a corresponding user.
         # This shouldn't be common, so it's not urgent, but would be nice.
+        # There is potential for bot abuse, as it's a form accessible when
+        # logged out; so ideally add a honeypot field to ActivationResendForm
+        # when doing this.
+
         return redirect(self.success_url)
 
     def get_form(self, form_class=None):

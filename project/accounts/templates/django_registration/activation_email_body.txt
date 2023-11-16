@@ -28,11 +28,7 @@ A few other things to keep in mind:
 
 3) If you found this email in your Spam folder, you should add "noreply@coralnet.ucsd.edu" to your contact list to ensure you receive future emails from us without problems. We will use email for account-related concerns (such as password-reset requests) and for major site announcements.
 
-4) Finally, we ask that you cite the following papers if you use CoralNet in your work:
-
-Oscar Beijbom, Peter. J. Edmunds, David. I. Kline, B. Greg Mitchell and David Kriegman. "Automated Annotation of Coral Reef Survey Images". Proceedings of the Conference on Computer Vision and Pattern Recognition (CVPR), June 2012.
-
-Oscar Beijbom, Peter J. Edmunds, Chris Roelfsema, Jennifer Smith, David I. Kline, Benjamin Neal, Matthew J. Dunlap, Vincent Moriarty, Tung-Yung Fan, Chih-Jui Tan, Stephen Chan, Tali Treibitz, A. Gamst, B. Greg Mitchell, David Kriegman. "Towards automated annotation of benthic survey images: variability of human experts and operational modes of automation". PLoS ONE, July 2015.
+4) Finally, if you use CoralNet in your work, we ask that you cite the appropriate papers among the ones listed here: https://coralnet.ucsd.edu/about/#papers
 
 Happy CoralNetting!
 

@@ -445,9 +445,15 @@ class ActivateTest(BaseAccountsTest):
         # Chop characters off of the end of the URL to get an invalid key.
         # (Note that the last char is a slash, so must chop at least 2.)
         response = self.client.get(activation_link[:-3], follow=True)
-        # Should get the activation failure template.
+
         self.assertTemplateUsed(
-            response, 'django_registration/activation_failed.html')
+            response, 'django_registration/activation_failed.html',
+            msg_prefix="Should get the activation failure template"
+        )
+        self.assertEqual(
+            response.context['activation_error']['code'], 'invalid_key')
+        self.assertContains(
+            response, "Sorry, this activation link doesn't seem to be valid.")
 
         # The user should still be inactive.
         user = User.objects.get(username='alice')
@@ -461,8 +467,12 @@ class ActivateTest(BaseAccountsTest):
             # Wait 1 second before using the confirmation link
             time.sleep(1)
             response = self.client.get(activation_link, follow=True)
-            self.assertTemplateUsed(
-                response, 'django_registration/activation_failed.html')
+
+        self.assertTemplateUsed(
+            response, 'django_registration/activation_failed.html')
+        self.assertEqual(
+            response.context['activation_error']['code'], 'expired')
+        self.assertContains(response, "Sorry, this activation link expired.")
 
         # The user should still be inactive.
         user = User.objects.get(username='alice')
@@ -479,10 +489,13 @@ class ActivateTest(BaseAccountsTest):
         self.assertTrue(user.is_active)
 
         # Attempt to activate again. Should get the failure template because
-        # the user is already active. (This is django-registration's behavior.)
+        # the user is already active.
         response = self.client.get(activation_link, follow=True)
         self.assertTemplateUsed(
             response, 'django_registration/activation_failed.html')
+        self.assertEqual(
+            response.context['activation_error']['code'], 'already_activated')
+        self.assertContains(response, "Your account's already active!")
 
 
 class ActivationResendTest(BaseAccountsTest):
